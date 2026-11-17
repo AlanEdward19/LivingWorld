@@ -4,6 +4,7 @@ extends RefCounted
 ## Devolve sempre um "acerto" {kind, id} que o inspetor sabe abrir; nunca fala com o servidor.
 
 const Registry := preload("res://Store/entity_registry.gd")
+const Look := preload("res://Scenes/npc_look.gd")
 
 const NEAR_PIXELS := 32.0
 
@@ -54,6 +55,19 @@ func hit_at(screen: Vector2) -> Dictionary:
 	var process = nearest(app.world_view.processes.positions, camera, screen, 18.0)
 	if process != null:
 		return Registry.ref(Registry.PROCESS, int(process))
+	var animal = nearest(app.world_view.fauna.positions, camera, screen, 20.0)
+	if animal != null:
+		return Registry.ref(Registry.ANIMAL, int(animal))
+	var group = nearest(app.world_view.fauna.group_positions, camera, screen, 26.0)
+	if group != null:
+		return Registry.ref(Registry.FAUNA, String(group))
+	var thing = nearest(app.world_view.items.positions, camera, screen, 18.0)
+	if thing != null:
+		var parts := String(thing).split(":")
+		return Registry.ref(Registry.LEAVING if parts[0] == "leaving" else Registry.ITEM, int(parts[1]))
+	var crop = nearest(app.world_view.crops.positions, camera, screen, 22.0)
+	if crop != null:
+		return Registry.ref(Registry.CROP, int(crop))
 	var hit := raycast(screen)
 	if hit.is_empty():
 		return {}
@@ -121,12 +135,23 @@ func describe(hit: Dictionary) -> String:
 				action = int(app.stage.interior_view.occupant_nodes[int(id)].action)
 			var name: String = store.names.get(int(id), "NPC %d" % int(id))
 			var label: String = app.labels.label_for(action) if action >= 0 else ""
-			return name if label == "" else "%s\n%s" % [name, label]
+			if label != "" and npc != null and npc.get("target", {}).get("kind", "") == "npc":
+				label += " com %s" % app.registry.person_name(int(npc.target.id))
+			var text := name if label == "" else "%s\n%s" % [name, label]
+			var hint := Look.hint_of(npc.get("obs", {})) if npc != null else ""
+			return text if hint == "" else "%s\n%s" % [text, hint]
 		Registry.BUILDING:
 			var building = store.buildings.get(int(id))
 			var floors: int = building.floors if building != null else 1
 			var kind_name: String = app.registry.building_type_name(int(building.type)) if building != null else "Edifício"
+			var state: Dictionary = store.building_states.get(int(id), {})
+			if String(state.get("location_type_name", "")) != "":
+				kind_name = "%s (%s)" % [state.location_type_name, kind_name]
 			var text := "%s · Edifício %d · %d andar%s" % [kind_name, int(id), floors, "es" if floors > 1 else ""]
+			if int(state.get("owner_id", -1)) >= 0:
+				text += "\ndono: %s" % app.registry.person_name(int(state.owner_id))
+			if not state.get("residents", []).is_empty():
+				text += " · %d morador(es)" % state.residents.size()
 			return text + _price_lines(building) + "\nclique: ficha · duplo clique: entrar"
 		Registry.CITY:
 			var city = store.cities.get(String(id))
@@ -137,7 +162,14 @@ func describe(hit: Dictionary) -> String:
 			if process != null:
 				return "%s · %d%%" % [app.registry.process_name(process), int(round(float(process.progress) * 100.0))]
 		Registry.EVENT:
-			return String(app.registry.events.get(int(id), {}).get("label", "Evento")) + "\nclique: ficha do evento"
+			return app.registry.event_title(app.registry.events.get(int(id), {})) + "\nclique: ficha do evento"
+		Registry.CROP:
+			var crop = store.crops.get(int(id))
+			if crop != null:
+				return "%s · %s\ncolheita esperada %d · clique: ficha" % [app.registry.title_of(entity),
+					Registry.STAGE_NAMES.get(String(crop.stage), String(crop.stage)), int(crop.expected)]
+		Registry.ANIMAL, Registry.FAUNA, Registry.LEAVING, Registry.ITEM:
+			return "%s\nclique: ficha" % app.registry.title_of(entity)
 		Registry.OBJECT:
 			return "%s\nclique: ficha do objeto" % app.registry.title_of(entity)
 	return ""

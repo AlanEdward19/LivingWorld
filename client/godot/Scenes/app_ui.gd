@@ -21,8 +21,9 @@ const CameraRig := preload("res://Scenes/camera_rig.gd")
 const SkyLife := preload("res://Scenes/sky_life.gd")
 const Ambience := preload("res://Scenes/ambience.gd")
 const DayCycle := preload("res://Scenes/day_cycle.gd")
+const EventTimeline := preload("res://Scenes/event_timeline.gd")
 
-const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · Esc: fecha a janela da frente · PgUp/PgDn: andar · M: som"
+const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · N: próximo evento · V: assistir · Esc: fecha a janela da frente · PgUp/PgDn: andar · M: som"
 const NO_ADMIN := "Só o admin controla o tempo (ADR-0015): abra o cliente com LW_ADMIN_TOKEN (o play.sh já define)."
 
 
@@ -116,6 +117,7 @@ static func _side(app, ui: Control) -> void:
 	inspector.date_of = app._date_text
 	inspector.hours_per_day = func() -> float: return app.day_cycle.hours_per_day
 	inspector.event_point = func(id: int) -> Vector3: return app.world_view.events.positions.get(id, Vector3.INF)
+	inspector.point_of = func(entity: Dictionary) -> Vector3: return app.point_of(entity)
 	inspector.follow_requested.connect(func(entity: Dictionary): app.follow(entity))
 	inspector.enter_requested.connect(func(id: int): app.enter_building(id))
 	inspector.trades_requested.connect(func(id: int): app.open_trades(id))
@@ -225,6 +227,20 @@ static func _bottom(app, ui: Control) -> void:
 	app.minimap.offset_bottom = -48
 	app.minimap.pan_requested.connect(func(point: Vector3): app.rig.focus(point))
 	ui.add_child(app.minimap)
+	app.timeline = EventTimeline.new()
+	app.timeline.registry = app.registry
+	app.timeline.date_of = app._date_text
+	app.timeline.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	app.timeline.offset_left = 226
+	app.timeline.offset_right = 600
+	app.timeline.offset_top = -330
+	app.timeline.offset_bottom = -40
+	app.timeline.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	app.timeline.visible = false
+	app.timeline.event_chosen.connect(func(id: int): app.goto_event(id))
+	app.timeline.next_requested.connect(func(): app.next_event())
+	app.timeline.watch_toggled.connect(func(_on: bool): app.toggle_watch())
+	ui.add_child(app.timeline)
 	app.toasts = Toasts.new()
 	app.toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	app.toasts.offset_left = -420
@@ -265,6 +281,9 @@ static func build_scene(app) -> void:
 	app.world_view.bind(app.store, app.labels)
 	app.world_view.npcs.catalog = app.catalog
 	app.world_view.npcs.model_of = app.registry.model_of
+	for renderer in [app.world_view.npcs, app.world_view.items]:
+		renderer.design_of = func(id: int) -> Variant: return app.api.cached_design(id)
+		renderer.request_design = func(id: int) -> void: app.request_design(id)
 	app.add_child(app.world_view)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)

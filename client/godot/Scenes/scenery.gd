@@ -3,6 +3,9 @@ extends Node3D
 ## célula, mesma árvore); nada aqui é dado do servidor, só apresentação sobre o terreno servido.
 
 const Grid := preload("res://Scenes/grid.gd")
+const Season := preload("res://Scenes/render/season_palette.gd")
+
+var _crown_colors: Array = [] ## cor de verão de cada copa (a estação recolore a partir dela)
 
 const WATER_SHADER := """
 shader_type spatial;
@@ -60,9 +63,19 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 		elif roll < 0.2:
 			rocks.append(Transform3D(Basis().scaled(Vector3.ONE * (0.6 + cell_hash(cell, 6))), Grid.to_world(cell, 0.04) + jitter))
 	_multi("Trunks", _cylinder(0.07, 0.5), Color("5b3d27"), trunks.map(func(t): return t), [], 0.25)
-	_multi("Crowns", _cone(0.34, 0.9), Color.WHITE, crowns.map(func(c): return c[0]), crowns.map(func(c): return c[1]), 0.0)
+	_crown_colors = crowns.map(func(c): return c[1])
+	_multi("Crowns", _cone(0.34, 0.9), Color.WHITE, crowns.map(func(c): return c[0]), _crown_colors, 0.0)
 	_multi("Rocks", _rock(), Color("8d9199"), rocks, [], 0.0)
 	_water(water)
+
+
+## Copas pela estação (outono alaranjado por árvore, inverno sem folha ou com neve, seca amarelada).
+func apply_season(climate: Dictionary) -> void:
+	var node := get_node_or_null("Crowns") as MultiMeshInstance3D
+	if node == null:
+		return
+	for i in _crown_colors.size():
+		node.multimesh.set_instance_color(i, Season.crown(_crown_colors[i], climate, fmod(float(i) * 0.618, 1.0)))
 
 
 func _cylinder(radius: float, height: float) -> Mesh:

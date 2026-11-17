@@ -34,24 +34,23 @@ func test_moved_indicators_and_relocation_reach_the_store() -> void:
 	eq(indicator_events.size(), 1)
 
 
-func test_new_building_from_a_delta_is_drawn_and_gets_its_plan_without_reloading() -> void:
+func test_new_building_from_a_delta_is_drawn_with_its_plan_and_no_extra_read() -> void:
 	var fake := T.transport()
 	var app = await T.make_app(tree, fake)
 	await app.enter_scope("City", "city-a")
 	var subscribes: int = fake.count_calls("GET /visual/subscribe?scope=City")
-	var grown := T.city()
-	grown.payload.buildings.append({"id": {"value": 5}, "buildingTypeId": 3, "location": {"x": 3, "y": 0}, "orientation": 0,
-		"floors": 3, "groundFootprint": [{"cell": {"x": 0, "y": 0}, "material": 2}], "value": 50, "locationIsDerived": false})
-	fake.on("GET /visual/subscribe?scope=City", {"status": 200, "body": grown})
 
+	# AD-170: o delta traz a planta completa (andares, planta, valor): nada de ler o retrato da cidade de novo
 	app.stream.delta_applied.emit(Fx.delta(0, 1, {"buildingUpserts": [{"id": {"value": 5}, "buildingTypeId": 3,
-		"cityId": {"value": "city-a"}, "location": {"x": 3, "y": 0}, "orientation": 0}]}))
+		"cityId": {"value": "city-a"}, "location": {"x": 3, "y": 0}, "orientation": 0, "floors": 3, "value": 50, "lodging": null,
+		"groundFootprint": [{"cell": {"x": 0, "y": 0}, "material": 2}, {"cell": {"x": 1, "y": 0}, "material": 1}]}]}))
 	await tree.process_frame
 	check(app.world_view.building_nodes.has(5), "o prédio novo aparece na hora")
 	eq(app.world_view.building_nodes.size(), 2, "os outros não foram redesenhados à toa")
-	eq(app.store.buildings[5].floors, 3, "a planta e os andares vêm do retrato da cidade")
+	eq(app.store.buildings[5].floors, 3, "a planta e os andares vêm do próprio delta")
+	eq(app.store.buildings[5].footprint.size(), 2)
 	eq(app.store.pending_footprints.size(), 0)
-	eq(fake.count_calls("GET /visual/subscribe?scope=City"), subscribes + 1, "uma leitura só, sem reassinar o escopo")
+	eq(fake.count_calls("GET /visual/subscribe?scope=City"), subscribes, "nenhuma leitura extra do retrato da cidade")
 	eq(app.store.kind, "City")
 	app.queue_free()
 

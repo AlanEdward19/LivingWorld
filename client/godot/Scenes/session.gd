@@ -1,6 +1,7 @@
 extends RefCounted
-## Sessão e escopos: qual escopo está assinado (mundo, cidade, interior), o que o servidor acha que a câmera observa,
-## a volta do interior para o escopo anterior e a planta dos prédios novos que chegaram por delta. Não desenha nada:
+## Sessão e escopos: qual escopo está assinado (mundo, cidade, interior), o que o servidor acha que a câmera observa e
+## a volta do interior para o escopo anterior. Prédio novo já vem com a planta no delta (AD-170) e o nome de cada pessoa
+## vem no escopo: nenhuma leitura extra. Não desenha nada:
 ## manda a cena, a câmera e a interface do App reagirem.
 
 const Store := preload("res://Store/world_store.gd")
@@ -12,7 +13,6 @@ var world_ref := ["World", ""]
 var interior_building := -1
 var first_snapshot := false
 var crumb_before := "Mundo" ## trilha antes de entrar no prédio
-var _filling := false
 
 
 func _init(p_app) -> void:
@@ -143,36 +143,4 @@ func exit_building() -> void:
 func on_interior_changed() -> void:
 	if app.stage.active:
 		app.stage.interior_view.set_occupants(app.store.interior.occupants)
-		app.stage.interior_view.apply_names(app.store.names)
-
-
-## Prédio novo que chegou por delta é desenhado na hora (canteiro); a planta, os andares e o preço vêm do retrato da
-## cidade lido UMA vez (sem reassinar o escopo nem redesenhar o resto).
-func fill_pending_footprints() -> void:
-	if _filling or app.store.pending_footprints.is_empty() or app.store.kind != "City":
-		return
-	_filling = true
-	var response: Dictionary = await app.api.city_snapshot(String(app.store.city.get("id", "")))
-	_filling = false
-	if response.ok and response.body is Dictionary and response.body.get("payload") is Dictionary:
-		app.store.fill_buildings(response.body.payload)
-
-
-## Nomes de quem está no escopo (o escopo não traz nomes: GET /npcs paginado, até 1.000).
-func load_names() -> void:
-	if app.api == null or app.store == null or app.stage.active:
-		return
-	var city_id: String = app.store.city.id if app.store.kind == "City" else ""
-	var skip := 0
-	while skip < 1000:
-		var page: Dictionary = await app.api.npc_page("", skip, 200, city_id)
-		if not page.ok:
-			return
-		for item in page.body.items:
-			app.store.names[int(item.id.value)] = String(item.name)
-		skip += 200
-		if skip >= int(page.body.total):
-			break
-	app.world_view.apply_names()
-	if app.stage.active:
 		app.stage.interior_view.apply_names(app.store.names)

@@ -36,7 +36,10 @@ func release() -> void:
 
 
 func label() -> String:
-	return "" if target.is_empty() else "◎ seguindo %s" % app.registry.title_of(target)
+	var prefix := "▶ assistindo · " if watching else ""
+	if target.is_empty():
+		return prefix.trim_suffix(" · ")
+	return "%s◎ seguindo %s" % [prefix, app.registry.title_of(target)]
 
 
 ## Nó 3D da pessoa no que está desenhado agora (cidade/mundo ou interior aberto); null se não está na cena.
@@ -100,6 +103,103 @@ func step(delta: float) -> void:
 	if point != Vector3.INF and point.distance_to(last_point) > 0.05:
 		last_point = point
 		app.rig.focus(point)
+
+
+# --- direção (ADR-0047 etapa 3): pular para o próximo evento e modo assistir ---------------------------------
+
+const WATCH_DWELL := 8.0 ## quanto o modo assistir fica num acontecimento antes de procurar outro
+const WATCH_MIN := 3.0 ## evento novo só interrompe depois disto
+const INTERESTING := [3, 2, 8, 9, 0, 6, 7] ## conversar, trabalhar, furtar, chorar, comer, comprar, poder (ordem de interesse)
+
+var watching := false
+var jump_cursor := -1 ## id do último evento visitado por "próximo"
+var current_event := -1
+var _watch_clock := 0.0
+var _watched: Dictionary = {} ## eventos já mostrados pelo modo assistir
+var _fresh := false
+var _person_cursor := 0
+
+
+## Leva a câmera ao evento e abre a ficha dele; segue a primeira pessoa envolvida que está na cena (ou a do evento).
+func goto_event(id: int) -> void:
+	var event: Dictionary = app.registry.events.get(id, {})
+	if event.is_empty():
+		return
+	current_event = id
+	jump_cursor = id
+	_watched[id] = true
+	var people: Array = app.registry.event_people(event)
+	var followed := false
+	for person in people:
+		if person_node(int(person)) != null:
+			target = Registry.ref(Registry.PERSON, int(person))
+			followed = true
+			break
+	if not followed:
+		target = {}
+		app.rig.release()
+		if bool(event.get("has_cell", false)):
+			app.rig.focus(Grid.to_world(event.cell) + Vector3(0.5, 0, 0.5))
+	app.inspect(Registry.ref(Registry.EVENT, id))
+
+
+## Próximo evento depois do último visitado (na ordem de chegada); sem mais novos, o mais recente.
+func next_event() -> int:
+	var order: Array = app.registry.event_order
+	if order.is_empty():
+		return -1
+	var index := order.find(jump_cursor)
+	var next_id: int = order[index + 1] if index >= 0 and index + 1 < order.size() else order[order.size() - 1]
+	goto_event(next_id)
+	return next_id
+
+
+func set_watching(value: bool) -> void:
+	watching = value
+	_watch_clock = WATCH_DWELL # já escolhe na primeira passada
+	if not value:
+		release()
+
+
+## Evento novo chegou: o modo assistir corre para ele assim que o atual teve o seu tempo.
+func on_events(_ids: Array) -> void:
+	_fresh = true
+
+
+## Passo do modo assistir: evento ainda não mostrado (o mais novo primeiro); sem evento, alguém fazendo algo.
+func watch_step(delta: float) -> void:
+	if not watching:
+		return
+	_watch_clock += delta
+	if _watch_clock < WATCH_MIN or (_watch_clock < WATCH_DWELL and not _fresh):
+		return
+	_watch_clock = 0.0
+	_fresh = false
+	var order: Array = app.registry.event_order
+	for i in range(order.size() - 1, -1, -1):
+		if not _watched.has(order[i]):
+			goto_event(int(order[i]))
+			return
+	var person := busy_person()
+	if person >= 0:
+		current_event = -1
+		follow(Registry.ref(Registry.PERSON, person))
+		app.inspect(Registry.ref(Registry.PERSON, person))
+
+
+## Alguém na cena fazendo algo que vale ver (conversa, trabalho, furto, choro...), girando entre os candidatos.
+func busy_person() -> int:
+	var ids: Array = app.world_view.npc_nodes.keys()
+	ids.sort()
+	if ids.is_empty():
+		return -1
+	for action in INTERESTING:
+		var found: Array = ids.filter(func(id): return app.store.npcs.has(id) and int(app.store.npcs[id].action) == action)
+		if not found.is_empty():
+			_person_cursor += 1
+			return int(found[_person_cursor % found.size()])
+	_person_cursor += 1
+	return int(ids[_person_cursor % ids.size()])
 
 
 func _refresh_detail(id: int) -> void:

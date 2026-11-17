@@ -63,14 +63,17 @@ func visible_processes() -> Array:
 func rebuild() -> void:
 	positions.clear()
 	var shown := visible_processes()
+	var crop_cells := {} # com a lavoura do AD-170 desenhada, o trabalho nela vira barra (não outro canteiro)
+	for crop in store.crops.values() if "crops" in store else []:
+		crop_cells[crop.cell] = true
 	var count := 0
 	for process in shown:
-		count += 1 if process.kind == "crop" else 2
+		count += 1 if process.kind == "crop" and not crop_cells.has(process.cell) else 2
 	_multi.instance_count = count
 	var index := 0
 	for process in shown:
 		var at := Grid.to_world(process.cell)
-		if process.kind == "crop":
+		if process.kind == "crop" and not crop_cells.has(process.cell):
 			_put(index, at + Vector3(0, 0.03, 0), Vector3(0.92, 0.05, 0.92), crop_color(process.descriptor, process.progress))
 			index += 1
 			positions[process.id] = at + Vector3(0, 0.05, 0)

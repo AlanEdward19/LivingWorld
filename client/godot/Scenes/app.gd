@@ -23,6 +23,10 @@ const Session := preload("res://Scenes/session.gd")
 const Selection := preload("res://Scenes/selection.gd")
 const WindowRouter := preload("res://Scenes/window_router.gd")
 const FollowDirector := preload("res://Scenes/follow_director.gd")
+const Parse := preload("res://Store/observable_parse.gd")
+const Grid := preload("res://Scenes/grid.gd")
+const Season := preload("res://Scenes/render/season_palette.gd")
+const WorldView := preload("res://Scenes/world_view.gd")
 
 var transport
 var api ## WorldReader: a camada única de leitura (todo painel recebe este objeto)
@@ -56,6 +60,7 @@ var admin_window
 var family_builder
 var economy
 var technology
+var timeline ## linha do tempo dos acontecimentos (EventTimeline)
 var period_id := "" ## período de origem do mundo em andamento (GET /world/info); vazio se desconhecido
 var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece e o tempo fica travado
 var pause_label: Label
@@ -81,7 +86,7 @@ var resource_names: Dictionary:
 	get:
 		return registry.resources
 
-var _names_timer: Timer
+var _local_event_id := 0 ## evento sem id do servidor (servidor antigo): ids negativos locais
 var _ui: Control
 var _hover_clock := 0.0
 var _sun: DirectionalLight3D
@@ -124,14 +129,8 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	stream.delta_applied.connect(_on_delta)
 	store.interior_changed.connect(session.on_interior_changed)
 	store.events_arrived.connect(_on_events)
-	store.buildings_changed.connect(func(_ids): session.fill_pending_footprints())
 	stream.connection_changed.connect(session.on_connection)
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
-	_names_timer = Timer.new()
-	_names_timer.wait_time = 20.0
-	_names_timer.autostart = true
-	_names_timer.timeout.connect(_load_names)
-	add_child(_names_timer)
 	var actions: Dictionary = await api.action_catalog()
 	if actions.ok:
 		labels.load_from(actions.body)
@@ -172,8 +171,9 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	if s.is_empty():
 		return
 	var date: Dictionary = day_cycle.date_parts(float(s.tick))
-	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
-		day_cycle.phase_name(), "  ⏸" if s.isPaused else ""]
+	var weather := Season.hud_text(store.climate) if store != null else ""
+	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
+		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]
 
 
 func _exit_tree() -> void:
@@ -188,11 +188,13 @@ func _process(delta: float) -> void:
 		world_view.view_radius = rig.zoom_size * 1.5
 		world_view.far_zoom = rig.zoom_size > 16.0
 		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
+		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size))
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
 		ambience.set_daylight(day_cycle.daylight())
 	if director != null:
+		director.watch_step(delta)
 		director.step(delta)
 		follow_label.text = director.label()
 	_hover_clock += delta
@@ -203,22 +205,56 @@ func _process(delta: float) -> void:
 
 func _on_delta(envelope: Dictionary) -> void:
 	store.apply_delta(envelope)
-	for event in envelope.payload.get("events", []):
-		toasts.push(String(event.label))
 
 
-## Evento com lugar vira marcador clicável no mapa (o aviso de texto continua vindo de _on_delta).
+## Todo evento entra na linha do tempo e vira aviso; com lugar, também marcador clicável no mapa. Crime só de registro
+## (`recordOnly`) aparece como registro estruturado (autor, vítima, caso, desfecho), nunca com o texto narrado.
 func _on_events(events: Array) -> void:
-	for event in events:
-		var id: int = world_view.events.add(event)
-		if id > 0:
-			var location: Dictionary = event.location
-			registry.events[id] = {"label": String(event.get("label", "")), "kind": int(event.get("kind", 0)),
-				"tick": int(event.get("tick", 0)), "cell": Vector2i(int(location.x), int(location.y))}
+	var ids: Array = []
+	for raw in events:
+		_local_event_id -= 1
+		var event := Parse.event(raw, _local_event_id)
+		registry.remember_event(event)
+		toasts.push(registry.event_title(event))
+		world_view.events.add(event)
+		ids.append(int(event.id))
+	if timeline != null:
+		timeline.refresh()
+	director.on_events(ids)
 
 
+## Nomes vêm do escopo (`observable.name`, AD-170): só reaplica nos corpos da cena (sem paginar `GET /npcs`).
 func _load_names() -> void:
-	await session.load_names()
+	world_view.apply_names()
+	if stage.active:
+		stage.interior_view.apply_names(store.names)
+
+
+## Linha do tempo e atalho N: câmera no lugar do evento e ficha aberta.
+func goto_event(id: int) -> void:
+	director.goto_event(id)
+
+
+func next_event() -> void:
+	director.next_event()
+
+
+func toggle_watch() -> void:
+	director.set_watching(not director.watching)
+	timeline.set_watching(director.watching)
+	timeline.visible = true
+
+
+## Design de uma invenção (`/designs/{id}`), lido uma vez: o recipiente na mão e a peça no chão ganham forma e cor.
+func request_design(id: int) -> void:
+	if api.cached_design(id) != null:
+		return
+	var response: Dictionary = await api.design(id)
+	if response.ok:
+		world_view.items.rebuild()
+		for npc_id in store.npcs:
+			if int(store.npcs[npc_id].get("obs", {}).get("held", {}).get("design_id", -1)) == id:
+				world_view.npcs.apply_observable(int(npc_id))
 
 
 # --- escopos (Session) ------------------------------------------------------
@@ -281,6 +317,28 @@ func unfollow() -> void:
 func follow_selected() -> void:
 	if selected_npc >= 0:
 		follow(Registry.ref(Registry.PERSON, selected_npc))
+
+
+## Onde a entidade está na cena agora (para "Ir até lá"); INF se não está desenhada.
+func point_of(entity: Dictionary) -> Vector3:
+	var id = entity.get("id")
+	match String(entity.get("kind", "")):
+		Registry.BUILDING:
+			return world_view.building_center(int(id))
+		Registry.CROP:
+			return world_view.crops.positions.get(int(id), Vector3.INF)
+		Registry.ANIMAL:
+			return world_view.fauna.positions.get(int(id), Vector3.INF)
+		Registry.FAUNA:
+			return world_view.fauna.group_positions.get(String(id), Vector3.INF)
+		Registry.LEAVING:
+			return world_view.items.positions.get("leaving:%d" % int(id), Vector3.INF)
+		Registry.ITEM:
+			return world_view.items.positions.get("item:%d" % int(id), Vector3.INF)
+		Registry.EVENT:
+			var event: Dictionary = registry.events.get(int(id), {})
+			return Grid.to_world(event.cell) + Vector3(0.5, 0, 0.5) if bool(event.get("has_cell", false)) else Vector3.INF
+	return Vector3.INF
 
 
 func focus_point(point: Vector3) -> void:

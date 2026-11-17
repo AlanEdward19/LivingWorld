@@ -129,7 +129,9 @@ func _online_transport() -> Object:
 	var world := Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}}],
 		"activeEvents": [], "portals": [], "layers": {"Terrain": {"isModeled": false, "payload": null}},
-		"livingState": {"npcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}, "currentAction": 2}]}}, "World")
+		"livingState": {"npcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}, "currentAction": 2,
+			"observable": {"name": "Ana", "sex": "Female", "ageYears": 31, "lifeStage": "Adult", "professionId": 1,
+				"heightCm": 165, "growthFraction": 1.0, "emotions": {}, "mourning": false, "carried": []}}]}}, "World")
 	world.scope.kind = 0
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": world})
 	return transport
@@ -141,8 +143,9 @@ func test_loading_overlay_until_first_snapshot_and_names_load() -> void:
 
 	eq(app.loading.visible, false, "o carregamento some depois do primeiro snapshot")
 	await app._load_names()
-	eq(app.store.names.get(7), "Ana", "nomes vêm de GET /npcs")
+	eq(app.store.names.get(7), "Ana", "nomes vêm do escopo (observable.name)")
 	eq(app.world_view.npc_nodes[7].display_name, "Ana", "o NPC na cena recebe o nome")
+	eq(transport.count_calls("GET /npcs?"), 0, "nenhuma paginação de GET /npcs para nomes")
 	app.queue_free()
 
 

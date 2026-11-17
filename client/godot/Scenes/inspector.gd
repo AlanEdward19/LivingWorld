@@ -1,11 +1,13 @@
 extends PanelContainer
-## Inspetor genérico (ADR-0047, etapa 1): uma ficha para qualquer entidade observável — pessoa, prédio, cidade,
-## processo/lavoura, objeto do interior, local de trabalho, casa (família) e evento no mapa. Atualiza sozinho enquanto
-## aberto, tem links clicáveis (parentesco, casa, trabalho, quem está dentro, quem usa) e histórico (Voltar).
-## Lê só pelo WorldReader (`reader`) e pela store; nunca escreve no mundo.
+## Inspetor genérico (ADR-0047): uma ficha para qualquer entidade observável — pessoa, prédio, cidade, processo, lavoura,
+## animal, bando, espólio, objeto inventado, mobília do interior, local de trabalho, casa e evento. Atualiza sozinho
+## enquanto aberto, tem links clicáveis e histórico (Voltar). Etapa 3: todo tipo com rota usa `GET /entities/{kind}/{id}`
+## (nome real, vínculos e história recente) por cima do que a store já tem. Só lê (WorldReader e store).
 
 const Panels := preload("res://Scenes/panels.gd")
 const Registry := preload("res://Store/entity_registry.gd")
+const Describe := preload("res://Scenes/inspector_describe.gd")
+const Look := preload("res://Scenes/npc_look.gd")
 
 signal follow_requested(entity: Dictionary)
 signal enter_requested(building_id: int)
@@ -23,6 +25,7 @@ var labels
 var hours_per_day: Callable = func() -> float: return 24.0
 var date_of: Callable = func(tick: int) -> String: return "tick %d" % tick
 var event_point: Callable = func(_id: int) -> Vector3: return Vector3.INF
+var point_of: Callable = func(_entity: Dictionary) -> Vector3: return Vector3.INF ## onde a entidade está na cena ("Ir até lá")
 var current: Dictionary = {} ## {kind, id}; vazio = fechado
 var history: Array = [] ## referências anteriores (Voltar)
 var text := "" ## corpo da ficha genérica (o que não é pessoa nem cidade), testável
@@ -37,6 +40,9 @@ var focus_button: Button
 var _title: Label
 var _kind: Label
 var _generic: Label
+var _extra: Label ## pessoa e cidade: corpo visível e história recente (o resto vai em `_generic`)
+var extra_text := "" ## testável
+var server_body: Variant = null ## última resposta de /entities para a entidade em foco (null = sem rota ou falhou)
 var _links: VBoxContainer
 var _timer: Timer
 var _request := 0
@@ -67,11 +73,16 @@ func _init() -> void:
 	_generic.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_generic.custom_minimum_size.x = 280
 	box.add_child(_generic)
+	_extra = Label.new()
+	_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_extra.custom_minimum_size.x = 280
+	_extra.modulate = Color(1, 1, 1, 0.85)
+	box.add_child(_extra)
 	var actions := HBoxContainer.new()
 	box.add_child(actions)
 	enter_button = _button(actions, "Entrar", func(): enter_requested.emit(int(current.id)))
 	trades_button = _button(actions, "Vendas", func(): trades_requested.emit(int(current.id)))
-	focus_button = _button(actions, "Ir até lá", func(): focus_requested.emit(event_point.call(int(current.id))))
+	focus_button = _button(actions, "Ir até lá", func(): focus_requested.emit(_point(current)))
 	_links = VBoxContainer.new()
 	box.add_child(_links)
 	_timer = Timer.new()
@@ -111,6 +122,23 @@ func inspect(entity: Dictionary, remember: bool = true) -> void:
 	await refresh()
 
 
+func _point(entity: Dictionary) -> Vector3:
+	if String(entity.get("kind", "")) == Registry.EVENT:
+		var at: Vector3 = event_point.call(int(entity.id))
+		if at != Vector3.INF:
+			return at
+	return point_of.call(entity)
+
+
+## Rota de inspeção do tipo (pessoa vira "npc", objeto inventado "object"...); null se o tipo não tem rota ou falhou.
+func _server(entity: Dictionary) -> Variant:
+	var kind := String(Registry.SERVER_KINDS.get(String(entity.kind), ""))
+	if kind == "" or reader == null or not reader.has_method("entity"):
+		return null
+	var response: Dictionary = await reader.entity(kind, entity.id)
+	return response.body if response.ok and response.body is Dictionary else null
+
+
 func back() -> void:
 	if history.is_empty():
 		return
@@ -131,32 +159,62 @@ func refresh(auto: bool = false) -> void:
 	var ticket := _request
 	var kind := String(current.kind)
 	_kind.text = {"person": "Pessoa", "building": "Prédio", "city": "Cidade", "process": "Processo", "object": "Objeto",
-		"workplace": "Local de trabalho", "household": "Casa", "event": "Evento"}.get(kind, kind)
+		"workplace": "Local de trabalho", "household": "Casa", "event": "Evento", "crop": "Lavoura", "animal": "Animal",
+		"fauna": "Bando", "leaving": "Espólio", "item": "Objeto inventado"}.get(kind, kind)
 	back_button.disabled = history.is_empty()
 	follow_button.visible = kind in FOLLOWABLE
 	enter_button.visible = kind == Registry.BUILDING
 	trades_button.visible = kind == Registry.WORKPLACE
-	focus_button.visible = kind == Registry.EVENT
+	focus_button.visible = kind == Registry.EVENT or point_of.call(current) != Vector3.INF
 	var links: Array = []
+	var body = await _server(current)
+	if ticket != _request:
+		return
+	server_body = body
+	var extra: Array[String] = []
 	match kind:
 		Registry.PERSON:
-			var response: Dictionary = await reader.npc_detail(int(current.id))
+			var response: Dictionary
+			if body is Dictionary and body.get("state") is Dictionary and body.state.get("npc") is Dictionary:
+				response = {"ok": true, "status": 200, "body": body.state.npc}
+			else:
+				response = await reader.npc_detail(int(current.id))
 			if ticket != _request:
 				return
 			if response.ok and response.body is Dictionary:
 				npc_panel._present(int(current.id), response.body, auto)
 				links = person_links(int(current.id), response.body)
 			text = "" if response.ok else "Não foi possível ler esta pessoa (erro %d)." % int(response.status)
+			var npc = store.npcs.get(int(current.id))
+			var hint := Look.hint_of(npc.get("obs", {})) if npc != null else ""
+			if hint != "":
+				extra.append(hint)
 		Registry.CITY:
 			await _show_city(String(current.id))
 			if ticket != _request:
 				return
 			text = ""
 		_:
-			var built := describe(current)
+			var built: Dictionary = await describe(current)
+			if ticket != _request:
+				return
 			text = built.text
 			links = built.links
-	_title.text = registry.title_of(current) if kind != Registry.PERSON else ""
+	links = Describe.merge_links(links, Describe.server_links(body))
+	var recent := Describe.recent_lines(registry, body, date_of)
+	if not recent.is_empty():
+		extra.append("História recente:")
+		extra.append_array(recent)
+	if kind == Registry.PERSON or kind == Registry.CITY:
+		extra_text = "\n".join(extra)
+	else:
+		extra_text = ""
+		if not recent.is_empty():
+			text += "\n" + "\n".join(extra)
+	_extra.text = extra_text
+	_extra.visible = extra_text != ""
+	var server_name := String(body.get("name", "")) if body is Dictionary else ""
+	_title.text = (server_name if server_name != "" and kind not in [Registry.EVENT] else registry.title_of(current)) if kind != Registry.PERSON else ""
 	_title.visible = kind != Registry.PERSON and kind != Registry.CITY
 	npc_panel.visible = kind == Registry.PERSON and text == ""
 	city_panel.visible = kind == Registry.CITY
@@ -189,6 +247,9 @@ func person_links(id: int, detail: Dictionary) -> Array:
 		links.append(["Casa", Registry.ref(Registry.HOUSEHOLD, int(detail.household.value))])
 	if detail.get("employer") is Dictionary:
 		links.append(["Trabalho", Registry.ref(Registry.WORKPLACE, int(detail.employer.value))])
+	var employment = detail.get("employment")
+	if employment is Dictionary and employment.get("buildingId") is Dictionary:
+		links.append(["Prédio do trabalho", Registry.ref(Registry.BUILDING, int(employment.buildingId.value))])
 	if detail.get("city") is Dictionary:
 		links.append(["Cidade", Registry.ref(Registry.CITY, String(detail.city.value))])
 	return links
@@ -196,6 +257,21 @@ func person_links(id: int, detail: Dictionary) -> Array:
 
 ## Ficha das entidades que a store já descreve inteiras: {text, links}.
 func describe(entity: Dictionary) -> Dictionary:
+	if String(entity.kind) == Registry.ITEM:
+		return await _describe_item(entity)
+	return _describe_sync(entity)
+
+
+func _describe_item(entity: Dictionary) -> Dictionary:
+	var object = store.objects.get(int(entity.id))
+	var design = null
+	if object != null and reader != null and reader.has_method("design"):
+		var response: Dictionary = await reader.design(int(object.design_id))
+		design = response.body if response.ok else null
+	return Describe.item(store, int(entity.id), design)
+
+
+func _describe_sync(entity: Dictionary) -> Dictionary:
 	var id = entity.id
 	match String(entity.kind):
 		Registry.BUILDING:
@@ -205,18 +281,60 @@ func describe(entity: Dictionary) -> Dictionary:
 		Registry.OBJECT:
 			return _describe_object(String(id))
 		Registry.WORKPLACE:
-			return {"text": "Quem trabalha aqui (das fichas já abertas):%s\nO nome do local ainda não vem do servidor." % (
-				"" if not registry.known_workers(int(id)).is_empty() else " ninguém conhecido"),
-				"links": _people("Trabalhador(a)", registry.known_workers(int(id)))}
+			return _describe_workplace(int(id))
 		Registry.HOUSEHOLD:
-			return {"text": "Moradores conhecidos (das fichas já abertas):%s\nO prédio desta casa ainda não vem do servidor." % (
-				"" if not registry.known_household(int(id)).is_empty() else " ninguém conhecido"),
-				"links": _people("Morador(a)", registry.known_household(int(id)))}
+			return _describe_household(int(id))
 		Registry.EVENT:
-			var event: Dictionary = registry.events.get(int(id), {})
-			return {"text": "%s\n%s · tipo %d" % [String(event.get("label", "Evento")), date_of.call(int(event.get("tick", 0))),
-				int(event.get("kind", 0))], "links": []}
+			return Describe.event(registry, int(id), date_of)
+		Registry.CROP:
+			return Describe.crop(store, registry, int(id))
+		Registry.ANIMAL:
+			return Describe.animal(store, int(id))
+		Registry.FAUNA:
+			return Describe.fauna(store, String(id))
+		Registry.LEAVING:
+			return Describe.leaving(store, registry, int(id))
 	return {"text": "", "links": []}
+
+
+## Local de trabalho: o servidor dá nome, dono e trabalhadores (links); sem a rota, quem já teve a ficha aberta.
+func _describe_workplace(id: int) -> Dictionary:
+	var lines: Array[String] = []
+	var links: Array = _people("Trabalhador(a)", registry.known_workers(id))
+	for state in store.building_states.values():
+		if int(state.workplace_id) == id:
+			links.push_front(["Prédio", Registry.ref(Registry.BUILDING, int(state.building_id))])
+			var built := Describe.building_state(store, registry, int(state.building_id))
+			lines.append_array(built.lines)
+			links = Describe.merge_links(built.links, links)
+	if lines.is_empty():
+		lines.append("Quem trabalha aqui (das fichas já abertas):%s" % ("" if not links.is_empty() else " ninguém conhecido"))
+	return {"text": "\n".join(lines), "links": links}
+
+
+## Casa (família): moradores, prédio e estoque pela rota de inspeção; sem ela, os moradores já conhecidos.
+func _describe_household(id: int) -> Dictionary:
+	var links: Array = []
+	if registry.household_buildings.has(id):
+		links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(registry.household_buildings[id]))])
+	var lines: Array[String] = []
+	var state = server_body.get("state") if server_body is Dictionary else null
+	if state is Dictionary:
+		var members: Array = state.get("memberIds", [])
+		lines.append("%d morador%s%s" % [members.size(), "es" if members.size() != 1 else "", " · sem teto" if bool(state.get("homeless", false)) else ""])
+		var stock: Array = state.get("stock", []) if state.get("stock") is Array else []
+		if not stock.is_empty():
+			lines.append("Estoque: %s" % ", ".join(stock.map(func(line): return "%d %s" % [int(line.get("quantity", 0)),
+				String(registry.resources.get(int(line.get("resourceId", -1)), "recurso %d" % int(line.get("resourceId", -1))))])))
+		if state.get("dwellingId") != null and int(state.dwellingId) >= 0:
+			links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(state.dwellingId))])
+		if state.get("headId") != null:
+			links.append(["Chefe", Registry.ref(Registry.PERSON, int(state.headId))])
+		links.append_array(_people("Morador(a)", members))
+	else:
+		lines.append("Moradores conhecidos (das fichas já abertas):%s" % ("" if not registry.known_household(id).is_empty() else " ninguém conhecido"))
+		links.append_array(_people("Morador(a)", registry.known_household(id)))
+	return {"text": "\n".join(lines), "links": Describe.merge_links(links, [])}
 
 
 func _people(label: String, ids: Array) -> Array:
@@ -239,14 +357,16 @@ func _describe_building(id: int) -> Dictionary:
 	if int(building.get("value", 0)) > 0:
 		lines.append("Valor estimado: %d" % int(building.value))
 	if store.pending_footprints.has(id):
-		lines.append("Recém-construído: a planta chega com o próximo retrato da cidade.")
-	var links: Array = []
+		lines.append("Recém-construído: sem planta ainda (servidor antigo).")
+	var state_view := Describe.building_state(store, registry, id)
+	lines.append_array(state_view.lines)
+	var links: Array = state_view.links.duplicate()
 	if int(store.interior.get("building", -1)) == id:
 		lines.append("Quem está dentro agora:")
 		for occupant in store.interior.get("occupants", []):
 			links.append(["Dentro", Registry.ref(Registry.PERSON, int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc))])
 	else:
-		lines.append("Dono e moradores ainda não vêm do servidor. Entre (duplo clique) para ver quem está dentro.")
+		lines.append("Entre (duplo clique) para ver quem está dentro.")
 	return {"text": "\n".join(lines), "links": links}
 
 
@@ -270,7 +390,7 @@ func _describe_process(id: int) -> Dictionary:
 		"construction":
 			lines.append("Obra: %s" % registry.building_type_name(int(process.target)))
 		"crop":
-			lines.append("Lavoura nº %d (estágio e cultura ainda não vêm do servidor)" % int(process.target))
+			links.append(["Lavoura", Registry.ref(Registry.CROP, int(process.target))])
 	return {"text": "\n".join(lines), "links": links}
 
 

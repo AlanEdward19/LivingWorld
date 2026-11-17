@@ -3,6 +3,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const Scenery := preload("res://Scenes/scenery.gd")
+const Season := preload("res://Scenes/render/season_palette.gd")
 
 const TERRAIN_COLORS: Array[Color] = [
 	Color("6aa84f"), Color("c9b777"), Color("7a8a5a"), Color("8a8f98"), Color("4a7fa8"), Color("a67c52"),
@@ -13,6 +14,9 @@ const YARD_COLOR := Color("6e5c45")
 var store
 var terrain_root: Node3D
 var scenery
+var _multi: MultiMesh
+var _base: Array = [] ## [cor, paved, água] por instância: a estação recolore sem refazer a malha
+var _season_key := "-"
 
 
 func rebuild(p_store) -> void:
@@ -36,6 +40,9 @@ func rebuild(p_store) -> void:
 	multi.mesh = mesh
 	multi.instance_count = store.terrain.size()
 	var index := 0
+	_base.clear()
+	_multi = multi
+	_season_key = "-"
 	var paved := settlement_cells(store)
 	for cell in store.terrain:
 		var id: int = store.terrain[cell]
@@ -47,6 +54,7 @@ func rebuild(p_store) -> void:
 			color = Color("6d7f5a") * shade # leito sob a água
 		elif paved.has(cell):
 			color = paved[cell] * (0.92 + float((cell.x + cell.y) % 2) * 0.1) # xadrez de pedra: rua e quintal
+		_base.append([color, paved.has(cell), store.rivers.has(cell)])
 		multi.set_instance_color(index, color)
 		index += 1
 	var instance := MultiMeshInstance3D.new()
@@ -72,6 +80,25 @@ func rebuild(p_store) -> void:
 	scenery.name = "Scenery"
 	terrain_root.add_child(scenery)
 	scenery.build(store.terrain, store.rivers, rects)
+	apply_season(store.climate)
+
+
+static func season_signature(climate: Dictionary) -> String:
+	if climate.is_empty():
+		return ""
+	return "%s|%s|%s" % [Season.season_key(climate), Season.snowing(climate), bool(climate.get("drought", false))]
+
+
+## Paleta da estação no chão e nas copas: só recolore as instâncias quando a estação, a neve ou a seca mudam.
+func apply_season(climate: Dictionary) -> void:
+	var signature := season_signature(climate)
+	if signature == _season_key or _multi == null:
+		return
+	_season_key = signature
+	for i in _base.size():
+		_multi.set_instance_color(i, Season.ground(_base[i][0], climate, _base[i][1], _base[i][2]))
+	if scenery != null:
+		scenery.apply_season(climate)
 
 
 ## Dentro de um assentamento o chão deixa de ser mato: ruas de pedra e terra batida sob os prédios.

@@ -21,6 +21,7 @@ func set_tick(value: int) -> void:
 	if value != tick:
 		tick = value
 		_npc_cache.clear()
+		_entity_cache.clear()
 
 
 func invalidate_npc(id: int) -> void:
@@ -52,6 +53,83 @@ func materialize_npc(id: int) -> Dictionary:
 	if response.ok and registry != null and response.body is Dictionary:
 		registry.learn_person(id, response.body)
 	return response
+
+
+## Envelope comum da rota de inspeção (as gravações `shape.entity-*.json` congelam um exemplo cada, com campos que variam
+## de pessoa para pessoa; o cliente exige o envelope e, para pessoa, a ficha no contrato `npc-inspect`).
+const ENTITY_ENVELOPE := {"kind": "string", "id": "string", "name": "string", "state": "null",
+	"links": [{"relation": "string", "kind": "string", "id": "string"}], "recentEvents": "[]"}
+
+var _entity_cache: Dictionary = {} ## "kind/id" -> {tick, response}
+var _designs: Dictionary = {} ## id do design -> resposta (o id é o hash da estrutura: nunca muda)
+
+
+## `GET /entities/{kind}/{id}` (AD-170): {kind, id, name, state, links[], recentEvents[]}, em cache até a hora do mundo mudar.
+## A ficha de pessoa alimenta também o cache de `/npcs/{id}` (cérebro, seguir e inspetor não pedem de novo) e o registro.
+func entity(kind: String, id: Variant) -> Dictionary:
+	var key := "%s/%s" % [kind, str(id)]
+	var cached = _entity_cache.get(key)
+	if cached != null and int(cached.tick) == tick:
+		return cached.response
+	var path := "/entities/%s/%s" % [kind, str(id).uri_encode()]
+	if _pending.has(path):
+		return await _pending[path].done
+	var pending := _Pending.new()
+	_pending[path] = pending
+	var response: Dictionary = _entity_checked(path, await transport.request("GET", path), kind)
+	_pending.erase(path)
+	if response.ok and response.body is Dictionary:
+		_entity_cache[key] = {"tick": tick, "response": response}
+		if _entity_cache.size() > 200:
+			_entity_cache.clear()
+		if registry != null:
+			registry.learn_entity(response.body)
+		var state = response.body.get("state")
+		if kind == "npc" and state is Dictionary and state.get("npc") is Dictionary:
+			_npc_cache[int(id)] = {"tick": tick, "response": {"ok": true, "status": 200, "body": state.npc, "errors": []}}
+			if registry != null:
+				registry.learn_person(int(id), state.npc)
+	pending.done.emit(response)
+	return response
+
+
+func _entity_checked(path: String, raw: Dictionary, kind: String) -> Dictionary:
+	var result := {"ok": raw.status == 200, "status": raw.status, "body": raw.body, "errors": []}
+	if not result.ok or not validate_shapes:
+		return result
+	var errors := ShapeValidator.validate(raw.body, ENTITY_ENVELOPE)
+	if kind == "npc" and errors.is_empty():
+		var npc_shape = ShapeValidator.load_shape("npc-inspect")
+		var state = raw.body.get("state")
+		if npc_shape != null and state is Dictionary and state.get("npc") is Dictionary:
+			errors = ShapeValidator.validate(state.npc, npc_shape, "$.state.npc")
+	if not errors.is_empty():
+		result.ok = false
+		result.errors = errors
+		contract_error.emit(path, errors)
+	return result
+
+
+## `GET /designs/{id}`: partes, materiais e função de uma invenção (imutável: cache para sempre).
+func design(id: int) -> Dictionary:
+	if _designs.has(id):
+		return _designs[id]
+	var path := "/designs/%d" % id
+	if _pending.has(path):
+		return await _pending[path].done
+	var pending := _Pending.new()
+	_pending[path] = pending
+	var response: Dictionary = await _fetch(path)
+	_pending.erase(path)
+	if response.ok:
+		_designs[id] = response
+	pending.done.emit(response)
+	return response
+
+
+func cached_design(id: int) -> Variant:
+	var response = _designs.get(id)
+	return response.body if response != null and response.body is Dictionary else null
 
 
 ## Identidade do mundo e catálogo do período em uma chamada: {period_id, axes, catalog} (catálogo vazio se não há período).

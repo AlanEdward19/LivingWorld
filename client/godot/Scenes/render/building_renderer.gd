@@ -4,6 +4,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const Scenery := preload("res://Scenes/scenery.gd")
+const Dress := preload("res://Scenes/render/building_dress.gd")
 
 const MATERIAL_WALL_STONE := 0
 const MATERIAL_WALL_WOOD := 1
@@ -12,6 +13,7 @@ const FLOOR_HEIGHT := 1.0
 const PLACEHOLDER_FOOTPRINT := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
 
 var nodes: Dictionary = {} ## id -> Node3D
+var dressed: Dictionary = {} ## id -> assinatura do estado desenhado (estilo, placa, fechado): só redesenha se mudar
 
 
 func rebuild(store) -> void:
@@ -21,26 +23,38 @@ func rebuild(store) -> void:
 	if store.kind != "City":
 		return
 	for id in store.buildings:
-		upsert(store.buildings[id])
+		upsert(store.buildings[id], store.building_states.get(id, {}))
 
 
 ## Desenha (ou redesenha) um prédio. Sem planta (veio por delta e o snapshot ainda não chegou), usa um canteiro
 ## de obra 2x2 de madeira no lugar certo até a planta chegar.
-func upsert(info: Dictionary) -> Node3D:
+static func signature(state: Dictionary) -> String:
+	return "%s|%s|%s" % [Dress.style_of(state), Dress.sign_text(state), bool(state.get("closed", false))]
+
+
+## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma).
+func restyle(info: Dictionary, state: Dictionary) -> void:
+	if String(dressed.get(int(info.id), "")) != signature(state):
+		upsert(info, state)
+
+
+func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	remove(int(info.id))
+	dressed[int(info.id)] = signature(state)
 	var drawn := info
 	if info.footprint.is_empty():
 		drawn = info.duplicate()
 		drawn.footprint = []
 		for cell in PLACEHOLDER_FOOTPRINT:
 			drawn.footprint.append({"cell": cell, "material": MATERIAL_DOOR if cell == Vector2i.ZERO else MATERIAL_WALL_WOOD})
-	var node := make_building(drawn)
+	var node := make_building(drawn, state)
 	add_child(node)
 	nodes[int(info.id)] = node
 	return node
 
 
 func remove(id: int) -> void:
+	dressed.erase(id)
 	if nodes.has(id):
 		_dispose(nodes[id])
 		nodes.erase(id)
@@ -84,7 +98,7 @@ func _make_window_material() -> StandardMaterial3D:
 
 
 
-func make_building(info: Dictionary) -> Node3D:
+func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Building_%d" % info.id
 	root.set_meta("building_id", info.id)
@@ -100,6 +114,8 @@ func make_building(info: Dictionary) -> Node3D:
 	var wall_materials := {0: _flat_material(WALL_COLORS[0]), 1: _flat_material(WALL_COLORS[1])}
 	var min_cell := Vector2i(1 << 20, 1 << 20)
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
+	var door_at := Vector3.INF
+	var door_out := Vector3(0, 0, 1)
 	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
@@ -124,6 +140,9 @@ func make_building(info: Dictionary) -> Node3D:
 				for dir in DIRS:
 					if not cells.has(cell + dir):
 						var outward := Vector3(dir.x, 0, dir.y)
+						if door_at == Vector3.INF:
+							door_at = Grid.to_world(cell) + outward * 0.5
+							door_out = outward
 						var size := Vector3(0.56 if dir.x == 0 else 0.1, 0.78, 0.56 if dir.y == 0 else 0.1)
 						_box(root, size, Grid.to_world(cell, 0.39) + outward * 0.5, door).name = "Door"
 						_box(root, Vector3(0.9 if dir.x == 0 else 0.3, 0.06, 0.9 if dir.y == 0 else 0.3),
@@ -164,6 +183,15 @@ func make_building(info: Dictionary) -> Node3D:
 		var chimney_cell: Vector2i = min_cell
 		_box(root, Vector3(0.22, 0.7, 0.22), Grid.to_world(chimney_cell, height + 0.55) + Vector3(0.1, 0, 0.1), _flat_material(Color("7a6a5c")))
 		root.add_child(_smoke(Grid.to_world(chimney_cell, height + 0.95) + Vector3(0.1, 0, 0.1)))
+	if not state.is_empty():
+		var center := Vector3(min_cell.x + span.x / 2.0, height, min_cell.y + span.y / 2.0)
+		if door_at == Vector3.INF:
+			door_at = Vector3(center.x, 0, max_cell.y + 1.0)
+		var dress_state := state
+		if info.type == -1 and Dress.style_of(state) == "dwelling":
+			dress_state = state.duplicate()
+			dress_state.function = "" # a casa padrão já tem chaminé com fumaça
+		Dress.dress(root, dress_state, Vector3(min_cell.x + 0.5, height, min_cell.y + 0.5), door_at, door_out, height)
 	var body := StaticBody3D.new()
 	body.set_meta("building_id", info.id)
 	var shape := CollisionShape3D.new()
