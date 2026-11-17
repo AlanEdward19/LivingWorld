@@ -723,6 +723,7 @@ public sealed class InventionTally
     // AD-153: levar por terra
     public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;
     public long HaulTrips, HaulGramsBeyondBody, HaulDrag, HaulSkid, HaulRoll;
+    public long HaulerRouteBlocked; // AD-176: compras em que a rota tinha terreno sem caminho demais para o veículo de terra
     // AD-168: o espólio de quem morre longe (deixados, mortos em casa com carga, idas para buscar, recolhidos pela casa, achados sem
     // dono, furtados; unidades deixadas, recolhidas, furtadas e estragadas)
     public long LeavingsLeft, LeavingsAtHome, LeavingsFetches, LeavingsCollected, LeavingsFound, LeavingsStolen;

@@ -46,11 +46,19 @@ public static class CityStreets
         return placed;
     }
 
-    /// <summary>As ruas que existem de fato (AD-173): o largo e, para cada prédio cuja porta dá numa rua, o caminho dessa
-    /// célula até o largo, com quantas pessoas (moradores e quem trabalha ali) passam por cada célula e a superfície que
-    /// esse uso dá: trilha até <see cref="CityLayoutRules.TrodResidents"/>, terra batida a partir daí. Cascalho e pedra
-    /// pedem uma técnica de calçar que o motor ainda não tem (dívida no 08c). Rua traçada sem uso não aparece.</summary>
+    /// <summary>As ruas que existem de fato (AD-176): as células do chão que o pisoteio fez trilha ou terra batida, as calçadas
+    /// (cascalho, pedra) e as que estão em obra, da cidade mais perto (o limite crescido dela). <c>Users</c> são as passagens do
+    /// último mês, <c>UseBand</c> a faixa delas, <c>Planned</c> se a célula é do traçado reservado (AD-173: largo, principal,
+    /// travessas), que agora é só onde não se constrói. Com a rua de verdade desligada, o uso derivado de antes (AD-173).</summary>
     public static IReadOnlyList<StreetCellView> RoadsOf(WorldState world, City city)
+    {
+        if (!world.StreetsOn) return PlannedRoadsOf(world, city);
+        return Streets.StreetViews.ByCity(world).GetValueOrDefault(city.Id) ?? [];
+    }
+
+    /// <summary>AD-173 (rua desligada): o largo e, para cada prédio cuja porta dá numa rua, o caminho dessa célula até o largo,
+    /// com quantas pessoas passam por ela: trilha até <see cref="CityLayoutRules.TrodResidents"/>, terra batida daí para cima.</summary>
+    private static IReadOnlyList<StreetCellView> PlannedRoadsOf(WorldState world, City city)
     {
         var network = Of(world, city);
         if (network.Count == 0) return [];
@@ -84,7 +92,7 @@ public static class CityStreets
             if (used[i])
                 result.Add(new StreetCellView(
                     city.Id, network.Cells[i], users[i] >= trod ? StreetSurface.Dirt : StreetSurface.Trail, users[i],
-                    network.IsMain[i], network.InSquare(i)));
+                    network.IsMain[i], network.InSquare(i)) { Planned = true });
         return result;
     }
 
@@ -134,16 +142,45 @@ public static class CityStreets
             }
             if (street is null) path.RemoveRange(1, path.Count - 1);
         }
-        return new LotView(croftCells, path, street);
+        return new LotView(croftCells, path, street) { Access = Streets.StreetRoutes.AccessOf(world, building, network.Set) };
     }
 }
 
 /// <summary>Superfície da rua (AD-173), da mais pobre à mais cara. O motor hoje só produz trilha e terra batida.</summary>
 public enum StreetSurface { Trail, Dirt, Gravel, Paved }
 
-/// <summary>Uma célula de rua em uso: cidade, célula, superfície, quantas pessoas passam, se é a rua principal e se é o largo.</summary>
-public sealed record StreetCellView(CityId City, CellCoord Cell, StreetSurface Surface, int Users, bool Main, bool Square);
+/// <summary>Uma célula de rua em uso: cidade, célula, superfície, quantas pessoas passam, se é a rua principal e se é o largo.
+/// AD-176 (só acréscimo): pisoteio acumulado, faixa de uso, se é do traçado reservado, condição do calçamento e obra em curso.</summary>
+public sealed record StreetCellView(CityId City, CellCoord Cell, StreetSurface Surface, int Users, bool Main, bool Square)
+{
+    /// <summary>Pisoteio acumulado (passagens que ainda não se desfizeram).</summary>
+    public int Wear { get; init; }
+
+    /// <summary>Faixa das passagens do último mês: 0 (&lt;10), 1 (&lt;30), 2 (&lt;100), 3 (&lt;300), 4 (300 ou mais).</summary>
+    public int UseBand { get; init; }
+
+    /// <summary>A célula é do traçado reservado da cidade (largo, principal, travessa ou viela planejada).</summary>
+    public bool Planned { get; init; }
+
+    /// <summary>Condição do calçamento (0–1000); nulo em trilha e terra batida.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? Condition { get; init; }
+
+    /// <summary>Obra de calçamento em curso nesta célula; nulo sem obra.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StreetWorkView? Work { get; init; }
+}
+
+/// <summary>Obra de calçamento numa célula (AD-176): o que vira, quanto já foi feito (0–100), se é conserto e quem paga
+/// (<c>treasury</c> = tesouro da cidade, <c>frontage</c> = as casas de frente).</summary>
+public sealed record StreetWorkView(StreetSurface Surface, int ProgressPct, bool Repair, string Payer);
 
 /// <summary>Lote de um prédio: células do quintal de trás (cercado), passagem da porta à rua e a rua da frente (nula se não dá
 /// para rua: prédio de degrau sem rua).</summary>
-public sealed record LotView(IReadOnlyList<CellCoord> Croft, IReadOnlyList<CellCoord> FrontPath, CellCoord? Street);
+public sealed record LotView(IReadOnlyList<CellCoord> Croft, IReadOnlyList<CellCoord> FrontPath, CellCoord? Street)
+{
+    /// <summary>AD-176: como se chega à porta — <c>street</c>, <c>path</c>, <c>alley</c> (viela), <c>stair</c> (escada do sobrado
+    /// vizinho), <c>roof</c> (laje ou telhado do vizinho), <c>none</c>; nulo sem a rua de verdade.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Access { get; init; }
+}

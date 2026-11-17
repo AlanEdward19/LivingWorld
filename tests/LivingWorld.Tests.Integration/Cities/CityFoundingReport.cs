@@ -25,6 +25,9 @@ public class CityFoundingReport
             node["Seed"] = seed;
             if (mode == "off") node["CityLayout"] = new JsonObject { ["Enabled"] = false };
             if (int.TryParse(Environment.GetEnvironmentVariable("LW_CHAIN_REACH"), out int reach)) node["CityLayout"] = new JsonObject { ["ChainedBoundsReachCells"] = reach };
+            // AD-176: LW_STREETS=off mede sem a rua de verdade
+            if (Environment.GetEnvironmentVariable("LW_STREETS") == "off")
+                (node["CityLayout"] ??= new JsonObject())!.AsObject()["Streets"] = new JsonObject { ["Enabled"] = false };
             var (world, clock) = ScenarioLoaderV2.LoadWorld(node.ToJsonString()).Value;
             var founded = new HashSet<Guid>();
             var merged = new HashSet<Guid>();
@@ -37,7 +40,7 @@ public class CityFoundingReport
                     if (city.MergedIntoCityId is not null) merged.Add(city.Id.Value);
                 }
             }
-            output.WriteLine($"modo={(mode == "" ? "on" : mode)} cadeia={Environment.GetEnvironmentVariable("LW_CHAIN_REACH") ?? "padrao"} seed={seed} filhas={founded.Count} fundidas={merged.Count} ativas={world.ActiveCities().Count()} predios={world.Buildings.Count}");
+            output.WriteLine($"modo={(mode == "" ? "on" : mode)} rua={Environment.GetEnvironmentVariable("LW_STREETS") ?? "on"} cadeia={Environment.GetEnvironmentVariable("LW_CHAIN_REACH") ?? "padrao"} seed={seed} filhas={founded.Count} fundidas={merged.Count} ativas={world.ActiveCities().Count()} predios={world.Buildings.Count}");
             output.Flush();
         }
     }

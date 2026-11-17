@@ -326,4 +326,11 @@ public enum WorldEventKind
     /// <summary>Espólio recolhido sem furto (AD-168) — payload: <c>espolioId|quemId|mortoId|unidades|recipiente|como</c> (como: casa,
     /// herdeiro, achado = sem dono vivo; recipiente 1 = levou a peça). O furto do espólio sai em <see cref="TheftCommitted"/>.</summary>
     LeavingsCollected,
+
+    /// <summary>Obra de calçamento aberta (AD-176) — payload: <c>obraId|cidadeId|superficie|conserto|celulas|horas|quemPaga</c>
+    /// (quemPaga: tesouro ou frente = as casas de frente).</summary>
+    StreetWorkStarted,
+
+    /// <summary>Obra de calçamento pronta (AD-176) — payload: <c>obraId|cidadeId|superficie|conserto|celulas|pago</c>.</summary>
+    StreetWorkDone,
 }

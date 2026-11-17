@@ -44,6 +44,8 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                     continue; // já agendado (mesmo cluster ou um que o sobrepõe), não reagenda
                 if (!FoundingConcentration.ClearsThreshold(cluster.Population, rules))
                     continue; // prédios sem (ou com poucos) residentes reais nunca fundam nada
+                if (!FarByRoad(world, city, cluster))
+                    continue; // AD-176: perto pelo caminho do trabalho e do mercado, o aglomerado continua parte da mãe
 
                 string payload = $"{city.Id.Value}|{string.Join(",", cluster.Buildings.Select(b => b.Id.Value))}";
                 ctx.ScheduleEvent(ctx.CurrentTick + rules.OrganizationTicks, SystemName, payload);
@@ -165,6 +167,39 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                 member.JoinCity(newCity.Id);
             }
         }
+    }
+
+    /// <summary>AD-176: a causa da fundação é o caminho, não a geometria. O aglomerado que nasceu longe por falta de lote perto só
+    /// vira cidade-filha se, pela rota real, quem mora nele gasta em média ao menos
+    /// <see cref="StreetRules.FoundingCommuteHours"/> para ir ao trabalho e ao mercado mais perto (sem emprego, ao largo da mãe:
+    /// a feira, o poço, a igreja). Sem a rua de verdade, vale só a geometria de antes.</summary>
+    internal static bool FarByRoad(WorldState world, City mother, OverflowClusterFinder.Cluster cluster)
+    {
+        if (!world.StreetsOn) return true;
+        var ids = cluster.Buildings.Select(b => b.Id).ToHashSet();
+        var markets = Economy.Market.MarketIndex.BuildForTick(world);
+        var food = new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.FoodResourceId);
+        var water = new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId);
+        double total = 0;
+        int households = 0;
+        foreach (var household in world.Households.OrderBy(h => h.Id.Value))
+        {
+            if (household.IsEmpty || household.Dwelling is not { } home || !ids.Contains(home)) continue;
+            double work = 0;
+            int employed = 0;
+            foreach (var member in household.Members)
+                if (world.FindNpc(member) is { IsAlive: true, Employer: { } e } && world.FindWorkplace(e) is { } place)
+                {
+                    work += Streets.StreetRoutes.CostOf(world, household.Location, place.Location).Cost;
+                    employed++;
+                }
+            double commute = employed > 0 ? work / employed : Streets.StreetRoutes.CostOf(world, household.Location, mother.Location).Cost;
+            if (markets.NearestSelling(household.Location, food, water) is { } market)
+                commute += Streets.StreetRoutes.CostOf(world, household.Location, market.Location).Cost;
+            total += commute;
+            households++;
+        }
+        return households > 0 && total / households >= world.StreetRules.FoundingCommuteHours;
     }
 
     private static void ScheduleAdjacentDaughterMerges(WorldState world, TickContext ctx, CityRules rules)

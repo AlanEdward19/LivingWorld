@@ -66,6 +66,9 @@ public sealed class TechDiscoverySystem : ISimulationSystem
                 $"{city.Id.Value}|{culture.Id.ToString(CultureInfo.InvariantCulture)}|{vector.Key}");
         }
 
+        // AD-176: a técnica de calçar entra pelo mesmo caminho (pressão da rua de terra batida, habilidade, trecho de teste)
+        LivingWorld.Simulation.Cities.Streets.PavingTechnique.Tick(world, ctx, residents, PendingPavingCities(world), SystemName);
+
         Spread(world, ctx, residents);
     }
 
@@ -73,6 +76,11 @@ public sealed class TechDiscoverySystem : ISimulationSystem
     {
         var rules = world.EmergenceRules;
         if (!rules.Enabled || evt.Payload is null) return;
+        if (evt.Payload.StartsWith(LivingWorld.Simulation.Cities.Streets.PavingTechnique.PayloadPrefix, StringComparison.Ordinal))
+        {
+            LivingWorld.Simulation.Cities.Streets.PavingTechnique.Handle(world, ctx, evt.Payload);
+            return;
+        }
 
         var parts = evt.Payload.Split('|');
         if (parts.Length != 3) return;
@@ -135,7 +143,7 @@ public sealed class TechDiscoverySystem : ISimulationSystem
             var market = marketIndex.NearestSelling(household.Location, food, water);
             if (market is null) continue;
 
-            long ticks = Mobility.Apply(TravelResolution.TicksBetween(world.Map, household.Location, market.Location), bonus);
+            long ticks = Mobility.Apply(LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, household.Location, market.Location), bonus); // AD-176: pela rota
             if (ticks < rules.PressureTravelTicks) continue;
             affected++;
             total += ticks;
@@ -159,8 +167,19 @@ public sealed class TechDiscoverySystem : ISimulationSystem
     {
         var cities = new HashSet<CityId>();
         foreach (var evt in world.Scheduler.Snapshot())
-            if (evt.SystemName == SystemName && evt.Payload is { } payload)
+            if (evt.SystemName == SystemName && evt.Payload is { } payload
+                && !payload.StartsWith(LivingWorld.Simulation.Cities.Streets.PavingTechnique.PayloadPrefix, StringComparison.Ordinal))
                 cities.Add(new CityId(Guid.Parse(payload.Split('|')[0])));
+        return cities;
+    }
+
+    private static HashSet<string> PendingPavingCities(WorldState world)
+    {
+        var prefix = LivingWorld.Simulation.Cities.Streets.PavingTechnique.PayloadPrefix;
+        var cities = new HashSet<string>();
+        foreach (var evt in world.Scheduler.Snapshot())
+            if (evt.SystemName == SystemName && evt.Payload is { } payload && payload.StartsWith(prefix, StringComparison.Ordinal))
+                cities.Add(payload[prefix.Length..].Split('|')[0]);
         return cities;
     }
 

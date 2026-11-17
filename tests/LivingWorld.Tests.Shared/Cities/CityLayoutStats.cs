@@ -21,6 +21,8 @@ public sealed record CityLayoutStats(
     public double MeanLotCells { get; init; }
     /// <summary>Células de rua em uso por superfície: trilha/terra/cascalho/pedra.</summary>
     public string Surfaces { get; init; } = "";
+    /// <summary>AD-176: chão por superfície, traçado usado, trilhas fora dele, horas pela rota, casas sem rota, acessos e obras.</summary>
+    public string Streets { get; init; } = "";
 
     public sealed record Placed(Building Building, CellCoord Origin, HashSet<CellCoord> Cells, CellCoord DoorOutside, int Croft = 0);
 
@@ -140,6 +142,7 @@ public sealed record CityLayoutStats(
             CroftShares = $"pobre={Share(0)} meio={Share(1)} remediado={Share(2)} lavrador={Share(3)} artesao={Share(4)}",
             MeanLotCells = placed.Count == 0 ? 0 : lotCells / placed.Count,
             Surfaces = string.Join('/', surfaceCounts),
+            Streets = LivingWorld.Simulation.Cities.Streets.StreetDiagnostics.Line(world),
         };
     }
 
@@ -220,5 +223,5 @@ public sealed record CityLayoutStats(
         $"{label} predios={Buildings} folga0={GapHistogram[0]} folga1={GapHistogram[1]} folga2={GapHistogram[2]} folga3={GapHistogram[3]} folga4+={GapHistogram[4]} " +
         $"encostados={Touching} sobrepostos={Overlapping} agua={OnWater} densBounds={FootprintDensity:F2} densExtensao={ExtentDensity:F2} " +
         $"portaSemCaminho={DoorsBlocked} portaSemRua={DoorsOffStreet} sobreRua={OnStreet} ruas={StreetCells} casaTrabalho={MeanHomeToWork:F1} casaAgua={MeanHomeToWater:F1} " +
-        $"quintal[{CroftShares}] lote={MeanLotCells:F1} ruaTrilha/Terra/Cascalho/Pedra={Surfaces}");
+        $"quintal[{CroftShares}] lote={MeanLotCells:F1} ruaTrilha/Terra/Cascalho/Pedra={Surfaces} {Streets}");
 }

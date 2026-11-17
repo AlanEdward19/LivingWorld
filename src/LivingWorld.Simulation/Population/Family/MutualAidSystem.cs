@@ -138,7 +138,7 @@ public sealed class MutualAidSystem : ISimulationSystem
         {
             if (!markets.Contains(market.LocationType.Id) || market.Stock.GetValueOrDefault(food) <= 0
                 || !market.Prices.TryGetValue(food, out var price) || price <= 0) continue;
-            if (LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, household.Location, market.Location) <= reachHours)
+            if (LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, household.Location, market.Location) <= reachHours) // AD-176: pela rota
                 return true;
         }
         return false;

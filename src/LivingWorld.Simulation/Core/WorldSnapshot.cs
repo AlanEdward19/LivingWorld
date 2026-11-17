@@ -350,6 +350,9 @@ public static class WorldSnapshot
         rehydrated.UseBrain( // AD-142: ausente = experimento desligado
             node.TryGetPropertyValue("BrainRules", out var brainRulesNode) && brainRulesNode is not null
                 ? brainRulesNode.Deserialize<LivingWorld.Domain.Cognition.BrainRules>(JsonOptions) : null);
+        rehydrated.UseGround( // AD-176: ausente = mundo antigo (o chão começa sem trilha)
+            node.TryGetPropertyValue("Ground", out var groundNode) && groundNode is not null
+                ? groundNode.Deserialize<LivingWorld.Simulation.Cities.Streets.GroundLedger>(JsonOptions) : null);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
     }

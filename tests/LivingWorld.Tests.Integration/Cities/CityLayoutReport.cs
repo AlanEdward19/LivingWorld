@@ -17,6 +17,9 @@ public class CityLayoutReport
     /// <summary><c>LW_CITY_LAYOUT=off</c>: a colocação de antes, para o lado a lado.</summary>
     private static bool Off => Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off";
 
+    /// <summary>AD-176: <c>LW_STREETS=off</c>, sem a rua de verdade (linha reta, sem pisoteio), para o antes × depois.</summary>
+    private static bool StreetsOff => Environment.GetEnvironmentVariable("LW_STREETS") == "off";
+
     [Fact]
     public void CityLayoutReport_writes_the_layout_numbers()
     {
@@ -27,11 +30,14 @@ public class CityLayoutReport
         string cidadeMedia = PeriodPayload("cidade-media");
         foreach (ulong seed in new ulong[] { 1, 2, 7 })
         {
-            var (world, clock) = ScenarioRunner.Create(seed, cityLayout: Off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : null);
+            var (world, clock) = ScenarioRunner.Create(seed, cityLayout: StreetsOff
+                ? (Off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default) with { Streets = LivingWorld.Domain.Cities.StreetRules.Off }
+                : Off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : null);
             Report(output, $"padrao seed={seed}", world, clock, years, seed == 1);
             var root = System.Text.Json.Nodes.JsonNode.Parse(cidadeMedia)!;
             root["Seed"] = seed;
             if (Off) root["CityLayout"] = new System.Text.Json.Nodes.JsonObject { ["Enabled"] = false };
+            if (StreetsOff) (root["CityLayout"] ??= new System.Text.Json.Nodes.JsonObject())!.AsObject()["Streets"] = new System.Text.Json.Nodes.JsonObject { ["Enabled"] = false };
             var loaded = ScenarioLoaderV2.LoadWorld(root.ToJsonString()).Value;
             Report(output, $"cidade-media seed={seed}", loaded.Item1, loaded.Item2, years, seed == 2);
         }
