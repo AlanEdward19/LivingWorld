@@ -11,6 +11,7 @@ const LocalServer := preload("res://Contract/local_server.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 const GameSettings := preload("res://Scenes/menu/game_settings.gd")
+const UiSounds := preload("res://Scenes/menu/ui_sounds.gd")
 
 signal _quit_ready()
 
@@ -33,6 +34,7 @@ func _ready() -> void:
 		quit_fn = get_tree().quit
 	_transport = HttpTransport.new()
 	add_child(_transport)
+	add_child(UiSounds.new()) # sons de interface do menu e da pausa (gerados por código; volume das Opções)
 	settings = GameSettings.load_from()
 	var steps := DevSteps.parse(OS.get_cmdline_user_args())
 	if MenuSteps.is_menu(steps):

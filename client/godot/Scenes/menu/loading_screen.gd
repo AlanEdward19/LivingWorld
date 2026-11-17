@@ -1,13 +1,13 @@
 extends Control
-## Tela de carregamento: diz o que está acontecendo de verdade, em etapas do próprio cliente (a API ainda não manda
-## progresso da criação): pedir o mundo, criá-lo, conectar e receber o primeiro retrato. Usada pelo menu (criar ou
-## abrir um mundo) e pelo jogo (até o primeiro retrato chegar).
+## Tela de carregamento: diz o que está acontecendo de verdade. Criando um mundo, mostra as etapas que o servidor manda
+## (AD-175: terreno, vilas, famílias, ofícios, guardar, pronto; `set_progress`); entrando no mundo, as do próprio cliente
+## (conectar e receber o primeiro retrato; `set_stage`). Usada pelo menu e pelo jogo (até o primeiro retrato chegar).
 
 const Kit := preload("res://Scenes/menu/menu_kit.gd")
 
-const STAGES: Array[String] = [
-	"Medindo as terras e os rios…",
-	"Erguendo as casas e chamando as famílias…",
+const STAGES: Array[String] = [ ## etapas do cliente ao entrar num mundo pronto (as da criação vêm do servidor)
+	"Pedindo o mundo…",
+	"Esperando o mundo responder…",
 	"Acordando os moradores…",
 	"Abrindo os olhos no mundo…",
 ]
@@ -44,7 +44,17 @@ func set_stage(index: int, text: String = "") -> void:
 	if stage_label == null:
 		return
 	stage_label.text = text if text != "" else STAGES[stage]
+	bar.max_value = STAGES.size()
 	bar.value = stage + 1
+
+
+## Etapa real do servidor: `index` de `count` (0..count-1) com a frase que ele mandou.
+func set_progress(index: int, count: int, text: String) -> void:
+	if stage_label == null:
+		return
+	bar.max_value = maxi(count, 1)
+	bar.value = clampi(index + 1, 1, maxi(count, 1))
+	stage_label.text = text + ("" if text.ends_with("!") else "…")
 
 
 func set_heading(text: String) -> void:

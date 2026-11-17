@@ -27,6 +27,8 @@ var api
 var local_server ## LocalServer do Boot (vive além do menu); nulo = o cliente nunca liga a API
 var settings
 var server_online := false
+## O token de admin da sessão (LW_ADMIN_TOKEN, posto pelo lançador) deixa pedir o mundo já rodando ao criar ou abrir.
+var can_run_clock := OS.get_environment("LW_ADMIN_TOKEN") != ""
 var backdrop: Node3D
 var title: Control
 var offline: Control
@@ -76,6 +78,7 @@ func _ready() -> void:
 	add_child(wizard)
 	wizard.cancelled.connect(show_title)
 	wizard.creating.connect(func(): _show_loading("Criando " + wizard.world_name.strip_edges(), 1))
+	wizard.creation_progress.connect(func(index: int, count: int, text: String): loading.set_progress(index, count, text))
 	wizard.create_failed.connect(func(): _switch(wizard))
 	wizard.created.connect(_on_created)
 	wizard.map_previewed.connect(func(body: Dictionary): backdrop.show_map(body))
@@ -103,6 +106,7 @@ func _switch(screen: Control) -> void:
 
 func _wizard_api() -> void:
 	wizard.api = api
+	wizard.start_running = can_run_clock
 
 
 ## Chamado depois de `api` ser definido: consulta o servidor; sem ele, procura o do lançador ou liga um.
@@ -168,20 +172,22 @@ func start_local_server() -> void:
 	offline.show_failed()
 
 
-## {name, year, population} do mundo aberto no servidor; vazio se não há mundo para continuar. O mundo inicial que a
-## API cria sozinha no primeiro uso (sem período) só conta se o jogador já jogou nesta máquina (lacuna no backlog 09).
-func continue_info(status_body: Dictionary) -> Dictionary:
+## {name, year, population, period} do mundo aberto no servidor (o da lista com `isCurrent`, AD-175); vazio se não há
+## mundo para continuar. O mundo inicial que a API cria sozinha (`origin` "automatic") só conta se o jogador já jogou.
+func continue_info(_status_body: Dictionary = {}) -> Dictionary:
 	var list: Dictionary = await api.saved_worlds()
 	if not list.ok or not (list.body is Array) or list.body.is_empty():
 		return {}
-	var identity: Dictionary = await api.world_info()
-	var period := String(identity.body.get("periodId", "")) if identity.ok and identity.body is Dictionary else ""
-	if period == "" and not settings.has_played:
+	var open: Dictionary = {}
+	for world in list.body:
+		if bool(world.get("isCurrent", false)):
+			open = world
+	if open.is_empty():
 		return {}
-	var newest: Dictionary = list.body[0]
-	var name := String(identity.body.get("name", "")) if identity.ok and identity.body is Dictionary else ""
-	return {"name": name if name != "" else SavedWorldsMenu.display_name(newest), "year": int(status_body.get("year", 0)),
-		"population": int(newest.get("population", 0))}
+	if String(open.get("origin", "")) == "automatic" and not settings.has_played:
+		return {}
+	return {"name": SavedWorldsMenu.display_name(open), "year": int(open.get("year", 0)),
+		"population": int(open.get("population", 0)), "period": String(open.get("periodName", ""))}
 
 
 func show_title() -> void:
@@ -205,8 +211,9 @@ func show_options() -> void:
 func show_saved_worlds() -> void:
 	saved_worlds_screen = SavedWorldsMenu.new()
 	saved_worlds_screen.api = api
+	saved_worlds_screen.start_running = can_run_clock
 	saved_worlds_screen.back.connect(show_title)
-	saved_worlds_screen.loaded.connect(func(): await _resume_clock(); _enter_world())
+	saved_worlds_screen.loaded.connect(_enter_world)
 	add_child(saved_worlds_screen)
 	_switch(saved_worlds_screen)
 	await saved_worlds_screen.refresh_worlds()
@@ -232,17 +239,10 @@ func _enter_world() -> void:
 
 func _on_created(with_touchup: bool) -> void:
 	loading.set_stage(2)
-	await _resume_clock()
 	if with_touchup:
 		await show_touchup()
 	else:
 		_enter_world()
-
-
-## Mundo criado ou aberto nasce pausado na API: o tempo é do jogador local, então volta a correr (só com o token).
-func _resume_clock() -> void:
-	if OS.get_environment("LW_ADMIN_TOKEN") != "":
-		await api.clock_command("resume")
 
 
 ## Retoques depois de criado (opcional): personalidade e dons de pessoas do mundo recém-criado.

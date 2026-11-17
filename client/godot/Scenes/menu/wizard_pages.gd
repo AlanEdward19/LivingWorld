@@ -1,5 +1,5 @@
 extends RefCounted
-## As telas do Novo mundo, uma por assunto: época, nome e semente, tamanho e pessoas, mapa e resumo. Só montagem:
+## As telas do Novo mundo, uma por assunto: começo (lugar), nome e semente, tamanho e pessoas, mapa e resumo. Só montagem:
 ## cada controle chama o assistente (NewWorldWizard), que guarda o estado e fala com a API.
 
 const Kit := preload("res://Scenes/menu/menu_kit.gd")
@@ -17,12 +17,17 @@ static func _page(w, heading: String, hint: String) -> VBoxContainer:
 	Kit.title(heading, 28, page, Color.WHITE)
 	var line := Kit.text(hint, page, 16)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.name = "hint"
 	w.pages_box.add_child(page)
 	return page
 
 
+const PERIOD_HINT := "Escolha o lugar. Dá para mudar o tamanho depois."
+
+
 static func period(w) -> Control:
-	var page := _page(w, "Onde a história começa?", "Escolha o lugar. Dá para mudar o tamanho depois.")
+	var page := _page(w, "Onde a história começa?", PERIOD_HINT)
+	w.period_hint = page.get_node("hint")
 	w.period_cards = HBoxContainer.new()
 	w.period_cards.add_theme_constant_override("separation", 14)
 	page.add_child(w.period_cards)
@@ -31,10 +36,14 @@ static func period(w) -> Control:
 	return page
 
 
-## Cartões dos períodos que o servidor oferece (GET /periods).
+## Cartões dos períodos que o servidor oferece (GET /periods), com nome, descrição, pessoas e vilas do cartão dele. Se
+## todos são da mesma época, a frase do passo diz isso em vez de prometer épocas que não existem.
 static func fill_periods(w, periods: Array) -> void:
 	for child in w.period_cards.get_children():
 		child.queue_free()
+	var era := PeriodArt.shared_era(periods)
+	w.period_hint.text = PERIOD_HINT if era == "" or periods.size() < 2 else \
+		"Todos começam na mesma época: %s. O que muda é o tamanho." % era
 	for i in periods.size():
 		var item: Dictionary = periods[i]
 		var id := String(item.periodId)

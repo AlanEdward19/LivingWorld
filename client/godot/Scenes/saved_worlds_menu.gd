@@ -1,12 +1,14 @@
 extends Control
-## Meus mundos: um cartão por mundo salvo no servidor (nome, ano, pessoas, última vez jogado; época só do mundo
-## aberto, a lista da API não traz). Jogar abre; Apagar pede confirmação com o nome do mundo. Nenhum dado de mundo é
-## produzido pelo cliente. Renomear não existe na API (lacuna no backlog 09).
+## Meus mundos: um cartão por mundo salvo no servidor, tudo vindo de `GET /worlds` (AD-175): nome, ano, pessoas, lugar
+## de origem, quando foi jogado, se é o aberto agora e se é o mundo inicial. Jogar abre (já rodando, se o menu pode);
+## Renomear pede o nome e mostra o erro do servidor; Apagar pede confirmação com o nome. Nenhum dado de mundo é
+## produzido pelo cliente.
 
 signal loaded()
 signal back()
 
 const Kit := preload("res://Scenes/menu/menu_kit.gd")
+const UiSounds := preload("res://Scenes/menu/ui_sounds.gd")
 
 var api
 var rows: VBoxContainer
@@ -15,8 +17,11 @@ var confirmation: ConfirmationDialog
 var pending_delete := ""
 var pending_name := ""
 var busy := false
-var current_world := {} ## {name, period} do mundo aberto agora (GET /world/info), para marcar o cartão
-var hours_per_year := 0.0 ## do calendário do mundo aberto; 0 = mostra o tempo em dias
+var start_running := false ## abrir já rodando (o menu só liga com o token de admin da sessão)
+var rename_dialog: ConfirmationDialog
+var rename_edit: LineEdit
+var rename_error: Label
+var pending_rename := ""
 var _back_button: Button
 
 
@@ -40,6 +45,21 @@ func _ready() -> void:
 	confirmation.cancel_button_text = "Manter"
 	confirmation.confirmed.connect(_delete_confirmed)
 	add_child(confirmation)
+	rename_dialog = ConfirmationDialog.new()
+	rename_dialog.title = "Renomear mundo"
+	rename_dialog.ok_button_text = "Renomear"
+	rename_dialog.cancel_button_text = "Cancelar"
+	rename_dialog.dialog_hide_on_ok = false # com erro, fica aberto mostrando o motivo
+	var rename_box := VBoxContainer.new()
+	rename_edit = LineEdit.new()
+	rename_edit.max_length = 60 # o servidor é quem diz o limite (40); passar dele mostra a frase dele
+	rename_edit.custom_minimum_size.x = 360
+	rename_edit.text_submitted.connect(func(_t: String): _rename_confirmed())
+	rename_box.add_child(rename_edit)
+	rename_error = Kit.text("", rename_box, 15, Kit.ERROR)
+	rename_dialog.add_child(rename_box)
+	rename_dialog.confirmed.connect(_rename_confirmed)
+	add_child(rename_dialog)
 
 
 func refresh_worlds() -> void:
@@ -49,31 +69,17 @@ func refresh_worlds() -> void:
 	_clear_rows()
 	message.text = "Carregando mundos…"
 	var response: Dictionary = await api.saved_worlds()
-	if response.ok and not response.body.is_empty():
-		await _load_context()
 	busy = false
 	if not response.ok:
 		message.text = "Não deu para ver a lista de mundos. Tente de novo daqui a pouco."
 		return
 	message.text = "Nenhum mundo salvo ainda. Crie um em Novo mundo!" if response.body.is_empty() else "Escolha um mundo para jogar."
-	for i in response.body.size():
-		_card(response.body[i], i == 0)
+	for world in response.body:
+		_card(world, bool(world.get("isCurrent", false)))
 	focus_default()
 
 
-## Nome e época do mundo aberto e o calendário (para mostrar o ano). Se falhar, o cartão só não mostra isso.
-func _load_context() -> void:
-	if not api.has_method("world_info"):
-		return
-	var info: Dictionary = await api.world_info()
-	if info.ok and info.body is Dictionary:
-		current_world = {"name": String(info.body.get("name", "")), "period": String(info.body.get("periodId", ""))}
-	var calendar: Dictionary = await api.world_calendar()
-	if calendar.ok and calendar.body is Dictionary:
-		hours_per_year = float(calendar.body.get("hoursPerYear", 0))
-
-
-## A lista vem do mais recente para o mais antigo: o primeiro é o mundo aberto agora.
+## Um cartão por mundo, do jogado mais recentemente para o mais antigo; o aberto agora vem marcado pelo servidor.
 func _card(world: Dictionary, is_current: bool) -> void:
 	var panel := PanelContainer.new()
 	rows.add_child(panel)
@@ -86,6 +92,7 @@ func _card(world: Dictionary, is_current: bool) -> void:
 	Kit.text(describe(world, is_current), info, 15)
 	var play := Kit.button("Jogar", row, func(): load_world(String(world.worldId)))
 	play.custom_minimum_size.x = 120
+	Kit.button("Renomear", row, func(): request_rename(String(world.worldId), display_name(world)))
 	var remove := Kit.button("Apagar", row, func(): request_delete(String(world.worldId), display_name(world)))
 	if is_current:
 		remove.disabled = true
@@ -99,17 +106,15 @@ static func display_name(world: Dictionary) -> String:
 
 
 func describe(world: Dictionary, is_current: bool) -> String:
-	var hours := float(world.get("currentDate", 0))
 	var parts: PackedStringArray = []
-	if hours_per_year > 0:
-		parts.append("ano %d" % int(hours / hours_per_year)) # como o relógio do jogo: o mundo nasce no ano 0
-	else:
-		parts.append("dia %d" % (int(hours / 24.0) + 1))
+	parts.append("ano %d" % int(world.get("year", 0))) # como o relógio do jogo: o mundo nasce no ano 0
 	var people := int(world.get("population", 0))
 	parts.append("%d %s" % [people, "pessoa" if people == 1 else "pessoas"])
-	if is_current and current_world.get("period", "") != "":
-		parts.append(String(current_world.period).replace("-", " ").capitalize())
-	parts.append(when_played(String(world.get("lastSavedAtUtc", ""))))
+	if String(world.get("periodName", "")) != "":
+		parts.append(String(world.periodName))
+	if String(world.get("origin", "")) == "automatic":
+		parts.append("mundo inicial")
+	parts.append(when_played(String(world.get("lastPlayedAtUtc", world.get("lastSavedAtUtc", "")))))
 	return ("Aberto agora · " if is_current else "") + " · ".join(parts)
 
 
@@ -138,7 +143,7 @@ func load_world(id: String) -> void:
 		return
 	busy = true
 	message.text = "Abrindo o mundo…"
-	var response: Dictionary = await api.load_saved_world(id)
+	var response: Dictionary = await api.load_saved_world(id, start_running)
 	busy = false
 	if response.ok:
 		loaded.emit()
@@ -172,6 +177,36 @@ func _delete_confirmed() -> void:
 		message.text = "Este mundo está aberto agora e não pode ser apagado." if response.status == 409 else "Não deu para apagar o mundo. Tente de novo."
 
 
+## Renomear: o diálogo já vem com o nome atual selecionado; o servidor valida (vazio, longo, repetido).
+func request_rename(id: String, world_name: String) -> void:
+	if busy:
+		return
+	pending_rename = id
+	rename_edit.text = world_name
+	rename_error.text = ""
+	rename_dialog.popup_centered()
+	rename_edit.grab_focus()
+	rename_edit.select_all()
+
+
+func _rename_confirmed() -> void:
+	if busy or pending_rename == "":
+		return
+	busy = true
+	var chosen := rename_edit.text.strip_edges()
+	var response: Dictionary = await api.rename_world(pending_rename, chosen)
+	busy = false
+	if not response.ok:
+		rename_error.text = String(response.error) if String(response.error) != "" else "Não deu para renomear agora. Tente de novo."
+		UiSounds.cue(self, "error")
+		return
+	pending_rename = ""
+	rename_dialog.hide()
+	UiSounds.cue(self, "confirm")
+	await refresh_worlds()
+	message.text = "Agora o mundo se chama “%s”." % chosen
+
+
 func focus_default() -> void:
 	if not is_inside_tree():
 		return
@@ -180,6 +215,6 @@ func focus_default() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_visible_in_tree() and not confirmation.visible and event.is_action_pressed("ui_cancel"):
+	if is_visible_in_tree() and not confirmation.visible and not rename_dialog.visible and event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		back.emit()

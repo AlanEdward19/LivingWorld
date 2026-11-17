@@ -1,13 +1,7 @@
 extends RefCounted
-## Ilustração e frase de cada época/cenário no Novo mundo, desenhadas por código (sem arquivo de imagem): céu, morros
-## e tantas casinhas quanto o lugar costuma ter. A API ainda não manda descrição nem era do período (lacuna no
-## backlog 09): os cenários padrão ganham frase própria; os outros, uma frase montada do tamanho.
-
-const LINES := {
-	"vila-pequena": "Poucas famílias num vale tranquilo. Dá para conhecer cada pessoa pelo nome.",
-	"cidade-media": "Uma cidade com ofícios, mercado e vizinhos de todo tipo.",
-	"grande-metropole": "Centenas de vidas ao mesmo tempo, para quem gosta de observar multidões.",
-}
+## Ilustração de cada lugar no Novo mundo, desenhada por código (sem arquivo de imagem): céu, morros e tantas casinhas
+## quanto o lugar costuma ter. Nome, época, descrição e números vêm do cartão que o servidor manda em `GET /periods`
+## (AD-175); sem cartão (API antiga), só o nome do cadastro e o tamanho do mapa.
 const NAME_START: Array[String] = ["Al", "Bel", "Cor", "Dra", "El", "Fen", "Gar", "Hel", "Is", "Kor", "Lum", "Mor", "Nor", "Or", "Tar", "Val"]
 const NAME_END: Array[String] = ["dor", "ia", "heim", "mar", "ria", "thal", "vik", "wen", "land", "gard", "mere", "ton"]
 const SIZES: Array[Dictionary] = [
@@ -21,16 +15,38 @@ static func random_name(rng: RandomNumberGenerator) -> String:
 	return NAME_START[rng.randi() % NAME_START.size()] + NAME_END[rng.randi() % NAME_END.size()]
 
 
+## Texto do cartão: a descrição do servidor e, embaixo, pessoas e vilas do começo.
 static func line_for(period: Dictionary) -> String:
-	var id := String(period.get("periodId", ""))
-	if LINES.has(id):
-		return LINES[id]
-	return "Um mundo de %d por %d terras, pronto para ganhar vida." % [int(period.get("width", 0)), int(period.get("height", 0))]
+	var card: Dictionary = period.get("card", {}) if period.get("card") is Dictionary else {}
+	var description := String(card.get("description", ""))
+	if description == "":
+		description = "Um mundo de %d por %d terras, pronto para ganhar vida." % [int(period.get("width", 0)), int(period.get("height", 0))]
+	if not card.has("initialPopulation"):
+		return description
+	var people := int(card.initialPopulation)
+	var villages := int(card.get("settlementCount", 0))
+	return "%s\n%d %s · %d %s" % [description, people, "pessoa" if people == 1 else "pessoas", villages, "vila" if villages == 1 else "vilas"]
 
 
 static func name_for(period: Dictionary) -> String:
+	var card: Dictionary = period.get("card", {}) if period.get("card") is Dictionary else {}
+	if String(card.get("name", "")) != "":
+		return String(card.name)
 	var source := String(period.get("source", ""))
 	return source if source != "" else String(period.get("periodId", "Mundo")).replace("-", " ").capitalize()
+
+
+static func era_for(period: Dictionary) -> String:
+	var card: Dictionary = period.get("card", {}) if period.get("card") is Dictionary else {}
+	return String(card.get("era", ""))
+
+
+## A época, quando todos os lugares oferecidos são da mesma (hoje: os três tamanhos de aldeia); "" se variam ou faltam.
+static func shared_era(periods: Array) -> String:
+	var eras := {}
+	for period in periods:
+		eras[era_for(period)] = true
+	return String(eras.keys()[0]) if eras.size() == 1 else ""
 
 
 ## Rótulo humano para uma quantidade de pessoas (o número aparece ao lado).
