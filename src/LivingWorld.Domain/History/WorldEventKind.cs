@@ -318,4 +318,12 @@ public enum WorldEventKind
     /// <summary>Sustento depois da separação (AD-165): quem não mora com o filho pequeno manda à casa dele — payload:
     /// <c>pagadorId|recebedorId|comida|moeda|filhos</c> (comida em unidades da despensa, moeda em centavos).</summary>
     SupportPaid,
+
+    /// <summary>Espólio deixado no chão (AD-168): quem morreu longe de casa levando carga ou recipiente — payload:
+    /// <c>espolioId|mortoId|casaId|herdeiroCasaId|x|y|unidades|recipiente</c> (casa -1 = sem casa; recipiente 0 = nenhum).</summary>
+    LeavingsLeft,
+
+    /// <summary>Espólio recolhido sem furto (AD-168) — payload: <c>espolioId|quemId|mortoId|unidades|recipiente|como</c> (como: casa,
+    /// herdeiro, achado = sem dono vivo; recipiente 1 = levou a peça). O furto do espólio sai em <see cref="TheftCommitted"/>.</summary>
+    LeavingsCollected,
 }

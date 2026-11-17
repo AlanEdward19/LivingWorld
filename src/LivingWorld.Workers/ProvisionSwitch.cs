@@ -26,6 +26,9 @@ public static class ProvisionSwitch
         // AD-166 (correções #6): LW_FOOT_KG=N troca a carga a pé
         if (int.TryParse(Environment.GetEnvironmentVariable("LW_FOOT_KG"), System.Globalization.CultureInfo.InvariantCulture, out int foot))
         { rules = rules with { FootCarryKg = foot }; changed = true; }
+        // AD-168: LW_LEAVINGS=off devolve a carga de quem morre longe à despensa na hora (o de antes), para o pareado
+        if (Environment.GetEnvironmentVariable("LW_LEAVINGS") == "off")
+        { rules = rules with { LeavingsOverride = LivingWorld.Domain.Invention.LeavingsRules.Disabled }; changed = true; }
         return changed ? rules : null;
     }
 

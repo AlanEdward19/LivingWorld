@@ -60,8 +60,11 @@ public sealed class ProductionSystem : ISimulationSystem
 
         // a despensa da casa também estraga (AD-135), na mesma taxa do recurso, cobrada uma vez por mês (30 dias de perda)
         if (rules.SpoilagePerDayByResource.Count > 0 && world.CurrentDate.Day == 0)
+        {
             foreach (var household in world.Households.OrderBy(h => h.Id.Value))
                 SpoilHousehold(household, rules, ctx, world.CurrentDate.Calendar.DaysPerMonth);
+            LivingWorld.Simulation.Invention.Leavings.Spoil(world, ctx, rules, world.CurrentDate.Calendar.DaysPerMonth); // AD-168: no chão também
+        }
     }
 
     private void SpoilHousehold(LivingWorld.Domain.Population.Family.Household household, EconomyRules rules, TickContext ctx, int days)

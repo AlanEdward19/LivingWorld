@@ -24,17 +24,22 @@ internal enum TheftTargetKind : byte
     House = 2,
     Stall = 3,
     Till = 4,
+
+    /// <summary>Espólio no chão de quem morreu longe de casa (AD-168).</summary>
+    Ground = 5,
 }
 
-/// <summary>O que um furto pode levar: de quem (pessoa, casa, banca ou caixa de oficina), o quê e quanto, e onde acontece.</summary>
+/// <summary>O que um furto pode levar: de quem (pessoa, casa, banca ou caixa de oficina, espólio no chão), o quê e quanto, e onde
+/// acontece. <see cref="LeavingId"/>: o espólio (AD-168; 0 = outro alvo).</summary>
 internal readonly record struct TheftTarget(
     TheftTargetKind Kind, Npc? Person, Household? House, Workplace? Shop, int ResourceId, long Units, long Coin, long Value,
-    CellCoord Where)
+    CellCoord Where, long LeavingId = 0)
 {
     public long VictimId => Kind switch
     {
         TheftTargetKind.Person => Person!.Id.Value,
         TheftTargetKind.House => Person?.Id.Value ?? House!.Head.Value,
+        TheftTargetKind.Ground => Person?.Id.Value ?? House?.Head.Value ?? -1,
         _ => Shop!.Owner?.Value ?? -1,
     };
 }
@@ -159,7 +164,7 @@ internal static class Theft
 
     private static bool SameHome(Npc thief, Npc other) => thief.Household is { } home && other.Household == home;
 
-    private static long PriceOf(WorldState world, CityId city, int resourceId)
+    internal static long PriceOf(WorldState world, CityId city, int resourceId)
     {
         var resource = new ResourceType(resourceId);
         long best = 0;
@@ -299,7 +304,7 @@ internal static class Theft
         if (qty <= 0) took = false;
         if (!took) value = target.Value;
 
-        var victim = target.Kind is TheftTargetKind.Person or TheftTargetKind.House ? target.Person : null;
+        var victim = target.Kind is TheftTargetKind.Person or TheftTargetKind.House or TheftTargetKind.Ground ? target.Person : null;
         string good = GoodName(world, target);
         long caseId = -1;
         int seers = 0;
@@ -347,11 +352,13 @@ internal static class Theft
         TheftTargetKind.Person => "pessoa",
         TheftTargetKind.House => "casa",
         TheftTargetKind.Stall => "banca",
+        TheftTargetKind.Ground => "espolio",
         _ => "caixa",
     };
 
     private static string GoodName(WorldState world, in TheftTarget target)
     {
+        if (target.Kind == TheftTargetKind.Ground && target.ResourceId == 0) return "recipiente"; // AD-168: só a peça no chão
         if (target.ResourceId == 0) return "moeda";
         var economy = world.EconomyRules;
         if (target.ResourceId == economy.FoodResourceId) return "comida";
@@ -365,6 +372,8 @@ internal static class Theft
     /// bem é vendido a um receptador (oficina da cidade que o usa) por uma fração do preço, ou guardado em casa.</summary>
     private static (long Qty, long Value) Move(WorldState world, TickContext ctx, Npc thief, in TheftTarget target)
     {
+        // AD-168: do espólio no chão leva o que couber na carga (vai para casa com ele), não direto para a despensa
+        if (target.Kind == TheftTargetKind.Ground) return LivingWorld.Simulation.Invention.Leavings.Loot(world, thief, target.LeavingId);
         if (target.ResourceId == 0)
         {
             long coin = target.Coin;

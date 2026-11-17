@@ -63,7 +63,7 @@ public static class FamineTraceCommand
                 needyMoney += wallets;
                 if (wallets >= alive.Count * 2 * unit * 4) needyWithMoney++;
             }
-            long carried = world.Invention?.CarriedTotal(food.Id) ?? 0;
+            long carried = (world.Invention?.CarriedTotal(food.Id) ?? 0) + (world.Invention?.GroundTotal(food.Id) ?? 0); // AD-168: e o espólio no chão
             long sale = 0, price = 0;
             foreach (var w in world.Workplaces)
                 if (w.Prices.TryGetValue(food, out var p) && p > 0) { sale += w.Stock.GetValueOrDefault(food); price = Math.Max(price, p); }

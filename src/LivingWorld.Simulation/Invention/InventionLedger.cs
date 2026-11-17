@@ -90,6 +90,121 @@ public sealed class InventionLedger
         Version++;
     }
 
+    /// <summary>Espólios no chão (AD-168, ordenados por id) e as unidades de cada um (por espólio e recurso). Nulos enquanto nenhum:
+    /// o snapshot antigo abre igual. <see cref="LastLeavingId"/>: o último id dado (0 = nenhum ainda, fora do snapshot).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<Leaving>? Leavings { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<LeftLoad>? LeftLoads { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long LastLeavingId { get; set; }
+
+    /// <summary>Tudo o que está no chão de um recurso (AD-168): estoque do mundo, entra na conservação.</summary>
+    public long GroundTotal(int resourceId)
+    {
+        if (LeftLoads is not { Count: > 0 } loads) return 0;
+        long total = 0;
+        foreach (var load in loads) if (load.ResourceId == resourceId) total += load.Quantity;
+        return total;
+    }
+
+    internal int LeavingIndex(long id)
+    {
+        if (Leavings is not { } list) return -1;
+        int lo = 0, hi = list.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1;
+            long at = list[mid].Id;
+            if (at == id) return mid;
+            if (at < id) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
+    }
+
+    internal void PutLeaving(Leaving leaving)
+    {
+        Leavings ??= [];
+        int i = LeavingIndex(leaving.Id);
+        bool groundBefore = i >= 0 && Leavings[i].ItemId != 0;
+        if (i >= 0) Leavings[i] = leaving; else Leavings.Insert(~i, leaving);
+        if (groundBefore != (leaving.ItemId != 0)) Touch(); else Version++; // o recipiente no chão some (ou volta) das peças da casa
+    }
+
+    internal void RemoveLeaving(long id)
+    {
+        int i = LeavingIndex(id);
+        if (i < 0) return;
+        bool item = Leavings![i].ItemId != 0;
+        Leavings.RemoveAt(i);
+        if (Leavings.Count == 0) Leavings = null;
+        if (LeftLoads is { } loads)
+        {
+            loads.RemoveAll(l => l.LeavingId == id);
+            if (loads.Count == 0) LeftLoads = null;
+        }
+        if (item) Touch(); else Version++;
+    }
+
+    internal int LeftQuantity(long leavingId, int resourceId)
+    {
+        if (LeftLoads is not { } loads) return 0;
+        foreach (var l in loads) if (l.LeavingId == leavingId && l.ResourceId == resourceId) return l.Quantity;
+        return 0;
+    }
+
+    internal bool HasLoads(long leavingId)
+    {
+        if (LeftLoads is not { } loads) return false;
+        foreach (var l in loads) if (l.LeavingId == leavingId) return true;
+        return false;
+    }
+
+    /// <summary>Soma (ou tira) unidades de um espólio; linha vazia sai. Ordem por espólio e recurso.</summary>
+    internal void Leave(long leavingId, int resourceId, int delta)
+    {
+        if (delta == 0) return;
+        LeftLoads ??= [];
+        int lo = 0, hi = LeftLoads.Count - 1, at = -1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1;
+            var l = LeftLoads[mid];
+            int cmp = l.LeavingId != leavingId ? l.LeavingId.CompareTo(leavingId) : l.ResourceId.CompareTo(resourceId);
+            if (cmp == 0) { at = mid; break; }
+            if (cmp < 0) lo = mid + 1; else hi = mid - 1;
+        }
+        int now = (at >= 0 ? LeftLoads[at].Quantity : 0) + delta;
+        if (now <= 0) { if (at >= 0) LeftLoads.RemoveAt(at); }
+        else if (at >= 0) LeftLoads[at] = LeftLoads[at] with { Quantity = now };
+        else LeftLoads.Insert(lo, new LeftLoad(leavingId, resourceId, now));
+        if (LeftLoads.Count == 0) LeftLoads = null;
+        Version++;
+    }
+
+    /// <summary>O recipiente está num espólio (no chão ou a caminho de casa com quem não pode usá-lo): a casa não o tem.</summary>
+    private bool InLeaving(long itemId)
+    {
+        if (Leavings is not { } list) return false;
+        foreach (var l in list) if (l.ItemId == itemId) return true;
+        return false;
+    }
+
+    /// <summary>Muda o dono de uma peça (o herdeiro que a buscou, o ladrão que a levou).</summary>
+    internal void GiveItem(long itemId, long householdId, CityId city)
+    {
+        for (int i = 0; i < Items.Count; i++)
+            if (Items[i].Id == itemId)
+            {
+                if (Items[i].HouseholdId == householdId) return;
+                Items[i] = Items[i] with { HouseholdId = householdId, City = city };
+                Touch();
+                return;
+            }
+    }
+
     /// <summary>Designs concebidos para carregar (ordenados): a função de um design é o problema de quem o concebeu (AD-147).</summary>
     public List<int> CarryDesigns { get; init; } = [];
 
@@ -239,7 +354,7 @@ public sealed class InventionLedger
         _carriersByHousehold = [];
         foreach (var item in Items)
         {
-            if (item.ForSale || FindDesign(item.DesignId) is not { } design || FunctionOf(design.Id) != 1) continue;
+            if (item.ForSale || FindDesign(item.DesignId) is not { } design || FunctionOf(design.Id) != 1 || InLeaving(item.Id)) continue;
             var c = ContainmentOf(design, rules);
             long capacity = c.CapacityG * item.QualityPm / 1000;
             var carrier = new Carrier(capacity, c.InnerMl, c.WatertightMl, c.MassG, c.Worn, design.Id);
@@ -608,4 +723,8 @@ public sealed class InventionTally
     // AD-153: levar por terra
     public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;
     public long HaulTrips, HaulGramsBeyondBody, HaulDrag, HaulSkid, HaulRoll;
+    // AD-168: o espólio de quem morre longe (deixados, mortos em casa com carga, idas para buscar, recolhidos pela casa, achados sem
+    // dono, furtados; unidades deixadas, recolhidas, furtadas e estragadas)
+    public long LeavingsLeft, LeavingsAtHome, LeavingsFetches, LeavingsCollected, LeavingsFound, LeavingsStolen;
+    public long LeftUnits, CollectedUnits, StolenUnits, SpoiledUnits;
 }

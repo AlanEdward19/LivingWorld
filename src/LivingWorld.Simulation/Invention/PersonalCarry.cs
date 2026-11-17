@@ -211,6 +211,7 @@ public static class PersonalCarry
     {
         var ledger = world.Invention!;
         ledger.Hold(npc.Id.Value, 0);
+        Leavings.OnUnpack(world, npc); // AD-168: o recipiente de um espólio que trouxe sem usar
         int i = ledger.CarriedIndex(npc.Id.Value, int.MinValue);
         i = i >= 0 ? i : ~i;
         while (i < ledger.Carried.Count && ledger.Carried[i].NpcId == npc.Id.Value)
@@ -299,12 +300,14 @@ public static class PersonalCarry
         });
     }
 
-    /// <summary>Quem morreu ou saiu: o que levava fica com a casa (se ainda há casa) e a mente se vai.</summary>
-    internal static void Forget(WorldState world, long npcId)
+    /// <summary>Quem morreu ou saiu: o que levava fica com a casa (se ainda há casa) e a mente se vai. AD-168: na morte
+    /// (<paramref name="ctx"/> dado), quem morreu longe de casa deixa a carga e o recipiente no chão (<see cref="Leavings"/>).</summary>
+    internal static void Forget(WorldState world, long npcId, Scheduling.TickContext? ctx = null, long? cause = null)
     {
         var ledger = world.Invention!;
         int mind = ledger.CarryMindIndex(npcId);
         if (mind >= 0) ledger.RemoveCarryMind(mind);
+        if (ctx is not null && Leavings.Drop(world, ctx, npcId, cause)) return;
         ledger.Hold(npcId, 0); // o recipiente fica com a casa
         if (!ledger.CarriesAnything(npcId)) return;
         var home = world.FindNpc(new LivingWorld.Domain.Shared.NpcId(npcId)) is { Household: { } h } ? world.FindHousehold(h) : null;
