@@ -75,7 +75,7 @@ func rebuild() -> void:
 			continue
 		var at := Grid.to_world(leaving.cell) + Vector3(0.18, 0, -0.12)
 		lists.sphere.append([Transform3D(Basis().scaled(Vector3(0.3, 0.24, 0.3)), at + Vector3(0, 0.12, 0)), Color("8a7048")])
-		lists.box.append([Transform3D(Basis(Vector3.UP, 0.4).scaled(Vector3(0.26, 0.12, 0.18)), at + Vector3(0.2, 0.06, 0.1)), Color("6a5a48")])
+		lists.box.append([Transform3D(Basis(Vector3.UP, 0.4) * Basis.from_scale(Vector3(0.26, 0.12, 0.18)), at + Vector3(0.2, 0.06, 0.1)), Color("6a5a48")])
 		if int(leaving.design_id) > 0:
 			var look := look_of(int(leaving.design_id), "cylinder", 0)
 			lists[look.shape].append([Transform3D(Basis().scaled(Vector3.ONE * SIZE * 0.8), at + Vector3(-0.2, 0.09, 0.05)), look.color])

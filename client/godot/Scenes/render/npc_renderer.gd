@@ -199,7 +199,7 @@ func refresh_links() -> void:
 		if length < 0.05:
 			continue
 		var basis := Basis.looking_at((to - from).normalized(), Vector3.UP if absf((to - from).normalized().y) < 0.99 else Vector3.RIGHT)
-		transforms.append(Transform3D(basis.scaled(Vector3(0.025, 0.025, length)), (from + to) / 2.0))
+		transforms.append(Transform3D(basis * Basis.from_scale(Vector3(0.025, 0.025, length)), (from + to) / 2.0))
 		link_pairs.append([int(id), other])
 	var multi: MultiMesh = _links.multimesh
 	multi.instance_count = transforms.size()

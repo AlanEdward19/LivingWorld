@@ -273,9 +273,9 @@ func building_center(id: int) -> Vector3:
 
 ## Nível de LOD pelo escopo e pelo zoom: mundo, cidade ou perto.
 static func lod_for(scope_kind: String, zoom_size: float) -> String:
-	if scope_kind == "World":
-		return "world"
-	return "near" if zoom_size <= NEAR_ZOOM else "city"
+	if zoom_size <= NEAR_ZOOM:
+		return "near" # bem perto, também no mapa-múndi (quem está no campo, fora das cidades)
+	return "world" if scope_kind == "World" else "city"
 
 
 func set_lod(level: String) -> void:

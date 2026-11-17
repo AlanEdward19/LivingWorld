@@ -107,7 +107,7 @@ func _instances() -> Array:
 		var jitter := Vector3(fmod(float(id) * 0.37, 1.0) - 0.5, 0, fmod(float(id) * 0.61, 1.0) - 0.5) * 0.5
 		var at := Grid.to_world(animal.cell) + jitter
 		var lean: float = 0.85 if int(animal.energy) < 30 else 1.0
-		var basis := Basis(Vector3.UP, float(id % 8) * PI / 4.0).scaled(Vector3(lean, 1, 1) * float(look[2]))
+		var basis := Basis(Vector3.UP, float(id % 8) * PI / 4.0) * Basis.from_scale(Vector3(lean, 1, 1) * float(look[2]))
 		var color: Color = look[1].darkened(0.25) if bool(animal.disease) else look[1]
 		out.append({"form": look[0], "transform": Transform3D(basis, at), "color": color})
 		positions[int(id)] = at + Vector3(0, 0.3, 0)

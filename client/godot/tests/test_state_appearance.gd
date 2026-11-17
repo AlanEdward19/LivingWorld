@@ -166,6 +166,7 @@ func test_world_map_shows_density_fauna_groups_and_lod_levels() -> void:
 	check("12 na rua" in text and "40 no pool" in text and "trabalhando 8" in text, text)
 	check(app.world_view.fauna.group_positions.has("wolf:1"), "bando de lobos no mapa")
 	eq(WorldView.lod_for("World", 30.0), "world")
+	eq(WorldView.lod_for("World", 5.0), "near", "quem está no campo também, de perto")
 	eq(WorldView.lod_for("City", 12.0), "city")
 	eq(WorldView.lod_for("City", 5.0), "near")
 	app.queue_free()
