@@ -17,6 +17,11 @@ public sealed record WeatherRules
     /// <summary>Temperatura-base da célula (bioma/altitude) em que a climatologia vale; as outras células ficam acima ou abaixo dela.</summary>
     public double ReferenceBaseC { get; init; } = 12;
 
+    /// <summary>Quanto da diferença de temperatura-base entre a célula e o lugar da climatologia vale: o mapa dá 1 °C por unidade de
+    /// altitude; o gradiente real é 6,5 °C/km (atmosfera padrão, alta confiança) e a unidade de altitude foi tomada como 50 m
+    /// (escolhido), então 0,325.</summary>
+    public double CellOffsetScale { get; init; } = 0.325;
+
     public IReadOnlyList<double> MeanTempC { get; init; } = [3.8, 3.8, 5.7, 7.9, 11.2, 14.2, 16.1, 15.8, 13.6, 10.6, 6.5, 4.6];
     public IReadOnlyList<double> DiurnalRangeC { get; init; } = [6.0, 6.7, 7.9, 9.4, 10.0, 10.0, 10.3, 10.1, 9.2, 7.6, 6.5, 5.8];
     public IReadOnlyList<double> WetDaysPerMonth { get; init; } = [11.4, 9.1, 10.0, 9.1, 9.4, 8.7, 8.1, 8.6, 9.0, 11.0, 10.9, 10.9];

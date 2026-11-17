@@ -138,7 +138,8 @@ public sealed class WeatherTests
         world.Map.TryGetBaseClimate(cell, out float baseC, out _);
         var row = Village(world);
 
-        Assert.Equal(baseC + row.MeanCenti / 100f - world.Weather!.ReferenceCenti / 100f,
+        float reference = world.Weather!.ReferenceCenti / 100f;
+        Assert.Equal(reference + (baseC - reference) * (float)WeatherRules.Default.CellOffsetScale + row.MeanCenti / 100f - reference,
             EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours), 3);
     }
 
