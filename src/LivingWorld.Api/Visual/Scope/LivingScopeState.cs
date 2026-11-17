@@ -53,6 +53,8 @@ public sealed record BuildingVisual(
     /// <summary>AD-170: valor do imóvel e hospedagem, os mesmos do marcador de cidade (só com <c>Pricing</c>/<c>Lodging</c> no cenário).</summary>
     public long Value { get; init; }
     public LodgingMarker? Lodging { get; init; }
+    /// <summary>AD-173: o lote de verdade (quintal de trás, passagem da porta à rua, rua da frente). O cliente desenha só isto.</summary>
+    public LivingWorld.Simulation.Cities.LotView? Lot { get; init; }
 }
 public sealed record ProcessVisual(
     long Id, string Kind, long TargetId, double Progress, string DescriptorKey,

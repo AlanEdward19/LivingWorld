@@ -50,7 +50,7 @@ public static class WorkplacePlacer
         else
         {
             var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
-            var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+            var resolved = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true); // AD-173: porta para a rua
             if (resolved is null)
                 return Result<Workplace>.Fail("Workplaces: nenhuma célula livre para posicionar o edifício autorado");
             position = resolved.Value.Position;

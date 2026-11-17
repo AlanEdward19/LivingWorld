@@ -195,7 +195,7 @@ public static class LivingScopeProjector
         foreach (var building in world.Buildings.Where(building => building.City == cityId).OrderBy(building => building.Id.Value))
         {
             // null = escassez de terra pra este prédio agora — excluído desta resposta em vez de derrubar o escopo; nunca persistido.
-            if (BuildingPlacementResolver.Resolve(building, city, world, bounds) is not { } resolved) continue;
+            if (BuildingPlacementResolver.ResolveLot(building, city, world, bounds) is not { } resolved) continue;
             if (!FitsInside(building, resolved.Position, resolved.Orientation, bounds)) continue;
             var plan = ObservableProjector.Plan(building, resolved.Orientation);
             visible.Add(building);
@@ -211,7 +211,11 @@ public static class LivingScopeProjector
             }
 
             result.Add(new BuildingVisual(building.Id, building.City, building.BuildingTypeId, resolved.Position, resolved.Orientation)
-            { Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging });
+            {
+                Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging,
+                // AD-173: o lote de verdade (quintal, passagem da porta à rua, rua da frente)
+                Lot = LivingWorld.Simulation.Cities.CityStreets.LotOf(world, city, building, resolved.Position, resolved.Croft),
+            });
         }
 
         return result;

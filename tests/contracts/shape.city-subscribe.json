@@ -181,6 +181,14 @@
             "rentPerMonth": "number",
             "units": "number"
           },
+          "lot": {
+            "croft": "[]",
+            "frontPath": "[]",
+            "street": {
+              "x": "number",
+              "y": "number"
+            }
+          },
           "orientation": "number",
           "value": "number"
         }

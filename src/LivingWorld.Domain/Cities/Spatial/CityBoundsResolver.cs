@@ -78,7 +78,7 @@ public static class CityBoundsResolver
     public static (CityBounds Bounds, bool IsDerived) Resolve(
         City city, long population, int mapWidth, int mapHeight,
         IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
-        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null)
+        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, bool chainAbsorption = false)
     {
         int rawSide = SideFor(population, mapWidth, mapHeight);
         var (origin, side) = ClampSideAgainstOtherCities(city.Location, rawSide, otherCityBoundsToAvoid, absorptionRingCells);
@@ -91,30 +91,45 @@ public static class CityBoundsResolver
         int maxX = populationBox.Origin.X + populationBox.Width - 1;
         int maxY = populationBox.Origin.Y + populationBox.Height - 1;
 
-        foreach (var box in ownedBuildingFootprintBoxes)
+        // AD-173: a absorção encadeia — prédio a até absorptionRingCells da cidade JÁ crescida também entra (a vila que
+        // cresce ao longo da rua leva o limite junto), em passes até nada mais entrar. Ordem estável (a da lista).
+        var merged = new bool[ownedBuildingFootprintBoxes.Count];
+        bool grew = true;
+        while (grew)
         {
-            if (ChebyshevGap(populationBox, box) > absorptionRingCells) continue;
-
-            int candidateMinX = Math.Min(minX, box.Origin.X);
-            int candidateMinY = Math.Min(minY, box.Origin.Y);
-            int candidateMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
-            int candidateMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
-
-            if (otherCityBoundsToAvoid is { Count: > 0 })
+            grew = false;
+            for (int index = 0; index < ownedBuildingFootprintBoxes.Count; index++)
             {
-                var candidateBounds = new CityBounds(
-                    new CellCoord(candidateMinX, candidateMinY),
-                    candidateMaxX - candidateMinX + 1, candidateMaxY - candidateMinY + 1);
-                if (otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidateBounds, other) < absorptionRingCells))
-                    continue; // growing to include this box would close the gap to another city -- skip it
-            }
+                if (merged[index]) continue;
+                var box = ownedBuildingFootprintBoxes[index];
+                var current = chainAbsorption ? new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1) : populationBox;
+                if (ChebyshevGap(current, box) > absorptionRingCells) continue;
 
-            minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
+                int candidateMinX = Math.Min(minX, box.Origin.X);
+                int candidateMinY = Math.Min(minY, box.Origin.Y);
+                int candidateMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
+                int candidateMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+
+                if (otherCityBoundsToAvoid is { Count: > 0 })
+                {
+                    var candidateBounds = new CityBounds(
+                        new CellCoord(candidateMinX, candidateMinY),
+                        candidateMaxX - candidateMinX + 1, candidateMaxY - candidateMinY + 1);
+                    if (otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidateBounds, other) < absorptionRingCells))
+                        continue; // growing to include this box would close the gap to another city -- skip it
+                }
+
+                minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
+                merged[index] = true;
+                grew = chainAbsorption;
+            }
         }
 
+        // AD-173 (com o traçado ligado): o teto de metade do mapa vale para a caixa por população; a crescida vem de prédios
+        // reais e só não sai do mapa.
         int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
-        int width = Math.Min(maxX - minX + 1, mapLimit);
-        int height = Math.Min(maxY - minY + 1, mapLimit);
+        int width = Math.Min(maxX - minX + 1, chainAbsorption ? mapWidth : mapLimit);
+        int height = Math.Min(maxY - minY + 1, chainAbsorption ? mapHeight : mapLimit);
         var grownOrigin = ClampOrigin(new CellCoord(minX, minY), width, height, mapWidth, mapHeight);
         return (new CityBounds(grownOrigin, width, height), true);
     }

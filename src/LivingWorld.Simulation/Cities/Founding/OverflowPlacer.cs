@@ -63,7 +63,7 @@ public static class OverflowPlacer
     /// é o raio do anel onde achou (ou além do último, se não achou) — todo anel menor falhou.</summary>
     internal static CellCoord? ResolveOverflowPositionGiven(
         HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
-        int mapWidth, int mapHeight, int startRadius, out int foundRadius, PlacementPolicy policy)
+        int mapWidth, int mapHeight, int startRadius, out int foundRadius, PlacementPolicy policy, GroundGuard? guard = null)
     {
         var halo = policy.HaloOf(footprintShape);
         ulong hash = StableHash.Mix(id.Value);
@@ -76,7 +76,7 @@ public static class OverflowPlacer
             for (int i = 0; i < count; i++)
             {
                 var origin = RingCellAt(bounds, radius, (offset + i) % count);
-                if (FitsAt(footprintShape, halo, origin, occupied, mapWidth, mapHeight, policy))
+                if (FitsAt(footprintShape, halo, origin, occupied, mapWidth, mapHeight, policy, guard))
                 {
                     foundRadius = radius;
                     return origin;
@@ -91,14 +91,14 @@ public static class OverflowPlacer
     /// células livres. Sem lista intermediária: o laço de anéis chama isto milhões de vezes.</summary>
     private static bool FitsAt(
         IReadOnlyList<CellCoord> shape, CellCoord[] halo, CellCoord origin, HashSet<CellCoord> occupied,
-        int mapWidth, int mapHeight, PlacementPolicy policy)
+        int mapWidth, int mapHeight, PlacementPolicy policy, GroundGuard? guard)
     {
         for (int i = 0; i < shape.Count; i++)
         {
             var cell = new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y);
             if (!WithinMap(cell, mapWidth, mapHeight)) return false;
         }
-        return policy.Allows(shape, halo, origin, occupied);
+        return policy.Allows(shape, halo, origin, occupied, guard);
     }
 
     private static bool WithinMap(CellCoord cell, int mapWidth, int mapHeight) =>
