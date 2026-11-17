@@ -94,6 +94,11 @@ func set_daylight(light: float) -> void:
 	_environment.ambient_light_energy = 0.55 + 0.15 * light
 
 
+## Câmera do interior (espelho da do espectador): a seleção projeta ocupantes e objetos com ela.
+func camera() -> Camera3D:
+	return _camera
+
+
 func leave() -> void:
 	dim_rect.visible = false
 	_container.visible = false

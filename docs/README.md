@@ -28,6 +28,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Cultura, conhecimento, tecnologia, política | [society.md](domain/society.md) |
 | Invenção por composição física: materiais, design, avaliador, difusão | [invention.md](domain/invention.md) |
 | Cérebro legível com ganhos herdados e aprendidos (experimento atrás de flag) | [brain.md](domain/brain.md) |
+| O que o cliente Godot ainda não recebe do servidor (etapa 2 do ADR-0047) | [cliente-lacunas-etapa-2.md](cliente-lacunas-etapa-2.md) |
 
 ### Escopo extra — spec, bloqueado até a Fase 8 fechar
 | Você vai mexer em… | Leia |

@@ -4,11 +4,11 @@ extends RefCounted
 
 const NEUTRAL_POSE := "idle"
 
-## Os 8 valores de LivingWorld.Domain.Behavior.ActionType.
+## Os 10 valores de LivingWorld.Domain.Behavior.ActionType (8 = Steal, 9 = Cry: pose própria, não mais "parado").
 const POSE_BY_ACTION := {
-	0: "eat", 1: "sleep", 2: "work", 3: "socialize", 4: "walk", 5: "idle", 6: "buy", 7: "power",
+	0: "eat", 1: "sleep", 2: "work", 3: "socialize", 4: "walk", 5: "idle", 6: "buy", 7: "power", 8: "steal", 9: "cry",
 }
-const POSES: Array[String] = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power"]
+const POSES: Array[String] = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power", "steal", "cry"]
 
 
 ## Pose do NPC: a que o objeto em uso declara (ponto de uso, ADR-0037) quando o cliente a conhece; senão a da ação.
