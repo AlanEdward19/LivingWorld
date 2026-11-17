@@ -3,11 +3,9 @@ using LivingWorld.Domain.Cognition;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Cognition;
-using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scenarios;
@@ -25,8 +23,11 @@ public class GriefYieldsToBodyTests
     private static DecisionContext Mourner(int hunger, long food, long wallet, double grief, int members = 1) => new(
         new NpcId(1), 0, new NeedsSnapshot(hunger, 100, 100, 100), new BodySnapshot(1.7, 68, 28, 1, 1),
         new HouseholdSnapshot(new HouseholdId(1),
-            new Dictionary<ResourceType, long> { [new ResourceType(ScenarioRunner.DefaultEconomyRules.FoodResourceId)] = food,
-                [new ResourceType(ScenarioRunner.DefaultEconomyRules.WaterResourceId)] = 10 },
+            new Dictionary<ResourceType, long>
+            {
+                [new ResourceType(ScenarioRunner.DefaultEconomyRules.FoodResourceId)] = food,
+                [new ResourceType(ScenarioRunner.DefaultEconomyRules.WaterResourceId)] = 10
+            },
             Enumerable.Range(1, members).Select(i => new NpcId(i)).ToList()),
         [], [], [], [], Mid, ActionType.Idle, WalletAmount: wallet,
         Inner: new InnerLifeSnapshot(new Affect(grief, 0, 0, 0, 0, 0), 0));
