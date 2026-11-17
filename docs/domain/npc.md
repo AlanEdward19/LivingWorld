@@ -27,9 +27,15 @@ cônjuge que adota o nome da linhagem (50%), chance de homenagear um parente (15
 própria, a casa e as crianças levam o nome da linhagem do casal; recém-nascido de casal casado leva o da linhagem, fora do
 casamento o da mãe; o costume dá ao bebê o nome próprio de um avô/avó do mesmo sexo (de preferência morto) ou do pai morto
 antes do parto; órfão acolhido mantém o nome; materializado ganha nome novo; família autorada (cenário, jogador) mantém o
-escolhido; nunca dois vivos com o mesmo nome completo na casa. Cada pessoa sorteia num stream próprio não guardado: o
-resto do mundo não muda. Mundo salvo antes mantém o `npc-…`; filho de quem tem nome legado recebe um nome de família
-estável derivado do id do pai/mãe. A ficha da casa vira "casa dos <família>".
+escolhido; sem homônimo vivo na casa. Mundo salvo antes mantém o `npc-…` (filho dele ganha família estável pelo id do pai/mãe).
+Ficha: "casa dos <família>". A cidade leva nome da língua da cultura que a funda (sílabas e sufixo de lugar dela; com o
+costume, 40% das culturas, a filha herda a primeira sílaba da mãe).
+
+**O nome pesa (`FamilyRules.Names`, `LW_NAMES` nos Workers):** xará = mesmo sexo e nome próprio de pai/mãe ou avô/avó.
+Na ajuda mútua o xará socorre com +50% de chance e a linhagem (mesmo nome de família na cidade) é chamada com proximidade
+0,3; o xará enluta o homenageado (luto de amigo ×0,6) e herda 10% da carteira dele antes da partilha; no namoro, o mesmo nome
+de família sem ascendente comum conhecido corta a preferência pela metade; a má fama do pior da linhagem na cidade respinga
+×0,25 na suspeita, na troca de culpado e no crédito. Quem troca de nome ao casar passa à linhagem do cônjuge.
 
 ## Atributos
 
