@@ -59,7 +59,8 @@ do primeiro campo quando ela é envolvida; senão sujeito, autor, vítima, casa,
 ## Inspeção
 `GET /entities/{kind}/{id}` → `{kind, id, name, state, links[]{relation,kind,id,name}, recentEvents[]}`. Tipos: `npc` (`pessoa`),
 `building` (`predio`), `crop` (`lavoura`), `animal`, `object` (`objeto`), `leaving` (`espolio`), `city` (`cidade`, id = Guid,
-resumo leve), `household` (`casa`), `workplace` (`oficina`). 404 para tipo ou id desconhecido. `state` de pessoa reaproveita
+resumo leve), `household` (`casa`), `workplace` (`oficina`), `event` (`evento`, id do log, do buffer da API; AD-172). 404
+para tipo ou id desconhecido. Prédio sem nome de tipo no período: nome do local da oficina, senão `casa de <responsável>`. `state` de pessoa reaproveita
 `/npcs/{id}`; `recentEvents` vem do buffer de eventos da API (desde o último esvaziamento) e dos fatos com a pessoa.
 `/npcs/{id}` ganhou `childIds`, `householdBuildingId` e `employment{id,locationTypeId,buildingId,ownerId,name}`.
 Nomes (`professionName`, `typeName`, `resourceName`…) vêm do catálogo do período do mundo; mundo sem período fica sem nome.

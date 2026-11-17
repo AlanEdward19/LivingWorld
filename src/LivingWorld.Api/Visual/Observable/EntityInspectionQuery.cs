@@ -66,6 +66,8 @@ public static class EntityInspectionQuery
         ["casa"] = "household",
         ["workplace"] = "workplace",
         ["oficina"] = "workplace",
+        ["event"] = "event",
+        ["evento"] = "event",
     };
 
     private const int RecentTake = 20;
@@ -95,6 +97,7 @@ public static class EntityInspectionQuery
             "leaving" => reader.Leaving(value),
             "household" => reader.Household(value),
             "workplace" => reader.Workplace(value),
+            "event" => reader.Event(value),
             _ => null,
         };
     }
@@ -136,6 +139,40 @@ public static class EntityInspectionQuery
 
         private static List<EntityLink> Links(params EntityLink?[] links) => links.OfType<EntityLink>().ToList();
 
+        /// <summary>AD-172: nome do prédio — o tipo no período; senão o do local da oficina; senão "casa de ..." do primeiro morador
+        /// responsável; só por último "prédio {id}".</summary>
+        private string BuildingName(BuildingStateVisual occupancy, Workplace? workplace, long id)
+        {
+            if (occupancy.TypeName is { } typeName) return typeName;
+            if (workplace is not null && ctx.Names.LocationType(workplace.LocationType.Id) is { } place) return place;
+            if (occupancy.HouseholdIds.Count > 0 && world.FindHousehold(new HouseholdId(occupancy.HouseholdIds[0])) is { } home
+                && NpcName(home.Head.Value) is { } head)
+                return $"casa de {head}";
+            return occupancy.Function switch
+            {
+                "workplace" or "dwelling,workplace" or "lodging,workplace" => $"oficina {id}",
+                "lodging" => $"hospedaria {id}",
+                "dwelling" => $"moradia {id}",
+                _ => $"prédio {id}",
+            };
+        }
+
+        /// <summary>AD-172: ficha de um evento do buffer da API (pelo id do log): o evento e os vínculos dos envolvidos.</summary>
+        public EntityInspection? Event(long id)
+        {
+            if (id <= 0 || sink?.NewestMatching(evt => evt.EventId == id, 1, ScanLimit) is not [var evt]) return null;
+            var view = View(evt);
+            var who = view.Involved;
+            var links = Links(Person("subject", who.SubjectId), Person("other", who.OtherId), Person("author", who.AuthorId),
+                Person("victim", who.VictimId), who.HouseholdId is { } h ? Home("household", h) : null,
+                who.BuildingId is { } b ? BuildingLink("building", b) : null,
+                who.CityId is { } c && Guid.TryParse(c, out var city) ? CityLink("city", new CityId(city)) : null);
+            foreach (var related in who.RelatedIds ?? []) links.Add(Person("related", related));
+            if (who.WorkplaceId is { } w && world.FindWorkplace(new WorkplaceId(w)) is { } workplace) links.Add(WorkplaceLink("workplace", workplace));
+            if (who.LeavingId is { } l) links.Add(new EntityLink("leaving", "leaving", l.ToString(), null));
+            return new EntityInspection("event", id.ToString(), view.Label, view, links, []);
+        }
+
         public EntityInspection? Npc(long id)
         {
             var inspected = NpcInspectionQuery.Inspect(world, new NpcId(id));
@@ -176,7 +213,7 @@ public static class EntityInspectionQuery
             foreach (var r in occupancy.ResidentIds) links.Add(Person("resident", r));
             foreach (var w in occupancy.WorkerIds) links.Add(Person("worker", w));
             int floors = BuildingLayoutGenerator.Generate(building).Floors;
-            return new EntityInspection("building", id.ToString(), occupancy.TypeName ?? $"prédio {id}",
+            return new EntityInspection("building", id.ToString(), BuildingName(occupancy, workplace, id),
                 new BuildingEntityState(id, building.City.ToString(), building.BuildingTypeId, occupancy.TypeName, building.CompletedAtTick,
                     floors, occupancy, workplace is null ? [] : Stock(workplace.Stock), workplace?.Treasury.Amount),
                 links, Events(e => e.BuildingId == id || (workplace is not null && e.WorkplaceId == workplace.Id.Value)));
