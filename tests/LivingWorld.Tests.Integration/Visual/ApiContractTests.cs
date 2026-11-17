@@ -65,6 +65,10 @@ public class ApiContractTests
         private static readonly LivingWorld.Api.Visual.Scope.BuildingVisual BuildingWithoutStreet =
             new(new LivingWorld.Domain.Shared.BuildingId(9), City, -1, Cell) { Lot = new([], [], null) };
         private static readonly LivingWorld.Api.Visual.Scope.ProcessVisual Process = new(2, "construction", 1, 0, "construction");
+
+        // AD-176: célula de rua mínima (trilha, sem calçamento nem obra)
+        private static readonly LivingWorld.Simulation.Cities.StreetCellView Road =
+            new(City, Cell, LivingWorld.Simulation.Cities.StreetSurface.Trail, 0, false, false);
         private static readonly LivingWorld.Api.Visual.Scope.NotableVisualEvent Event =
             new(4, LivingWorld.Domain.History.WorldEventKind.Death, "Morte") { Involved = new() };
         private static readonly LivingWorld.Api.Visual.Observable.BuildingStateVisual BuildingState =
@@ -87,11 +91,14 @@ public class ApiContractTests
             Animals = [Animal],
             Leavings = [Leaving],
             Objects = [Object],
+            Roads = [Road],
         };
 
         public static LivingWorld.Api.Visual.Scope.ScopeTickDelta Delta(long tick) =>
             new(tick, [Npc], [], [CityItem], [], [Building, BuildingWithoutStreet], [], [Process], [], [], [Event])
             {
+                RoadUpserts = [Road], // AD-176
+                RoadRemoved = [Cell],
                 BuildingStateUpserts = [BuildingState],
                 CropUpserts = [Crop],
                 AnimalUpserts = [Animal],
@@ -115,7 +122,12 @@ public class ApiContractTests
                 Observable = ObservableSample.Npc, ActionStartedAtTick = 3,
                 ActionTarget = new LivingWorld.Simulation.Cities.Queries.NpcActionTargetDto("workplace", "1"), Intent = ActionType.Work,
                 IntentTarget = "workplace:1",
+                Route = [cell, cell], RouteArrivalTick = 5, // AD-176: a rota de quem viaja
             }],
+            // AD-176: rua com calçamento e obra em curso
+            Roads = [new LivingWorld.Simulation.Cities.StreetCellView(city, cell, LivingWorld.Simulation.Cities.StreetSurface.Gravel, 40, true, true)
+                { Wear = 900, UseBand = 2, Planned = true, Condition = 800,
+                  Work = new LivingWorld.Simulation.Cities.StreetWorkView(LivingWorld.Simulation.Cities.StreetSurface.Paved, 30, true, "treasury") }],
             Processes = [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed", 1, 3, cell, [cell], "brilho")
                 { ResourceId = 1, ResourceName = "trigo" }],
             Events = [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", cell)
@@ -129,7 +141,7 @@ public class ApiContractTests
             Climate = ObservableSample.Climate,
             // AD-173: um lote completo (quintal, caminho e rua), para a forma conhecer o elemento das listas em todo escopo
             Buildings = [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(3), city, -1, cell)
-                { Lot = new([cell], [cell], cell) }],
+                { Lot = new([cell], [cell], cell) { Access = "street" } }],
         };
         var living = ContractShapes.Merge(
             ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(filled))),

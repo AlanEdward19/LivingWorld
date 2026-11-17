@@ -443,10 +443,11 @@ public static class StreetRoutes
         var route = Get(world, origin, destination);
         int o = Index(state, origin), d = Index(state, destination);
         if (o < 0 || d < 0) return [origin, destination];
-        if (route.Internal) return [origin, destination];
+        if (route.Internal) return LinePath(state.W, state.H, origin, destination);
         var all = new List<int> { o };
         void Add(int c) { if (all[^1] != c) all.Add(c); }
         void Line(int a, int b) { var tmp = new List<int>(); LineCells(state, a, b, tmp, all: true); foreach (int c in tmp) Add(c); }
+        Line(o, route.A); // de dentro do prédio até a soleira
         if (route.E < 0) Line(route.A, route.B);
         else
         {
@@ -454,6 +455,7 @@ public static class StreetRoutes
             if (route.E != route.X) foreach (int c in Leg(state, route.E, route.X).Path) Add(c);
             Line(route.X, route.B);
         }
+        Line(route.B, d); // da soleira até onde chega
         Add(d);
         return [.. all.Select(c => new CellCoord(c % state.W, c / state.W))];
     }
