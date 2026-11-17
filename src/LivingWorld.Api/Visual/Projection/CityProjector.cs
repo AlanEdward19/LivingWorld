@@ -61,7 +61,7 @@ public sealed record CitySnapshot(
 
 public static class CityProjector
 {
-    public static Result<CitySnapshot> Build(WorldState world, CityId cityId)
+    public static Result<CitySnapshot> Build(WorldState world, CityId cityId, LivingWorld.Api.Visual.Observable.PresentationNames? names = null)
     {
         var city = world.FindCity(cityId);
         if (city is null || city.MergedIntoCityId is not null)
@@ -147,7 +147,7 @@ public static class CityProjector
         var cellBounds = new CellBounds(
             boundsForPlacement.Origin.X, boundsForPlacement.Origin.Y, boundsForPlacement.Width, boundsForPlacement.Height);
 
-        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()));
+        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()), names: names);
         return Result<CitySnapshot>.Ok(new CitySnapshot(
             city.Id, city.Name, city.Location, city.AggregatePool, residents, city.PoolNpcIds.ToList(), buildings,
             layers, portals, indicators, livingState, cellBounds, boundsAreDerived));

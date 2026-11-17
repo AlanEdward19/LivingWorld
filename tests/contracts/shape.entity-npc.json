@@ -1,0 +1,156 @@
+{
+  "id": "string",
+  "kind": "string",
+  "links": [
+    {
+      "id": "string",
+      "kind": "string",
+      "name": "string",
+      "relation": "string"
+    }
+  ],
+  "name": "string",
+  "recentEvents": [
+    {
+      "eventId": "number",
+      "involved": {
+        "amount": "number",
+        "authorId": "number",
+        "buildingId": "number",
+        "caseId": "number",
+        "cityId": "string",
+        "designId": "number",
+        "householdId": "number",
+        "leavingId": "number",
+        "otherId": "number",
+        "outcome": "string",
+        "recordOnly": "boolean",
+        "relatedIds": [
+          "number"
+        ],
+        "subjectId": "number",
+        "victimId": "number",
+        "workplaceId": "number"
+      },
+      "kind": "number",
+      "label": "string",
+      "location": {
+        "x": "number",
+        "y": "number"
+      },
+      "tick": "number"
+    }
+  ],
+  "state": {
+    "npc": {
+      "actionStartedAtTick": "number",
+      "actionTarget?": {
+        "id": "string",
+        "kind": "string"
+      },
+      "ageYears": "number",
+      "beliefs": "[]",
+      "childIds": "[]",
+      "city": {
+        "value": "string"
+      },
+      "cognitionTrace": "[]",
+      "culture": {
+        "id": "number"
+      },
+      "currentAction": "null",
+      "currentLocation": {
+        "x": "number",
+        "y": "number"
+      },
+      "currentScope": {
+        "cityId": {
+          "value": "string"
+        },
+        "kind": "number"
+      },
+      "employer": "null",
+      "employment": "null",
+      "fatherId": "null",
+      "food": "null",
+      "health": "number",
+      "household": {
+        "value": "number"
+      },
+      "householdBuildingId": {
+        "value": "number"
+      },
+      "hunger": "number",
+      "id": {
+        "value": "number"
+      },
+      "lod": "number",
+      "memories": "[]",
+      "motherId": "null",
+      "name": "string",
+      "personality": {
+        "agreeableness": "number",
+        "altruism": "number",
+        "ambition": "number",
+        "conscientiousness": "number",
+        "emotionalStability": "number",
+        "extroversion": "number",
+        "impulsivity": "number",
+        "loyalty": "number",
+        "openness": "number",
+        "riskAversion": "number"
+      },
+      "powerIds": "[]",
+      "profession": {
+        "id": "number"
+      },
+      "rest": "null",
+      "sex": "number",
+      "skills": {
+        "values": {
+          "0": "number"
+        }
+      },
+      "sleep": "number",
+      "social": "number",
+      "spouse": {
+        "value": "number"
+      },
+      "thirst": "number"
+    },
+    "observable": {
+      "ageYears": "number",
+      "carried": "[]",
+      "dominantEmotion?": "string",
+      "emotions": {
+        "anger": "number",
+        "fear": "number",
+        "grief": "number",
+        "joy": "number",
+        "loneliness": "number",
+        "shame": "number"
+      },
+      "growthFraction": "number",
+      "heightCm": "number",
+      "held?": {
+        "designId": "number",
+        "itemId": "number"
+      },
+      "illness?": {
+        "bedridden": "boolean",
+        "diseaseId": "number",
+        "symptomatic": "boolean"
+      },
+      "lifeStage": "string",
+      "mourning": "boolean",
+      "name": "string",
+      "pregnancy?": {
+        "babies": "number",
+        "fraction": "number"
+      },
+      "professionId": "number",
+      "professionName?": "string",
+      "sex": "string"
+    }
+  }
+}

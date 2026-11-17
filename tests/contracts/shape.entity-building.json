@@ -1,0 +1,74 @@
+{
+  "id": "string",
+  "kind": "string",
+  "links": [
+    {
+      "id": "string",
+      "kind": "string",
+      "name": "string",
+      "relation": "string"
+    }
+  ],
+  "name": "string",
+  "recentEvents": [
+    {
+      "eventId": "number",
+      "involved": {
+        "amount": "number",
+        "authorId": "number",
+        "buildingId": "number",
+        "caseId": "number",
+        "cityId": "string",
+        "designId": "number",
+        "householdId": "number",
+        "leavingId": "number",
+        "otherId": "number",
+        "outcome": "string",
+        "recordOnly": "boolean",
+        "relatedIds": [
+          "number"
+        ],
+        "subjectId": "number",
+        "victimId": "number",
+        "workplaceId": "number"
+      },
+      "kind": "number",
+      "label": "string",
+      "location": {
+        "x": "number",
+        "y": "number"
+      },
+      "tick": "number"
+    }
+  ],
+  "state": {
+    "buildingTypeId": "number",
+    "cityId": "string",
+    "completedAtTick": "number",
+    "floors": "number",
+    "fullStock": "[]",
+    "id": "number",
+    "occupancy": {
+      "buildingId": "number",
+      "buildingTypeId": "number",
+      "closed": "boolean",
+      "function": "string",
+      "householdIds": [
+        "number"
+      ],
+      "locationTypeId?": "number",
+      "locationTypeName?": "string",
+      "ownerId?": "number",
+      "pantryUnits": "number",
+      "residentIds": [
+        "number"
+      ],
+      "stock": "[]",
+      "typeName?": "string",
+      "workerIds": "[]",
+      "workplaceId?": "number"
+    },
+    "treasuryCents?": "number",
+    "typeName?": "string"
+  }
+}

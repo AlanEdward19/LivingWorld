@@ -30,8 +30,10 @@ public static class GlobalLayerBuilder
                 .Select(c => new KeyValuePair<CellCoord, IReadOnlyList<ResourceType>>(c.Coord, c.Resources)).ToList()),
         VisualLayerId.Rivers => LayerBuildResult.Available(
             world.Map.Cells.Where(c => c.HasWater).Select(c => c.Coord).ToList()),
+        // AD-170: estação e clima por região, do que o motor já tem (estação, ajustes de temperatura, ano de safra)
+        VisualLayerId.Climate => LayerBuildResult.Available(LivingWorld.Api.Visual.Observable.ObservableProjector.ClimateLayer(world)),
         VisualLayerId.Mountains or VisualLayerId.Roads or VisualLayerId.Borders
-            or VisualLayerId.Kingdoms or VisualLayerId.Climate => LayerBuildResult.NotYetModeled,
+            or VisualLayerId.Kingdoms => LayerBuildResult.NotYetModeled,
         _ => LayerBuildResult.OutOfScope(layerId, "global"),
     };
 }

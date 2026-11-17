@@ -46,7 +46,7 @@ public sealed record GlobalSnapshot(
 
 public static class GlobalProjector
 {
-    public static GlobalSnapshot Build(WorldState world)
+    public static GlobalSnapshot Build(WorldState world, LivingWorld.Api.Visual.Observable.PresentationNames? names = null)
     {
         var cities = world.ActiveCities()
             .Select(c =>
@@ -88,7 +88,7 @@ public static class GlobalProjector
             .Where(p => p.From.Space == PortalSpaceKind.World || p.To.Space == PortalSpaceKind.World)
             .ToList();
 
-        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.World, ""));
+        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.World, ""), names: names);
         return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers, portals, livingState);
     }
 
