@@ -49,3 +49,7 @@ e os NPCs ficam se passando um pelo outro."
    decide e pelo terreno; nada de prédio colado em prédio sem passagem. Muda o mundo (goldens regravados na junção).
 3. **Delta sem nulos** (aprovado: "pode omitir os nulos no delta"): servidor omite chaves nulas no delta, cliente lê
    ausência como nulo; muda os `shape.*.json` do delta.
+
+Correção do dono no mesmo dia: "quintal depende, nem toda casa vai ter quintal e isso afeta a construção da casa (focado em
+realismo lembra)". Quintal e recuo são decisão de cada casa ao construir (terra, meios, ofício, família), com custo na obra e
+uso real; o motor expõe o lote e as ruas e o cliente desenha só isso. O quintal de uma célula inventado pelo cliente (AD-171) sai.
