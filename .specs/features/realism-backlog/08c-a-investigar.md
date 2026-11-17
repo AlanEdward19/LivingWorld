@@ -53,3 +53,11 @@
 146. **Passeio à toa anda mais que conversar** (um passo por ação concluída; à toa dura 2 h, conversar 3 h): artefato do
      modelo de movimento que levava quem trocava conversar por à toa para longe da água. Investigar no movimento, não no cérebro.
 
+
+## Da junção da carga ligada (AD-157b + AD-165)
+148. **Quebra de colheita pesa mais com a carga**: seed 14 do `DefaultVillageDecade` termina 10 anos com 54 vivos (64 com a
+     carga desligada); no ano de quebra 431 furtos contra 351 e 35 banidos contra 28. A ajuda cai (104 → 44 no ano) porque
+     as casas carentes têm moeda e a regra exige casa sem comida **e** sem moeda, mas na quebra não há comida à venda.
+     Medir por que chegam à quebra com mais moeda e despensa vazia; avaliar ajuda em comida quando o mercado está vazio.
+149. **Mortes de fome por seed 0,80 → 1,38** com a carga (40×15, ruído ±0,40): no limite; medir com mais pares.
+150. **Baseline `population.json` regravado** na junção: média das 20 seeds 89 → 104; só a seed 14 ficava abaixo da faixa.
