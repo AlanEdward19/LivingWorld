@@ -72,7 +72,8 @@ public sealed class MutualAidSystem : ISimulationSystem
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
             if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
-            long deficit = count * dailyCostPerPerson * RelieveDays - (moneyBuysFood ? wallets : 0);
+            // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
+            long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
             RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food, moneyBuysFood);
         }
 
@@ -168,7 +169,7 @@ public sealed class MutualAidSystem : ISimulationSystem
         int considered = 0;
         foreach (var helperId in candidates)
         {
-            if (deficit <= 0 || considered >= MaxCandidatesPerHousehold) break;
+            if ((deficit <= 0 && (moneyBuysFood || foodNeed <= 0)) || considered >= MaxCandidatesPerHousehold) break;
             if (memberIds.Contains(helperId)) continue;
             if (world.FindNpc(helperId) is not { IsAlive: true } helper) continue;
             var stage = world.LifeStageRules.LifeStageOf(helper.AgeYears(world.CurrentDate));
@@ -184,8 +185,6 @@ public sealed class MutualAidSystem : ISimulationSystem
 
             long surplus = helper.Wallet.Amount - HelperReserve(world, helper, dailyCostPerPerson);
             long spareFood = foodNeed > 0 && (surplusFood || (kinAid && kin)) ? SpareFood(world, helper, household, fedFrom, food, reserveDays) : 0;
-            // AD-166: sem comida à venda, moeda dada não compra nada: só a comida conta
-            if (!moneyBuysFood) surplus = 0;
             if (surplus < dailyCostPerPerson && spareFood <= 0) continue;
 
             double altruism = helper.Personality.Altruism / 100.0;
@@ -209,10 +208,10 @@ public sealed class MutualAidSystem : ISimulationSystem
                     Thank(world, ctx, recipient, helper);
                     ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food", sourceSystem: SystemName);
                 }
-                if (deficit <= 0) break;
+                if (deficit <= 0 && (moneyBuysFood || foodNeed <= 0)) break;
             }
 
-            if (surplus < dailyCostPerPerson) continue;
+            if (surplus < dailyCostPerPerson || deficit <= 0) continue;
             long give = Math.Min(deficit, (long)Math.Floor(surplus * (0.15 + 0.35 * altruism)));
             if (give <= 0) continue;
             if (!helper.TryDebitWallet(new Money(give)).IsSuccess) continue;
@@ -223,7 +222,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
         }
 
-        if (deficit <= 0 || !moneyBuysFood || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
+        if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
         if (AlmsGiver(world, household) is not { } city) return;
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
