@@ -7,6 +7,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Layout;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scheduling;
@@ -26,12 +27,14 @@ public static class PopulationSeeder
 
         var rng = world.Rng.Stream("population-init");
         var houseIds = new List<BuildingId>();
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null;
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, placementCity, count, householdCount, houseIds),
-            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
+                world, placementCity, count, householdCount, houseIds, composition),
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
+            householdsComposed: groups => composition = groups);
 
         Register(world, generated, houseIds);
     }
@@ -43,11 +46,13 @@ public static class PopulationSeeder
     {
         var rng = world.Rng.Stream("population-authored");
         var houseIds = new List<BuildingId>();
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null;
         var generated = PopulationGenerator.GenerateAuthored(
             rng, world.CurrentDate, [household], culture, villageLocation, world.NextNpcId, world.NextHouseholdId, city.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, city, household.Members.Count, householdCount, houseIds),
-            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
+                world, city, household.Members.Count, householdCount, houseIds, composition),
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
+            householdsComposed: groups => composition = groups);
         Register(world, generated, houseIds);
     }
 
@@ -119,7 +124,8 @@ public static class PopulationSeeder
     // da borda) — mesmo padrão de peek-id/adicionar-incremental de ConstructionSystem.CompleteProject,
     // pra que Resolve veja as casas já colocadas neste lote como ocupadas.
     private static IReadOnlyList<CellCoord> PlaceHouseholdBuildings(
-        WorldState world, City city, int population, int householdCount, List<BuildingId> houseIds)
+        WorldState world, City city, int population, int householdCount, List<BuildingId> houseIds,
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null)
     {
         var locations = new List<CellCoord>(householdCount);
         for (int i = 0; i < householdCount; i++)
@@ -134,25 +140,44 @@ public static class PopulationSeeder
             // uses for a building with nowhere else to go (never fails, may overlap): a household
             // still needs SOME location to exist (unlike a workplace, it can't just be skipped),
             // and land scarcity should degrade its exact position, never crash world loading.
-            var placement = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+            // AD-173: a família escolhe o lote pelo ofício, pelo tamanho e pelos meios; primeiro de frente para a rua
+            // (degraus da rua), depois um andar livre de casa que já existe, só então os degraus sem rua.
+            var profile = composition is not null && i < composition.Count
+                ? LotProfiles.ForHousehold(world, city.Id, composition[i])
+                : LotProfile.UnknownHousehold;
+            // Sem andar livre nem terra seca com porta, a família divide a casa menos cheia (aperto) antes de erguer casa sobre a
+            // água ou sem saída (último degrau). Traçado desligado: a ordem de antes (todos os degraus, depois o andar livre).
+            bool layout = world.CityRules.EffectiveLayout().Enabled;
+            int lastBeforeFloors = layout ? PlacementPolicy.StreetLevels - 1 : PlacementPolicy.LevelCount - 1;
+            var placement = BuildingPlacementResolver.ResolveLot(
+                candidate, city, world, bounds, profile, 0, lastBeforeFloors, chooseOrientation: true);
+            var shared = placement is null ? FindDwellingWithFreeFloor(world, city, houseIds) : null;
+            if (layout && placement is null && shared is null)
+                placement = BuildingPlacementResolver.ResolveLot(
+                    candidate, city, world, bounds, profile, PlacementPolicy.StreetLevels, PlacementPolicy.LevelCount - 2, chooseOrientation: true);
+            if (layout && placement is null && shared is null)
+                shared = LeastCrowdedDwelling(world, city, houseIds);
+            if (layout && placement is null && shared is null)
+                placement = BuildingPlacementResolver.ResolveLot(
+                    candidate, city, world, bounds, profile, PlacementPolicy.LevelCount - 1, PlacementPolicy.LevelCount - 1, chooseOrientation: true);
 
             // city-building-separation: sem terra livre a casa não vira um prédio empilhado sobre outro;
             // ela se estende para cima — o domicílio passa a morar num andar livre de uma casa que já existe
             // (uma casa de N andares abriga até N domicílios).
-            if (placement is null && FindDwellingWithFreeFloor(world, city, houseIds) is { } shared)
+            if (placement is null && shared is not null)
             {
-                houseIds.Add(shared.Building.Id);
-                locations.Add(DwellingCapacity.InteriorCellOf(shared.Building, shared.Building.Position!.Value));
+                houseIds.Add(shared.Value.Building.Id);
+                locations.Add(DwellingCapacity.InteriorCellOf(shared.Value.Building, shared.Value.Building.Position!.Value));
                 continue;
             }
 
-            var (position, orientation) = placement is { } resolved
-                ? (resolved.Position, resolved.Orientation)
-                : (ClampFootprintIntoMap(world, candidate, CityOccupancy.LegacyRingFallback(candidate.Id, city.Location)), 0);
+            var (position, orientation, croft) = placement is { } resolved
+                ? (resolved.Position, resolved.Orientation, resolved.Croft)
+                : (ClampFootprintIntoMap(world, candidate, CityOccupancy.LegacyRingFallback(candidate.Id, city.Location)), 0, 0);
 
             var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
-                world.CurrentDate.TotalHours, position, orientation);
+                world.CurrentDate.TotalHours, position, orientation, croftCells: croft);
             world.AddBuilding(house);
             houseIds.Add(house.Id);
             locations.Add(DwellingCapacity.InteriorCellOf(house, position));
@@ -173,6 +198,20 @@ public static class PopulationSeeder
 
     /// <summary>Primeira casa da cidade (por Id) com andar sobrando: moradores atuais, mais os domicílios já
     /// atribuídos neste lote, abaixo do número de andares. Só considera casas com posição gravada.</summary>
+    /// <summary>AD-173: a casa (com posição gravada) que menos domicílios abriga agora, contando o lote; desempate por Id.</summary>
+    private static (Building Building, int Tenants)? LeastCrowdedDwelling(WorldState world, City city, List<BuildingId> batchHouseIds)
+    {
+        (Building Building, int Tenants)? best = null;
+        foreach (var house in world.Buildings
+                     .Where(b => b.City == city.Id && b.BuildingTypeId == InitialHouseBuildingTypeId && b.Position is not null)
+                     .OrderBy(b => b.Id.Value))
+        {
+            int tenants = world.Households.Count(h => h.Dwelling == house.Id) + batchHouseIds.Count(id => id == house.Id);
+            if (best is null || tenants < best.Value.Tenants) best = (house, tenants);
+        }
+        return best;
+    }
+
     private static (Building Building, int Tenants)? FindDwellingWithFreeFloor(WorldState world, City city, List<BuildingId> batchHouseIds)
     {
         foreach (var house in world.Buildings

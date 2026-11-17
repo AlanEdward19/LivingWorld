@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Spatial;
@@ -124,11 +125,15 @@ public static class CityScenarioLoader
         if (!TryGetLong(root, "MaterializationIdleTicksBeforeEligible", out var idleTicks))
             return Result<CityRules>.Fail("MaterializationIdleTicksBeforeEligible: campo obrigatório ausente ou inválido");
 
-        return CityRules.Create(
+        var created = CityRules.Create(
             enabled, foodShortage, housingShortage, securityShortage, emigrationRate,
             employmentWeight, foodWeight, securityWeight, familyTiesWeight,
             concentration, resource, route, defensibility, leadership,
             organizationTicks, idleTicks);
+        // AD-173: "CityLayout" opcional (ruas e lotes); sem ele, o padrão ligado.
+        if (!created.IsSuccess || root["CityLayout"] is not JsonObject layoutNode) return created;
+        var layout = layoutNode.Deserialize<CityLayoutRules>();
+        return layout is null ? created : Result<CityRules>.Ok(created.Value! with { Layout = layout });
     }
 
     private static Result<CityCatalog> ParseCatalog(JsonObject root)

@@ -64,6 +64,7 @@ candidato natural a migrar ou a crime. Cidade que cresce mais rápido que suas c
 esse déficit sozinha — é o mecanismo, não um evento escrito.
 
 ## Ver também
+- [city-layout.md](city-layout.md) — ruas, lotes, quintal e caminho: como os prédios nascem no chão
 - [economy.md](economy.md) — emprego, estoque e preço dentro dos locais
 - [world-map.md](world-map.md) — terreno, distância e rotas entre cidades
 - [npc.md](npc.md) — residência, trabalho e necessidades

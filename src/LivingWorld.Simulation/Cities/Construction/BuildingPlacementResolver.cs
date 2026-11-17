@@ -4,6 +4,7 @@ using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Layout;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Cities.Construction;
@@ -32,21 +33,27 @@ namespace LivingWorld.Simulation.Cities.Construction;
 public static class BuildingPlacementResolver
 {
     public static (CellCoord Position, int Orientation, bool IsDerived)? Resolve(
-        Building building, City city, WorldState world, CityBounds bounds)
+        Building building, City city, WorldState world, CityBounds bounds) =>
+        ResolveLot(building, city, world, bounds) is { } lot ? (lot.Position, lot.Orientation, lot.IsDerived) : null;
+
+    /// <summary>AD-173: a posição, a orientação e o quintal (croft) do lote. <paramref name="chooseOrientation"/>: quem
+    /// constrói e grava a posição vira a porta para a rua (sem ele, a orientação da identidade, a de um prédio derivado). <paramref name="profile"/> é quem constrói (sem ele, o
+    /// lote que o motor escolhe pelo tipo do prédio); os degraus vão de <paramref name="firstLevel"/> a
+    /// <paramref name="lastLevel"/> (ver <see cref="PlacementPolicy.LevelCount"/>). Prédio autorado devolve o que tem.</summary>
+    internal static (CellCoord Position, int Orientation, bool IsDerived, int Croft)? ResolveLot(
+        Building building, City city, WorldState world, CityBounds bounds, LotProfile? profile = null,
+        int firstLevel = 0, int lastLevel = PlacementPolicy.LevelCount - 1, bool chooseOrientation = false)
     {
         if (building.Position is { } position)
-            return (position, building.Orientation ?? 0, false);
+            return (position, building.Orientation ?? 0, false, building.CroftCells ?? 0);
 
         int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
-        var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation).Select(c => c.Cell).ToList();
-        // Degraus de relaxamento (PlacementPolicy.LevelCount): folga e sem água; depois encostando; por fim a
-        // regra antiga. Desce só quando o degrau anterior não achou terra em nenhum lugar do mapa.
-        CellCoord? origin = null;
-        for (int level = 0; level < PlacementPolicy.LevelCount && origin is null; level++)
-            origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id, level)
-                ?? CityOccupancy.ResolveOverflowWithMarks(world, city, bounds, building, shape, level);
-
-        return origin is { } resolved ? (resolved, orientation, true) : null;
+        // Degraus de relaxamento (PlacementPolicy.LevelCount): o lote escolhido na rua; sem quintal; parede-meia; depois os
+        // degraus antigos sem rua. Desce só quando o degrau anterior não achou terra em nenhum lugar do mapa.
+        var lot = CityOccupancy.FindPlacement(
+            world, city, bounds, building.Id, building.BuildingTypeId, orientation,
+            profile ?? CityOccupancy.DerivedProfile(world, building.BuildingTypeId), firstLevel, lastLevel, chooseOrientation);
+        return lot is { } found ? (found.Origin, found.Orientation, true, found.Croft) : null;
     }
 
     /// <summary>Canteiro de obra ainda sem <see cref="BuildingId"/> — estável por índice da fila.

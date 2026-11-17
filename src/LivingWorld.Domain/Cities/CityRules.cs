@@ -26,6 +26,13 @@ public sealed record CityRules(
     long MaterializationIdleTicksBeforeEligible,
     int AbsorptionRingCells = 3)
 {
+    /// <summary>AD-173: ruas, lotes e recuo. Nulo = <see cref="CityLayoutRules.Default"/> (ligado), inclusive em snapshot antigo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public CityLayoutRules? Layout { get; init; }
+
+    /// <summary>O traçado em vigor: o do cenário, senão o padrão.</summary>
+    public CityLayoutRules EffectiveLayout() => Layout ?? CityLayoutRules.Default;
+
     public static Result<CityRules> Create(
         bool enabled,
         double foodShortageThreshold,

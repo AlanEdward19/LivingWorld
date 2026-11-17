@@ -330,7 +330,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
         AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
         LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null,
-        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null,
+        LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null) // AD-173: nulo = traçado padrão (ruas e lotes)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -348,7 +349,8 @@ public static partial class ScenarioRunner
             biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules ?? LivingWorld.Domain.Crime.TheftRules.Default, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
             appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
-            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default, extraordinary: extraordinary);
+            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default, extraordinary: extraordinary,
+            cityRules: cityLayout is null ? null : LivingWorld.Domain.Cities.CityRules.Disabled with { Layout = cityLayout });
         world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
         world.UseCrime(crimeRules ?? LivingWorld.Domain.Crime.CrimeRules.Default); // AD-150
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-160b: cérebro ligado no cenário de código

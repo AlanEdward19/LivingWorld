@@ -118,8 +118,16 @@ public sealed class OwnerDrawTests
         long moved = farm.Treasury.Amount;
         farm.TryDebitTreasury(new LivingWorld.Domain.Shared.Money(moved));
         city.CreditTreasury(new LivingWorld.Domain.Shared.Money(moved));
+        clock.Run(world, OneMonth);
+        // AD-173: a cobertura é conferida no próprio passo mensal, com a fazenda de novo sem caixa (a venda da hora seguinte
+        // somava ao caixa e o resultado dependia de haver freguês naquela hora)
+        moved = farm.Treasury.Amount;
+        farm.TryDebitTreasury(new LivingWorld.Domain.Shared.Money(moved));
+        city.CreditTreasury(new LivingWorld.Domain.Shared.Money(moved));
 
-        clock.Run(world, OneMonth + 1);
+        long shortfall = LivingWorld.Simulation.Economy.Labor.Payroll.WorkingReserve(world, farm) - farm.Treasury.Amount;
+        Assert.True(shortfall > 0 && city.Treasury.Amount >= shortfall); // há falta a cobrir e a cidade pode cobrir
+        new LivingWorld.Simulation.Economy.Labor.OwnerDrawSystem().Tick(world, new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler));
 
         Assert.Equal(LivingWorld.Simulation.Economy.Labor.Payroll.WorkingReserve(world, farm), farm.Treasury.Amount);
     }

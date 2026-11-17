@@ -10,7 +10,7 @@ namespace LivingWorld.Domain.Cities.Buildings;
 /// (<see cref="ConstructionSystem"/> ainda não escolhe posição/orientação, G4).</summary>
 public sealed class Building(
     BuildingId id, CityId city, int buildingTypeId, long completedAtTick,
-    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null)
+    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null, int? croftCells = null)
 {
     private static long s_layoutVersion = 1;
 
@@ -31,6 +31,10 @@ public sealed class Building(
     public long CompletedAtTick { get; } = TouchLayout(completedAtTick);
     public CellCoord? Position { get; } = position;
     public int? Orientation { get; } = orientation;
+
+    /// <summary>AD-173: fundo do quintal (croft) que quem construiu escolheu, em células atrás da parede oposta à porta;
+    /// 0 = sem quintal. Nulo nos prédios de antes e nos que o motor deriva (aí a escolha é recalculada pelo lugar).</summary>
+    public int? CroftCells { get; } = croftCells;
 
     /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
     /// — espelha <see cref="City.FoundingScheduledAtTick"/>.

@@ -21,6 +21,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Memória operacional/episódica/semântica/social, compactação, crenças | [memory.md](domain/memory.md) |
 | Recursos, produção, empregos, salários, preços, comércio | [economy.md](domain/economy.md) |
 | Cidades, edifícios, crescimento, migração, fundação de assentamentos | [cities.md](domain/cities.md) |
+| Ruas, lotes, quintal, caminho e superfície de rua (AD-173) | [city-layout.md](domain/city-layout.md) |
 | Mapa, regiões, biomas, terreno, camadas de visualização | [world-map.md](domain/world-map.md) |
 | Event log, linha do tempo, dinastias, crônicas | [history.md](domain/history.md) |
 | Degradação do passado, relatos, livros, mito, cânone limitado | [historical-memory.md](domain/historical-memory.md) |

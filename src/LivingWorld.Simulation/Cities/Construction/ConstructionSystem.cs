@@ -103,9 +103,11 @@ public sealed class ConstructionSystem : ISimulationSystem
             // que os bounds cresçam de verdade.
             long population = CityPopulationQuery.Population(world, city.Id);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-            if (BuildingPlacementResolver.Resolve(candidate, city, world, bounds) is not { } resolved) return false;
+            // AD-173: a obra grava o lote escolhido (posição, porta para a rua, quintal), como toda construção
+            if (BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) is not { } resolved) return false;
 
-            var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick);
+            var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick,
+                resolved.Position, resolved.Orientation, croftCells: resolved.Croft);
             world.AddBuilding(building);
             world.AddWorkplace(new Workplace(
                 world.NextWorkplaceIdAndAdvance(), new LocationType(workplaceRecipe.LocationTypeId), resolved.Position,
@@ -115,7 +117,14 @@ public sealed class ConstructionSystem : ISimulationSystem
         }
         else
         {
-            world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick));
+            // AD-173: casa (ou outro prédio sem ofício) também nasce num lote gravado; sem terra, fica derivada como antes
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
+            long population = CityPopulationQuery.Population(world, city.Id);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
+            var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true);
+            world.AddBuilding(lot is { } l
+                ? new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick, l.Position, l.Orientation, croftCells: l.Croft)
+                : new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick));
         }
         return true;
     }
