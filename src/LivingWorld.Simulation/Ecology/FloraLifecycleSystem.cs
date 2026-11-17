@@ -229,8 +229,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (rules.ReproduceProbability <= 0)
                 continue;
 
-            double roll = ctx.StreamFor("flora-reproduce", unchecked(plant.Id.Value * 1_000_000L + tick))
-                .NextDouble();
+            double roll = ctx.DrawFor("flora-reproduce", unchecked(plant.Id.Value * 1_000_000L + tick));
             if (roll >= rules.ReproduceProbability)
                 continue;
 
@@ -239,8 +238,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (freeCells.Count == 0)
                 continue;
 
-            int index = (int)(ctx.StreamFor("flora-sprout-pos", unchecked(plant.Id.Value * 1_000_000L + tick))
-                .NextDouble()
+            int index = (int)(ctx.DrawFor("flora-sprout-pos", unchecked(plant.Id.Value * 1_000_000L + tick))
                 * freeCells.Count);
             if (index >= freeCells.Count) index = freeCells.Count - 1;
             var sproutPos = freeCells[index];

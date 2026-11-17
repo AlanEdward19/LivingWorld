@@ -41,7 +41,35 @@ public sealed class InventionLedger
     /// <summary>O recipiente que cada pessoa levou consigo (AD-157, ordenado por pessoa): é dela até voltar para casa. Nulo enquanto
     /// ninguém levou nada: o snapshot antigo abre igual e o mundo com a carga desligada não ganha o campo.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<HeldItem>? Held { get; set; }
+    public List<HeldItem>? Held { get => _held; set { _held = value; _entriesByNpc = null; } }
+
+    private List<HeldItem>? _held;
+
+    /// <summary>AD-167: quantas linhas (carga e recipiente) cada pessoa tem, para a pergunta de toda decisão "leva alguma coisa?" sem
+    /// duas buscas binárias. Só memória: montada na primeira pergunta a partir das listas e mantida por <see cref="Carry"/> e
+    /// <see cref="Hold"/>, as únicas que as mudam.</summary>
+    private Dictionary<long, int>? _entriesByNpc;
+
+    internal bool CarriesOrHolds(long npcId)
+    {
+        if (Carried.Count == 0 && _held is not { Count: > 0 }) return false;
+        return (_entriesByNpc ??= BuildEntries()).ContainsKey(npcId);
+    }
+
+    private Dictionary<long, int> BuildEntries()
+    {
+        var map = new Dictionary<long, int>();
+        foreach (var load in Carried) map[load.NpcId] = map.GetValueOrDefault(load.NpcId) + 1;
+        if (_held is not null) foreach (var held in _held) map[held.NpcId] = map.GetValueOrDefault(held.NpcId) + 1;
+        return map;
+    }
+
+    private void CountEntry(long npcId, int delta)
+    {
+        if (_entriesByNpc is not { } map) return;
+        int now = map.GetValueOrDefault(npcId) + delta;
+        if (now <= 0) map.Remove(npcId); else map[npcId] = now;
+    }
 
     /// <summary>Casas cuja última compra a carga cortou (AD-157b, ordenadas): o resto ficou na banca e a casa volta por ele. Nulo
     /// enquanto nenhuma: o snapshot antigo abre igual.</summary>
@@ -268,13 +296,13 @@ public sealed class InventionLedger
     /// <summary>A pessoa sai com o item (<paramref name="itemId"/> &gt; 0) ou o devolve à casa (0).</summary>
     internal void Hold(long npcId, long itemId)
     {
-        if (itemId == 0 && Held is not { Count: > 0 }) return;
-        Held ??= [];
-        int i = HeldIndex(Held, npcId);
-        if (itemId == 0) { if (i >= 0) Held.RemoveAt(i); }
-        else if (i >= 0) Held[i] = new HeldItem(npcId, itemId);
-        else Held.Insert(~i, new HeldItem(npcId, itemId));
-        if (Held.Count == 0) Held = null;
+        if (itemId == 0 && _held is not { Count: > 0 }) return;
+        _held ??= [];
+        int i = HeldIndex(_held, npcId);
+        if (itemId == 0) { if (i >= 0) { _held.RemoveAt(i); CountEntry(npcId, -1); } }
+        else if (i >= 0) _held[i] = new HeldItem(npcId, itemId);
+        else { _held.Insert(~i, new HeldItem(npcId, itemId)); CountEntry(npcId, 1); }
+        if (_held.Count == 0) _held = null;
         Version++;
     }
 
@@ -454,9 +482,9 @@ public sealed class InventionLedger
         if (delta == 0) return;
         int i = CarriedIndex(npcId, resourceId);
         int now = (i >= 0 ? Carried[i].Quantity : 0) + delta;
-        if (now <= 0) { if (i >= 0) Carried.RemoveAt(i); }
+        if (now <= 0) { if (i >= 0) { Carried.RemoveAt(i); CountEntry(npcId, -1); } }
         else if (i >= 0) Carried[i] = Carried[i] with { Quantity = now };
-        else Carried.Insert(~i, new CarriedLoad(npcId, resourceId, now));
+        else { Carried.Insert(~i, new CarriedLoad(npcId, resourceId, now)); CountEntry(npcId, 1); }
         Version++;
     }
 

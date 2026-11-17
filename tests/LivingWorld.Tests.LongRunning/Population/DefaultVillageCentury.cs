@@ -25,7 +25,13 @@ public static class DefaultVillageCentury
     public sealed record Run(
         ulong Seed, int[] Alive, double[] VitalityCv, int[] LaborMoves,
         double GateVitalityDifference, double GateOpennessDifference, string GateHash, double CenturySelfDifference, double CenturyOpennessSelfDifference,
-        FamilyLifeScenarioTests.Observed? FamilyLife);
+        FamilyLifeScenarioTests.Observed? FamilyLife, SkillByAgeScenarioTests.Curve? SkillCurve, int Children60, int Employed60);
+
+    /// <summary>AD-167: o século é simulado neste processo (o <c>verify.sh --full</c> liga <c>LW_PREWARM_SHARED_RUNS</c>). Aí os
+    /// leitores fora da categoria Century (<see cref="SkillByAgeScenarioTests"/>, seeds 1..5 no ano 35, e
+    /// <see cref="VillageSurvivesGenerationsTests"/>, seed 7 no ano 60) leem o século em vez de simular o mesmo prefixo de novo; no
+    /// gate de lote (sem o século) cada um simula o seu mundo, como antes.</summary>
+    public static bool InThisRun => Environment.GetEnvironmentVariable("LW_PREWARM_SHARED_RUNS") == "1";
 
     private static readonly Lazy<Run[]> All = new(SimulateAll);
 
@@ -88,6 +94,9 @@ public static class DefaultVillageCentury
         FamilyLifeScenarioTests.Observed? familyLife = null;
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: familySink is null ? counter : new BothSinks(counter, familySink));
         var control = NeutralDriftScenarioHarness.Create(seed, true);
+        long start = real.CurrentDate.TotalHours;
+        SkillByAgeScenarioTests.Curve? skill = null;
+        int children60 = 0, employed60 = 0;
         var alive = new int[CenturyYears + 1];
         var cv = new double[CenturyYears + 1];
         var moves = new int[CenturyYears + 1];
@@ -111,6 +120,14 @@ public static class DefaultVillageCentury
             alive[year] = real.Npcs.Count(n => n.IsAlive);
             cv[year] = Cv(real.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
             moves[year] = counter.Moves;
+            if (year == SkillByAgeScenarioTests.Years && seed <= SkillByAgeScenarioTests.Seeds)
+                skill = SkillByAgeScenarioTests.CurveOf(real, start);
+            if (year == DefaultVillageSeed42.GenerationsYears)
+            {
+                var living60 = real.Npcs.Where(n => n.IsAlive).ToList();
+                children60 = living60.Count(n => n.AgeYears(real.CurrentDate) < 15);
+                employed60 = living60.Count(n => n.Employer is not null);
+            }
             if (year != GateYears) continue;
             var living = real.Npcs.Where(n => n.IsAlive).ToArray();
             var neutral = control.World.Npcs.Where(n => n.IsAlive).ToArray();
@@ -122,7 +139,8 @@ public static class DefaultVillageCentury
         var last = real.Npcs.Where(n => n.IsAlive).ToArray();
         return new Run(seed, alive, cv, moves, gateVitality, gateOpenness, gateHash,
             Cv(last.Select(n => n.Vitality)) - Cv(last.Select(n => n.Vitality)),
-            Cv(last.Select(n => (double)n.Personality.Openness)) - Cv(last.Select(n => (double)n.Personality.Openness)), familyLife);
+            Cv(last.Select(n => (double)n.Personality.Openness)) - Cv(last.Select(n => (double)n.Personality.Openness)), familyLife,
+            skill, children60, employed60);
     }
 
     /// <summary>Mínimo acumulado até <paramref name="years"/> (inclusive o ano 0), na mesma ordem de dobra de antes.</summary>

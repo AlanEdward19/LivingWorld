@@ -43,7 +43,7 @@ public sealed class EmigrationSystem : ISimulationSystem
             // qualquer vaga aberta segurava, e a forja de 40 vagas que só contrata pela encomenda segurava todo mundo
             if (EmploymentSystem.WorkplaceThatHires(world, vacancies, npc) is not null) continue; // há lugar: a vida está aqui
             double chance = rules.DecisionPerYear / now.Calendar.MonthsPerYear * Drive(world, rules, npc);
-            if (ctx.StreamFor("emigration", unchecked(npc.Id.Value * 1_000_003L + ctx.CurrentTick)).NextDouble() >= chance) continue;
+            if (ctx.DrawFor("emigration", unchecked(npc.Id.Value * 1_000_003L + ctx.CurrentTick)) >= chance) continue;
             (leaving ??= []).Add(npc);
         }
 

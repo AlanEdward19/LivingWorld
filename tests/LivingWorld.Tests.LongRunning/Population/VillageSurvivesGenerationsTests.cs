@@ -23,6 +23,13 @@ public static class VillageSurvivesGenerationsTests
         [InlineData(7UL)]
         public void After_sixty_years_the_village_still_has_working_adults_and_children(ulong seed)
         {
+            // AD-167: no --full a seed 7 no ano 60 é o prefixo do século compartilhado (seeds 1..20, ADR-0044)
+            if (DefaultVillageCentury.InThisRun)
+            {
+                var run = DefaultVillageCentury.Runs[(int)seed - 1];
+                Check(seed, run.Alive[DefaultVillageSeed42.GenerationsYears], run.Children60, run.Employed60);
+                return;
+            }
             var (world, clock) = ScenarioRunner.Create(seed);
             clock.Run(world, DefaultVillageSeed42.GenerationsYears * 360L * 24);
 

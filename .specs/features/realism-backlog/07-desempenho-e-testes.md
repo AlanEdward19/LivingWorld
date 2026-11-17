@@ -42,17 +42,11 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
 9. **Núcleo nativo (Rust)**, #159: só como experimento; o custo hoje é de algoritmo e estrutura de dados, não de linguagem.
 10. **Asserts de tempo frágeis**: `RuntimeHistoryCost` (≤1,03) reprovou com 1,045 dentro do gate em 2 de 3 rodadas de 2026-11-12 e deu 1,00 a 1,02 sozinho; ou sai do gate como medição, ou ganha margem estatística. `ScaleScenarioSensor` tem o mesmo risco.
 
-## Tempo do gate, cronometrado em 2026-11-13 (lote AD-143 + AD-145, 51 min)
+## AD-167 (2026-11-17): o último bloco, em [07b](07b-desempenho-ad167.md)
 
-- Regravar `family-diversity` sozinho: 19 min, e o gate refaz a mesma conta depois. Demais regravações: 1 min.
-- `verify --full`: 31 min. LongRunning 28 min, Unit 12 min, Integration 2,5 min, lint 1,7 min, Performance 3 min.
-- LongRunning é dominado por 6 testes de 20 seeds × 100 anos (21 a 28 min cada, lado a lado): `FamilyLifeScenario`,
-  `FamilyPairedScenario`, `LaborAllocationVillage`, `DefaultVillageCentury`, `FamilyDiversityCalibration` (2).
-- Unit: 10 testes somam 64% do tempo (`VillageSurvivesGenerations` 637 s e 375 s, `TechDiscovery` 532 s e 372 s,
-  `DiseaseTests` 343 s).
-- Depois do corte (mesma árvore, 2026-11-13): junção com `verify.sh --lote` em 12 min 48 s (gate 11 min 19 s; Unit 8 min é o
-  novo teto). A regravação de `family-diversity` dentro do `--full` ainda não rodou: validar no primeiro diário.
-- Como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full` (um `.trx` por suíte; tempo por suíte no resumo).
+- `verify --full` 20 min 34 s → 15 min 02 s (coletor de servidor, século compartilhado lido por mais testes, fauna e caminho quente
+  da decisão sem mudar o mundo). 5 min não fecham: piso de CPU ~13,5 min em 8 núcleos. Tabela item a item e o que ficou aberto no 07b.
+- Cronometragem antiga (2026-11-13, 31 min) e como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full`.
 
 ## Fatia custo dos testes (pedido do dono, 2026-11-13): feito, meta de 5 min não atingida
 

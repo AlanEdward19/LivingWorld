@@ -308,7 +308,7 @@ public sealed partial class CropSystem
         long whole = (long)Math.Floor(value);
         double fraction = value - whole;
         if (fraction <= 0) return whole;
-        return whole + (ctx.StreamFor(purpose, unchecked(id * 1_000_003L + tick)).NextDouble() < fraction ? 1 : 0);
+        return whole + (ctx.DrawFor(purpose, unchecked(id * 1_000_003L + tick)) < fraction ? 1 : 0);
     }
 
     private static Dictionary<CityId, long> ResidentsByCity(WorldState world)

@@ -1,3 +1,4 @@
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.LongRunning.Population;
@@ -7,15 +8,21 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// com "escola" desde o berço, a criança de 1 ano já tinha ~77 de 100 e aos 5 anos ~99.</summary>
 public class SkillByAgeScenarioTests
 {
-    private const int Years = 35;
+    internal const int Years = 35, Seeds = 5;
 
-    private sealed record Curve(double Under5, double At15, double At30);
+    public sealed record Curve(double Under5, double At15, double At30);
 
     private static Curve Measure(ulong seed)
     {
         var (world, clock) = ScenarioRunner.Create(seed);
         long start = world.CurrentDate.TotalHours;
         clock.Run(world, Years * world.Calendar.HoursPerYear);
+        return CurveOf(world, start);
+    }
+
+    /// <summary>A curva dos nascidos no mundo depois de <paramref name="start"/>; também lida no ano 35 do século (AD-167).</summary>
+    internal static Curve CurveOf(WorldState world, long start)
+    {
         var rules = ScenarioRunner.DefaultSkillsRules;
         var skills = rules.WorkSkills();
         var now = world.CurrentDate;
@@ -29,7 +36,10 @@ public class SkillByAgeScenarioTests
     public void Small_children_know_no_trade_and_a_fifteen_year_old_is_well_below_a_thirty_year_old()
     {
         // Grau único dos cenários (ParallelSeeds, até 8): as 5 seeds numa onda só; com grau 4 a 5ª esperava uma corrida de 35 anos.
-        var curves = LivingWorld.Tests.Shared.ParallelSeeds.Map(1, 5, Measure);
+        // AD-167: no --full as seeds 1..5 no ano 35 são o prefixo do século compartilhado (ADR-0044); no lote, cada uma roda o seu
+        var curves = DefaultVillageCentury.InThisRun
+            ? DefaultVillageCentury.Runs.Take(Seeds).Select(r => r.SkillCurve!).ToArray()
+            : LivingWorld.Tests.Shared.ParallelSeeds.Map(1, Seeds, Measure);
         double homeCeiling = ScenarioRunner.DefaultSkillsRules.Learning.HouseholdCeilingFraction * ScenarioRunner.DefaultSkillsRules.Cap;
 
         Assert.All(curves, c => Assert.True(c.Under5 == 0 && c.At15 < homeCeiling && c.At15 < c.At30 / 2,
