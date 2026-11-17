@@ -165,10 +165,64 @@ static func run(app: Node, steps: Array) -> void:
 							app.store.npcs[id].cell = to_cell
 							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
 				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
+			"bench":
+				await _bench(app, int(arg) if arg != "" else 500)
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()
 
+
+
+## Medida recalibrada (ADR-0047): sem vsync, na cidade aberta (prédios e NPCs reais do servidor), com a ficha do
+## primeiro morador aberta e a multidão completada até `total` NPCs andando dentro da cidade. Imprime FPS médio e o
+## tempo de quadro p95 de 6 s, depois de 1 s de aquecimento. Uso: `--steps "wait:3;city;wait:3;bench:500;quit"`.
+static func _bench(app: Node, total: int) -> void:
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 0
+	var real: Array = app.store.npcs.keys()
+	real.sort()
+	if not real.is_empty():
+		await app.select_npc(int(real[0]))
+	var bounds: Rect2i = app.store.city.get("bounds", Rect2i(0, 0, 30, 30)) if app.store.kind == "City" else Rect2i(0, 0, 30, 30)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var synthetic: Array = []
+	for i in maxi(total - real.size(), 0):
+		var id := 200000 + i
+		var cell := Vector2i(bounds.position.x + rng.randi_range(0, bounds.size.x - 1), bounds.position.y + rng.randi_range(0, bounds.size.y - 1))
+		app.store.npcs[id] = {"id": id, "cell": cell, "action": rng.randi_range(0, 9), "city": "", "look": {}}
+		app.store.npc_changed.emit(id, cell, cell, app.store.npcs[id].action)
+		synthetic.append(id)
+	var frame_ms: Array = []
+	var clock := 0.0
+	var next_step := 0.5
+	var last := Time.get_ticks_usec()
+	while clock < 7.0:
+		await app.get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		var dt := (now - last) / 1000.0
+		last = now
+		clock += dt / 1000.0
+		if clock >= 1.0:
+			frame_ms.append(dt)
+		if clock >= next_step:
+			next_step += 0.5
+			for id in synthetic:
+				if not app.store.npcs.has(id):
+					continue
+				var from_cell: Vector2i = app.store.npcs[id].cell
+				var to_cell := Vector2i(clampi(from_cell.x + rng.randi_range(-1, 1), bounds.position.x, bounds.end.x - 1),
+					clampi(from_cell.y + rng.randi_range(-1, 1), bounds.position.y, bounds.end.y - 1))
+				app.store.npcs[id].cell = to_cell
+				app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
+	var sorted := frame_ms.duplicate()
+	sorted.sort()
+	var total_ms := 0.0
+	for value in frame_ms:
+		total_ms += value
+	var p95: float = sorted[mini(int(sorted.size() * 0.95), sorted.size() - 1)] if not sorted.is_empty() else 0.0
+	print("bench: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d" % [app.store.kind, app.store.npcs.size(),
+		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size()])
 
 
 ## Janelas com dados de exemplo (só para capturas de tela): `demo:biografia|cronica|crencas|relatos|tecnologias|tesouro|vendas`.

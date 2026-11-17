@@ -4,7 +4,7 @@ extends Node
 
 const Channel := preload("res://Contract/channel.gd")
 
-var base_url := "http://localhost:5214"
+var base_url := OS.get_environment("LW_API_URL") if OS.get_environment("LW_API_URL") != "" else "http://localhost:5214" ## LW_API_URL: medida de FPS numa porta própria
 
 var _channels: Array = []
 
