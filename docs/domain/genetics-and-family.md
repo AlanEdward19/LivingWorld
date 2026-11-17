@@ -1,7 +1,6 @@
 # Genética e Família
 
-Como pessoas se aproximam, formam famílias, têm filhos e passam adiante — ou não — o que
-são. Modelo de relações, reprodução e hereditariedade.
+Como pessoas se aproximam, formam famílias, têm filhos e passam adiante — ou não — o que são. Relações, reprodução e herança.
 
 ## Relações
 
@@ -31,8 +30,9 @@ afeto: o amor esfria de verdade. Quem tem propensão e oportunidade pode ter um 
 e ser descoberto pelo boato que corre pelos vínculos (perdão, separação ou violência). Quem deixou de amar pode
 sair no ritmo da norma da época (`UnionRules`: na vila medieval quase sem divórcio, com abandono e separação de
 fato; no moderno, divórcio). Filho pequeno fica com a mãe, os maiores se dividem; quem sai volta para os pais ou
-abre casa, e só se une de novo depois do tempo da norma; viúvo espera o luto. Assim surgem padrastos,
-meios-irmãos e irmãos criados em casas diferentes.
+abre casa, e só se une de novo depois do tempo da norma; viúvo espera o luto. AD-165: quem não mora com o filho
+comum < 12 anos manda por mês comida e moeda acima da própria reserva até cobrir o mês da casa dele (`SupportPaid`;
+o fugitivo do abandono não manda). Assim surgem padrastos, meios-irmãos e irmãos criados em casas diferentes.
 
 ## Reprodução
 
