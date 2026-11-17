@@ -59,3 +59,7 @@ Fontes: [Larmuseau 2019 (GenomeWeb)](https://www.genomeweb.com/node/32221) · [A
 [Saleem 2014](https://scielosp.org/article/bwho/2014.v92n8/605-612) · [Ju 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4205951) ·
 [O'Hara & Swain 1996](https://bohrium.dp.tech/paper/arxiv/811957504362676225) · [dp da menarca](https://www.pubmed.gov/20954458/) ·
 [Ong 2006](https://jeremy-brown-vpk4.squarespace.com/s/secular-trends-on-onset-of-puberty-2006.pdf) · [separação por crueldade](https://www.historyworkshop.org.uk/womens-history/runaway-wives-in-medieval-london/)
+
+**AD-164, item 6:** Knodel 1988 e Jaadla & Lust 2021 (Estônia) seguem sem número lido (PDF com fonte codificada). O resumo do
+buscador para a Espanha rural 1750–1959 (Marco-Gracia, CPoS) dá ~40% dos que perderam a mãe no 1º ano chegando aos 15 [B]; sem
+o braço com mãe da mesma fonte, a razão do modelo (0,39) não se confere. Fica aberto.

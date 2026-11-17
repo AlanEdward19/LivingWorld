@@ -47,7 +47,9 @@ cai até o teto que a doença tira e volta na convalescença (`PhysiologySystem`
 A doença **explica** parte da tábua: o risco-base mensal (`MortalitySystem`) é multiplicado por
 1 − `BaselineShareByAge` (60% no recém-nascido, AD-140; 70% de 1 a 4 anos, metade no adulto, 20% no velho). A morte que sobra da
 tábua é nomeada por `DeathCauseRules`: acidente (taxa anual pela idade, mais no homem) e velhice (a partir dos 60);
-o resto fica sem causa (`Death`). Órfãos, viuvez e herança seguem de `NpcDeath`, como em qualquer morte.
+o resto (AD-164) leva o nome que as listas de óbito davam na idade (`DeathCauseRules.ResidualByAge`, payload `npcId|nome` do
+`Death`): debilidade (< 28 dias), convulsões (lactente), dentição (1–4), lombrigas (5–14), hidropisia (15–54), apoplexia (55+);
+o combate leva `combate`. Só rótulo: quem morre e quando não mudam. Órfãos, viuvez e herança seguem de `NpcDeath`.
 
 ## Gancho para a medicina
 

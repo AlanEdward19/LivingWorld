@@ -9,17 +9,18 @@ namespace LivingWorld.Simulation.Observation;
 
 /// <summary>Sonda de leitura (AD-164, correções #12): por que a violência doméstica leva à fome. Marca quem estava na casa de
 /// uma agressão, quem apanhou, quem perdeu alguém da casa pela agressão (morto, ou o agressor enforcado ou banido) e quem se
-/// separou depois dela, e conta as horas com fome crítica (déficit acima de 80) e a exposição de cada grupo, em todos e nos
+/// separou depois dela (até 5 anos), e conta as horas com fome crítica (déficit acima de 80) e a exposição de cada grupo, em todos e nos
 /// menores de 5. Para cada agressão, as horas de fome crítica dos moradores 90 dias antes e 90 dias depois (a fome também
 /// causa a agressão, então só o depois contra o antes separa a causa). Só observa o mundo.</summary>
 public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
 {
-    public static readonly string[] Groups = ["vitima", "perda", "separacao", "casa", "outro"];
+    public static readonly string[] Groups = ["vitima", "perda", "separacao", "casa", "casa_antiga", "outro"];
     public long MeasureFromTick { get; init; }
     public long[] CritHours { get; } = new long[Groups.Length];
     public long[] CritHoursUnder5 { get; } = new long[Groups.Length];
     public double[] PersonYears { get; } = new double[Groups.Length];
     public double[] PersonYearsUnder5 { get; } = new double[Groups.Length];
+    public long[] Starved { get; } = new long[Groups.Length];
     public long Assaults, Killed, AggressorRemoved, HungerMotive, SeparationsAfter, VictimAdultHours, VictimWorkHours;
     public long BeforeHours, AfterHours, BeforeHoursUnder5, AfterHoursUnder5, MemberWindows, MemberWindowsUnder5;
     private readonly Dictionary<long, long> _victim = [], _house = [], _loss = [], _separated = [], _aggressorOf = [];
@@ -54,6 +55,11 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
                     if (!_house.TryGetValue(who, out long t) || now - t > 2 * world.Calendar.HoursPerYear || _aggressorOf.GetValueOrDefault(who) != who) return;
                     if (now >= MeasureFromTick) AggressorRemoved++;
                     Lose(MembersOf(who), now);
+                    return;
+                }
+            case WorldEventKind.Starvation when evt.SourceSystem == YearEventTally.DeathSource && now >= MeasureFromTick:
+                {
+                    if (long.TryParse(evt.Payload, CultureInfo.InvariantCulture, out long dead)) Starved[GroupOf(dead, now)]++;
                     return;
                 }
             case WorldEventKind.UnionEnded:
@@ -127,7 +133,7 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
     }
 
     private int GroupOf(long id, long now) =>
-        Recent(_victim, id, now, 1) ? 0 : Recent(_loss, id, now, 2) ? 1 : Recent(_separated, id, now, 1) ? 2 : Recent(_house, id, now, 1) ? 3 : 4;
+        Recent(_victim, id, now, 1) ? 0 : Recent(_loss, id, now, 2) ? 1 : Recent(_separated, id, now, 5) ? 2 : Recent(_house, id, now, 1) ? 3 : Recent(_house, id, now, 5) ? 4 : 5;
 
     private bool Recent(Dictionary<long, long> marks, long id, long now, int years) =>
         marks.TryGetValue(id, out long t) && now - t <= years * world.Calendar.HoursPerYear;
@@ -148,6 +154,6 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
         sb.Append(inv, $" dv_agressoes={Assaults} dv_mortos={Killed} dv_agressor_tirado={AggressorRemoved} dv_motivo_fome={HungerMotive} dv_separacoes={SeparationsAfter}");
         sb.Append(inv, $" dv_vit_h={VictimAdultHours} dv_vit_trab_h={VictimWorkHours} dv_janelas={MemberWindows} dv_antes_h={BeforeHours} dv_depois_h={AfterHours} dv_janelas5={MemberWindowsUnder5} dv_antes5_h={BeforeHoursUnder5} dv_depois5_h={AfterHoursUnder5}");
         for (int g = 0; g < Groups.Length; g++)
-            sb.Append(inv, $" dvg.{Groups[g]}={CritHours[g]}/{PersonYears[g]:F2}/{CritHoursUnder5[g]}/{PersonYearsUnder5[g]:F2}");
+            sb.Append(inv, $" dvg.{Groups[g]}={CritHours[g]}/{PersonYears[g]:F2}/{CritHoursUnder5[g]}/{PersonYearsUnder5[g]:F2}/{Starved[g]}");
     }
 }

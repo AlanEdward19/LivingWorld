@@ -82,7 +82,7 @@ METRICS.append(("aflicao_fome_crit_h_por_pa", lambda r: g(r, "af_fome_crit") * g
 METRICS.append(("aflicao_sede_crit_h_por_pa", lambda r: g(r, "af_sede_crit") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
 METRICS.append(("trabalho_h_dia_adulto", lambda r: g(r, "af_trab_h_dia") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
 # AD-164: sonda da doméstica (`DomesticHungerProbe`): fome crítica por grupo e o antes/depois da agressão na casa
-for grp in ("vitima", "perda", "separacao", "casa", "outro"):
+for grp in ("vitima", "perda", "separacao", "casa", "casa_antiga", "outro"):
     METRICS.append((f"dv_fome_crit_{grp}_h_por_pa", lambda r, k="dvg." + grp: r.get(k, [0] * 4)[0], lambda r, k="dvg." + grp: r.get(k, [0] * 4)[1], 1))
     METRICS.append((f"dv_fome_crit_{grp}_<5_h_por_pa", lambda r, k="dvg." + grp: r.get(k, [0] * 4)[2], lambda r, k="dvg." + grp: r.get(k, [0] * 4)[3], 1))
 METRICS += [
