@@ -95,3 +95,5 @@ O fluxo do menu pede e a API não dá (o cliente contorna como dito; nada mudou 
 - [ ] Criação síncrona sem progresso: o carregamento mostra as etapas do cliente, não as do servidor.
 - [ ] Criar e carregar deixam o mundo pausado: o cliente retoma com o token da sessão.
 - [ ] Catálogo `assets.json` sem sons de interface: o menu não tem som.
+
+Continuação da cidade (rua de verdade, lote na obra, bairro denso): [09b](09b-cidade-rua-e-bairro.md).
