@@ -42,8 +42,7 @@
      (sem quintal, parede-meia, porta na rua), rua até o lado do mapa, ofícios e roças perto das casas.
 
 ## Da rua de verdade (AD-176; itens 158–160 e 167 fechados por ela)
-174. **Lama sem chuva**: o motor não tem chuva nem umidade (o fator de clima é de safra), então a rua de terra não vira lama na
-     estação; ligar quando houver precipitação por região e mês.
+174. ~~Lama sem chuva~~: fechado pela AD-180 (chuva por região e dia; lama na terra, neve em tudo, no passo e na carroça).
 175. **Carga a pé não muda o passo**: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
@@ -57,3 +56,12 @@
 182. **Prédio vira obstáculo só na virada do mês** (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
 183. **Técnica de calçar sem protótipo pago**: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
+
+## Do tempo de verdade (AD-180; detalhe em docs/domain/climate.md)
+185. **Sem lenha, roupa nem fogo**: a casa é o único abrigo do frio; madeira só existe como insumo de obra. Ligar a casa comprando
+     lenha no inverno (demanda do lenhador) e a roupa como objeto.
+186. **Rotina e sono não seguem a luz**: a rotina é tabela fixa por hora; a luz só encurta a jornada do campo (semear e ceifar).
+187. **Chuva não enche rio nem poço**: não há nível d'água; só a seca reduz a fonte natural.
+188. **Geada sobre a lavoura só no índice do ano** (geada tardia de abril–maio); o estágio do campo não é lido dia a dia.
+189. **Viagem muda com o tempo no meio do caminho** (a duração é refeita na chegada com o tempo do dia); conferir o despertar.
+

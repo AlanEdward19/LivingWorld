@@ -34,8 +34,10 @@ public sealed record WeatherRules
     /// <summary>Parte do tempo comum a todas as regiões (a frente passa por todas); o resto é local.</summary>
     public double SharedShare { get; init; } = 0.85;
 
-    /// <summary>Regime do ano (AR(1) anual, a mesma persistência e parte comum do <see cref="ClimateRules"/>): por desvio-padrão do
+    /// <summary>Regime do ano (AR(1) anual com <see cref="RegimePersistence"/> e a parte comum do <see cref="ClimateRules"/>; escolhido
+    /// para a safra repetir a autocorrelação ~0,3 da AD-135 — anos chuvosos em série, como 1315–1317): por desvio-padrão do
     /// regime, a chance de chuva muda nesta fração e a temperatura neste tanto de °C (ano chuvoso e frio × seco e quente).</summary>
+    public double RegimePersistence { get; init; } = 0.7;
     public double RegimeRainShare { get; init; } = 0.15;
     public double RegimeTempC { get; init; } = -0.4;
 
@@ -96,8 +98,8 @@ public sealed record WeatherRules
     public double CropWarmthWeight { get; init; } = 0.3;
     public double CropLateFrostWeight { get; init; } = 0.04;
     public double CropWinterKillWeight { get; init; } = 0.04;
-    public double CropIndexMean { get; init; } = -0.2522;
-    public double CropIndexSd { get; init; } = 0.4131;
+    public double CropIndexMean { get; init; } = -0.2495;
+    public double CropIndexSd { get; init; } = 0.4151;
     public int CropFactorMonth { get; init; } = 6;
 
     // corpo: excesso de risco de morte pela anomalia fria/quente do mês e o relento

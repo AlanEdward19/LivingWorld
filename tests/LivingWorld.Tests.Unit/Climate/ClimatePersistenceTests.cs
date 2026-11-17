@@ -62,7 +62,52 @@ public sealed class ClimatePersistenceTests
     [Fact]
     public void Default_climate_years_are_persistent_shared_between_regions_and_vary_like_real_harvests()
     {
-        var (lag1, spatial, cv) = Stats(ClimateRules.Default);
+        // AD-180: o sorteio anual AR(1) é o braço sem tempo diário (com o tempo ligado o fator sai da estação, teste abaixo)
+        var (lag1, spatial, cv) = Stats(ClimateRules.Default with { Weather = null });
+
+        Assert.InRange(lag1, 0.15, 0.5);
+        Assert.True(spatial > 0.4, $"correlação entre regiões {spatial:F2}");
+        Assert.InRange(cv, 0.15, 0.3);
+    }
+
+    /// <summary>AD-180: o fator que sai do tempo de duas regiões (sorteios comuns e locais do gerador) por muitos anos.</summary>
+    private static (double Lag1, double Spatial, double Cv) WeatherStats(int years)
+    {
+        var climate = ClimateRules.Default;
+        var rules = climate.Weather!;
+        var rng = new LivingWorld.Domain.Shared.WorldRng(180);
+        var rows = new[] { new WeatherRegionRow(), new WeatherRegionRow() };
+        var a = new List<double>(); var b = new List<double>();
+        for (int y = 0; y < years; y++)
+        {
+            ulong ys = rng.DeriveState(y);
+            double shared = WeatherGenerator.Read(ref ys).TempNormal;
+            for (int i = 0; i < 2; i++) WeatherGenerator.NewYear(climate, rows[i], shared, WeatherGenerator.Read(ref ys).TempNormal, y == 0);
+            for (int d = 0; d < 360; d++)
+            {
+                if (d == rules.CropFactorMonth * 30)
+                {
+                    a.Add(WeatherGenerator.CropFactor(climate, rules, WeatherGenerator.CropIndex(rules, rows[0])));
+                    b.Add(WeatherGenerator.CropFactor(climate, rules, WeatherGenerator.CropIndex(rules, rows[1])));
+                }
+                ulong sd = rng.DeriveState(1_000_000L + y * 1000L + d);
+                var sharedDay = WeatherGenerator.Read(ref sd);
+                for (int i = 0; i < 2; i++)
+                {
+                    ulong ld = rng.DeriveState((i + 2) * 10_000_000L + y * 1000L + d);
+                    WeatherGenerator.Step(rules, rows[i], sharedDay, WeatherGenerator.Read(ref ld), d + 0.5, 30, 12, y == 0 && d == 0);
+                }
+            }
+        }
+
+        double mean = a.Average(), sdv = Math.Sqrt(a.Sum(v => (v - mean) * (v - mean)) / a.Count);
+        return (Correlation(a.Take(a.Count - 1).ToList(), a.Skip(1).ToList()), Correlation(a, b), sdv / mean);
+    }
+
+    [Fact]
+    public void With_daily_weather_the_crop_years_keep_the_persistence_the_sharing_and_the_spread_of_real_harvests()
+    {
+        var (lag1, spatial, cv) = WeatherStats(1500);
 
         Assert.InRange(lag1, 0.15, 0.5);
         Assert.True(spatial > 0.4, $"correlação entre regiões {spatial:F2}");

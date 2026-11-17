@@ -141,7 +141,7 @@ public static class WeatherGenerator
     /// <summary>Começo do ano: o regime novo (AR(1) com a persistência e a parte comum do clima) e a estação da safra zerada.</summary>
     public static void NewYear(ClimateRules climate, WeatherRegionRow row, double sharedNormal, double localNormal, bool first)
     {
-        double w = Math.Clamp(climate.SharedShare, 0, 1), rho = Math.Clamp(climate.Persistence, 0, 0.99);
+        double w = Math.Clamp(climate.SharedShare, 0, 1), rho = Math.Clamp(climate.Weather?.RegimePersistence ?? climate.Persistence, 0, 0.99);
         double shock = Math.Sqrt(w) * sharedNormal + Math.Sqrt(1 - w) * localNormal;
         double z = (first ? 0 : rho * row.RegimeMilli / 1000.0) + Math.Sqrt(first ? 1 : 1 - rho * rho) * shock;
         row.RegimeMilli = (int)Math.Round(Math.Clamp(z, -4, 4) * 1000);

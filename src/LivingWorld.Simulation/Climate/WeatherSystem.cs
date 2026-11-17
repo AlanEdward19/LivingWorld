@@ -63,9 +63,12 @@ public sealed class WeatherSystem : ISimulationSystem
 
         // o fator de safra do ano sai da estação que passou (uma fonte só: o tempo), antes de a espiga poder amadurecer
         if (!first && dom == 0 && month == rules.CropFactorMonth)
+        {
             foreach (var row in ledger.Regions)
                 world.SetClimateYear(new LivingWorld.Domain.Geography.RegionId(row.Region), year,
                     WeatherGenerator.CropFactor(climate, rules, WeatherGenerator.CropIndex(rules, row)));
+            world.PurgeClimateYearsBefore(year - WorldState.ClimateYearsKept);
+        }
 
         ulong sharedState = world.Rng.StreamStateFor("weather-shared", day);
         var shared = WeatherGenerator.Read(ref sharedState);
