@@ -33,7 +33,9 @@ Degraus, cada um só depois que o anterior não achou lugar em todo o alcance: 0
 parede-meia; (a semeadura usa um andar livre de casa existente aqui); 3 folga de uma célula sem rua; 4 encostando; (a
 semeadura divide a casa menos cheia: aperto); 5 só sem sobreposição. Nos degraus 3–4 a soleira fica livre. Traçado
 desligado: a ordem de antes (todos os degraus, depois o andar livre). A cidade crescida absorve o prédio a até `AbsorptionRingCells` do
-limite **já crescido** (encadeado) e o limite crescido pode chegar ao tamanho do mapa.
+limite **já crescido** (encadeado), mas só até `ChainedBoundsReachCells` (6) da caixa por população: a casa que nasce mais
+longe por falta de lote perto forma aglomerado que pode fundar cidade-filha e depois se fundir à mãe (filhas em 10 anos, seeds
+1/2/3/7 do `default.json`: antes 1/8/9/8, agora 1/4/6/8; fusões 1/5/6/7 → 1/2/3/5; `CityFoundingReport`).
 
 ## Consumidores
 - **Valor do imóvel** (aluguel e diária, `BuildingValuation`): cada célula de quintal soma `CroftValuePerCell` ao fator

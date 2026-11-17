@@ -22,9 +22,9 @@
      dos 3×3 da cidade sem gente e fica fora do limite (não é desenhada). A absorção encadeada só parte do limite existente.
 166. **Ruas sobre outra cidade**: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra
      colada a ela. Cortar o traçado no limite da vizinha sem mexer em posição derivada.
-167. **Fundação por prédio solto quase some**: o limite agora acompanha a vila, então o aglomerado de overflow que fundava
-     cidade nova raramente aparece (o teste de escopo de civilização passou a criar a 3ª cidade à mão). Conferir em 100 anos se
-     a fundação por concentração ainda acontece e se é o comportamento desejado.
+167. **Fundação de cidade-filha ~25% menor**: com o limite encadeado até 6 células do miolo, filhas em 10 anos 19 contra 26 e
+     fusões 11 contra 19 (seeds 1/2/3/7, `CityFoundingReport`); encadeado até o mapa dava 9 e quase nenhuma. A causa da
+     fundação ainda é geométrica (casa longe do miolo), não falta de lote, água ou trabalho perto: ligar à causa real.
 168. **Contrato `world-subscribe`**: a forma gravada perdeu os exemplos de `npcs`/`externalNpcs` porque a fixture não tem mais
      NPC fora de cidade (tipo igual); preencher um exemplo como o `ObservableSample` faz para os demais.
 169. **Terreno na rua**: a rua só contorna água; altitude e declive não pesam (curva de nível, vau, ponte).
