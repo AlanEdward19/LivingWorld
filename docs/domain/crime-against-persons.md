@@ -32,6 +32,12 @@ do dia não muda (stream próprio `crime-person-day-N`).
   ano seguinte tem 1,75× a aldeia sem trabalhar menos (hipótese não provada: o medo corta `Travel`). ~60% do excesso cai em quem não teve agressão
   em casa em 5 anos: difuso, pede ~160 pares. Correção proposta: pensão do separado (a separação canônica obrigava o marido a
   sustentar a mulher) e o medo pesar só no caminho onde está o agressor.
+- AD-165, com a pensão aplicada (sustento do separado, `UnionRules.SupportChildUntilAge` 12, evento `SupportPaid`): 20×50
+  pareado, com a doméstica ×3 o sustento baixa a fome crítica 0,81× (IC90 0,60–1,03) e a da vítima 0,59× (0,38–0,91). De novo
+  0,012 → 0,036 sobre o sustento (20×50): esposas agredidas 3,3 → 9,9%/ano, fome crítica 1,08× (0,84–1,37: passa da margem
+  1,25), homicídios 1,82× (1,33–2,56), natalidade 0,955×, fome dos <5 separados 12,6× (1,02–79), população 179 → 166:
+  **segue não aplicado** (inconclusivo pela margem e o custo em homicídios e natalidade). O medo contra sair
+  (`FearTravelPenalty` 0) **não** explica a fome da vítima: sem ele ela sobe 2,1× (1,09–3,23); hipótese refutada, o medo fica.
 - Justiça: a vítima sabe quem foi, mas a denúncia é rara (fração 0,15, uma decisão só) e a corte condena menos (0,5).
 
 ## Sequestro (`KidnappingRules`)

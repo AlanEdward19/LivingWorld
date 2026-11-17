@@ -90,7 +90,10 @@ public class LandHaulWorldTests
     [Fact]
     public void Someone_whose_purchase_was_cut_far_beyond_what_arms_carry_comes_to_make_something_that_is_pulled_over_land()
     {
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: Eager);
+        // AD-165: com a tração da fonte (175 N) nenhuma peça puxada vence os 30 kg nos braços; com a carga a pé da fonte (20 kg,
+        // correções #6, fatia da carga) o mecanismo segue o mesmo: o que se puxa nasce da compra cortada
+        var rules = Eager with { FootCarryKg = 20 };
+        var (world, clock) = ScenarioRunner.Create(1, inventionRules: rules);
         var npc = Adults(world)[0];
 
         for (int month = 0; month < 36 && world.Invention!.HaulDesigns is not { Count: > 0 }; month++)
@@ -102,11 +105,11 @@ public class LandHaulWorldTests
         var ledger = world.Invention!;
         Assert.True(ledger.HaulDesigns is { Count: > 0 }, $"tentativas {world.InventionTally.CarryAttempts} terra {world.InventionTally.HaulAttempts} falhas {world.InventionTally.HaulPrototypeFailures}");
         var design = ledger.FindDesign(ledger.HaulDesigns![0])!;
-        var haul = PhysicsEvaluator.Haul(design.Parts, Eager);
-        Assert.True(haul.Works && haul.CapacityG > Eager.FootCarryKg * 1000L, haul.ToString());
+        var haul = PhysicsEvaluator.Haul(design.Parts, rules);
+        Assert.True(haul.Works && haul.CapacityG > rules.FootCarryKg * 1000L, haul.ToString());
         Assert.Equal("haul", DesignQuery.All(world).First(d => d.Id == design.Id).Function);
         var item = ledger.Items.First(i => i.DesignId == design.Id);
-        Assert.True(ledger.BestHauler(item.HouseholdId, Eager).Exists);
+        Assert.True(ledger.BestHauler(item.HouseholdId, rules).Exists);
     }
 
     [Fact]

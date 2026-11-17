@@ -314,4 +314,8 @@ public enum WorldEventKind
     /// <summary>Oficina fechada por falência (AD-155) — payload:
     /// <c>oficinaId|donoId|caixaEVenda|aosCredores|dividaQueFica|empregadosLiberados|ficaCom</c> (ficaCom: <c>npc-ID</c>, <c>city-ID</c>).</summary>
     WorkplaceBankrupt,
+
+    /// <summary>Sustento depois da separação (AD-165): quem não mora com o filho pequeno manda à casa dele — payload:
+    /// <c>pagadorId|recebedorId|comida|moeda|filhos</c> (comida em unidades da despensa, moeda em centavos).</summary>
+    SupportPaid,
 }

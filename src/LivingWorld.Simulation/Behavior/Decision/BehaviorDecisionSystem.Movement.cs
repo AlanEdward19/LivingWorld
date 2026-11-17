@@ -79,6 +79,8 @@ public sealed partial class BehaviorDecisionSystem
         // inclusive o de quem já morreu, e a chave em texto era montada a cada passo (#157, AD-127).
         var rng = ctx.StreamFor(AmbientPurpose(action), unchecked(npc.Id.Value * 1_000_003L + tick));
         int index = Math.Min((int)(rng.NextDouble() * candidates.Length), candidates.Length - 1);
-        MoveTracked(npc, candidates[index], tick, occupancy);
+        // AD-157b: com a despensa em casa, o passeio fica ao alcance dela (quem passeia não sai sem comida para longe)
+        if (LivingWorld.Simulation.Invention.PersonalCarry.StrollStep(world, npc, action, candidates, index) is not { } step) return;
+        MoveTracked(npc, step, tick, occupancy);
     }
 }

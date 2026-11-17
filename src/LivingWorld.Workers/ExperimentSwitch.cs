@@ -13,8 +13,14 @@ public static class ExperimentSwitch
 {
     public static FamilyRules? FamilyRules(FamilyRules? baseRules)
     {
-        if (Environment.GetEnvironmentVariable("LW_MATE") != "nohealth") return baseRules;
-        return WithoutHealth(baseRules ?? ScenarioRunner.DefaultFamilyRules);
+        var rules = Environment.GetEnvironmentVariable("LW_MATE") != "nohealth" ? baseRules : WithoutHealth(baseRules ?? ScenarioRunner.DefaultFamilyRules);
+        // AD-165: LW_SUPPORT=idade liga o sustento depois da separação até essa idade do filho (0 desliga)
+        if (int.TryParse(Environment.GetEnvironmentVariable("LW_SUPPORT"), CultureInfo.InvariantCulture, out int age))
+        {
+            var r = rules ?? ScenarioRunner.DefaultFamilyRules;
+            rules = r with { Unions = r.Unions with { SupportChildUntilAge = age } };
+        }
+        return rules;
     }
 
     public static FamilyRules WithoutHealth(FamilyRules rules) => rules with

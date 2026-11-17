@@ -15,7 +15,7 @@ namespace LivingWorld.Simulation.Population.Family;
 /// propensão (impulsivo, pouco leal, pouco amor em casa) e oportunidade (alguém de quem gosta e que gosta dele) pode ter um
 /// caso; o caso pode gerar filho do amante (<c>NatalitySystem</c>) e ser descoberto, pelo cônjuge ou pelo boato que corre
 /// pelos vínculos dele. Quem deixou de amar pode sair (<see cref="UnionDissolution"/>), no ritmo da norma do cenário.</summary>
-[LivingCapability("FAMILY", Events = [WorldEventKind.UnionEnded, WorldEventKind.AffairStarted, WorldEventKind.AffairDiscovered],
+[LivingCapability("FAMILY", Events = [WorldEventKind.UnionEnded, WorldEventKind.AffairStarted, WorldEventKind.AffairDiscovered, WorldEventKind.SupportPaid],
     Consumers = ["inspector.npc.household", "timeline.family"])]
 [RunsAfter(typeof(CourtshipSystem))]
 public sealed class UnionSystem : ISimulationSystem
@@ -45,6 +45,11 @@ public sealed class UnionSystem : ISimulationSystem
             if (!a.IsAlive || !b.IsAlive || a.Spouse != b.Id || b.Spouse != a.Id) continue;
             Review(world, ctx, rules, a, b, month);
         }
+
+        // AD-165: quem não mora com o filho pequeno do ex-cônjuge manda o sustento do mês
+        if (rules.SupportChildUntilAge > 0)
+            foreach (var npc in world.AliveNpcIndex.Alive)
+                if (npc.Union?.FormerSpouse is not null) SeparationSupport.Pay(world, ctx, npc);
     }
 
     private static void Review(WorldState world, TickContext ctx, UnionRules rules, Npc a, Npc b, long month)

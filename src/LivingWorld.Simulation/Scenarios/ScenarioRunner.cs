@@ -223,9 +223,9 @@ public static partial class ScenarioRunner
         Credit = CreditRules.Default, // AD-155: empréstimo em moeda que existe, capital de giro e falência
     };
 
-    /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada (AD-151:
-    /// 20×100 com ela, fome 4,5–5,3% contra 4,1% da base).</summary>
-    public static readonly LivingWorld.Domain.Invention.InventionRules DefaultInventionRules = LivingWorld.Domain.Invention.InventionRules.Default;
+    /// <summary>Invenção dos cenários (código e JSON), num lugar só. AD-157b: a carga pessoal (`PantryNeedsPresence`) ligada, com a
+    /// refeição de rotina (docs/domain/household-provisioning.md).</summary>
+    public static readonly LivingWorld.Domain.Invention.InventionRules DefaultInventionRules = LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = true };
 
     /// <summary>Tipos de local que são oficina de ofício (AD-144): a ferraria é do mestre ferreiro; a fazenda, terra comum,
     /// fica sem dono (o excedente vai à cidade). Ver <see cref="WorkplaceOwnership"/>.</summary>

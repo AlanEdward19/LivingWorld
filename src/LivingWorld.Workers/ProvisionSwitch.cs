@@ -14,18 +14,28 @@ public static class ProvisionSwitch
     public static LivingWorld.Domain.Invention.InventionRules? InventionRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION") ?? "";
-        var rules = LivingWorld.Domain.Invention.InventionRules.Default;
+        var rules = ScenarioRunner.DefaultInventionRules; // AD-157b: a carga pessoal vem ligada no cenário
         bool changed = false;
         if (raw.Contains("-carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = false }; changed = true; }
         else if (raw.Contains("+carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = true }; changed = true; }
         if (raw.Contains("-landcargo", StringComparison.Ordinal)) { rules = rules with { LandCargo = false }; changed = true; }
         if (raw.Contains("-haul", StringComparison.Ordinal)) { rules = rules with { LandVehicles = false }; changed = true; }
+        // AD-165 (correções #13): LW_PULL=N troca a força humana sustentada puxando
+        if (int.TryParse(Environment.GetEnvironmentVariable("LW_PULL"), System.Globalization.CultureInfo.InvariantCulture, out int pull))
+        { rules = rules with { HumanPullN = pull }; changed = true; }
         return changed ? rules : null;
     }
 
     public static NeedsRules? NeedsRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION");
+        // AD-165: LW_FEAR_TRAVEL=x troca o peso do medo contra sair (FearTravelPenalty) para testar se ele corta as idas da vítima
+        if (double.TryParse(Environment.GetEnvironmentVariable("LW_FEAR_TRAVEL"), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double fear))
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Psyche = n.Psyche with { FearTravelPenalty = fear } };
+        }
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var keys = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet();
         var d = ScenarioRunner.DefaultNeedsRules;

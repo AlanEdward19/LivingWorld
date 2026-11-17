@@ -43,6 +43,25 @@ public sealed class InventionLedger
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<HeldItem>? Held { get; set; }
 
+    /// <summary>Casas cuja última compra a carga cortou (AD-157b, ordenadas): o resto ficou na banca e a casa volta por ele. Nulo
+    /// enquanto nenhuma: o snapshot antigo abre igual.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<long>? LeftAtMarket { get; set; }
+
+    internal bool IsLeftAtMarket(long householdId) => LeftAtMarket is { Count: > 0 } left && left.BinarySearch(householdId) >= 0;
+
+    internal void LeaveAtMarket(long householdId, bool left)
+    {
+        if (!left && LeftAtMarket is not { Count: > 0 }) return;
+        LeftAtMarket ??= [];
+        int i = LeftAtMarket.BinarySearch(householdId);
+        if (left && i < 0) LeftAtMarket.Insert(~i, householdId);
+        else if (!left && i >= 0) LeftAtMarket.RemoveAt(i);
+        else return;
+        if (LeftAtMarket.Count == 0) LeftAtMarket = null;
+        Version++;
+    }
+
     /// <summary>Designs concebidos para carregar (ordenados): a função de um design é o problema de quem o concebeu (AD-147).</summary>
     public List<int> CarryDesigns { get; init; } = [];
 
@@ -421,6 +440,14 @@ public sealed class InventionLedger
         return i < Carried.Count && Carried[i].NpcId == npcId;
     }
 
+    /// <summary>Tudo o que as pessoas levam de um recurso (AD-157b): é estoque do mundo, na carga de quem saiu, e entra na conservação.</summary>
+    public long CarriedTotal(int resourceId)
+    {
+        long total = 0;
+        foreach (var load in Carried) if (load.ResourceId == resourceId) total += load.Quantity;
+        return total;
+    }
+
     /// <summary>Soma (ou tira) unidades do que a pessoa leva; linha vazia sai.</summary>
     internal void Carry(long npcId, int resourceId, int delta)
     {
@@ -547,6 +574,8 @@ public sealed class InventionTally
     // AD-147: o que a pessoa leva
     public long CarryAttempts, CarryInventions, CarryPrototypeFailures, CarryIdeasDiscarded, CarryCopies, CarryTaught, CarryBuilt, CarrySales;
     public long PackTrips, PackUnits, PackEaten, PackDrunk, PackReturned, CriticalAwayFromPack;
+    public long AteBeforeLeaving, DrankBeforeLeaving, SupperBeforeSleep, DrankBeforeSleep, MealTimeAtHome, WorkBreakMeals; // AD-157b: o desjejum e a ceia
+    public long HomeForMealFromWork, HomeForMealFromOtherPlace, HomeForMealThirsty, HomeForMealFromOtherHome, HomeForMealSocial, HomeForMealIdle, HomeForMealTravel; // AD-157b: só diagnóstico
     public long HomeForMeal, CarrierCargoTrips, CarrierCargoGrams, CargoFrustrations, AwayFrustrations, StarvedAway, DehydratedAway;
     // AD-153: levar por terra
     public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;

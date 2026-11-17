@@ -21,17 +21,19 @@
 132. ~~**O salário do próprio fundador conta inteiro**~~ (AD-161): sem fonte; escolha de modelo.
 
 ## Da carga pessoal (AD-157, [household-provisioning](../../../docs/domain/household-provisioning.md))
-108. **Medida da aflição** (`aflicao seed=` no `demography-report`): pareie a mesma seed, 40 × 15 (~6 min). Ruído medido uma vez
-     (sequestro desligado); falta o ruído em 20 × 100 e o limiar "crítico" 80 é escolha (a sede passa disso ~6% do tempo na base).
-109. **Fome do caminho com a carga ligada**: 34 mil voltas para comer e 48 mil refeições da oficina por seed em 15 anos; a fome
-     crítica triplica (10,9 → 35,3 h/pa), metade dela em casa (quem chega com fome e come no fim da refeição). Medir de onde saem
-     as voltas (sair de lugar que não é a casa não arruma carga; despensa no limite da reserva) antes de ligar.
-110. **Custo da carga ligada** ainda +14–35% na decisão: as decisões urgentes de quem está com fome custam mais (mesmo número);
-     sair (`PackOnDeparture`) refaz o destino e dois trajetos. Fechar com 109 (menos fome, menos decisão urgente).
+108. **Medida da aflição** (`aflicao seed=` no `demography-report`): pareie a mesma seed, 40 × 15 (~6 min). Ruído medido com o
+     cérebro ligado (sequestro desligado): fome ±2,2 de 10,3. Falta o ruído em 20 × 100; o limiar "crítico" 80 é escolha.
+109. ~~fechado no AD-157b~~ (refeição de rotina; voltas para comer 24,5 → 2,3 por pessoa-ano; fome crítica igual à base).
+110. **Custo da carga ligada (AD-157b)**: decisão +16–26% a 1.000 NPCs (3 pares alternados; ver o log), contra a meta de 2–3%.
+     ~1/3 no código da carga (arrumar ao sair 1,6 µs × 37 mil saídas para longe, a pausa, a hora da refeição) e o resto no
+     mundo que muda (menos despertares, decisões urgentes mais caras, mais refeições concluídas, relações em casa). Item 141:
+     o relógio de parede oscila ±10%; um critério de 2% pede contador de instruções.
 111. **Quem vai ao mercado não marca o recipiente** quando não arruma carga (perto de casa): outro pode sair com ele no meio da compra.
-112. **Números sem fonte do AD-157**: folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida.
-113. **Não medido no AD-157**: 20 × 100 com ela ligada e a medida nova; custo a 5.000 NPCs; o ciclo do recipiente com tira levado
-     (12b/13a) com os consertos (a 40 × 15 o recipiente já é levado e bebido: 36 mil bebidas e 10 mil refeições do que levavam por seed).
+112. **Números sem fonte do AD-157/157b**: folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida;
+     hora da refeição em 65 de déficit, comida antes da hora só contra a crítica (80), apetite 40 de quem só foi beber.
+113. **Não medido no AD-157b**: custo a 5.000 NPCs; quantas saídas levam a peça com tira (só se conta a peça existir); a despensa
+     vazia em casa sobe (20 → 29 h por pessoa-ano em 40 × 15): comer em hora certa gasta mais, e as casas pobres sentem.
+147. **A volta pelo que ficou na banca (08b 77, AD-157b)** é por casa e não guarda quanto ficou: a ida seguinte compra pela meta.
 
 ## Do cérebro neural (AD-160, [verdict](../neural-brain/verdict-ad160.md))
 140. **O corpo decide com fome ou sede ≤ 20** (`BrainRules.CriticalNeed`): reaproveita o déficit crítico 80 que já põe o corpo
@@ -51,3 +53,11 @@
 146. **Passeio à toa anda mais que conversar** (um passo por ação concluída; à toa dura 2 h, conversar 3 h): artefato do
      modelo de movimento que levava quem trocava conversar por à toa para longe da água. Investigar no movimento, não no cérebro.
 
+
+## Da junção da carga ligada (AD-157b + AD-165)
+148. **Quebra de colheita pesa mais com a carga**: seed 14 do `DefaultVillageDecade` termina 10 anos com 54 vivos (64 com a
+     carga desligada); no ano de quebra 431 furtos contra 351 e 35 banidos contra 28. A ajuda cai (104 → 44 no ano) porque
+     as casas carentes têm moeda e a regra exige casa sem comida **e** sem moeda, mas na quebra não há comida à venda.
+     Medir por que chegam à quebra com mais moeda e despensa vazia; avaliar ajuda em comida quando o mercado está vazio.
+149. **Mortes de fome por seed 0,80 → 1,38** com a carga (40×15, ruído ±0,40): no limite; medir com mais pares.
+150. **Baseline `population.json` regravado** na junção: média das 20 seeds 89 → 104; só a seed 14 ficava abaixo da faixa.

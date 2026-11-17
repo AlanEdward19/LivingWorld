@@ -48,8 +48,9 @@ A doença **explica** parte da tábua: o risco-base mensal (`MortalitySystem`) �
 1 − `BaselineShareByAge` (60% no recém-nascido, AD-140; 70% de 1 a 4 anos, metade no adulto, 20% no velho). A morte que sobra da
 tábua é nomeada por `DeathCauseRules`: acidente (taxa anual pela idade, mais no homem) e velhice (a partir dos 60);
 o resto (AD-164) leva o nome que as listas de óbito davam na idade (`DeathCauseRules.ResidualByAge`, payload `npcId|nome` do
-`Death`): debilidade (< 28 dias), convulsões (lactente), dentição (1–4), lombrigas (5–14), hidropisia (15–54), apoplexia (55+);
-o combate leva `combate`. Só rótulo: quem morre e quando não mudam. Órfãos, viuvez e herança seguem de `NpcDeath`.
+`Death`): debilidade (< 28 dias, o crisomo), convulsões (até 6 meses), dentição (6 meses–2 anos), lombrigas (2–14), hidropisia
+(15–54), apoplexia (55+); o combate leva `combate`. AD-165: faixas conferidas em Graunt 1662 (ed. Hull 1899, v. 2, p. 41–42: os
+males de criança caíam "under four or five years old", "Aged" acima de ~60); a idade da dentição é grau [M]. Só rótulo: quem morre e quando não mudam. Órfãos, viuvez e herança seguem de `NpcDeath`.
 
 ## Gancho para a medicina
 

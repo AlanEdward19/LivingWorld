@@ -206,9 +206,10 @@ public class PersonalCarryTests
     }
 
     [Fact]
-    public void The_pantry_reaches_anywhere_by_default()
+    public void The_code_scenario_keeps_the_pantry_at_home_and_the_bare_rules_do_not()
     {
-        Assert.False(InventionRules.Default.PantryNeedsPresence); // AD-157: segue desligada (fome crítica 3× a base, medida pareada)
+        Assert.False(InventionRules.Default.PantryNeedsPresence); // a regra nua segue desligada (mundo de antes, cenários de teste)
+        Assert.True(ScenarioRunner.DefaultInventionRules.PantryNeedsPresence); // AD-157b: o cenário de código liga a carga pessoal
     }
 
     [Fact]

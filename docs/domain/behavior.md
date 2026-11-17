@@ -71,4 +71,5 @@ A LLM pode **narrar** essa trajetória; o cálculo é do motor e a narração nu
 - [memory.md](memory.md) — crenças que enviesam a nota
 - [economy.md](economy.md) — trabalho e preço como contexto
 - [household-provisioning.md](household-provisioning.md) — quem da casa vai comprar, quando e quanto (AD-148)
+- [meal-routine.md](meal-routine.md) — refeição em hora certa com a despensa em casa e a medida da aflição (AD-157b)
 - [llm-contract.md](llm-contract.md) — por que a LLM não escreve decisão
