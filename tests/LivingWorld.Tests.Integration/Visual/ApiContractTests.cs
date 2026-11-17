@@ -53,7 +53,8 @@ public class ApiContractTests
             [new LivingWorld.Api.Visual.Observable.CarriedVisual(1, 1)], null);
         private static readonly LivingWorld.Api.Visual.Scope.NpcVisual Npc =
             new(new LivingWorld.Domain.Shared.NpcId(2), Cell, null, null, null,
-                ObservableSample.Extraordinary with { NeedSubstitution = null }, null) { Observable = Observable };
+                ObservableSample.Extraordinary with { NeedSubstitution = null }, null)
+            { Observable = Observable };
         private static readonly LivingWorld.Api.Visual.Scope.CityVisual CityItem =
             new(City, "B", Cell, 0, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 1, 1))
             { Density = new(0, 0, [new(null, 1)], 0) };
@@ -72,14 +73,25 @@ public class ApiContractTests
 
         public static LivingWorld.Api.Visual.Scope.LivingScopeState State => LivingWorld.Api.Visual.Scope.LivingScopeState.Empty with
         {
-            Npcs = [Npc], Cities = [CityItem], Buildings = [Building], Processes = [Process], Events = [Event],
-            BuildingStates = [BuildingState], Crops = [Crop], Animals = [Animal], Leavings = [Leaving], Objects = [Object],
+            Npcs = [Npc],
+            Cities = [CityItem],
+            Buildings = [Building],
+            Processes = [Process],
+            Events = [Event],
+            BuildingStates = [BuildingState],
+            Crops = [Crop],
+            Animals = [Animal],
+            Leavings = [Leaving],
+            Objects = [Object],
         };
 
         public static LivingWorld.Api.Visual.Scope.ScopeTickDelta Delta(long tick) =>
             new(tick, [Npc], [], [CityItem], [], [Building], [], [Process], [], [], [Event])
             {
-                BuildingStateUpserts = [BuildingState], CropUpserts = [Crop], AnimalUpserts = [Animal], LeavingUpserts = [Leaving],
+                BuildingStateUpserts = [BuildingState],
+                CropUpserts = [Crop],
+                AnimalUpserts = [Animal],
+                LeavingUpserts = [Leaving],
                 ObjectUpserts = [Object],
             };
     }

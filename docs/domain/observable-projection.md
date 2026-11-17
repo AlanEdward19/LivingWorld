@@ -77,4 +77,4 @@ Nomes (`professionName`, `typeName`, `resourceName`…) vêm do catálogo do per
 Sem assinante o laço não projeta (`compare-simulation-cost.sh`). Com assinante, o laço monta **uma** leitura do tick
 (`ScopeProjectionFrame`) para todos os escopos, com a do tick anterior: NPC e prédio sem mudança visível reaproveitam o registro
 (sem alocar; o diff compara por referência). Nada disso entra no mundo. Números no AD-172 do [decisions-log](../decisions-log.md):
-projeção 11,3–13,4 → 4,6–4,8 µs/NPC-tick (tick ~6,7), abaixo dos 6,9–8,4 de antes da AD-170.
+projeção 9,6–12,8 → 4,3–4,5 µs/NPC-tick (tick ~6,6), abaixo dos 5,8–8,4 de antes da AD-170.
