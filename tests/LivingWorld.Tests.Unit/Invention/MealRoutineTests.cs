@@ -103,7 +103,7 @@ public class MealRoutineTests
         home.Deposit(Water(world), 5);
         long now = world.CurrentDate.TotalHours;
         npc.SetHunger(100, now);
-        npc.SetThirst(50, now); // 8 h de noite a 3/h: passa da urgência
+        npc.SetThirst(40, now); // 8 h de noite a 3/h: chega à sede crítica
 
         Assert.True(BehaviorDecisionSystem.SupperBeforeSleep(world, npc, world.ActionCatalog, now));
         npc.SetThirst(100, now);

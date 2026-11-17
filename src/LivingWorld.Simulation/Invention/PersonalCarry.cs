@@ -163,7 +163,7 @@ public static class PersonalCarry
         // Quem tem onde levar água (parte estanque) a leva na parte estanque em vez de beber antes (o pedido do dono: levar a água)
         var room = RoomOf(world, npc);
         bool carriesWater = rules.IsLiquid(water.Id) && room.WetMl >= rules.UnitMlOf(water.Id);
-        if (wantWater > 0 && !carriesWater && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
+        if (wantWater > 0 && !carriesWater && npc.ThirstAt(now) - needs.ThirstDecayPerHour * waterHours < 100 - MealAheadDeficit && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
         {
             npc.SetThirst(waterLevel, now);
             world.RecordResourceConsumed(water, 1);
