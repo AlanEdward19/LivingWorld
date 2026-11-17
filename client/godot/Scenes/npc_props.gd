@@ -88,27 +88,48 @@ static func shape_mesh(shape: String, size: float) -> Mesh:
 	return _box(Vector3.ONE * size)
 
 
-## Chapéu por tipo (palha, boné, pano, elmo, capuz); "none" = nada. Fica na cabeça (filho de `head`).
+## Malha única feita de várias (mesma cor): um nó só por peça do corpo em 500 NPCs, em vez de um por parte.
+static func _merged(key: String, parts: Array) -> Mesh:
+	if not _meshes.has(key):
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for entry in parts:
+			tool.append_from(entry[0], 0, entry[1])
+		_meshes[key] = tool.commit()
+	return _meshes[key]
+
+
+static func _at(position: Vector3) -> Transform3D:
+	return Transform3D(Basis(), position)
+
+
+## Chapéu por tipo (palha, boné, pano, elmo, capuz); "none" = nada. Fica na cabeça (filho de `head`); um nó só.
 static func hat(head: Node3D, kind: String) -> Node3D:
 	if kind == "none" or kind == "":
 		return null
-	var root := Node3D.new()
-	root.name = "Hat"
-	head.add_child(root)
+	var mesh: Mesh
+	var color: Color
 	match kind:
 		"straw":
-			part(root, _cylinder(0.24, 0.25, 0.025, 12), Color("c9a85a"), Vector3(0, 0.1, 0))
-			part(root, _cylinder(0.1, 0.13, 0.1, 10), Color("c9a85a"), Vector3(0, 0.16, 0))
+			mesh = _merged("hat-straw", [[_cylinder(0.24, 0.25, 0.025, 12), _at(Vector3(0, 0.1, 0))],
+				[_cylinder(0.1, 0.13, 0.1, 10), _at(Vector3(0, 0.16, 0))]])
+			color = Color("c9a85a")
 		"helmet":
-			part(root, _sphere(0.15, 0.16), Color("8a9098"), Vector3(0, 0.08, 0))
+			mesh = _merged("hat-helmet", [[_sphere(0.15, 0.16), _at(Vector3(0, 0.08, 0))]])
+			color = Color("8a9098")
 		"hood":
-			part(root, _sphere(0.155, 0.26), Color("5a4a6a"), Vector3(0, 0.02, -0.02))
+			mesh = _merged("hat-hood", [[_sphere(0.155, 0.26), _at(Vector3(0, 0.02, -0.02))]])
+			color = Color("5a4a6a")
 		"cloth":
-			part(root, _cylinder(0.135, 0.14, 0.07, 10), Color("e8e0cc"), Vector3(0, 0.1, 0))
+			mesh = _merged("hat-cloth", [[_cylinder(0.135, 0.14, 0.07, 10), _at(Vector3(0, 0.1, 0))]])
+			color = Color("e8e0cc")
 		_:
-			part(root, _cylinder(0.13, 0.15, 0.09, 10), Color("3b3f46"), Vector3(0, 0.12, 0))
-			part(root, _box(Vector3(0.16, 0.015, 0.1)), Color("3b3f46"), Vector3(0, 0.08, 0.14))
-	return root
+			mesh = _merged("hat-cap", [[_cylinder(0.13, 0.15, 0.09, 10), _at(Vector3(0, 0.12, 0))],
+				[_box(Vector3(0.16, 0.015, 0.1)), _at(Vector3(0, 0.08, 0.14))]])
+			color = Color("3b3f46")
+	var node := part(head, mesh, color, Vector3.ZERO)
+	node.name = "Hat"
+	return node
 
 
 ## Ferramenta do ofício na mão (filho do braço direito, a mão fica em y = -0.34).
@@ -157,20 +178,20 @@ static func belly(body: Node3D, cloth: Color) -> MeshInstance3D:
 	return node
 
 
-## Carga pessoal nas costas: saco de pano (cor do recurso) ou jarro (água).
+## Carga pessoal nas costas: saco de pano (cor do recurso) ou jarro (água); um nó só, na escala da quantidade.
 static func sack(body: Node3D, spec: Dictionary) -> Node3D:
-	var root := Node3D.new()
-	root.name = "Sack"
-	body.add_child(root)
-	var size: float = float(spec.get("size", 1.0))
-	if bool(spec.get("water", false)):
-		part(root, _cylinder(0.06, 0.09, 0.2, 10), Color("9a6a43"), Vector3(0, 0.7, -0.2))
-		part(root, _cylinder(0.05, 0.05, 0.02, 10), spec.color, Vector3(0, 0.81, -0.2))
+	var water := bool(spec.get("water", false))
+	var mesh: Mesh
+	if water:
+		mesh = _merged("sack-jar", [[_cylinder(0.06, 0.09, 0.2, 10), _at(Vector3(0, 0.7, -0.2))],
+			[_cylinder(0.05, 0.05, 0.02, 10), _at(Vector3(0, 0.81, -0.2))]])
 	else:
-		part(root, _sphere(0.13, 0.22), spec.color, Vector3(0, 0.72, -0.2))
-		part(root, _cylinder(0.03, 0.05, 0.06, 8), Color(spec.color).darkened(0.3), Vector3(0, 0.85, -0.2))
-	root.scale = Vector3.ONE * size
-	return root
+		mesh = _merged("sack-cloth", [[_sphere(0.13, 0.22), _at(Vector3(0, 0.72, -0.2))],
+			[_cylinder(0.03, 0.05, 0.06, 8), _at(Vector3(0, 0.85, -0.2))]])
+	var node := part(body, mesh, Color("9a6a43") if water else spec.color, Vector3.ZERO)
+	node.name = "Sack"
+	node.scale = Vector3.ONE * float(spec.get("size", 1.0))
+	return node
 
 
 ## Recipiente que a pessoa leva (peça de um design): forma da peça raiz e cor do material; na mão esquerda.

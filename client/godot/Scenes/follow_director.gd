@@ -189,8 +189,15 @@ func watch_step(delta: float) -> void:
 
 ## Alguém na cena fazendo algo que vale ver (conversa, trabalho, furto, choro...), girando entre os candidatos.
 func busy_person() -> int:
-	var ids: Array = app.world_view.npc_nodes.keys()
-	ids.sort()
+	var covered := {} # quem está sob o telhado de um prédio não se vê de cima: prefere quem está na rua
+	for building in app.store.buildings.values():
+		for entry in building.footprint:
+			covered[building.cell + entry.cell] = true
+	var all: Array = app.world_view.npc_nodes.keys()
+	all.sort()
+	var ids: Array = all.filter(func(id): return app.store.npcs.has(id) and not covered.has(app.store.npcs[id].cell))
+	if ids.is_empty():
+		ids = all
 	if ids.is_empty():
 		return -1
 	for action in INTERESTING:

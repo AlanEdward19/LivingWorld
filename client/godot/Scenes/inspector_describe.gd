@@ -178,6 +178,14 @@ static func recent_lines(registry, body: Variant, date_of: Callable, limit: int 
 	return lines
 
 
+const RELATIONS := {"mother": "Mãe", "father": "Pai", "spouse": "Cônjuge", "child": "Filho(a)", "household": "Casa",
+	"dwelling": "Moradia", "workplace": "Local de trabalho", "employer": "Trabalho", "employee": "Trabalhador(a)",
+	"worker": "Trabalhador(a)", "owner": "Dono(a)", "owns": "É dono(a) de", "resident": "Morador(a)", "member": "Morador(a)",
+	"head": "Chefe", "building": "Prédio", "city": "Cidade", "farm": "Fazenda", "market": "Mercado", "object": "Objeto",
+	"design": "Design", "holder": "Com", "dead": "De quem era", "fetcher": "Foi buscar", "carrier": "Está levando"}
+const MAX_SERVER_LINKS := 12 ## a ficha da cidade lista todos os prédios: os primeiros bastam (o resto é clicável no mapa)
+
+
 ## Links da rota de inspeção (relação, tipo, id, nome) no formato do inspetor; tipos que o cliente não abre ficam fora.
 static func server_links(body: Variant) -> Array:
 	var out: Array = []
@@ -187,7 +195,10 @@ static func server_links(body: Variant) -> Array:
 		var kind := String(Registry.LOCAL_KINDS.get(String(link.get("kind", "")), ""))
 		if kind == "" or link.get("id") == null:
 			continue
-		out.append([String(link.get("relation", "")).capitalize(), Registry.ref(kind, Registry.id_for(kind, link.id))])
+		var relation := String(link.get("relation", ""))
+		out.append([String(RELATIONS.get(relation, relation.capitalize())), Registry.ref(kind, Registry.id_for(kind, link.id))])
+		if out.size() >= MAX_SERVER_LINKS:
+			break
 	return out
 
 
@@ -201,3 +212,43 @@ static func merge_links(first: Array, second: Array) -> Array:
 			seen[k] = true
 			out.append(link)
 	return out
+
+
+## Local de trabalho: o servidor dá nome, dono e trabalhadores (links); sem a rota, quem já teve a ficha aberta.
+static func workplace(store, registry, id: int) -> Dictionary:
+	var lines: Array[String] = []
+	var links: Array = _people("Trabalhador(a)", registry.known_workers(id))
+	for state in store.building_states.values():
+		if int(state.workplace_id) == id:
+			links.push_front(["Prédio", Registry.ref(Registry.BUILDING, int(state.building_id))])
+			var built := building_state(store, registry, int(state.building_id))
+			lines.append_array(built.lines)
+			links = merge_links(built.links, links)
+	if lines.is_empty():
+		lines.append("Quem trabalha aqui (das fichas já abertas):%s" % ("" if not links.is_empty() else " ninguém conhecido"))
+	return {"text": "\n".join(lines), "links": links}
+
+
+## Casa (família): moradores, prédio e estoque pela rota de inspeção; sem ela, os moradores já conhecidos.
+static func household(store, registry, id: int, server_body: Variant) -> Dictionary:
+	var links: Array = []
+	if registry.household_buildings.has(id):
+		links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(registry.household_buildings[id]))])
+	var lines: Array[String] = []
+	var state = server_body.get("state") if server_body is Dictionary else null
+	if state is Dictionary:
+		var members: Array = state.get("memberIds", [])
+		lines.append("%d morador%s%s" % [members.size(), "es" if members.size() != 1 else "", " · sem teto" if bool(state.get("homeless", false)) else ""])
+		var stock: Array = state.get("stock", []) if state.get("stock") is Array else []
+		if not stock.is_empty():
+			lines.append("Estoque: %s" % ", ".join(stock.map(func(line): return "%d %s" % [int(line.get("quantity", 0)),
+				String(registry.resources.get(int(line.get("resourceId", -1)), "recurso %d" % int(line.get("resourceId", -1))))])))
+		if state.get("dwellingId") != null and int(state.dwellingId) >= 0:
+			links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(state.dwellingId))])
+		if state.get("headId") != null:
+			links.append(["Chefe", Registry.ref(Registry.PERSON, int(state.headId))])
+		links.append_array(_people("Morador(a)", members))
+	else:
+		lines.append("Moradores conhecidos (das fichas já abertas):%s" % ("" if not registry.known_household(id).is_empty() else " ninguém conhecido"))
+		links.append_array(_people("Morador(a)", registry.known_household(id)))
+	return {"text": "\n".join(lines), "links": merge_links(links, [])}

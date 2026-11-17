@@ -24,7 +24,8 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Entrar na cidade | zoom até a escala de cidade, ou duplo clique na cidade |
 | Prédio | clique abre a ficha (tipo, andares, preço, quem está dentro) · duplo clique ou botão Entrar entra (andares: PgUp/PgDn) · Esc sai |
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC, também dentro do interior |
-| Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo/lavoura, objeto, trabalho, casa e evento; atualiza sozinho; links (mãe, pai, cônjuge, filhos conhecidos, casa, trabalho, cidade, quem está dentro, quem usa) · ◀ Voltar ou Backspace |
+| Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo, lavoura, animal, bando, espólio, objeto inventado, mobília, trabalho, casa e evento; lê `GET /entities/{kind}/{id}` (nome real, vínculos, história recente); atualiza sozinho; links (mãe, pai, cônjuge, todos os filhos, casa, trabalho e o prédio dele, dono, moradores, trabalhadores, envolvidos) · Ir até lá · ◀ Voltar ou Backspace |
+| Direção | **N** pula para o próximo evento (câmera no lugar, ficha aberta, segue quem está envolvido) · **V** modo assistir (acompanha sozinho o evento mais novo ainda não visto; sem evento, alguém na rua fazendo algo) · linha do tempo "Acontecimentos" (embaixo, clicável) |
 | Seguir | botão Seguir na ficha (pessoa, casa ou cidade) ou F; continua ao trocar de escopo, entrar num prédio e sair da cidade |
 | Janelas | cérebro, narrativa, economia, tecnologias e console convivem: encaixam lado a lado (ou em cascata) · arraste pelo título para soltar · Esc fecha a da frente |
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · **E se…?** simula a decisão com outros estímulos (nada é gravado) · Esc fecha |
@@ -35,9 +36,23 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
-| Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · lavoura e processos em andamento desenhados com progresso |
+| Orientação | passe o mouse (dica com ação, alvo e corpo visível) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · processos com barra de progresso |
+| Crime | evento no mapa e na ficha (autor, vítima, caso, desfecho), sem cena nem animação; `recordOnly` (violência sexual, doméstica e contra criança) mostra **só o registro**, nunca o texto narrado (aviso, linha do tempo, dica e ficha) |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra (só admin); o céu segue a hora do mundo |
+
+## Aparência pelo estado (ADR-0047 etapa 3, AD-171)
+
+Formas geradas por código (sem pacote de assets), a partir da projeção do observável (AD-170):
+- **Pessoas (todas, não só a da ficha)**: escala pela altura real (bebê, criança, adulto, idoso), cabelo pelo sexo, roupa e chapéu do ofício (catálogo `assets.json` ou o nome do ofício), barriga de gravidez, palidez e esteira de quem está de cama, roupa de luto, postura pela emoção dominante, saco ou jarro da carga nas costas. **Perto** (zoom ≤ 7,5): ferramenta do ofício na mão no trabalho, recipiente levado (forma e cor de `/designs/{id}`) e rosto com expressão. Quem conversa com alvo vira para o outro e uma linha discreta liga os dois.
+- **Prédios**: enfeite e placa pela função (`buildingStates`): chaminé, hospedaria com lanterna, fazenda com cerca, ferraria, padaria, mercado com toldo, taverna, pedreira, templo; fechado com tábuas na porta.
+- **Lavoura**: canteiro por estágio (sem semear, plantado, crescendo, maduro, colhido, pousio), cor e altura pela cultura, amarelado com sede.
+- **Estação e clima**: paleta do chão e das copas (primavera, verão/seca, outono, inverno), neve caindo abaixo de 0 °C; estação e temperatura no relógio do topo.
+- **Fauna**: animais por espécie na cidade; bandos com o número no mapa-múndi. **Espólio** (saco e trouxa) e **objetos inventados** fora de casa pela forma e material do design.
+- **Mapa-múndi vivo**: um ponto por morador na rua, na cor da ação; a placa diz quantos estão na rua, no pool, o que fazem e a temperatura.
+- **LOD em três níveis**: mundo (densidade, bandos, eventos) · cidade (corpos, prédios, lavoura, animais, objetos) · perto (ferramenta, objeto em uso, rosto). Lavoura, fauna, itens, densidade e linhas de conversa são MultiMesh por tipo; peças do corpo têm malha e material compartilhados e não projetam sombra.
+
+Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
 
 ## Estrutura
 
@@ -48,7 +63,9 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | `Contract/world_reader.gd` | Camada única de leitura: todo painel recebe este objeto; ficha do NPC em cache por hora do mundo |
 | `Store/entity_registry.gd` | Registro local de entidades {kind, id}, nomes do catálogo e vínculos aprendidos das fichas |
 | `Scenes/` | `app.gd` (raiz e ligação) · `app_ui.gd` (montagem) · `session.gd` (escopos) · `selection.gd` (clique e dica) · `inspector.gd` · `window_router.gd` · `follow_director.gd` · `shortcuts.gd` · câmera, interior, ciclo do dia, painéis |
-| `Scenes/render/` | Um renderizador por tipo: terreno, cidade, prédio, NPC, processo (MultiMesh), marcador de evento; `world_view.gd` coordena |
+| `Scenes/render/` | Um renderizador por tipo: terreno (+ `season_palette.gd`), cidade (densidade), prédio (+ `building_dress.gd`), NPC, processo, lavoura, fauna, espólio/objeto (MultiMesh), marcador de evento; `world_view.gd` coordena e escolhe o LOD |
+| `Scenes/npc_look.gd`, `npc_props.gd` | Corpo pelo estado (função pura, testável) e as peças geradas por código |
+| `Scenes/inspector_describe.gd`, `event_timeline.gd` | Texto e links de cada tipo de ficha; linha do tempo com Próximo e Assistir |
 | `tests/` | Testes headless (`bash scripts/client-test.sh [--filter arquivo::teste]`), com transporte falso |
 
 Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`).

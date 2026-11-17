@@ -281,9 +281,9 @@ func _describe_sync(entity: Dictionary) -> Dictionary:
 		Registry.OBJECT:
 			return _describe_object(String(id))
 		Registry.WORKPLACE:
-			return _describe_workplace(int(id))
+			return Describe.workplace(store, registry, int(id))
 		Registry.HOUSEHOLD:
-			return _describe_household(int(id))
+			return Describe.household(store, registry, int(id), server_body)
 		Registry.EVENT:
 			return Describe.event(registry, int(id), date_of)
 		Registry.CROP:
@@ -295,53 +295,6 @@ func _describe_sync(entity: Dictionary) -> Dictionary:
 		Registry.LEAVING:
 			return Describe.leaving(store, registry, int(id))
 	return {"text": "", "links": []}
-
-
-## Local de trabalho: o servidor dá nome, dono e trabalhadores (links); sem a rota, quem já teve a ficha aberta.
-func _describe_workplace(id: int) -> Dictionary:
-	var lines: Array[String] = []
-	var links: Array = _people("Trabalhador(a)", registry.known_workers(id))
-	for state in store.building_states.values():
-		if int(state.workplace_id) == id:
-			links.push_front(["Prédio", Registry.ref(Registry.BUILDING, int(state.building_id))])
-			var built := Describe.building_state(store, registry, int(state.building_id))
-			lines.append_array(built.lines)
-			links = Describe.merge_links(built.links, links)
-	if lines.is_empty():
-		lines.append("Quem trabalha aqui (das fichas já abertas):%s" % ("" if not links.is_empty() else " ninguém conhecido"))
-	return {"text": "\n".join(lines), "links": links}
-
-
-## Casa (família): moradores, prédio e estoque pela rota de inspeção; sem ela, os moradores já conhecidos.
-func _describe_household(id: int) -> Dictionary:
-	var links: Array = []
-	if registry.household_buildings.has(id):
-		links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(registry.household_buildings[id]))])
-	var lines: Array[String] = []
-	var state = server_body.get("state") if server_body is Dictionary else null
-	if state is Dictionary:
-		var members: Array = state.get("memberIds", [])
-		lines.append("%d morador%s%s" % [members.size(), "es" if members.size() != 1 else "", " · sem teto" if bool(state.get("homeless", false)) else ""])
-		var stock: Array = state.get("stock", []) if state.get("stock") is Array else []
-		if not stock.is_empty():
-			lines.append("Estoque: %s" % ", ".join(stock.map(func(line): return "%d %s" % [int(line.get("quantity", 0)),
-				String(registry.resources.get(int(line.get("resourceId", -1)), "recurso %d" % int(line.get("resourceId", -1))))])))
-		if state.get("dwellingId") != null and int(state.dwellingId) >= 0:
-			links.append(["Prédio da casa", Registry.ref(Registry.BUILDING, int(state.dwellingId))])
-		if state.get("headId") != null:
-			links.append(["Chefe", Registry.ref(Registry.PERSON, int(state.headId))])
-		links.append_array(_people("Morador(a)", members))
-	else:
-		lines.append("Moradores conhecidos (das fichas já abertas):%s" % ("" if not registry.known_household(id).is_empty() else " ninguém conhecido"))
-		links.append_array(_people("Morador(a)", registry.known_household(id)))
-	return {"text": "\n".join(lines), "links": Describe.merge_links(links, [])}
-
-
-func _people(label: String, ids: Array) -> Array:
-	var out: Array = []
-	for npc_id in ids:
-		out.append([label, Registry.ref(Registry.PERSON, int(npc_id))])
-	return out
 
 
 func _describe_building(id: int) -> Dictionary:

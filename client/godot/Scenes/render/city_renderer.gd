@@ -114,7 +114,8 @@ func rebuild(store) -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.pixel_size = 0.012
 		label.font_size = 32
-		label.outline_size = 10
+		label.outline_size = 12
+		label.outline_modulate = Color(0.05, 0.05, 0.08, 0.95)
 		label.no_depth_test = true
 		label.position = Vector3(info.location.x + 0.5, 1.6, info.location.y + 0.5)
 		root.add_child(label)

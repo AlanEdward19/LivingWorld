@@ -233,7 +233,7 @@ static func _bottom(app, ui: Control) -> void:
 	app.timeline.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	app.timeline.offset_left = 226
 	app.timeline.offset_right = 600
-	app.timeline.offset_top = -330
+	app.timeline.offset_top = -80
 	app.timeline.offset_bottom = -40
 	app.timeline.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	app.timeline.visible = false

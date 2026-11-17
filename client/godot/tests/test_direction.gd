@@ -139,3 +139,12 @@ func test_crop_animal_leaving_and_invented_object_are_drawn_and_inspectable() ->
 	var point: Vector3 = app.point_of(Registry.ref(Registry.CROP, 70))
 	check(point != Vector3.INF, "Ir até lá")
 	app.queue_free()
+
+
+func test_snapshot_outside_the_contract_says_so_instead_of_hanging_on_connecting() -> void:
+	var app := T.App.new()
+	tree.root.add_child(app)
+	await app.start(O.transport(), true) # validação ligada: o retrato mínimo do teste não cumpre o contrato do mundo
+	check(app.banner.visible and "fora do contrato" in app.banner.text, app.banner.text)
+	check(not app.contract_errors.is_empty())
+	app.queue_free()

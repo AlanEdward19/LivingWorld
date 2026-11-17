@@ -87,6 +87,7 @@ var resource_names: Dictionary:
 		return registry.resources
 
 var _local_event_id := 0 ## evento sem id do servidor (servidor antigo): ids negativos locais
+var contract_errors: Array = [] ## última divergência de contrato do stream (faixa do topo)
 var _ui: Control
 var _hover_clock := 0.0
 var _sun: DirectionalLight3D
@@ -131,6 +132,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	store.events_arrived.connect(_on_events)
 	stream.connection_changed.connect(session.on_connection)
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
+	stream.contract_error.connect(_on_contract_error)
 	var actions: Dictionary = await api.action_catalog()
 	if actions.ok:
 		labels.load_from(actions.body)
@@ -221,6 +223,16 @@ func _on_events(events: Array) -> void:
 	if timeline != null:
 		timeline.refresh()
 	director.on_events(ids)
+
+
+## Snapshot ou delta fora do contrato congelado (`tests/contracts/shape.*.json`) é descartado pelo stream: em vez de ficar
+## em "Conectando…" sem explicação, a faixa diz o primeiro campo divergente e o console guarda a lista.
+func _on_contract_error(errors: Array) -> void:
+	contract_errors = errors
+	banner.text = "resposta do servidor fora do contrato (%d divergência%s): %s" % [errors.size(), "s" if errors.size() != 1 else "",
+		String(errors[0]) if not errors.is_empty() else ""]
+	banner.visible = true
+	push_warning("contrato: " + ", ".join(errors.slice(0, 5)))
 
 
 ## Nomes vêm do escopo (`observable.name`, AD-170): só reaplica nos corpos da cena (sem paginar `GET /npcs`).

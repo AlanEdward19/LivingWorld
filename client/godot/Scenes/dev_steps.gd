@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · quit. Não é usado em produção (sem --steps nada roda).
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -165,8 +165,26 @@ static func run(app: Node, steps: Array) -> void:
 							app.store.npcs[id].cell = to_cell
 							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
 				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
-			"bench":
-				await _bench(app, int(arg) if arg != "" else 500)
+			"bench", "benchbig":
+				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
+			"near": # câmera bem perto de um morador na rua (LOD "perto": ferramenta, objeto e rosto)
+				var id := _street_npc(app)
+				if id >= 0:
+					app.rig.focus(app.world_view.npc_nodes[id].position)
+					app.rig.set_zoom(float(arg) if arg != "" else 5.0)
+			"selectfirst": # ficha de um morador na rua (o mesmo do passo "near")
+				var id := _street_npc(app)
+				if id >= 0:
+					await app.select_npc(id)
+			"building": # ficha do primeiro prédio
+				var ids: Array = app.store.buildings.keys()
+				ids.sort()
+				if not ids.is_empty():
+					await app.inspect({"kind": "building", "id": int(ids[0])})
+			"next":
+				app.next_event()
+			"watch":
+				app.toggle_watch()
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()
@@ -176,7 +194,70 @@ static func run(app: Node, steps: Array) -> void:
 ## Medida recalibrada (ADR-0047): sem vsync, na cidade aberta (prédios e NPCs reais do servidor), com a ficha do
 ## primeiro morador aberta e a multidão completada até `total` NPCs andando dentro da cidade. Imprime FPS médio e o
 ## tempo de quadro p95 de 6 s, depois de 1 s de aquecimento. Uso: `--steps "wait:3;city;wait:3;bench:500;quit"`.
-static func _bench(app: Node, total: int) -> void:
+## Morador na rua (fora da planta dos prédios), de preferência trabalhando ou conversando; -1 se não há.
+static func _street_npc(app: Node) -> int:
+	var covered := {}
+	for building in app.store.buildings.values():
+		for entry in building.footprint:
+			covered[building.cell + entry.cell] = true
+	var ids: Array = app.store.npcs.keys()
+	ids.sort()
+	var best := -1
+	for id in ids:
+		if not app.world_view.npc_nodes.has(id) or covered.has(app.store.npcs[id].cell):
+			continue
+		if best < 0 or int(app.store.npcs[id].action) in [2, 3]:
+			best = int(id)
+			if int(app.store.npcs[id].action) in [2, 3]:
+				break
+	return best
+
+
+## Cidade maior para o bench (`benchbig`): 40 prédios 2x2 a mais em grade dentro dos limites; no cliente com a projeção do
+## observável (AD-171) também estado de prédio, 30 lavouras e 20 animais. Só carga sintética local, nada vai ao servidor.
+static func _enlarge_city(app: Node, bounds: Rect2i, rng: RandomNumberGenerator) -> void:
+	var observable: bool = "crops" in app.store
+	for i in 40:
+		var id := 900000 + i
+		var cell := bounds.position + Vector2i((i % 8) * 3, (i / 8) * 3)
+		var footprint: Array = []
+		for c in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+			footprint.append({"cell": c, "material": 2 if c == Vector2i.ZERO else i % 2})
+		app.store.buildings[id] = {"id": id, "type": i % 6, "cell": cell, "orientation": 0, "floors": 1 + i % 3,
+			"footprint": footprint, "value": 100, "lodging": null}
+		if observable:
+			app.store.building_states[id] = {"building_id": id, "type": i % 6, "type_name": "", "function": ["dwelling", "workplace", "lodging"][i % 3],
+				"workplace_id": id, "location_type_id": i % 5, "location_type_name": ["Fazenda", "Ferraria", "Padaria", "Mercado", "Taverna"][i % 5],
+				"owner_id": -1, "households": [], "residents": [], "workers": [], "stock": [], "pantry": 0, "closed": i % 7 == 0}
+	if observable:
+		var stages := ["unsown", "planted", "growing", "mature", "harvested", "fallow"]
+		for i in 30:
+			app.store.crops[800000 + i] = {"id": 800000 + i, "cell": bounds.position + Vector2i(rng.randi_range(0, bounds.size.x - 1), rng.randi_range(0, bounds.size.y - 1)),
+				"resource_id": i % 4, "resource_name": ["Trigo", "Milho", "Feijão", "Batata"][i % 4], "status": "", "stage": stages[i % 6],
+				"fraction": rng.randf(), "thirsty": i % 5 == 0, "sown": 1.0, "arable": 2.0, "standing": 0, "farm_id": -1, "owner_id": -1, "expected": 10}
+		for i in 20:
+			app.store.animals[700000 + i] = {"id": 700000 + i, "species": ["rabbit", "wolf", "sheep", "chicken"][i % 4],
+				"cell": bounds.position + Vector2i(rng.randi_range(0, bounds.size.x - 1), rng.randi_range(0, bounds.size.y - 1)),
+				"energy": 50, "disease": false, "predator_of": ""}
+		app.store.crops_changed.emit()
+		app.store.fauna_changed.emit()
+	app.world_view.buildings.rebuild(app.store)
+
+
+## Corpo sintético pelo estado (cliente AD-171): ofício, idade, gravidez, carga e luto variados, como o escopo manda.
+static func _synthetic_observable(i: int) -> Dictionary:
+	var ages := [1, 8, 15, 30, 45, 70]
+	var age: int = ages[i % ages.size()]
+	return {"name": "Sintético %d" % i, "sex": "Female" if i % 2 == 0 else "Male", "age": age,
+		"stage": "Child" if age < 13 else ("Elder" if age >= 60 else "Adult"), "profession_id": i % 6,
+		"profession_name": ["Lavrador", "Ferreiro", "Padeiro", "Mercador", "Lenhador", "Guarda"][i % 6],
+		"height_cm": [75, 125, 160, 170, 168, 162][i % ages.size()], "growth": 1.0, "pregnancy": 0.6 if i % 17 == 0 else 0.0,
+		"babies": 1, "ill": i % 13 == 0, "symptomatic": i % 13 == 0, "bedridden": false, "disease_id": -1, "emotions": {},
+		"dominant": ["", "joy", "grief", "fear", "anger"][i % 5], "mourning": i % 11 == 0,
+		"carried": [{"resource_id": 2, "quantity": 4, "name": "Trigo"}] if i % 4 == 0 else [], "held": {}}
+
+
+static func _bench(app: Node, total: int, big: bool = false) -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	var real: Array = app.store.npcs.keys()
@@ -186,12 +267,19 @@ static func _bench(app: Node, total: int) -> void:
 	var bounds: Rect2i = app.store.city.get("bounds", Rect2i(0, 0, 30, 30)) if app.store.kind == "City" else Rect2i(0, 0, 30, 30)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
+	if big and app.store.kind == "City":
+		_enlarge_city(app, bounds, rng)
+	var observable: bool = "crops" in app.store
 	var synthetic: Array = []
 	for i in maxi(total - real.size(), 0):
 		var id := 200000 + i
 		var cell := Vector2i(bounds.position.x + rng.randi_range(0, bounds.size.x - 1), bounds.position.y + rng.randi_range(0, bounds.size.y - 1))
 		app.store.npcs[id] = {"id": id, "cell": cell, "action": rng.randi_range(0, 9), "city": "", "look": {}}
+		if observable:
+			app.store.npcs[id]["obs"] = _synthetic_observable(i)
 		app.store.npc_changed.emit(id, cell, cell, app.store.npcs[id].action)
+		if observable:
+			app.store.npc_observed.emit(id)
 		synthetic.append(id)
 	var frame_ms: Array = []
 	var clock := 0.0
@@ -221,7 +309,7 @@ static func _bench(app: Node, total: int) -> void:
 	for value in frame_ms:
 		total_ms += value
 	var p95: float = sorted[mini(int(sorted.size() * 0.95), sorted.size() - 1)] if not sorted.is_empty() else 0.0
-	print("bench: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d vsync=%d" % [app.store.kind, app.store.npcs.size(),
+	print("%s: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d vsync=%d" % ["benchbig" if big else "bench", app.store.kind, app.store.npcs.size(),
 		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size(),
 		DisplayServer.window_get_vsync_mode()])
 
