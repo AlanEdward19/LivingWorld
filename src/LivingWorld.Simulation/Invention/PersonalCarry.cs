@@ -19,6 +19,17 @@ public static class PersonalCarry
     /// <summary>Espaço para levar: peso de conteúdo (g), volume seco (ml), a parte estanque dele (ml) e o recipiente (item; 0 = mãos).</summary>
     internal readonly record struct Room(long WeightG, long DryMl, long WetMl, long ItemId = 0);
 
+    /// <summary>AD-157b: a comida comida antes da hora (desjejum, ceia) só quando a fome chegaria a este déficit (o crítico da decisão);
+    /// a água, mais barata (o poço é de todos), já na urgência.</summary>
+    internal const int MealAheadDeficit = 80;
+
+    /// <summary>AD-157b: em casa, sem urgência, come quem tem a fome a partir deste déficit (a hora da refeição, um pouco antes da
+    /// urgência de 70 do cenário). Escolha sem fonte.</summary>
+    internal const int MealTimeDeficit = 65;
+
+    /// <summary>AD-157b: a refeição em casa de quem foi beber leva comida só a partir desta fome (déficit). Escolha sem fonte.</summary>
+    internal const int AppetiteDeficit = 40;
+
     /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
     /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
     internal static Room RoomOf(WorldState world, Npc npc)
@@ -64,6 +75,35 @@ public static class PersonalCarry
         if (memo.Count >= 8192) memo.Clear();
         memo[key] = new ReachKnown(home.Location, npc.City, touches, bonus, far);
         return far;
+    }
+
+    /// <summary>AD-157b: o passo do passeio (ócio e conversa; andar no trabalho fica como está) com a despensa em casa. O sorteado vale se fica ao
+    /// alcance da despensa; se sairia dele, a pessoa não dá o passo; quem já está fora volta um passo para perto de casa. Antes, o
+    /// passeio ao acaso levava gente para longe sem nada (85% das voltas para comer saíam de célula sem local nenhum).</summary>
+    internal static CellCoord? StrollStep(WorldState world, Npc npc, LivingWorld.Domain.Behavior.ActionType action, ReadOnlySpan<CellCoord> candidates, int index)
+    {
+        var picked = candidates[index];
+        if (action == LivingWorld.Domain.Behavior.ActionType.Work || !world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+            || world.FindHousehold(h) is not { IsHomeless: false } home || picked == home.Location)
+            return picked;
+        bool fromOutside = npc.CurrentLocation != home.Location && FarFromHome(world, npc, home, npc.CurrentLocation, outbound: false);
+        if (!fromOutside)
+            return FarFromHome(world, npc, home, picked, outbound: false) ? null : picked;
+        long best = long.MaxValue;
+        CellCoord? closer = null;
+        long here = Distance2(npc.CurrentLocation, home.Location);
+        foreach (var c in candidates)
+        {
+            long d = Distance2(c, home.Location);
+            if (d < here && d < best) { best = d; closer = c; }
+        }
+        return closer;
+    }
+
+    private static long Distance2(CellCoord a, CellCoord b)
+    {
+        long dx = a.X - b.X, dy = a.Y - b.Y;
+        return dx * dx + dy * dy;
     }
 
     /// <summary>AD-151: a saída deixa a despensa para trás quando o destino fica a mais de uma hora de casa (a medida de
@@ -118,7 +158,30 @@ public static class PersonalCarry
             keepWater += Math.Max(days, UnitsFor(other.ThirstAt(now), needs.ThirstDecayPerHour, hoursAway, line, waterLevel));
             keepFood += Math.Max(days, UnitsFor(other.HungerAt(now), needs.HungerDecayPerHour, hoursAway, line, foodLevel));
         }
+        // AD-157b: o desjejum. Quem vai ficar fora mais do que a fome e a sede esperam come e bebe em casa antes de sair (do que
+        // sobra depois da reserva dos outros), em vez de partir e voltar com fome; leva só o que ainda faltar.
+        // Quem tem onde levar água (parte estanque) a leva na parte estanque em vez de beber antes (o pedido do dono: levar a água)
         var room = RoomOf(world, npc);
+        bool carriesWater = rules.IsLiquid(water.Id) && room.WetMl >= rules.UnitMlOf(water.Id);
+        if (wantWater > 0 && !carriesWater && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
+        {
+            npc.SetThirst(waterLevel, now);
+            world.RecordResourceConsumed(water, 1);
+            world.InventionTally.DrankBeforeLeaving++;
+            wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, waterHours, line, waterLevel) - ledger.CarriedQuantity(npc.Id.Value, water.Id);
+        }
+        // a comida é cara: só come antes quem chegaria à fome crítica fora (a unidade inteira gasta antes da hora esvaziava a despensa)
+        bool foodCritical = wantFood > 0 && npc.HungerAt(now) - needs.HungerDecayPerHour * foodHours < 100 - MealAheadDeficit;
+        var meal = foodCritical ? LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home) : default;
+        if (foodCritical && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
+            && home.Withdraw(meal, 1).IsSuccess)
+        {
+            npc.SetHunger(Math.Max(npc.HungerAt(now), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), now);
+            world.RecordResourceConsumed(meal, 1);
+            world.InventionTally.AteBeforeLeaving++;
+            wantFood = UnitsFor(npc.HungerAt(now), needs.HungerDecayPerHour, foodHours, line, foodLevel) - ledger.CarriedQuantity(npc.Id.Value, food.Id);
+        }
+        if (wantWater <= 0 && wantFood <= 0) return;
         long weight = room.WeightG, dry = room.DryMl, wet = room.WetMl;
 
         int Take(ResourceType resource, int want, long volume, long keep)

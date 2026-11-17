@@ -205,10 +205,12 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     if (workHour) { diag.NonUrgentAtWork++; if (candidate == ActionType.Buy) diag.RestockAtWork++; }
                     var beforeMood = candidate;
                     candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
+                    if (candidate is ActionType.Sleep && SupperBeforeSleep(world, npc, catalog, now)) candidate = ActionType.Eat; // AD-157b
                     if (workHour && candidate != beforeMood) diag.MoodAtWork++;
                     if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted, catalog, stage); // AD-160b: tempo livre
                 }
 
+                if (MealTimeAtHome(world, npc, candidate, now)) candidate = ActionType.Eat; // AD-157b
                 var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;

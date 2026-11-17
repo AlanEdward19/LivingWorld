@@ -81,6 +81,8 @@ public static class InventionMarket
     public static void NoteTrip(WorldState world, Household household, CellCoord market, long cargoStart, long cargoLeft, long cutG)
     {
         world.TripProbe?.Invoke(household.Id.Value, cutG); // AD-163: só observa
+        // AD-157b (backlog 08b item 77): o que a carga cortou ficou na banca; a casa volta por ele na próxima ida que puder pagar
+        if (world.InventionOn) world.Invention!.LeaveAtMarket(household.Id.Value, cutG > 0);
         if (!world.InventionOn || cargoStart == long.MaxValue) return;
         var rules = world.InventionRules!;
         var tally = world.InventionTally;

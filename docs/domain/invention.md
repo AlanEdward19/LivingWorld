@@ -73,11 +73,12 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
   passa a lembrar do que vive. Na lembrança, `Other` = 0 ainda é "ninguém" (backlog 7a).
 
 ## O que a pessoa leva consigo (AD-147)
-- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**, AD-147–157; ver household-provisioning): a mais de uma
+- **Despensa em casa** (`PantryNeedsPresence`, **ligada no cenário de código** desde o AD-157b; [meal-routine](meal-routine.md)): a mais de uma
   hora de caminho, come e bebe do que leva, da refeição do empregador (por conta do salário), ou volta. **Carga** (`InventionLedger.Carried`): peso = `FootCarryKg`; mãos nuas `HandsVolumeMl` (uma
   ração, nada de `LiquidResourceIds`); `UnitMl` é o volume de cada recurso. Na saída para além de uma hora de casa (AD-151), leva o
   que sede e fome pedem até voltar (ida, estada, volta e `PackMarginHours` de folga) e, para o trabalho que dá a refeição, só o
-  caminho (AD-157); a casa guarda antes o que cada morador vai comer e beber na ausência; com fome, come do que leva; em casa, devolve.
+  caminho (AD-157); a casa guarda antes o que cada morador vai comer e beber na ausência; o que não coube come antes de sair
+  (AD-157b); com fome, come do que leva; em casa, devolve.
 - **O recipiente é de quem leva** (AD-157, `InventionLedger.Held`): sai da casa com a pessoa que arrumou a carga e volta com ela;
   quem sai depois leva o melhor que ficou ou vai de mãos nuas, e na compra vale o de quem foi (`CarrierFor`).
 - **Recipiente é design** (`PhysicsEvaluator.Contain`): oco (ml) e a parte estanque, massa, carga que a mesma viga aguenta até o
@@ -88,8 +89,7 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
   a carga pessoal e a compra a pé (preso ao corpo soma aos braços). `GET /designs/{id}`: `function` e `holds`.
 
 ## Consumidor causal
-`Mobility.TravelTicks` e `HouseholdTicks` (vau ou remo), tamanho da compra (carga, recipiente), despensa (pesca), sede e fome
-longe de casa (carga pessoal), carteiras, `ProductionSystem` (encomendas), vontade de tentar (relatos), carga por terra (AD-153).
+`Mobility.TravelTicks`/`HouseholdTicks` (vau, remo), compra (carga, recipiente), despensa (pesca), sede e fome longe (carga), carteiras, encomendas, relatos, terra.
 
 ## Contrato com o cliente
 `GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`: partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
