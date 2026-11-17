@@ -77,10 +77,20 @@
 152. **O saber e a carga de toda morte** (AD-166) mudam a mortalidade 1,010× em 40 × 15 (IC90 1,002–1,020) e 1,002× em
      6 × 50: o morto deixava de esquecer designs; os desenhos agora viram lápide mais cedo. Aplicado por correção; medir de novo
      em 20 × 100.
-153. **A carga do morto fica onde ele morreu** (pedido do dono, 2026-11-17): hoje `PersonalCarry.Forget` leva a carga à
-     despensa da casa na hora, esteja o morto onde estiver (ou a dá por consumida se não há casa). Pedido: morreu em casa, fica
-     com a casa; morreu longe, a carga e o recipiente ficam no local, para alguém da casa ir buscar ou para ser furtada por
-     quem passa. Fatia AD-168, depois do bloco de desempenho (muda o mundo; a conservação tem de fechar com a carga no chão).
+153. ~~**A carga do morto fica onde ele morreu**~~ **Fechado no AD-168** ([leavings](../../../docs/domain/leavings.md)): em
+     casa fica com a casa; longe, fica no chão para a casa (ou o herdeiro) buscar numa viagem ou para quem passa furtar.
 
 > Ordem do dono (2026-11-17): os itens 149, 151, 152 e a reposição racionada do celeiro na quebra (fim do 148) se resolvem
 > nesta trilha, depois da refatoração do cliente Godot.
+
+## Da fatia AD-168
+154. **A casa sabe da morte na hora** (o luto já chegava assim): a notícia devia vir de quem estava junto, de quem passa
+     pelo lugar ou da vila; hoje a casa sabe do lugar sem ninguém contar (dívida de realismo).
+155. **O espólio quase não acontece** no cenário de referência (quase ninguém morre longe levando carga): os números da
+     regra (`MaxFetchHours` 24, `TheftChancePm` 250, `SeenBarrierPerWitness` 0,15) não têm fonte e não foram exercitados;
+     medir num cenário com viagens longas (mercado a dias) antes de confiar neles.
+156. **No chão estraga igual à despensa** (`GroundSpoilagePm` 1000): ao tempo e aos bichos devia estragar mais; e a água
+     no chão nunca se perde. Achar fonte para o fator.
+157. **Quem busca leva um recipiente só**: com o seu já em uso, o do morto vai para casa sem servir (o modelo só segura uma
+     peça por pessoa); o veículo de terra da casa não entra na busca. O furtador faminto também não procura espólio como alvo
+     (só o acha de passagem).

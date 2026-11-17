@@ -132,5 +132,15 @@ public readonly record struct CarriedLoad(long NpcId, int ResourceId, int Quanti
 /// fica não o tem.</summary>
 public readonly record struct HeldItem(long NpcId, long ItemId);
 
+/// <summary>Espólio no chão (AD-168): o que um morto levava longe de casa fica onde ele morreu, com a casa a que pertencia e a do
+/// herdeiro (se a casa se desfez). <see cref="ItemId"/>: o recipiente que ele levava (0 = nenhum). <see cref="FetcherId"/>: quem da
+/// casa saiu para buscar, na viagem que começou em <see cref="FetchTick"/> (-1 = ninguém). <see cref="CarrierId"/>: quem leva o
+/// recipiente para casa sem poder usá-lo (já levava o seu; -1 = está no chão). Ids de pessoa começam em 0: -1 é "ninguém".</summary>
+public readonly record struct Leaving(long Id, int X, int Y, long HouseholdId, long HeirHouseholdId, long DeadId, long Tick,
+    long ItemId = 0, long FetcherId = -1, long FetchTick = -1, long CarrierId = -1);
+
+/// <summary>Unidades de um recurso num espólio no chão (AD-168).</summary>
+public readonly record struct LeftLoad(long LeavingId, int ResourceId, int Quantity);
+
 /// <summary>Peixe na água perto de uma cidade (g): cresce sozinho até a capacidade da água e cai com o que se pesca (AD-143).</summary>
 public readonly record struct FishStock(CityId City, long Grams);

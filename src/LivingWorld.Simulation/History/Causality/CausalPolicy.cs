@@ -45,6 +45,8 @@ public static class CausalPolicy
         WorldEventKind.OutbreakEnded,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
         WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
+        // AD-168: o espólio no chão vem da morte de quem o levava
+        WorldEventKind.LeavingsLeft,
         // Extraordinário e combate (cadeia pela invocação)
         WorldEventKind.ExtraordinaryCostPaid, WorldEventKind.ExtraordinaryEffectApplied,
         WorldEventKind.ExtraordinaryUseFailed, WorldEventKind.ExtraordinaryFailureApplied,
@@ -66,6 +68,7 @@ public static class CausalPolicy
         WorldEventKind.AffairStarted, WorldEventKind.VocationChosen, WorldEventKind.UnwedPregnancy,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
         WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold, WorldEventKind.ProfitDrawn, WorldEventKind.VentureFounded,
+        WorldEventKind.LeavingsCollected, // AD-168: recolher o espólio é contabilidade, como a venda
         WorldEventKind.LoanGranted,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,

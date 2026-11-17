@@ -35,7 +35,8 @@ fome sozinha (a sede já servida), comer só vencia a conversa e o sono na crít
 
 O mundo muda para todos: a sede crítica cai 65% (dependentes em casa 67%), o adulto trabalha 1,4% mais e a fome crítica fica
 igual. A despensa vazia em casa sobe de 20 para 31 h por pessoa-ano (come-se em hora certa, mais vezes). A carga que a pessoa leva
-é estoque do mundo (`InventionLedger.CarriedTotal`, na conservação); a de quem morre sem casa ou sai do mundo vai ao consumido.
+é estoque do mundo (`InventionLedger.CarriedTotal`, na conservação); a de quem morre longe de casa fica no chão
+([leavings](leavings.md), AD-168); a de quem sai do mundo vai ao consumido.
 
 ## A refeição de quem come na oficina (AD-166, item aberto 67)
 Quem vai ao próprio trabalho e lá ganha a refeição leva só o caminho mais a folga (`PackMarginHours`) e, na pausa, come

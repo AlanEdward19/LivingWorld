@@ -71,6 +71,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Marriage] = "Um casamento foi celebrado",
             [WorldEventKind.AidGiven] = "Alguém ajudou uma família em necessidade",
             [WorldEventKind.SupportPaid] = "Um pai ou mãe separado mandou sustento para a casa do filho",
+            [WorldEventKind.LeavingsLeft] = "O que um morto levava ficou onde ele caiu",
+            [WorldEventKind.LeavingsCollected] = "Alguém recolheu o que um morto deixou no caminho",
             [WorldEventKind.CourtshipStarted] = "Um cortejo começou",
             [WorldEventKind.CourtshipRejected] = "Um cortejo não foi correspondido",
             [WorldEventKind.CourtshipSucceeded] = "Um cortejo foi correspondido",

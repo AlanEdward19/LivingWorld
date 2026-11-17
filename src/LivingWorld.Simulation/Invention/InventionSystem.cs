@@ -20,7 +20,7 @@ namespace LivingWorld.Simulation.Invention;
 /// <c>ProductionSystem</c>), o preço das peças expostas anda com oferta e procura, a cópia nasce de ter visto a peça em uso e a casa
 /// que tem a peça pesca.</summary>
 [LivingCapability("INVENTION", Events = [WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
-        WorldEventKind.DesignSold],
+        WorldEventKind.DesignSold, WorldEventKind.LeavingsLeft, WorldEventKind.LeavingsCollected],
     Consumers = ["behavior.travel", "economy.purchase", "economy.production", "cognition.memory", "needs.food"])]
 public sealed class InventionSystem : ISimulationSystem
 {
