@@ -53,3 +53,5 @@ e os NPCs ficam se passando um pelo outro."
 Correção do dono no mesmo dia: "quintal depende, nem toda casa vai ter quintal e isso afeta a construção da casa (focado em
 realismo lembra)". Quintal e recuo são decisão de cada casa ao construir (terra, meios, ofício, família), com custo na obra e
 uso real; o motor expõe o lote e as ruas e o cliente desenha só isso. O quintal de uma célula inventado pelo cliente (AD-171) sai.
+E ainda: "nem toda rua é de asfalto também". A rua emerge do uso (trilha → terra → calçada só com tecnologia, material e
+trabalho), a superfície tem efeito no passo e na carga, e o contrato diz o tipo de cada trecho para o cliente desenhar.
