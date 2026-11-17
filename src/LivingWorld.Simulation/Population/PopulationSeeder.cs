@@ -145,12 +145,21 @@ public static class PopulationSeeder
             var profile = composition is not null && i < composition.Count
                 ? LotProfiles.ForHousehold(world, city.Id, composition[i])
                 : LotProfile.UnknownHousehold;
+            // Sem andar livre nem terra seca com porta, a família divide a casa menos cheia (aperto) antes de erguer casa sobre a
+            // água ou sem saída (último degrau). Traçado desligado: a ordem de antes (todos os degraus, depois o andar livre).
+            bool layout = world.CityRules.EffectiveLayout().Enabled;
+            int lastBeforeFloors = layout ? PlacementPolicy.StreetLevels - 1 : PlacementPolicy.LevelCount - 1;
             var placement = BuildingPlacementResolver.ResolveLot(
-                candidate, city, world, bounds, profile, 0, PlacementPolicy.StreetLevels - 1, chooseOrientation: true);
+                candidate, city, world, bounds, profile, 0, lastBeforeFloors, chooseOrientation: true);
             var shared = placement is null ? FindDwellingWithFreeFloor(world, city, houseIds) : null;
-            if (placement is null && shared is null)
+            if (layout && placement is null && shared is null)
                 placement = BuildingPlacementResolver.ResolveLot(
-                    candidate, city, world, bounds, profile, PlacementPolicy.StreetLevels, PlacementPolicy.LevelCount - 1, chooseOrientation: true);
+                    candidate, city, world, bounds, profile, PlacementPolicy.StreetLevels, PlacementPolicy.LevelCount - 2, chooseOrientation: true);
+            if (layout && placement is null && shared is null)
+                shared = LeastCrowdedDwelling(world, city, houseIds);
+            if (layout && placement is null && shared is null)
+                placement = BuildingPlacementResolver.ResolveLot(
+                    candidate, city, world, bounds, profile, PlacementPolicy.LevelCount - 1, PlacementPolicy.LevelCount - 1, chooseOrientation: true);
 
             // city-building-separation: sem terra livre a casa não vira um prédio empilhado sobre outro;
             // ela se estende para cima — o domicílio passa a morar num andar livre de uma casa que já existe
@@ -189,6 +198,20 @@ public static class PopulationSeeder
 
     /// <summary>Primeira casa da cidade (por Id) com andar sobrando: moradores atuais, mais os domicílios já
     /// atribuídos neste lote, abaixo do número de andares. Só considera casas com posição gravada.</summary>
+    /// <summary>AD-173: a casa (com posição gravada) que menos domicílios abriga agora, contando o lote; desempate por Id.</summary>
+    private static (Building Building, int Tenants)? LeastCrowdedDwelling(WorldState world, City city, List<BuildingId> batchHouseIds)
+    {
+        (Building Building, int Tenants)? best = null;
+        foreach (var house in world.Buildings
+                     .Where(b => b.City == city.Id && b.BuildingTypeId == InitialHouseBuildingTypeId && b.Position is not null)
+                     .OrderBy(b => b.Id.Value))
+        {
+            int tenants = world.Households.Count(h => h.Dwelling == house.Id) + batchHouseIds.Count(id => id == house.Id);
+            if (best is null || tenants < best.Value.Tenants) best = (house, tenants);
+        }
+        return best;
+    }
+
     private static (Building Building, int Tenants)? FindDwellingWithFreeFloor(WorldState world, City city, List<BuildingId> batchHouseIds)
     {
         foreach (var house in world.Buildings

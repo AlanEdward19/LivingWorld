@@ -7,7 +7,8 @@ namespace LivingWorld.Simulation.Cities.Layout;
 
 /// <summary>Ruas de uma cidade (AD-173), função pura do mapa, do ponto de fundação e de <see cref="CityLayoutRules"/>: um largo
 /// no ponto de fundação, uma rua principal que atravessa o largo no eixo com mais terra seca e travessas perpendiculares a
-/// cada <see cref="CityLayoutRules.LaneSpacingCells"/> células dela. Cada rua contorna a água por um passo de lado e para no
+/// cada <see cref="CityLayoutRules.LaneSpacingCells"/> células dela. Cada rua atravessa uma célula de água só (vau) ou a
+/// contorna por um passo de lado, e para no
 /// fim do mapa, na água sem contorno, perto de outra rua ou no comprimento máximo. Nada é persistido: mesma entrada, mesmas
 /// ruas. As células vêm em ordem de profundidade (passos desde o largo), a ordem em que a vila ocupa os lotes.</summary>
 internal sealed class StreetNetwork
@@ -187,6 +188,18 @@ internal sealed class StreetNetwork
                     continue;
                 }
 
+                // Vau: uma célula de água só, com terra livre logo depois, a rua atravessa (poça, regato estreito).
+                var beyond = new CellCoord(next.X + d.X, next.Y + d.Y);
+                if (InMap(next) && !Land(next) && !_index.ContainsKey(next) && CanTake(beyond, next))
+                {
+                    parent = Add(next, parent, main);
+                    onStep?.Invoke(parent, ++length);
+                    parent = Add(beyond, parent, main);
+                    onStep?.Invoke(parent, ++length);
+                    at = beyond;
+                    continue;
+                }
+
                 // Contorna a água (ou o fim de outra rua) com um passo de lado, se o lado e a frente dele forem terra.
                 bool stepped = false;
                 var left = new CellCoord(-d.Y, d.X);
@@ -218,6 +231,8 @@ internal sealed class StreetNetwork
                 if (n != from && n != also && _index.ContainsKey(n)) return true;
             return false;
         }
+
+        private bool InMap(CellCoord cell) => cell.X >= 0 && cell.Y >= 0 && cell.X < map.Width && cell.Y < map.Height;
 
         private bool Land(CellCoord cell) =>
             cell.X >= 0 && cell.Y >= 0 && cell.X < map.Width && cell.Y < map.Height && map.TryGetCell(cell, out var m) && !m.HasWater;
