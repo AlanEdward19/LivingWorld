@@ -1,0 +1,178 @@
+extends RefCounted
+## Sessão e escopos: qual escopo está assinado (mundo, cidade, interior), o que o servidor acha que a câmera observa,
+## a volta do interior para o escopo anterior e a planta dos prédios novos que chegaram por delta. Não desenha nada:
+## manda a cena, a câmera e a interface do App reagirem.
+
+const Store := preload("res://Store/world_store.gd")
+const Registry := preload("res://Store/entity_registry.gd")
+
+var app
+var previous_scope := ["World", ""]
+var world_ref := ["World", ""]
+var interior_building := -1
+var first_snapshot := false
+var crumb_before := "Mundo" ## trilha antes de entrar no prédio
+var _filling := false
+
+
+func _init(p_app) -> void:
+	app = p_app
+
+
+func enter_scope(kind: String, ref_id: String) -> void:
+	world_ref = [kind, ref_id]
+	await app.stream.subscribe(kind, ref_id)
+
+
+func on_snapshot(envelope: Dictionary) -> void:
+	var kind := Store.scope_name(envelope.scope.kind)
+	app.store.apply_snapshot(envelope)
+	publish_observation(kind)
+	app.banner.visible = false
+	if not first_snapshot:
+		first_snapshot = true
+		app.loading.visible = false
+		app.minimap.rebuild()
+		app.sky_life.build(Vector2(app.store.map_size))
+		app.rig.fit_to_map(maxi(app.store.map_size.x, app.store.map_size.y))
+		app._load_names()
+	if kind == "Interior":
+		if app.stage.active and app.stage.interior_view.floor_count == int(app.store.interior.floors):
+			app.stage.interior_view.set_occupants(app.store.interior.occupants) # reenvio do snapshot pelo canal: só atualiza
+			app.stage.interior_view.apply_names(app.store.names)
+		else:
+			_enter_interior_view()
+		return
+	app.rig.set_scope(kind)
+	app.list_panel.city_filter = app.store.city.id if kind == "City" else ""
+	if app.list_panel.visible:
+		app.list_panel.search(app.list_panel.query)
+	if kind == "City":
+		app.breadcrumb.text = "Mundo › %s" % (app.store.city.name if app.store.city.name != "" else "Cidade")
+		if app.inspector.current.is_empty() or String(app.inspector.current.kind) == Registry.CITY:
+			app.inspector.inspect(Registry.ref(Registry.CITY, String(app.store.city.id)))
+		var area := built_area()
+		if not app.director.active():
+			app.rig.focus(center_of(area))
+		app.rig.set_zoom(clampf(maxf(area.size.x, area.size.y) * 1.15 + 5.0, 7.0, app.rig.city_exit_size - 0.6))
+		app._load_names()
+	elif kind == "World":
+		app.breadcrumb.text = "Mundo"
+		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY:
+			app.inspector.close()
+		if app.rig.zoom_size < app.rig.city_exit_size + 1.0:
+			app.rig.set_zoom(22.0)
+
+
+## Conta ao servidor o que a câmera observa: só assim o rastro de cognição do NPC é gravado.
+func publish_observation(kind: String) -> void:
+	match kind:
+		"World":
+			app.observer.set_scope("World")
+		"City":
+			app.observer.set_scope("City", String(app.store.city.get("id", "")))
+		"Interior":
+			var city_id := String(app.store.city.get("id", ""))
+			if city_id != "":
+				app.observer.set_scope("Building", city_id, str(interior_building))
+
+
+## Retângulo que cobre os prédios da cidade (ou os limites dela, se ainda não há prédios).
+func built_area() -> Rect2i:
+	var area := Rect2i()
+	var first := true
+	for id in app.store.buildings:
+		var building: Dictionary = app.store.buildings[id]
+		for entry in building.footprint:
+			var cell: Vector2i = building.cell + entry.cell
+			area = Rect2i(cell, Vector2i.ONE) if first else area.expand(cell).expand(cell + Vector2i.ONE)
+			first = false
+	return app.store.city.bounds if first else area
+
+
+static func center_of(bounds: Rect2i) -> Vector3:
+	return Vector3(bounds.position.x + bounds.size.x / 2.0, 0, bounds.position.y + bounds.size.y / 2.0)
+
+
+func on_connection(state: String, retry_in: float) -> void:
+	app.banner.visible = state == "offline"
+	if state == "offline":
+		app.banner.text = "sem conexão — nova tentativa em %d s" % int(retry_in)
+		app.loading.visible = not first_snapshot
+		if not first_snapshot:
+			(app.loading.get_child(0) as Label).text = "Sem conexão com o servidor…\nnova tentativa em %d s" % int(retry_in)
+
+
+func enter_building(building_id: int) -> void:
+	if app.stage.active:
+		return
+	previous_scope = world_ref.duplicate()
+	crumb_before = app.breadcrumb.text
+	interior_building = building_id
+	await app.stream.subscribe("Interior", str(building_id))
+
+
+func _enter_interior_view() -> void:
+	var marker = app.store.buildings.get(interior_building, null)
+	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
+	app.stage.interior_view.catalog = app.catalog
+	var lodging = marker.get("lodging") if marker != null else null
+	app.stage.enter(app.store.interior, origin, app.labels, app.rig.camera, int(marker.type) if marker != null else -1,
+		int(lodging.units) if lodging is Dictionary else 0)
+	app.stage.interior_view.apply_names(app.store.names)
+	app.registry.objects = {}
+	var objects = app.store.interior.get("objects")
+	if objects is Dictionary:
+		for descriptor in objects.get("catalog", []):
+			app.registry.objects[String(descriptor.id)] = descriptor
+	var title: String = app.registry.title_of(Registry.ref(Registry.BUILDING, interior_building))
+	app.breadcrumb.text = "%s › %s" % [crumb_before, title]
+	if marker != null and not app.director.active():
+		app.rig.focus(Vector3(origin.x + 1.5, 0, origin.y + 1.5))
+		app.rig.set_zoom(7.0)
+
+
+func exit_building() -> void:
+	if not app.stage.active:
+		return
+	app.stage.leave()
+	interior_building = -1
+	await app.stream.subscribe(previous_scope[0], previous_scope[1])
+
+
+func on_interior_changed() -> void:
+	if app.stage.active:
+		app.stage.interior_view.set_occupants(app.store.interior.occupants)
+		app.stage.interior_view.apply_names(app.store.names)
+
+
+## Prédio novo que chegou por delta é desenhado na hora (canteiro); a planta, os andares e o preço vêm do retrato da
+## cidade lido UMA vez (sem reassinar o escopo nem redesenhar o resto).
+func fill_pending_footprints() -> void:
+	if _filling or app.store.pending_footprints.is_empty() or app.store.kind != "City":
+		return
+	_filling = true
+	var response: Dictionary = await app.api.city_snapshot(String(app.store.city.get("id", "")))
+	_filling = false
+	if response.ok and response.body is Dictionary and response.body.get("payload") is Dictionary:
+		app.store.fill_buildings(response.body.payload)
+
+
+## Nomes de quem está no escopo (o escopo não traz nomes: GET /npcs paginado, até 1.000).
+func load_names() -> void:
+	if app.api == null or app.store == null or app.stage.active:
+		return
+	var city_id: String = app.store.city.id if app.store.kind == "City" else ""
+	var skip := 0
+	while skip < 1000:
+		var page: Dictionary = await app.api.npc_page("", skip, 200, city_id)
+		if not page.ok:
+			return
+		for item in page.body.items:
+			app.store.names[int(item.id.value)] = String(item.name)
+		skip += 200
+		if skip >= int(page.body.total):
+			break
+	app.world_view.apply_names()
+	if app.stage.active:
+		app.stage.interior_view.apply_names(app.store.names)
