@@ -15,6 +15,13 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 [Trait("Category", "Report")]
 public class ScopeProjectionCostHarness
 {
+    /// <summary>O redutor guarda processos e espólios por id; a projeção, na ordem de montagem. Compara o conjunto.</summary>
+    private static LivingScopeState Normalized(LivingScopeState state) => state with
+    {
+        Processes = state.Processes.OrderBy(p => p.Id).ToList(),
+        Leavings = state.Leavings.OrderBy(l => l.Id).ToList(),
+    };
+
     private static int Population => int.TryParse(Environment.GetEnvironmentVariable("LW_MEASURE_POP"), out int pop) && pop > 0 ? pop : 500;
 
     [Fact]
@@ -34,6 +41,9 @@ public class ScopeProjectionCostHarness
         var cityBytes = new List<long>();
         var worldBytes = new List<long>();
         long alive = 0;
+        long allocated = 0;
+        int replayMismatches = 0;
+        var (cityReplay, worldReplay) = (cityState, worldState);
         var cityFields = new Dictionary<string, long>();
         var worldFields = new Dictionary<string, long>();
         static void Tally(Dictionary<string, long> into, string json)
@@ -50,14 +60,27 @@ public class ScopeProjectionCostHarness
             clock.Tick(world);
             tickWatch.Stop();
             long tick = world.CurrentDate.TotalHours;
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             projectWatch.Start();
-            var nextCity = LivingScopeProjector.Build(world, city);
-            var nextWorld = LivingScopeProjector.Build(world, global);
-            string cityDelta = JsonSerializer.Serialize(ScopeDeltaBuilder.Diff(tick, cityState, nextCity), options);
-            string worldDelta = JsonSerializer.Serialize(ScopeDeltaBuilder.Diff(tick, worldState, nextWorld), options);
+            var frame = new ScopeProjectionFrame(world); // AD-172: uma leitura do tick para os dois escopos, como o laço faz
+            var nextCity = LivingScopeProjector.Build(frame, city);
+            var nextWorld = LivingScopeProjector.Build(frame, global);
+            var cityDiff = ScopeDeltaBuilder.Diff(tick, cityState, nextCity);
+            var worldDiff = ScopeDeltaBuilder.Diff(tick, worldState, nextWorld);
+            string cityDelta = JsonSerializer.Serialize(cityDiff, options);
+            string worldDelta = JsonSerializer.Serialize(worldDiff, options);
             projectWatch.Stop();
+            allocated += GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            // AD-172: snapshot + deltas reconstroem a projeção nova a cada tick (avanço de processo, campos omitidos)
+            (cityReplay, worldReplay) = (LivingDeltaReducer.Apply(cityReplay, cityDiff), LivingDeltaReducer.Apply(worldReplay, worldDiff));
+            if (!Normalized(cityReplay).Equals(Normalized(nextCity)) || !Normalized(worldReplay).Equals(Normalized(nextWorld))) replayMismatches++;
             Tally(cityFields, cityDelta);
             Tally(worldFields, worldDelta);
+            if (Environment.GetEnvironmentVariable("LW_MEASURE_SAMPLE") is { Length: > 0 } sample)
+            {
+                File.WriteAllText($"{sample}.{t:D3}.city.json", cityDelta);
+                File.WriteAllText($"{sample}.{t:D3}.world.json", worldDelta);
+            }
             cityBytes.Add(Encoding.UTF8.GetByteCount(cityDelta));
             worldBytes.Add(Encoding.UTF8.GetByteCount(worldDelta));
             (cityState, worldState) = (nextCity, nextWorld);
@@ -73,10 +96,12 @@ public class ScopeProjectionCostHarness
         string report =
             $"pop={Population} cityNpcs={residents} tickMicrosPerNpcTick={tickWatch.Elapsed.TotalMicroseconds / Math.Max(1, alive):F3} "
             + $"projectionMicrosPerTick={projectWatch.Elapsed.TotalMicroseconds / 240:F0} "
-            + $"projectionMicrosPerNpcTick={projectWatch.Elapsed.TotalMicroseconds / Math.Max(1, alive):F3}\n"
+            + $"projectionMicrosPerNpcTick={projectWatch.Elapsed.TotalMicroseconds / Math.Max(1, alive):F3} "
+            + $"projectionAllocKbPerTick={allocated / 240 / 1024} replayMismatches={replayMismatches}\n"
             + $"cityDeltaBytes {Stats(cityBytes)} worldDeltaBytes {Stats(worldBytes)} citySnapshotBytes={snapshotBytes}\n"
             + $"cityPerTickByField {Top(cityFields)}\nworldPerTickByField {Top(worldFields)} worldNpcs={worldState.Npcs.Count}\n";
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-scope-cost.txt"), report);
         Assert.True(residents > 0);
+        Assert.Equal(0, replayMismatches);
     }
 }

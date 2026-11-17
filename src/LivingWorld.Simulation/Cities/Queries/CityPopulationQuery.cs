@@ -50,9 +50,36 @@ public static class CityPopulationQuery
     /// Decision do design: o pool agregado entra só pela soma, não pela distribuição — Gini de
     /// amostra parcial é a aproximação aceita nesta fase). Sem ninguém materializado, 0
     /// (nenhuma desigualdade medível).</summary>
-    public static double Inequality(WorldState world, CityId city)
+    public static double Inequality(WorldState world, CityId city) =>
+        Gini(MaterializedAlive(world, city).Select(n => (double)n.Wallet.Amount).ToList());
+
+    /// <summary>AD-172: os seis indicadores de <see cref="Population"/> a <see cref="Housing"/> numa passada pelos NPCs, com as mesmas
+    /// contas (a projeção do escopo Cidade pede todos a cada tick; seis passadas custavam mais que o resto do escopo).</summary>
+    public static CityIndicatorValues Indicators(WorldState world, CityId city)
     {
-        var wallets = MaterializedAlive(world, city).Select(n => (double)n.Wallet.Amount).OrderBy(w => w).ToList();
+        var pool = PoolOf(world, city);
+        long alive = 0, wealth = 0, health = 0;
+        var wallets = new List<double>();
+        var npcs = world.Npcs;
+        for (int i = 0; i < npcs.Count; i++)
+        {
+            var npc = npcs[i];
+            if (!npc.IsAlive || npc.City != city) continue;
+            alive++;
+            wealth = checked(wealth + npc.Wallet.Amount);
+            health = checked(health + npc.Health);
+            wallets.Add(npc.Wallet.Amount);
+        }
+
+        long population = alive + pool.Count;
+        long totalWealth = wealth + pool.WealthSum;
+        double averageHealth = population == 0 ? 0.0 : (double)(health + pool.HealthSum) / population;
+        return new CityIndicatorValues(population, totalWealth, averageHealth, Gini(wallets), totalWealth, Housing(world, city));
+    }
+
+    private static double Gini(List<double> unsorted)
+    {
+        var wallets = unsorted.OrderBy(w => w).ToList();
         double total = wallets.Sum();
         if (wallets.Count == 0 || total == 0)
             return 0.0;
@@ -104,3 +131,6 @@ public static class CityPopulationQuery
     private static AggregatePopulationPool PoolOf(WorldState world, CityId city) =>
         world.FindCity(city)?.AggregatePool ?? AggregatePopulationPool.Empty;
 }
+
+/// <summary>Os indicadores de uma cidade lidos juntos (AD-172), os mesmos valores dos métodos de <see cref="CityPopulationQuery"/>.</summary>
+public readonly record struct CityIndicatorValues(long Population, long Wealth, double Health, double Inequality, long Economy, long Housing);

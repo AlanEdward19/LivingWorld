@@ -1,0 +1,257 @@
+using LivingWorld.Api.Visual.Catalogs;
+using LivingWorld.Api.Visual.Observable;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+
+namespace LivingWorld.Api.Visual.Scope;
+
+public static class LivingScopeProjector
+{
+    public static LivingScopeState Build(
+        WorldState world,
+        VisualScope scope,
+        IReadOnlyList<WorldEvent>? events = null,
+        PresentationNames? names = null) =>
+        Build(new ScopeProjectionFrame(world, names), scope, events);
+
+    /// <summary>AD-172: projeta um escopo a partir da leitura partilhada do tick (o laço monta uma só para todos os escopos).</summary>
+    public static LivingScopeState Build(ScopeProjectionFrame frame, VisualScope scope, IReadOnlyList<WorldEvent>? events = null)
+    {
+        var world = frame.World;
+        var observable = frame.Observable;
+        var cityBounds = frame.CityBounds;
+        CityId? focusedCity = scope.Kind == VisualScopeKind.City && Guid.TryParse(scope.RefId, out var cityGuid)
+            ? new CityId(cityGuid)
+            : null;
+        bool isWorld = scope.Kind == VisualScopeKind.World;
+
+        var npcs = new List<NpcVisual>();
+        var rest = new List<ProcessVisual>();
+        var eat = new List<ProcessVisual>();
+        var carry = new List<ProcessVisual>();
+        foreach (var scoped in frame.Npcs)
+        {
+            if (!(focusedCity is { } id ? scoped.InCity(id) : isWorld && scoped.InWorld)) continue;
+            var npc = scoped.Npc;
+            npcs.Add(frame.NpcVisualOf(scoped, NpcVisualOf));
+            if (npc.CurrentAction == ActionType.Sleep)
+            {
+                var snapshot = RestPresentation.ToProcess(world, npc);
+                rest.Add(new ProcessVisual(
+                    snapshot.Id, "rest", snapshot.ActorId, snapshot.Progress, snapshot.DescriptorKey,
+                    snapshot.Status.Quality, snapshot.Status.RemainingHours, snapshot.Status.Location));
+            }
+            else if (npc.CurrentAction == ActionType.Eat)
+            {
+                var snapshot = FoodPresentation.ToProcess(world, npc);
+                eat.Add(new ProcessVisual(
+                    snapshot.Id, "food", snapshot.ActorId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.Status.RemainingHours, npc.CurrentLocation));
+            }
+
+            if (npc.IsCarrying && !frame.IsDeliveringWater(npc.Id))
+            {
+                var snapshot = ResourceProcessPresentation.CarryOf(npc)!;
+                carry.Add(new ProcessVisual(
+                    snapshot.Id, snapshot.Kind, snapshot.TargetId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.RemainingHours, snapshot.Location)
+                { ResourceId = npc.CarriedResourceId, ResourceName = observable.Names.Resource(npc.CarriedResourceId) });
+            }
+        }
+
+        var cities = new List<CityVisual>();
+        if (isWorld)
+        {
+            var densities = frame.Densities;
+            foreach (var city in world.ActiveCities().OrderBy(city => city.Id.Value))
+            {
+                var bounds = cityBounds[city.Id];
+                cities.Add(new CityVisual(
+                    city.Id, city.Name, city.Location, frame.PopulationOf(city.Id),
+                    new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height),
+                    city.FoundedFromCityId)
+                { Density = densities.GetValueOrDefault(city.Id) });
+            }
+        }
+
+        var visibleBuildings = new List<Building>();
+        var buildings = focusedCity is { } cityId ? Buildings(frame, cityId, visibleBuildings) : [];
+
+        var processes = new List<ProcessVisual>(rest.Count + eat.Count + carry.Count + frame.ResourceProcesses.Count + frame.CropProcesses.Count);
+        processes.AddRange(rest);
+        processes.AddRange(eat);
+        processes.AddRange(frame.ResourceProcesses);
+        processes.AddRange(carry);
+        processes.AddRange(frame.CropProcesses);
+        if (focusedCity is { } processCityId && world.FindCity(processCityId) is { } processCity)
+            for (int index = 0; index < processCity.ConstructionQueue.Count; index++)
+            {
+                var project = processCity.ConstructionQueue[index];
+                long totalTicks = world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)
+                    ? recipe.TicksToBuild
+                    : Math.Max(1, project.TicksRemaining);
+                double progress = 1.0 - project.TicksRemaining / (double)totalTicks;
+                var site = BuildingPlacementResolver.ResolveQueuedSite(processCity, index);
+                processes.Add(new ProcessVisual(index, "construction", project.BuildingTypeId, progress, "construction", Location: site));
+            }
+
+        foreach (var construct in world.ExtraordinaryConstructs
+            .Where(construct => IsCellInScope(construct.Origin, focusedCity, isWorld, cityBounds))
+            .OrderBy(construct => construct.Id))
+            processes.Add(new ProcessVisual(
+                -construct.Id - 1,
+                "extraordinary-construct",
+                construct.CreatorId.Value,
+                construct.Durability / (double)construct.MaxDurability,
+                construct.AppearanceToken,
+                Quality: construct.Durability / (double)construct.MaxDurability,
+                RemainingHours: Math.Max(0, construct.ExpiresAtTick - world.CurrentDate.TotalHours),
+                Location: construct.Origin,
+                Footprint: construct.Footprint,
+                AppearanceToken: construct.AppearanceToken));
+
+        IReadOnlyList<IndicatorUpdate> indicators = focusedCity is { } indicatorCity
+            ? BuildIndicators(CityPopulationQuery.Indicators(world, indicatorCity))
+            : [];
+
+        bool InScope(CellCoord cell) => IsCellInScope(cell, focusedCity, isWorld, cityBounds);
+        var climateCell = focusedCity is { } climateCity && world.FindCity(climateCity) is { } focused
+            ? focused.Location
+            : new CellCoord(world.Map.Width / 2, world.Map.Height / 2);
+        return new LivingScopeState(npcs, cities, buildings, processes, indicators, Events(world, events))
+        {
+            BuildingStates = ObservableProjector.BuildingStates(observable, visibleBuildings),
+            Crops = ObservableProjector.Crops(observable, InScope),
+            Animals = focusedCity is not null ? ObservableProjector.Animals(observable, InScope) : [],
+            FaunaGroups = isWorld ? frame.FaunaGroups : [],
+            Leavings = ObservableProjector.Leavings(observable, InScope),
+            Objects = focusedCity is { } objectCity ? ObservableProjector.Objects(observable, objectCity) : [],
+            Climate = ObservableProjector.Climate(world, climateCell),
+            Tick = frame.Tick,
+        };
+    }
+
+    private static NpcVisual NpcVisualOf(ScopeProjectionFrame frame, ScopedNpc scoped)
+    {
+        var npc = scoped.Npc;
+        return new NpcVisual(
+            npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation,
+            ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id), npc.Appearance)
+        {
+            Observable = ObservableProjector.Npc(frame.Observable, npc),
+            ActionStartedAtTick = npc.ActionStartedAtTick,
+            ActionTarget = NpcInspectionQuery.TargetOf(npc),
+            Intent = npc.CurrentIntent,
+            IntentTarget = npc.IntentTarget,
+        };
+    }
+
+    private static List<BuildingVisual> Buildings(ScopeProjectionFrame frame, CityId cityId, List<Building> visible)
+    {
+        var world = frame.World;
+        var result = new List<BuildingVisual>();
+        var city = world.FindActiveCity(cityId);
+        if (city is null || !frame.CityBounds.TryGetValue(cityId, out var bounds)) return result;
+        var recipes = world.CityCatalog.BuildingRecipes;
+        bool pricesBuildings = recipes.Values.Any(r => r.Pricing is not null || r.Lodging is not null);
+        var valuation = pricesBuildings ? new ValuationContext(world, city) : null;
+        var tenants = valuation is not null ? DwellingCapacity.TenantsByBuilding(world) : null;
+        foreach (var building in world.Buildings.Where(building => building.City == cityId).OrderBy(building => building.Id.Value))
+        {
+            // null = escassez de terra pra este prédio agora — excluído desta resposta em vez de derrubar o escopo; nunca persistido.
+            if (BuildingPlacementResolver.Resolve(building, city, world, bounds) is not { } resolved) continue;
+            if (!FitsInside(building, resolved.Position, resolved.Orientation, bounds)) continue;
+            var plan = ObservableProjector.Plan(building, resolved.Orientation);
+            visible.Add(building);
+            long value = 0;
+            LodgingMarker? lodging = null;
+            if (valuation is not null && recipes.TryGetValue(building.BuildingTypeId, out var recipe))
+            {
+                value = BuildingValuation.ValueOf(valuation, building, recipe);
+                if (recipe.Lodging is not null)
+                    lodging = new LodgingMarker(
+                        DwellingCapacity.Of(world, building), tenants!.GetValueOrDefault(building.Id),
+                        BuildingValuation.RentOf(valuation, building, recipe), BuildingValuation.NightlyOf(valuation, building, recipe));
+            }
+
+            result.Add(new BuildingVisual(building.Id, building.City, building.BuildingTypeId, resolved.Position, resolved.Orientation)
+            { Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging });
+        }
+
+        return result;
+    }
+
+    private static bool FitsInside(Building building, CellCoord position, int orientation, CityBounds bounds)
+    {
+        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        for (int i = 0; i < footprint.Count; i++)
+            if (!bounds.Contains(new CellCoord(position.X + footprint[i].Cell.X, position.Y + footprint[i].Cell.Y)))
+                return false;
+        return true;
+    }
+
+    private static List<NotableVisualEvent> Events(WorldState world, IReadOnlyList<WorldEvent>? events)
+    {
+        var logged = (events ?? [])
+            .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind).ThenBy(evt => evt.Payload, StringComparer.Ordinal)
+            .Select(evt =>
+            {
+                var involved = EventInvolvementReader.Read(world, evt);
+                return new NotableVisualEvent(
+                    evt.Tick, evt.Kind, CrimeEventNarrator.Describe(world, evt) ?? LivingEventPresentationCatalog.Describe(evt.Kind),
+                    EventInvolvementReader.LocationOf(world, evt, involved) ?? LocationOf(world, evt))
+                { Involved = involved, EventId = evt.EventId };
+            });
+        var founding = world.ActiveCities()
+            .Where(city => city.FoundedFromCityId is not null)
+            .Select(city => new NotableVisualEvent(
+                city.FoundedAtTick,
+                WorldEventKind.SettlementFounded,
+                LivingEventPresentationCatalog.Describe(WorldEventKind.SettlementFounded),
+                city.Location)
+            { Involved = new EventInvolved(CityId: city.Id.ToString()) });
+        return logged
+            .Concat(founding)
+            .DistinctBy(evt => (evt.Tick, evt.Kind, evt.Label))
+            .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind)
+            .ToList();
+    }
+
+    private static bool IsCellInScope(CellCoord cell, CityId? focusedCity, bool isWorld, IReadOnlyDictionary<CityId, CityBounds> cityBounds)
+    {
+        if (focusedCity is { } city) return cityBounds.TryGetValue(city, out var bounds) && bounds.Contains(cell);
+        if (!isWorld) return false;
+        foreach (var bounds in cityBounds.Values)
+            if (bounds.Contains(cell)) return false;
+        return true;
+    }
+
+    private static CellCoord? LocationOf(WorldState world, WorldEvent evt)
+    {
+        var first = evt.Payload.Split('|')[0];
+        if (!long.TryParse(first, out var npcValue)) return null;
+        return world.Npcs.FirstOrDefault(npc => npc.Id.Value == npcValue)?.CurrentLocation;
+    }
+
+    private static IReadOnlyList<IndicatorUpdate> BuildIndicators(CityIndicatorValues values) =>
+    [
+        new("population", values.Population),
+        new("wealth", values.Wealth),
+        new("health", values.Health),
+        new("inequality", values.Inequality),
+        new("economy", values.Economy),
+        new("housing", values.Housing),
+    ];
+}

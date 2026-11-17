@@ -8,6 +8,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Health;
 using LivingWorld.Domain.Invention;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
@@ -80,8 +81,15 @@ public static class ObservableProjector
         var affect = PsycheMechanic.AffectOf(world, npc, ctx.Tick);
         var emotions = new EmotionsVisual(
             Tenth(affect.Grief), Tenth(affect.Fear), Tenth(affect.Anger), Tenth(affect.Joy), Tenth(affect.Shame), Tenth(affect.Loneliness));
-        var carried = ctx.CarriedOf(npc.Id.Value)
-            .Select(load => new CarriedVisual(load.ResourceId, load.Quantity, ctx.Names.Resource(load.ResourceId))).ToArray();
+        var loads = ctx.CarriedOf(npc.Id.Value);
+        var carried = ValueList<CarriedVisual>.Empty;
+        if (loads.Count > 0)
+        {
+            var items = new CarriedVisual[loads.Count];
+            for (int i = 0; i < items.Length; i++)
+                items[i] = new CarriedVisual(loads[i].ResourceId, loads[i].Quantity, ctx.Names.Resource(loads[i].ResourceId));
+            carried = new ValueList<CarriedVisual>(items);
+        }
         HeldObjectVisual? held = ctx.HeldOf(npc.Id.Value) is { } itemId
             ? new HeldObjectVisual(itemId, ctx.Item(itemId)?.DesignId ?? 0)
             : null;
@@ -95,7 +103,7 @@ public static class ObservableProjector
             npc.Profession.Id, ctx.Names.Profession(npc.Profession.Id),
             (int)Math.Round(npc.Height * 100), Math.Round(growth, 2),
             PregnancyOf(world, npc, ctx.Tick), illness, emotions, Dominant(emotions), emotions.Grief >= 0.1,
-            new ValueList<CarriedVisual>(carried), held);
+            carried, held);
     }
 
     private static PregnancyVisual? PregnancyOf(WorldState world, Npc npc, long tick)
@@ -108,22 +116,27 @@ public static class ObservableProjector
         return new PregnancyVisual(Math.Round(Math.Clamp(fraction, 0, 1) * 20) / 20, Math.Max(1, pregnancy.Sexes.Length));
     }
 
+    /// <summary>A emoção mais forte (a primeira em caso de empate, na ordem do contrato), só a partir de um décimo.</summary>
     private static string? Dominant(EmotionsVisual e)
     {
-        (string Name, double Value)[] all =
-            [("grief", e.Grief), ("fear", e.Fear), ("anger", e.Anger), ("joy", e.Joy), ("shame", e.Shame), ("loneliness", e.Loneliness)];
-        var top = all.MaxBy(x => x.Value);
-        return top.Value >= 0.1 ? top.Name : null;
+        string name = "grief";
+        double top = e.Grief;
+        if (e.Fear > top) (name, top) = ("fear", e.Fear);
+        if (e.Anger > top) (name, top) = ("anger", e.Anger);
+        if (e.Joy > top) (name, top) = ("joy", e.Joy);
+        if (e.Shame > top) (name, top) = ("shame", e.Shame);
+        if (e.Loneliness > top) (name, top) = ("loneliness", e.Loneliness);
+        return top >= 0.1 ? name : null;
     }
 
-    /// <summary>Densidade por cidade para o escopo Mundo, numa passada pelos NPCs.</summary>
-    public static Dictionary<CityId, CityDensityVisual> Densities(WorldState world, IReadOnlyDictionary<CityId, CityBounds> bounds)
+    /// <summary>Densidade por cidade para o escopo Mundo, numa passada pelos NPCs já situados (AD-172: a mesma leitura do tick).</summary>
+    public static Dictionary<CityId, CityDensityVisual> Densities(WorldState world, IReadOnlyList<LivingWorld.Api.Visual.Scope.ScopedNpc> npcs)
     {
         var inside = new Dictionary<CityId, (int Count, Dictionary<int, int> Actions)>();
-        foreach (var npc in world.Npcs)
+        foreach (var scoped in npcs)
         {
-            if (!npc.IsAlive || !bounds.TryGetValue(npc.City, out var b) || NpcScopeResolver.Resolve(npc, b).Kind != NpcScopeKind.City)
-                continue;
+            if (!scoped.HasCityBounds || !scoped.InsideCity) continue;
+            var npc = scoped.Npc;
             if (!inside.TryGetValue(npc.City, out var entry)) entry = (0, new Dictionary<int, int>());
             int key = npc.CurrentAction is { } action ? (int)action : -1;
             entry.Actions[key] = entry.Actions.GetValueOrDefault(key) + 1;
@@ -153,43 +166,106 @@ public static class ObservableProjector
         });
     }
 
-    /// <summary>Função, dono, moradores, trabalhadores e estoque resumido dos prédios visíveis de uma cidade.</summary>
+    /// <summary>Função, dono, moradores, trabalhadores e estoque resumido dos prédios visíveis de uma cidade. AD-172: uma passada pelas
+    /// casas e oficinas, sem LINQ por prédio.</summary>
     public static IReadOnlyList<BuildingStateVisual> BuildingStates(ObservableContext ctx, IReadOnlyList<Building> visible)
     {
         if (visible.Count == 0) return [];
         var world = ctx.World;
-        var ids = visible.Select(b => b.Id).ToHashSet();
-        var households = world.Households.Where(h => h.Dwelling is { } d && ids.Contains(d))
-            .GroupBy(h => h.Dwelling!.Value).ToDictionary(g => g.Key, g => g.OrderBy(h => h.Id.Value).ToList());
-        var workplaces = world.Workplaces.Where(w => w.Building is { } b && ids.Contains(b))
-            .GroupBy(w => w.Building!.Value).ToDictionary(g => g.Key, g => g.OrderBy(w => w.Id.Value).First());
-        var recipes = world.CityCatalog.BuildingRecipes;
-        return visible.Select(building =>
+        var homesOf = new Dictionary<BuildingId, List<Household>>(visible.Count);
+        var workplaceOf = new Dictionary<BuildingId, Workplace?>(visible.Count);
+        foreach (var building in visible)
         {
-            var homes = households.GetValueOrDefault(building.Id) ?? [];
-            var workplace = workplaces.GetValueOrDefault(building.Id);
+            homesOf.TryAdd(building.Id, null!);
+            workplaceOf.TryAdd(building.Id, null);
+        }
+
+        foreach (var household in world.Households)
+            if (household.Dwelling is { } dwelling && homesOf.TryGetValue(dwelling, out var list))
+                (list ?? (homesOf[dwelling] = new List<Household>(2))).Add(household);
+        foreach (var workplace in world.Workplaces)
+            if (workplace.Building is { } at && workplaceOf.TryGetValue(at, out var current)
+                && (current is null || workplace.Id.Value < current.Id.Value))
+                workplaceOf[at] = workplace;
+
+        var recipes = world.CityCatalog.BuildingRecipes;
+        var result = new BuildingStateVisual[visible.Count];
+        for (int index = 0; index < visible.Count; index++)
+        {
+            var building = visible[index];
+            var homes = homesOf[building.Id];
+            if (homes is { Count: > 1 }) homes.Sort((x, y) => x.Id.Value.CompareTo(y.Id.Value));
+            int homeCount = homes?.Count ?? 0;
+            var workplace = workplaceOf[building.Id];
             recipes.TryGetValue(building.BuildingTypeId, out var recipe);
-            var function = new List<string>();
-            if (recipe?.Lodging is not null) function.Add("lodging");
-            else if (homes.Count > 0 || recipe?.HousingCapacityProvided > 0) function.Add("dwelling");
-            if (workplace is not null) function.Add("workplace");
-            if (function.Count == 0) function.Add("structure");
-            var stock = workplace is null
-                ? []
-                : workplace.Stock.Where(s => s.Value > 0).OrderByDescending(s => s.Value).ThenBy(s => s.Key.Id).Take(5)
-                    .Select(s => new StockLine(s.Key.Id, Bucket(s.Value), ctx.Names.Resource(s.Key.Id))).ToArray();
-            return new BuildingStateVisual(
-                building.Id.Value, building.BuildingTypeId, ctx.Names.BuildingType(building.BuildingTypeId), string.Join(',', function),
+            string? living = recipe?.Lodging is not null ? "lodging"
+                : homeCount > 0 || recipe?.HousingCapacityProvided > 0 ? "dwelling"
+                : null;
+            string function = (living, workplace is not null) switch
+            {
+                ("lodging", true) => "lodging,workplace",
+                ("dwelling", true) => "dwelling,workplace",
+                (null, true) => "workplace",
+                ({ } only, false) => only,
+                _ => "structure",
+            };
+
+            long[] householdIds = homeCount == 0 ? [] : new long[homeCount];
+            int residentCount = 0;
+            long pantry = 0;
+            for (int i = 0; i < homeCount; i++)
+            {
+                residentCount += homes![i].Members.Count;
+                foreach (var units in homes[i].Stock.Values) pantry += units;
+            }
+
+            long[] residents = residentCount == 0 ? [] : new long[residentCount];
+            for (int i = 0, r = 0; i < homeCount; i++)
+            {
+                householdIds[i] = homes![i].Id.Value;
+                foreach (var member in homes[i].Members) residents[r++] = member.Value;
+            }
+
+            Array.Sort(residents);
+            long[] workers = workplace is null ? [] : new long[workplace.Employees.Count];
+            for (int i = 0; i < workers.Length; i++) workers[i] = workplace!.Employees[i].Value;
+            Array.Sort(workers);
+
+            result[index] = new BuildingStateVisual(
+                building.Id.Value, building.BuildingTypeId, ctx.Names.BuildingType(building.BuildingTypeId), function,
                 workplace?.Id.Value, workplace?.LocationType.Id,
                 workplace is null ? null : ctx.Names.LocationType(workplace.LocationType.Id),
                 workplace?.Owner?.Value,
-                new ValueList<long>(homes.Select(h => h.Id.Value).ToArray()),
-                new ValueList<long>(homes.SelectMany(h => h.Members).Select(m => m.Value).OrderBy(v => v).ToArray()),
-                new ValueList<long>(workplace?.Employees.Select(e => e.Value).OrderBy(v => v).ToArray() ?? []),
-                new ValueList<StockLine>(stock),
-                homes.Sum(h => h.Stock.Values.Sum()),
+                householdIds.Length == 0 ? ValueList<long>.Empty : new ValueList<long>(householdIds),
+                residents.Length == 0 ? ValueList<long>.Empty : new ValueList<long>(residents),
+                workers.Length == 0 ? ValueList<long>.Empty : new ValueList<long>(workers),
+                workplace is null ? ValueList<StockLine>.Empty : StockOf(ctx, workplace),
+                pantry,
                 workplace?.Closed ?? false);
-        }).ToList();
+        }
+
+        return result;
+    }
+
+    /// <summary>As cinco maiores linhas de estoque da oficina (maior quantidade, depois menor recurso), resumidas.</summary>
+    private static ValueList<StockLine> StockOf(ObservableContext ctx, Workplace workplace)
+    {
+        var top = new List<KeyValuePair<ResourceType, long>>(6);
+        foreach (var line in workplace.Stock)
+        {
+            if (line.Value <= 0) continue;
+            int at = top.Count;
+            while (at > 0 && (top[at - 1].Value < line.Value || (top[at - 1].Value == line.Value && top[at - 1].Key.Id > line.Key.Id))) at--;
+            if (at >= 5) continue;
+            top.Insert(at, line);
+            if (top.Count > 5) top.RemoveAt(5);
+        }
+
+        if (top.Count == 0) return ValueList<StockLine>.Empty;
+        var lines = new StockLine[top.Count];
+        for (int i = 0; i < lines.Length; i++)
+            lines[i] = new StockLine(top[i].Key.Id, Bucket(top[i].Value), ctx.Names.Resource(top[i].Key.Id));
+        return new ValueList<StockLine>(lines);
     }
 
     public static IReadOnlyList<CropVisual> Crops(ObservableContext ctx, Func<CellCoord, bool> inScope) =>
@@ -248,7 +324,9 @@ public static class ObservableProjector
 
     public static IReadOnlyList<FaunaGroupVisual> FaunaGroups(WorldState world)
     {
-        var groups = new SortedDictionary<(string, int), (int Count, long X, long Y)>();
+        // AD-172: dicionário comum (a ordem final vem só da chave espécie:região, única por bando); o ordenado comparava texto por
+        // cultura a cada animal.
+        var groups = new Dictionary<(string, int), (int Count, long X, long Y)>();
         foreach (var animal in world.Fauna)
         {
             if (!animal.IsAlive || !world.Map.TryGetCell(animal.Position, out _)) continue;

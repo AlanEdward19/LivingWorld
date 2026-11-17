@@ -94,9 +94,11 @@ public sealed class TickLoopService(
         if (subscribed.Count == 0) // sem assinante, nenhuma projeção (AD-170: custo por NPC-tick igual)
         {
             _lastInteriors.Clear();
+            _lastStates.Clear();
             return;
         }
-        var presentation = names.For(world.PeriodId);
+        // AD-172: uma leitura do tick para todos os escopos (limites, quem está onde, índices do observável).
+        ScopeProjectionFrame? frame = null;
         foreach (var scopeKey in subscribed)
         {
             if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
@@ -109,7 +111,8 @@ public sealed class TickLoopService(
                 continue;
 
             var scope = ParseScope(scopeKey);
-            var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick), presentation);
+            frame ??= new ScopeProjectionFrame(world, names.For(world.PeriodId));
+            var state = LivingScopeProjector.Build(frame, scope, sink.EventsAt(tick));
             var before = _lastStates.TryGetValue(scopeKey, out var previous)
                 ? previous
                 : LivingScopeState.Empty;
@@ -122,6 +125,9 @@ public sealed class TickLoopService(
         if (_lastInteriors.Count > 0)
             foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
                 _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova
+        if (_lastStates.Count > 0)
+            foreach (var gone in _lastStates.Keys.Where(key => !subscribed.Contains(key)).ToList())
+                _lastStates.Remove(gone); // AD-172: idem para Cidade e Mundo (a base velha daria avanço de processo errado)
     }
 
     /// <summary>Delta de interior: diferença das ocupações entre dois ticks, publicada só quando mudou.</summary>
