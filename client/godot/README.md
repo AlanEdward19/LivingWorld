@@ -181,3 +181,17 @@ entrega; a cidade do `bench.sh` agora tem 22 células de rua e 6 quintais do mot
 Medianas 88,5 → 88,4; 70,1 → 71,1; 61,1 → 61,1 (dentro do ruído, acima de 50). `client-test.sh`: 359 → 369, 0 falhas.
 Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 1.352 ticks e Cidade ~1.480 ticks, 0 divergência de contrato,
 0 erro de script; a releitura da camada `Roads` trocou as ruas uma vez na Cidade sem recarregar.
+
+### Rua de verdade e gente andando (AD-181)
+
+`bench.sh 3` pela fila pesada, M1 Pro dividida com outros agentes, base `87c56bbd` (cópia do cliente, `LW_BENCH_CLIENT`) →
+entrega, duas rodadas (a 1ª com uma hora entre base e entrega; a 2ª pareada, base e entrega no mesmo comando):
+- 1ª: `stress:500` 92,8 / 93,4 / 93,5 → 90,0 / 90,2 / 87,9; `bench:500` 71,9 / 71,1 / 70,3 (p95 15,08 / 14,92 / 15,08 ms) →
+  70,5 / 70,2 / 69,8 (p95 15,06 / 15,11 / 15,12); `benchbig:500` 61,5 / 61,6 / 61,9 (p95 17,58 / 17,61 / 17,13) → 60,4 / 60,9 / 60,7.
+- 2ª (pareada): `stress:500` 86,3 / 88,4 / 89,0 → 88,2 / 87,2 / 87,8; `bench:500` 70,6 / 69,9 / 70,4 (p95 14,97 / 15,37 / 14,98) →
+  69,7 / 70,1 / 70,0 (p95 15,03 / 15,08 / 14,98); `benchbig:500` 58,0 / 60,7 / 60,6 (p95 18,98 / 17,56 / 17,57) → 60,4 / 60,2 / 60,7.
+Medianas pareadas 88,4 → 87,8; 70,4 → 70,0; 60,6 → 60,4 (ruído; acima de 50). Por quadro só entrou: relógio da rota, um teste
+`walk != null` por boneco, linha da rota 5×/s e transição do chão só enquanto há rua mudando. O mundo do `bench.sh` está pausado
+(sem rota nem delta de rua); quem anda custa O(1) amortizado por boneco (cursor que só avança). `client-test.sh` 369 → 381.
+Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 2.041 deltas e Cidade 2.020, 0 divergência de contrato, 0 erro de
+script; na Cidade 30 células de trilha nasceram por delta (0 → 30) e 14–31 pessoas andavam pela rota ao mesmo tempo.
