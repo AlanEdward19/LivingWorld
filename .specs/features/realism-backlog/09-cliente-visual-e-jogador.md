@@ -35,3 +35,17 @@ A fazer:
 5. Determinismo: entrada do jogador é evento registrado e reproduzível; mesma seed + mesmas entradas = mesmo mundo.
 
 Se o escopo da fase 25 mudar, perguntar ao dono antes de mexer em `ROADMAP.md`.
+
+## Pedidos do dono em 2026-11-18 (vendo o cliente depois da etapa 1)
+
+"Tá tudo muito grudado, os prédios muito grudados e colados, um na frente do outro. Não tem controle de como os prédios e
+casas nascem. [...] ao passar o mouse em um prédio coberto por outro, o que tá na frente fique meio translúcido, mas também
+precisamos ajustar como as coisas crescem perto um do outro no motor e no Godot. Não dá para analisar nada com tudo grudado,
+e os NPCs ficam se passando um pelo outro."
+
+1. **Cliente (AD-171)**: prédio que cobre o que está sob o mouse ou o selecionado fica translúcido; NPCs na mesma célula ou
+   se cruzando não se atravessam na tela (espalhar dentro da célula, desviar ao cruzar).
+2. **Motor (AD-173)**: a cidade cresce com espaço: ruas, lotes, quintal e recuo entre prédios, pelo que a própria vila
+   decide e pelo terreno; nada de prédio colado em prédio sem passagem. Muda o mundo (goldens regravados na junção).
+3. **Delta sem nulos** (aprovado: "pode omitir os nulos no delta"): servidor omite chaves nulas no delta, cliente lê
+   ausência como nulo; muda os `shape.*.json` do delta.
