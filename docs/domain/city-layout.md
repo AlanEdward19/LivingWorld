@@ -6,7 +6,7 @@ lote escolhido por quem constrói. O motor é a fonte da verdade; o cliente dese
 ## Ruas (`CityStreets`, `Layout/StreetNetwork`)
 - Função pura do mapa, do ponto de fundação e de `CityLayoutRules` (nada no snapshot): um **largo** em volta do ponto
   de fundação, uma **rua principal** no eixo com mais terra seca, **travessas** a cada `LaneSpacingCells` (±1 por hash) e
-  **vielas** de segunda ordem nas travessas. Cada rua contorna água com um passo de lado e para no fim do mapa, na água
+  **vielas** de segunda ordem nas travessas. Cada rua atravessa uma célula de água só (vau) ou contorna com um passo de lado, e para no fim do mapa, na água
   sem contorno, ao encostar em outra rua ou em `MaxStreetCells`.
 - Rua não recebe prédio, salvo no último degrau (escassez extrema). A passagem da porta até a rua também não.
 - **Rua existe pelo uso**: só aparece (camada `Roads`) a célula que leva algum prédio ao largo. A superfície vem de
@@ -30,8 +30,9 @@ Quem constrói escolhe o lote pelo que é e pelo que pode:
 
 ## Quando falta terra (`PlacementPolicy`)
 Degraus, cada um só depois que o anterior não achou lugar em todo o alcance: 0 o lote escolhido; 1 sem quintal; 2
-parede-meia; (a semeadura usa um andar livre de casa existente aqui); 3 folga de uma célula sem rua; 4 encostando; 5 só sem
-sobreposição. Nos degraus 3–4 a soleira fica livre. A cidade crescida absorve o prédio a até `AbsorptionRingCells` do
+parede-meia; (a semeadura usa um andar livre de casa existente aqui); 3 folga de uma célula sem rua; 4 encostando; (a
+semeadura divide a casa menos cheia: aperto); 5 só sem sobreposição. Nos degraus 3–4 a soleira fica livre. Traçado
+desligado: a ordem de antes (todos os degraus, depois o andar livre). A cidade crescida absorve o prédio a até `AbsorptionRingCells` do
 limite **já crescido** (encadeado) e o limite crescido pode chegar ao tamanho do mapa.
 
 ## Consumidores

@@ -581,9 +581,13 @@ public class LodgingSystemTests
 
     private static Npc Traveller(WorldState world, long wallet)
     {
-        var household = Tenant(world, 0, wallet);
-        var npc = world.FindNpc(household.Head)!;
+        // AD-173: com a vila em lotes ao longo da rua, a casa 0 pode ficar colada na hospedagem; o viajante é o da casa mais longe.
         var inn = Inn(world);
+        var ordered = world.Households.OrderBy(h => h.Id.Value).ToList();
+        int far = ordered.IndexOf(ordered.OrderByDescending(h => Math.Max(Math.Abs(h.Location.X - inn.Position!.Value.X), Math.Abs(h.Location.Y - inn.Position.Value.Y)))
+            .ThenBy(h => h.Id.Value).First());
+        var household = Tenant(world, far, wallet);
+        var npc = world.FindNpc(household.Head)!;
         npc.MoveTo(new CellCoord(inn.Position!.Value.X, inn.Position.Value.Y + 1), tick: 0); // colado na hospedagem, longe de casa
         return npc;
     }

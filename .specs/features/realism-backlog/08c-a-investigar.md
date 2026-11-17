@@ -95,4 +95,4 @@
      peça por pessoa); o veículo de terra da casa não entra na busca. O furtador faminto também não procura espólio como alvo
      (só o acha de passagem).
 
-> Continua em [08d](08d-a-investigar.md) (itens 158–171, traçado da cidade, AD-173).
+> Continua em [08d](08d-a-investigar.md) (itens 158–173, traçado da cidade, AD-173).

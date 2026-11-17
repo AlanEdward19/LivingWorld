@@ -81,7 +81,7 @@ public sealed record CityLayoutStats(
         int onWater = placed.Count(p => p.Cells.Any(c => map.TryGetCell(c, out var m) && m.HasWater));
         int onStreet = placed.Count(p => p.Cells.Any(streets.Contains));
         var blocked = new HashSet<CellCoord>(placed.SelectMany(p => p.Cells));
-        foreach (var cell in map.Cells) if (cell.HasWater) blocked.Add(cell.Coord);
+        foreach (var cell in map.Cells) if (cell.HasWater && !streets.Contains(cell.Coord)) blocked.Add(cell.Coord); // vau da rua passa
         var main = LargestFreeComponent(map.Width, map.Height, blocked);
         int doorsBlocked = placed.Count(p => !main.Contains(p.DoorOutside));
         int doorsOffStreet = streets.Count == 0 ? placed.Count : placed.Count(p => !FrontReachesStreet(p, streets, blocked));
