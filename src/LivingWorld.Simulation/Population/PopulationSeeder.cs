@@ -11,6 +11,8 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scheduling;
 
+using LivingWorld.Simulation.Cities.Layout;
+
 namespace LivingWorld.Simulation.Population;
 
 /// <summary>Gera a população inicial e registra em <see cref="WorldState"/>: chama o
@@ -26,12 +28,14 @@ public static class PopulationSeeder
 
         var rng = world.Rng.Stream("population-init");
         var houseIds = new List<BuildingId>();
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null;
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, placementCity, count, householdCount, houseIds),
-            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
+                world, placementCity, count, householdCount, houseIds, composition),
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
+            householdsComposed: groups => composition = groups);
 
         Register(world, generated, houseIds);
     }
@@ -43,11 +47,13 @@ public static class PopulationSeeder
     {
         var rng = world.Rng.Stream("population-authored");
         var houseIds = new List<BuildingId>();
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null;
         var generated = PopulationGenerator.GenerateAuthored(
             rng, world.CurrentDate, [household], culture, villageLocation, world.NextNpcId, world.NextHouseholdId, city.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, city, household.Members.Count, householdCount, houseIds),
-            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
+                world, city, household.Members.Count, householdCount, houseIds, composition),
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
+            householdsComposed: groups => composition = groups);
         Register(world, generated, houseIds);
     }
 
@@ -119,7 +125,8 @@ public static class PopulationSeeder
     // da borda) — mesmo padrão de peek-id/adicionar-incremental de ConstructionSystem.CompleteProject,
     // pra que Resolve veja as casas já colocadas neste lote como ocupadas.
     private static IReadOnlyList<CellCoord> PlaceHouseholdBuildings(
-        WorldState world, City city, int population, int householdCount, List<BuildingId> houseIds)
+        WorldState world, City city, int population, int householdCount, List<BuildingId> houseIds,
+        IReadOnlyList<IReadOnlyList<Npc>>? composition = null)
     {
         var locations = new List<CellCoord>(householdCount);
         for (int i = 0; i < householdCount; i++)
@@ -134,25 +141,35 @@ public static class PopulationSeeder
             // uses for a building with nowhere else to go (never fails, may overlap): a household
             // still needs SOME location to exist (unlike a workplace, it can't just be skipped),
             // and land scarcity should degrade its exact position, never crash world loading.
-            var placement = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+            // AD-173: a família escolhe o lote pelo ofício, pelo tamanho e pelos meios; primeiro de frente para a rua
+            // (degraus da rua), depois um andar livre de casa que já existe, só então os degraus sem rua.
+            var profile = composition is not null && i < composition.Count
+                ? LotProfiles.ForHousehold(world, city.Id, composition[i])
+                : LotProfile.UnknownHousehold;
+            var placement = BuildingPlacementResolver.ResolveLot(
+                candidate, city, world, bounds, profile, 0, PlacementPolicy.StreetLevels - 1, chooseOrientation: true);
+            var shared = placement is null ? FindDwellingWithFreeFloor(world, city, houseIds) : null;
+            if (placement is null && shared is null)
+                placement = BuildingPlacementResolver.ResolveLot(
+                    candidate, city, world, bounds, profile, PlacementPolicy.StreetLevels, PlacementPolicy.LevelCount - 1, chooseOrientation: true);
 
             // city-building-separation: sem terra livre a casa não vira um prédio empilhado sobre outro;
             // ela se estende para cima — o domicílio passa a morar num andar livre de uma casa que já existe
             // (uma casa de N andares abriga até N domicílios).
-            if (placement is null && FindDwellingWithFreeFloor(world, city, houseIds) is { } shared)
+            if (placement is null && shared is not null)
             {
-                houseIds.Add(shared.Building.Id);
-                locations.Add(DwellingCapacity.InteriorCellOf(shared.Building, shared.Building.Position!.Value));
+                houseIds.Add(shared.Value.Building.Id);
+                locations.Add(DwellingCapacity.InteriorCellOf(shared.Value.Building, shared.Value.Building.Position!.Value));
                 continue;
             }
 
-            var (position, orientation) = placement is { } resolved
-                ? (resolved.Position, resolved.Orientation)
-                : (ClampFootprintIntoMap(world, candidate, CityOccupancy.LegacyRingFallback(candidate.Id, city.Location)), 0);
+            var (position, orientation, croft) = placement is { } resolved
+                ? (resolved.Position, resolved.Orientation, resolved.Croft)
+                : (ClampFootprintIntoMap(world, candidate, CityOccupancy.LegacyRingFallback(candidate.Id, city.Location)), 0, 0);
 
             var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
-                world.CurrentDate.TotalHours, position, orientation);
+                world.CurrentDate.TotalHours, position, orientation, croftCells: croft);
             world.AddBuilding(house);
             houseIds.Add(house.Id);
             locations.Add(DwellingCapacity.InteriorCellOf(house, position));

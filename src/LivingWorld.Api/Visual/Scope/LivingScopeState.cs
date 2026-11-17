@@ -58,6 +58,8 @@ public sealed record BuildingVisual(
     /// <summary>AD-170: valor do imóvel e hospedagem, os mesmos do marcador de cidade (só com <c>Pricing</c>/<c>Lodging</c> no cenário).</summary>
     public long Value { get; init; }
     public LodgingMarker? Lodging { get; init; }
+    /// <summary>AD-173: o lote de verdade (quintal de trás, passagem da porta à rua, rua da frente). O cliente desenha só isto.</summary>
+    public LivingWorld.Simulation.Cities.LotView? Lot { get; init; }
 }
 public sealed record ProcessVisual(
     long Id, string Kind, long TargetId, double Progress, string DescriptorKey,
@@ -202,7 +204,7 @@ public static class LivingScopeProjector
                     // Resolve precisa deles pra tentar uma célula livre antes do overflow.
                     // null = escassez de terra pra este prédio agora — excluído
                     // desta resposta em vez de derrubar o escopo inteiro; nunca persistido.
-                    if (BuildingPlacementResolver.Resolve(building, city, world, cityBounds[cityId]) is not { } resolved)
+                    if (BuildingPlacementResolver.ResolveLot(building, city, world, cityBounds[cityId]) is not { } resolved)
                         return null;
                     var footprint = BuildingFootprintGenerator
                         .Generate(building.Id, building.BuildingTypeId, resolved.Orientation)
@@ -224,7 +226,10 @@ public static class LivingScopeProjector
                     }
                     return new BuildingVisual(
                         building.Id, building.City, building.BuildingTypeId, resolved.Position, resolved.Orientation)
-                    { Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging };
+                    {
+                        Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging,
+                        Lot = LivingWorld.Simulation.Cities.CityStreets.LotOf(world, city, building, resolved.Position, resolved.Croft),
+                    };
                 })
                 .OfType<BuildingVisual>()
                 .ToList()

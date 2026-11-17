@@ -5,6 +5,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Layout;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 
@@ -51,14 +52,17 @@ public static class CityOccupancy
         WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, BuildingId? placingId = null,
         int level = 0)
     {
-        var occupied = OccupiedCellsOfCity(world, city, bounds, placingId);
+        var ground = GroundOfCity(world, city, bounds, placingId);
+        var occupied = ground.Occupied;
+        var network = CityStreets.Of(world, city);
+        var guard = level < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, null) : null;
         // Só lê os marcos do passe (gravados com ocupação que é subconjunto desta): pular origens que já
         // falharam antes não muda o resultado, só evita varrer de novo bounds já cheios.
         int from = 0;
         if (placingId is { } id && Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var plan)
             && plan.Bounds == bounds && plan.MapWidth == world.Map.Width && plan.MapHeight == world.Map.Height)
-            from = plan.ScanStartFor(ShapeHash(footprintShape, level), id.Value);
-        return ScanForFreeOriginFrom(occupied, bounds, footprintShape, PlacementPolicy.For(world.Map, level), from, out _);
+            from = plan.ScanStartFor(ShapeHash(footprintShape, level + PlacementPolicy.StreetLevels), id.Value);
+        return ScanForFreeOriginFrom(occupied, bounds, footprintShape, PlacementPolicy.For(world.Map, level), from, out _, guard);
     }
 
     /// <summary>True somente quando uma varredura do mapa inteiro (não só desta cidade — um
@@ -72,7 +76,7 @@ public static class CityOccupancy
     {
         var mapBounds = new CityBounds(new CellCoord(0, 0), world.Map.Width, world.Map.Height);
         var occupied = OccupiedCellsLegacy(world.Buildings, world);
-        return ScanForFreeOrigin(occupied, mapBounds, footprintShape, PlacementPolicy.For(world.Map, PlacementPolicy.LevelCount - 1)) is null;
+        return ScanForFreeOrigin(occupied, mapBounds, footprintShape, PlacementPolicy.For(world.Map, PlacementPolicy.LevelCount - PlacementPolicy.StreetLevels - 1)) is null;
     }
 
     // ponytail: varredura O(área dos bounds), sem otimização de grid espacial — bounds de cidade
@@ -87,7 +91,7 @@ public static class CityOccupancy
     /// <paramref name="foundIndex"/> é o índice achado, ou a área dos bounds quando nenhuma origem serve.</summary>
     internal static CellCoord? ScanForFreeOriginFrom(
         HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, PlacementPolicy policy,
-        int startIndex, out int foundIndex)
+        int startIndex, out int foundIndex, GroundGuard? guard = null)
     {
         var halo = policy.HaloOf(footprintShape);
         int area = bounds.Width * bounds.Height;
@@ -99,7 +103,7 @@ public static class CityOccupancy
             for (int i = 0; i < footprintShape.Count && inside; i++)
                 inside = bounds.Contains(new CellCoord(footprintShape[i].X + x, footprintShape[i].Y + y));
             var origin = new CellCoord(x, y);
-            if (inside && policy.Allows(footprintShape, halo, origin, occupied))
+            if (inside && policy.Allows(footprintShape, halo, origin, occupied, guard))
             {
                 foundIndex = index;
                 return origin;
@@ -234,7 +238,8 @@ public static class CityOccupancy
             .ToList();
 
         return SpatialBoundsResolver.ResolveCity(
-            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds);
+            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
+            chainAbsorption: world.CityRules.EffectiveLayout().Enabled);
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
@@ -248,7 +253,8 @@ public static class CityOccupancy
         var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
-            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells);
+            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells,
+            chainAbsorption: world.CityRules.EffectiveLayout().Enabled);
     }
 
     /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
@@ -292,27 +298,35 @@ public static class CityOccupancy
     /// <c>internal</c> (era <c>private</c>) só pra <see cref="OverflowPlacer.ResolveOverflowPosition"/>
     /// poder computar o conjunto ocupado uma única vez em vez de reconstruí-lo por candidato de
     /// anel (a outra metade do mesmo bug).</summary>
-    internal static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
+    internal static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId) =>
+        GroundOfCity(world, city, bounds, placingId).Occupied;
+
+    /// <summary>AD-173: o chão inteiro (plantas, passagens de porta, quintais) na mesma ordem causal de
+    /// <see cref="OccupiedCellsOfCity"/>.</summary>
+    internal static CityGround GroundOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
     {
         var siblings = SiblingsOf(world, city);
+        var network = CityStreets.Of(world, city);
+        var layout = world.CityRules.EffectiveLayout();
 
         if (placingId is not { } selfId)
         {
             // Sem prédio em posicionamento: anel-hash legado para todos os que não têm posição autorada.
-            var legacy = new HashSet<CellCoord>();
+            var legacy = new CityGround();
             foreach (var building in siblings)
-                AddFootprint(legacy, building, building.Position ?? LegacyRingFallback(building.Id, city.Location));
+                legacy.Add(BuildingFootprintGenerator.Generate(building), building.Position ?? LegacyRingFallback(building.Id, city.Location),
+                    building.CroftCells ?? 0, network, world.Map, layout);
             return legacy;
         }
 
         // A posição derivada de um prédio depende só dos de Id menor (passe ascendente) e dos bounds,
         // nunca de qual prédio está sendo posicionado agora — então o passe é memoizado por cidade e
-        // só estendido quando entram prédios novos no fim. O conjunto devolvido é montado a partir das
-        // posições já derivadas, sem repetir busca de célula livre / anel de overflow por vizinho.
+        // só estendido quando entram prédios novos no fim. O chão devolvido é montado a partir das
+        // posições já derivadas, sem repetir busca de lote / célula livre / anel de overflow por vizinho.
         var plan = PlanFor(world, city, bounds, siblings);
 
         // Nenhum vizinho excluído (o prédio ainda não está na lista e não há "futuro" sem posição):
-        // o conjunto é exatamente o do plano. Devolvido sem cópia — todo chamador só lê, e usa
+        // o chão é exatamente o do plano. Devolvido sem cópia — todo chamador só lê, e usa
         // antes de qualquer nova chamada que possa estender o plano.
         bool anyExcluded = false;
         foreach (var building in siblings)
@@ -325,9 +339,9 @@ public static class CityOccupancy
         }
 
         if (!anyExcluded)
-            return plan.Occupied;
+            return plan.Ground;
 
-        var occupied = new HashSet<CellCoord>();
+        var ground = new CityGround();
         for (int i = 0; i < siblings.Length; i++)
         {
             var building = siblings[i];
@@ -336,15 +350,122 @@ public static class CityOccupancy
 
             // Escassez de terra pra este vizinho: não entra no conjunto (nunca um crash).
             if ((building.Position ?? plan.Derived[i]) is not { } position) continue;
-            AddFootprint(occupied, building, position);
+            ground.Add(BuildingFootprintGenerator.Generate(building), position, building.CroftCells ?? plan.DerivedCroft[i], network, world.Map, layout);
         }
-        return occupied;
+        return ground;
     }
 
-    private static void AddFootprint(HashSet<CellCoord> occupied, Building building, CellCoord position)
+    /// <summary>Alcance da porta até a rua: o maior quintal da frente mais a própria célula de rua.</summary>
+    internal static int Reach(WorldState world) => world.CityRules.EffectiveLayout().MaxFrontYardCells() + 1;
+
+    /// <summary>Casa (abriga família, sem ser local de trabalho) ou não: decide o lote que o motor escolhe quando não há
+    /// família conhecida.</summary>
+    internal static bool IsDwelling(WorldState world, int buildingTypeId) =>
+        buildingTypeId == LivingWorld.Simulation.Population.PopulationSeeder.InitialHouseBuildingTypeId
+        || (world.CityCatalog.BuildingRecipes.TryGetValue(buildingTypeId, out var recipe) && recipe.HousingCapacityProvided > 0 && recipe.Workplace is null);
+
+    internal static LotProfile DerivedProfile(WorldState world, int buildingTypeId) =>
+        IsDwelling(world, buildingTypeId) ? LotProfile.UnknownHousehold : LotProfile.Workshop;
+
+    /// <summary>A colocação de um prédio novo (AD-173): do degrau <paramref name="firstLevel"/> ao <paramref name="lastLevel"/>,
+    /// contra o chão de quem tem Id menor (e os autorados). Devolve a origem e o quintal escolhido.</summary>
+    internal static (CellCoord Origin, int Croft, int Orientation)? FindPlacement(
+        WorldState world, City city, CityBounds bounds, BuildingId id, int buildingTypeId, int orientation, LotProfile profile,
+        int firstLevel, int lastLevel, bool chooseOrientation = false)
     {
-        foreach (var footprintCell in BuildingFootprintGenerator.Generate(building))
-            occupied.Add(new CellCoord(footprintCell.Cell.X + position.X, footprintCell.Cell.Y + position.Y));
+        var ground = GroundOfCity(world, city, bounds, id);
+        PlacementPlan? plan = null;
+        if (Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var cached)
+            && cached.Bounds == bounds && cached.MapWidth == world.Map.Width && cached.MapHeight == world.Map.Height)
+            plan = cached;
+        return PlaceAcrossLevels(world, city, bounds, ground, plan, id, buildingTypeId, orientation, profile, firstLevel, lastLevel,
+            writeScanMarks: false, chooseOrientation);
+    }
+
+    /// <summary>As plantas que quem constrói pode escolher: a da identidade primeiro, depois as outras três rotações em
+    /// ordem; só a da identidade quando a orientação não será gravada (prédio derivado).</summary>
+    private static LotPlanner.Option[] OptionsOf(BuildingId id, int buildingTypeId, int orientation, bool choose)
+    {
+        if (!choose) return [new LotPlanner.Option(orientation, BuildingFootprintGenerator.Generate(id, buildingTypeId, orientation))];
+        var options = new LotPlanner.Option[4];
+        for (int r = 0; r < 4; r++)
+        {
+            int o = (orientation + r * 90) % 360;
+            options[r] = new LotPlanner.Option(o, BuildingFootprintGenerator.Generate(id, buildingTypeId, o));
+        }
+        return options;
+    }
+
+    private static (CellCoord Origin, int Croft, int Orientation)? FindLot(
+        WorldState world, CityGround ground, PlacementPlan? plan, StreetNetwork network, CityLayoutRules layout,
+        LotPlanner.Option[] options, LotProfile profile, BuildingId id, int level, out int depth)
+    {
+        // De frente para a rua, ou mais perto do largo com um caminho a pé curto até ela: fica o mais perto do largo
+        // (empate: o de frente para a rua). A distância é Chebyshev da origem do lote ao ponto de fundação.
+        ulong key = LotPlanner.Key(options, layout, profile, level);
+        int start = plan?.LotStartFor(key, id.Value) ?? 0;
+        var lot = LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int found);
+        plan?.MarkLot(key, id.Value, found);
+        ulong pathKey = key * 0x9E3779B97F4A7C15UL + 1;
+        int pathStart = plan?.LotStartFor(pathKey, id.Value) ?? 0;
+        var viaPath = LotPlanner.FindViaPath(ground, network, world.Map, layout, options, profile, level, pathStart, out int pathFound);
+        plan?.MarkLot(pathKey, id.Value, pathFound);
+        int Distance((CellCoord Origin, int Croft, int Orientation)? l) =>
+            l is { } v ? Math.Max(Math.Abs(v.Origin.X - network.Center.X), Math.Abs(v.Origin.Y - network.Center.Y)) : int.MaxValue;
+        if (Distance(viaPath) < Distance(lot)) lot = viaPath;
+        depth = Distance(lot);
+        return lot;
+    }
+
+    private static (CellCoord Origin, int Croft, int Orientation)? PlaceAcrossLevels(
+        WorldState world, City city, CityBounds bounds, CityGround ground, PlacementPlan? plan, BuildingId id, int buildingTypeId,
+        int orientation, LotProfile profile, int firstLevel, int lastLevel, bool writeScanMarks, bool chooseOrientation = false)
+    {
+        var options = OptionsOf(id, buildingTypeId, orientation, chooseOrientation);
+        var footprint = options[0].Footprint;
+        var layout = world.CityRules.EffectiveLayout();
+        var network = CityStreets.Of(world, city);
+        List<CellCoord>? shape = null;
+        CellCoord? doorstep = null;
+        for (int level = Math.Max(0, firstLevel); level <= Math.Min(lastLevel, PlacementPolicy.LevelCount - 1); level++)
+        {
+            if (level < PlacementPolicy.StreetLevels)
+            {
+                if (network.Count == 0) continue;
+                var lot = FindLot(world, ground, plan, network, layout, options, profile, id, level, out int depth);
+                // O quintal é escolha, não exigência: a família só se afasta CroftDetourCells células a mais do largo por ele.
+                if (lot is { Croft: > 0 } && level == 0 && lastLevel >= 1
+                    && FindLot(world, ground, plan, network, layout, options, profile, id, 1, out int bareDepth) is { } bare
+                    && bareDepth + layout.CroftDetourCells < depth)
+                    return bare;
+                if (lot is not null) return lot;
+                continue;
+            }
+
+            shape ??= footprint.Select(c => c.Cell).ToList();
+            if (doorstep is null && network.Count > 0)
+            {
+                var (door, facing) = LotGeometry.DoorOf(footprint);
+                doorstep = new CellCoord(door.X + facing.X, door.Y + facing.Y);
+            }
+            int loose = level - PlacementPolicy.StreetLevels;
+            var policy = PlacementPolicy.For(world.Map, loose);
+            var guard = loose < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, doorstep) : null;
+            ulong shapeHash = ShapeHash(shape, level);
+            var position = ScanForFreeOriginFrom(
+                ground.Occupied, bounds, shape, policy, plan?.ScanStartFor(shapeHash, id.Value) ?? 0, out int scanIndex, guard);
+            if (writeScanMarks) plan?.MarkScan(shapeHash, id.Value, scanIndex);
+            if (position is null)
+            {
+                var shapeKey = (buildingTypeId, orientation, level);
+                position = OverflowPlacer.ResolveOverflowPositionGiven(
+                    ground.Occupied, bounds, id, shape, world.Map.Width, world.Map.Height,
+                    plan?.StartRadiusFor(shapeKey, id.Value) ?? 1, out int foundRadius, policy, guard);
+                plan?.Mark(shapeKey, id.Value, foundRadius);
+            }
+            if (position is { } p) return (p, 0, orientation);
+        }
+        return null;
     }
 
     private sealed class PlacementPlan
@@ -353,7 +474,10 @@ public static class CityOccupancy
         public int MapWidth, MapHeight;
         public long[] Ids = [];
         public CellCoord?[] Derived = [];
-        public HashSet<CellCoord> Occupied = new();
+        /// <summary>Quintal escolhido por cada prédio derivado (AD-173); 0 para os autorados (vale o deles).</summary>
+        public int[] DerivedCroft = [];
+        public CityGround Ground = new();
+        public HashSet<CellCoord> Occupied => Ground.Occupied;
         /// <summary>Caixas de footprint dos prédios da cidade para estes bounds; descartadas quando o plano muda.</summary>
         public List<(Building Building, CityBounds Box)>? Boxes;
         /// <summary><see cref="Building.LayoutVersion"/> em que <see cref="Boxes"/> foi calculado.</summary>
@@ -372,6 +496,26 @@ public static class CityOccupancy
         /// naquele passo, e a ocupação só cresce ao longo do passe, então continua falhando para ids maiores.
         /// Índice == área dos bounds significa varredura esgotada (cai direto no overflow).</summary>
         private readonly Dictionary<ulong, List<(long Id, int Index)>> _scanMarks = new();
+
+        /// <summary>AD-173: marcos da busca de lote na rua, mesma lógica dos de varredura (o chão só cresce no passe), por
+        /// planta, termos do lote e degrau. Não dependem dos bounds.</summary>
+        private readonly Dictionary<ulong, List<(long Id, int Index)>> _lotMarks = new();
+
+        public int LotStartFor(ulong key, long id)
+        {
+            if (!_lotMarks.TryGetValue(key, out var marks)) return 0;
+            for (int i = marks.Count - 1; i >= 0; i--)
+                if (marks[i].Id <= id) return marks[i].Index;
+            return 0;
+        }
+
+        public void MarkLot(ulong key, long id, int index)
+        {
+            if (!_lotMarks.TryGetValue(key, out var marks))
+                _lotMarks[key] = marks = new();
+            if (marks.Count == 0 || index > marks[^1].Index)
+                marks.Add((id, index));
+        }
 
         public int ScanStartFor(ulong shape, long id)
         {
@@ -428,27 +572,6 @@ public static class CityOccupancy
             if (marks.Count == 0 || radius > marks[^1].Radius)
                 marks.Add((id, radius));
         }
-    }
-
-    private static (int Type, int Orientation, int Level) ShapeKeyOf(Building building, int level) =>
-        (building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId), level);
-
-    /// <summary>Busca de overflow de <paramref name="building"/> começando no marco do plano memoizado
-    /// da cidade (anéis menores já falharam para a forma, com ocupação que é subconjunto da atual) e
-    /// gravando o novo marco. Resultado idêntico ao da busca desde o raio 1.</summary>
-    internal static CellCoord? ResolveOverflowWithMarks(
-        WorldState world, City city, CityBounds bounds, Building building, IReadOnlyList<CellCoord> shape, int level = 0)
-    {
-        PlacementPlan? plan = null;
-        if (Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var cached)
-            && cached.Bounds == bounds && cached.MapWidth == world.Map.Width && cached.MapHeight == world.Map.Height)
-            plan = cached;
-
-        var shapeKey = ShapeKeyOf(building, level);
-        int start = plan?.StartRadiusFor(shapeKey, building.Id.Value) ?? 1;
-        var position = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape, start, out int found, level);
-        plan?.Mark(shapeKey, building.Id.Value, found);
-        return position;
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
@@ -563,49 +686,41 @@ public static class CityOccupancy
 
         var ids = new long[siblings.Length];
         var derived = new CellCoord?[siblings.Length];
+        var derivedCroft = new int[siblings.Length];
         Array.Copy(plan.Ids, ids, start);
         Array.Copy(plan.Derived, derived, start);
+        Array.Copy(plan.DerivedCroft, derivedCroft, start);
 
         for (int i = start; i < siblings.Length; i++)
         {
             var building = siblings[i];
             ids[i] = building.Id.Value;
             CellCoord? position;
+            int croft = building.CroftCells ?? 0;
+            var footprint = BuildingFootprintGenerator.Generate(building);
             if (building.Position is { } authored)
                 position = authored;
             else
             {
-                var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
                 // Degraus de relaxamento (ver PlacementPolicy.LevelCount): só desce quando o degrau
                 // anterior não achou terra em lugar nenhum do mapa.
-                position = null;
-                for (int level = 0; level < PlacementPolicy.LevelCount && position is null; level++)
-                {
-                    var policy = PlacementPolicy.For(world.Map, level);
-                    ulong shapeHash = ShapeHash(shape, level);
-                    position = ScanForFreeOriginFrom(
-                        plan.Occupied, bounds, shape, policy, plan.ScanStartFor(shapeHash, building.Id.Value), out int scanIndex);
-                    plan.MarkScan(shapeHash, building.Id.Value, scanIndex);
-                    if (position is null)
-                    {
-                        var shapeKey = ShapeKeyOf(building, level);
-                        position = OverflowPlacer.ResolveOverflowPositionGiven(
-                            plan.Occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height,
-                            plan.StartRadiusFor(shapeKey, building.Id.Value), out int foundRadius, policy);
-                        plan.Mark(shapeKey, building.Id.Value, foundRadius);
-                    }
-                }
-
+                int orientation = building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
+                var lot = PlaceAcrossLevels(world, city, bounds, plan.Ground, plan, building.Id, building.BuildingTypeId, orientation,
+                    DerivedProfile(world, building.BuildingTypeId), 0, PlacementPolicy.LevelCount - 1, writeScanMarks: true);
+                position = lot?.Origin;
+                croft = lot?.Croft ?? 0;
                 derived[i] = position;
+                derivedCroft[i] = croft;
                 plan.HasDerived = true;
             }
 
             if (position is { } resolved)
-                AddFootprint(plan.Occupied, building, resolved);
+                plan.Ground.Add(footprint, resolved, croft, CityStreets.Of(world, city), world.Map, world.CityRules.EffectiveLayout());
         }
 
         plan.Ids = ids;
         plan.Derived = derived;
+        plan.DerivedCroft = derivedCroft;
         return plan;
     }
 

@@ -178,7 +178,8 @@ internal static class VentureFounding
     {
         var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, buildingType, world.CurrentDate.TotalHours);
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
-        return BuildingPlacementResolver.Resolve(candidate, city, world, bounds) is { } r ? (r.Position, r.Orientation) : null;
+        // AD-173: a oficina abre de frente para a rua (quem constrói escolhe a orientação)
+        return BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) is { } r ? (r.Position, r.Orientation) : null;
     }
 
     /// <summary>Quem levanta a oficina: adultos sem trabalho da cidade, por id; sem eles, os adultos da casa do fundador.</summary>
