@@ -118,6 +118,32 @@ public class EntityInspectionEndpointTests : IClassFixture<LivingWorldApiFactory
         Assert.Contains(dto["childIds"]!.AsArray(), id => id!["value"]!.GetValue<long>() == baby.Id.Value);
     }
 
+    /// <summary>AD-172: ficha de evento pelo id do log, com os envolvidos como vínculos; id desconhecido é 404.</summary>
+    [Fact]
+    public async Task Event_sheet_links_the_people_involved_and_unknown_ids_are_404()
+    {
+        var npc = World.Npcs.First(n => n.IsAlive);
+        _factory.Services.GetRequiredService<LivingWorld.Infrastructure.EventLog.BufferingWorldEventSink>().Record(
+            new WorldEvent(World.CurrentDate.TotalHours, LivingWorld.Domain.History.WorldEventKind.Hired, $"{npc.Id.Value}|1", EventId: 917_172));
+
+        var sheet = await Get("/entities/evento/917172");
+
+        Assert.Equal(("event", "subject", npc.Id.Value.ToString()),
+            (sheet["kind"]!.GetValue<string>(), sheet["links"]![0]!["relation"]!.GetValue<string>(), sheet["links"]![0]!["id"]!.GetValue<string>()));
+        Assert.Equal(HttpStatusCode.NotFound, (await _factory.CreateClient().GetAsync("/entities/event/123456789")).StatusCode);
+    }
+
+    /// <summary>AD-172: prédio sem nome de tipo no período ganha o nome da casa ("casa de ..."), não "prédio N".</summary>
+    [Fact]
+    public async Task Dwelling_without_a_type_name_is_named_after_its_household()
+    {
+        var home = World.Households.First(h => h.Dwelling is not null && !h.IsEmpty);
+
+        var sheet = await Get($"/entities/building/{home.Dwelling!.Value.Value}");
+
+        Assert.DoesNotContain("prédio", sheet["name"]!.GetValue<string>());
+    }
+
     /// <summary>Assinar escopos e projetar o delta a cada tick é leitura: o mundo chega ao mesmo hash que sem assinante.</summary>
     [Fact]
     public void Subscribing_scopes_and_publishing_deltas_does_not_change_the_world_hash()

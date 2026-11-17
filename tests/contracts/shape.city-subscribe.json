@@ -69,7 +69,7 @@
     "layers": {
       "Cities": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload?": "null"
       },
       "Climate": {
         "isModeled": "boolean",
@@ -93,39 +93,63 @@
       },
       "Conflicts": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload?": "null"
       },
       "Migrations": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload?": "null"
       },
       "Routes": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload?": "null"
       },
       "Villages": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload?": "null"
       }
     },
     "livingState": {
-      "animals": "[]",
+      "animals": [
+        {
+          "carriesDisease": "boolean",
+          "energy": "number",
+          "id": "number",
+          "position": {
+            "x": "number",
+            "y": "number"
+          },
+          "predatorOf?": "string",
+          "species": "string"
+        }
+      ],
       "buildingStates": [
         {
           "buildingId": "number",
           "buildingTypeId": "number",
           "closed": "boolean",
           "function": "string",
-          "householdIds": "[]",
-          "locationTypeId": "number",
+          "householdIds": [
+            "number"
+          ],
+          "locationTypeId?": "number",
           "locationTypeName?": "string",
           "ownerId?": "number",
           "pantryUnits": "number",
-          "residentIds": "[]",
-          "stock": "[]",
+          "residentIds": [
+            "number"
+          ],
+          "stock": [
+            {
+              "quantity": "number",
+              "resourceId": "number",
+              "resourceName?": "string"
+            }
+          ],
           "typeName?": "string",
-          "workerIds": "[]",
-          "workplaceId": "number"
+          "workerIds": [
+            "number"
+          ],
+          "workplaceId?": "number"
         }
       ],
       "buildings": [
@@ -161,8 +185,38 @@
           "value": "number"
         }
       ],
-      "cities": "[]",
-      "climate": {
+      "cities": [
+        {
+          "bounds": {
+            "height": "number",
+            "width": "number",
+            "x": "number",
+            "y": "number"
+          },
+          "density": {
+            "actions": [
+              {
+                "action": "null",
+                "count": "number"
+              }
+            ],
+            "inside": "number",
+            "pooled": "number",
+            "temperatureC": "number"
+          },
+          "foundedFromCityId": "null",
+          "id": {
+            "value": "string"
+          },
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "name": "string",
+          "population": "number"
+        }
+      ],
+      "climate?": {
         "cropYearFactorMilli": "number",
         "drought": "boolean",
         "month": "number",
@@ -175,7 +229,7 @@
         {
           "arableHectares": "number",
           "expectedHarvest": "number",
-          "farmId": "number",
+          "farmId?": "number",
           "fraction": "number",
           "id": "number",
           "ownerId?": "number",
@@ -192,33 +246,125 @@
           "thirsty": "boolean"
         }
       ],
-      "events": "[]",
-      "faunaGroups": "[]",
+      "events": [
+        {
+          "eventId": "number",
+          "involved": {
+            "amount?": "number",
+            "authorId?": "number",
+            "buildingId?": "number",
+            "caseId?": "number",
+            "cityId?": "string",
+            "designId?": "number",
+            "householdId?": "number",
+            "leavingId?": "number",
+            "otherId?": "number",
+            "outcome?": "string",
+            "recordOnly": "boolean",
+            "relatedIds?": [
+              "number"
+            ],
+            "subjectId?": "number",
+            "victimId?": "number",
+            "workplaceId?": "number"
+          },
+          "kind": "number",
+          "label": "string",
+          "location?": {
+            "x": "number",
+            "y": "number"
+          },
+          "tick": "number"
+        }
+      ],
+      "faunaGroups": [
+        {
+          "center": {
+            "x": "number",
+            "y": "number"
+          },
+          "count": "number",
+          "regionId": "number",
+          "species": "string"
+        }
+      ],
       "indicators": [
         {
           "key": "string",
           "value": "number"
         }
       ],
-      "leavings": "[]",
+      "leavings": [
+        {
+          "carrierId?": "number",
+          "deadId": "number",
+          "designId?": "number",
+          "fetcherId?": "number",
+          "heirHouseholdId?": "number",
+          "householdId?": "number",
+          "id": "number",
+          "itemId?": "number",
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "tick": "number",
+          "units": "number"
+        }
+      ],
       "npcs": [
         {
           "actionStartedAtTick": "number",
-          "city": {
+          "actionTarget?": {
+            "id": "string",
+            "kind": "string"
+          },
+          "appearance?": {
+            "build": "number",
+            "hairCurl": "number",
+            "hairTone": "number",
+            "skinTone": "number"
+          },
+          "city?": {
             "value": "string"
           },
-          "currentAction": "null",
-          "extraordinary": "null",
+          "currentAction?": "number",
+          "extraordinary?": {
+            "canFly": "boolean",
+            "isManifested": "boolean",
+            "manifestationState": "string",
+            "movementTrail": "string",
+            "needSubstitution?": {
+              "replacesNeed": "string",
+              "resourceId": "number",
+              "unitsPerUse": "number"
+            },
+            "powerIds": [
+              "string"
+            ],
+            "scaleMultiplier": "number",
+            "senescenceRateMultiplier": "number",
+            "skinTint": "string",
+            "speedMultiplier": "number"
+          },
           "id": {
             "value": "number"
           },
+          "intent?": "number",
+          "intentTarget?": "string",
           "location": {
             "x": "number",
             "y": "number"
           },
           "observable": {
             "ageYears": "number",
-            "carried": "[]",
+            "carried": [
+              {
+                "quantity": "number",
+                "resourceId": "number",
+                "resourceName?": "string"
+              }
+            ],
             "dominantEmotion?": "string",
             "emotions": {
               "anger": "number",
@@ -250,25 +396,49 @@
             "professionName?": "string",
             "sex": "string"
           },
-          "relocationDestination": "null"
+          "relocationDestination?": {
+            "x": "number",
+            "y": "number"
+          }
         }
       ],
-      "objects": "[]",
+      "objects": [
+        {
+          "designId": "number",
+          "forSale": "boolean",
+          "holderId?": "number",
+          "householdId": "number",
+          "id": "number",
+          "location?": {
+            "x": "number",
+            "y": "number"
+          },
+          "marketId?": "number",
+          "qualityFraction": "number",
+          "rootMaterial?": "number",
+          "rootShape?": "string"
+        }
+      ],
       "processes": [
         {
-          "appearanceToken": "null",
+          "appearanceToken?": "string",
           "descriptorKey": "string",
-          "footprint": "null",
+          "footprint?": [
+            {
+              "x": "number",
+              "y": "number"
+            }
+          ],
           "id": "number",
           "kind": "string",
-          "location": {
+          "location?": {
             "x": "number",
             "y": "number"
           },
           "progress": "number",
-          "quality": "null",
-          "remainingHours": "number",
-          "resourceId": "number",
+          "quality?": "number",
+          "remainingHours?": "number",
+          "resourceId?": "number",
           "resourceName?": "string",
           "targetId": "number"
         }
@@ -283,8 +453,8 @@
     "portals": "[]",
     "residents": [
       {
-        "currentAction": "null",
-        "extraordinary": "null",
+        "currentAction?": "number",
+        "extraordinary?": "null",
         "id": {
           "value": "number"
         },
