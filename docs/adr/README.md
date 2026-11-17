@@ -54,3 +54,4 @@ conteúdo de ADR para dentro dele.
 | [0044](ADR-0044-corrida-compartilhada-entre-testes.md) | Uma corrida de simulação compartilhada entre testes (revoga a proibição da phase-16) | aceito |
 | [0045](ADR-0045-invencao-por-composicao-fisica.md) | Invenção por composição física, concebida pelo NPC (substitui o vetor de eixos da cidade) | aceito |
 | [0046](ADR-0046-cerebro-com-ganhos-sinapticos-aprendidos.md) | Cérebro legível com ganhos sinápticos herdados e aprendidos sobre a utilidade | aceito |
+| [0047](ADR-0047-cliente-godot-orientado-a-entidades.md) | Cliente Godot orientado a entidades sobre uma projeção do observável | proposto |
