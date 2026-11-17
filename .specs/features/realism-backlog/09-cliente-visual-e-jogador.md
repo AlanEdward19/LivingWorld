@@ -79,3 +79,8 @@ realismo lembra)". Quintal e recuo são decisão de cada casa ao construir (terr
 uso real; o motor expõe o lote e as ruas e o cliente desenha só isso. O quintal de uma célula inventado pelo cliente (AD-171) sai.
 E ainda: "nem toda rua é de asfalto também". A rua emerge do uso (trilha → terra → calçada só com tecnologia, material e
 trabalho), a superfície tem efeito no passo e na carga, e o contrato diz o tipo de cada trecho para o cliente desenhar.
+
+## Pedido do dono em 2026-11-18: jogar com um comando e menu de videogame (AD-174)
+"Eu preciso de uma maneira fácil de executar a simulação gamificada (que rode o projeto e o Godot) e o Godot precisa ter o
+menu interativo estilo videogame, onde crio meu mundo etc. Fluxo completo, descomplicado, que um jogador de RPG, Dwarf
+Fortress, [...] até uma criança consiga entender e amar."
