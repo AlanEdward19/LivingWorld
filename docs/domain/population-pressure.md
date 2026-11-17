@@ -48,9 +48,16 @@ fraco na época, e o motor não o inventa.
 
 ## A família de origem antes da esmola
 `MutualAidSystem`: a casa sem comida e sem dinheiro recebe primeiro dos seus. Pais, **avós** (também idosos) e irmãos
-mandam **comida da própria despensa** (o que passa de 14 dias dos moradores deles, uma remessa por casa por dia, mais
-para os mais generosos) e moeda da carteira; só o que faltar vai pedir à cidade. Evento `AidGiven` com `|food` no fim
-quando é comida. Nada é criado: comida e moeda só mudam de casa.
+mandam **comida da própria despensa** e moeda da carteira; só o que faltar vai pedir à cidade. Evento `AidGiven` com
+`|food` no fim quando é comida. Nada é criado: comida e moeda só mudam de casa.
+AD-166 (quebra de colheita, 08c item 148): a moeda só tira a casa da ajuda se compra comida (`AidSeesFoodForSale`: um
+mercado a até 4 h com comida à venda e a casa não acabou de achar a banca vazia); sem isso a casa com moeda também é
+socorrida, em comida. A comida vem de parente **ou gente de afeto**, acima de 2 dias por morador da casa de quem dá
+(`FoodAidReserveDays`, a meta da compra; antes 14 dias, que despensa nenhuma tinha: a ajuda em comida era zero). Seed 14,
+12 meses de quebra: furtos 448 → 410 (carga desligada 394), banidos 35 → 27 (28), vivos no ano 6: 55 → 63 (64).
+40 × 15 pareado: fome crítica 1,055× (IC90 0,90–1,20), mortes de fome 0,88×, mortalidade 0,99×, natalidade 0,979×
+(0,966–0,992: quem dá fica com a despensa curta, que adia o primeiro filho). Só a moeda que vê a banca, sem a comida
+do excedente, sobe a fome (1,03×; cortar também a moeda e a esmola nesse caso dava 1,10×, revertido).
 
 ## Esmola racionada
 O tesouro só enche na virada do mês (imposto do salário e dízimo, AD-140). A esmola do dia é repartida entre todos os

@@ -29,7 +29,7 @@
      mundo que muda (menos despertares, decisões urgentes mais caras, mais refeições concluídas, relações em casa). Item 141:
      o relógio de parede oscila ±10%; um critério de 2% pede contador de instruções.
 111. **Quem vai ao mercado não marca o recipiente** quando não arruma carga (perto de casa): outro pode sair com ele no meio da compra.
-112. **Números sem fonte do AD-157/157b**: folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida;
+112. ~~**Números sem fonte do AD-157/157b**~~ (AD-166: duas refeições de época conferem o desenho; limiares sem fonte, confiança baixa, [meal-routine](../../../docs/domain/meal-routine.md)): folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida;
      hora da refeição em 65 de déficit, comida antes da hora só contra a crítica (80), apetite 40 de quem só foi beber.
 113. **Não medido no AD-157b**: custo a 5.000 NPCs; quantas saídas levam a peça com tira (só se conta a peça existir); a despensa
      vazia em casa sobe (20 → 29 h por pessoa-ano em 40 × 15): comer em hora certa gasta mais, e as casas pobres sentem.
@@ -55,9 +55,25 @@
 
 
 ## Da junção da carga ligada (AD-157b + AD-165)
-148. **Quebra de colheita pesa mais com a carga**: seed 14 do `DefaultVillageDecade` termina 10 anos com 54 vivos (64 com a
-     carga desligada); no ano de quebra 431 furtos contra 351 e 35 banidos contra 28. A ajuda cai (104 → 44 no ano) porque
-     as casas carentes têm moeda e a regra exige casa sem comida **e** sem moeda, mas na quebra não há comida à venda.
-     Medir por que chegam à quebra com mais moeda e despensa vazia; avaliar ajuda em comida quando o mercado está vazio.
-149. **Mortes de fome por seed 0,80 → 1,38** com a carga (40×15, ruído ±0,40): no limite; medir com mais pares.
+148. ~~**Quebra de colheita pesa mais com a carga**~~ (AD-166): a moeda das casas é a mesma (577 mil nos dois braços no mês 8
+     do ano 3); a carga come 2,7% mais por pessoa (refeição em hora certa: 20,7 contra 20,2 unidades por pessoa-mês) e a banca
+     esvazia um mês antes, com a despensa a 148 contra 317 unidades. A ajuda era cega nos dois braços: 100% das casas carentes
+     tinham os 4 dias de compra pelo preço-piso (8 moedas por pessoa) com o trigo a 20. Feito: moeda só conta com comida à venda
+     ao alcance e comida do excedente (2 dias) de parente ou afeto. Seed 14: furtos 448 → 410 (sem carga 394), banidos 35 → 27
+     (28), vivos 55 → 63 (64). O celeiro tem 15 mil unidades na quebra e a banca fica vazia: a reposição diária racionada é o
+     gargalo (não tocado).
+149. ~~**Mortes de fome por seed 0,80 → 1,38**~~ (AD-166): real. 80 pares × 15 anos: 1,63× (IC90 1,28–2,18), 15+ anos 1,82×;
+     horas de fome crítica iguais (1,01×) e mortalidade igual (1,003×). Quem morre a mais (`starvation-trace`, 88 contra 55):
+     jovem de 15–29 anos (39 contra 22), **morando só** (61 contra 27), empregado (49 contra 23), órfão de mãe, carteira e
+     despensa zeradas, em casa, conversando (39 contra 14), com comida na banca. A caderneta do empregador não é a causa
+     (`LW_AG=freeration`: 0,93×, IC90 0,80–1,08). **Aberto**: seguir pessoa a pessoa o jovem que fica só (salário de 90 por
+     mês e esmola deviam pagar a compra: por que a carteira chega a zero e por que conversar vence comprar).
 150. **Baseline `population.json` regravado** na junção: média das 20 seeds 89 → 104; só a seed 14 ficava abaixo da faixa.
+
+## Da fatia AD-166
+151. **A comida do excedente adia filhos**: natalidade 0,979× (IC90 0,966–0,992, 40 × 15; 6 × 50 0,947×). Com reserva de
+     3 dias a natalidade fica igual (0,992×) mas a quebra da seed 14 piora (453 furtos). Investigar se o adiamento do primeiro
+     filho (`FirstBirthMeansWeight`) deve ler a despensa de quem acabou de dar comida.
+152. **O saber e a carga de toda morte** (AD-166) mudam a mortalidade 1,010× em 40 × 15 (IC90 1,002–1,020) e 1,002× em
+     6 × 50: o morto deixava de esquecer designs; os desenhos agora viram lápide mais cedo. Aplicado por correção; medir de novo
+     em 20 × 100.
