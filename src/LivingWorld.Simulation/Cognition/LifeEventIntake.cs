@@ -23,6 +23,7 @@ public static class LifeEventIntake
         {
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion
                 or WorldEventKind.Disease or WorldEventKind.MaternalDeath or WorldEventKind.Homicide or WorldEventKind.Executed
+                or WorldEventKind.Accident or WorldEventKind.OldAge // AD-165: a sobra nomeada da tábua (AD-137) também enluta
                 when sourceSystem == DeathSource:
                 if (FindAt(world, payload, 0) is { } dead) Mourn(world, dead, tick);
                 return;

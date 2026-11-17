@@ -181,6 +181,45 @@ public class UnionLifeTests
                 sink.Events.Any(e => e.Kind == WorldEventKind.UnionEnded)));
     }
 
+    /// <summary>AD-165: quem sai leva o filho pequeno e uma parte da despensa; o pai que ficou com a casa manda, no mês, comida
+    /// da despensa dele e moeda da carteira até cobrir o mês da casa do filho, sem criar nada e sem descer abaixo da própria
+    /// reserva. Sem a regra (0, antes do AD-165) e no abandono, nada vai.</summary>
+    [Theory]
+    [InlineData(12, UnionEndMode.Separation, true)]
+    [InlineData(0, UnionEndMode.Separation, false)]
+    [InlineData(12, UnionEndMode.Abandonment, false)]
+    public void After_a_separation_the_parent_without_the_small_child_supports_its_house(int untilAge, UnionEndMode mode, bool paid)
+    {
+        var world = World(UnionRules.Medieval with { SupportChildUntilAge = untilAge });
+        var husband = Person(world, Sex.Male, 35);
+        var wife = Person(world, Sex.Female, 32);
+        var toddler = Person(world, Sex.Female, 3, wife, husband);
+        var home = Home(world, husband, wife, toddler);
+        home.Withdraw(new ResourceType(1), 120); // a casa do casal estava vazia: quem sai não leva nada
+        home.Withdraw(new ResourceType(2), 60);
+        Wed(husband, wife);
+        var sink = new Sink();
+        var ctx = Ctx(world, sink);
+        // a mulher sai com a filha pequena (no abandono quem foge é ela, sozinha); o marido fica com a casa e colhe depois
+        UnionDissolution.Separate(world, ctx, wife, husband, mode);
+        home.Deposit(new ResourceType(1), 400);
+        husband.CreditWallet(new Money(500));
+        var carerHome = world.FindHousehold(wife.Household!.Value)!;
+        long Food(Household h) => h.Stock.GetValueOrDefault(new ResourceType(1));
+        long totalFood = Food(home) + Food(carerHome), totalCoin = husband.Wallet.Amount + wife.Wallet.Amount;
+        long carerFood = Food(carerHome), carerCoin = wife.Wallet.Amount;
+
+        bool sent = SeparationSupport.Pay(world, ctx, husband);
+
+        Assert.Equal(paid, sent);
+        Assert.Equal(paid, Food(carerHome) > carerFood || wife.Wallet.Amount > carerCoin);
+        Assert.Equal(totalFood, Food(home) + Food(carerHome)); // nada é criado
+        Assert.Equal(totalCoin, husband.Wallet.Amount + wife.Wallet.Amount);
+        Assert.True(Food(home) >= world.FamilyRules.Unions.SupportReserveDays); // a reserva de quem manda fica
+        Assert.Equal(paid, sink.Events.Any(e => e.Kind == WorldEventKind.SupportPaid));
+        Assert.False(SeparationSupport.Pay(world, ctx, wife)); // quem cria o filho não deve sustento a si mesma
+    }
+
     [Fact]
     public void After_a_separation_the_person_courts_again_only_when_the_norm_allows()
     {
