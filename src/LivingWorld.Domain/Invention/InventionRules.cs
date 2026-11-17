@@ -138,8 +138,9 @@ public sealed partial record InventionRules
 
     // --- carga, mercado, estoque, pesca, cópia e lápide (AD-143) ---
 
-    /// <summary>O que uma pessoa carrega a pé atravessando água (kg), quando não tem com quê.</summary>
-    public int FootCarryKg { get; init; } = 30;
+    /// <summary>O que uma pessoa carrega a pé (kg), quando não tem com quê. AD-166 (correções #6): 30 → 20, a faixa da fonte
+    /// (água na cabeça: média 19,5 kg no Limpopo; "tipicamente 20 kg", UEA) [B]. Com 20 kg o veículo de terra volta a compensar.</summary>
+    public int FootCarryKg { get; init; } = 20;
 
     /// <summary>Massa de uma unidade de recurso da economia (g), por id de recurso; o que não estiver aqui pesa
     /// <see cref="DefaultUnitGrams"/>. Padrão: comida (1) ≈ ração de grão de um dia; água (2) ≈ 2 litros.</summary>

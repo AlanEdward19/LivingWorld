@@ -26,6 +26,11 @@ public static class LifeEventIntake
                 when sourceSystem == DeathSource:
                 if (FindAt(world, payload, 0) is { } dead) Mourn(world, dead, tick);
                 return;
+            case WorldEventKind.Accident or WorldEventKind.OldAge
+                when sourceSystem == DeathSource && world.NeedsRules.Psyche.MournEveryDeath:
+                // AD-166: a morte por acidente ou velhice enluta como as outras
+                if (FindAt(world, payload, 0) is { } departed) Mourn(world, departed, tick);
+                return;
             case WorldEventKind.TheftCommitted when Field(payload, 7) == "levou":
                 // AD-150: a vítima sente a perda mesmo sem saber quem foi (quem foi, se souber, vem no TheftDiscovered)
                 Experience(world, IdAt(payload, 1), LifeEventKind.Robbed, 0, tick, 0.7);

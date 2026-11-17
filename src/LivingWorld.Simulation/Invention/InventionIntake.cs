@@ -92,8 +92,11 @@ public static class InventionIntake
 
     public static void OnEvent(WorldState world, WorldEventKind kind, string payload, string sourceSystem, long tick)
     {
+        // AD-166: toda morte (acidente, velhice, homicídio e forca também) leva o saber e devolve a carga à casa; antes essas
+        // quatro deixavam o morto sabendo e a carga presa nele
         if (sourceSystem != DeathSource || kind is not (WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
-            or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath)) return;
+            or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath or WorldEventKind.Accident
+            or WorldEventKind.OldAge or WorldEventKind.Homicide or WorldEventKind.Executed)) return;
         int bar = payload.IndexOf('|');
         if (!long.TryParse(bar < 0 ? payload : payload[..bar], System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture, out long dead)) return;

@@ -90,9 +90,9 @@ public class LandHaulWorldTests
     [Fact]
     public void Someone_whose_purchase_was_cut_far_beyond_what_arms_carry_comes_to_make_something_that_is_pulled_over_land()
     {
-        // AD-165: com a tração da fonte (175 N) nenhuma peça puxada vence os 30 kg nos braços; com a carga a pé da fonte (20 kg,
-        // correções #6, fatia da carga) o mecanismo segue o mesmo: o que se puxa nasce da compra cortada
-        var rules = Eager with { FootCarryKg = 20 };
+        // AD-165: com a tração da fonte (175 N) nenhuma peça puxada vencia os 30 kg nos braços; AD-166: a carga a pé da fonte
+        // (20 kg, correções #6) é o padrão, e o que se puxa nasce da compra cortada
+        var rules = Eager;
         var (world, clock) = ScenarioRunner.Create(1, inventionRules: rules);
         var npc = Adults(world)[0];
 

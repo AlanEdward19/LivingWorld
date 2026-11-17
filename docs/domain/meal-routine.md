@@ -37,5 +37,22 @@ O mundo muda para todos: a sede crítica cai 65% (dependentes em casa 67%), o ad
 igual. A despensa vazia em casa sobe de 20 para 31 h por pessoa-ano (come-se em hora certa, mais vezes). A carga que a pessoa leva
 é estoque do mundo (`InventionLedger.CarriedTotal`, na conservação); a de quem morre sem casa ou sai do mundo vai ao consumido.
 
+## A refeição de quem come na oficina (AD-166, item aberto 67)
+Quem vai ao próprio trabalho e lá ganha a refeição leva só o caminho mais a folga (`PackMarginHours`) e, na pausa, come
+primeiro do que levou (`ConsumeFromPack`); a ração do empregador só vem com a carga vazia, e o que sobra volta à despensa.
+40 × 15 (base): 8,8 refeições da pausa por pessoa-ano (`pausa_trab`) e 8,7 rações longe de casa (`racao_longe`, a mesma
+ração vista pela compra: diferença de 1%), 12,4 refeições da carga, nenhuma hora de fome crítica comendo sem refeição
+(`fc_comendo_sem_refeicao` 0); fome crítica no trabalho 1,5 h de 7,9 por pessoa-ano; 1,1 vez por pessoa-ano alguém fica
+crítico longe sem nada. Cada ração sai uma vez do estoque e uma vez da caderneta: sem dupla contagem.
+
+## De onde vêm os números da rotina (AD-166, item 112)
+Fonte (popular, grau [C]): na Inglaterra medieval comiam-se **duas refeições** — o jantar no fim da manhã (10–11 h, no
+campo para o lavrador) e a ceia ao pôr do sol —, e o desjejum era de quem trabalhava pesado ou viajava, e do ceifeiro
+(tastesofhistory.co.uk; historyrevealed.com; medievalcookery.com; Boorde, 1542, é a fonte primária e é tardia). O desenho
+confere: desjejum de quem sai longe, refeição na pausa do turno, ceia antes de deitar. Os limiares **não** têm fonte:
+`MealTimeDeficit` 65, `MealAheadDeficit` 80, `AppetiteDeficit` 40, a folga de 12 h e o dependente (<12 ou 65+) são escolha
+do modelo, confiança baixa. Escala: o consumo medido é 0,69 unidade por pessoa-dia (uma ração do dia), então a refeição
+do modelo é parte da ração diária, não uma refeição de época. Nada contraria a fonte: nada foi ajustado.
+
 ## Ver também
 - [behavior.md](behavior.md) — a decisão (urgência, rotina) em que a refeição de rotina entra

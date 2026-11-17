@@ -51,6 +51,10 @@ if (args.Length == 4 && args[0] == "brain-trace")
 if (args.Length == 4 && args[0] == "provision-trace")
     return ProvisionTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
 
+// Sonda da quebra de colheita (AD-166): `dotnet <dll> famine-trace <seed> <anos>`.
+if (args.Length == 3 && args[0] == "famine-trace")
+    return FamineTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));
+
 // Traço mensal da comida do cenário padrão (AD-135): `dotnet <dll> food-trace <seed> <anos>`.
 if (args.Length is 3 or 4 && args[0] == "food-trace")
     return FoodTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), args.Length == 4 ? args[3] : null);

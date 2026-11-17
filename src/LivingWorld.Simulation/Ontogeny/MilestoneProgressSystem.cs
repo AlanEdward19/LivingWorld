@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Ontogeny;
 using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Core;
@@ -33,7 +34,13 @@ public sealed class MilestoneProgressSystem : ISimulationSystem
             if (npc.Development is not { } state) continue;
             var advanced = OntogenyMechanic.AdvanceOneMonth(world, npc, state);
             if (advanced is not null && ActiveDisease(world, npc) is { } disease)
+            {
                 advanced = Regress(world, ctx, npc, advanced, disease);
+                // AD-166: o marco que caiu no meio da ação a interrompe (a criança que adoece larga o trabalho na hora)
+                if (npc.CurrentAction is { } action
+                    && !world.OntogenyRules.IsEligible(advanced, action == ActionType.Travel ? npc.TravelPurpose ?? action : action))
+                    npc.SetCurrentAction(ActionType.Idle, ctx.CurrentTick);
+            }
             npc.SetDevelopment(advanced);
         }
     }
