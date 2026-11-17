@@ -174,7 +174,7 @@ public sealed partial class BehaviorDecisionSystem
             : PsycheMechanic.SocialWithdrawal(world, npc, now);
         if (withdrawal <= 0) return routine;
         string purpose = routine == ActionType.Work ? "mood-workday" : "mood-socialday";
-        return ctx.StreamFor(purpose, unchecked(npc.Id.Value * 1_000_003L + day)).NextDouble() < withdrawal
+        return ctx.DrawFor(purpose, unchecked(npc.Id.Value * 1_000_003L + day)) < withdrawal
             ? ActionType.Idle
             : routine;
     }
@@ -192,7 +192,7 @@ public sealed partial class BehaviorDecisionSystem
             ? rules.TruancyShare * LivingWorld.Simulation.Population.Body.Endocrine.AdolescentDrive(world, npc, now)
             : 0;
         if (cramps <= 0 && truancy <= 0) return ActionType.Work;
-        double u = ctx.StreamFor("body-workday", unchecked(npc.Id.Value * 1_000_003L + day)).NextDouble();
+        double u = ctx.DrawFor("body-workday", unchecked(npc.Id.Value * 1_000_003L + day));
         if (u < cramps) return ActionType.Idle;
         return u < cramps + truancy ? ActionType.Socialize : ActionType.Work;
     }

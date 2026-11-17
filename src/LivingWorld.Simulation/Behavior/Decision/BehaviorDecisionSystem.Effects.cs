@@ -258,7 +258,7 @@ public sealed partial class BehaviorDecisionSystem
         double share = LivingWorld.Simulation.Health.Lactation.MilkShare(world, baby, tick);
         if (share >= 1.0) return true;
         if (share <= 0.0) return false;
-        return world.Rng.StreamFor("weaning", unchecked(baby.Id.Value * 1_000_003L + tick)).NextDouble() < share;
+        return world.Rng.DrawFor("weaning", unchecked(baby.Id.Value * 1_000_003L + tick)) < share;
     }
 
     /// <summary>Ração do empregador: quem está no próprio local de trabalho e a despensa de casa não tem o que comer ou
@@ -451,7 +451,7 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (world.FamilyRules.Bonds is not { } bonds) return null;
 
-        ulong salt = (ulong)(ctx.StreamFor("socialize", unchecked(npc.Id.Value * 1_000_003L + tick)).NextDouble() * (1UL << 53));
+        ulong salt = (ulong)(ctx.DrawFor("socialize", unchecked(npc.Id.Value * 1_000_003L + tick)) * (1UL << 53));
         int radius = bonds.SocializeRadius;
 
         // Desconhecidos: uma amostra pequena de quem está por perto, escolhida pelo menor hash (não depende da ordem dos
@@ -459,32 +459,50 @@ public sealed partial class BehaviorDecisionSystem
         Span<long> sampleIds = stackalloc long[StrangersConsidered];
         Span<ulong> sampleKeys = stackalloc ulong[StrangersConsidered];
         int sampled = 0;
-        for (int dy = -radius; dy <= radius; dy++)
-            for (int dx = -radius; dx <= radius; dx++)
+        void Sample(Npc other, Span<long> sampleIds, Span<ulong> sampleKeys)
+        {
+            if (other.Id == npc.Id || other.City != npc.City) return;
+            ulong key = LivingWorld.Domain.Cities.Spatial.StableHash.Mix(other.Id.Value ^ (long)salt);
+            if (sampled < StrangersConsidered)
             {
-                var bucket = world.AliveNpcIndex.At(new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy));
-                for (int i = 0; i < bucket.Count; i++)
-                {
-                    var other = bucket[i];
-                    if (other.Id == npc.Id || other.City != npc.City) continue;
-                    ulong key = LivingWorld.Domain.Cities.Spatial.StableHash.Mix(other.Id.Value ^ (long)salt);
-                    if (sampled < StrangersConsidered)
-                    {
-                        sampleIds[sampled] = other.Id.Value;
-                        sampleKeys[sampled++] = key;
-                        continue;
-                    }
-
-                    int worst = 0;
-                    for (int k = 1; k < sampled; k++)
-                        if (sampleKeys[k] > sampleKeys[worst] || (sampleKeys[k] == sampleKeys[worst] && sampleIds[k] > sampleIds[worst])) worst = k;
-                    if (key < sampleKeys[worst] || (key == sampleKeys[worst] && other.Id.Value < sampleIds[worst]))
-                    {
-                        sampleIds[worst] = other.Id.Value;
-                        sampleKeys[worst] = key;
-                    }
-                }
+                sampleIds[sampled] = other.Id.Value;
+                sampleKeys[sampled++] = key;
+                return;
             }
+
+            int worst = 0;
+            for (int k = 1; k < sampled; k++)
+                if (sampleKeys[k] > sampleKeys[worst] || (sampleKeys[k] == sampleKeys[worst] && sampleIds[k] > sampleIds[worst])) worst = k;
+            if (key < sampleKeys[worst] || (key == sampleKeys[worst] && other.Id.Value < sampleIds[worst]))
+            {
+                sampleIds[worst] = other.Id.Value;
+                sampleKeys[worst] = key;
+            }
+        }
+
+        // AD-167: a amostra é a dos menores (chave, id) da janela, então não depende da ordem de visita. Com poucos vivos, varrer a
+        // lista deles custa menos que as (2r+1)² consultas ao índice por célula (a vila padrão: ~130 vivos contra 49 células)
+        var everyone = world.AliveNpcIndex.Alive;
+        int side = 2 * radius + 1;
+        if (everyone.Count <= 2 * side * side)
+        {
+            var here = npc.CurrentLocation;
+            for (int i = 0; i < everyone.Count; i++)
+            {
+                var other = everyone[i];
+                if (Math.Abs(other.CurrentLocation.X - here.X) <= radius && Math.Abs(other.CurrentLocation.Y - here.Y) <= radius)
+                    Sample(other, sampleIds, sampleKeys);
+            }
+        }
+        else
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    var bucket = world.AliveNpcIndex.At(new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy));
+                    for (int i = 0; i < bucket.Count; i++) Sample(bucket[i], sampleIds, sampleKeys);
+                }
+        }
 
         Npc? best = null;
         double bestAppeal = double.NegativeInfinity;

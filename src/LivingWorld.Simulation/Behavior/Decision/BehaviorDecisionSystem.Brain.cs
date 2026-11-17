@@ -56,9 +56,13 @@ public sealed partial class BehaviorDecisionSystem
     private static void BrainRemember(
         WorldState world, Npc npc, ActionType chosen, ReadOnlySpan<double> groups, long now, bool justCompleted)
     {
-        if (!justCompleted && chosen == npc.CurrentAction && npc.Brain?.PendingAction == chosen) return;
+        if (!BrainRememberStores(npc, chosen, justCompleted)) return;
         BrainMechanic.Remember(npc, chosen, groups, world.BrainRules!.ValuesSustenance ? BrainValueAt(world, npc, now) : 0);
     }
+
+    /// <summary>A escolha vai ser guardada: começa uma ação (ou a que segue não é a guardada).</summary>
+    private static bool BrainRememberStores(Npc npc, ActionType chosen, bool justCompleted) =>
+        justCompleted || chosen != npc.CurrentAction || npc.Brain?.PendingAction != chosen;
 
     /// <summary>Tempo livre pesado pelo cérebro (AD-160b): na hora em que a rotina diz Conversar ou Ficar à toa, o NPC escolhe entre
     /// conversar, ficar à toa, deitar mais cedo (se a rotina manda dormir nas próximas <see cref="EarlyBedHours"/> horas) e ficar

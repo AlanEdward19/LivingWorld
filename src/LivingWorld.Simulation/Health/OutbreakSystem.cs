@@ -163,7 +163,7 @@ public sealed class OutbreakSystem : ISimulationSystem
             if (profile.ImmunityDays > 0)
                 world.SetImmunity(npc.Id, profile.Id, now + (long)profile.ImmunityDays * world.Calendar.HoursPerDay);
             if (profile.SequelaChance > 0
-                && ctx.StreamFor("disease-sequela", unchecked(npc.Id.Value * 64 + profile.Id)).NextDouble() < profile.SequelaChance)
+                && ctx.DrawFor("disease-sequela", unchecked(npc.Id.Value * 64 + profile.Id)) < profile.SequelaChance)
                 npc.ShiftLifespanOffset((long)(profile.SequelaFrailtyYears * world.Calendar.HoursPerYear));
         }
 
@@ -287,7 +287,7 @@ public sealed class OutbreakSystem : ISimulationSystem
         long hoursPerYear = world.Calendar.HoursPerYear;
         long reference = npc.BirthDate.TotalHours < 0 ? 0 : now;
         double age = Math.Max(0, reference - npc.BirthDate.TotalHours) / (double)hoursPerYear;
-        return world.Rng.StreamFor("disease-founder-immunity", unchecked(npc.Id.Value * 64 + profile.Id)).NextDouble() >= founder.At(age);
+        return world.Rng.DrawFor("disease-founder-immunity", unchecked(npc.Id.Value * 64 + profile.Id)) >= founder.At(age);
     }
 
     private void Environmental(WorldState world, TickContext ctx, DiseaseRules rules, long now, long day, int month)

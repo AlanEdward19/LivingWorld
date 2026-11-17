@@ -194,11 +194,11 @@ public sealed class NatalitySystem : ISimulationSystem
             best = Math.Max(best, Math.Clamp(axes / Math.Max(1, world.EmergenceRules.AxisMax), 0, 1) * rules.MaxEfficacy);
         }
         if (best <= 0) return 0;
-        return world.Rng.StreamFor("contraception-user", woman.Id.Value).NextDouble() < rules.UseShare ? best : 0;
+        return world.Rng.DrawFor("contraception-user", woman.Id.Value) < rules.UseShare ? best : 0;
     }
 
     /// <summary>Sorteio fixo da mulher contra a fração estéril por idade: a mesma em toda chamada (inclui a menopausa).</summary>
-    public static double SterilityDraw(TickContext ctx, Npc woman) => ctx.StreamFor("sterility", woman.Id.Value).NextDouble();
+    public static double SterilityDraw(TickContext ctx, Npc woman) => ctx.DrawFor("sterility", woman.Id.Value);
 
     private static double SterilityDraw(WorldState world, Npc woman) => Endocrine.SterilityDraw(world, woman);
 
@@ -351,7 +351,7 @@ public sealed class NatalitySystem : ISimulationSystem
     {
         var rules = world.PopulationRules.Fertility.Endocrine;
         if (!rules.Enabled || rules.PostpartumDepressionShare <= 0 || !world.NeedsRules.Psyche.Enabled) return;
-        if (ctx.StreamFor("postpartum-mood", unchecked(mother.Id.Value * 1_000_003L + now)).NextDouble() >= rules.PostpartumDepressionShare)
+        if (ctx.DrawFor("postpartum-mood", unchecked(mother.Id.Value * 1_000_003L + now)) >= rules.PostpartumDepressionShare)
             return;
         LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(
             world, mother, now, new LivingWorld.Domain.Cognition.LifeEventImpact(0, Grief: rules.PostpartumLowMood), loneliness: 0.3);

@@ -13,7 +13,20 @@ public static class Mobility
     public static int BonusPct(WorldState world, CityId city)
     {
         if (world.Technologies.Count == 0) return 0;
+        // AD-167: a conta varria todas as tecnologias em toda viagem, ida ao mercado e pergunta de alcance da despensa; a resposta só
+        // muda com uma tecnologia nova ou adotada (o carimbo do mundo), então fica guardada por cidade até ele mudar
+        long version = world.TechnologiesVersion;
+        var memo = world.PaceBonusMemo;
+        if (memo is not null && memo.Version == version && memo.ByCity.TryGetValue(city, out int known)) return known;
+        int bonus = ComputeBonusPct(world, city);
+        var byCity = memo is not null && memo.Version == version ? new Dictionary<CityId, int>(memo.ByCity) : [];
+        byCity[city] = bonus;
+        world.PaceBonusMemo = new WorldState.PaceBonusByCity(version, byCity);
+        return bonus;
+    }
 
+    private static int ComputeBonusPct(WorldState world, CityId city)
+    {
         int best = 0;
         foreach (var tech in world.Technologies)
         {

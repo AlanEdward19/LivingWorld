@@ -40,10 +40,10 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         var rulesBySpecies = IndexRules(world);
         double daysPerYear = world.Calendar.DaysPerMonth * world.Calendar.MonthsPerYear;
         long tick = ctx.CurrentTick;
-        foreach (var animal in world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList())
+        foreach (var animal in AliveById(world))
         {
             if (!rulesBySpecies.TryGetValue(animal.Species, out var rules) || rules.AnnualMortality <= 0) continue;
-            if (ctx.StreamFor("fauna-mortality", unchecked(animal.Id.Value * 1_000_003L + tick)).NextDouble() < rules.AnnualMortality / daysPerYear)
+            if (ctx.DrawFor("fauna-mortality", unchecked(animal.Id.Value * 1_000_003L + tick)) < rules.AnnualMortality / daysPerYear)
                 Kill(world, ctx, animal, WorldEventKind.Death);
         }
     }
@@ -55,15 +55,16 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         var rulesBySpecies = IndexRules(world);
         if (!rulesBySpecies.Values.Any(r => r.Diet == AnimalSpeciesRules.FloraDiet && r.MealEnergy > 0)) return;
         long tick = ctx.CurrentTick;
-        Dictionary<CellCoord, PlantId>? plantAt = null;
-        foreach (var animal in world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList())
+        PlantGrid? plantAt = null;
+        Dictionary<string, PlantSpeciesRules>? plantRules = null;
+        foreach (var animal in AliveById(world))
         {
             if (!rulesBySpecies.TryGetValue(animal.Species, out var rules) || rules.Diet != AnimalSpeciesRules.FloraDiet || rules.MealEnergy <= 0)
                 continue;
             if (animal.Energy.ValueAt(tick) > LazyNeed.Max - rules.MealEnergy) continue;
 
-            plantAt ??= world.Flora.GroupBy(p => p.Position).ToDictionary(g => g.Key, g => new PlantId(g.Min(p => p.Id.Value)));
-            var plantRules = FloraLifecycleSystem.IndexRules(world);
+            plantAt ??= PlantGrid.Build(world);
+            plantRules ??= FloraLifecycleSystem.IndexRules(world);
             int r = (int)Math.Floor(rules.ForageRadius);
             int cost = Math.Max(1, rules.GrazeStageCost);
             Plant? best = null;
@@ -72,7 +73,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
                 for (int dy = -r; dy <= r; dy++)
                 {
                     var cell = new CellCoord(animal.Position.X + dx, animal.Position.Y + dy);
-                    if (!plantAt.TryGetValue(cell, out var plantId) || world.FindPlant(plantId) is not { } plant) continue;
+                    if (!plantAt.TryGet(cell, out var plantId) || world.FindPlant(plantId) is not { } plant) continue;
                     long forage = Forage(plant, plantRules);
                     if (forage > bestForage || (forage == bestForage && forage > 0 && plant.Id.Value < best!.Id.Value))
                     {
@@ -110,7 +111,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
 
-        foreach (var animal in world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList())
+        foreach (var animal in AliveById(world))
         {
             if (!rulesBySpecies.TryGetValue(animal.Species, out var rules))
                 continue;
@@ -133,7 +134,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
     /// <summary>Par elegível (mesma espécie, raio, energia) gera filhote próximo.</summary>
     public static void TryReproduce(WorldState world, TickContext ctx)
     {
-        if (world.Fauna.Count(a => a.IsAlive) >= MaxAliveFauna)
+        if (CountAlive(world) >= MaxAliveFauna)
             return;
         if (!world.AnimalSpeciesRules.Any(r => r.ReproduceProbability > 0))
             return;
@@ -142,8 +143,15 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         long tick = ctx.CurrentTick;
         int month = world.CurrentDate.Month;
         long hoursPerDay = world.Calendar.HoursPerDay;
-        var alive = world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList();
+        var alive = AliveById(world);
         var used = new HashSet<long>();
+        // AD-167: quem pode ser par (energia e intervalo de gestação pelas regras da própria espécie) é o mesmo para todo a da
+        // mesma espécie: conta uma vez por animal, não a cada par (a lista é a foto do começo do passo; o laço não a muda)
+        var mate = new bool[alive.Count];
+        for (int m = 0; m < alive.Count; m++)
+            mate[m] = rulesBySpecies.TryGetValue(alive[m].Species, out var own)
+                && alive[m].Energy.ValueAt(tick) >= own.ReproduceEnergyThreshold
+                && !(alive[m].LastBirthTick is { } last && tick - last < own.GestationDays * hoursPerDay);
 
         for (int i = 0; i < alive.Count; i++)
         {
@@ -156,15 +164,13 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
 
             for (int j = i + 1; j < alive.Count; j++)
             {
+                if (!mate[j]) continue;
                 var b = alive[j];
                 if (used.Contains(b.Id.Value)) continue;
                 if (!string.Equals(a.Species, b.Species, StringComparison.Ordinal)) continue;
-                if (b.Energy.ValueAt(tick) < rules.ReproduceEnergyThreshold) continue;
-                if (b.LastBirthTick is { } lastB && tick - lastB < rules.GestationDays * hoursPerDay) continue;
                 if (Chebyshev(a.Position, b.Position) > rules.ReproduceRadius) continue;
 
-                double roll = ctx.StreamFor("fauna-reproduce", PairStreamId(a.Id.Value, b.Id.Value, tick))
-                    .NextDouble();
+                double roll = ctx.DrawFor("fauna-reproduce", PairStreamId(a.Id.Value, b.Id.Value, tick));
                 used.Add(a.Id.Value);
                 used.Add(b.Id.Value);
                 if (roll >= rules.ReproduceProbability) break;
@@ -177,7 +183,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
 
                 for (int k = 0; k < Math.Max(1, rules.LitterSize); k++)
                 {
-                    if (world.Fauna.Count(x => x.IsAlive) >= MaxAliveFauna) break;
+                    if (CountAlive(world) >= MaxAliveFauna) break;
                     var childPos = BirthPosition(world, ctx, a.Position, b.Position, a.Id.Value, b.Id.Value, tick + k);
                     var childId = world.NextAnimalIdAndAdvance();
                     var child = new Animal(
@@ -223,7 +229,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
             int cmp = left.X.CompareTo(right.X);
             return cmp != 0 ? cmp : left.Y.CompareTo(right.Y);
         });
-        int index = (int)(ctx.StreamFor("fauna-birth-pos", PairStreamId(idA, idB, tick)).NextDouble() * candidates.Count);
+        int index = (int)(ctx.DrawFor("fauna-birth-pos", PairStreamId(idA, idB, tick)) * candidates.Count);
         if (index >= candidates.Count) index = candidates.Count - 1;
         return candidates[index];
     }
@@ -237,7 +243,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
 
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
-        var alive = world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList();
+        var alive = AliveById(world);
         var eaten = new HashSet<long>();
 
         foreach (var predator in alive)
@@ -256,8 +262,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
                 if (Chebyshev(predator.Position, prey.Position) > rules.ReproduceRadius) continue;
                 preyInRange = true;
 
-                double roll = ctx.StreamFor("fauna-predate", PairStreamId(predator.Id.Value, prey.Id.Value, tick))
-                    .NextDouble();
+                double roll = ctx.DrawFor("fauna-predate", PairStreamId(predator.Id.Value, prey.Id.Value, tick));
                 if (roll >= rules.PredationProbability) continue;
 
                 var currentPredator = world.FindAnimal(predator.Id) ?? predator;
@@ -290,7 +295,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
             }
 
         if (count == 0) return;
-        int pick = (int)(ctx.StreamFor("fauna-wander", unchecked(animal.Id.Value * 1_000_003L + ctx.CurrentTick)).NextDouble() * count);
+        int pick = (int)(ctx.DrawFor("fauna-wander", unchecked(animal.Id.Value * 1_000_003L + ctx.CurrentTick)) * count);
         world.ReplaceAnimal(animal with { Position = options[Math.Min(pick, count - 1)] });
     }
 
@@ -309,6 +314,74 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         RulesIndexCache.GetValue(world.AnimalSpeciesRules, rules => rules
             .GroupBy(r => r.Species, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
+
+    /// <summary>Os vivos, na ordem do id (a lista da fauna já é ordenada por id: invariante do <see cref="WorldState"/>). AD-167: no
+    /// lugar de <c>Where/OrderBy/ToList</c>, que ordenava de novo a lista inteira, mortos inclusive, cinco vezes por dia.</summary>
+    private static List<Animal> AliveById(WorldState world)
+    {
+        var fauna = world.Fauna;
+        var alive = new List<Animal>(Math.Min(fauna.Count, MaxAliveFauna + 16));
+        for (int i = 0; i < fauna.Count; i++)
+            if (fauna[i].IsAlive) alive.Add(fauna[i]);
+        return alive;
+    }
+
+    private static int CountAlive(WorldState world)
+    {
+        var fauna = world.Fauna;
+        int count = 0;
+        for (int i = 0; i < fauna.Count; i++)
+            if (fauna[i].IsAlive) count++;
+        return count;
+    }
+
+    /// <summary>Por célula, a planta de menor id (a mesma conta de <c>GroupBy(posição).Min(id)</c>), numa grade densa do mapa (o pasto
+    /// olha (2r+1)² células por animal com fome); célula fora do mapa vai a um dicionário. AD-167: antes, grupos e dicionário por dia.</summary>
+    private sealed class PlantGrid
+    {
+        private readonly int _width, _height;
+        private readonly long[] _lowest; // id + 1; 0 = sem planta
+        private Dictionary<CellCoord, long>? _outside;
+
+        private PlantGrid(int width, int height)
+        {
+            _width = Math.Max(0, width);
+            _height = Math.Max(0, height);
+            _lowest = new long[_width * _height];
+        }
+
+        public static PlantGrid Build(WorldState world)
+        {
+            var grid = new PlantGrid(world.Map.Width, world.Map.Height);
+            var flora = world.Flora;
+            for (int i = 0; i < flora.Count; i++)
+            {
+                var plant = flora[i];
+                long id = plant.Id.Value + 1;
+                var c = plant.Position;
+                if ((uint)c.X < (uint)grid._width && (uint)c.Y < (uint)grid._height)
+                {
+                    ref long slot = ref grid._lowest[c.Y * grid._width + c.X];
+                    if (slot == 0 || id < slot) slot = id;
+                }
+                else
+                {
+                    grid._outside ??= [];
+                    if (!grid._outside.TryGetValue(c, out long known) || id < known) grid._outside[c] = id;
+                }
+            }
+            return grid;
+        }
+
+        public bool TryGet(CellCoord c, out PlantId plant)
+        {
+            long id = (uint)c.X < (uint)_width && (uint)c.Y < (uint)_height
+                ? _lowest[c.Y * _width + c.X]
+                : _outside is not null && _outside.TryGetValue(c, out long o) ? o : 0;
+            plant = new PlantId(id - 1);
+            return id != 0;
+        }
+    }
 
     public static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));

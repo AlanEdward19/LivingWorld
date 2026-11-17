@@ -51,6 +51,10 @@ sexo; natimortos; construções boas e falhas; CV mínimo de vitalidade; lembran
 
 ## 2. Custo por NPC-tick em pares alternados, fila de uma vaga (itens 4, 24, 18, 32, 43, 44, 52, 61, 63, 65, 72, 79, 106)
 
+> **AD-167 fechou o grupo** ([07b](../07b-desempenho-ad167.md)): cadeia de merges a 5.000 NPCs em rodízio (43: 0,986×; AD-144/146/147:
+> 1,099×; 52: 1,058×; 61: 0,991×; 65: 0,978×; 72: 1,004×; 79 com AD-150: 1,013×; AD-154–166: 0,981× e −13% de bytes); 24 sem
+> oscilação (bytes iguais nas 3 rodadas de 10 DLLs); 18 passa 10/10 sozinho e na fase quieta; 32 e 44 +31% com a invenção (carga
+> inclusa); 63 decisão +16% → +7%; 106 poderes 1,13× tempo e 2,35× bytes. **4** não medido (fora da cadeia).
 > **AD-164 rodou a parte sem commits antigos**: 24 (mesma DLL 5×: 194/202 B em dois degraus, junto com o tempo), 106 (poderes
 > ligados 1,9× o tempo, 2,1× os bytes) e o acumulado de hoje a 5.000 (1,25–1,28 µs, 172 B). Falta o lado a lado com os commits
 > antigos (4, 32, 43, 52, 61, 65, 72, 79) e o 18 (teste sozinho × com o gate).

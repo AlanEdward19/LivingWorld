@@ -16,14 +16,29 @@ public static class PsycheMechanic
     // ---------------- emoção ----------------
 
     /// <summary>Emoções atuais do NPC no <paramref name="tick"/>; calmo sem psique ou depois de <c>CalmFromTick</c>.</summary>
+    /// <summary>AD-167: a última leitura (o estado é imutável: outra emoção troca o objeto). A decisão, o valor do estado do cérebro e
+    /// a conclusão da ação leem o mesmo humor do mesmo NPC no mesmo tick; seis decaimentos por leitura viravam um.</summary>
+    [ThreadStatic] private static (PsycheState? State, long Tick, PsycheRules? Rules, int Hpd, int Stability, Affect Value) _lastAffect;
+
     public static Affect AffectOf(WorldState world, Npc npc, long tick)
     {
         if (npc.Psyche is not { } psyche || tick >= psyche.CalmFromTick) return Affect.Calm;
         var rules = world.NeedsRules.Psyche;
         if (!rules.Enabled) return Affect.Calm;
         int hpd = world.Calendar.HoursPerDay;
-        long dt = Math.Max(0, tick - psyche.AffectTick);
         var p = npc.Personality;
+        var last = _lastAffect;
+        if (ReferenceEquals(last.State, psyche) && last.Tick == tick && ReferenceEquals(last.Rules, rules) && last.Hpd == hpd
+            && last.Stability == p.EmotionalStability)
+            return last.Value;
+        var value = ComputeAffect(psyche, rules, hpd, p, tick);
+        _lastAffect = (psyche, tick, rules, hpd, p.EmotionalStability, value);
+        return value;
+    }
+
+    private static Affect ComputeAffect(PsycheState psyche, PsycheRules rules, int hpd, Personality p, long tick)
+    {
+        long dt = Math.Max(0, tick - psyche.AffectTick);
         return new Affect(
             Decayed(psyche.Grief, dt, HalfLifeHours(rules, Emotion.Grief, p, hpd)),
             Decayed(psyche.Fear, dt, HalfLifeHours(rules, Emotion.Fear, p, hpd)),

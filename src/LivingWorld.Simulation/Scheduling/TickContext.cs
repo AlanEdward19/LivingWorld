@@ -44,6 +44,9 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
 
     public WorldRng StreamFor(string purpose, long id) => rng.StreamFor(purpose, id);
 
+    /// <summary>O primeiro sorteio de <see cref="StreamFor"/>, sem alocar o stream (AD-167).</summary>
+    public double DrawFor(string purpose, long id) => rng.DrawFor(purpose, id);
+
     /// <summary>Stream de uso único para uma chave que nunca se repete (traz o tick, o dia ou o id do evento): o mesmo
     /// primeiro sorteio de <see cref="Rng"/>, sem deixar o stream no snapshot para sempre (#157).</summary>
     public WorldRng OneShot(string uniqueKey) => rng.OneShot(uniqueKey);
