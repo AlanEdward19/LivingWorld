@@ -77,7 +77,7 @@ public static partial class ScenarioRunner
             new BuildingId(world.NextBuildingId), city.Id, buildingTypeId, world.CurrentDate.TotalHours);
         long population = CityPopulationQuery.Population(world, city.Id);
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-        var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
+        var resolved = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) // AD-173: porta para a rua
             ?? throw new InvalidOperationException("No free cell is available for a default workplace building.");
 
         var building = new Building(

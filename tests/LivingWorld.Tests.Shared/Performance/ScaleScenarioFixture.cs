@@ -121,6 +121,8 @@ public static class ScaleScenarioFixture
             populationRules: ScalePopulationRules,
             perfRules: PerfRules.ScaleSensorInitial,
             workplaceVacancyMultiplier: vacancyMult,
+            // AD-173: LW_CITY_LAYOUT=off mede o custo do código com a colocação de antes (separa custo de código de mundo diferente)
+            cityLayout: Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off" ? LivingWorld.Domain.Cities.CityLayoutRules.Off : null,
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,
             plantSpeciesRules: ScalePlantSpeciesRules,

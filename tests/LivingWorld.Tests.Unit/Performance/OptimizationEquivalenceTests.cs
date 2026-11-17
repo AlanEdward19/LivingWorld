@@ -34,8 +34,8 @@ public class OptimizationEquivalenceTests
 
     [Theory]
     // AD-146: regravados (quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem)
-    [InlineData(1UL, "e9d3a4f065b32fcd956ff274ac20ba3cfbef75a80b74d7dbc8ab51b95a7b6a78", "e6e171b360956c1d6b59e89adc3e671ba0793aeebc0366fe8495ec15093ec2d9")]
-    [InlineData(2UL, "8809cd8d8e68f5b0d53fc2ff380a5d6df53c72ed80a2dbb2246059ba09f2746f", "bd550793129694cd0bb5bf2c3eff60e4f90b794f6beda97345554d927c871467")]
+    [InlineData(1UL, "b3ab175d2d26dde3bac0d101561827e9bc3af591711972a216e8d4d7e7212d91", "dc09184c9becd11ed1bab915da10c0e86b4c1699a4f7bca25a875ae8e023d61e")]
+    [InlineData(2UL, "3ea71272cf0378abc41b7a7a683b2c26f4c1437551d49c6a7e3015c9c4235776", "59ac6e23f293f15a23610646047825dcd1cd2922d96915a0abf3e7dfd48ba04b")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -705,9 +705,7 @@ public class OptimizationEquivalenceTests
         {
             // Poucos tipos repetidos: o marco de overflow de cada forma é reaproveitado várias vezes.
             var next = new Building(world.NextBuildingIdAndAdvance(), city.Id, new[] { -1, 3, 4 }[round % 3], 0);
-            var shape = BuildingFootprintGenerator.Generate(next).Select(c => c.Cell).ToList();
-            var occupied = ReferenceOccupied(world, city, bounds, next.Id);
-            var expected = ReferencePlacement(occupied, bounds, next.Id, shape, world.Map);
+            var expected = ReferencePlacement(ReferenceGround(world, city, bounds, next.Id), world, city, bounds, next)?.Item1;
 
             var resolved = BuildingPlacementResolver.Resolve(next, city, world, bounds);
 
@@ -812,10 +810,16 @@ public class OptimizationEquivalenceTests
             ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
     }
 
-    /// <summary>Definição direta anterior à memoização: passe ascendente que recomputa tudo.</summary>
-    private static HashSet<CellCoord> ReferenceOccupied(WorldState world, City city, CityBounds bounds, BuildingId placingId)
+    /// <summary>Definição direta anterior à memoização: passe ascendente que recomputa tudo (AD-173: o chão inteiro —
+    /// plantas, passagens e quintais).</summary>
+    private static HashSet<CellCoord> ReferenceOccupied(WorldState world, City city, CityBounds bounds, BuildingId placingId) =>
+        ReferenceGround(world, city, bounds, placingId).Occupied;
+
+    private static LivingWorld.Simulation.Cities.Layout.CityGround ReferenceGround(WorldState world, City city, CityBounds bounds, BuildingId placingId)
     {
-        var occupied = new HashSet<CellCoord>();
+        var ground = new LivingWorld.Simulation.Cities.Layout.CityGround();
+        var network = CityStreets.Of(world, city);
+        var rules = world.CityRules.EffectiveLayout();
         var siblings = world.Buildings
             .Where(b => b.City == city.Id)
             .Where(b => b.Id.Value != placingId.Value)
@@ -823,39 +827,62 @@ public class OptimizationEquivalenceTests
 
         foreach (var building in siblings.OrderBy(b => b.Id.Value))
         {
-            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
-            CellCoord? position = building.Position
-                ?? ReferencePlacement(occupied, bounds, building.Id, shape, world.Map);
-            if (position is null) continue;
-
-            foreach (var cell in shape)
-                occupied.Add(new CellCoord(cell.X + position.Value.X, cell.Y + position.Value.Y));
+            var lot = building.Position is { } p ? (p, building.CroftCells ?? 0) : ReferencePlacement(ground, world, city, bounds, building);
+            if (lot is not { } found) continue;
+            ground.Add(BuildingFootprintGenerator.Generate(building), found.Item1, found.Item2, network, world.Map, rules);
         }
 
-        return occupied;
+        return ground;
     }
 
-    /// <summary>Definição direta da regra de posicionamento: dentro dos bounds, nenhuma célula do footprint
-    /// em água, nenhuma célula ocupada nem vizinha (folga de <see cref="CityOccupancy.MinGap"/>) a ele.</summary>
-    /// <summary>Degraus de relaxamento: 0 = folga e sem água; 1 = encostando, sem água; 2 = só sem sobreposição.
-    /// Cada degrau varre os bounds e depois o anel; só desce quando o anterior não achou nada.</summary>
-    private static CellCoord? ReferencePlacement(
-        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> shape,
-        LivingWorld.Domain.Geography.Map.WorldMap map)
+    /// <summary>Definição direta dos degraus (AD-173): 0–2 de frente para a rua ou com caminho a pé curto (o mais perto do largo,
+    /// quintal só se não afasta mais que <c>CroftDetourCells</c>), buscas desde o começo; 3–5 os degraus antigos, varrendo os bounds
+    /// e depois o anel, sem cair em rua nem passagem e com a soleira livre.</summary>
+    private static (CellCoord, int)? ReferencePlacement(
+        LivingWorld.Simulation.Cities.Layout.CityGround ground, WorldState world, City city, CityBounds bounds, Building building)
     {
-        for (int level = 0; level < 3; level++)
+        var map = world.Map;
+        var network = CityStreets.Of(world, city);
+        var rules = world.CityRules.EffectiveLayout();
+        int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
+        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        LivingWorld.Simulation.Cities.Layout.LotPlanner.Option[] options = [new(orientation, footprint)];
+        var profile = CityOccupancy.DerivedProfile(world, building.BuildingTypeId);
+        int Distance((CellCoord Origin, int Croft, int Orientation)? l) =>
+            l is { } v ? Math.Max(Math.Abs(v.Origin.X - city.Location.X), Math.Abs(v.Origin.Y - city.Location.Y)) : int.MaxValue;
+        (CellCoord Origin, int Croft, int Orientation)? Street(int level)
         {
-            var found = ReferenceScan(occupied, bounds, shape, map, level)
+            var onStreet = LivingWorld.Simulation.Cities.Layout.LotPlanner.Find(ground, network, map, rules, options, profile, level, 0, out _);
+            var viaPath = LivingWorld.Simulation.Cities.Layout.LotPlanner.FindViaPath(ground, network, map, rules, options, profile, level, 0, out _);
+            return Distance(viaPath) < Distance(onStreet) ? viaPath : onStreet;
+        }
+
+        if (network.Count > 0)
+            for (int level = 0; level < PlacementPolicy.StreetLevels; level++)
+            {
+                var lot = Street(level);
+                if (lot is { Croft: > 0 } && level == 0 && Street(1) is { } bare && Distance(bare) + rules.CroftDetourCells < Distance(lot))
+                    return (bare.Origin, bare.Croft);
+                if (lot is { } found) return (found.Origin, found.Croft);
+            }
+
+        var shape = footprint.Select(c => c.Cell).ToList();
+        var (door, facing) = LivingWorld.Simulation.Cities.Layout.LotGeometry.DoorOf(footprint);
+        var doorstep = new CellCoord(door.X + facing.X, door.Y + facing.Y);
+        for (int loose = 0; loose < 3; loose++)
+        {
+            var guard = loose < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, doorstep) : null;
+            var found = ReferenceScan(ground.Occupied, bounds, shape, map, loose, guard)
                 ?? OverflowPlacer.ResolveOverflowPositionGiven(
-                    occupied, bounds, id, shape, map.Width, map.Height, 1, out _, PlacementPolicy.For(map, level));
-            if (found is not null) return found;
+                    ground.Occupied, bounds, building.Id, shape, map.Width, map.Height, 1, out _, PlacementPolicy.For(map, loose), guard);
+            if (found is { } at) return (at, 0);
         }
         return null;
     }
 
     private static CellCoord? ReferenceScan(
         HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> shape, LivingWorld.Domain.Geography.Map.WorldMap map,
-        int level)
+        int level, GroundGuard? guard)
     {
         int gap = level == 0 ? CityOccupancy.MinGap : 0;
         for (int y = bounds.Origin.Y; y < bounds.Origin.Y + bounds.Height; y++)
@@ -866,7 +893,9 @@ public class OptimizationEquivalenceTests
                     .Any(dx => Enumerable.Range(-gap, 2 * gap + 1)
                         .Any(dy => occupied.Contains(new CellCoord(c.X + dx, c.Y + dy)))));
                 bool onWater = level < 2 && candidate.Any(c => map.TryGetCell(c, out var cell) && cell.HasWater);
-                if (candidate.All(bounds.Contains) && !touching && !onWater)
+                var water = level < 2 ? map.Cells.Where(c => c.HasWater).Select(c => c.Coord).ToHashSet() : null;
+                bool guarded = guard is null || guard.Allows(shape, new CellCoord(x, y), occupied, water);
+                if (candidate.All(bounds.Contains) && !touching && !onWater && guarded)
                     return new CellCoord(x, y);
             }
 

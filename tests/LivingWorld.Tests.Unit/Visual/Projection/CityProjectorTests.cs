@@ -281,4 +281,22 @@ public class CityProjectorTests
         Assert.Contains(marker.GroundFootprint!, c => c.Material == BuildingMaterial.Door);
         Assert.Contains(marker.GroundFootprint!, c => c.Material == BuildingMaterial.Stair);
     }
+
+    /// <summary>AD-173: o marcador da cidade e o escopo Cidade dão a mesma posição e orientação a cada prédio, inclusive ao
+    /// derivado (sem posição gravada), que escolhe lote pelo mesmo caminho.</summary>
+    [Fact]
+    public void City_marker_and_city_scope_place_every_building_at_the_same_cell_and_orientation()
+    {
+        var world = ScenarioRunner.Create(seed: 1).World;
+        var city = world.ActiveCities().First();
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: -1, completedAtTick: 0));
+
+        var markers = CityProjector.Build(world, city.Id).Value!.Buildings.ToDictionary(m => m.Id, m => (m.Location, m.Orientation));
+        var scope = LivingWorld.Api.Visual.Scope.LivingScopeProjector.Build(
+            world, new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.City, city.Id.ToString()));
+
+        Assert.NotEmpty(scope.Buildings);
+        foreach (var building in scope.Buildings)
+            Assert.Equal(markers[building.Id], (building.Location, building.Orientation));
+    }
 }

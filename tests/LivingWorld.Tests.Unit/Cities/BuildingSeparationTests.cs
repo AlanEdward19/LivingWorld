@@ -3,6 +3,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
@@ -82,7 +83,7 @@ public class BuildingSeparationTests
     }
 
     [Fact]
-    public void Seeding_more_households_than_the_ground_fits_shares_floors_instead_of_stacking_footprints()
+    public void Seeding_more_households_than_the_ground_fits_shares_houses_instead_of_stacking_footprints()
     {
         var root = JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "scenarios", "periods", "medieval.json")))!;
         root["InitialPopulation"] = 30; // mapa 10x10: o chão não comporta uma casa 3x3 (com folga) por domicílio, mas os andares comportam
@@ -98,11 +99,15 @@ public class BuildingSeparationTests
 
         var tenantsByDwelling = world.Households.Where(h => h.Dwelling is not null).GroupBy(h => h.Dwelling!.Value).ToList();
         Assert.Contains(tenantsByDwelling, g => g.Count() > 1); // o caminho de andares compartilhados rodou
-        foreach (var dwelling in tenantsByDwelling)
-        {
-            var house = world.Buildings.Single(b => b.Id == dwelling.Key);
-            Assert.True(dwelling.Count() <= BuildingLayoutGenerator.FloorsOf(house.Id, house.BuildingTypeId), $"casa {house.Id.Value} com mais domicílios que andares");
-        }
+        // AD-173: com lote, rua e porta livre cabem menos casas no 10x10; acima dos andares só quando todos os andares encheram
+        // (aperto, em vez de casa sobre a água ou sem saída).
+        bool anyOver = tenantsByDwelling.Any(d => d.Count() > Floors(world, d.Key));
+        if (anyOver)
+            foreach (var dwelling in tenantsByDwelling)
+                Assert.True(dwelling.Count() >= Floors(world, dwelling.Key), $"casa {dwelling.Key.Value} com andar livre enquanto outra passou da conta");
+        foreach (var building in world.Buildings)
+            foreach (var cell in Cells(building))
+                Assert.False(world.Map.TryGetCell(cell, out var mapCell) && mapCell.HasWater, $"casa {building.Id.Value} sobre água");
     }
 
     [Fact]
@@ -148,6 +153,12 @@ public class BuildingSeparationTests
         var world = result.Value.Item1;
         var authored = world.Workplaces.Single(w => w.LocationType.Id == 12);
         Assert.NotNull(authored.Building); // virou prédio de verdade, em terreno livre
+    }
+
+    private static int Floors(WorldState world, BuildingId id)
+    {
+        var house = world.Buildings.Single(b => b.Id == id);
+        return BuildingLayoutGenerator.FloorsOf(house.Id, house.BuildingTypeId);
     }
 
     private static string RepoRoot()
