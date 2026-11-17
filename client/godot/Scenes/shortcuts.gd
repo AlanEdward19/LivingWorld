@@ -1,16 +1,22 @@
 extends RefCounted
 ## Atalhos de teclado e clique do App (ver a linha de ajuda em AppUi.HELP). Só traduz a tecla em ação do App.
 
-## Esc fecha a janela da frente; sem janela, a conversa; depois sai do prédio e, por fim, da cidade.
+## Esc pula as dicas ou fecha a ajuda; depois fecha a janela da frente, a conversa e sai do prédio; sem nada aberto,
+## abre (ou fecha) o menu de pausa. Sair da cidade: botão "◀ Mapa do mundo" ou afastar a câmera.
 static func escape(app) -> void:
+	if app.first_steps != null and app.first_steps.handle_escape():
+		return
+	if app.pause_menu != null and app.pause_menu.is_open():
+		app.pause_menu.close()
+		return
 	if app.router.close_top():
 		return
 	if app.conversation.is_open:
 		app.conversation.end_conversation()
 	elif app.stage.active:
 		app.exit_building()
-	elif app.store.kind == "City":
-		app.enter_scope("World", "")
+	elif app.pause_menu != null:
+		app.pause_menu.open()
 
 
 static func handle(app, event: InputEvent) -> void:
@@ -18,6 +24,8 @@ static func handle(app, event: InputEvent) -> void:
 		match event.keycode:
 			KEY_ESCAPE:
 				escape(app)
+			KEY_F1:
+				app.first_steps.toggle_help()
 			KEY_BACKSPACE:
 				if app.inspector.is_open():
 					app.inspector.back()
@@ -56,5 +64,7 @@ static func handle(app, event: InputEvent) -> void:
 			KEY_PAGEDOWN, KEY_BRACKETLEFT:
 				if app.stage.active:
 					app.stage.set_floor(app.stage.interior_view.current_floor - 1)
+	elif event is InputEventJoypadButton and event.pressed and (event.button_index == JOY_BUTTON_START or event.is_action_pressed("ui_cancel")):
+		escape(app) # controle: Start ou B fazem o mesmo que Esc
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		app._pick(event.position, event.double_click)

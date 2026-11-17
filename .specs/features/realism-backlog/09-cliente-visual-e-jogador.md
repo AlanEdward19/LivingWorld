@@ -84,3 +84,14 @@ trabalho), a superfície tem efeito no passo e na carga, e o contrato diz o tipo
 "Eu preciso de uma maneira fácil de executar a simulação gamificada (que rode o projeto e o Godot) e o Godot precisa ter o
 menu interativo estilo videogame, onde crio meu mundo etc. Fluxo completo, descomplicado, que um jogador de RPG, Dwarf
 Fortress, [...] até uma criança consiga entender e amar."
+## 3. Menu de videogame e lançador (AD-174): lacunas da API
+
+O fluxo do menu pede e a API não dá (o cliente contorna como dito; nada mudou em `src/`):
+- [ ] `/periods` sem época, descrição nem imagem: os 3 presets são só tamanhos; o passo "Época" usa frases do cliente e os períodos de `scenarios/periods/` (medieval, pré-histórico…) não são oferecidos.
+- [ ] `GET /worlds` sem `periodId`, ano (calendário de cada mundo) e marca de "aberto agora": o cliente toma o mais recente como o aberto e calcula o ano pelo calendário do mundo aberto.
+- [ ] Sem rota para renomear mundo salvo (Meus mundos não oferece).
+- [ ] Sem "salvar agora": a pausa só diz que o mundo se salva sozinho (a cada 24 ticks).
+- [ ] O mundo que a API cria sozinha no primeiro uso não se distingue de um mundo do jogador: Continuar some se ele não tem período e o jogador nunca jogou nesta máquina.
+- [ ] Criação síncrona sem progresso: o carregamento mostra as etapas do cliente, não as do servidor.
+- [ ] Criar e carregar deixam o mundo pausado: o cliente retoma com o token da sessão.
+- [ ] Catálogo `assets.json` sem sons de interface: o menu não tem som.

@@ -23,18 +23,37 @@ static func build() -> Theme:
 	theme.set_color("font_color", "Label", Color("eef2f7"))
 	theme.set_color("font_outline_color", "Label", Color(0, 0, 0, 0.5))
 	theme.set_constant("outline_size", "Label", 2)
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+	for state in ["normal", "hover", "pressed", "disabled", "hover_pressed"]:
 		var color := Color(0.18, 0.22, 0.3, 0.95)
 		if state == "hover":
 			color = Color(0.26, 0.32, 0.44, 1.0)
-		elif state == "pressed":
+		elif state == "pressed" or state == "hover_pressed":
 			color = Color(0.33, 0.5, 0.78, 1.0)
+		elif state == "disabled":
+			color = Color(0.14, 0.16, 0.2, 0.7)
 		theme.set_stylebox(state, "Button", _box(color, 7))
+	# Foco visível (teclado e controle): moldura dourada por cima do estado do botão.
+	var focus := _box(Color(0, 0, 0, 0), 8, Color("ffd27a"))
+	focus.draw_center = false
+	focus.set_border_width_all(3)
+	for type in ["Button", "LineEdit", "CheckButton", "CheckBox", "OptionButton", "HSlider", "SpinBox"]:
+		theme.set_stylebox("focus", type, focus)
 	theme.set_color("font_color", "Button", Color("f4f7fb"))
+	theme.set_color("font_disabled_color", "Button", Color(1, 1, 1, 0.4))
+	theme.set_color("font_pressed_color", "Button", Color("ffffff"))
 	theme.set_stylebox("normal", "LineEdit", _box(Color(0.12, 0.15, 0.2, 0.95), 6))
 	theme.set_stylebox("panel", "ItemList", _box(Color(0.1, 0.12, 0.17, 0.6), 6))
 	theme.set_stylebox("selected", "ItemList", _box(Color(0.3, 0.5, 0.8, 0.9), 4))
 	theme.set_stylebox("selected_focus", "ItemList", _box(Color(0.3, 0.5, 0.8, 0.9), 4))
+	var track := _box(Color(0.22, 0.26, 0.34, 1.0), 4, Color(0, 0, 0, 0))
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	theme.set_stylebox("slider", "HSlider", track)
+	var filled := _box(Color("ffd27a"), 4, Color(0, 0, 0, 0))
+	filled.content_margin_top = 3
+	filled.content_margin_bottom = 3
+	theme.set_stylebox("grabber_area", "HSlider", filled)
+	theme.set_stylebox("grabber_area_highlight", "HSlider", filled)
 	theme.set_stylebox("background", "ProgressBar", _box(Color(0.16, 0.19, 0.25, 1.0), 4, Color(0, 0, 0, 0)))
 	theme.set_stylebox("fill", "ProgressBar", _box(Color("5fb36b"), 4, Color(0, 0, 0, 0)))
 	return theme

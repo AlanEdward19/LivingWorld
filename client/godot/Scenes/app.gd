@@ -4,7 +4,8 @@ extends Node
 ## Módulos: Session (escopos), Selection (clique e dica), Inspector (ficha), WindowRouter (janelas que convivem),
 ## FollowDirector (seguir), AppUi (montagem da interface), WorldView (um renderizador por tipo).
 
-signal menu_requested() ## F10 ou o botão Menu: o Boot volta ao menu principal
+signal menu_requested() ## F10 ou "Voltar ao menu" na pausa: o Boot volta ao menu principal
+signal quit_requested() ## "Sair do jogo" na pausa: o Boot fecha com calma
 
 const CursorStream := preload("res://Contract/cursor_stream.gd")
 const HttpTransport := preload("res://Contract/http_transport.gd")
@@ -27,6 +28,7 @@ const Parse := preload("res://Store/observable_parse.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
+const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 
 var transport
 var api ## WorldReader: a camada única de leitura (todo painel recebe este objeto)
@@ -75,6 +77,12 @@ var tooltip: PanelContainer
 var tooltip_label: Label
 var hover_text := ""
 var selected_npc := -1
+var settings ## preferências locais (GameSettings) vindas do Boot; nulo nos testes e nas medidas
+var pause_menu ## PauseMenu (Esc)
+var first_steps ## FirstSteps: dicas da primeira vez e ajuda
+var help_button: Button
+var world_button: Button ## "◀ Mapa do mundo", só dentro de uma cidade
+var curtain: ColorRect ## cortina que se abre ao chegar o primeiro retrato
 
 var professions: Dictionary:
 	get:
@@ -99,7 +107,7 @@ func _ready() -> void:
 	add_child(real)
 	await start(real)
 	var steps := DevSteps.parse(OS.get_cmdline_user_args())
-	if not steps.is_empty():
+	if not steps.is_empty() and not MenuSteps.is_menu(steps): # roteiro do menu roda o resto ele mesmo
 		await DevSteps.run(self, steps)
 
 
@@ -191,6 +199,8 @@ func _process(delta: float) -> void:
 		world_view.far_zoom = rig.zoom_size > 16.0
 		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
 		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size))
+	if world_button != null:
+		world_button.visible = store.kind == "City" and not stage.active
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
@@ -267,6 +277,18 @@ func request_design(id: int) -> void:
 		for npc_id in store.npcs:
 			if int(store.npcs[npc_id].get("obs", {}).get("held", {}).get("design_id", -1)) == id:
 				world_view.npcs.apply_observable(int(npc_id))
+
+
+## Primeiro retrato na tela: a cortina abre devagar e, num jogo de verdade, as dicas da primeira vez começam.
+func on_world_shown() -> void:
+	if curtain != null:
+		curtain.visible = true
+		curtain.modulate.a = 1.0
+		var tween := curtain.create_tween()
+		tween.tween_property(curtain, "modulate:a", 0.0, 0.6)
+		tween.tween_callback(func(): curtain.visible = false)
+	if settings != null and first_steps != null and DevSteps.parse(OS.get_cmdline_user_args()).is_empty():
+		first_steps.start()
 
 
 # --- escopos (Session) ------------------------------------------------------
