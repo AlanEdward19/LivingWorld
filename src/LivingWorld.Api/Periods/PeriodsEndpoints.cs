@@ -10,10 +10,11 @@ public sealed record CreatePeriodRequest(string PeriodId, int Version, JsonEleme
 
 /// <summary><see cref="Width"/>/<see cref="Height"/> do mapa desse template — sem isso o
 /// World Creator não sabia que tamanho de mundo cada template gera antes de escolhê-lo (só
-/// depois de já ter carregado o `PeriodDefinition` inteiro via `GET /periods/{id}`).</summary>
-public sealed record PeriodSummaryResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, int Width, int Height);
+/// depois de já ter carregado o `PeriodDefinition` inteiro via `GET /periods/{id}`). <see cref="Card"/> (AD-175): nome,
+/// época, descrição e números do período para o cartão do menu (<see cref="PeriodCards"/>).</summary>
+public sealed record PeriodSummaryResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, int Width, int Height, PeriodCard Card);
 
-public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition);
+public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition, PeriodCard Card);
 
 /// <summary>Catálogo de ids ativos de um período registrado —
 /// o motor decide só por id; <see cref="ProfessionNames"/>/<see cref="SkillNames"/>
@@ -59,7 +60,8 @@ public static class PeriodsEndpoints
                 new PeriodSummaryResponse(
                     request.PeriodId, request.Version, request.Source, createdAtUtc,
                     request.PeriodDefinition.GetProperty("Width").GetInt32(),
-                    request.PeriodDefinition.GetProperty("Height").GetInt32()));
+                    request.PeriodDefinition.GetProperty("Height").GetInt32(),
+                    PeriodCards.From(request.PeriodId, request.Source, payloadJson)));
         });
 
         app.MapGet("/periods", (IPeriodTemplateRepository repository) =>
@@ -70,7 +72,8 @@ public static class PeriodsEndpoints
                     var root = JsonDocument.Parse(t.PayloadJson).RootElement;
                     return new PeriodSummaryResponse(
                         t.PeriodId, t.Version, t.Source, t.CreatedAtUtc,
-                        root.GetProperty("Width").GetInt32(), root.GetProperty("Height").GetInt32());
+                        root.GetProperty("Width").GetInt32(), root.GetProperty("Height").GetInt32(),
+                        PeriodCards.From(t.PeriodId, t.Source, t.PayloadJson));
                 });
             return Results.Ok(catalog);
         });
@@ -82,7 +85,8 @@ public static class PeriodsEndpoints
 
             return Results.Ok(new PeriodDetailResponse(
                 template.PeriodId, template.Version, template.Source, template.CreatedAtUtc,
-                JsonDocument.Parse(template.PayloadJson).RootElement));
+                JsonDocument.Parse(template.PayloadJson).RootElement,
+                PeriodCards.From(template.PeriodId, template.Source, template.PayloadJson)));
         });
 
         app.MapGet("/periods/{id}/catalog", (string id, IPeriodTemplateRepository repository) =>

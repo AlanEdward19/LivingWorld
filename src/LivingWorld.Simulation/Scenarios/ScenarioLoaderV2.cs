@@ -22,8 +22,12 @@ namespace LivingWorld.Simulation.Scenarios;
 /// blocos Economy/Cities/Dynamics e passa por aqui.</summary>
 public static class ScenarioLoaderV2
 {
-    public static Result<(WorldState World, WorldClock Clock)> LoadWorld(string json, int maxIterationsPerTick = 1000)
+    /// <param name="progress">AD-175: avisado com cada etapa de <see cref="ScenarioLoadStages"/> ao começá-la; só informa
+    /// (a tela de carregamento do cliente), não muda nada no mundo nem na ordem do que é montado.</param>
+    public static Result<(WorldState World, WorldClock Clock)> LoadWorld(
+        string json, int maxIterationsPerTick = 1000, Action<string>? progress = null)
     {
+        progress?.Invoke(ScenarioLoadStages.Terrain);
         var definitionResult = PeriodDefinitionValidator.Validate(json);
         if (!definitionResult.IsSuccess)
             return Result<(WorldState, WorldClock)>.Fail(definitionResult.Error!);
@@ -89,6 +93,7 @@ public static class ScenarioLoaderV2
         world.UseBrain(System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == false
             ? null : LivingWorld.Domain.Cognition.BrainRules.Default);
 
+        progress?.Invoke(ScenarioLoadStages.Settlements);
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
         {
@@ -159,6 +164,7 @@ public static class ScenarioLoaderV2
                 return Result<(WorldState, WorldClock)>.Fail(placed.Error!);
         }
 
+        progress?.Invoke(ScenarioLoadStages.Families);
         if (population.InitialPopulation > 0)
         {
             // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
@@ -213,6 +219,7 @@ public static class ScenarioLoaderV2
             PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
         }
 
+        progress?.Invoke(ScenarioLoadStages.Economy);
         if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
             ScenarioRunner.SeedInitialEconomyBuffer(world);
 
@@ -260,4 +267,14 @@ public static class ScenarioLoaderV2
             PortalSpaceKind.Building => new PortalEndpoint(PortalSpaceKind.Building, createdBuildingIds[endpoint.RefIndex].ToString(), endpoint.Cell),
             _ => throw new ArgumentOutOfRangeException(nameof(endpoint)),
         };
+}
+
+/// <summary>AD-175: etapas reais da montagem de um mundo por <see cref="ScenarioLoaderV2.LoadWorld"/>, na ordem em que
+/// acontecem: terreno (validação e mapa), assentamentos (cidades, prédios e oficinas), famílias (população) e economia.</summary>
+public static class ScenarioLoadStages
+{
+    public const string Terrain = "terrain";
+    public const string Settlements = "settlements";
+    public const string Families = "families";
+    public const string Economy = "economy";
 }

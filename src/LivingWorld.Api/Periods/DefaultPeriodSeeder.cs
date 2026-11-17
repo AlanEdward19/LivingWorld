@@ -9,39 +9,70 @@ namespace LivingWorld.Api.Periods;
 /// vazio em todo processo novo (sqlite `:memory:`), então "os templates que temos" não existiam
 /// de fato até este seeder rodar. Semeia 3 variações do mesmo cenário válido (mesmo shape testado
 /// em `ScenarioLoaderV2Tests.FullValidRoot`), só variando tamanho de mapa/população — idempotente
-/// (não sobrescreve se o operador já registrou algo com esses ids via <c>POST /periods</c>).</summary>
+/// (não sobrescreve se o operador já registrou algo com esses ids via <c>POST /periods</c>).
+/// AD-175: cada preset declara o bloco <c>Presentation</c> (nome, época, descrição e tecnologia de partida do cartão do
+/// menu). Um preset gravado por este seeder antes disso (mesma fonte, sem o bloco) ganha uma versão nova com o payload
+/// gravado intacto mais o bloco — nada que o motor lê muda, e o cadastro de um operador (outra fonte) nunca é tocado.</summary>
 public static class DefaultPeriodSeeder
 {
-    private sealed record Preset(string Id, string Name, int Width, int Height, ulong Seed, int InitialPopulation);
+    private sealed record Preset(string Id, string Name, int Width, int Height, ulong Seed, int InitialPopulation, string CardName, string Description);
+
+    /// <summary>Os três presets são a mesma época em três tamanhos: o cartão diz isso, sem prometer outra época.</summary>
+    private const string Era = "Aldeias agrícolas, antes da indústria";
+    private const string Technology = "Ferramentas de mão e fogo. O resto os moradores inventam com o tempo.";
 
     private static readonly Preset[] Presets =
     [
-        new("vila-pequena", "Vila pequena", Width: 10, Height: 10, Seed: 1, InitialPopulation: 40),
-        new("cidade-media", "Cidade média", Width: 20, Height: 20, Seed: 2, InitialPopulation: 150),
-        new("grande-metropole", "Grande metrópole", Width: 32, Height: 32, Seed: 3, InitialPopulation: 400),
+        new("vila-pequena", "Vila pequena", Width: 10, Height: 10, Seed: 1, InitialPopulation: 40, "Vila pequena",
+            "Poucas famílias num vale tranquilo. Dá para conhecer cada pessoa pelo nome."),
+        new("cidade-media", "Cidade média", Width: 20, Height: 20, Seed: 2, InitialPopulation: 150, "Vila",
+            "Lavradores e artesãos lado a lado: vizinhos, ofícios e conversa."),
+        new("grande-metropole", "Grande metrópole", Width: 32, Height: 32, Seed: 3, InitialPopulation: 400, "Cidade",
+            "Centenas de vidas ao mesmo tempo, para quem gosta de observar multidões. O computador trabalha mais."),
     ];
 
     public static void SeedIfEmpty(IPeriodTemplateRepository repository)
     {
         foreach (var preset in Presets)
         {
-            if (repository.FindLatestVersion(preset.Id) is not null) continue;
-
-            repository.Save(new PeriodTemplateRecord
+            var latest = repository.FindLatestVersion(preset.Id);
+            if (latest is null)
             {
-                PeriodId = preset.Id,
-                Version = 1,
-                PayloadJson = BuildPayload(preset),
-                CreatedAtUtc = DateTime.UtcNow,
-                Source = preset.Name,
-            });
+                Save(repository, preset, 1, BuildPayload(preset));
+                continue;
+            }
+            if (latest.Source != preset.Name) continue; // cadastro do operador: nunca tocado
+            var stored = JsonNode.Parse(latest.PayloadJson)?.AsObject();
+            if (stored is null || stored.ContainsKey("Presentation")) continue;
+            stored["Presentation"] = PresentationOf(preset);
+            Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
     }
+
+    private static void Save(IPeriodTemplateRepository repository, Preset preset, int version, string payload) =>
+        repository.Save(new PeriodTemplateRecord
+        {
+            PeriodId = preset.Id,
+            Version = version,
+            PayloadJson = payload,
+            CreatedAtUtc = DateTime.UtcNow,
+            Source = preset.Name,
+        });
+
+    private static JsonObject PresentationOf(Preset preset) => new()
+    {
+        ["Name"] = preset.CardName,
+        ["Era"] = Era,
+        ["Description"] = preset.Description,
+        ["Technology"] = Technology,
+    };
 
     private static string BuildPayload(Preset preset)
     {
         var root = new JsonObject
         {
+            // AD-175: o cartão do menu (só apresentação; nenhum sistema lê)
+            ["Presentation"] = PresentationOf(preset),
             ["Width"] = preset.Width,
             ["Height"] = preset.Height,
             ["Seed"] = preset.Seed,

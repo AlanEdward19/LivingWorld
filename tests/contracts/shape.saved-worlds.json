@@ -2,10 +2,16 @@
   {
     "createdAt": "number",
     "currentDate": "number",
+    "isCurrent": "boolean",
+    "lastPlayedAtUtc": "string",
     "lastSavedAtUtc": "string",
     "name": "string",
+    "origin": "string",
+    "periodId": "string",
+    "periodName": "string",
     "population": "number",
     "seed": "number",
-    "worldId": "string"
+    "worldId": "string",
+    "year": "number"
   }
 ]

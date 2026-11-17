@@ -1,0 +1,19 @@
+{
+  "done": "boolean",
+  "error": "string",
+  "failed": "boolean",
+  "jobId": "string",
+  "result?": {
+    "initialScope": "string",
+    "name": "string",
+    "npcCount": "number",
+    "tick": "number",
+    "worldId": "string"
+  },
+  "running": "boolean",
+  "stage": "string",
+  "stageCount": "number",
+  "stageIndex": "number",
+  "stageLabel": "string",
+  "status": "number"
+}

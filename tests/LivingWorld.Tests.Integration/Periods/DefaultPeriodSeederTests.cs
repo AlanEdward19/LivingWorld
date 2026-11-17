@@ -97,6 +97,68 @@ public class DefaultPeriodSeederTests
         }
     }
 
+    [Fact]
+    public void Presentation_block_does_not_change_the_world_hash()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var bare = JsonNode.Parse(json)!.AsObject();
+            Assert.True(bare.Remove("Presentation"), "preset sem bloco Presentation");
+            Assert.Equal(LoadHash(bare.ToJsonString()), LoadHash(json));
+        }
+    }
+
+    [Fact]
+    public void SeedIfEmpty_adds_the_presentation_as_a_new_version_of_a_preset_seeded_before_it()
+    {
+        var (repository, _) = EmptyRepository();
+        var old = JsonNode.Parse(SeededPayloads()[0])!.AsObject();
+        old.Remove("Presentation");
+        string periodId = FirstPresetId();
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = periodId, Version = 1, PayloadJson = old.ToJsonString(), CreatedAtUtc = DateTime.UnixEpoch, Source = FirstPresetSource(),
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+        DefaultPeriodSeeder.SeedIfEmpty(repository); // idempotente: não cria uma terceira versão
+
+        var latest = repository.FindLatestVersion(periodId)!;
+        Assert.Equal(2, latest.Version);
+        var upgraded = JsonNode.Parse(latest.PayloadJson)!.AsObject();
+        Assert.NotNull(upgraded["Presentation"]?["Era"]);
+        upgraded.Remove("Presentation");
+        Assert.True(JsonNode.DeepEquals(old, upgraded), "o resto do payload gravado tem de ficar intacto");
+    }
+
+    [Fact]
+    public void SeedIfEmpty_never_touches_a_period_registered_by_an_operator_with_a_preset_id()
+    {
+        var (repository, _) = EmptyRepository();
+        var payload = JsonNode.Parse(SeededPayloads()[0])!.AsObject();
+        payload.Remove("Presentation");
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = FirstPresetId(), Version = 1, PayloadJson = payload.ToJsonString(), CreatedAtUtc = DateTime.UnixEpoch, Source = "operador",
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+
+        Assert.Equal(1, repository.FindLatestVersion(FirstPresetId())!.Version);
+    }
+
+    private static string FirstPresetId() => "vila-pequena";
+    private static string FirstPresetSource() => "Vila pequena";
+
+    private static (SqlitePeriodTemplateRepository Repository, WorldDbContext Context) EmptyRepository()
+    {
+        var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        var context = new WorldDbContext(new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(connection).Options);
+        context.Database.Migrate();
+        return (new SqlitePeriodTemplateRepository(context), context);
+    }
+
     private static string LoadHash(string json)
     {
         var world = ScenarioLoaderV2.LoadWorld(json).Value.World;
