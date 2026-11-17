@@ -239,7 +239,7 @@ public static class CityOccupancy
 
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
-            chainAbsorption: world.CityRules.EffectiveLayout().Enabled);
+            chainReachCells: ChainReach(world));
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
@@ -254,7 +254,7 @@ public static class CityOccupancy
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells,
-            chainAbsorption: world.CityRules.EffectiveLayout().Enabled);
+            chainReachCells: ChainReach(world));
     }
 
     /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
@@ -354,6 +354,11 @@ public static class CityOccupancy
         }
         return ground;
     }
+
+    /// <summary>AD-173: até onde (células da caixa por população) o limite crescido encadeia a absorção; 0 = não encadeia.
+    /// Ver <see cref="CityLayoutRules.ChainedBoundsReachCells"/>.</summary>
+    internal static int ChainReach(WorldState world) =>
+        world.CityRules.EffectiveLayout() is { Enabled: true } layout ? Math.Max(0, layout.ChainedBoundsReachCells) : 0;
 
     /// <summary>Alcance da porta até a rua: o maior quintal da frente mais a própria célula de rua.</summary>
     internal static int Reach(WorldState world) => world.CityRules.EffectiveLayout().MaxFrontYardCells() + 1;

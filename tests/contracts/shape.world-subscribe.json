@@ -31,7 +31,17 @@
         "population": "number"
       }
     ],
-    "externalNpcs": "[]",
+    "externalNpcs": [
+      {
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        }
+      }
+    ],
     "height": "number",
     "layers": {
       "Biome": {
@@ -185,8 +195,25 @@
             "x": "number",
             "y": "number"
           },
-          "lodging": "null",
-          "lot": "null",
+          "lodging?": "null",
+          "lot?": {
+            "croft": [
+              {
+                "x": "number",
+                "y": "number"
+              }
+            ],
+            "frontPath": [
+              {
+                "x": "number",
+                "y": "number"
+              }
+            ],
+            "street?": {
+              "x": "number",
+              "y": "number"
+            }
+          },
           "orientation": "number",
           "value": "number"
         }
@@ -330,7 +357,7 @@
             "value": "string"
           },
           "currentAction?": "number",
-          "extraordinary": {
+          "extraordinary?": {
             "canFly": "boolean",
             "isManifested": "boolean",
             "manifestationState": "string",

@@ -101,7 +101,7 @@
               "y": "number"
             }
           ],
-          "street": {
+          "street?": {
             "x": "number",
             "y": "number"
           }

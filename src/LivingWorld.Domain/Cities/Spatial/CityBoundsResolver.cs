@@ -78,7 +78,7 @@ public static class CityBoundsResolver
     public static (CityBounds Bounds, bool IsDerived) Resolve(
         City city, long population, int mapWidth, int mapHeight,
         IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
-        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, bool chainAbsorption = false)
+        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, int chainReachCells = 0)
     {
         int rawSide = SideFor(population, mapWidth, mapHeight);
         var (origin, side) = ClampSideAgainstOtherCities(city.Location, rawSide, otherCityBoundsToAvoid, absorptionRingCells);
@@ -102,8 +102,10 @@ public static class CityBoundsResolver
             {
                 if (merged[index]) continue;
                 var box = ownedBuildingFootprintBoxes[index];
-                var current = chainAbsorption ? new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1) : populationBox;
+                bool chain = chainReachCells > 0;
+                var current = chain ? new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1) : populationBox;
                 if (ChebyshevGap(current, box) > absorptionRingCells) continue;
+                if (chain && ChebyshevGap(populationBox, box) > chainReachCells) continue; // longe demais do miolo: aglomerado à parte
 
                 int candidateMinX = Math.Min(minX, box.Origin.X);
                 int candidateMinY = Math.Min(minY, box.Origin.Y);
@@ -121,15 +123,15 @@ public static class CityBoundsResolver
 
                 minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
                 merged[index] = true;
-                grew = chainAbsorption;
+                grew = chainReachCells > 0;
             }
         }
 
         // AD-173 (com o traçado ligado): o teto de metade do mapa vale para a caixa por população; a crescida vem de prédios
         // reais e só não sai do mapa.
         int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
-        int width = Math.Min(maxX - minX + 1, chainAbsorption ? mapWidth : mapLimit);
-        int height = Math.Min(maxY - minY + 1, chainAbsorption ? mapHeight : mapLimit);
+        int width = Math.Min(maxX - minX + 1, chainReachCells > 0 ? mapWidth : mapLimit);
+        int height = Math.Min(maxY - minY + 1, chainReachCells > 0 ? mapHeight : mapLimit);
         var grownOrigin = ClampOrigin(new CellCoord(minX, minY), width, height, mapWidth, mapHeight);
         return (new CityBounds(grownOrigin, width, height), true);
     }

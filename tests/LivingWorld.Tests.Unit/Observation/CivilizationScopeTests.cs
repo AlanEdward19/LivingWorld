@@ -39,10 +39,6 @@ public class CivilizationScopeTests
             && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LifeStage.Adult).Take(3))
             npc.JoinCity(b.Id);
         for (int i = 0; i < 5; i++) world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), b.Id, 10, 0));
-        // AD-173: a vila cresce ao longo da rua e o limite acompanha, então os anos de aquecimento já não fundam uma terceira
-        // cidade por prédios soltos; uma cidade vazia entra à mão.
-        if (world.ActiveCities().Count() < 3)
-            world.AddCity(new City(world.NextCityId(), new CellCoord(1, 1), 0, null, AggregatePopulationPool.Empty, name: "C"));
         world.Workplaces.First().JoinCity(b.Id);
 
         // Em A e em B: um adulto empregado e os outros desempregados; menores seguem sem vínculo (e não entram no denominador).

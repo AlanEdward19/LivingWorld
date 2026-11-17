@@ -60,6 +60,10 @@ public class ApiContractTests
             { Density = new(0, 0, [new(null, 1)], 0) };
         private static readonly LivingWorld.Api.Visual.Scope.BuildingVisual Building =
             new(new LivingWorld.Domain.Shared.BuildingId(8), City, -1, Cell);
+
+        // AD-173: lote sem rua à frente, sem quintal e sem caminho (prédio de degrau sem rua): a rua é opcional na forma.
+        private static readonly LivingWorld.Api.Visual.Scope.BuildingVisual BuildingWithoutStreet =
+            new(new LivingWorld.Domain.Shared.BuildingId(9), City, -1, Cell) { Lot = new([], [], null) };
         private static readonly LivingWorld.Api.Visual.Scope.ProcessVisual Process = new(2, "construction", 1, 0, "construction");
         private static readonly LivingWorld.Api.Visual.Scope.NotableVisualEvent Event =
             new(4, LivingWorld.Domain.History.WorldEventKind.Death, "Morte") { Involved = new() };
@@ -75,7 +79,7 @@ public class ApiContractTests
         {
             Npcs = [Npc],
             Cities = [CityItem],
-            Buildings = [Building],
+            Buildings = [Building, BuildingWithoutStreet],
             Processes = [Process],
             Events = [Event],
             BuildingStates = [BuildingState],
@@ -86,7 +90,7 @@ public class ApiContractTests
         };
 
         public static LivingWorld.Api.Visual.Scope.ScopeTickDelta Delta(long tick) =>
-            new(tick, [Npc], [], [CityItem], [], [Building], [], [Process], [], [], [Event])
+            new(tick, [Npc], [], [CityItem], [], [Building, BuildingWithoutStreet], [], [Process], [], [], [Event])
             {
                 BuildingStateUpserts = [BuildingState],
                 CropUpserts = [Crop],
@@ -123,6 +127,9 @@ public class ApiContractTests
             Leavings = [ObservableSample.Leaving],
             Objects = [ObservableSample.Object],
             Climate = ObservableSample.Climate,
+            // AD-173: um lote completo (quintal, caminho e rua), para a forma conhecer o elemento das listas em todo escopo
+            Buildings = [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(3), city, -1, cell)
+                { Lot = new([cell], [cell], cell) }],
         };
         var living = ContractShapes.Merge(
             ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(filled))),

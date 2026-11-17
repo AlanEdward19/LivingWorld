@@ -21,6 +21,10 @@ namespace LivingWorld.Domain.Cities;
 /// <param name="TrodResidents">Moradores servidos a partir dos quais a trilha vira caminho de terra batida.</param>
 /// <param name="CroftDetourCells">Quantos passos de rua a mais a família anda para ter quintal; além disso, fica com o lote sem
 /// quintal mais perto do largo (perto do trabalho e do mercado vale mais que a horta).</param>
+/// <param name="ChainedBoundsReachCells">O limite crescido absorve em cadeia (a até <c>AbsorptionRingCells</c> do limite já
+/// crescido) o prédio a até esta distância da caixa por população: a vila ao longo da rua continua uma cidade só. Mais longe,
+/// a casa que nasceu sem lote perto forma aglomerado à parte, que pode fundar cidade-filha e depois se fundir à mãe. 0 = sem
+/// cadeia (só o anel em volta da caixa por população, como antes).</param>
 /// <param name="PathCells">Caminho a pé mais longo da soleira até a rua para uma casa fora da frente de rua (beco, trilha).</param>
 public sealed record CityLayoutRules(
     bool Enabled = true,
@@ -38,7 +42,8 @@ public sealed record CityLayoutRules(
     double CroftValuePerCell = 0.02,
     int TrodResidents = 12,
     int CroftDetourCells = 4,
-    int PathCells = 8)
+    int PathCells = 8,
+    int ChainedBoundsReachCells = 6)
 {
     public static CityLayoutRules Default { get; } = new();
 
