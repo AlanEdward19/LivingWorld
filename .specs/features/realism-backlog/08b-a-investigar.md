@@ -6,6 +6,8 @@
 ## Da sonda de terra (AD-153, [invention-land](../../../docs/domain/invention-land.md))
 73. **Força humana sustentada puxando: 250 N** (lembrança de ergonomia de tração por horas, ~200–300 N; pico bem acima). Precisa
     de conferência. (AD-161: não conferido — a tabela de Snook & Ciriello 1991 não abriu; lembrança de ~150–200 N para horas.)
+    **AD-164:** guia industrial de 24 lb ≈ 107 N sustentado (Ergoweb [L]); Snook segue ilegível. Acima da faixa provável:
+    correções #13 (150–200 N), não aplicado (mexe no trenó e no arrasto; medir antes).
 74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
 75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
 76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
@@ -32,6 +34,9 @@
     Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). **AD-163**, 40 pares × 100 anos, taxa por pessoas-ano
     (`scripts/paired-rates.py`): desligar os três dá fome 0,83× (IC90 0,67–1,01), horas com fome crítica 1,07× (0,90–1,26).
     Inconclusivo com 40: o ligado fica entre 0,99× e 1,49× do desligado; δ = 25% pede ~48 pares (CV 0,53, ρ 0,14), δ = 20% ~75.
+    **AD-164** (sonda da doméstica, 12 pares × 50, doméstica ×3): mecanismo local achado só para parte — separação depois da
+    agressão (3× a fome da aldeia, 10× nos <5) e a vítima no ano seguinte (1,75×, sem trabalhar menos); ~60% do excesso segue
+    difuso. A 50 anos o CV da fome entre seeds é 0,95 e ρ 0,09: δ = 25% pede ~160 pares. Segue inconclusivo (custo > 40 min).
 
 ## Da medição (2026-11-15)
 86. ~~**Falta uma medida de fome que aguente o ruído**~~ medida criada no AD-157 (`NeedDistressTally`: horas com fome/sede crítica por pessoa-ano, pareado em 40 seeds × 15 anos; 08c item 108). Desenho para 20×100 em [a-medir](relatorios/a-medir.md).
@@ -55,7 +60,9 @@
 106. **Feito no AD-156 (índice de vivos, fontes de flora por hora, salto adiado; mesmo hash). Sobra: o `PowerOpportunityProvider`
      ainda varre todos os portadores, mortos inclusive, por NPC** (`PowerOpportunityProvider.cs:34`; a fauna já não lê portadores,
      AD-161). Medir o custo com poderes ligados ([a-medir](relatorios/a-medir.md) grupo 2). Achado original: mundo com poderes ligados
-     ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h.
+     ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h. **AD-164** (`LW_PROFILE_POWERS=1`,
+     1.000 NPCs, 720 h): 4,70 µs e 411 B por NPC-tick contra 2,49 µs e 194 B sem poderes (1,9×, não 10×); a flora saiu do topo;
+     a decisão foi de 1.346 para 2.457 ms (+83%, inclui o provedor e o `UsePower`). Isolar o provedor pede contador próprio.
 107. ~~**Equivalência do conserto dos poderes ligados**~~ confirmado (AD-161): `LivingCarrierIndexTests` não compara com a varredura
      completa; o teste barato está em correções. **AD-162:** teste escrito (24 meses, mês a mês).
 

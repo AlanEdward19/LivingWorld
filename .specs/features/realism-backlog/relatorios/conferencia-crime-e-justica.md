@@ -40,3 +40,6 @@ tem fonte.
 Fontes: [OMS 2018](https://www.who.int/publications/i/item/9789240026681) · [Sardinha 2022 (resumo)](https://www.scimex.org/newsfeed/one-in-four-women-whove-been-in-relationships-globally-have-experienced-domestic-violence) ·
 [Holmes 1996](https://pubmed.ncbi.nlm.nih.gov/8765248/) · [raptus](https://legalhistorymiscellany.com/2026/05/08/reading-records-of-raptus-from-thirteenth-century-england/) ·
 [Given 1977](https://krimdok.uni-tuebingen.de/Record/1608248275) · [History Workshop](https://www.historyworkshop.org.uk/womens-history/runaway-wives-in-medieval-london/)
+
+**AD-164 (nova tentativa):** Given 1977 (fração de homicídios na família) e Hanawalt 1979 (estupro; pp. 104–110 segundo uma
+tese da Emory) seguem **não conferidos**: livros fechados, nenhuma resenha aberta deu o número. Ficam como direção.

@@ -63,6 +63,7 @@ METRICS = [
     ("sede_por_mil_pa", lambda r: g(r, "d.Dehydration"), lambda r: g(r, "pa"), 1000),
     ("homicidio_por_mil_pa", lambda r: g(r, "d.Homicide"), lambda r: g(r, "pa"), 1000),
     ("mortes_sem_causa_%", lambda r: g(r, "d.Death"), lambda r: deaths(r), 100),
+    ("sobra_nomeada_%", lambda r: sum(g(r, k) for k in r if k.startswith("d.Death.")), lambda r: deaths(r), 100),
     ("doenca_1-4_por_mil_pa", lambda r: g(r, "d.Disease", [1]), lambda r: g(r, "pa", [1]), 1000),
     ("mortes_1-4_por_mil_pa", lambda r: deaths(r, [1]), lambda r: g(r, "pa", [1]), 1000),
     ("1q0_coorte_por_mil", lambda r: g(r, "mortes1"), lambda r: g(r, "coorte1"), 1000),
@@ -80,6 +81,19 @@ METRICS = [
 METRICS.append(("aflicao_fome_crit_h_por_pa", lambda r: g(r, "af_fome_crit") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
 METRICS.append(("aflicao_sede_crit_h_por_pa", lambda r: g(r, "af_sede_crit") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
 METRICS.append(("trabalho_h_dia_adulto", lambda r: g(r, "af_trab_h_dia") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
+# AD-164: sonda da doméstica (`DomesticHungerProbe`): fome crítica por grupo e o antes/depois da agressão na casa
+for grp in ("vitima", "perda", "separacao", "casa", "casa_antiga", "outro"):
+    METRICS.append((f"dv_fome_crit_{grp}_h_por_pa", lambda r, k="dvg." + grp: r.get(k, [0] * 4)[0], lambda r, k="dvg." + grp: r.get(k, [0] * 4)[1], 1))
+    METRICS.append((f"dv_fome_crit_{grp}_<5_h_por_pa", lambda r, k="dvg." + grp: r.get(k, [0] * 4)[2], lambda r, k="dvg." + grp: r.get(k, [0] * 4)[3], 1))
+METRICS += [
+    ("dv_casa_depois/antes", lambda r: g(r, "dv_depois_h"), lambda r: g(r, "dv_antes_h"), 1),
+    ("dv_casa_<5_depois/antes", lambda r: g(r, "dv_depois5_h"), lambda r: g(r, "dv_antes5_h"), 1),
+    ("dv_vitima_adulta_trabalho_%", lambda r: g(r, "dv_vit_trab_h"), lambda r: g(r, "dv_vit_h"), 100),
+    ("dv_mortos_por_agressao_%", lambda r: g(r, "dv_mortos"), lambda r: g(r, "dv_agressoes"), 100),
+    ("dv_agressor_tirado_por_agressao_%", lambda r: g(r, "dv_agressor_tirado"), lambda r: g(r, "dv_agressoes"), 100),
+    ("dv_separacao_por_agressao_%", lambda r: g(r, "dv_separacoes"), lambda r: g(r, "dv_agressoes"), 100),
+    ("dv_motivo_fome_%", lambda r: g(r, "dv_motivo_fome"), lambda r: g(r, "dv_agressoes"), 100),
+]
 for i in range(10):
     METRICS.append((f"fome_dec{i * 10}_por_mil_pa", lambda r, i=i: r.get("fome_dec", [0] * 10)[i],
                     lambda r, i=i: r.get("pa_dec", [0] * 10)[i], 1000))

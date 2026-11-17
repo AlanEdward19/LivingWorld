@@ -62,3 +62,6 @@ Fontes: [LSE 2023](https://blogs.lse.ac.uk/economichistory/2023/10/27/risk-manag
 [montes de piedade](https://monspietatis.org/en/montipieta/index/6.html) · [Commenda](https://en.wikipedia.org/wiki/Commenda) ·
 [Statute of Bankrupts](https://Www.wikipedia.org/wiki/Bankruptcy_Act_1542) · [Briggs 2009 (resenha)](https://reviews.history.ac.uk/review/835/print) ·
 [salários com comida](https://forthright.space/2020/06/25/middle-class-masons-tumultuous-times/) · [Statute of Artificers](https://en.wikipedia.org/wiki/Statute_of_Artificers_1562)
+
+**AD-164, item 70:** nenhuma razão ferreiros/habitantes achada (Powell 1896 e Fenwick listam pagantes da poll tax por vila, sem
+a conta pronta). Fica aberto: contar à mão numa lista de Suffolk de 1381.
