@@ -299,6 +299,14 @@ public sealed class CourtshipSystem : ISimulationSystem
         ctx.ScheduleEvent(dueDate.TotalHours, SystemName, OrderedPairPayload(a.Id, b.Id));
     }
 
+    /// <summary>AD-178: multiplicador da preferência quando os dois levam o mesmo nome de família sem ascendente comum conhecido.</summary>
+    internal static double NameSignal(WorldState world, Npc a, Npc b, FamilyRules rules, Dictionary<long, HashSet<long>>? lineage)
+    {
+        double factor = rules.Names.SameFamilyCourtshipFactor;
+        if (factor >= 1 || !LivingWorld.Simulation.Population.Naming.NameBonds.SameLineage(a, b)) return 1;
+        return Kinship.SharesKnownAncestor(world, a, b, lineage) ? 1 : factor;
+    }
+
     /// <summary>O melhor para o pretendente (pela preferência dele) entre os que o aceitariam; sem ninguém que o aceite, o
     /// que ele mais quer (a recusa fica registrada). Candidato vetado (parentesco, idade) não bloqueia os válidos.</summary>
     private static Npc? PickBestByAttraction(
@@ -324,11 +332,13 @@ public sealed class CourtshipSystem : ISimulationSystem
             }
             var aToB = world.Relationships.GetValueOrDefault(new RelationshipKey(seeker.Id, candidate.Id));
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
-            double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
+            // AD-178: o mesmo nome de família, onde a genealogia não alcança, é tomado por sinal de parentesco
+            double nameSignal = NameSignal(world, seeker, candidate, familyRules, lineage);
+            double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * nameSignal;
             if (score > bestScore) (bestScore, best) = (score, candidate);
             // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
             double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
                     >= ThresholdOf(world, candidate)
                 && ready > bestAcceptingScore)
                 (bestAcceptingScore, bestAccepting) = (ready, candidate);

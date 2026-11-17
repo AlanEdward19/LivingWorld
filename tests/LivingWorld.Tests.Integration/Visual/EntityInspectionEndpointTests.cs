@@ -144,6 +144,19 @@ public class EntityInspectionEndpointTests : IClassFixture<LivingWorldApiFactory
         Assert.DoesNotContain("prédio", sheet["name"]!.GetValue<string>());
     }
 
+    /// <summary>AD-178: a casa leva o nome de família de quem a chefia, e quem mora nela tem nome de verdade.</summary>
+    [Fact]
+    public async Task Household_sheet_is_named_after_the_head_family_name()
+    {
+        var home = World.Households.First(h => !h.IsEmpty);
+        var head = World.FindNpc(home.Head)!;
+
+        var sheet = await Get($"/entities/household/{home.Id.Value}");
+
+        Assert.Equal($"casa dos {head.FamilyName}", sheet["name"]!.GetValue<string>());
+        Assert.DoesNotContain("npc-", head.Name);
+    }
+
     /// <summary>Assinar escopos e projetar o delta a cada tick é leitura: o mundo chega ao mesmo hash que sem assinante.</summary>
     [Fact]
     public void Subscribing_scopes_and_publishing_deltas_does_not_change_the_world_hash()

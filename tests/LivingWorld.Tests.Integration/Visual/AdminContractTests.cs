@@ -31,7 +31,11 @@ public class AdminContractTests
         // Retomado, ator, motivo, teto e tick da pausa vêm nulos: o mesmo contrato os aceita.
         AssertState("shape.admin-pause.json", JsonNode.Parse(await resume.Content.ReadAsStringAsync()));
 
-        var search = await client.GetAsync("/admin/search?q=npc&kind=name");
+        // AD-178: ninguém mais se chama "npc-…"; busca pelo nome de família de quem aparece primeiro no diretório
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        string firstName = directory["items"]![0]!["name"]!.GetValue<string>();
+        string family = firstName[(firstName.LastIndexOf(' ') + 1)..];
+        var search = await client.GetAsync($"/admin/search?q={Uri.EscapeDataString(family)}&kind=name");
         Assert.Equal(HttpStatusCode.OK, search.StatusCode);
         ApiContractTests.AssertMatchesContract("shape.admin-search.json", ApiContractTests.ShapeOf(JsonNode.Parse(await search.Content.ReadAsStringAsync())));
 

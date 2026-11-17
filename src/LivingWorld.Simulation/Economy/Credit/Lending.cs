@@ -46,7 +46,7 @@ internal static class Lending
         long memory = now - (long)rules.DefaultMemoryYears * world.Calendar.HoursPerYear;
         var book = world.Credit; // só lê: sem livro não há calote
         bool badDebtor = book?.DefaultedSince(borrower.Id.Value, memory) == true;
-        bool infamous = LivingWorld.Simulation.Crime.Justice.InfamyOf(world, borrower.Id.Value, now).All > rules.MaxInfamy;
+        bool infamous = LivingWorld.Simulation.Crime.Justice.ReputationOf(world, borrower.Id.Value, now) > rules.MaxInfamy; // AD-178: a linhagem pesa
         double maxInstallment = rules.MaxInstallmentShare * monthlyCapacity;
 
         LoanOffer? From(Npc lender, bool kin, string kind)

@@ -169,12 +169,16 @@ public static class LifeEventIntake
         if (dead.MotherId is { } m) Offer(world.FindNpc(m), LifeEventKind.ChildDied, 1.0);
         if (dead.FatherId is { } f) Offer(world.FindNpc(f), LifeEventKind.ChildDied, 1.0);
 
+        double namesakeGrief = world.FamilyRules.Names.NamesakeGriefScale;
         foreach (var other in world.AliveNpcIndex.Alive)
         {
             if (other.MotherId == dead.Id || other.FatherId == dead.Id)
                 Offer(other, LifeEventKind.ParentDied, 1.0);
             else if ((dead.MotherId is { } dm && other.MotherId == dm) || (dead.FatherId is { } df && other.FatherId == df))
                 Offer(other, LifeEventKind.SiblingDied, 1.0);
+            // AD-178: o neto xará carrega a memória do avô/avó de quem leva o nome (luto na escala do de amigo)
+            else if (namesakeGrief > 0 && LivingWorld.Simulation.Population.Naming.NameBonds.IsNamesake(world, other, dead))
+                Offer(other, LifeEventKind.FriendDied, namesakeGrief);
         }
 
         var targets = world.RelationshipTargetsOf(dead.Id);

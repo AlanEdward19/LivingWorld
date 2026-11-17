@@ -37,7 +37,27 @@ public sealed class Npc
     public Action<Npc, int>? HealthObserver { get; set; }
 
     public NpcId Id { get; }
-    public string Name { get; }
+
+    /// <summary>Nome completo "próprio família" (AD-178). Mundo antigo pode trazer o rótulo legado <c>npc-…</c>, sem espaço.</summary>
+    public string Name { get; private set; }
+
+    /// <summary>Nome de família: a última palavra do <see cref="Name"/>; nulo no nome legado de uma palavra só (AD-178).
+    /// Derivado do nome, então não pesa no snapshot.</summary>
+    [JsonIgnore]
+    public string? FamilyName => Name.LastIndexOf(' ') is var cut and > 0 ? Name[(cut + 1)..] : null;
+
+    /// <summary>Nome próprio: tudo antes do nome de família (o nome inteiro, se não houver família).</summary>
+    [JsonIgnore]
+    public string GivenName => Name.LastIndexOf(' ') is var cut and > 0 ? Name[..cut] : Name;
+
+    /// <summary>Troca de nome por costume (o cônjuge que adota o nome de família da outra linhagem, AD-178).</summary>
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name não pode ser vazio", nameof(name));
+        if (name == Name) return;
+        Name = name;
+        TouchCanonical();
+    }
     public Sex Sex { get; }
     public WorldDate BirthDate { get; }
     public CultureId Culture { get; }

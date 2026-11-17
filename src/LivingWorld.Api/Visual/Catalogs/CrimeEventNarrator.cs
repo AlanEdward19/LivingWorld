@@ -14,7 +14,7 @@ public static class CrimeEventNarrator
         var f = evt.Payload.Split('|');
         string At(int i) => i < f.Length ? f[i] : "";
         string Who(int i) => long.TryParse(At(i), out long id) && id >= 0
-            ? world.FindNpc(new NpcId(id))?.Name ?? $"#{id}" : "a cidade";
+            ? world.FindNpc(new NpcId(id))?.Name ?? world.ColdArchive.Lookup(id)?.Name ?? $"#{id}" : "a cidade"; // AD-178: morto arquivado mantém o nome
         return evt.Kind switch
         {
             WorldEventKind.TheftCommitted => Theft(At, Who),
