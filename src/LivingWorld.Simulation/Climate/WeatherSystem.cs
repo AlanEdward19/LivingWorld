@@ -11,7 +11,7 @@ namespace LivingWorld.Simulation.Climate;
 /// persiste, chuva em frentes, neve, geada, granizo, vento, neve e lama no chão, seca pela chuva da janela), fecha o mês do corpo, abre
 /// o regime do ano em janeiro e, no mês do fator, grava o fator de safra de cada região a partir da estação que passou. Quem dorme
 /// ao relento numa noite de geada arrisca morrer de frio. Sem tempo ligado, não faz nada.</summary>
-[LivingCapability("WEATHER", Events = [WorldEventKind.Death], Consumers = ["climate.temperature", "economy.crop", "streets.travel",
+[LivingCapability("WEATHER", Consumers = ["climate.temperature", "economy.crop", "streets.travel",
     "health.outbreak", "population.mortality", "cities.construction", "ecology.fauna", "economy.natural-water", "inspector.climate"])]
 public sealed class WeatherSystem : ISimulationSystem
 {

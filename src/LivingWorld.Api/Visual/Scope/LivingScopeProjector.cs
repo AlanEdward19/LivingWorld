@@ -150,7 +150,7 @@ public static class LivingScopeProjector
         var observable = ObservableProjector.Npc(frame.Observable, npc, previous?.Observable);
         var target = previous is not null && SameTarget(previous.ActionTarget, npc) ? previous.ActionTarget : NpcInspectionQuery.TargetOf(npc);
         var extraordinary = ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id);
-        if (previous is not null && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
+        if (previous is not null && frame.WeatherAsBefore && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
             && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
             && previous.RelocationDestination == scoped.Relocation && Equals(previous.Extraordinary, extraordinary)
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
@@ -175,7 +175,7 @@ public static class LivingScopeProjector
     private static (IReadOnlyList<CellCoord>? Route, long? Arrival) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
     {
         if (npc.CurrentAction != ActionType.Travel) return (null, null);
-        if (previous is { Route: not null } && previous.CurrentAction == ActionType.Travel
+        if (previous is { Route: not null } && frame.WeatherAsBefore && previous.CurrentAction == ActionType.Travel
             && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation)
             return (previous.Route, previous.RouteArrivalTick);
         var world = frame.World;
