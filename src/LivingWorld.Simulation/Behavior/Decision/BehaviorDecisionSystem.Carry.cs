@@ -142,7 +142,7 @@ public sealed partial class BehaviorDecisionSystem
         long night = Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog);
         bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
-        bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
+        bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < 100 - PersonalCarry.MealAheadDeficit
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
         if (!hungry && !thirsty) return false;
         world.InventionTally.SupperBeforeSleep++;

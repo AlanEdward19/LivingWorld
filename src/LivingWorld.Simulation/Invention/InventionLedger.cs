@@ -440,6 +440,14 @@ public sealed class InventionLedger
         return i < Carried.Count && Carried[i].NpcId == npcId;
     }
 
+    /// <summary>Tudo o que as pessoas levam de um recurso (AD-157b): é estoque do mundo, na carga de quem saiu, e entra na conservação.</summary>
+    public long CarriedTotal(int resourceId)
+    {
+        long total = 0;
+        foreach (var load in Carried) if (load.ResourceId == resourceId) total += load.Quantity;
+        return total;
+    }
+
     /// <summary>Soma (ou tira) unidades do que a pessoa leva; linha vazia sai.</summary>
     internal void Carry(long npcId, int resourceId, int delta)
     {

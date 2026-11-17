@@ -163,7 +163,7 @@ public static class PersonalCarry
         // Quem tem onde levar água (parte estanque) a leva na parte estanque em vez de beber antes (o pedido do dono: levar a água)
         var room = RoomOf(world, npc);
         bool carriesWater = rules.IsLiquid(water.Id) && room.WetMl >= rules.UnitMlOf(water.Id);
-        if (wantWater > 0 && !carriesWater && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
+        if (wantWater > 0 && !carriesWater && npc.ThirstAt(now) - needs.ThirstDecayPerHour * waterHours < 100 - MealAheadDeficit && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
         {
             npc.SetThirst(waterLevel, now);
             world.RecordResourceConsumed(water, 1);
@@ -313,7 +313,10 @@ public static class PersonalCarry
         while (i < ledger.Carried.Count && ledger.Carried[i].NpcId == npcId)
         {
             var load = ledger.Carried[i];
-            home?.Deposit(new ResourceType(load.ResourceId), load.Quantity);
+            // AD-157b: sem casa a quem voltar (morreu sozinho, a casa se desfez), a carga se perde com a pessoa: vai ao razão de
+            // consumido para nada sumir da conta do mundo
+            if (home is { IsEmpty: false }) home.Deposit(new ResourceType(load.ResourceId), load.Quantity); // casa desfeita não guarda nada
+            else world.RecordResourceConsumed(new ResourceType(load.ResourceId), load.Quantity);
             ledger.Carry(npcId, load.ResourceId, -load.Quantity);
         }
     }

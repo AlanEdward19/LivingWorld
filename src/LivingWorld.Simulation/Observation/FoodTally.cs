@@ -68,6 +68,7 @@ public sealed class FoodTally(WorldState world) : IWorldEventSink
         }
         foreach (var h in world.Households) stock += h.Stock.GetValueOrDefault(food);
         foreach (var c in world.CropBatches) stock += c.Barn + c.SeedReserve;
+        if (world.Invention is { } invention) stock += invention.CarriedTotal(food.Id); // AD-157b: o que as pessoas levam
         StockByMonth.Add(stock);
         AliveByMonth.Add(world.AliveNpcIndex.Alive.Count);
         FarmWorkersByMonth.Add(farmWorkers);
