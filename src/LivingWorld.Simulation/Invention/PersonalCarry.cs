@@ -160,7 +160,10 @@ public static class PersonalCarry
         }
         // AD-157b: o desjejum. Quem vai ficar fora mais do que a fome e a sede esperam come e bebe em casa antes de sair (do que
         // sobra depois da reserva dos outros), em vez de partir e voltar com fome; leva só o que ainda faltar.
-        if (wantWater > 0 && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
+        // Quem tem onde levar água (parte estanque) a leva no cantil em vez de beber antes (o pedido do dono: água no cantil)
+        var room = RoomOf(world, npc);
+        bool canteen = rules.IsLiquid(water.Id) && room.WetMl >= rules.UnitMlOf(water.Id);
+        if (wantWater > 0 && !canteen && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
         {
             npc.SetThirst(waterLevel, now);
             world.RecordResourceConsumed(water, 1);
@@ -179,7 +182,6 @@ public static class PersonalCarry
             wantFood = UnitsFor(npc.HungerAt(now), needs.HungerDecayPerHour, foodHours, line, foodLevel) - ledger.CarriedQuantity(npc.Id.Value, food.Id);
         }
         if (wantWater <= 0 && wantFood <= 0) return;
-        var room = RoomOf(world, npc);
         long weight = room.WeightG, dry = room.DryMl, wet = room.WetMl;
 
         int Take(ResourceType resource, int want, long volume, long keep)

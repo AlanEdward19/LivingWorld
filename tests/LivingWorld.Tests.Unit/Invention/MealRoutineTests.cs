@@ -50,6 +50,31 @@ public class MealRoutineTests
         Assert.True(npc.HungerAt(now) >= 90 && world.InventionTally.AteBeforeLeaving == 1, $"fome {npc.HungerAt(now)}");
     }
 
+    /// <summary>O pedido do dono: água em cantil. Com um recipiente estanque a pessoa leva a água em vez de beber antes de sair.</summary>
+    [Fact]
+    public void With_a_watertight_container_the_water_goes_in_it_instead_of_being_drunk_before_leaving()
+    {
+        var world = NewWorld();
+        var npc = Adult(world);
+        var home = HomeOf(world, npc);
+        var ledger = world.Invention!;
+        var m = Rules.Materials.First(x => x.Formable && !x.CoatingOnly);
+        var design = Design.Create([CarryInvention.NeedSized(m, 8000)!.Value], npc.Id.Value, 1, 0, 0, DesignOrigin.Invented);
+        ledger.AddDesign(design);
+        ledger.MarkCarryDesign(design.Id);
+        ledger.Items.Add(new CraftedItem(ledger.NextItemId++, design.Id, home.Id.Value, npc.City, 1, long.MaxValue, 1000));
+        ledger.Touch();
+        home.Deposit(Water(world), 20);
+        long now = world.CurrentDate.TotalHours;
+        npc.SetHunger(100, now);
+        npc.SetThirst(40, now);
+
+        PersonalCarry.PackForTrip(world, npc, home, 24, now);
+
+        Assert.True(world.InventionTally.DrankBeforeLeaving == 0 && ledger.CarriedQuantity(npc.Id.Value, Water(world).Id) > 0,
+            $"bebeu antes {world.InventionTally.DrankBeforeLeaving}, levou {ledger.CarriedQuantity(npc.Id.Value, Water(world).Id)}");
+    }
+
     [Fact]
     public void A_short_absence_that_only_reaches_urgent_hunger_does_not_eat_ahead()
     {

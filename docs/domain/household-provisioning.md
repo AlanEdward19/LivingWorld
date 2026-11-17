@@ -53,21 +53,10 @@ reposição, humor, desenvolvimento, doença) e o motivo de cada compra cortada 
 - AD-151: a carga pessoal (`PantryNeedsPresence`, [invention.md](invention.md)) **segue desligada**: com a refeição paga, 20×100
   deu fome 4,5% (teto no salário) e 5,3% (excesso em espécie), base 4,1%; sem refeição nenhuma, 6,9% e uma seed com 3 vivos.
   A diferença de seeds 1–20 para 21–40 (abaixo) mostra que o ruído de um bloco de 20 seeds é dessa ordem.
-- AD-157: **segue desligada**, agora pela medida que aguenta o ruído (abaixo). Com ela ligada, a fome crítica triplica.
+- AD-157b: **ligada** no cenário de código, com a refeição de rotina (abaixo). AD-157 a deixara desligada: a fome crítica triplicava.
 
-## A medida da aflição (AD-157, `NeedDistressTally`)
-`demography-report` imprime por seed (`aflicao seed=...`) as horas-pessoa por pessoa-ano com fome e com sede crítica (déficit
-acima de 80), as de quem está longe de casa, as de criança (<12) e velho (65+) em casa, as horas de trabalho do adulto e as
-mortes de fome e sede (longe inclusive). Compara-se a mesma seed em duas rodadas, nos primeiros 15 anos (40 seeds, ~6 min).
-Ruído (desligar o sequestro, mudança irrelevante): fome ±2,5 h (de 10,9), sede ±4,4 (de 518), em casa ±10, trabalho ±0,04 h/dia.
-
-| 40 × 15, carga ligada contra a base | fome crít. | longe | sede crít. | longe | dep. em casa | trabalho h/dia |
-|---|---|---|---|---|---|---|
-| base | 10,9 | 3,0 | 518 | 136 | 429 | 6,46 |
-| ligada com os consertos do AD-157 | 35,3 (+24 ± 4) | 11,3 | 481 (−37 ± 10) | 115 | 417 (±10) | 6,45 |
-
-A sede melhora (leva água) e o trabalho fica igual, mas a fome crítica triplica: quem volta para comer (34 mil idas por seed)
-e quem come a refeição da oficina (48 mil) passam a fome do caminho, e as mortes não mudam (0,7 contra 1,0 por seed).
+## A medida da aflição e a refeição de rotina (AD-157, AD-157b)
+Ver [meal-routine.md](meal-routine.md): a medida pareada da fome e sede crítica e as refeições em hora certa com a carga ligada.
 
 ## A refeição do empregador (AD-151)
 Longe de casa o lavrador comia do estoque à venda da fazenda sem ninguém pagar (a "ração da oficina": sonda `provision-trace`,
