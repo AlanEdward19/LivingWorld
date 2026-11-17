@@ -13,12 +13,12 @@ const EventMarkers := preload("res://Scenes/render/event_markers.gd")
 const CropRenderer := preload("res://Scenes/render/crop_renderer.gd")
 const FaunaRenderer := preload("res://Scenes/render/fauna_renderer.gd")
 const ItemRenderer := preload("res://Scenes/render/item_renderer.gd")
+const GroundRenderer := preload("res://Scenes/render/ground_renderer.gd")
+const BuildingLabels := preload("res://Scenes/render/building_labels.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const Grid := preload("res://Scenes/grid.gd")
 
 const TERRAIN_COLORS := TerrainRenderer.TERRAIN_COLORS
-const STREET_COLOR := TerrainRenderer.STREET_COLOR
-const YARD_COLOR := TerrainRenderer.YARD_COLOR
 const STEP_SECONDS := NpcRenderer.STEP_SECONDS
 
 var store
@@ -32,6 +32,11 @@ var events: EventMarkers
 var crops: CropRenderer
 var fauna: FaunaRenderer
 var items: ItemRenderer
+var ground: GroundRenderer ## ruas e lotes que o motor expõe (AD-177)
+var building_labels: BuildingLabels ## função/nome dos prédios, só de perto
+var registry ## EntityRegistry (nomes dos tipos de prédio para os rótulos)
+var zoom_size := 20.0 ## o app informa: rótulos só aparecem perto
+var _ground_dirty := false
 var snow: GPUParticles3D
 var lod := "city" ## "world" | "city" | "near" (o app calcula pelo zoom e pelo escopo)
 const NEAR_ZOOM := 7.5 ## abaixo deste tamanho de zoom, os NPCs perto do centro mostram ferramenta, objeto e rosto
@@ -65,6 +70,12 @@ func _init() -> void:
 	terrain = TerrainRenderer.new()
 	terrain.name = "TerrainRenderer"
 	add_child(terrain)
+	ground = GroundRenderer.new()
+	ground.name = "GroundRenderer"
+	add_child(ground)
+	building_labels = BuildingLabels.new()
+	building_labels.name = "BuildingLabels"
+	add_child(building_labels)
 	cities = CityRenderer.new()
 	cities.name = "CityRenderer"
 	add_child(cities)
@@ -102,6 +113,9 @@ func bind(p_store, p_labels) -> void:
 	crops.store = store
 	fauna.store = store
 	items.store = store
+	ground.store = store
+	store.roads_changed.connect(_mark_ground)
+	store.building_removed.connect(_on_building_gone)
 	npcs.building_point = building_center
 	store.reloaded.connect(_on_reloaded)
 	store.npc_observed.connect(npcs.apply_observable)
@@ -131,6 +145,9 @@ func _on_reloaded(kind: String) -> void:
 	_rebuild_items()
 	_apply_climate()
 	events.clear()
+	ground.rebuild()
+	_ground_dirty = false
+	_relabel()
 
 
 func _rebuild_cities() -> void:
@@ -165,6 +182,21 @@ func _on_building_states(ids: Array) -> void:
 	for id in ids:
 		if store.buildings.has(id):
 			buildings.restyle(store.buildings[id], store.building_states.get(id, {}))
+	_relabel()
+
+
+## Chão (rua ou lote) mudou: redesenha uma vez no próximo quadro, por mais deltas que cheguem juntos.
+func _mark_ground() -> void:
+	_ground_dirty = true
+
+
+func _on_building_gone(_id: int) -> void:
+	_mark_ground()
+	_relabel()
+
+
+func _relabel() -> void:
+	building_labels.rebuild(store, registry, buildings.nodes)
 
 
 ## Estação e clima: paleta do chão e das copas, e neve caindo quando o clima diz.
@@ -220,6 +252,8 @@ func _on_buildings_changed(ids: Array) -> void:
 	for id in ids:
 		if store.buildings.has(id):
 			buildings.upsert(store.buildings[id], store.building_states.get(id, {}))
+	_mark_ground()
+	_relabel()
 
 
 func _on_npc_removed(id: int) -> void:
@@ -229,10 +263,6 @@ func _on_npc_removed(id: int) -> void:
 ## Usado pelos testes e pela vista de prédio: mesmo desenho do renderizador.
 func _make_building(info: Dictionary) -> Node3D:
 	return buildings.make_building(info)
-
-
-func _settlement_cells() -> Dictionary:
-	return TerrainRenderer.settlement_cells(store)
 
 
 func highlight_npc(id: int) -> void:
@@ -285,6 +315,10 @@ func set_lod(level: String) -> void:
 
 func _process(delta: float) -> void:
 	npcs.advance(delta, view_center, view_radius, far_zoom, bubble_zoom)
+	if _ground_dirty:
+		_ground_dirty = false
+		ground.rebuild()
+	building_labels.set_zoom(zoom_size, lod != "world")
 	events.advance(delta)
 	if snow.emitting:
 		snow.position = view_center + Vector3(0, 12, 0)

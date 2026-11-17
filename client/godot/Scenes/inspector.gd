@@ -160,7 +160,7 @@ func refresh(auto: bool = false) -> void:
 	var kind := String(current.kind)
 	_kind.text = {"person": "Pessoa", "building": "Prédio", "city": "Cidade", "process": "Processo", "object": "Objeto",
 		"workplace": "Local de trabalho", "household": "Casa", "event": "Evento", "crop": "Lavoura", "animal": "Animal",
-		"fauna": "Bando", "leaving": "Espólio", "item": "Objeto inventado"}.get(kind, kind)
+		"fauna": "Bando", "leaving": "Espólio", "item": "Objeto inventado", "street": "Rua"}.get(kind, kind)
 	back_button.disabled = history.is_empty()
 	follow_button.visible = kind in FOLLOWABLE
 	enter_button.visible = kind == Registry.BUILDING
@@ -294,6 +294,8 @@ func _describe_sync(entity: Dictionary) -> Dictionary:
 			return Describe.fauna(store, String(id))
 		Registry.LEAVING:
 			return Describe.leaving(store, registry, int(id))
+		Registry.STREET:
+			return Describe.street(store, String(id))
 	return {"text": "", "links": []}
 
 
@@ -313,7 +315,9 @@ func _describe_building(id: int) -> Dictionary:
 		lines.append("Recém-construído: sem planta ainda (servidor antigo).")
 	var state_view := Describe.building_state(store, registry, id)
 	lines.append_array(state_view.lines)
-	var links: Array = state_view.links.duplicate()
+	var lot_view := Describe.lot(store, id)
+	lines.append_array(lot_view.lines)
+	var links: Array = lot_view.links + state_view.links
 	if int(store.interior.get("building", -1)) == id:
 		lines.append("Quem está dentro agora:")
 		for occupant in store.interior.get("occupants", []):

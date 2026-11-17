@@ -73,13 +73,30 @@ func test_a_building_covering_the_selected_person_turns_translucent_and_back() -
 	app.queue_free()
 
 
-func test_yards_surround_each_building_and_the_gap_between_buildings_is_street() -> void:
+func test_croft_only_where_the_engine_sent_one_and_party_walls_have_no_gap() -> void:
+	# AD-177: quintal só com `lot.croft`; casa sem quintal e em parede-meia desenhadas como são (nada entre elas)
 	var store := Store.new()
-	store.apply_snapshot(T.city())
-	var cells: Dictionary = preload("res://Scenes/render/terrain_renderer.gd").settlement_cells(store)
-	eq(cells[Vector2i(1, 1)], preload("res://Scenes/render/terrain_renderer.gd").YARD_COLOR, "sob o prédio (posição absoluta)")
-	eq(cells[Vector2i(0, 0)], preload("res://Scenes/render/terrain_renderer.gd").YARD_COLOR, "quintal em volta")
-	eq(cells[Vector2i(5, 5)], preload("res://Scenes/render/terrain_renderer.gd").STREET_COLOR, "longe do prédio: rua")
+	var env := T.city()
+	var buildings: Array = env.payload.buildings
+	buildings[0]["lot"] = {"croft": [{"x": 3, "y": 1}, {"x": 3, "y": 2}], "frontPath": [{"x": 1, "y": 3}], "street": {"x": 1, "y": 4}}
+	buildings.append({"id": {"value": 5}, "buildingTypeId": 3, "location": {"x": 0, "y": 1}, "orientation": 0, "floors": 1,
+		"groundFootprint": [{"cell": {"x": 0, "y": 0}, "material": 2}], "value": 100, "lot": null})
+	buildings.append({"id": {"value": 6}, "buildingTypeId": 3, "location": {"x": 0, "y": 0}, "orientation": 0, "floors": 1,
+		"groundFootprint": [{"cell": {"x": 0, "y": 0}, "material": 2}], "value": 100, "lot": {"croft": [], "frontPath": [], "street": null}})
+	store.apply_snapshot(env)
+	var ground := preload("res://Scenes/render/ground_renderer.gd").new()
+	ground.store = store
+	ground.rebuild()
+	eq(ground.lot_cells.keys().filter(func(c): return ground.lot_cells[c].kind == "croft"), [Vector2i(3, 1), Vector2i(3, 2)],
+		"quintal só nas células que o motor mandou")
+	eq(ground.lot_cells.get(Vector2i(1, 3), {}).get("kind", ""), "path", "caminho da porta")
+	for cell in [Vector2i(0, 0), Vector2i(0, 1), Vector2i(2, 0), Vector2i(4, 4), Vector2i(5, 5)]:
+		eq(ground.entity_at(cell), {}, "sem quintal inventado em %s" % cell)
+	check(ground.lot_pieces >= 2 + 4 + 1, "chão do quintal, cerca e caminho: %d peças" % ground.lot_pieces)
+	eq(store.buildings[5].lot, {}, "`lot` nulo = sem lote")
+	eq(store.buildings[6].lot.street, null, "`street` nulo não quebra")
+	eq(preload("res://Scenes/inspector_describe.gd").party_walls(store, 5), [4, 6], "parede-meia com os vizinhos colados")
+	ground.free()
 
 
 func test_absent_keys_and_explicit_nulls_read_the_same() -> void:

@@ -139,7 +139,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			orbit(-event.relative.x * 0.008)
 		else:
 			pan(event.relative)
-	elif event is InputEventMouseButton and event.pressed:
+	elif event is InputEventMouseButton and event.pressed and not event.alt_pressed: # Alt+roda alterna o prédio sob o cursor
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			zoom_smooth(0.85)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:

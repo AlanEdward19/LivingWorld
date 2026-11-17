@@ -8,6 +8,7 @@ const Parse := preload("res://Store/observable_parse.gd")
 const Look := preload("res://Scenes/npc_look.gd")
 
 const FUNCTION_NAMES := {"dwelling": "moradia", "lodging": "hospedagem", "workplace": "local de trabalho", "structure": "estrutura"}
+const Style := preload("res://Scenes/render/street_style.gd")
 
 
 static func _person(label: String, id: int) -> Array:
@@ -252,3 +253,69 @@ static func household(store, registry, id: int, server_body: Variant) -> Diction
 		lines.append("Moradores conhecidos (das fichas já abertas):%s" % ("" if not registry.known_household(id).is_empty() else " ninguém conhecido"))
 		links.append_array(_people("Morador(a)", registry.known_household(id)))
 	return {"text": "\n".join(lines), "links": merge_links(links, [])}
+
+
+## Rua (camada `Roads`, AD-177): superfície, quantas pessoas usam, principal/largo, e os prédios cuja porta dá nela.
+static func street(store, id: String) -> Dictionary:
+	var cell := Registry.street_cell(id)
+	var road = store.roads.get(cell)
+	if road == null:
+		return {"text": "Esta rua não está na camada de ruas do motor agora.", "links": []}
+	var links: Array = []
+	if String(road.city) != "":
+		links.append(["Cidade", Registry.ref(Registry.CITY, String(road.city))])
+	for building_id in store.buildings:
+		var parcel: Dictionary = store.buildings[building_id].get("lot", {})
+		if parcel.get("street") == cell:
+			links.append(["Porta dá aqui", Registry.ref(Registry.BUILDING, int(building_id))])
+	return {"text": "\n".join(Style.lines_of(road)), "links": links}
+
+
+## Lote do prédio como o motor o mandou: quintal (tamanho), caminho da porta, rua da frente e parede-meia.
+static func lot(store, id: int) -> Dictionary:
+	var building: Dictionary = store.buildings.get(id, {})
+	var parcel: Dictionary = building.get("lot", {})
+	var lines: Array[String] = []
+	var links: Array = []
+	if parcel.is_empty():
+		lines.append("Lote: o motor não mandou lote deste prédio")
+	else:
+		var croft := int(parcel.croft.size())
+		lines.append("Quintal: %d célula%s, cercado" % [croft, "" if croft == 1 else "s"] if croft > 0 else "Sem quintal")
+		var street = parcel.street
+		if street == null:
+			lines.append("Não dá para nenhuma rua")
+		else:
+			var road = store.roads.get(street)
+			lines.append("Dá para a rua em %d,%d%s%s" % [street.x, street.y,
+				(" (%s)" % Style.title_of(road).to_lower()) if road != null else "",
+				(" por um caminho de %d célula%s" % [parcel.front_path.size(), "" if parcel.front_path.size() == 1 else "s"])
+					if not parcel.front_path.is_empty() else ", porta direto na rua"])
+			if road != null:
+				links.append(["Rua da frente", Registry.ref(Registry.STREET, "%d,%d" % [street.x, street.y])])
+	var shared := party_walls(store, id)
+	if not shared.is_empty():
+		lines.append("Parede-meia com %d prédio%s" % [shared.size(), "" if shared.size() == 1 else "s"])
+		for other in shared:
+			links.append(["Parede-meia", Registry.ref(Registry.BUILDING, int(other))])
+	return {"lines": lines, "links": links}
+
+
+## Prédios cuja planta encosta na deste (lado a lado, sem vão): parede-meia, pelo que o motor pôs em cada célula.
+static func party_walls(store, id: int) -> Array:
+	var building: Dictionary = store.buildings.get(id, {})
+	var mine := {}
+	for entry in building.get("footprint", []):
+		mine[building.cell + entry.cell] = true
+	var out: Array = []
+	for other_id in store.buildings:
+		if int(other_id) == id:
+			continue
+		var other: Dictionary = store.buildings[other_id]
+		for entry in other.footprint:
+			var cell: Vector2i = other.cell + entry.cell
+			if mine.has(cell + Vector2i(1, 0)) or mine.has(cell + Vector2i(-1, 0)) or mine.has(cell + Vector2i(0, 1)) or mine.has(cell + Vector2i(0, -1)):
+				out.append(int(other_id))
+				break
+	out.sort()
+	return out

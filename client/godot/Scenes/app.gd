@@ -29,6 +29,8 @@ const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
+const CityReading := preload("res://Scenes/city_reading.gd")
+const RoadSync := preload("res://Scenes/road_sync.gd")
 
 var transport
 var api ## WorldReader: a camada única de leitura (todo painel recebe este objeto)
@@ -63,6 +65,8 @@ var family_builder
 var economy
 var technology
 var timeline ## linha do tempo dos acontecimentos (EventTimeline)
+var reading ## CityReading (AD-177): pilha sob o cursor (Tab), raio-x (X) e planta (P)
+var road_sync ## RoadSync: relê a camada `Roads` sem recarregar a cena
 var period_id := "" ## período de origem do mundo em andamento (GET /world/info); vazio se desconhecido
 var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece e o tempo fica travado
 var pause_label: Label
@@ -126,6 +130,9 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	director = FollowDirector.new(self)
 	AppUi.build_scene(self)
 	AppUi.build(self)
+	world_view.registry = registry
+	reading = CityReading.new(self)
+	reading.build(_ui)
 	size_windows()
 	observer = ScopeObserver.new()
 	observer.api = api
@@ -141,6 +148,9 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	stream.connection_changed.connect(session.on_connection)
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
 	stream.contract_error.connect(_on_contract_error)
+	road_sync = RoadSync.new()
+	road_sync.setup(self)
+	add_child(road_sync)
 	var actions: Dictionary = await api.action_catalog()
 	if actions.ok:
 		labels.load_from(actions.body)
@@ -196,6 +206,7 @@ func _process(delta: float) -> void:
 	if world_view != null and rig != null:
 		world_view.view_center = rig.target
 		world_view.view_radius = rig.zoom_size * 1.5
+		world_view.zoom_size = rig.zoom_size
 		world_view.far_zoom = rig.zoom_size > 16.0
 		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
 		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size))
@@ -372,6 +383,9 @@ func point_of(entity: Dictionary) -> Vector3:
 		Registry.EVENT:
 			var event: Dictionary = registry.events.get(int(id), {})
 			return Grid.to_world(event.cell) + Vector3(0.5, 0, 0.5) if bool(event.get("has_cell", false)) else Vector3.INF
+		Registry.STREET:
+			var cell := Registry.street_cell(String(id))
+			return Grid.to_world(cell) if store.roads.has(cell) else Vector3.INF
 	return Vector3.INF
 
 
