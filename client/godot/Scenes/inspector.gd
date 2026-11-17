@@ -40,6 +40,7 @@ var _generic: Label
 var _links: VBoxContainer
 var _timer: Timer
 var _request := 0
+var _link_keys: Array = []
 
 
 func _init() -> void:
@@ -295,6 +296,10 @@ func _describe_object(object_id: String) -> Dictionary:
 
 
 func _set_links(links: Array) -> void:
+	var wanted: Array = links.map(func(link): return "%s|%s|%s" % [link[0], Registry.key(link[1]), registry.title_of(link[1])])
+	if wanted == _link_keys:
+		return # atualização sozinha sem mudança: não refaz os botões a cada segundo
+	_link_keys = wanted
 	link_refs = []
 	for child in _links.get_children():
 		child.queue_free()
