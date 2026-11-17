@@ -167,10 +167,10 @@ public static class PersonalCarry
             world.InventionTally.DrankBeforeLeaving++;
             wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, waterHours, line, waterLevel) - ledger.CarriedQuantity(npc.Id.Value, water.Id);
         }
-        var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
         // a comida é cara: só come antes quem chegaria à fome crítica fora (a unidade inteira gasta antes da hora esvaziava a despensa)
-        bool foodCritical = npc.HungerAt(now) - needs.HungerDecayPerHour * foodHours < 100 - MealAheadDeficit;
-        if (wantFood > 0 && foodCritical && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
+        bool foodCritical = wantFood > 0 && npc.HungerAt(now) - needs.HungerDecayPerHour * foodHours < 100 - MealAheadDeficit;
+        var meal = foodCritical ? LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home) : default;
+        if (foodCritical && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
             && home.Withdraw(meal, 1).IsSuccess)
         {
             npc.SetHunger(Math.Max(npc.HungerAt(now), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), now);
