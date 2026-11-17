@@ -47,7 +47,9 @@ public class EconomyDepthConservationTests
         + world.Households.Sum(h => h.Stock.GetValueOrDefault(resource))
         + world.Cities.Sum(c => c.Stock.GetValueOrDefault(resource))
         // AD-135: o celeiro e a semente guardada do campo sazonal também são estoque do alimento
-        + world.CropBatches.Where(c => c.CropResourceId == resource.Id).Sum(c => c.Barn + c.SeedReserve);
+        + world.CropBatches.Where(c => c.CropResourceId == resource.Id).Sum(c => c.Barn + c.SeedReserve)
+        // AD-157b: com a carga pessoal ligada, a comida e a água que a pessoa levou de casa estão com ela (voltam à despensa)
+        + (world.Invention?.CarriedTotal(resource.Id) ?? 0);
 
     [Theory]
     [InlineData(1)]
