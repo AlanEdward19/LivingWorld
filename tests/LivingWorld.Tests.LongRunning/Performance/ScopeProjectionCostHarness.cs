@@ -71,8 +71,9 @@ public class ScopeProjectionCostHarness
             var nextWorld = LivingScopeProjector.Build(frame, global);
             var cityDiff = ScopeDeltaBuilder.Diff(tick, cityState, nextCity);
             var worldDiff = ScopeDeltaBuilder.Diff(tick, worldState, nextWorld);
-            string cityDelta = JsonSerializer.Serialize(cityDiff, options);
-            string worldDelta = JsonSerializer.Serialize(worldDiff, options);
+            var wire = LivingWorld.Api.Realtime.VisualWire.DeltaOptions; // AD-172: como o fio manda o delta (sem nulos)
+            string cityDelta = JsonSerializer.Serialize(cityDiff, wire);
+            string worldDelta = JsonSerializer.Serialize(worldDiff, wire);
             projectWatch.Stop();
             allocated += GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
             // AD-172: snapshot + deltas reconstroem a projeção nova a cada tick (avanço de processo, campos omitidos)

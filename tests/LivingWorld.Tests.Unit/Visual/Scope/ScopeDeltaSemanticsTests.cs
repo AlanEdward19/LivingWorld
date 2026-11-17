@@ -15,7 +15,7 @@ namespace LivingWorld.Tests.Unit.Visual.Scope;
 public class ScopeDeltaSemanticsTests
 {
     private static readonly CityId City = new(Guid.Parse("00000000-0000-0000-0000-000000000172"));
-    private static readonly JsonSerializerOptions Wire = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Wire = LivingWorld.Api.Realtime.VisualWire.DeltaOptions;
 
     private static ProcessVisual Rest(long remaining, double progress, int x = 1) =>
         new(1_000_001, "rest", 1, progress, "sleep-dwelling", 1, remaining, new CellCoord(x, 0));
@@ -78,9 +78,8 @@ public class ScopeDeltaSemanticsTests
         var json = JsonNode.Parse(JsonSerializer.Serialize(delta, Wire))!["npcUpserts"]![0]!.AsObject();
 
         Assert.Equal(
-            (false, false, false, false, false, true),
-            (json.ContainsKey("observable"), json.ContainsKey("appearance"), json.ContainsKey("actionStartedAtTick"),
-                json.ContainsKey("actionTarget"), json.ContainsKey("intent"), json["city"] is null && json.ContainsKey("city")));
+            ["currentAction", "id", "location"], // AD-172: no delta toda chave nula sai; cidade igual também
+            json.Select(p => p.Key).Order().ToArray());
         Assert.Equal(after.Npcs, LivingDeltaReducer.Apply(before, delta).Npcs);
     }
 
@@ -102,5 +101,17 @@ public class ScopeDeltaSemanticsTests
         var after = LivingScopeState.Empty with { Npcs = [Walker(2)], Tick = 11 };
 
         Assert.Equal(Walker(2), Assert.Single(ScopeDeltaBuilder.Diff(11, LivingScopeState.Empty, after).NpcUpserts));
+    }
+
+    [Fact]
+    public void A_kept_field_that_goes_back_to_null_resends_the_whole_npc_as_removed_and_upserted()
+    {
+        var before = LivingScopeState.Empty with { Npcs = [Walker(1)], Tick = 10 };
+        var after = LivingScopeState.Empty with { Npcs = [Walker(2) with { Appearance = null }], Tick = 11 };
+
+        var delta = ScopeDeltaBuilder.Diff(11, before, after);
+
+        Assert.Equal((new NpcId(7), Walker(2) with { Appearance = null }), (Assert.Single(delta.NpcRemoved), Assert.Single(delta.NpcUpserts)));
+        Assert.Equal(after.Npcs, LivingDeltaReducer.Apply(before, delta).Npcs);
     }
 }

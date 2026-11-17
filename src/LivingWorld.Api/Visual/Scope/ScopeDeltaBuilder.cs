@@ -13,10 +13,13 @@ public static class ScopeDeltaBuilder
     public static ScopeTickDelta Diff(long tick, LivingScopeState before, LivingScopeState after)
     {
         long elapsed = tick - before.Tick;
+        var resets = new List<NpcId>();
+        var npcUpserts = ChangedNpcs(before.Npcs, after.Npcs, resets);
+        var npcRemoved = Removed(before.Npcs, after.Npcs, item => item.Id);
         return new(
             tick,
-            ChangedNpcs(before.Npcs, after.Npcs),
-            Removed(before.Npcs, after.Npcs, item => item.Id),
+            npcUpserts,
+            resets.Count == 0 ? npcRemoved : [.. npcRemoved, .. resets],
             Changed(before.Cities, after.Cities, item => item.Id),
             Removed(before.Cities, after.Cities, item => item.Id),
             Changed(before.Buildings, after.Buildings, item => item.Id),
@@ -62,7 +65,7 @@ public static class ScopeDeltaBuilder
     /// <summary>AD-170/AD-172: no upsert de um NPC que já estava no escopo, <c>observable</c> e <c>appearance</c> vêm omitidos e
     /// <c>city</c> vem <c>null</c> quando não mudaram; sem <c>actionStartedAtTick</c>, o grupo da ação (início, alvo, intenção e
     /// alvo da intenção) é o anterior. O cliente mantém o que já tinha. NPC novo no escopo sempre leva tudo.</summary>
-    private static IReadOnlyList<NpcVisual> ChangedNpcs(IReadOnlyList<NpcVisual> before, IReadOnlyList<NpcVisual> after)
+    private static IReadOnlyList<NpcVisual> ChangedNpcs(IReadOnlyList<NpcVisual> before, IReadOnlyList<NpcVisual> after, List<NpcId> resets)
     {
         if (after.Count == 0) return [];
         var previous = Index(before, item => item.Id.Value);
@@ -71,6 +74,14 @@ public static class ScopeDeltaBuilder
         {
             if (!previous.TryGetValue(item.Id.Value, out var old)) { changed.Add(item); continue; }
             if (ReferenceEquals(old, item) || old.Equals(item)) continue;
+            if (LostKeptField(old, item))
+            {
+                // um campo "ausente = igual" voltou a nulo: troca o registro inteiro (id em npcRemoved e em npcUpserts)
+                resets.Add(item.Id);
+                changed.Add(item);
+                continue;
+            }
+
             bool sameObservable = Equals(old.Observable, item.Observable);
             bool sameCity = old.City == item.City;
             bool sameAppearance = Equals(old.Appearance, item.Appearance);
@@ -91,6 +102,10 @@ public static class ScopeDeltaBuilder
         }
         return changed;
     }
+
+    private static bool LostKeptField(NpcVisual old, NpcVisual item) =>
+        (old.Observable is not null && item.Observable is null) || (old.City is not null && item.City is null)
+        || (old.Appearance is not null && item.Appearance is null) || (old.ActionStartedAtTick is not null && item.ActionStartedAtTick is null);
 
     private static IReadOnlyList<ProcessVisual> ChangedProcesses(
         IReadOnlyList<ProcessVisual> before, IReadOnlyList<ProcessVisual> after, long elapsed)
@@ -186,7 +201,7 @@ public static class LivingDeltaReducer
     public static LivingScopeState Apply(LivingScopeState state, ScopeTickDelta delta) =>
         new(
             // AD-170: ids tipados não são comparáveis; ordena pelo valor, na mesma ordem da projeção
-            Merge(state.Npcs, KeepUnchanged(state.Npcs, delta.NpcUpserts), delta.NpcRemoved, item => item.Id, item => item.Id.Value),
+            Merge(state.Npcs, KeepUnchanged(state.Npcs, delta.NpcUpserts, delta.NpcRemoved), delta.NpcRemoved, item => item.Id, item => item.Id.Value),
             Merge(state.Cities, delta.CityUpserts, delta.CityRemoved, item => item.Id, item => item.Id.Value),
             Merge(state.Buildings, delta.BuildingUpserts, delta.BuildingRemoved, item => item.Id, item => item.Id.Value),
             Merge(Advanced(state.Processes, delta.Tick - state.Tick), delta.ProcessUpserts, delta.ProcessRemoved, item => item.Id),
@@ -204,11 +219,13 @@ public static class LivingDeltaReducer
         };
 
     /// <summary>Upsert de NPC sem observável, cidade, aparência ou grupo da ação mantém o que o estado já tinha (AD-170, AD-172).</summary>
-    private static IReadOnlyList<NpcVisual> KeepUnchanged(IReadOnlyList<NpcVisual> current, IReadOnlyList<NpcVisual> upserts)
+    private static IReadOnlyList<NpcVisual> KeepUnchanged(
+        IReadOnlyList<NpcVisual> current, IReadOnlyList<NpcVisual> upserts, IReadOnlyList<NpcId> removed)
     {
         if (upserts.All(u => u.Observable is not null && u.City is not null && u.Appearance is not null && u.ActionStartedAtTick is not null))
             return upserts;
         var known = current.ToDictionary(item => item.Id);
+        foreach (var reset in removed) known.Remove(reset); // removido e reenviado no mesmo delta = registro novo inteiro
         return upserts.Select(u => known.TryGetValue(u.Id, out var old) ? Restore(u, old) : u).ToList();
     }
 

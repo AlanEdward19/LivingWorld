@@ -29,16 +29,20 @@ Delta: `buildingStateUpserts/Removed`, `cropUpserts/Removed`, `animalUpserts/Rem
 `espécie:região`), `leavingUpserts/Removed`, `objectUpserts/Removed`, `climate` (nulo = não mudou). Camada `layers.Climate` passa a
 `isModeled: true` com `{month, seasonIndex, seasonKey, regions[]{regionId, center, temperatureC, cropYearFactorMilli, drought}}`.
 
-## Delta enxuto (AD-172): o que o cliente mantém sozinho
-Nenhum campo saiu do contrato; o snapshot vem sempre completo. No **delta**, para um NPC **já conhecido** no escopo:
-| Em `npcUpserts[i]` | Significa |
-|---|---|
-| `observable` ausente | igual ao anterior (AD-170) |
-| `city: null` | mesma cidade de antes |
-| `appearance` ausente | igual à anterior |
-| `actionStartedAtTick` ausente | `actionStartedAtTick`, `actionTarget`, `intent` e `intentTarget` iguais aos anteriores; presente = grupo inteiro novo (ausência de `actionTarget`/`intent`/`intentTarget` aí = nulo) |
-NPC que entra no escopo (novo ou voltando) sempre vem completo. `currentAction`, `location`, `relocationDestination` e
-`extraordinary` vêm sempre.
+## Delta enxuto (AD-172): regra de leitura do cliente
+Nenhum campo saiu do contrato. O **snapshot** escreve os nulos (`campo: null`). O **delta de escopo** (WS, SSE e
+`/visual/replay`; `VisualWire`) **omite toda chave nula**, e o cliente lê ausente e `null` do mesmo jeito:
+1. **Ausente/nulo = igual ao anterior** — só estes, só em `npcUpserts[i]` de NPC já conhecido no escopo: `observable`, `city`,
+   `appearance` e o **grupo da ação** (`actionStartedAtTick` ausente = `actionStartedAtTick`, `actionTarget`, `intent`,
+   `intentTarget` iguais aos anteriores). E o `climate` do topo do delta (ausente = não mudou).
+2. **Ausente/nulo = nulo** — todo o resto, inclusive dentro do grupo da ação quando `actionStartedAtTick` veio (ex.: sem
+   `actionTarget` = sem alvo) e todo campo dos outros upserts (processo, prédio, lavoura, espólio, objeto, evento...): upsert troca
+   o registro inteiro.
+3. **Sem colisão**: se um campo da regra 1 precisa voltar a nulo, o NPC vem em `npcRemoved` **e** em `npcUpserts` no mesmo
+   delta: descarte o que tinha e leia o upsert inteiro pela regra 2. NPC novo ou que volta ao escopo também vem inteiro.
+`intentTarget` é texto opaco (formato reservado `tipo:id`, ex. `workplace:3`); o motor ainda não o preenche, então hoje vem
+sempre ausente. Formas: `tests/contracts/shape.*.json` marcam `campo?` (pode faltar ou vir nulo) em todo campo anulável; são
+gravadas de um mundo rodando 240 ticks mais exemplos cheio e mínimo, e `RunningWorldContractTests` confere cada snapshot e delta.
 
 **Processos que andam sozinhos.** `rest` e `food` com `remainingHours > 0` e `progress < 1` não são reenviados quando só
 avançaram no relógio. A cada delta, todo processo conhecido que não veio em `processUpserts` nem em `processRemoved` avança

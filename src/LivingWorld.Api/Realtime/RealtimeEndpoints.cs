@@ -32,7 +32,8 @@ public static class RealtimeEndpoints
             var visualScope = new VisualScope(scope, refId ?? "");
             var since = new VisualCursor(sinceTick, visualScope.ScopeKey, sinceSequence);
             var result = gateway.Replay(visualScope, mode, since);
-            return result.IsSuccess ? Results.Ok(result.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
+            // AD-172: o replay sai como o delta ao vivo (nulos omitidos), mesma leitura no cliente
+            return result.IsSuccess ? Results.Json(result.Value, VisualWire.For(result.Value)) : Results.StatusCode(StatusCodes.Status403Forbidden);
         });
 
         app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
@@ -139,20 +140,16 @@ public static class RealtimeEndpoints
         return CityVisibilityFilter.ApplyFog(result.Value!, player.CurrentLocation, adminOverride: false);
     }
 
-    // Mesma convenção de naming do HTTP /visual/subscribe (ASP.NET Web defaults =
-    // camelCase) — sem isso, WS/SSE serializavam PascalCase por padrão do JsonSerializer.Serialize
-    // sem opções, e o cliente (que só entende camelCase) não conseguia ler os frames.
-    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
-
+    // Mesma convenção de naming do HTTP /visual/subscribe (camelCase), via VisualWire; o delta de escopo omite nulos (AD-172).
     private static async Task WriteEventAsync(HttpResponse response, object payload)
     {
-        await response.WriteAsync($"data: {JsonSerializer.Serialize(payload, WireOptions)}\n\n");
+        await response.WriteAsync($"data: {VisualWire.Serialize(payload)}\n\n");
         await response.Body.FlushAsync();
     }
 
     private static Task SendJsonAsync(WebSocket socket, object payload, CancellationToken ct)
     {
-        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload, WireOptions));
+        var bytes = Encoding.UTF8.GetBytes(VisualWire.Serialize(payload));
         return socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
     }
 }
