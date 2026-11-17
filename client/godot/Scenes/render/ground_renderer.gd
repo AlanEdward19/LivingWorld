@@ -13,6 +13,7 @@ const Pieces := preload("res://Scenes/render/street_pieces.gd")
 const Ground := preload("res://Store/city_ground.gd")
 const Roads := preload("res://Store/road_book.gd")
 const Registry := preload("res://Store/entity_registry.gd")
+const Season := preload("res://Scenes/render/season_palette.gd")
 
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const ROAD_Y := 0.014
@@ -157,7 +158,7 @@ func _road_cell(cell: Vector2i, style: Dictionary) -> void:
 		return
 	var jitter := float(style.jitter)
 	var shade := 0.93 + Scenery.cell_hash(cell, 5) * 0.12
-	var color: Color = Color(style.color) * shade
+	var color: Color = _season(Color(style.color) * shade, true)
 	color.a = 1.0
 	var center := Grid.to_world(cell, ROAD_Y)
 	center += Vector3(Scenery.cell_hash(cell, 1) - 0.5, 0, Scenery.cell_hash(cell, 2) - 0.5) * 2.0 * jitter
@@ -211,7 +212,7 @@ func _lot(building: Dictionary) -> void:
 	for cell in parcel.front_path:
 		path[cell] = true
 	for cell in croft:
-		_piece(Grid.to_world(cell, CROFT_Y), Vector3(0.98, 0.016, 0.98), Style.CROFT_COLOR * (0.92 + Scenery.cell_hash(cell, 7) * 0.14))
+		_piece(Grid.to_world(cell, CROFT_Y), Vector3(0.98, 0.016, 0.98), _season(Style.CROFT_COLOR * (0.92 + Scenery.cell_hash(cell, 7) * 0.14), false))
 		for dir in DIRS:
 			var next: Vector2i = cell + dir
 			if not croft.has(next) and not footprint.has(next) and not path.has(next):
@@ -219,7 +220,7 @@ func _lot(building: Dictionary) -> void:
 	var street = parcel.street
 	for cell in path:
 		var center := Grid.to_world(cell, PATH_Y)
-		_piece(center, Vector3(0.34, 0.02, 0.34), Style.PATH_COLOR)
+		_piece(center, Vector3(0.34, 0.02, 0.34), _season(Style.PATH_COLOR, true))
 		for dir in DIRS:
 			var next: Vector2i = cell + dir
 			if path.has(next) or footprint.has(next) or (street != null and next == street) or drawn_roads.has(next):
@@ -235,6 +236,11 @@ func _fence(cell: Vector2i, dir: Vector2i) -> void:
 		_piece(edge + Vector3(0, rail, 0), along * 0.94 + Vector3(0.035, 0.035, 0.035) * (Vector3.ONE - along), FENCE_COLOR)
 	for side in [-0.45, 0.45]:
 		_piece(edge + along * side + Vector3(0, 0.2, 0), Vector3(0.06, 0.4, 0.06), FENCE_COLOR * 0.85)
+
+
+## Estação no chão da cidade (09b item 12): neve cobre rua e caminho; o quintal muda como o terreno (verde, seco, outono).
+func _season(color: Color, paved: bool) -> Color:
+	return Season.ground(color, store.climate, paved) if store != null and not heat else color
 
 
 func _piece(at: Vector3, size: Vector3, color: Color, turn := 0.0) -> void:

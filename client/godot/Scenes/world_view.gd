@@ -208,6 +208,7 @@ func _relabel() -> void:
 ## Estação e clima: paleta do chão e das copas, e neve caindo quando o clima diz.
 func _apply_climate() -> void:
 	terrain.apply_season(store.climate)
+	_mark_ground() # rua, caminho e quintal também mudam com a estação
 	snow.emitting = Season.snowing(store.climate)
 	snow.visible = snow.emitting
 

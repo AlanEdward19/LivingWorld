@@ -300,6 +300,22 @@ func test_unknown_fields_and_odd_values_are_tolerated() -> void:
 	app.queue_free()
 
 
+func test_season_reaches_streets_and_crofts() -> void:
+	var colors := []
+	for climate in [{}, {"month": 1, "seasonIndex": 3, "seasonKey": "winter", "temperatureC": -6.0, "regionId": 0,
+			"cropYearFactorMilli": 1000, "drought": false}]:
+		var snapshot := city()
+		snapshot.payload.livingState.climate = climate if not climate.is_empty() else snapshot.payload.livingState.climate
+		var app = await city_app(tree, snapshot)
+		var ground = app.world_view.ground
+		colors.append([ground._season(Style.SURFACES[1].color, true), ground._season(Style.CROFT_COLOR, false)])
+		app.queue_free()
+		await tree.process_frame
+	eq(colors[0][0], Style.SURFACES[1].color, "verão sem seca: a rua como é")
+	check(colors[1][0].get_luminance() > colors[0][0].get_luminance() + 0.1, "neve cobre a rua no inverno: %s" % [colors])
+	check(colors[1][1] != colors[0][1], "o quintal muda com a estação")
+
+
 static func _key(code: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.keycode = code

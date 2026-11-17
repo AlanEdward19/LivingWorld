@@ -53,7 +53,7 @@
 - Sobre o diarista que recebe sem mudar a agenda: "deve mudar." (08d item 178) → AD-179: obra ocupa o tempo de quem trabalha nela.
 
 ## Cliente da AD-181 (rua de verdade na tela) e lacunas do contrato
-**Fechados no cliente**: 9 (rua por `livingState.roads` + `roadUpserts`/`roadRemoved`; a releitura de 30 s só roda com servidor
+**Fechados no cliente**: 12 (neve na rua e no caminho, estação no quintal), 9 (rua por `livingState.roads` + `roadUpserts`/`roadRemoved`; a releitura de 30 s só roda com servidor
 antigo), 10 (obra com progresso e ficha; `lot.access` desenhado e na ficha), 14 em parte (a planta mostra as pessoas) e 15 (o
 boneco anda pela `npc.route` até o `routeArrivalTick`).
 16. **Evento de obra sem lugar nem obra**: `StreetWorkStarted`/`StreetWorkDone` vêm sem `location`, sem id da obra e (no
