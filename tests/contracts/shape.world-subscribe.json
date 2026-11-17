@@ -31,17 +31,7 @@
         "population": "number"
       }
     ],
-    "externalNpcs": [
-      {
-        "id": {
-          "value": "number"
-        },
-        "location": {
-          "x": "number",
-          "y": "number"
-        }
-      }
-    ],
+    "externalNpcs": "[]",
     "height": "number",
     "layers": {
       "Biome": {
@@ -105,7 +95,21 @@
       },
       "Roads": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload": [
+          {
+            "cell": {
+              "x": "number",
+              "y": "number"
+            },
+            "city": {
+              "value": "string"
+            },
+            "main": "boolean",
+            "square": "boolean",
+            "surface": "number",
+            "users": "number"
+          }
+        ]
       },
       "Terrain": {
         "isModeled": "boolean",
@@ -171,58 +175,7 @@
       "faunaGroups": "[]",
       "indicators": "[]",
       "leavings": "[]",
-      "npcs": [
-        {
-          "actionStartedAtTick": "number",
-          "city": {
-            "value": "string"
-          },
-          "currentAction": "null",
-          "extraordinary": "null",
-          "id": {
-            "value": "number"
-          },
-          "location": {
-            "x": "number",
-            "y": "number"
-          },
-          "observable": {
-            "ageYears": "number",
-            "carried": "[]",
-            "dominantEmotion?": "string",
-            "emotions": {
-              "anger": "number",
-              "fear": "number",
-              "grief": "number",
-              "joy": "number",
-              "loneliness": "number",
-              "shame": "number"
-            },
-            "growthFraction": "number",
-            "heightCm": "number",
-            "held?": {
-              "designId": "number",
-              "itemId": "number"
-            },
-            "illness?": {
-              "bedridden": "boolean",
-              "diseaseId": "number",
-              "symptomatic": "boolean"
-            },
-            "lifeStage": "string",
-            "mourning": "boolean",
-            "name": "string",
-            "pregnancy?": {
-              "babies": "number",
-              "fraction": "number"
-            },
-            "professionId": "number",
-            "professionName?": "string",
-            "sex": "string"
-          },
-          "relocationDestination": "null"
-        }
-      ],
+      "npcs": "[]",
       "objects": "[]",
       "processes": [
         {

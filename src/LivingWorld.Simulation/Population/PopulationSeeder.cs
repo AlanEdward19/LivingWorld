@@ -7,11 +7,10 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Layout;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scheduling;
-
-using LivingWorld.Simulation.Cities.Layout;
 
 namespace LivingWorld.Simulation.Population;
 

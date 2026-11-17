@@ -227,7 +227,10 @@ public static class LivingScopeProjector
                     return new BuildingVisual(
                         building.Id, building.City, building.BuildingTypeId, resolved.Position, resolved.Orientation)
                     {
-                        Floors = plan.Floors, GroundFootprint = plan.GroundFootprint, Value = value, Lodging = lodging,
+                        Floors = plan.Floors,
+                        GroundFootprint = plan.GroundFootprint,
+                        Value = value,
+                        Lodging = lodging,
                         Lot = LivingWorld.Simulation.Cities.CityStreets.LotOf(world, city, building, resolved.Position, resolved.Croft),
                     };
                 })

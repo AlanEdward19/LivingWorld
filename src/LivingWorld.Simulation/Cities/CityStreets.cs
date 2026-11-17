@@ -67,10 +67,9 @@ public static class CityStreets
             if (workplace.City == city.Id && workplace.Building is { } site)
                 people[site] = people.GetValueOrDefault(site) + workplace.Employees.Count;
 
-        int reach = CityOccupancy.Reach(world);
-        foreach (var (building, origin, _) in Placed(world, city))
+        foreach (var (building, origin, croft) in Placed(world, city))
         {
-            if (LotGeometry.FrontStreetCell(network, BuildingFootprintGenerator.Generate(building), origin, reach) is not { } street) continue;
+            if (LotOf(world, city, building, origin, croft).Street is not { } street) continue;
             int count = people.GetValueOrDefault(building.Id);
             for (int i = network.IndexOf(street); i >= 0; i = network.Parent[i])
             {
@@ -87,6 +86,14 @@ public static class CityStreets
                     city.Id, network.Cells[i], users[i] >= trod ? StreetSurface.Dirt : StreetSurface.Trail, users[i],
                     network.IsMain[i], network.InSquare(i)));
         return result;
+    }
+
+    /// <summary>Passagens (porta → rua) de todos os prédios da cidade, do mesmo chão que decide a colocação.</summary>
+    internal static HashSet<CellCoord> PassagesOf(WorldState world, City city)
+    {
+        long population = Queries.CityPopulationQuery.Population(world, city.Id);
+        var (bounds, _) = LivingWorld.Domain.Cities.Spatial.SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
+        return CityOccupancy.GroundOfCity(world, city, bounds, new BuildingId(long.MaxValue)).Passages;
     }
 
     /// <summary>O lote de um prédio (AD-173): quintal de trás, passagem da porta até a rua e a célula de rua da frente.</summary>
@@ -107,7 +114,26 @@ public static class CityStreets
             if (network.Contains(cell)) { street = cell; break; }
             path.Add(cell);
         }
-        if (street is null && path.Count > 1) path.RemoveRange(1, path.Count - 1);
+        if (street is null)
+        {
+            // Lote de caminho: as passagens do chão da cidade ligadas à soleira, até a rua (o caminho que a obra abriu).
+            var doorstep = path[0];
+            path.Clear();
+            var passages = PassagesOf(world, city);
+            var seen = new HashSet<CellCoord> { doorstep };
+            var queue = new Queue<CellCoord>([doorstep]);
+            while (queue.Count > 0 && street is null)
+            {
+                var at = queue.Dequeue();
+                path.Add(at);
+                foreach (var n in (ReadOnlySpan<CellCoord>)[new(at.X, at.Y + 1), new(at.X + 1, at.Y), new(at.X, at.Y - 1), new(at.X - 1, at.Y)])
+                {
+                    if (network.Contains(n)) { street = n; break; }
+                    if (passages.Contains(n) && seen.Add(n)) queue.Enqueue(n);
+                }
+            }
+            if (street is null) path.RemoveRange(1, path.Count - 1);
+        }
         return new LotView(croftCells, path, street);
     }
 }

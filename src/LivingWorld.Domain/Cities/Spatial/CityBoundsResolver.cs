@@ -97,32 +97,32 @@ public static class CityBoundsResolver
         bool grew = true;
         while (grew)
         {
-        grew = false;
-        for (int index = 0; index < ownedBuildingFootprintBoxes.Count; index++)
-        {
-            if (merged[index]) continue;
-            var box = ownedBuildingFootprintBoxes[index];
-            var current = chainAbsorption ? new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1) : populationBox;
-            if (ChebyshevGap(current, box) > absorptionRingCells) continue;
-
-            int candidateMinX = Math.Min(minX, box.Origin.X);
-            int candidateMinY = Math.Min(minY, box.Origin.Y);
-            int candidateMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
-            int candidateMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
-
-            if (otherCityBoundsToAvoid is { Count: > 0 })
+            grew = false;
+            for (int index = 0; index < ownedBuildingFootprintBoxes.Count; index++)
             {
-                var candidateBounds = new CityBounds(
-                    new CellCoord(candidateMinX, candidateMinY),
-                    candidateMaxX - candidateMinX + 1, candidateMaxY - candidateMinY + 1);
-                if (otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidateBounds, other) < absorptionRingCells))
-                    continue; // growing to include this box would close the gap to another city -- skip it
-            }
+                if (merged[index]) continue;
+                var box = ownedBuildingFootprintBoxes[index];
+                var current = chainAbsorption ? new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1) : populationBox;
+                if (ChebyshevGap(current, box) > absorptionRingCells) continue;
 
-            minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
-            merged[index] = true;
-            grew = chainAbsorption;
-        }
+                int candidateMinX = Math.Min(minX, box.Origin.X);
+                int candidateMinY = Math.Min(minY, box.Origin.Y);
+                int candidateMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
+                int candidateMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+
+                if (otherCityBoundsToAvoid is { Count: > 0 })
+                {
+                    var candidateBounds = new CityBounds(
+                        new CellCoord(candidateMinX, candidateMinY),
+                        candidateMaxX - candidateMinX + 1, candidateMaxY - candidateMinY + 1);
+                    if (otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidateBounds, other) < absorptionRingCells))
+                        continue; // growing to include this box would close the gap to another city -- skip it
+                }
+
+                minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
+                merged[index] = true;
+                grew = chainAbsorption;
+            }
         }
 
         // AD-173 (com o traçado ligado): o teto de metade do mapa vale para a caixa por população; a crescida vem de prédios

@@ -61,10 +61,10 @@ public class CityLayoutTests
     public void Every_door_opens_onto_a_street_while_land_lasts()
     {
         var (world, city, bounds) = OpenCity(2024);
-        var network = CityStreets.Of(world, city);
+        Build(world, city, bounds, 20);
 
-        foreach (var (building, _) in Build(world, city, bounds, 20))
-            Assert.NotNull(LotGeometry.FrontStreetCell(network, BuildingFootprintGenerator.Generate(building), building.Position!.Value, CityOccupancy.Reach(world)));
+        foreach (var (building, origin, croft) in CityStreets.Placed(world, city))
+            Assert.NotNull(CityStreets.LotOf(world, city, building, origin, croft).Street); // de frente ou por caminho a pé
     }
 
     [Fact]

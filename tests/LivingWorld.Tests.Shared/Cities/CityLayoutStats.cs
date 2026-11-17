@@ -3,7 +3,6 @@ using System.Text;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Simulation.Cities;
-using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 
