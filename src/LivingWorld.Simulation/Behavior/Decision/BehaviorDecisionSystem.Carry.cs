@@ -18,6 +18,7 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (!world.InventionOn) return;
         var ledger = world.Invention!;
+        if (world.InventionRules!.PantryNeedsPresence && npc.CurrentAction == ActionType.Work) WorkBreakMeal(world, npc, now);
         if (ledger.Carried.Count == 0 && ledger.Held is null) return;
         bool carries = ledger.Carried.Count > 0 && ledger.CarriesAnything(npc.Id.Value);
         if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
@@ -27,6 +28,35 @@ public sealed partial class BehaviorDecisionSystem
             return;
         }
         if (carries) PersonalCarry.ConsumeFromPack(world, npc, now, world.NeedsRules.UrgencyThreshold); // AD-157: come o lanche com fome, não só à beira do fim
+    }
+
+    /// <summary>AD-157b: a pausa do turno. No próprio local de trabalho, com a fome na hora da refeição
+    /// (<see cref="PersonalCarry.MealTimeDeficit"/>), come do que levou ou a refeição do empregador ali mesmo, sem largar o
+    /// trabalho nem viajar; a sede, da água do poço da propriedade. Antes só comia na urgência, e a fome sozinha só vencia crítica.</summary>
+    private static void WorkBreakMeal(WorldState world, Npc npc, long now)
+    {
+        if (npc.Employer is not { } employer || world.FindWorkplace(employer) is not { } work || work.Location != npc.CurrentLocation) return;
+        var econ = world.EconomyRules;
+        int meal = PersonalCarry.MealTimeDeficit;
+        if (100 - npc.HungerAt(now) >= meal && !PersonalCarry.ConsumeFromPack(world, npc, now, meal))
+        {
+            var food = new ResourceType(econ.FoodResourceId);
+            if (TryRation(world, npc, food))
+            {
+                npc.SetHunger(Math.Max(npc.HungerAt(now), Objects.ObjectUse.ConsumeLevel(world, food, LivingWorld.Domain.Objects.ObjectEffectTargets.Hunger)), now);
+                world.RecordResourceConsumed(food, 1);
+                world.InventionTally.WorkBreakMeals++;
+            }
+        }
+        if (100 - npc.ThirstAt(now) >= meal)
+        {
+            var water = new ResourceType(econ.WaterResourceId);
+            if (TryRation(world, npc, water))
+            {
+                npc.SetThirst(Math.Max(npc.ThirstAt(now), Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst)), now);
+                world.RecordResourceConsumed(water, 1);
+            }
+        }
     }
 
     /// <summary>Ao sair de casa (a viagem começa na porta): estima quanto tempo fica fora (ida, o que vai fazer lá e volta) e leva o
@@ -104,7 +134,7 @@ public sealed partial class BehaviorDecisionSystem
         var econ = world.EconomyRules;
         int line = 100 - needs.UrgencyThreshold;
         long night = Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog);
-        bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < 100 - PersonalCarry.MealAheadDeficit
+        bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
