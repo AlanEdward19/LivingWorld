@@ -36,7 +36,7 @@
 21. ~~**Cognição (AD-138), números sem conferência**~~ (AD-161): luto de 120 d confere (Maciejewski 2007); as outras meias-vidas e a capacidade são escolha de modelo.
 22. ~~**Cognição: lembranças dominadas por ajuda**~~ (AD-163, 40×100): 5,2% das lembranças dos adultos no fim (IC90 4,3–6,3%), era 54%.
 23. ~~**Cognição: teste de intervenção em grade sintética**~~ respondido (AD-161): a grade fica (unidade); `CivilizationScopeTests` voltou a 3 vivos no AD-140; efeito no mundo na #146.
-24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela.
+24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela. **AD-164** (mesma DLL 5× seguidas, 1.000 NPCs, fila): 194, 194, 194, 202, 202 B; as duas de 202 B foram as lentas (2,75 contra 2,49 µs). Oscila em dois degraus (~4%), junto com o tempo: comparar a moda de ≥ 3 corridas de cada lado. A 5.000: 172 B nas três.
 25. ~~**Agricultura (AD-135), números sem conferência**~~ (AD-161, [economia](relatorios/conferencia-economia-e-credito.md)): 4 por semente, CV 20%, perda 15%, ceifa 100 conferem; 1300 graus-dia é desvio declarado (real ~2000).
 26. ~~**Agricultura: população mínima 112 e fecundidade presa à despensa**~~ freio no AD-145/158, furto no AD-150; lobos e celeiro na #167.
 27. ~~**Contrato `shape.world/city-subscribe` regravado**~~ respondido (AD-161): o cliente Godot não lê o campo; nada a avisar.
@@ -57,7 +57,7 @@
 40. ~~**Água aos milhares**~~ resolvido no AD-148: a compra completa a meta por padrão (`ProvisioningRules.TopUp`); seed 7, anos 30–50: água das casas 7 por morador (antes até 8.900).
 41. ~~**Ceifa perde 22–26%**~~ resolvido no AD-149 ([land-and-harvest](../../../docs/domain/land-and-harvest.md)): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho e a parte em espécie vai à turma inteira; rendimento por semente 4,34 → 4,59 (20×100).
 42. ~~**Emigração** sem saudade, sem casa inteira, `MoveTo` sem teste~~ confirmado no código (AD-161, [respostas](relatorios/respostas-de-codigo.md)); lacunas na #173, teste em correções. **AD-162:** teste de `MoveTo` com vaga do ofício em outra cidade.
-43. **Custo do AD-145 não medido** (pares a 1.000 e 5.000 NPCs). Goldens e linhas novas do relatório: feitos (AD-161, [respostas](relatorios/respostas-de-codigo.md)).
+43. **Custo do AD-145 não medido** (pares a 1.000 e 5.000 NPCs). AD-164: o acumulado da árvore de hoje (`9ce91e71` + rótulo) a 5.000 é 1,25–1,28 µs e 172 B por NPC-tick (3 corridas); a 1.000, 2,49 µs e 194 B (moda de 5). Isolar cada AD (43, 52, 61, 65, 72, 79) pede compilar os commits antigos lado a lado: sessão de custo própria (grupo 2). Goldens e linhas novas do relatório: feitos (AD-161, [respostas](relatorios/respostas-de-codigo.md)).
 44. ~~**Invenção fatia 2 (AD-143)**~~ (AD-161): 30 kg a pé fora da faixa (sugerido 20), 700 g confere, peixe e rumor escolha de modelo; contrato sem consumidor no Godot; CPU da grade em [a-medir](relatorios/a-medir.md) grupo 2.
 45. ~~**Freios ligados depois do AD-146**~~ causa achada no AD-148: 55% dos adultos não podiam trabalhar (motor fino 1,0) e a casa ia ao mercado sem poder pagar; com os consertos, freios ligados: 0 extinções em 20×100.
 46. ~~**Quem compra sem poder pagar**~~ resolvido no AD-148 (`ProvisioningRules.OnlyIfCanPay`): antes 70% das idas não compravam nada (seed 4, ano 30).

@@ -60,7 +60,9 @@
 106. **Feito no AD-156 (índice de vivos, fontes de flora por hora, salto adiado; mesmo hash). Sobra: o `PowerOpportunityProvider`
      ainda varre todos os portadores, mortos inclusive, por NPC** (`PowerOpportunityProvider.cs:34`; a fauna já não lê portadores,
      AD-161). Medir o custo com poderes ligados ([a-medir](relatorios/a-medir.md) grupo 2). Achado original: mundo com poderes ligados
-     ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h.
+     ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h. **AD-164** (`LW_PROFILE_POWERS=1`,
+     1.000 NPCs, 720 h): 4,70 µs e 411 B por NPC-tick contra 2,49 µs e 194 B sem poderes (1,9×, não 10×); a flora saiu do topo;
+     a decisão foi de 1.346 para 2.457 ms (+83%, inclui o provedor e o `UsePower`). Isolar o provedor pede contador próprio.
 107. ~~**Equivalência do conserto dos poderes ligados**~~ confirmado (AD-161): `LivingCarrierIndexTests` não compara com a varredura
      completa; o teste barato está em correções. **AD-162:** teste escrito (24 meses, mês a mês).
 
