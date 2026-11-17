@@ -80,6 +80,18 @@ public sealed record UnionRules
     /// <summary>Fração da despensa do casal que quem sai leva por pessoa que vai com ele; no abandono, quem foge não leva nada.</summary>
     public double LeaverStockShare { get; init; } = 1.0;
 
+    /// <summary>Sustento depois da separação (AD-165): enquanto houver filho comum abaixo desta idade morando com o ex-cônjuge, o
+    /// pai ou a mãe que não mora com ele manda, uma vez por mês, comida da própria despensa e depois moeda da própria carteira,
+    /// até cobrir o mês da casa do filho, sem descer abaixo da própria reserva. 0 = sem sustento (antes do AD-165). No abandono,
+    /// quem fugiu não manda nada. A separação canônica "de mesa e leito" obrigava o marido a sustentar mulher e filhos.</summary>
+    public int SupportChildUntilAge { get; init; }
+
+    /// <summary>Com sustento, a mãe separada que cria o filho também conta como dependente (alimentos da separação canônica).</summary>
+    public bool SupportIncludesCarer { get; init; } = true;
+
+    /// <summary>Dias de gasto da própria casa que quem sustenta guarda antes de mandar qualquer coisa.</summary>
+    public int SupportReserveDays { get; init; } = 14;
+
     /// <summary>Anos até poder unir-se de novo, por modo do fim.</summary>
     public int RemarryYearsAfterSeparation { get; init; } = 5;
     public int RemarryYearsAfterAbandonment { get; init; } = 7;
