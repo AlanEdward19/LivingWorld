@@ -10,13 +10,16 @@ public sealed record DeathCauseRules(
     double FemaleAccidentFactor,
     AgeCurve OldAgeShareByAge)
 {
-    /// <summary>Nomes da sobra por idade, como nas listas de óbito de Londres (Bills of Mortality, séc. XVII; Graunt 1662) e nos
-    /// registros paroquiais: o recém-nascido "fraco" (chrisom), o lactente de convulsões, a criança pequena dos dentes, a maior de
-    /// lombrigas, o adulto de hidropisia (coração e rim) e o velho de apoplexia. As infecções já têm nome pela doença; aqui só o
-    /// que o modelo não simula como causa. Precisa de conferência (faixas de memória).</summary>
+    /// <summary>Nomes da sobra por idade, como nas listas de óbito de Londres (Bills of Mortality, séc. XVII) e nos registros
+    /// paroquiais. AD-165, conferido em Graunt 1662 (ed. Hull, <i>Economic Writings of Sir William Petty</i>, 1899, v. 2, p. 41–42):
+    /// "Thrush, Convulsion, Rickets, Teeth and Worms" e "Abortives, Chrysomes, Infants, Liver-grown, Overlaid" caíam todos em
+    /// crianças "under four or five years old"; "Aged" era quem morria acima de uns sessenta anos. O crisomo é o recém-nascido do
+    /// primeiro mês (aqui "debilidade"); a dentição mata entre 6 e 24 meses (a dentição de leite; grau [M], precisa de
+    /// conferência), por isso começa em meio ano e a lombriga a partir dos 2. O adulto de hidropisia (coração e rim) e o velho de
+    /// apoplexia ficam. As infecções já têm nome pela doença; aqui só o que o modelo não simula como causa.</summary>
     public static IReadOnlyList<ResidualCause> PreIndustrialResidual { get; } =
     [
-        new(0, "debilidade"), new(28.0 / 365, "convulsoes"), new(1, "denticao"), new(5, "lombrigas"),
+        new(0, "debilidade"), new(28.0 / 365, "convulsoes"), new(0.5, "denticao"), new(2, "lombrigas"),
         new(15, "hidropisia"), new(55, "apoplexia"),
     ];
 

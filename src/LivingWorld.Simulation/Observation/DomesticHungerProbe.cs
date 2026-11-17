@@ -24,6 +24,10 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
     public long Assaults, Killed, AggressorRemoved, HungerMotive, SeparationsAfter, VictimAdultHours, VictimWorkHours;
     public long BeforeHours, AfterHours, BeforeHoursUnder5, AfterHoursUnder5, MemberWindows, MemberWindowsUnder5;
     private readonly Dictionary<long, long> _victim = [], _house = [], _loss = [], _separated = [], _aggressorOf = [];
+    /// <summary>AD-165: todos os separados (com ou sem agressão) por 5 anos, fora da precedência dos grupos, e o sustento pago.</summary>
+    private readonly Dictionary<long, long> _sepAll = [];
+    public long SepAllCrit, SepAllCritUnder5, SupportPayments, SupportFood, SupportCoin;
+    public double SepAllPersonYears, SepAllPersonYearsUnder5;
     private readonly Dictionary<long, List<long>> _crit = [];
     private readonly List<(long Tick, long[] Members, bool[] Under5)> _events = [];
     private readonly Dictionary<long, long> _victimWindow = [];
@@ -62,11 +66,20 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
                     if (long.TryParse(evt.Payload, CultureInfo.InvariantCulture, out long dead)) Starved[GroupOf(dead, now)]++;
                     return;
                 }
+            case WorldEventKind.SupportPaid when now >= MeasureFromTick:
+                {
+                    var f = evt.Payload.Split('|');
+                    SupportPayments++;
+                    if (f.Length > 3 && long.TryParse(f[2], CultureInfo.InvariantCulture, out long food)
+                        && long.TryParse(f[3], CultureInfo.InvariantCulture, out long coin)) { SupportFood += food; SupportCoin += coin; }
+                    return;
+                }
             case WorldEventKind.UnionEnded:
                 {
                     var f = evt.Payload.Split('|');
                     if (f.Length < 2 || !long.TryParse(f[0], CultureInfo.InvariantCulture, out long a)
                         || !long.TryParse(f[1], CultureInfo.InvariantCulture, out long b)) return;
+                    foreach (var m in MembersOf(a).Concat(MembersOf(b))) _sepAll[m] = now;
                     bool afterAssault = Recent(_house, a, now, 3) || Recent(_house, b, now, 3);
                     if (!afterAssault) return;
                     if (now >= MeasureFromTick) SeparationsAfter++;
@@ -88,6 +101,7 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
             int g = GroupOf(id, now);
             CritHours[g]++;
             if (npc.AgeYears(world.CurrentDate) < 5) CritHoursUnder5[g]++;
+            if (Recent(_sepAll, id, now, 5)) { SepAllCrit++; if (npc.AgeYears(world.CurrentDate) < 5) SepAllCritUnder5++; }
             if (!_crit.TryGetValue(id, out var list)) _crit[id] = list = [];
             list.Add(now);
         }
@@ -112,6 +126,7 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
             int g = GroupOf(npc.Id.Value, now);
             PersonYears[g] += share;
             if (npc.AgeYears(world.CurrentDate) < 5) PersonYearsUnder5[g] += share;
+            if (Recent(_sepAll, npc.Id.Value, now, 5)) { SepAllPersonYears += share; if (npc.AgeYears(world.CurrentDate) < 5) SepAllPersonYearsUnder5 += share; }
         }
     }
 
@@ -153,6 +168,7 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
         var inv = CultureInfo.InvariantCulture;
         sb.Append(inv, $" dv_agressoes={Assaults} dv_mortos={Killed} dv_agressor_tirado={AggressorRemoved} dv_motivo_fome={HungerMotive} dv_separacoes={SeparationsAfter}");
         sb.Append(inv, $" dv_vit_h={VictimAdultHours} dv_vit_trab_h={VictimWorkHours} dv_janelas={MemberWindows} dv_antes_h={BeforeHours} dv_depois_h={AfterHours} dv_janelas5={MemberWindowsUnder5} dv_antes5_h={BeforeHoursUnder5} dv_depois5_h={AfterHoursUnder5}");
+        sb.Append(inv, $" dvg.sep_todos={SepAllCrit}/{SepAllPersonYears:F2}/{SepAllCritUnder5}/{SepAllPersonYearsUnder5:F2}/0 dv_sustento={SupportPayments} dv_sustento_comida={SupportFood} dv_sustento_moeda={SupportCoin}");
         for (int g = 0; g < Groups.Length; g++)
             sb.Append(inv, $" dvg.{Groups[g]}={CritHours[g]}/{PersonYears[g]:F2}/{CritHoursUnder5[g]}/{PersonYearsUnder5[g]:F2}/{Starved[g]}");
     }

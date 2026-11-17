@@ -39,7 +39,7 @@ public static class CausalPolicy
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
         WorldEventKind.PowerInherited, WorldEventKind.MilestoneRegressed,
-        WorldEventKind.UnionEnded, WorldEventKind.AffairDiscovered,
+        WorldEventKind.UnionEnded, WorldEventKind.AffairDiscovered, WorldEventKind.SupportPaid,
         // Cidade, saúde e tecnologia
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
         WorldEventKind.OutbreakEnded,

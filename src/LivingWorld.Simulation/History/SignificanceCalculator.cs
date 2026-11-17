@@ -53,6 +53,7 @@ public static class SignificanceCalculator
             [WorldEventKind.StillBirth] = 0.70,
             [WorldEventKind.CourtshipSucceeded] = 0.55,
             [WorldEventKind.AidGiven] = 0.40,
+            [WorldEventKind.SupportPaid] = 0.20, // AD-165: sustento mensal de rotina
             [WorldEventKind.Hired] = 0.35,
             [WorldEventKind.Fired] = 0.40,
             [WorldEventKind.Emigrated] = 0.55,

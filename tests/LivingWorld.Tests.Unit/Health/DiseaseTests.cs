@@ -358,7 +358,7 @@ public class DiseaseTests
         var sink = new RecordingSink();
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
         var mortality = new MortalitySystem();
-        var byAge = new long[] { 3, 180, 2 * 360, 10 * 360, 30 * 360, 70 * 360 }.Select(days =>
+        var byAge = new long[] { 3, 90, 360, 10 * 360, 30 * 360, 70 * 360 }.Select(days =>
         {
             var npc = new Npc(world.NextNpcIdAndAdvance(), "npc", Sex.Female, WorldDate.Epoch(Calendar).AddDays(-days), new CultureId(1),
                 Here, null, null, household: null, health: 100, personality: Neutral, profession: new ProfessionType(1), currentLocation: Here);
