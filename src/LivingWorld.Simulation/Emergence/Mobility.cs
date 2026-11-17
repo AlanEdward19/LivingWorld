@@ -45,15 +45,23 @@ public static class Mobility
         long ticks = world.StreetsOn ? Routed(world, npc.Household, origin, destination, bodyMultiplier)
             : WaterAware(world, npc.Household, origin, destination, bodyMultiplier)
             ?? TravelResolution.TicksBetween(world.Map, origin, destination, bodyMultiplier);
-        return ticks == 0 ? 0 : Math.Max(1, Apply(ticks, BonusPct(world, npc.City)));
+        return ticks == 0 ? 0 : Math.Max(1, Apply(Weathered(world, origin, destination, ticks), BonusPct(world, npc.City)));
+    }
+
+    /// <summary>AD-180: lama na parte sem calçamento da rota e neve na rota toda alongam a viagem (o tempo do lugar de saída).</summary>
+    private static long Weathered(WorldState world, CellCoord origin, CellCoord destination, long ticks)
+    {
+        if (ticks == 0 || !LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, origin, out var row)) return ticks;
+        int soft = LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPm(world, origin, destination);
+        return Math.Max(1, (long)Math.Ceiling(ticks * LivingWorld.Simulation.Climate.WeatherNow.TravelFactor(world, row, soft) - 1e-9));
     }
 
     /// <summary>Trajeto de compra do domicílio (casa ↔ mercado): o mesmo custo de mapa da memória de trajetos, com a água do
     /// caminho e a embarcação da casa quando a invenção está ligada (AD-141), encurtado pela tecnologia da cidade.</summary>
     public static long HouseholdTicks(WorldState world, LivingWorld.Domain.Population.Family.Household household, CellCoord origin, CellCoord destination) =>
-        Apply(world.StreetsOn ? Routed(world, household.Id, origin, destination, 1.0)
+        Apply(Weathered(world, origin, destination, world.StreetsOn ? Routed(world, household.Id, origin, destination, 1.0)
             : WaterAware(world, household.Id, origin, destination, 1.0)
-            ?? LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, origin, destination), BonusPct(world, household.City));
+            ?? LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, origin, destination)), BonusPct(world, household.City));
 
     /// <summary>AD-176: ticks da rota real (rede de caminhos, superfície, prédios no caminho), com o vau a pé ou a embarcação da
     /// casa na água da rota quando a invenção está ligada.</summary>

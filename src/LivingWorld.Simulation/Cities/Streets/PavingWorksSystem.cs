@@ -29,6 +29,8 @@ public sealed class PavingWorksSystem : ISimulationSystem
             var cityId = new CityId(work.City);
             var city = world.FindActiveCity(cityId);
             if (city is null) { ground.Works.Remove(work); continue; }
+            // AD-180: com chuva forte, neve ou chão congelado a turma não trabalha nem recebe no dia
+            if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location)) continue;
             var crew = PavingDecision.DayLaborers(world, city.Id, rules.CrewMax);
             if (crew.Count == 0) continue;
             long due = dayWage * crew.Count;

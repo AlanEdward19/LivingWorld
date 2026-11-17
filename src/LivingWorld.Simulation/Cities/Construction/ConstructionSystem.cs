@@ -49,7 +49,8 @@ public sealed class ConstructionSystem : ISimulationSystem
                     continue;
                 }
 
-                int workSteps = ConstructionWorkSteps(world, city);
+                // AD-180: com chuva forte, neve ou chão congelado a obra para no dia (a argamassa não pega, o barro não seca)
+                int workSteps = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location) ? ConstructionWorkSteps(world, city) : 0;
                 for (int step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
                     long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;

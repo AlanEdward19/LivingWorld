@@ -190,9 +190,18 @@ public static class LivingScopeProjector
     /// <summary>AD-176: as ruas do escopo, em ordem de célula (linha, coluna).</summary>
     private static IReadOnlyList<StreetCellView> RoadsOf(WorldState world, CityId? focusedCity, bool isWorld)
     {
-        if (focusedCity is { } id) return world.FindActiveCity(id) is { } city ? CityStreets.RoadsOf(world, city) : [];
+        if (focusedCity is { } id) return world.FindActiveCity(id) is { } city ? Weathered(world, CityStreets.RoadsOf(world, city)) : [];
         if (!isWorld) return [];
-        return world.ActiveCities().SelectMany(c => CityStreets.RoadsOf(world, c)).OrderBy(r => r.Cell.Y).ThenBy(r => r.Cell.X).ToList();
+        return Weathered(world, world.ActiveCities().SelectMany(c => CityStreets.RoadsOf(world, c)).OrderBy(r => r.Cell.Y).ThenBy(r => r.Cell.X).ToList());
+    }
+
+    /// <summary>AD-180: cada célula de rua com o chão do dia (molhado, lama, neve); sem o tempo, a lista como está.</summary>
+    private static IReadOnlyList<StreetCellView> Weathered(WorldState world, IReadOnlyList<StreetCellView> roads)
+    {
+        if (world.Weather is null || roads.Count == 0) return roads;
+        var result = new List<StreetCellView>(roads.Count);
+        foreach (var road in roads) result.Add(road.WithWeather(world));
+        return result;
     }
 
     /// <summary>O alvo do tick anterior ainda vale (mesmo tipo e id), sem montar o texto do id de novo. Espelha

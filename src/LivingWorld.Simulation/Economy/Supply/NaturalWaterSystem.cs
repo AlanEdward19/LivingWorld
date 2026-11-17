@@ -35,6 +35,9 @@ public sealed class NaturalWaterSystem : ISimulationSystem
                 continue;
             long missing = household.Members.Count * (long)rules.DaysOfSupply - household.Stock.GetValueOrDefault(water);
             if (missing <= 0) continue;
+            // AD-180: na seca o riacho e a fonte minguam; a casa leva só o que corre (o resto, no poço pago ou no mercado)
+            double flow = LivingWorld.Simulation.Climate.WeatherNow.SpringYield(world, household.Location);
+            if (flow < 1) missing = Math.Min(missing, (long)Math.Floor(household.Members.Count * flow) + 1);
             household.Deposit(water, missing);
             world.RecordResourceProduced(water, missing);
         }

@@ -170,6 +170,38 @@ public sealed record StreetCellView(CityId City, CellCoord Cell, StreetSurface S
     /// <summary>Obra de calçamento em curso nesta célula; nulo sem obra.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StreetWorkView? Work { get; init; }
+
+    /// <summary>AD-180: o chão da célula pelo tempo — <c>dry</c>, <c>wet</c>, <c>mud</c>, <c>heavy-mud</c>, <c>snow</c>, <c>frozen</c>
+    /// (cascalho e pedra só molham: nunca lama); nulo com o tempo desligado.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Ground { get; init; }
+
+    /// <summary>AD-180: neve no chão (cm) e terra molhada (0–1000) da célula; nulos com o tempo desligado.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? SnowCm { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? WetPm { get; init; }
+
+    /// <summary>AD-180: a célula com o tempo do dia (o mesmo que o passo lê: lama na terra, neve em tudo).</summary>
+    public StreetCellView WithWeather(WorldState world)
+    {
+        if (Climate.WeatherNow.RowAt(world, Cell) is not { } row) return this;
+        var rules = world.ClimateRules.Weather!;
+        var ground = Climate.WeatherNow.Ground(rules, row);
+        bool paved = Surface is StreetSurface.Gravel or StreetSurface.Paved;
+        if (paved && ground is Climate.GroundWeather.Mud or Climate.GroundWeather.HeavyMud) ground = Climate.GroundWeather.Wet;
+        string name = ground switch
+        {
+            Climate.GroundWeather.Wet => "wet",
+            Climate.GroundWeather.Mud => "mud",
+            Climate.GroundWeather.HeavyMud => "heavy-mud",
+            Climate.GroundWeather.Snow => "snow",
+            Climate.GroundWeather.Frozen => "frozen",
+            _ => "dry",
+        };
+        return this with { Ground = name, SnowCm = row.SnowMm, WetPm = row.SoilPm };
+    }
 }
 
 /// <summary>Obra de calçamento numa célula (AD-176): o que vira, quanto já foi feito (0–100), se é conserto e quem paga

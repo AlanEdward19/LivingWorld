@@ -82,6 +82,14 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
             _version = world.TemperatureAdjustmentsVersion;
             _validFrom = currentTick;
             _validUntil = long.MaxValue;
+            // AD-180: o tempo do dia de cada região (a média do dia na célula de referência menos a base dela) entra antes dos
+            // ajustes, na ordem das regiões; refeito quando o dia muda (a versão sobe)
+            if (world.WeatherOn && world.Weather is { } weather)
+            {
+                float reference = (float)world.ClimateRules.Weather!.ReferenceBaseC;
+                foreach (var row in weather.Regions)
+                    _deltas[new RegionId(row.Region)] = row.MeanCenti / 100f - reference;
+            }
             // Uma passada, na ordem da lista: a soma por região é a mesma de varrer a lista inteira
             // para cada região (float idêntico), mas custa O(ajustes) em vez de O(regiões × ajustes).
             foreach (var adjustment in world.EnvironmentTemperatureAdjustments)

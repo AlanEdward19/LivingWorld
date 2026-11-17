@@ -40,7 +40,8 @@ public sealed partial class CropSystem
         {
             float t = temperature.At(farm.Location);
             var workers = vacancyIndex.PresentWorkersAt(farm);
-            bool canWorkField = t >= ag.MinFieldWorkTemperature;
+            // AD-180: chuva forte, neve no chão e terra congelada param a lavra
+            bool canWorkField = t >= ag.MinFieldWorkTemperature && Climate.WeatherNow.OutdoorWorkable(world, farm.Location);
 
             // a lavoura que não amadureceu até a hora de semear de novo se perde (ano frio demais)
             if (field.Status == CropStatus.Growing && monthStart && month == ag.FailMonth && field.LastSeedSown > 0)
@@ -66,7 +67,12 @@ public sealed partial class CropSystem
                 }
             }
             else if (field.Status == CropStatus.Mature)
+            {
+                // AD-180: o granizo derruba parte do grão em pé
+                if (Climate.WeatherNow.Hail(world, farm.Location))
+                    field.LoseStanding((long)Math.Floor(field.Standing * world.ClimateRules.Weather!.HailCropLoss));
                 Harvest(world, ctx, ag, farm, field, workers, food, residents, farmsPerCity);
+            }
 
             StockShop(world, econ, ag, farm, field, farms, residents, food);
             if (monthStart)
@@ -146,7 +152,8 @@ public sealed partial class CropSystem
         IReadOnlyList<Npc> workers, SkillsRules? skills, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity)
     {
         // sem relha de ferro o arado de pau lavra menos terra por dia (AD-144)
-        long sowCapacity = (long)Math.Floor(workers.Count * ag.SowPerWorkerDay * ToolMechanic.OutputFactor(world, farm, workers.Count));
+        long sowCapacity = (long)Math.Floor(workers.Count * ag.SowPerWorkerDay * ToolMechanic.OutputFactor(world, farm, workers.Count)
+            * Climate.WeatherNow.DaylightFactor(world)); // AD-180: no dia curto o arado anda menos horas
         long wanted = Math.Min(SeedTarget(ag, farm, field, residents, farmsPerCity) - field.LastSeedSown, sowCapacity);
         if (wanted <= 0) return;
 
@@ -198,6 +205,8 @@ public sealed partial class CropSystem
             labor += AttributeMechanic.StrengthMultiplier(world, npc) * BodyMechanic.WorkCapacityMultiplier(world, npc)
                 * world.OntogenyRules.FineMotorWorkFactor(npc.Development); // AD-163: a mão ainda inábil ceifa menos
         labor *= ToolMechanic.OutputFactor(world, farm, workers.Count); // sem foice e sega a ceifa anda devagar (AD-144)
+        // AD-180: grão molhado não se corta (o que fica em pé debulha); a luz do dia limita a jornada
+        labor *= Climate.WeatherNow.CanReap(world, farm.Location) ? Climate.WeatherNow.DaylightFactor(world) : 0;
         long reaped = field.Reap((long)Math.Floor(labor * ag.ReapPerWorkerDay));
         if (reaped > 0)
         {

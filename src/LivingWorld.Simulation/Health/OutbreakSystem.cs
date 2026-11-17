@@ -24,6 +24,7 @@ public sealed class OutbreakSystem : ISimulationSystem
     private readonly List<Infection> _work = [];
     private readonly List<Infection> _caught = [];
     private readonly List<Infection> _ended = [];
+    [ThreadStatic] private static double _anomaly;
 
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Daily;
@@ -36,6 +37,9 @@ public sealed class OutbreakSystem : ISimulationSystem
         long now = ctx.CurrentTick;
         long day = now / world.Calendar.HoursPerDay;
         int month = world.CurrentDate.Month;
+        // AD-180: o desvio do tempo do dia na vila (mais frio ou mais quente que o normal) pesa sobre o calendário da doença
+        _anomaly = world.WeatherOn && world.ActiveCities().FirstOrDefault() is { } village
+            ? LivingWorld.Simulation.Climate.WeatherNow.AnomalyC(world, village.Location) : 0;
 
         world.PurgeExpiredImmunities();
         if (world.Infections.Count > 0)
@@ -211,7 +215,7 @@ public sealed class OutbreakSystem : ISimulationSystem
         {
             var profile = rules.Find(source.Disease)!;
             if (world.FindNpc(source.Npc) is not { IsAlive: true } sick) continue;
-            double season = profile.Season(month);
+            double season = profile.Season(month, _anomaly);
             bool inBed = source.Symptomatic && source.Bedridden;
             var rng = ctx.StreamFor("disease-spread", unchecked((source.Npc.Value * 1_000_003L + day) * 64 + source.Disease));
 
@@ -302,7 +306,7 @@ public sealed class OutbreakSystem : ISimulationSystem
             double max = incidence.Max();
             if (max <= 0) continue;
             var rng = ctx.StreamFor("disease-environment", unchecked(day * 64 + profile.Id));
-            int cases = Poisson(alive.Count * max * profile.Season(month) / daysPerYear, rng);
+            int cases = Poisson(alive.Count * max * profile.Season(month, _anomaly) / daysPerYear, rng);
             for (int i = 0; i < cases; i++)
             {
                 var npc = alive[Math.Min(alive.Count - 1, (int)(rng.NextDouble() * alive.Count))];
@@ -335,7 +339,7 @@ public sealed class OutbreakSystem : ISimulationSystem
             foreach (var city in world.Cities)
             {
                 if (city.MergedIntoCityId is not null) continue;
-                if (!(rng.NextDouble() < annual * profile.Season(month) / daysPerYear)) continue;
+                if (!(rng.NextDouble() < annual * profile.Season(month, _anomaly) / daysPerYear)) continue;
                 if (HasCaseIn(world, profile.Id, city.Id)) continue;
                 var alive = world.AliveNpcIndex.Alive;
                 for (int attempt = 0; attempt < 20 && alive.Count > 0; attempt++)

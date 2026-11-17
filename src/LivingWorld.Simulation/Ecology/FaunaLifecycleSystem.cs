@@ -69,12 +69,13 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
             int cost = Math.Max(1, rules.GrazeStageCost);
             Plant? best = null;
             long bestForage = 0;
+            double snowAccess = LivingWorld.Simulation.Climate.WeatherNow.GrazeAccess(world, animal.Position); // AD-180: neve cobre o pasto
             for (int dx = -r; dx <= r; dx++)
                 for (int dy = -r; dy <= r; dy++)
                 {
                     var cell = new CellCoord(animal.Position.X + dx, animal.Position.Y + dy);
                     if (!plantAt.TryGet(cell, out var plantId) || world.FindPlant(plantId) is not { } plant) continue;
-                    long forage = Forage(plant, plantRules);
+                    long forage = (long)(Forage(plant, plantRules) * snowAccess);
                     if (forage > bestForage || (forage == bestForage && forage > 0 && plant.Id.Value < best!.Id.Value))
                     {
                         best = plant;

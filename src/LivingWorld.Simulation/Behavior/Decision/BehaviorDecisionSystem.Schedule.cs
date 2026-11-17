@@ -85,6 +85,13 @@ public sealed partial class BehaviorDecisionSystem
             world.PurchaseTally.SkippedDuringWork++;
             return false;
         }
+        // AD-180: com tempestade, nevasca ou chuva forte, a ida que pode esperar espera (a despensa dura mais um dia de viagem)
+        if (world.WeatherOn && (double)scarcest / members >= OutingPostponeDays
+            && LivingWorld.Simulation.Climate.WeatherNow.OutingDiscomfort(world, household.Location) >= 0.7)
+        {
+            world.PurchaseTally.SkippedWeather++;
+            return false;
+        }
         if (provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household))
         {
             world.PurchaseTally.SkippedHouseholdCovered++;
@@ -96,6 +103,9 @@ public sealed partial class BehaviorDecisionSystem
         return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
             || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
     }
+
+    /// <summary>AD-180: dias de despensa por morador acima dos quais a ida ao mercado espera o mau tempo passar.</summary>
+    private const double OutingPostponeDays = 2;
 
     /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a
     /// despensa não dure até o fim dele) e se ninguém da casa já foi.</summary>

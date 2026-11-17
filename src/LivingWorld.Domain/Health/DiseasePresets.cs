@@ -20,6 +20,7 @@ public static class DiseasePresets
                 Name = "diarreia", Route = DiseaseRoute.WaterFood, IncubationDays = 1, IncubationJitterDays = 2,
                 EnvironmentalIncidenceByAge = AgeCurve.Of((0, 0.8), (0.5, 2.0), (2, 1.2), (5, 0.08), (15, 0.08), (60, 0.2)),
                 SeasonByMonth = [0.4, 0.4, 0.5, 0.7, 0.9, 1.1, 1.8, 2.2, 1.9, 1.2, 0.6, 0.4],
+                ColdSensitivityPerC = -0.07, // AD-180: +7% por °C acima do normal (Carlton et al. 2016)
                 CrewContagionPerDay = 0, CommunityContagionPerContact = 0,
                 LethalityByAge = AgeCurve.Of((0, 0.09), (1, 0.02), (4, 0.006), (10, 0.003), (50, 0.005), (65, 0.02), (80, 0.04)),
                 MalnutritionLethalityFactor = 2.0, BedriddenShare = 0.5, HealthPenalty = 30,
@@ -31,6 +32,7 @@ public static class DiseasePresets
                 Name = "catarro", Route = DiseaseRoute.Respiratory, IncubationDays = 1, IncubationJitterDays = 3,
                 EnvironmentalIncidenceByAge = AgeCurve.Of((0, 0.7), (1, 0.3), (5, 0.05), (15, 0.05), (60, 0.15), (75, 0.25)),
                 SeasonByMonth = [2.0, 2.0, 1.4, 1.0, 0.7, 0.5, 0.4, 0.4, 0.5, 0.8, 1.2, 1.7],
+                ColdSensitivityPerC = 0.05, // AD-180: +5% por °C abaixo do normal (escolhido; Eurowinter 1997 dá a direção)
                 HouseholdContagionPerDay = 0.01, CrewContagionPerDay = 0.002, CommunityContagionPerContact = 0.001,
                 LethalityByAge = AgeCurve.Of((0, 0.17), (1, 0.025), (5, 0.005), (15, 0.004), (50, 0.012), (65, 0.045), (80, 0.12)),
                 MalnutritionLethalityFactor = 1.5, BedriddenShare = 0.6, HealthPenalty = 35,

@@ -18,6 +18,9 @@ internal sealed class StreetRoute
     public int A = -1, B = -1;
     public int E = -1, X = -1;
     public bool Internal;
+
+    /// <summary>AD-180: parte (‰) das células da rota sem calçamento (onde a chuva faz lama); −1 = ainda não contada.</summary>
+    public int SoftPm = -1;
 }
 
 /// <summary>Trecho pela rede de caminhos entre duas células dela: custo e as células, em ordem.</summary>
@@ -455,6 +458,21 @@ public static class StreetRoutes
 
     /// <summary>AD-176: as células por onde a pessoa anda, em ordem — a célula onde está, a soleira, a reta ou o caminho pela rede,
     /// a soleira do destino e a célula de chegada (água e prédio atravessado inclusive). Sem a rua de verdade, a reta de antes.</summary>
+    /// <summary>AD-180 (ponto único do tempo na rota): parte (‰) das células da rota que não são cascalho nem pedra — o chão que
+    /// vira lama com a chuva. Contada uma vez por rota em cache (a rota é refeita quando o chão muda); sem a rua de verdade, tudo é
+    /// terra (1000).</summary>
+    internal static int SoftPm(WorldState world, CellCoord origin, CellCoord destination)
+    {
+        if (!world.StreetsOn || origin == destination) return 1000;
+        var route = Get(world, origin, destination);
+        if (route.SoftPm >= 0) return route.SoftPm;
+        var cells = PathOf(world, origin, destination);
+        int soft = 0;
+        foreach (var cell in cells)
+            if (world.Ground!.SurfaceAt(cell) is not (GroundSurface.Gravel or GroundSurface.Stone)) soft++;
+        return route.SoftPm = cells.Count == 0 ? 1000 : soft * 1000 / cells.Count;
+    }
+
     public static IReadOnlyList<CellCoord> PathOf(WorldState world, CellCoord origin, CellCoord destination)
     {
         var cells = new List<int>();

@@ -18,7 +18,8 @@ public sealed class ClimateYearSystem : ISimulationSystem
     public void Tick(WorldState world, TickContext ctx)
     {
         var rules = world.ClimateRules;
-        if (!rules.Enabled) return;
+        // AD-180: com o tempo diário o sorteio do ano vira o regime do tempo e o fator sai da estação (WeatherSystem)
+        if (!rules.Enabled || rules.WeatherOn()) return;
 
         // limites inválidos do cenário (negativo, máximo abaixo do mínimo) não podem virar colheita negativa
         int min = Math.Max(0, rules.MinMilli), max = Math.Max(min, rules.MaxMilli);

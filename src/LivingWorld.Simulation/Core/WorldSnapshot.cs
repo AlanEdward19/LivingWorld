@@ -353,6 +353,9 @@ public static class WorldSnapshot
         rehydrated.UseGround( // AD-176: ausente = mundo antigo (o chão começa sem trilha)
             node.TryGetPropertyValue("Ground", out var groundNode) && groundNode is not null
                 ? groundNode.Deserialize<LivingWorld.Simulation.Cities.Streets.GroundLedger>(JsonOptions) : null);
+        rehydrated.UseWeather( // AD-180: ausente = mundo antigo ou tempo desligado (o tempo nasce no próximo dia)
+            node.TryGetPropertyValue("Weather", out var weatherNode) && weatherNode is not null
+                ? weatherNode.Deserialize<LivingWorld.Simulation.Climate.WeatherLedger>(JsonOptions) : null);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
     }

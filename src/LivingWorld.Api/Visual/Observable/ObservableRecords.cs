@@ -97,7 +97,17 @@ public sealed record ObjectVisual(
 /// <summary>Estação e clima do escopo: mês, índice e chave da estação (quarto do ano), temperatura do lugar (meio grau), região,
 /// fator de safra do ano (milésimos, 1000 = médio) e seca.</summary>
 public sealed record ScopeClimateVisual(
-    int Month, int SeasonIndex, string SeasonKey, double TemperatureC, int RegionId, int CropYearFactorMilli, bool Drought);
+    int Month, int SeasonIndex, string SeasonKey, double TemperatureC, int RegionId, int CropYearFactorMilli, bool Drought,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    WeatherVisual? Weather = null);
+
+/// <summary>AD-180: o tempo do dia no lugar (ausente com o tempo desligado). <c>precipitation</c>: none, rain, snow;
+/// <c>intensity</c>: none, light (&lt;2 mm), moderate (&lt;8 mm), heavy; <c>ground</c> (chão de terra): dry, wet, mud, heavy-mud, snow,
+/// frozen; temperaturas em °C (meio grau), luz em horas (décimo), nascer e pôr do sol em hora solar.</summary>
+public sealed record WeatherVisual(
+    string Precipitation, string Intensity, double PrecipitationMm, bool Storm, bool Hail, bool Frost, bool Drought,
+    bool HeatWave, bool ColdWave, double WindMs, double TemperatureNowC, double FeelsLikeC, double MinC, double MaxC,
+    double DaylightHours, double SunriseHour, double SunsetHour, string Ground, int SnowCm, int GroundWetPm, int OutdoorLostDays);
 
 /// <summary>Envolvidos de um evento, lidos do payload do motor. Crime traz autor, vítima, caso e desfecho, sem descrição; violência
 /// sexual, doméstica e contra criança vêm com <see cref="RecordOnly"/> (só registro, sem cena).</summary>
@@ -125,4 +135,6 @@ public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> Groun
 /// do ano e seca).</summary>
 public sealed record ClimateLayerPayload(int Month, int SeasonIndex, string SeasonKey, IReadOnlyList<RegionClimateVisual> Regions);
 
-public sealed record RegionClimateVisual(int RegionId, CellCoord Center, double TemperatureC, int CropYearFactorMilli, bool Drought);
+public sealed record RegionClimateVisual(int RegionId, CellCoord Center, double TemperatureC, int CropYearFactorMilli, bool Drought,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    WeatherVisual? Weather = null);
