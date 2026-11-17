@@ -210,7 +210,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted, catalog, stage); // AD-160b: tempo livre
                 }
 
-                if (candidate is ActionType.Idle or ActionType.Socialize && MealTimeAtHome(world, npc, now)) candidate = ActionType.Eat; // AD-157b
+                if (MealTimeAtHome(world, npc, candidate, now)) candidate = ActionType.Eat; // AD-157b
                 var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;

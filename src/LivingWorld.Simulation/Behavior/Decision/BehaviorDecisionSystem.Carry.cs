@@ -146,12 +146,20 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>AD-157b: a hora da refeição em casa. Com a despensa em casa, quem está em casa sem urgência e com a fome perto da
     /// urgência (<see cref="PersonalCarry.MealTimeDeficit"/>) come agora, com a casa tendo comida: a fome sozinha só vencia o resto
     /// da escolha já crítica (a refeição de duas horas era passada com fome crítica).</summary>
-    internal static bool MealTimeAtHome(WorldState world, Npc npc, long now)
+    internal static bool MealTimeAtHome(WorldState world, Npc npc, ActionType candidate, long now)
     {
-        if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+        // à toa ou conversando: a hora da refeição; deitado ou indo deitar: só a fome já urgente levanta para comer (a ceia cuida da
+        // hora de deitar); o resto (trabalho, compra, cuidar) segue
+        int threshold = candidate switch
+        {
+            ActionType.Idle or ActionType.Socialize => PersonalCarry.MealTimeDeficit,
+            ActionType.Sleep => world.NeedsRules.UrgencyThreshold,
+            _ => int.MaxValue,
+        };
+        if (threshold == int.MaxValue || !world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
             || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
             return false;
-        if (100 - npc.HungerAt(now) < PersonalCarry.MealTimeDeficit) return false;
+        if (100 - npc.HungerAt(now) < threshold) return false;
         if (home.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)) <= 0) return false;
         world.InventionTally.MealTimeAtHome++;
         return true;

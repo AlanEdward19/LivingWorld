@@ -96,10 +96,14 @@ public class MealRoutineTests
         long now = world.CurrentDate.TotalHours;
         npc.SetHunger(100 - PersonalCarry.MealTimeDeficit, now);
 
-        Assert.True(BehaviorDecisionSystem.MealTimeAtHome(world, npc, now));
+        Assert.True(BehaviorDecisionSystem.MealTimeAtHome(world, npc, ActionType.Idle, now));
+        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(world, npc, ActionType.Sleep, now)); // deitado, só a fome urgente levanta
+        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(world, npc, ActionType.Work, now));
+        npc.SetHunger(100 - world.NeedsRules.UrgencyThreshold - 1, now);
+        Assert.True(BehaviorDecisionSystem.MealTimeAtHome(world, npc, ActionType.Sleep, now));
         npc.SetHunger(100, now);
-        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(world, npc, now));
-        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(NewWorld(Rules with { PantryNeedsPresence = false }), npc, now));
+        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(world, npc, ActionType.Idle, now));
+        Assert.False(BehaviorDecisionSystem.MealTimeAtHome(NewWorld(Rules with { PantryNeedsPresence = false }), npc, ActionType.Idle, now));
     }
 
     [Fact]

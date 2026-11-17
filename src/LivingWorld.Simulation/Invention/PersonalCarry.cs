@@ -28,7 +28,7 @@ public static class PersonalCarry
     internal const int MealTimeDeficit = 65;
 
     /// <summary>AD-157b: a refeição em casa de quem foi beber leva comida só a partir desta fome (déficit). Escolha sem fonte.</summary>
-    internal const int AppetiteDeficit = 55;
+    internal const int AppetiteDeficit = 40;
 
     /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
     /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
