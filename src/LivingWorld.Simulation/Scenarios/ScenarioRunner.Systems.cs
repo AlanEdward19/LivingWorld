@@ -98,6 +98,8 @@ public static partial class ScenarioRunner
         new LivingWorld.Simulation.Economy.Credit.CreditSystem(), // AD-155: parcela, calote e falência antes do lucro
         new OwnerDrawSystem(),
         new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio
+        new LivingWorld.Simulation.Cities.Streets.StreetGroundSystem(), // AD-176: pisoteio, superfície e decisão de calçar
+        new LivingWorld.Simulation.Cities.Streets.PavingWorksSystem(), // AD-176: a obra de calçamento
         new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),

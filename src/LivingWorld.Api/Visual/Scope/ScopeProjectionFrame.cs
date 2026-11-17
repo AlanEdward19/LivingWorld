@@ -36,6 +36,11 @@ public sealed class ScopeProjectionFrame
     private List<ProcessVisual>? _cropProcesses;
     private Dictionary<CityId, CityDensityVisual>? _densities;
     private IReadOnlyList<FaunaGroupVisual>? _faunaGroups;
+    private LivingWorld.Simulation.Economy.Market.MarketIndex? _markets;
+
+    /// <summary>AD-176: índice de mercados do tick, montado só se alguém viaja (o destino da rota de quem vai comprar).</summary>
+    internal LivingWorld.Simulation.Economy.Market.MarketIndex Markets =>
+        _markets ??= LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(World);
 
     /// <param name="previous">A leitura do tick anterior (AD-172): o NPC que não mudou nada visível reaproveita o registro de lá,
     /// sem alocar, e o diff o reconhece por referência. Só a API guarda isso; o mundo não sabe.</param>

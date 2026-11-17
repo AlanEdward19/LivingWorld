@@ -182,6 +182,7 @@
             "units": "number"
           },
           "lot?": {
+            "access?": "string",
             "croft": [
               {
                 "x": "number",
@@ -417,7 +418,14 @@
           "relocationDestination?": {
             "x": "number",
             "y": "number"
-          }
+          },
+          "route?": [
+            {
+              "x": "number",
+              "y": "number"
+            }
+          ],
+          "routeArrivalTick?": "number"
         }
       ],
       "objects": [
@@ -459,6 +467,31 @@
           "resourceId?": "number",
           "resourceName?": "string",
           "targetId": "number"
+        }
+      ],
+      "roads": [
+        {
+          "cell": {
+            "x": "number",
+            "y": "number"
+          },
+          "city": {
+            "value": "string"
+          },
+          "condition?": "number",
+          "main": "boolean",
+          "planned": "boolean",
+          "square": "boolean",
+          "surface": "number",
+          "useBand": "number",
+          "users": "number",
+          "wear": "number",
+          "work?": {
+            "payer": "string",
+            "progressPct": "number",
+            "repair": "boolean",
+            "surface": "number"
+          }
         }
       ]
     },

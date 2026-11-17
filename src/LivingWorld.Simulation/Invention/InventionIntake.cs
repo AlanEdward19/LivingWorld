@@ -15,7 +15,7 @@ public static class InventionIntake
 
     public static void OnTravelArrived(WorldState world, Npc npc, CellCoord origin, CellCoord destination, long tick)
     {
-        int water = WaterCrossing.CellsBetween(world.Map, origin, destination);
+        int water = LivingWorld.Simulation.Cities.Streets.StreetRoutes.WaterCells(world, origin, destination); // AD-176: a da rota real
         if (water == 0) return;
         var rules = world.InventionRules!;
         var ledger = world.Invention!;

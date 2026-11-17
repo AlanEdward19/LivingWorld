@@ -31,6 +31,7 @@ internal sealed record RunningWorldSamples(
         var world = services.GetRequiredService<WorldHost>().Current;
         string cityId = world.ActiveCities().First().Id.ToString();
         AddHouseWithoutStreet(world);
+        AddTrodGround(world);
         var client = factory.CreateClient();
         var (worldReader, leaveWorld) = gateway.SubscribeChannel(new VisualScope(VisualScopeKind.World, ""));
         var (cityReader, leaveCity) = gateway.SubscribeChannel(new VisualScope(VisualScopeKind.City, cityId));
@@ -78,6 +79,34 @@ internal sealed record RunningWorldSamples(
                 return;
             }
         throw new InvalidOperationException("sem lugar para a casa sem rua na amostra");
+    }
+
+    /// <summary>AD-176: o mundo da amostra nasce sem trilha (a rua vem do uso, mês a mês); aqui ganha o chão de um vilarejo já
+    /// pisado — terra batida no traçado reservado, um trecho calçado e uma obra em curso — para o contrato da rua ter exemplos.</summary>
+    private static void AddTrodGround(LivingWorld.Simulation.Core.WorldState world)
+    {
+        var ground = world.Ground!;
+        var city = world.ActiveCities().First();
+        var planned = LivingWorld.Simulation.Cities.CityStreets.AllStreetCells(world).OrderBy(c => c.Y).ThenBy(c => c.X).Take(12).ToList();
+        foreach (var cell in planned)
+        {
+            int i = ground.IndexOf(cell);
+            ground.AddPasses(i, 400);
+            ground.SetSurface(i, LivingWorld.Simulation.Cities.Streets.GroundSurface.Dirt);
+        }
+        int paved = ground.IndexOf(planned[0]);
+        ground.SetPaving(paved, LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel, 900);
+        ground.SetSurface(paved, LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel);
+        ground.Works.Add(new LivingWorld.Simulation.Cities.Streets.PavingWork
+        {
+            Id = ground.NextWorkId++,
+            City = city.Id.Value,
+            Surface = LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel,
+            Cells = [ground.IndexOf(planned[1])],
+            HoursTotal = 100_000,
+            HoursLeft = 100_000,
+        });
+        ground.SurfaceVersion++;
     }
 
     /// <summary>A forma de todas as amostras juntas.</summary>

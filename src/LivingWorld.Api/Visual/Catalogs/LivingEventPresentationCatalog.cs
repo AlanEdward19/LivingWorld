@@ -73,6 +73,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.SupportPaid] = "Um pai ou mãe separado mandou sustento para a casa do filho",
             [WorldEventKind.LeavingsLeft] = "O que um morto levava ficou onde ele caiu",
             [WorldEventKind.LeavingsCollected] = "Alguém recolheu o que um morto deixou no caminho",
+            [WorldEventKind.StreetWorkStarted] = "Começou uma obra de calçamento na rua",
+            [WorldEventKind.StreetWorkDone] = "Uma rua ficou calçada",
             [WorldEventKind.CourtshipStarted] = "Um cortejo começou",
             [WorldEventKind.CourtshipRejected] = "Um cortejo não foi correspondido",
             [WorldEventKind.CourtshipSucceeded] = "Um cortejo foi correspondido",

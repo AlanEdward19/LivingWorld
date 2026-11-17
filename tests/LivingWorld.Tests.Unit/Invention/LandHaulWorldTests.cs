@@ -66,6 +66,13 @@ public class LandHaulWorldTests
         Assert.Equal(long.MaxValue, InventionMarket.CargoGrams(world, home, home.Location)); // mercado na porta: nada a levar
 
         var cart = GiveCart(world, npc);
+        // AD-176: o veículo de terra pede caminho que o comporte: pelo mato até o mercado, a carga volta aos braços
+        Assert.Equal(foot, InventionMarket.CargoGrams(world, home, market));
+        Assert.Equal(1, world.InventionTally.HaulerRouteBlocked);
+        var ground = world.Ground!;
+        foreach (var cell in LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(world, home.Location, market))
+            ground.SetSurface(ground.IndexOf(cell), LivingWorld.Simulation.Cities.Streets.GroundSurface.Dirt);
+        ground.SurfaceVersion++;
         long withCart = InventionMarket.CargoGrams(world, home, market);
         Assert.Equal(PhysicsEvaluator.Haul(cart.Parts, Eager).CapacityG, withCart);
         Assert.True(withCart > 3 * foot, $"{withCart}");

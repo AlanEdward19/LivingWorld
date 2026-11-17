@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
@@ -16,15 +15,15 @@ public sealed class MarketIndex
     private readonly HashSet<CellCoord> _origins;
     private readonly Dictionary<CellCoord, Workplace?> _nearestByOrigin;
     private readonly Workplace[] _markets;
-    private readonly WorldMap _map;
+    private readonly WorldState _world;
 
     private MarketIndex(
-        HashSet<CellCoord> origins, Dictionary<CellCoord, Workplace?> nearestByOrigin, Workplace[] markets, WorldMap map)
+        HashSet<CellCoord> origins, Dictionary<CellCoord, Workplace?> nearestByOrigin, Workplace[] markets, WorldState world)
     {
         _origins = origins;
         _nearestByOrigin = nearestByOrigin;
         _markets = markets;
-        _map = map;
+        _world = world;
     }
 
     /// <summary>Mercado mais próximo que de fato tem algo a vender (estoque e preço de pelo menos um dos
@@ -43,7 +42,7 @@ public sealed class MarketIndex
                     && market.Prices.TryGetValue(resource, out var price) && price > 0) { sells = true; break; }
             if (!sells) continue;
 
-            long ticks = TravelResolution.TicksBetween(_map, origin, market.Location);
+            long ticks = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(_world, origin, market.Location); // AD-176: pela rota
             if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < bestId))
             {
                 bestTicks = ticks;
@@ -65,7 +64,7 @@ public sealed class MarketIndex
         {
             if (!Sells(market, first) && !Sells(market, second)) continue;
 
-            long ticks = TravelTicksCache.Between(_map, origin, market.Location);
+            long ticks = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(_world, origin, market.Location);
             if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < bestId))
             {
                 bestTicks = ticks;
@@ -86,6 +85,7 @@ public sealed class MarketIndex
     private sealed class Memo
     {
         public WorldMap? Map;
+        public (long, int, bool) Routes;
         public Workplace[] Markets = [];
         public CellCoord[] MarketLocations = [];
         public readonly Dictionary<CellCoord, Workplace?> Nearest = new();
@@ -100,8 +100,10 @@ public sealed class MarketIndex
         var catalog = world.EconomyCatalog;
         var map = world.Map;
         var memo = Memos.GetOrCreateValue(world);
-        if (!ReferenceEquals(memo.Map, map) || !MarketsUnchanged(world, memo))
+        var routes = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Stamp(world);
+        if (!ReferenceEquals(memo.Map, map) || memo.Routes != routes || !MarketsUnchanged(world, memo))
         {
+            memo.Routes = routes;
             var markets = world.Workplaces
                 .Where(w => catalog.MarketLocationTypeIds.Contains(w.LocationType.Id))
                 .OrderBy(w => w.Id.Value)
@@ -122,10 +124,10 @@ public sealed class MarketIndex
         foreach (var origin in origins)
         {
             if (!memo.Nearest.ContainsKey(origin))
-                memo.Nearest[origin] = NearestMarket(map, origin, memo.Markets);
+                memo.Nearest[origin] = NearestMarket(world, origin, memo.Markets);
         }
 
-        return new MarketIndex(origins, memo.Nearest, memo.Markets, map);
+        return new MarketIndex(origins, memo.Nearest, memo.Markets, world);
     }
 
     /// <summary>Compara o conjunto atual de mercados com o memo sem alocar. Só vale quando
@@ -150,14 +152,14 @@ public sealed class MarketIndex
         return found == memo.Markets.Length;
     }
 
-    private static Workplace? NearestMarket(WorldMap map, CellCoord origin, Workplace[] markets)
+    private static Workplace? NearestMarket(WorldState world, CellCoord origin, Workplace[] markets)
     {
         Workplace? best = null;
         long bestTicks = long.MaxValue;
         long bestId = long.MaxValue;
         foreach (var market in markets)
         {
-            long ticks = TravelResolution.TicksBetween(map, origin, market.Location);
+            long ticks = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, origin, market.Location);
             if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < bestId))
             {
                 bestTicks = ticks;

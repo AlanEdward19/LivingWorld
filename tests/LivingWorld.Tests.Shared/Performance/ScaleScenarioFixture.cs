@@ -122,7 +122,15 @@ public static class ScaleScenarioFixture
             perfRules: PerfRules.ScaleSensorInitial,
             workplaceVacancyMultiplier: vacancyMult,
             // AD-173: LW_CITY_LAYOUT=off mede o custo do código com a colocação de antes (separa custo de código de mundo diferente)
-            cityLayout: Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off" ? LivingWorld.Domain.Cities.CityLayoutRules.Off : null,
+            // AD-176: LW_STREETS=off mede sem a rua de verdade (linha reta, sem pisoteio)
+            cityLayout: (Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
+            {
+                (false, false) => null,
+                (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
+                (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
+                    with
+                { Streets = LivingWorld.Domain.Cities.StreetRules.Off },
+            },
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,
             plantSpeciesRules: ScalePlantSpeciesRules,

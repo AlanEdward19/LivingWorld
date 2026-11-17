@@ -31,6 +31,9 @@ public sealed partial class BehaviorDecisionSystem
             npc.CurrentLocation,
             new ResourceType(world.EconomyRules.FoodResourceId), new ResourceType(world.EconomyRules.WaterResourceId));
 
+    /// <summary>AD-176: para onde a viagem em curso vai (a projeção desenha a rota até lá).</summary>
+    internal static CellCoord? TravelDestinationFor(WorldState world, Npc npc, MarketIndex marketIndex) => TravelDestinationOf(world, npc, marketIndex);
+
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest

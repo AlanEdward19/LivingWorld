@@ -1,61 +1,77 @@
-# Traçado da cidade: ruas, lotes, quintal e caminho (AD-173)
+# Traçado da cidade e rua de verdade (AD-173, AD-176)
 
-A vila não nasce em grade nem em anel: cresce ao longo de ruas que saem do ponto de fundação, e cada prédio nasce num
-lote escolhido por quem constrói. O motor é a fonte da verdade; o cliente desenha só o que ele expõe.
+A vila cresce ao longo de ruas que saem do ponto de fundação, cada prédio nasce num lote escolhido por quem constrói, e a rua
+que existe é a que o uso fez (AD-176). O motor é a fonte da verdade; o cliente desenha só o que ele expõe.
 
-## Ruas (`CityStreets`, `Layout/StreetNetwork`)
-- Função pura do mapa, do ponto de fundação e de `CityLayoutRules` (nada no snapshot): um **largo** em volta do ponto
-  de fundação, uma **rua principal** no eixo com mais terra seca, **travessas** a cada `LaneSpacingCells` (±1 por hash) e
-  **vielas** de segunda ordem nas travessas. Cada rua atravessa uma célula de água só (vau) ou contorna com um passo de lado, e para no fim do mapa, na água
-  sem contorno, ao encostar em outra rua ou em `MaxStreetCells`.
-- Rua não recebe prédio, salvo no último degrau (escassez extrema). A passagem da porta até a rua também não.
-- **Rua existe pelo uso**: só aparece (camada `Roads`) a célula que leva algum prédio ao largo. A superfície vem de
-  quantas pessoas (moradores e quem trabalha no prédio) passam por ela: trilha abaixo de `TrodResidents`, terra batida
-  daí para cima. Cascalho e pedra existem no tipo, mas nenhuma técnica do motor calça rua ainda (dívida, 08d).
+## Traçado reservado (`CityStreets`, `Layout/StreetNetwork`)
+Função pura do mapa, do ponto de fundação e de `CityLayoutRules`: **largo**, **rua principal** no eixo mais seco, **travessas** e
+**vielas**. Desde a AD-176 é só **reserva de espaço**: ali não se constrói, e a porta de cada lote dá para ela. Nada anda "pelo
+traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoas passam por ele (as portas dão para lá).
 
-## Lote (`Layout/LotPlanner`, `LotTerms`, `LotProfiles`)
-Quem constrói escolhe o lote pelo que é e pelo que pode:
-| Quem | Lote |
-|---|---|
-| Oficina, mercado, celeiro | Porta na rua principal (procura ali primeiro), recuo, sem quintal |
-| Pobre (dinheiro/pessoa < `PoorMeansFraction` × mediana da cidade) | Casebre: porta na rua, parede-meia, sem quintal |
-| Artesão | Porta na rua; no centro parede-meia e sem quintal; fora, quintal de `ArtisanCroftCells` |
-| Lavrador | Quintal da frente (`FrontYardCells`) e croft de `FarmerCroftCells` (+1 se a casa tem `LargeFamilyMembers`) |
-| No centro (rua a até `CentralDepthCells` do largo) | Sem quintal, salvo remediado (> `RichMeansFactor` × mediana) |
-- A casa fica o mais perto do largo possível: de frente para a rua ou, se for mais perto, com um **caminho a pé** de até
-  `PathCells` células da soleira até a rua. O quintal é escolha: a família só se afasta `CroftDetourCells` a mais por ele.
-- Quem grava a posição (semeadura, obra, oficina nova) vira a porta para a rua; prédio derivado mantém a orientação da
-  identidade. O quintal escolhido fica em `Building.CroftCells` (snapshot e hash).
-- Na fundação todos têm o mesmo pecúlio: a faixa de meios só separa casas construídas depois.
+## Chão pisado (`Streets/GroundLedger`, `StreetGroundSystem`, mensal)
+- Toda viagem que chega soma uma passagem em cada célula da rota que fez (no fim do mês), fora prédio e água. O pisoteio
+  acumulado perde `WearRetainPm` por mês (o mato volta). Snapshot e hash: linhas esparsas por célula, viagens do mês, obras.
+- A cada `ReviewMonths` a superfície muda: **trilha** a partir de `TrailWear`, **terra batida** a partir de `DirtWear` (some abaixo
+  da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo vira obstáculo na virada do mês e apaga o chão debaixo.
+- Lama na chuva: **não entregue**, o motor não tem chuva nem umidade (o fator de clima é de safra). Dívida no 08d.
 
-## Quando falta terra (`PlacementPolicy`)
-Degraus, cada um só depois que o anterior não achou lugar em todo o alcance: 0 o lote escolhido; 1 sem quintal; 2
-parede-meia; (a semeadura usa um andar livre de casa existente aqui); 3 folga de uma célula sem rua; 4 encostando; (a
-semeadura divide a casa menos cheia: aperto); 5 só sem sobreposição. Nos degraus 3–4 a soleira fica livre. Traçado
-desligado: a ordem de antes (todos os degraus, depois o andar livre). A cidade crescida absorve o prédio a até `AbsorptionRingCells` do
-limite **já crescido** (encadeado), mas só até `ChainedBoundsReachCells` (6) da caixa por população: a casa que nasce mais
-longe por falta de lote perto forma aglomerado que pode fundar cidade-filha e depois se fundir à mãe (filhas em 10 anos, seeds
-1/2/3/7 do `default.json`: antes 1/8/9/8, agora 1/4/6/8; fusões 1/5/6/7 → 1/2/3/5; `CityFoundingReport`).
+## Rota (`Streets/StreetRoutes`)
+- Pontas na **soleira** do prédio onde a pessoa está (por ela se entra e sai). Duas opções, fica a mais rápida: a **reta** pelo
+  terreno (custo do mapa × passo médio das células, mais, por trecho de prédio atravessado, a volta em torno do solto
+  `DetourPm` = 2√2−2 célula ou a subida por cima do colado `OverPm`), ou **ir ao caminho mais perto**, seguir a **rede**
+  (trilha+, A* de 8 vizinhos) e sair perto do destino. Passo: sem caminho 1,00; trilha 0,85; terra 0,80; cascalho 0,75; pedra 0,70.
+- O tempo de toda viagem (trabalho, cama, mercado, água, ajuda mútua, pressão de tecnologia) sai da rota; o vau da invenção soma
+  a água da rota. Cache por par origem–destino, refeito quando a rede (revisão) ou os obstáculos (mês) mudam.
+- **Veículo de terra** (AD-153) só leva carga se a rota tem até `HaulerOffRoadCells` células sem caminho; senão, braços.
+- O NPC escolhe a rota mais rápida: isso concentra a passagem e decide quais trechos crescem (o laço).
 
-## Consumidores
-- **Valor do imóvel** (aluguel e diária, `BuildingValuation`): cada célula de quintal soma `CroftValuePerCell` ao fator
-  de local.
-- **Distância**: lote, caminho e rua decidem onde a casa fica, e a viagem (casa → trabalho, mercado, água) custa por
-  célula. Horta, bichos e poço no quintal ainda não existem no motor (dívida, 08d).
+## Calçar é obra (`PavingTechnique`, `PavingDecision`, `PavingWorksSystem`)
+- **Técnica**: `TechDiscoverySystem` (anual) abre um trecho de teste numa cidade com `PavingDirtCells` de terra batida e alguém
+  hábil; nasce a tecnologia `paving` (espalha por vínculo, como a de mobilidade). Eixo de habilidade ≥ `StoneSkillAxis` → pedra.
+- **Decisão** (mensal): o trecho de terra mais passado vira obra se o tempo poupado em `PaybackYears` paga a mão de obra.
+  Pagam as **casas de frente** (soleira no trecho) se todas podem; senão o **tesouro** (pavage).
+- **Material e mão de obra**: horas de assentar + buscar o material pela rota (`LoadsPerCell` idas e voltas): pedra comprada no
+  mercado que vende o recurso `StoneResourceId` (pedreira; estoque consumido, dinheiro ao caixa dela), ou, se o mundo não tem esse
+  recurso, do terreno `StoneTerrainId`; cascalho do leito (água). Diaristas = adultos sem emprego da cidade, jornal por dia.
+- **Manutenção**: a condição cai com o tempo e as passagens; abaixo de `RepairBelowPm` pede conserto; a zero, volta a terra.
+
+## Acesso a toda casa
+`AccessOf`: `street` (soleira em caminho ou no traçado), `path`, `alley` (viela: os dois lados da soleira são prédio), `stair`
+(soleira tapada por sobrado vizinho: escada), `roof` (laje/telhado do vizinho), `none` (porta para fora do mapa: não deve
+existir). A passagem por cima tem custo próprio na rota (`OverPm`).
+
+## Lote (`Layout/LotPlanner`, `LotProfiles`) e degraus (`PlacementPolicy`)
+Como na AD-173: oficina/mercado na principal; pobre casebre parede-meia; artesão; lavrador com quintal; centro sem quintal salvo
+remediado; degraus 0–5 quando falta terra. Quintal: `Building.CroftCells`.
+
+## Cidade-filha pela causa real
+O aglomerado que nasceu longe por falta de lote perto só funda cidade se, pela rota, quem mora nele gasta em média
+`FoundingCommuteHours` ou mais para chegar ao que a mãe dá (largo ou mercado, o mais perto) + o trabalho fora do aglomerado.
+10 anos, `default.json` seeds 1/2/3/7: filhas/fusões 20/12 (rua desligada 19/11; antes do traçado 26/19).
 
 ## Contrato (só acréscimo)
-- `BuildingVisual.Lot`: `Croft` (células do quintal, cercado), `FrontPath` (passagem/caminho da porta à rua), `Street`.
-- Camada `Roads` modelada: `StreetCellView(City, Cell, Surface, Users, Main, Square)`.
+- `BuildingVisual.Lot.access`: `street|path|alley|stair|roof|none` (ausente sem a rua de verdade).
+- Camada `Roads` e `LivingScopeState.roads` (escopos Cidade e Mundo), delta `roadUpserts`/`roadRemoved` (chave = `cell`):
+  `StreetCellView(city, cell, surface, users, main, square)` + `wear`, `useBand` (0–4: <10, <30, <100, <300, 300+
+  passagens/mês), `planned`, `condition?` (0–1000, calçado), `work?` = `{surface, progressPct, repair, payer: treasury|
+  frontage}`. `surface` vai como número: 0 trilha, 1 terra batida, 2 cascalho, 3 pedra. `users` = passagens do último mês.
+- `NpcVisual.route?`: células da rota (soleira a soleira, pontas dentro do prédio) de quem viaja, e `routeArrivalTick?`.
+  O cliente anda o boneco por elas entre o início da ação e a chegada; ausente = não viaja.
 
 ## Fontes e confiança
-- Toft (casa e terreiro à frente, na rua) e croft (faixa de cultivo atrás, até uma rua de trás) na aldeia inglesa medieval:
-  Beresford e Hurst (orgs.), *Deserted Medieval Villages* (1971); escavações de Wharram Percy; C. Taylor, *Village and
-  Farmstead* (1983). Confiança **alta** no padrão, **sem número usado**: a célula do modelo não tem metragem.
-- Ruas de aldeia de terra, lama na chuva; calçamento só em cidade, com concessão de *pavage* (Inglaterra, séc. XIII em
-  diante). Confiança **média**, precisa de conferência.
-- Escolhidos (sem fonte): todos os números de `CityLayoutRules` (largo 1, travessa 13, centro 5, quintal 2/1, família 5,
-  pobre 0,5 e remediado 2× a mediana, desvio 4, caminho 8, uso 12, valor 0,02 por célula).
+- Trilha que nasce do uso e some sem ele: Helbing, Keltsch e Molnár, *Nature* 388 (1997) — alta no mecanismo. Pisoteio:
+  Cole, *J. Appl. Ecol.* 32 (1995), centenas de passagens tiram a cobertura — média; limiares 150/1500 e 15%/mês escolhidos.
+- Passo por superfície: coeficientes de terreno de Soule e Goldman (1972: asfalto 1,0, estrada de terra 1,1, mato 1,2) e o
+  fator 0,6 fora da trilha de Tobler (1993); 0,85–0,70 ficam entre as duas — média.
+- Calçamento pago por quem mora de frente e concessão de *pavage* nas cidades inglesas do séc. XIII em diante — média.
+- Escolhidos (sem fonte): horas por célula (40/120), viagens de material (4), equipe (6×8 h), retorno (10 anos), desgaste.
+- Fundação: 2 h de caminho, na ordem do orçamento diário de deslocamento (Marchetti, 1994, ~1 h/dia) — baixa.
+
+## Medido (AD-176)
+Vila de código, seeds 1/2/7, anos 1/10/20: chão trilha/terra 190/47 → 30/116 (seed 1; a rede se concentra), traçado usado 9–20%,
+trilhas fora do traçado 113–182, h casa→trabalho 1,46 → 1,16, casas sem rota 0. Com a tecnologia ligada, 1–3 obras de pedra em
+20 anos (8–23 células) e casa→trabalho 1,25 → 0,84 h. `cidade-media`: quase não há viagem para fora do prédio, nenhuma trilha.
 
 ## Medir
-`LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico);
-`LW_CITY_LAYOUT=off` desliga a regra (relatórios e diagnóstico) para medir pareado.
+`LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
+rua); `LW_STREETS=off` desliga a rua de verdade (relatórios, Workers, fixture de escala); `LW_CITY_LAYOUT=off`, o traçado.

@@ -45,6 +45,9 @@ public sealed record CityLayoutRules(
     int PathCells = 8,
     int ChainedBoundsReachCells = 6)
 {
+    /// <summary>AD-176: rua de verdade (pisoteio, superfície, rota, calçamento). O traçado acima vira só a reserva de espaço.</summary>
+    public StreetRules Streets { get; init; } = StreetRules.Default;
+
     public static CityLayoutRules Default { get; } = new();
 
     /// <summary>A regra de antes do AD-173, para medir pareado.</summary>
