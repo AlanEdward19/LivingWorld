@@ -16,6 +16,11 @@ const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
+const WorldView := preload("res://Scenes/world_view.gd")
+const CameraRig := preload("res://Scenes/camera_rig.gd")
+const SkyLife := preload("res://Scenes/sky_life.gd")
+const Ambience := preload("res://Scenes/ambience.gd")
+const DayCycle := preload("res://Scenes/day_cycle.gd")
 
 const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · Esc: fecha a janela da frente · PgUp/PgDn: andar · M: som"
 const NO_ADMIN := "Só o admin controla o tempo (ADR-0015): abra o cliente com LW_ADMIN_TOKEN (o play.sh já define)."
@@ -252,3 +257,40 @@ static func _bottom(app, ui: Control) -> void:
 	loading.add_child(loading_label)
 	ui.add_child(loading)
 	app.loading = loading
+
+
+## Cena 3D: mundo, câmera, sol, ambiente, céu, som e ciclo do dia.
+static func build_scene(app) -> void:
+	app.world_view = WorldView.new()
+	app.world_view.bind(app.store, app.labels)
+	app.world_view.npcs.catalog = app.catalog
+	app.world_view.npcs.model_of = app.registry.model_of
+	app.add_child(app.world_view)
+	app.rig = CameraRig.new()
+	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
+	app.rig.scope_requested.connect(func(kind: String, ref_id: String): app.enter_scope(kind, ref_id))
+	app.add_child(app.rig)
+	app.rig.camera.current = true
+	app._sun = DirectionalLight3D.new()
+	app._sun.shadow_enabled = true
+	app._sun.directional_shadow_max_distance = 120.0
+	app.add_child(app._sun)
+	var world_environment := WorldEnvironment.new()
+	app._environment = Environment.new()
+	app._environment.background_mode = Environment.BG_COLOR
+	app._environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	app._environment.tonemap_mode = Environment.TONE_MAPPER_ACES
+	app._environment.tonemap_exposure = 0.9
+	app._environment.ssao_enabled = true
+	app._environment.ssao_intensity = 1.6
+	world_environment.environment = app._environment
+	app.add_child(world_environment)
+	app.sky_life = SkyLife.new()
+	app.add_child(app.sky_life)
+	app.sky_life.build(Vector2(30, 30))
+	app.ambience = Ambience.new()
+	app.ambience.catalog = app.catalog
+	app.add_child(app.ambience)
+	app.day_cycle = DayCycle.new()
+	app.add_child(app.day_cycle)
+	app.day_cycle.bind(app._sun, app._environment, app.world_view.window_material, app.world_view.lamp_material)

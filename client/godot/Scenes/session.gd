@@ -156,3 +156,23 @@ func fill_pending_footprints() -> void:
 	_filling = false
 	if response.ok and response.body is Dictionary and response.body.get("payload") is Dictionary:
 		app.store.fill_buildings(response.body.payload)
+
+
+## Nomes de quem está no escopo (o escopo não traz nomes: GET /npcs paginado, até 1.000).
+func load_names() -> void:
+	if app.api == null or app.store == null or app.stage.active:
+		return
+	var city_id: String = app.store.city.id if app.store.kind == "City" else ""
+	var skip := 0
+	while skip < 1000:
+		var page: Dictionary = await app.api.npc_page("", skip, 200, city_id)
+		if not page.ok:
+			return
+		for item in page.body.items:
+			app.store.names[int(item.id.value)] = String(item.name)
+		skip += 200
+		if skip >= int(page.body.total):
+			break
+	app.world_view.apply_names()
+	if app.stage.active:
+		app.stage.interior_view.apply_names(app.store.names)

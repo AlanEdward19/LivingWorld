@@ -14,7 +14,7 @@ ADMIN_TOKEN=dev ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENAB
 LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
 ```
 
-Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin-Token` igual a `ADMIN_TOKEN` e o cliente manda o valor de `LW_ADMIN_TOKEN` (o `play.sh` gera um por sessão). Sem o token esses botões recebem 403 e nada muda.
+Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin-Token` igual a `ADMIN_TOKEN` e o cliente manda o valor de `LW_ADMIN_TOKEN` (o `play.sh` gera um por sessão). Sem o token os botões do tempo aparecem desabilitados, com o motivo na dica (nada é mandado).
 
 ## Controles
 
@@ -22,8 +22,11 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | --- | --- |
 | Mover / girar / zoom | botão direito arrasta · Shift+arrasta · roda · WASD/setas · Q/E |
 | Entrar na cidade | zoom até a escala de cidade, ou duplo clique na cidade |
-| Entrar numa casa | clique no prédio (andares: PgUp/PgDn) · Esc sai |
-| Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC · botão Seguir ou F |
+| Prédio | clique abre a ficha (tipo, andares, preço, quem está dentro) · duplo clique ou botão Entrar entra (andares: PgUp/PgDn) · Esc sai |
+| Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC, também dentro do interior |
+| Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo/lavoura, objeto, trabalho, casa e evento; atualiza sozinho; links (mãe, pai, cônjuge, filhos conhecidos, casa, trabalho, cidade, quem está dentro, quem usa) · ◀ Voltar ou Backspace |
+| Seguir | botão Seguir na ficha (pessoa, casa ou cidade) ou F; continua ao trocar de escopo, entrar num prédio e sair da cidade |
+| Janelas | cérebro, narrativa, economia, tecnologias e console convivem: encaixam lado a lado (ou em cascata) · arraste pelo título para soltar · Esc fecha a da frente |
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · **E se…?** simula a decisão com outros estímulos (nada é gravado) · Esc fecha |
 | Conversar | T (ou botão Conversar na ficha) pede a conversa; o NPC pode recusar (ocupado, hostil, indisponível) · Enter envia · Esc encerra |
 | Narrativas | botão Biografia na ficha do NPC · botão Crônica na ficha da cidade (mês/ano/década) · R lista os relatos que circulam, com a confiança de cada um · botão O que a cidade acredita (crenças distorcidas e a distância do fato) · Esc fecha |
@@ -32,9 +35,9 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
-| Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos |
+| Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · lavoura e processos em andamento desenhados com progresso |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
-| Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra; o céu segue a hora do mundo |
+| Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra (só admin); o céu segue a hora do mundo |
 
 ## Estrutura
 
@@ -42,7 +45,10 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | --- | --- |
 | `Contract/` | Única camada que fala HTTP/WebSocket: snapshot, deltas por `sequence`, `replay`, reconexão, `ApiClient` (todas as demais rotas); valida contra `tests/contracts/shape.*.json` |
 | `Store/` | Estado local reconstruível (`WorldStore`) e rótulos de ação vindos do servidor |
-| `Scenes/` | Mundo 3D (terreno, água, árvores, prédios com telhado e janelas), câmera (`CameraRig`, trocável), NPCs articulados por pose, interior multi-andar, ciclo dia/noite, minimapa, avisos, painéis |
+| `Contract/world_reader.gd` | Camada única de leitura: todo painel recebe este objeto; ficha do NPC em cache por hora do mundo |
+| `Store/entity_registry.gd` | Registro local de entidades {kind, id}, nomes do catálogo e vínculos aprendidos das fichas |
+| `Scenes/` | `app.gd` (raiz e ligação) · `app_ui.gd` (montagem) · `session.gd` (escopos) · `selection.gd` (clique e dica) · `inspector.gd` · `window_router.gd` · `follow_director.gd` · `shortcuts.gd` · câmera, interior, ciclo do dia, painéis |
+| `Scenes/render/` | Um renderizador por tipo: terreno, cidade, prédio, NPC, processo (MultiMesh), marcador de evento; `world_view.gd` coordena |
 | `tests/` | Testes headless (`bash scripts/client-test.sh [--filter arquivo::teste]`), com transporte falso |
 
 Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`).
@@ -70,3 +76,8 @@ Mundos salvos e leitos (2026-10-15, M1 Pro, `stress:500`, API local): base 74,4 
 Catálogo de objetos (2026-10-15, #47 fatia 1, M1 Pro, `stress:500`, 3 rodadas): antes 66,8 (1ª execução do worktree, importação) / 76,7 / 76,0; depois 75,9 / 76,2 / 76,7 (sem regressão; a mobília só é instanciada ao abrir um interior, com mesh e material compartilhados por id e variação).
 Uso de objeto (2026-10-16, #47 fatia 2, M1 Pro com carga 8–11, `stress:500`, 3 rodadas): 77,8 / 72,9 / 74,9 FPS (a posição e a pose de uso só são resolvidas ao abrir ou atualizar um interior; nada novo por quadro na cidade).
 Indicadores da cidade (2026-11-09, #112 fatia E, M1 Pro com a máquina dividida com outros agentes, `stress:500`, API local, 3 rodadas): antes 76,1 / 73,6 / 74,6 FPS; depois 72,3 / 71,9 / 73,6 (mediana 74,6 → 72,3; -2,3, dentro de ±3 e do ruído da máquina compartilhada). A mudança só toca a ficha da cidade (`show_city`, 1 linha a mais), que o `stress` nunca abre; nada novo por quadro. `client-test.sh`: 288 passaram, 0 falharam.
+
+### Medida recalibrada (ADR-0047, AD-169)
+
+`bash client/godot/tools/bench.sh` (pela fila pesada) sobe uma API própria (porta 5291, período `cidade-media`, seed 2) e roda 3× `stress:500` (medida antiga, com vsync) e 3× `bench:500`: sem vsync, cidade real aberta, ficha do 1º morador aberta, multidão completada até 500 NPCs andando dentro da cidade; FPS médio e tempo de quadro p95 de 6 s. `LW_BENCH_CLIENT` aponta outra cópia do cliente para comparar.
+Antes (2026-11-17, M1 Pro, máquina dividida com outros agentes, base `8f792e50`): `stress:500` 74,0 / 74,5 / 72,7 FPS; `bench:500` 76,5 / 77,7 / 77,2 FPS, p95 14,03 / 13,69 / 13,77 ms (cidade com 5 prédios).

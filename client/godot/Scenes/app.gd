@@ -13,16 +13,12 @@ const ScopeObserver := preload("res://Contract/scope_observer.gd")
 const Store := preload("res://Store/world_store.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
 const Registry := preload("res://Store/entity_registry.gd")
-const WorldView := preload("res://Scenes/world_view.gd")
-const CameraRig := preload("res://Scenes/camera_rig.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
-const DayCycle := preload("res://Scenes/day_cycle.gd")
-const SkyLife := preload("res://Scenes/sky_life.gd")
-const Ambience := preload("res://Scenes/ambience.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 const FamilyBuilder := preload("res://Scenes/family_builder.gd")
 const AppUi := preload("res://Scenes/app_ui.gd")
+const Shortcuts := preload("res://Scenes/shortcuts.gd")
 const Session := preload("res://Scenes/session.gd")
 const Selection := preload("res://Scenes/selection.gd")
 const WindowRouter := preload("res://Scenes/window_router.gd")
@@ -114,7 +110,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	selection = Selection.new(self)
 	router = WindowRouter.new()
 	director = FollowDirector.new(self)
-	_build_scene()
+	AppUi.build_scene(self)
 	AppUi.build(self)
 	size_windows()
 	observer = ScopeObserver.new()
@@ -153,42 +149,6 @@ func _load_world_info() -> void:
 	period_id = identity.period_id
 	if identity.period_id != "" or not identity.axes.is_empty():
 		technology.axis_names = identity.axes
-
-
-func _build_scene() -> void:
-	world_view = WorldView.new()
-	world_view.bind(store, labels)
-	world_view.npcs.catalog = catalog
-	world_view.npcs.model_of = registry.model_of
-	add_child(world_view)
-	rig = CameraRig.new()
-	rig.city_at = func(point: Vector3) -> String: return world_view.city_at(point)
-	rig.scope_requested.connect(func(kind: String, ref_id: String): enter_scope(kind, ref_id))
-	add_child(rig)
-	rig.camera.current = true
-	_sun = DirectionalLight3D.new()
-	_sun.shadow_enabled = true
-	_sun.directional_shadow_max_distance = 120.0
-	add_child(_sun)
-	var world_environment := WorldEnvironment.new()
-	_environment = Environment.new()
-	_environment.background_mode = Environment.BG_COLOR
-	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_environment.tonemap_mode = Environment.TONE_MAPPER_ACES
-	_environment.tonemap_exposure = 0.9
-	_environment.ssao_enabled = true
-	_environment.ssao_intensity = 1.6
-	world_environment.environment = _environment
-	add_child(world_environment)
-	sky_life = SkyLife.new()
-	add_child(sky_life)
-	sky_life.build(Vector2(30, 30))
-	ambience = Ambience.new()
-	ambience.catalog = catalog
-	add_child(ambience)
-	day_cycle = DayCycle.new()
-	add_child(day_cycle)
-	day_cycle.bind(_sun, _environment, world_view.window_material, world_view.lamp_material)
 
 
 # --- relógio, eventos, nomes -----------------------------------------------
@@ -258,22 +218,7 @@ func _on_events(events: Array) -> void:
 
 
 func _load_names() -> void:
-	if api == null or store == null or stage.active:
-		return
-	var city_id: String = store.city.id if store.kind == "City" else ""
-	var skip := 0
-	while skip < 1000:
-		var page: Dictionary = await api.npc_page("", skip, 200, city_id)
-		if not page.ok:
-			return
-		for item in page.body.items:
-			store.names[int(item.id.value)] = String(item.name)
-		skip += 200
-		if skip >= int(page.body.total):
-			break
-	world_view.apply_names()
-	if stage.active:
-		stage.interior_view.apply_names(store.names)
+	await session.load_names()
 
 
 # --- escopos (Session) ------------------------------------------------------
@@ -370,37 +315,12 @@ func nearest_npc(screen_position: Vector2, max_distance: float = 32.0) -> int:
 
 
 func _update_hover() -> void:
-	if stage == null or not rig.camera.is_inside_tree():
-		tooltip.visible = false
-		return
-	var mouse := get_viewport().get_mouse_position()
-	var hit: Dictionary = selection.hit_at(mouse)
-	hover_text = selection.describe(hit)
-	world_view.hover_npc(int(hit.id) if not hit.is_empty() and hit.kind == Registry.PERSON and not stage.active else -1)
-	tooltip.visible = hover_text != "" and not list_panel.get_global_rect().has_point(mouse)
-	if tooltip.visible:
-		tooltip_label.text = hover_text
-		tooltip.position = mouse + Vector2(16, 18)
+	selection.update_hover()
 
 
 ## Clique simples abre a ficha; duplo clique entra (prédio ou cidade).
 func _pick(screen_position: Vector2, double_click: bool) -> void:
-	var hit: Dictionary = selection.hit_at(screen_position)
-	if hit.is_empty():
-		return
-	match String(hit.kind):
-		Registry.BUILDING:
-			if double_click:
-				enter_building(int(hit.id))
-			else:
-				inspect(hit)
-		Registry.CITY:
-			if double_click:
-				enter_scope("City", String(hit.id))
-			elif store.kind == "World":
-				inspect(hit)
-		_:
-			inspect(hit)
+	selection.pick(screen_position, double_click)
 
 
 func _show_city_summary(city_id: String) -> void:
@@ -540,56 +460,8 @@ func _date_text(tick: int) -> String:
 
 # --- teclado e mouse ---------------------------------------------------------
 
-## Esc fecha a janela da frente; sem janela, a conversa; depois sai do prédio e, por fim, da cidade.
-func _on_escape() -> void:
-	if router.close_top():
-		return
-	if conversation.is_open:
-		conversation.end_conversation()
-	elif stage.active:
-		exit_building()
-	elif store.kind == "City":
-		enter_scope("World", "")
 
+# --- teclado e mouse (Shortcuts) ---------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed:
-		match event.keycode:
-			KEY_ESCAPE:
-				_on_escape()
-			KEY_BACKSPACE:
-				if inspector.is_open():
-					inspector.back()
-			KEY_F10:
-				menu_requested.emit()
-			KEY_B:
-				_toggle_brain()
-			KEY_F8:
-				_toggle_admin()
-			KEY_R:
-				_toggle_reports()
-			KEY_I:
-				if selected_npc >= 0 and not player_hud.is_active:
-					incarnate(selected_npc)
-			KEY_T:
-				if selected_npc >= 0 and not conversation.input.has_focus():
-					talk_to(selected_npc)
-			KEY_M:
-				ambience.set_muted(not ambience.muted)
-			KEY_L:
-				list_panel.visible = not list_panel.visible
-				if list_panel.visible and list_panel.rows.is_empty():
-					list_panel.load_page()
-			KEY_F:
-				if director.active():
-					unfollow()
-				else:
-					follow_selected()
-			KEY_PAGEUP, KEY_BRACKETRIGHT:
-				if stage.active:
-					stage.set_floor(stage.interior_view.current_floor + 1)
-			KEY_PAGEDOWN, KEY_BRACKETLEFT:
-				if stage.active:
-					stage.set_floor(stage.interior_view.current_floor - 1)
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_pick(event.position, event.double_click)
+	Shortcuts.handle(self, event)

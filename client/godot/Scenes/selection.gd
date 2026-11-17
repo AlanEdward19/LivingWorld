@@ -156,3 +156,37 @@ static func _price_lines(building) -> String:
 	if int(building.get("value", 0)) > 0:
 		return "\nvalor estimado %d" % int(building.value)
 	return ""
+
+
+func update_hover() -> void:
+	if app.stage == null or not app.rig.camera.is_inside_tree():
+		app.tooltip.visible = false
+		return
+	var mouse: Vector2 = app.get_viewport().get_mouse_position()
+	var hit: Dictionary = hit_at(mouse)
+	app.hover_text = describe(hit)
+	app.world_view.hover_npc(int(hit.id) if not hit.is_empty() and hit.kind == Registry.PERSON and not app.stage.active else -1)
+	app.tooltip.visible = app.hover_text != "" and not app.list_panel.get_global_rect().has_point(mouse)
+	if app.tooltip.visible:
+		app.tooltip_label.text = app.hover_text
+		app.tooltip.position = mouse + Vector2(16, 18)
+
+
+## Clique simples abre a ficha; duplo clique entra (prédio ou cidade).
+func pick(screen_position: Vector2, double_click: bool) -> void:
+	var hit: Dictionary = hit_at(screen_position)
+	if hit.is_empty():
+		return
+	match String(hit.kind):
+		Registry.BUILDING:
+			if double_click:
+				app.enter_building(int(hit.id))
+			else:
+				app.inspect(hit)
+		Registry.CITY:
+			if double_click:
+				app.enter_scope("City", String(hit.id))
+			elif app.store.kind == "World":
+				app.inspect(hit)
+		_:
+			app.inspect(hit)

@@ -221,8 +221,9 @@ static func _bench(app: Node, total: int) -> void:
 	for value in frame_ms:
 		total_ms += value
 	var p95: float = sorted[mini(int(sorted.size() * 0.95), sorted.size() - 1)] if not sorted.is_empty() else 0.0
-	print("bench: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d" % [app.store.kind, app.store.npcs.size(),
-		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size()])
+	print("bench: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d vsync=%d" % [app.store.kind, app.store.npcs.size(),
+		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size(),
+		DisplayServer.window_get_vsync_mode()])
 
 
 ## Janelas com dados de exemplo (só para capturas de tela): `demo:biografia|cronica|crencas|relatos|tecnologias|tesouro|vendas`.
