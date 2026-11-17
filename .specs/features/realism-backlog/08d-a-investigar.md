@@ -40,3 +40,13 @@
      por NPC-tick contra a base, todo do mundo diferente (casa→trabalho 67 células, mais viagens e despertares); com o
      traçado desligado o custo do código é o da base (alocação +0,03%). Caminhos: miolo denso que cresce com a cidade
      (sem quintal, parede-meia, porta na rua), rua até o lado do mapa, ofícios e roças perto das casas.
+
+## Dos nomes (AD-178)
+174. **Costume de nome não é dado de cenário**: linhagem, adoção do nome no casamento e chance de homenagem saem do RNG da
+     cultura (padrão 70% / 50% / 15–50%); o período não declara. Bloco opcional `Naming` por cultura no cenário, com
+     loader e snapshot, se um período quiser fixar o costume.
+175. **Cidade ainda não fala a língua da cultura**: `CityNameGenerator` sorteia das 22 sílabas comuns, não do subconjunto da
+     cultura que funda; ligar quando a fundação souber a cultura (muda nomes de cidade e o hash).
+176. **Nome sem consequência causal**: ninguém decide nada pelo nome (homenagem não aproxima avô e neto, nome de família
+     não pesa em herança, rixa ou casamento). Candidatos: afinidade com o homenageado, linhagem na sucessão.
+177. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
