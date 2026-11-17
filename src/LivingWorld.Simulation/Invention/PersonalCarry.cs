@@ -60,7 +60,8 @@ public static class PersonalCarry
     private static bool FarFromHome(WorldState world, Npc npc, Household home, CellCoord cell, bool outbound)
     {
         var memo = world.Invention!.ReachMemo;
-        long touches = world.Invention.Touches;
+        // AD-180: a lama e a neve mudam a ida de um dia para o outro; a memória vale só no mesmo tempo do dia
+        long touches = unchecked(world.Invention.Touches + (world.Weather is { } weather ? (weather.Day + 1) * 1_000_000_007L : 0));
         int bonus = Mobility.BonusPct(world, npc.City);
         long id = home.Id.Value;
         bool keyed = id is >= 0 and < (1L << 29);

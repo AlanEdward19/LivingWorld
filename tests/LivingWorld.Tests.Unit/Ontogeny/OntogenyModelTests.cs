@@ -187,7 +187,10 @@ public class OntogenyModelTests
         int violations = 0;
         foreach (var npc in world.Npcs)
             // O marco vale para a intenção: a viagem que atende uma intenção elegível (ir à cama) é assistida, quem não anda é levado.
+            // AD-180: a mudança da casa inteira para outra cidade (migração) leva o bebê no colo: não é ação dele
             if (npc.IsAlive && npc.CurrentAction is { } action
+                && !(action == ActionType.Travel && npc.TravelPurpose is null && npc.Household is { } home
+                     && world.FindHousehold(home)?.PendingRelocationCity is not null)
                 && !judge.IsEligible(npc.Development, action == ActionType.Travel ? npc.TravelPurpose ?? action : action))
             {
                 violations++;

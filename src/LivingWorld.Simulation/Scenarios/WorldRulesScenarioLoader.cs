@@ -65,7 +65,7 @@ public static class WorldRulesScenarioLoader
         // AD-180: o tempo diário vem ligado com o clima; o sub-bloco Weather muda a climatologia do lugar ou o desliga
         var weather = LoadWeather(block, out var weatherError);
         if (weatherError is not null) return Result<ClimateRules>.Fail(weatherError);
-        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max, Weather: weather));
+        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max, Weather: enabled ? weather : null));
     }
 
     private static readonly System.Text.Json.JsonSerializerOptions WeatherJson = new() { PropertyNameCaseInsensitive = true };

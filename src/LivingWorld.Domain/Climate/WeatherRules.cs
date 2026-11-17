@@ -110,6 +110,7 @@ public sealed record WeatherRules
     public double HeatHazardPerC { get; init; } = 0.03;
     public double RoughSleepDeathPerDegNight { get; init; } = 0.001;
     public double RoughSleepVulnerableFactor { get; init; } = 3;
+    public double RoughSleepHealthPerDegNight { get; init; } = 1;
 
     /// <summary>Seca: a fonte natural dá só esta fração da água por dia de seca severa (a fração de chuva sobre o limiar).</summary>
     public double DroughtSpringFloor { get; init; } = 0.2;

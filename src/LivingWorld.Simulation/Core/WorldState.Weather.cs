@@ -17,7 +17,7 @@ public sealed partial class WorldState
     /// <summary>Restaura o tempo guardado (snapshot) ou o liga no primeiro dia; com o tempo desligado, fica nulo.</summary>
     public void UseWeather(WeatherLedger? ledger)
     {
-        Weather = WeatherOn ? ledger : null;
+        Weather = WeatherOn ? ledger ?? new WeatherLedger() : null;
         Weather?.Reindex();
         CanonicalHashCache.MarkPropertyDirty(nameof(Weather));
     }

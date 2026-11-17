@@ -105,7 +105,8 @@ public class WorldSnapshotTests
             nextExtraordinaryConstructId: 1,
             animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
             plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules);
+            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default); // AD-180: o tempo do dia entra no snapshot
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,

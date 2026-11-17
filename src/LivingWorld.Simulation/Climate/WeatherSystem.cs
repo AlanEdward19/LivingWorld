@@ -118,6 +118,9 @@ public sealed class WeatherSystem : ISimulationSystem
             double age = Math.Max(0, ctx.CurrentTick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
             double p = rules.RoughSleepDeathPerDegNight * -night * (age < 5 || age >= 60 ? rules.RoughSleepVulnerableFactor : 1);
             if (world.Rng.DrawFor("weather-exposure", unchecked(npc.Id.Value * 1_000_003L + day)) < p) (dying ??= []).Add(npc);
+            // quem passa a noite gelada e não morre acorda mais fraco (a saúde dinâmica do AD-134 recupera com comida e sono)
+            else if (rules.RoughSleepHealthPerDegNight > 0)
+                npc.SetHealth(npc.Health - (int)Math.Ceiling(rules.RoughSleepHealthPerDegNight * -night));
         }
 
         if (dying is null) return;

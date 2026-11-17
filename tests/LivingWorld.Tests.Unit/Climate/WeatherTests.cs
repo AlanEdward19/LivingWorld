@@ -231,6 +231,24 @@ public sealed class WeatherTests
     }
 
     [Fact]
+    public void A_rough_sleeper_who_survives_a_freezing_night_wakes_weaker()
+    {
+        var cold = ClimateRules.Default with
+        {
+            Weather = WeatherRules.Default with { RoughSleepDeathPerDegNight = 0.000001, MeanTempC = Enumerable.Repeat(-8.0, 12).ToList() },
+        };
+        var (world, clock) = NewWorld(1, cold);
+        var rough = world.AliveNpcIndex.Alive[0];
+        world.FindHousehold(rough.Household!.Value)!.RemoveMember(rough.Id);
+        rough.LeaveHousehold(world.CurrentDate);
+        int before = rough.Health;
+
+        new WeatherSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler)); // a noite, antes da fisiologia do dia
+
+        Assert.True(rough.Health < before, $"saúde {before} → {rough.Health}");
+    }
+
+    [Fact]
     public void Disease_season_rises_on_a_day_colder_than_normal_for_a_cold_season_disease()
     {
         var catarrh = DiseasePresets.PreIndustrial.Diseases.First(d => d.Name == "catarro");
