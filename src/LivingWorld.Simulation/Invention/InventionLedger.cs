@@ -583,6 +583,18 @@ public sealed class InventionLedger
         return i < Carried.Count && Carried[i].NpcId == npcId;
     }
 
+    /// <summary>AD-179 (item 175): peso, em gramas, do que a pessoa leva (comida e água da viagem, o espólio recolhido).</summary>
+    internal long CarriedGrams(long npcId, LivingWorld.Domain.Invention.InventionRules rules)
+    {
+        if (Carried.Count == 0) return 0;
+        int i = CarriedIndex(npcId, int.MinValue);
+        i = i >= 0 ? i : ~i;
+        long grams = 0;
+        for (; i < Carried.Count && Carried[i].NpcId == npcId; i++)
+            grams += (long)Carried[i].Quantity * rules.UnitGramsOf(Carried[i].ResourceId);
+        return grams;
+    }
+
     /// <summary>Tudo o que as pessoas levam de um recurso (AD-157b): é estoque do mundo, na carga de quem saiu, e entra na conservação.</summary>
     public long CarriedTotal(int resourceId)
     {

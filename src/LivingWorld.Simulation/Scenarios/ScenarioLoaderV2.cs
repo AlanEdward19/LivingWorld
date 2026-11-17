@@ -230,6 +230,7 @@ public static class ScenarioLoaderV2
         LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, definition.Economy.CraftLocationTypeIds);
 
         ExtraordinaryPrevalenceSeeder.Seed(world);
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios

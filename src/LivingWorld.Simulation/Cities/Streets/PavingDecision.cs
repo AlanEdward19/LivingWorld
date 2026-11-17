@@ -1,8 +1,6 @@
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
-using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
@@ -153,7 +151,9 @@ internal static class PavingDecision
         var rules = world.StreetRules;
         var source = from?.Location ?? NearestSource(world, cell, surface, radius: 40);
         if (source is not { } s) return -1;
-        double haul = StreetRoutes.CostOf(world, s, cell).Cost + StreetRoutes.CostOf(world, cell, s).Cost;
+        // AD-179 (item 175): a ida carregada (fonte → trecho) é mais lenta; a volta, de mãos vazias
+        double haul = StreetRoutes.CostOf(world, s, cell).Cost * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg)
+            + StreetRoutes.CostOf(world, cell, s).Cost;
         long lay = surface == GroundSurface.Stone ? rules.StoneHoursPerCell : rules.GravelHoursPerCell;
         return lay + (long)Math.Ceiling(haul * rules.LoadsPerCell);
     }
@@ -205,6 +205,7 @@ internal static class PavingDecision
             HoursTotal = hours,
             HoursLeft = hours,
             StartTick = ctx.CurrentTick,
+            LastProgressTick = ctx.CurrentTick,
             Payers = payers,
             Paid = stoneMoney,
         };
@@ -275,19 +276,5 @@ internal static class PavingDecision
         foreach (var member in home.Members)
             if (world.FindNpc(member) is { IsAlive: true } npc) sum += npc.Wallet.Amount;
         return sum;
-    }
-
-    /// <summary>Adultos da cidade sem emprego (diaristas da obra), por id.</summary>
-    internal static List<Npc> DayLaborers(WorldState world, CityId city, int max)
-    {
-        var list = new List<Npc>();
-        foreach (var npc in world.AliveNpcIndex.Alive.OrderBy(n => n.Id.Value))
-        {
-            if (list.Count >= max) break;
-            if (npc.City != city || npc.Employer is not null) continue;
-            if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) continue;
-            list.Add(npc);
-        }
-        return list;
     }
 }

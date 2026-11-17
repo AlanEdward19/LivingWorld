@@ -244,6 +244,9 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 {
                     departing = chosen == ActionType.Travel;
                     if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
+                    // AD-179: o diarista que larga a jornada no meio (fome, sede, fim da rotina) conta as horas que fez no trecho
+                    if (!justCompleted && npc.CurrentAction == ActionType.Work && npc.Employer is null)
+                        LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, npc.ActionStartedAtTick, now);
                     if (candidate == ActionType.Buy && (departing || npc.CurrentAction != ActionType.Travel))
                     {
                         if (buySource == 1) world.PurchaseTally.BuyByUtility++;
@@ -329,6 +332,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var felt = learn && !world.BrainRules!.ValuesSustenance ? FeltNow(world, npc, now) : default; // AD-160b: mede só no fim
         long startedAt = npc.ActionStartedAtTick;
         ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
+        if (action == ActionType.Work && npc.Employer is null) LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, startedAt, now); // AD-179
         if (learn) BrainLearnOnCompletion(world, npc, action, felt, startedAt, now, ctx);
         return true;
     }

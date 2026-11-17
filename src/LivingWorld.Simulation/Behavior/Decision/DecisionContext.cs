@@ -35,7 +35,8 @@ public sealed record DecisionContext(
     InnerLifeSnapshot? Inner = null,
     long FoodUnitPrice = 0,
     bool ShopperOut = false,
-    bool FoodStallKnownEmpty = false)
+    bool FoodStallKnownEmpty = false,
+    double SiteOffer = 0)
 {
     /// <summary>AD-148: ir comprar comida adianta: a carteira paga uma unidade no mercado mais perto (preço desconhecido = paga,
     /// como antes) e a casa não acabou de achar a banca vazia.</summary>

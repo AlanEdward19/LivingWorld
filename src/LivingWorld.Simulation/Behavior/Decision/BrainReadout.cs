@@ -67,7 +67,7 @@ public static class BrainReadout
         UtilityTerm.Comfort => UtilityGroup.Comfort,
         UtilityTerm.Personality => UtilityGroup.Personality,
         UtilityTerm.ThreatMemory or UtilityTerm.ScarcityBelief or UtilityTerm.StrongBond => UtilityGroup.Context,
-        UtilityTerm.IncomeNeed or UtilityTerm.FamineMemory => UtilityGroup.Pressure,
+        UtilityTerm.IncomeNeed or UtilityTerm.FamineMemory or UtilityTerm.SiteWork => UtilityGroup.Pressure,
         UtilityTerm.Grief or UtilityTerm.Fear or UtilityTerm.Joy or UtilityTerm.Shame or UtilityTerm.Solitude => UtilityGroup.Affect,
         UtilityTerm.Foresight => UtilityGroup.Foresight,
         UtilityTerm.Continuity => UtilityGroup.Continuity,

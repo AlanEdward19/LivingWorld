@@ -75,6 +75,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.LeavingsCollected] = "Alguém recolheu o que um morto deixou no caminho",
             [WorldEventKind.StreetWorkStarted] = "Começou uma obra de calçamento na rua",
             [WorldEventKind.StreetWorkDone] = "Uma rua ficou calçada",
+            [WorldEventKind.SiteWorkJoined] = "Alguém foi trabalhar de diarista numa obra",
+            [WorldEventKind.SiteWorkLeft] = "Um diarista deixou a obra",
             [WorldEventKind.CourtshipStarted] = "Um cortejo começou",
             [WorldEventKind.CourtshipRejected] = "Um cortejo não foi correspondido",
             [WorldEventKind.CourtshipSucceeded] = "Um cortejo foi correspondido",

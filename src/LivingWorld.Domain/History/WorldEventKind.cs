@@ -333,4 +333,11 @@ public enum WorldEventKind
 
     /// <summary>Obra de calçamento pronta (AD-176) — payload: <c>obraId|cidadeId|superficie|conserto|celulas|pago</c>.</summary>
     StreetWorkDone,
+
+    /// <summary>Diarista entrou na turma da obra (AD-179), decisão dele pela utilidade — payload: <c>npcId|obraId|oferta</c>
+    /// (oferta = o termo SiteWork, ×100).</summary>
+    SiteWorkJoined,
+
+    /// <summary>Diarista saiu da obra (AD-179) — payload: <c>npcId|obraId|motivo</c> (motivo: emprego, saiu, morto, sem-pagamento).</summary>
+    SiteWorkLeft,
 }

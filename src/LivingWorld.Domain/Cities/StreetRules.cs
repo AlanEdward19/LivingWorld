@@ -70,6 +70,45 @@ public sealed record StreetRules(
     int RepairBelowPm = 600,
     double FoundingCommuteHours = 2.0)
 {
+    /// <summary>AD-179: peso máximo da oferta de trabalho na obra na utilidade de trabalhar (o termo <c>SiteWork</c>), na escala
+    /// da necessidade de renda (<c>PsycheRules.IncomeNeedMax</c>).</summary>
+    public double SiteOfferMax { get; init; } = 30;
+
+    /// <summary>AD-179: oferta a partir da qual o adulto sem emprego aceita a obra (sai abaixo da metade disto).</summary>
+    public double SiteJoinMin { get; init; } = 3;
+
+    /// <summary>AD-179: reserva de moeda da casa, em dias de jornal, abaixo da qual a obra atrai (a despensa conta um terço disto).</summary>
+    public int SiteReserveDays { get; init; } = 30;
+
+    /// <summary>AD-179 (item 175): quilos de carga a pé que custam um milésimo a mais de tempo por quilo (ver
+    /// <c>docs/domain/site-work.md</c>); a carga pessoal (<c>PersonalCarry</c>) e o material de obra pesam assim.</summary>
+    public int CarryPmPerKg { get; init; } = 5;
+
+    /// <summary>AD-179: carga a partir da qual o passo não piora mais (quem não aguenta mais não leva mais).</summary>
+    public int CarryMaxKg { get; init; } = 40;
+
+    /// <summary>AD-179: quilos de material numa viagem de obra (um cesto ou padiola de cascalho, pedra), a ida carregada.</summary>
+    public int SiteLoadKg { get; init; } = 25;
+
+    /// <summary>AD-179 (08d item 180): rodadas do chão da história da vila na criação do mundo (0 = nasce sem caminho).</summary>
+    public int HistoryRounds { get; init; } = 2;
+
+    /// <summary>AD-179: idas ao mercado por casa num mês típico da história (e as voltas). Medido na vila de código: 0,4 a 4,5 idas
+    /// ao mercado por pessoa-mês; escolhido o meio por casa.</summary>
+    public int HistoryMarketTripsPerMonth { get; init; } = 4;
+
+    /// <summary>AD-179: a casa ou o prédio da fila da cidade só anda pelas horas de uma turma no lote. Desligado por padrão: na vila
+    /// de pleno emprego (cenário <c>default.json</c>) ninguém sem emprego aceita, e a cidade parava de construir; ligar pede antes a
+    /// família e os vizinhos construírem (ajuda mútua) ou o salário da obra disputar a mão (issue no relatório da AD-179).</summary>
+    public bool BuildNeedsCrew { get; init; }
+
+    /// <summary>AD-179: meses sem nenhuma hora de turma depois dos quais a obra de calçamento é desfeita (o material comprado fica
+    /// gasto): numa vila sem mão livre ela não fica aberta para sempre, segurando a cidade.</summary>
+    public int SiteStaleMonths { get; init; } = 6;
+
+    /// <summary>AD-179: unidades de material por viagem do estoque da cidade ao lote (um cesto ou padiola).</summary>
+    public int BuildUnitsPerLoad { get; init; } = 2;
+
     public static StreetRules Default { get; } = new();
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>

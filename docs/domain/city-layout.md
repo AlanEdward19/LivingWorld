@@ -14,6 +14,11 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 - A cada `ReviewMonths` a superfície muda: **trilha** a partir de `TrailWear`, **terra batida** a partir de `DirtWear` (some abaixo
   da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo vira obstáculo na virada do mês e apaga o chão debaixo.
 - Lama na chuva: **não entregue**, o motor não tem chuva nem umidade (o fator de clima é de safra). Dívida no 08d.
+- **Chão da história** (AD-179, `StreetGroundSystem.SeedHistory`): o mundo começa no meio da história. Na criação, o mês típico
+  (cada adulto vai e volta do trabalho do ofício dele, o mais perto, todo dia; cada casa vai `HistoryMarketTripsPerMonth` vezes
+  ao mercado mais perto) deposita passagens pelas rotas, e o pisoteio vai ao valor estacionário do processo mensal (passagens ÷
+  (1 − `WearRetainPm`)); a revisão faz trilha e terra batida. `HistoryRounds` = 2 (a 2ª rodada segue a rede da 1ª); 0 = nasce sem
+  caminho. Fecha o 08d item 180.
 
 ## Rota (`Streets/StreetRoutes`)
 - Pontas na **soleira** do prédio onde a pessoa está (por ela se entra e sai). Duas opções, fica a mais rápida: a **reta** pelo
@@ -26,13 +31,14 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 - O NPC escolhe a rota mais rápida: isso concentra a passagem e decide quais trechos crescem (o laço).
 
 ## Calçar é obra (`PavingTechnique`, `PavingDecision`, `PavingWorksSystem`)
+AD-179: a obra só anda pelas horas de diaristas presentes no trecho, que aceitam pela utilidade ([site-work](site-work.md)).
 - **Técnica**: `TechDiscoverySystem` (anual) abre um trecho de teste numa cidade com `PavingDirtCells` de terra batida e alguém
   hábil; nasce a tecnologia `paving` (espalha por vínculo, como a de mobilidade). Eixo de habilidade ≥ `StoneSkillAxis` → pedra.
 - **Decisão** (mensal): o trecho de terra mais passado vira obra se o tempo poupado em `PaybackYears` paga a mão de obra.
   Pagam as **casas de frente** (soleira no trecho) se todas podem; senão o **tesouro** (pavage).
 - **Material e mão de obra**: horas de assentar + buscar o material pela rota (`LoadsPerCell` idas e voltas): pedra comprada no
   mercado que vende o recurso `StoneResourceId` (pedreira; estoque consumido, dinheiro ao caixa dela), ou, se o mundo não tem esse
-  recurso, do terreno `StoneTerrainId`; cascalho do leito (água). Diaristas = adultos sem emprego da cidade, jornal por dia.
+  recurso, do terreno `StoneTerrainId`; cascalho do leito (água). Diaristas: adultos sem emprego que aceitam (AD-179), jornal por hora no trecho.
 - **Manutenção**: a condição cai com o tempo e as passagens; abaixo de `RepairBelowPm` pede conserto; a zero, volta a terra.
 
 ## Acesso a toda casa
@@ -70,7 +76,16 @@ O aglomerado que nasceu longe por falta de lote perto só funda cidade se, pela 
 ## Medido (AD-176)
 Vila de código, seeds 1/2/7, anos 1/10/20: chão trilha/terra 190/47 → 30/116 (seed 1; a rede se concentra), traçado usado 9–20%,
 trilhas fora do traçado 113–182, h casa→trabalho 1,46 → 1,16, casas sem rota 0. Com a tecnologia ligada, 1–3 obras de pedra em
-20 anos (8–23 células) e casa→trabalho 1,25 → 0,84 h. `cidade-media`: quase não há viagem para fora do prédio, nenhuma trilha.
+20 anos (8–23 células) e casa→trabalho 1,25 → 0,84 h. `cidade-media` (antes da AD-179): ~1 viagem/pessoa-mês, nenhuma trilha.
+
+## Mundos do menu (AD-179)
+Os três períodos do menu eram fixture (economia desligada, sem oficina, mercado nem água da natureza, célula de 1 h, mapa 10/20/32
+para 40/150/400 pessoas): ~1 viagem por pessoa-mês, chão nenhum, e a metrópole morria de sede em 2 meses nas seeds 1, 2 e 7.
+Agora são a vila de código em três tamanhos (`DefaultPeriodSeeder`: economia, fazenda com poço e forja por centena, presença,
+empreendimento, crédito, tecnologia ligada, célula de 30 min, lado pela regra da vila). Seeds 1/2/7, mês 12: 49–75 viagens por
+pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra, zero morte de fome ou sede, zero casa sem rota;
+`cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`.
+`LW_MENU_WORLDS_OUT=arq ... --filter MenuWorldsReport` (diagnóstico) e `MenuWorldsCostReport` (custo).
 
 ## Medir
 `LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
