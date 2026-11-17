@@ -6,6 +6,7 @@ const Grid := preload("res://Scenes/grid.gd")
 const Anim := preload("res://Scenes/animation_catalog.gd")
 const Look := preload("res://Scenes/npc_look.gd")
 const Props := preload("res://Scenes/npc_props.gd")
+const RouteWalk := preload("res://Scenes/route_walk.gd")
 
 const LEG_X := 0.08
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
@@ -17,6 +18,8 @@ const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa,
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
 static var frozen := false
+## Hora do mundo contínua (RouteClock), posta pelo renderizador a cada quadro: quem tem rota anda por ela.
+static var world_tick := 0.0
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
 
@@ -70,6 +73,7 @@ var _held: MeshInstance3D
 var _face: Node3D
 var _face_expression := "-"
 var _sickbed: Node3D
+var walk = null ## RouteWalk: anda pela rota do motor até a chegada (AD-181); null = movimento de sempre
 var spread := Vector3.ZERO ## lugar dentro da célula quando ela é dividida (só apresentação; a célula é a do servidor)
 const VEER := 0.16 ## desvio lateral no meio do passo: quem se cruza passa pela direita, não por dentro do outro
 
@@ -528,6 +532,8 @@ func set_spread(offset: Vector3) -> void:
 	if offset.is_equal_approx(spread):
 		return
 	spread = offset
+	if walk != null: # andando pela rota: o lugar na célula vale na chegada
+		return
 	if _t >= 1.0:
 		_from = position
 		_to = Grid.to_world(cell) + spread
@@ -551,7 +557,24 @@ func move_to(new_cell: Vector2i, duration: float) -> void:
 
 
 func is_moving() -> bool:
-	return _t < 1.0
+	return _t < 1.0 or (walk != null and not walk.done)
+
+
+## Rota do motor (células, início da viagem, chegada em ticks). A mesma rota já em curso não recomeça. False se não dá.
+func set_route(cells: Array, start: float, arrival: float) -> bool:
+	if walk != null and walk.same(cells, start, arrival):
+		return true
+	var next = RouteWalk.new()
+	if not next.setup(cells, start, arrival, position):
+		walk = null
+		return false
+	walk = next
+	_t = 1.0
+	return true
+
+
+func clear_route() -> void:
+	walk = null
 
 
 func set_selected(selected: bool) -> void:
@@ -571,6 +594,12 @@ func set_hovered(hovered: bool) -> void:
 ## Movimento (posição e rumo): roda todo quadro para todo NPC, assim a caminhada dura exatamente o passo do servidor.
 func advance_motion(dt: float) -> void:
 	if frozen:
+		return
+	if walk != null:
+		walk.step(world_tick)
+		position = walk.position
+		if not far_lod and walk.heading.length_squared() > 0.0001:
+			rotation.y = lerp_angle(rotation.y, atan2(walk.heading.x, walk.heading.z), minf(1.0, dt * 10.0))
 		return
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)

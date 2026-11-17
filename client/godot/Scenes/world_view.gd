@@ -14,6 +14,7 @@ const CropRenderer := preload("res://Scenes/render/crop_renderer.gd")
 const FaunaRenderer := preload("res://Scenes/render/fauna_renderer.gd")
 const ItemRenderer := preload("res://Scenes/render/item_renderer.gd")
 const GroundRenderer := preload("res://Scenes/render/ground_renderer.gd")
+const RouteLine := preload("res://Scenes/render/route_line.gd")
 const BuildingLabels := preload("res://Scenes/render/building_labels.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const Grid := preload("res://Scenes/grid.gd")
@@ -34,6 +35,8 @@ var fauna: FaunaRenderer
 var items: ItemRenderer
 var ground: GroundRenderer ## ruas e lotes que o motor expõe (AD-177)
 var building_labels: BuildingLabels ## função/nome dos prédios, só de perto
+var route_line: RouteLine ## rota restante de quem está selecionado ou sendo seguido (AD-181)
+var followed_npc := -1 ## o app informa: pessoa seguida (F) — a rota dela também aparece
 var registry ## EntityRegistry (nomes dos tipos de prédio para os rótulos)
 var zoom_size := 20.0 ## o app informa: rótulos só aparecem perto
 var _ground_dirty := false
@@ -100,6 +103,9 @@ func _init() -> void:
 	items = ItemRenderer.new()
 	items.name = "ItemRenderer"
 	add_child(items)
+	route_line = RouteLine.new()
+	route_line.name = "RouteLineRenderer"
+	add_child(route_line)
 	snow = _make_snow()
 	add_child(snow)
 
@@ -315,9 +321,11 @@ func set_lod(level: String) -> void:
 
 func _process(delta: float) -> void:
 	npcs.advance(delta, view_center, view_radius, far_zoom, bubble_zoom)
+	route_line.step(delta, [npcs.selected, followed_npc], npcs.nodes)
 	if _ground_dirty:
 		_ground_dirty = false
-		ground.rebuild()
+		ground.rebuild(true) # rua por delta: nasce, muda e some em transição
+	ground.step(delta)
 	building_labels.set_zoom(zoom_size, lod != "world")
 	events.advance(delta)
 	if snow.emitting:

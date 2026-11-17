@@ -4,9 +4,12 @@ extends Node3D
 ## Corpo pelo estado (ADR-0047 etapa 3): o `observable` do escopo (idade, altura, ofício, gravidez, doença, luto, carga)
 ## vai para TODOS os NPCs, não só para quem teve a ficha lida. Ação com alvo: quem conversa vira para o outro e uma linha
 ## discreta liga os dois (um MultiMesh, refeito 4x por segundo); quem trabalha vira para a oficina.
+## Rota (AD-181): quem viaja anda célula a célula pela `npc.route`, chegando no `routeArrivalTick` pelo relógio do mundo
+## (`clock`); enquanto anda, sai do espalhamento da célula de partida e entra no da chegada quando o motor o move.
 
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const Grid := preload("res://Scenes/grid.gd")
+const RouteClock := preload("res://Scenes/route_clock.gd")
 
 const STEP_SECONDS := 1.0 ## duração visual de um passo; o servidor decide a posição, o cliente só interpola
 const LINK_SECONDS := 0.25
@@ -19,6 +22,7 @@ var model_of: Callable = func(_id: int) -> Dictionary: return {} ## {profession,
 var design_of: Callable = func(_id: int) -> Variant: return null ## corpo de /designs/{id} já lido (cor do recipiente)
 var request_design: Callable = func(_id: int) -> void: pass ## pede o design uma vez (o reader guarda para sempre)
 var building_point: Callable = func(_id: int) -> Vector3: return Vector3.INF ## centro do prédio (alvo "oficina")
+var clock = RouteClock.new() ## hora do mundo contínua (o app sincroniza pelo relógio; a store, pelo tick do delta)
 var nodes: Dictionary = {} ## id -> NpcActor (o WorldView expõe o mesmo dicionário como npc_nodes)
 var selected := -1
 var detail_zoom := false ## LOD "perto": o app liga quando a câmera está bem próxima
@@ -123,7 +127,8 @@ func spawn(info: Dictionary) -> void:
 	if store.names.has(info.id):
 		actor.set_display_name(store.names[info.id])
 	nodes[info.id] = actor
-	_join(int(info.id), info.cell)
+	if not _apply_route(actor, info):
+		_join(int(info.id), info.cell)
 	apply_known_model(int(info.id))
 	apply_observable(int(info.id))
 
@@ -195,6 +200,16 @@ func on_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int) ->
 	if action != actor.action:
 		actor.set_action(action, labels)
 		actor.face_point = target_point(store.npcs[id])
+	var walking: bool = actor.walk != null
+	if _apply_route(actor, store.npcs[id]):
+		if not walking:
+			_leave(id, actor.cell) # na rua: fora do espalhamento da célula de partida
+		actor.cell = to_cell
+		return
+	if walking: # chegou (ou a viagem acabou): entra na célula que o motor diz, saindo de onde está desenhado
+		_join(id, to_cell)
+		actor.move_to(to_cell, STEP_SECONDS * 0.5)
+		return
 	if to_cell != actor.cell:
 		var old_cell: Vector2i = actor.cell
 		_leave(id, old_cell)
@@ -202,10 +217,25 @@ func on_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int) ->
 		actor.move_to(to_cell, STEP_SECONDS)
 
 
+## Rota do motor no boneco: começa (ou continua) a caminhada; sem rota, para. Devolve se está andando pela rota.
+## Início = `actionStartedAtTick` da viagem; sem ele (ou inválido), a hora em que a rota chegou.
+func _apply_route(actor, info: Dictionary) -> bool:
+	var cells: Array = info.get("route", [])
+	var arrival := int(info.get("arrival", -1))
+	if cells.size() < 2 or arrival < 0:
+		actor.clear_route()
+		return false
+	var start := float(info.get("started", -1))
+	if start < 0.0 or start >= float(arrival):
+		start = actor.walk.start_tick if actor.walk != null and actor.walk.end_tick == float(arrival) else minf(clock.tick, float(arrival) - 1.0)
+	return actor.set_route(cells, start, float(arrival))
+
+
 func on_removed(id: int) -> void:
 	var actor = nodes.get(id)
 	if actor != null:
-		_leave(id, actor.cell)
+		if actor.walk == null:
+			_leave(id, actor.cell)
 		_dispose(actor)
 		nodes.erase(id)
 
@@ -267,6 +297,10 @@ func refresh_links() -> void:
 
 func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: bool, bubble_zoom: bool) -> void:
 	_frame += 1
+	if store != null:
+		clock.observe(int(store.last_tick))
+	clock.advance(delta)
+	NpcActor.world_tick = clock.tick
 	var crowded := nodes.size() > 150
 	var far_now := far_zoom and crowded
 	var detail_radius := 6.0
