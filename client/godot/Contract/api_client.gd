@@ -218,8 +218,9 @@ func city_snapshot(city_id: String) -> Dictionary:
 
 # --- mundos e períodos (menu principal) ---------------------------------------
 
+## Cada período com o cartão do menu (AD-175): nome, época, descrição, pessoas, vilas, ofícios e tecnologia de partida.
 func periods() -> Dictionary:
-	return await _fetch("/periods")
+	return await _fetch("/periods", "periods")
 
 
 func period_catalog(period_id: String) -> Dictionary:
@@ -240,9 +241,25 @@ func world_preview(scenario_json: String) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
-func world_create(scenario_json: String, world_name: String, period_id: String = "") -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/worlds/create", {"scenarioJson": scenario_json, "name": world_name, "periodId": period_id})
+## `start_running` (AD-175) pede o mundo já rodando; o servidor exige o token de admin da sessão (403 sem ele).
+func world_create(scenario_json: String, world_name: String, period_id: String = "", start_running := false) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/create" + _running_query(start_running), {"scenarioJson": scenario_json, "name": world_name, "periodId": period_id})
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+## Criação em segundo plano (AD-175): 202 com `jobId`, `statusUrl` e as etapas; o andamento vem de `world_create_job`.
+func world_create_async(scenario_json: String, world_name: String, period_id: String = "", start_running := false) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/create/async" + _running_query(start_running), {"scenarioJson": scenario_json, "name": world_name, "periodId": period_id})
+	return {"ok": response.status == 202, "status": response.status, "body": response.body}
+
+
+## Etapa real em que a criação está (`stage`, `stageLabel`, `stageIndex` de `stageCount`), e no fim `result` ou `error`.
+func world_create_job(status_url: String) -> Dictionary:
+	return await _fetch(status_url, "world-create-job")
+
+
+func _running_query(start_running: bool) -> String:
+	return "?startRunning=true" if start_running else ""
 
 
 # --- retoques do mundo recém-criado (autoria) ---------------------------------
@@ -265,9 +282,23 @@ func saved_worlds() -> Dictionary:
 	return await _fetch("/worlds", "saved-worlds")
 
 
-func load_saved_world(id: String) -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/worlds/%s/load" % id.uri_encode())
+func load_saved_world(id: String, start_running := false) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/%s/load" % id.uri_encode() + _running_query(start_running))
 	return _checked("/worlds/load", response, "")
+
+
+## Novo nome (AD-175). Erro do servidor (vazio, longo demais, repetido) vem em `error`, já em frase para o jogador.
+func rename_world(id: String, new_name: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/%s/rename" % id.uri_encode(), {"name": new_name})
+	var body = response.body
+	var error := String(body.get("error", "")) if body is Dictionary else ""
+	return {"ok": response.status == 200, "status": response.status, "body": body, "error": error}
+
+
+## Grava o mundo aberto agora (AD-175); `body.savedAtUtc` diz quando.
+func save_world() -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/world/save")
+	return _checked("/world/save", {"status": response.status, "body": response.body}, "world-save")
 
 
 func delete_saved_world(id: String) -> Dictionary:

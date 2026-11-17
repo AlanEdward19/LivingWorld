@@ -1,6 +1,7 @@
 extends Control
 ## Tela de título: nome do jogo sobre o mundo girando ao fundo e poucos botões grandes. "Continuar" só aparece
-## quando há um mundo para voltar, já com nome, ano e quantas pessoas vivem nele.
+## quando há um mundo para voltar, já com nome, ano, quantas pessoas vivem nele e o lugar de onde veio (dados de
+## `GET /worlds`, AD-175).
 
 signal continue_pressed()
 signal new_world_pressed()
@@ -16,7 +17,7 @@ var my_worlds_button: Button
 var options_button: Button
 var quit_button: Button
 var status_label: Label
-var world_info: Dictionary = {} ## {name, year, population}; vazio = sem mundo para continuar
+var world_info: Dictionary = {} ## {name, year, population, period}; vazio = sem mundo para continuar
 
 
 func _ready() -> void:
@@ -49,6 +50,8 @@ func set_continue(info: Dictionary) -> void:
 			details.append("ano %d" % int(info.year))
 		if info.has("population"):
 			details.append("%d %s" % [int(info.population), "pessoa" if int(info.population) == 1 else "pessoas"])
+		if String(info.get("period", "")) != "":
+			details.append(String(info.period))
 		continue_button.text = "Continuar: %s\n%s" % [String(info.get("name", "seu mundo")), " · ".join(details)]
 	focus_default()
 

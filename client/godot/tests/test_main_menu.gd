@@ -11,17 +11,40 @@ const FakeTransport := preload("res://tests/fake_transport.gd")
 
 const DEFINITION := '{"periodId":"medieval","periodDefinition":{"Width":2,"Height":2,"Seed": 1,"InitialPopulation":40,"Nested":{"Seed":9},"Name":"a \\"Seed\\": 5"},"version":1}'
 const SETTINGS_PATH := "user://test-menu-settings.cfg"
+const CARD := {"name": "Vila do vale", "era": "Aldeias agrícolas", "description": "Poucas famílias num vale.", "startingTechnology": "Ferramentas de mão",
+	"initialPopulation": 40, "settlementCount": 1, "professionCount": 1, "professions": ["Fazendeiro"], "inventionEnabled": true}
 
 
-func _transport(online: bool = true, worlds: Array = [{"worldId": "a", "name": "Aldeia", "seed": 7, "currentDate": 30, "population": 20, "createdAt": 0, "lastSavedAtUtc": "2026-10-15T20:00:00Z"}], period := "medieval") -> RefCounted:
+## Mundo como `GET /worlds` devolve desde o AD-175 (aberto agora, ano, período e origem vêm do servidor).
+static func world_item(id: String, world_name: String, current := true, origin := "player", year := 3) -> Dictionary:
+	return {"worldId": id, "name": world_name, "seed": 7, "currentDate": 30, "population": 20, "createdAt": 0,
+		"lastSavedAtUtc": "2026-10-15T20:00:00Z", "lastPlayedAtUtc": "2026-10-15T20:00:00Z", "periodId": "medieval",
+		"periodName": "Vila do vale", "year": year, "isCurrent": current, "origin": origin}
+
+
+## Andamento da criação em segundo plano: uma etapa no meio, depois pronto com o resultado.
+static func job_route(failed := false, status := 200, error := "") -> Callable:
+	var calls := [0]
+	return func(_path: String) -> Dictionary:
+		calls[0] += 1
+		if calls[0] == 1:
+			return {"status": 200, "body": {"jobId": "j", "stage": "families", "stageLabel": "Chamando as famílias", "stageIndex": 2, "stageCount": 6,
+				"done": false, "failed": false, "status": 202, "error": "", "result": null, "running": false}}
+		return {"status": 200, "body": {"jobId": "j", "stage": "ready", "stageLabel": "Pronto!", "stageIndex": 5, "stageCount": 6, "done": true,
+			"failed": failed, "status": status, "error": error, "result": null if failed else {"npcCount": 3, "name": "Vale"}, "running": false}}
+
+
+func _transport(online: bool = true, worlds: Array = [world_item("a", "Aldeia")], period := "medieval") -> RefCounted:
 	var transport := FakeTransport.new()
+	transport.on("POST /worlds/create/async", {"status": 202, "body": {"jobId": "j", "statusUrl": "/worlds/create/jobs/j", "stages": []}})
+	transport.on("GET /worlds/create/jobs/", job_route())
 	if online:
 		transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 3}})
 		transport.on("GET /worlds", {"status": 200, "body": worlds})
 		transport.on("GET /world/info", {"status": 200, "body": {"name": "Aldeia", "periodId": period, "technologyAxes": []}})
 	transport.on("GET /periods/medieval/catalog", {"status": 200, "body": {"professionIds": [1], "professionNames": {"1": "Fazendeiro"}}})
 	transport.on("GET /periods/medieval", {"status": 200, "body": {}, "text": DEFINITION})
-	transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "source": "Vila medieval", "width": 2, "height": 2}]})
+	transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "source": "Vila medieval", "width": 2, "height": 2, "card": CARD}]})
 	transport.on("POST /worlds/preview", {"status": 200, "body": {"width": 2, "height": 1,
 		"cells": [{"x": 0, "y": 0, "terrain": 0, "hasWater": false, "altitude": 0}, {"x": 1, "y": 0, "terrain": 1, "hasWater": true, "altitude": 0}],
 		"settlements": [{"name": "vila", "x": 0, "y": 0}]}})
@@ -94,11 +117,11 @@ func test_continue_is_hidden_without_a_world_to_return_to() -> void:
 	eq(empty.title.continue_button.visible, false, "nenhum mundo salvo: sem Continuar")
 	check(empty.title.new_world_button.has_focus(), "o foco começa em Novo mundo")
 	_done(empty)
-	var bootstrap := _menu(_transport(true, [{"worldId": "b", "name": "Mundo", "seed": 1, "currentDate": 0, "population": 20, "createdAt": 0, "lastSavedAtUtc": "2026-10-15T20:00:00Z"}], ""))
+	var bootstrap := _menu(_transport(true, [world_item("b", "Mundo", true, "automatic", 0)], ""))
 	await bootstrap.refresh_server()
 	eq(bootstrap.title.continue_button.visible, false, "o mundo que a API cria sozinha não conta antes de jogar")
 	_done(bootstrap)
-	var played := _menu(_transport(true, [{"worldId": "b", "name": "Mundo", "seed": 1, "currentDate": 0, "population": 20, "createdAt": 0, "lastSavedAtUtc": "2026-10-15T20:00:00Z"}], ""), true)
+	var played := _menu(_transport(true, [world_item("b", "Mundo", true, "automatic", 0)], ""), true)
 	await played.refresh_server()
 	eq(played.title.continue_button.visible, true, "quem já jogou continua o mesmo mundo")
 	check(played.title.continue_button.has_focus(), "o foco começa em Continuar")
@@ -149,11 +172,16 @@ func test_full_new_world_journey_creates_and_enters_the_world() -> void:
 	eq(wizard.next_button.text.begins_with("Criar mundo"), true, "último botão cria")
 	var fired := [false]
 	menu.world_ready.connect(func(): fired[0] = true)
+	var stages: Array[String] = []
+	wizard.creation_progress.connect(func(_i: int, _n: int, text: String): stages.append(text))
 	await wizard.next()
-	check("POST /worlds/create" in transport.calls, "chamou /worlds/create")
+	check("POST /worlds/create/async" in transport.calls, "chamou a criação em segundo plano")
+	check("GET /worlds/create/jobs/j" in transport.calls, "acompanhou o andamento no endereço que o servidor deu")
+	eq(stages, ["Chamando as famílias", "Pronto!"] as Array[String], "o carregamento mostrou as etapas do servidor")
 	eq(fired[0], true, "criado, entra no mundo")
 	eq(menu.current, menu.loading, "tela de carregamento enquanto entra")
 	check(not ("POST /simulation/resume" in transport.calls), "sem token, não mexe no tempo")
+	check(not ("POST /worlds/create/async?startRunning=true" in transport.calls), "sem token, não pede o mundo rodando")
 	_done(menu)
 
 
@@ -173,6 +201,7 @@ func test_touchup_is_an_optional_detour_after_creating() -> void:
 
 func test_create_failure_shows_human_message_and_stays() -> void:
 	var transport := _transport()
+	transport.on("POST /worlds/create/async", {"status": 404, "body": null}) # API de antes do AD-175: criação de uma vez
 	transport.on("POST /worlds/create", {"status": 400, "body": "cenário inválido"})
 	var menu := _menu(transport)
 	await menu.show_new_world()
@@ -258,7 +287,7 @@ func test_creating_a_world_sends_the_chosen_period_id() -> void:
 	menu.wizard.draft = DEFINITION
 	menu.wizard.world_name = "Vale"
 	await menu.wizard.create()
-	var bodies: Array = transport.bodies.get("POST /worlds/create", [])
+	var bodies: Array = transport.bodies.get("POST /worlds/create/async", [])
 	eq(bodies.size(), 1, "uma criação")
 	eq(bodies[0].get("periodId"), "medieval", "o período escolhido vai junto, para o servidor guardar")
 	eq(bodies[0].get("name"), "Vale", "com o nome escolhido")
@@ -284,4 +313,67 @@ func test_unnamed_profession_still_falls_back_to_numbered_label() -> void:
 	var menu := _menu(transport)
 	await menu.show_new_world()
 	check("Profissão 2" in menu.wizard.period_info.text, "id sem nome cai em 'Profissão 2'")
+	_done(menu)
+
+
+func test_period_cards_and_hint_come_from_the_server_card() -> void:
+	var transport := _transport()
+	transport.on("GET /periods", {"status": 200, "body": [
+		{"periodId": "medieval", "source": "x", "width": 2, "height": 2, "card": CARD},
+		{"periodId": "maior", "source": "y", "width": 4, "height": 4, "card": CARD.merged({"name": "Vila grande", "initialPopulation": 150}, true)}]})
+	var menu := _menu(transport)
+	await menu.show_new_world()
+	var cards := Kit.all_text(menu.wizard.period_cards)
+	check("Vila do vale" in cards and "Poucas famílias num vale." in cards and "40 pessoas · 1 vila" in cards, "cartão com nome, frase e números do servidor: " + cards)
+	check("Vila grande" in cards and "150 pessoas" in cards, "o segundo período também: " + cards)
+	check("mesma época" in menu.wizard.period_hint.text and "Aldeias agrícolas" in menu.wizard.period_hint.text,
+		"a época aparece como informação, sem prometer outras: " + menu.wizard.period_hint.text)
+	check("Ferramentas de mão" in menu.wizard.period_info.text, "tecnologia de partida do cartão: " + menu.wizard.period_info.text)
+	eq(menu.wizard.STEP_NAMES[0], "Começo", "o passo não se chama Época quando não há épocas para escolher")
+	_done(menu)
+
+
+func test_without_a_card_the_period_falls_back_to_its_source_and_map_size() -> void:
+	var menu := _menu(_transport())
+	menu.api.transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "source": "Vila medieval", "width": 2, "height": 2}]})
+	await menu.show_new_world()
+	var cards := Kit.all_text(menu.wizard.period_cards)
+	check("Vila medieval" in cards and "2 por 2 terras" in cards, "API antiga: nome do cadastro e tamanho: " + cards)
+	eq(menu.wizard.period_hint.text, Pages.PERIOD_HINT, "sem época conhecida, a frase de sempre")
+	_done(menu)
+
+
+func test_create_asks_the_server_for_a_running_world_when_the_session_has_the_token() -> void:
+	var transport := _transport()
+	var menu := _menu(transport)
+	menu.can_run_clock = true
+	await menu.show_new_world()
+	menu.wizard.poll_seconds = 0.0
+	await menu.wizard.create()
+	check("POST /worlds/create/async?startRunning=true" in transport.calls, "pede rodando: " + str(transport.calls))
+	eq(transport.count_calls("POST /simulation/resume"), 0, "o cliente não despausa por conta própria")
+	_done(menu)
+
+
+func test_failed_job_shows_the_server_reason_and_stays_in_the_wizard() -> void:
+	var transport := _transport()
+	transport.on("GET /worlds/create/jobs/", job_route(true, 409, "Já existe um mundo salvo com esta seed."))
+	var menu := _menu(transport)
+	await menu.show_new_world()
+	var fired := [false]
+	menu.world_ready.connect(func(): fired[0] = true)
+	await menu.wizard.go_to(menu.wizard.SUMMARY_STEP)
+	await menu.wizard.next()
+	eq(fired[0], false, "falha não entra no jogo")
+	check("semente" in menu.wizard.message_label.text, "conflito vindo do andamento em frase humana: " + menu.wizard.message_label.text)
+	eq(menu.current, menu.wizard, "volta ao assistente")
+	_done(menu)
+
+
+func test_continue_uses_the_world_the_server_marks_as_open() -> void:
+	var menu := _menu(_transport(true, [world_item("x", "Recente fechado", false), world_item("a", "Aberto", true, "player", 12)]))
+	await menu.refresh_server()
+	var text: String = menu.title.continue_button.text
+	check("Aberto" in text and "ano 12" in text and "Vila do vale" in text, "nome, ano e lugar do mundo aberto: " + text)
+	check(not ("Recente fechado" in text), "não adivinha pelo mais recente")
 	_done(menu)

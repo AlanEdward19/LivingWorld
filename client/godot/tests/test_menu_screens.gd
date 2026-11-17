@@ -9,6 +9,8 @@ const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 const LocalServer := preload("res://Contract/local_server.gd")
 const Shortcuts := preload("res://Scenes/shortcuts.gd")
 const Kit := preload("res://Scenes/menu/menu_kit.gd")
+const UiSounds := preload("res://Scenes/menu/ui_sounds.gd")
+const PauseMenu := preload("res://Scenes/pause_menu.gd")
 
 const PATH := "user://test-screens-settings.cfg"
 
@@ -79,6 +81,81 @@ func test_loading_screen_walks_real_stages() -> void:
 	screen.set_message("O mundo não está respondendo.")
 	eq(screen.stage_label.text, "O mundo não está respondendo.", "mensagem fora das etapas")
 	screen.free()
+
+
+func test_loading_screen_shows_the_server_creation_stage() -> void:
+	var screen := LoadingScreen.new()
+	tree.root.add_child(screen)
+	screen.set_progress(2, 6, "Chamando as famílias")
+	eq(screen.stage_label.text, "Chamando as famílias…", "a frase que o servidor mandou")
+	eq([int(screen.bar.value), int(screen.bar.max_value)], [3, 6], "barra na etapa do servidor, das 6 dele")
+	screen.set_progress(5, 6, "Pronto!")
+	eq(screen.stage_label.text, "Pronto!", "exclamação sem reticências")
+	screen.set_stage(2)
+	eq(int(screen.bar.max_value), LoadingScreen.STAGES.size(), "entrando no mundo, volta às etapas do cliente")
+	screen.free()
+
+
+func test_pause_menu_saves_now_and_says_when() -> void:
+	var fake = T.transport()
+	fake.on("GET /worlds", {"status": 200, "body": [{"worldId": "a", "name": "A", "isCurrent": true, "lastSavedAtUtc": "2020-01-01T00:00:00+00:00"}]})
+	var now := Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()), false) + "Z"
+	fake.on("POST /world/save", {"status": 200, "body": {"worldId": "a", "name": "A", "tick": 5, "savedAtUtc": now}})
+	var app = await T.make_app(tree, fake)
+	app.api.validate_shapes = false
+	await app.pause_menu.open()
+	check("Salvo pela última vez há" in app.pause_menu.save_line.text and "dias" in app.pause_menu.save_line.text,
+		"diz quando foi a última gravação: " + app.pause_menu.save_line.text)
+	await app.pause_menu.save_now()
+	eq(fake.count_calls("POST /world/save"), 1, "Salvar agora grava no servidor")
+	eq(app.pause_menu.save_button.text, "Salvo ✔", "confirmação visual no botão")
+	check("salvo" in app.pause_menu.save_line.text and "agora mesmo" in app.pause_menu.save_line.text, "e na frase: " + app.pause_menu.save_line.text)
+	fake.on("POST /world/save", {"status": 0, "body": null})
+	await app.pause_menu.save_now()
+	check("Não deu para salvar" in app.pause_menu.save_line.text, "erro em frase, sem fingir que salvou")
+	eq(app.pause_menu.save_button.text, "Salvar agora", "o botão volta a oferecer")
+	app.pause_menu.close()
+	app.queue_free()
+
+
+func test_saved_ago_reads_server_dates() -> void:
+	var base := Time.get_unix_time_from_datetime_string("2026-11-18T12:00:00")
+	eq(PauseMenu.saved_ago("2026-11-18T11:59:40.5+00:00", base), "agora mesmo", "segundos")
+	eq(PauseMenu.saved_ago("2026-11-18T11:55:00Z", base), "há 5 minutos", "minutos")
+	eq(PauseMenu.saved_ago("2026-11-18T10:00:00+00:00", base), "há 2 horas", "horas")
+	eq(PauseMenu.saved_ago("", base), "", "sem data, nada")
+
+
+func test_ui_sounds_are_generated_by_code_and_follow_buttons() -> void:
+	for kind in UiSounds.KINDS:
+		var stream: AudioStreamWAV = UiSounds.make_stream(kind)
+		check(stream.data.size() > 400, "%s tem som de verdade (%d bytes)" % [kind, stream.data.size()])
+		check(stream.get_length() < 0.3, "%s é curto" % kind)
+	var sounds = UiSounds.new()
+	tree.root.add_child(sounds)
+	var button := Button.new()
+	button.text = "Jogar"
+	tree.root.add_child(button)
+	button.pressed.emit()
+	eq(sounds.last_cue, "click", "botão novo na árvore ganha o clique")
+	var back := Button.new()
+	back.text = "◀ Voltar"
+	tree.root.add_child(back)
+	back.pressed.emit()
+	eq(sounds.last_cue, "back", "voltar tem som próprio")
+	UiSounds.cue(button, "error")
+	eq(sounds.last_cue, "error", "telas pedem o erro pelo nó de sons")
+	button.free()
+	back.free()
+	sounds.free()
+
+
+func test_ui_sounds_play_on_the_master_bus_that_options_volume_controls() -> void:
+	var sounds = UiSounds.new()
+	tree.root.add_child(sounds)
+	for voice in sounds.get_children():
+		eq((voice as AudioStreamPlayer).bus, &"Master", "toca no Master, que o volume das Opções regula")
+	sounds.free()
 
 
 func test_launcher_state_is_read_and_only_started_process_is_stopped() -> void:
