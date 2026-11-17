@@ -16,8 +16,10 @@ public sealed class DomesticHungerProbe(WorldState world) : IWorldEventSink
 {
     public static readonly string[] Groups = ["vitima", "perda", "separacao", "casa", "outro"];
     public long MeasureFromTick { get; init; }
-    public long[] CritHours { get; } = new long[Groups.Length], CritHoursUnder5 { get; } = new long[Groups.Length];
-    public double[] PersonYears { get; } = new double[Groups.Length], PersonYearsUnder5 { get; } = new double[Groups.Length];
+    public long[] CritHours { get; } = new long[Groups.Length];
+    public long[] CritHoursUnder5 { get; } = new long[Groups.Length];
+    public double[] PersonYears { get; } = new double[Groups.Length];
+    public double[] PersonYearsUnder5 { get; } = new double[Groups.Length];
     public long Assaults, Killed, AggressorRemoved, HungerMotive, SeparationsAfter, VictimAdultHours, VictimWorkHours;
     public long BeforeHours, AfterHours, BeforeHoursUnder5, AfterHoursUnder5, MemberWindows, MemberWindowsUnder5;
     private readonly Dictionary<long, long> _victim = [], _house = [], _loss = [], _separated = [], _aggressorOf = [];
