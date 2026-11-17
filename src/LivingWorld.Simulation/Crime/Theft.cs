@@ -71,7 +71,10 @@ internal static class Theft
         var economy = world.EconomyRules;
         int hunger = npc.HungerAt(now), thirst = npc.ThirstAt(now);
         var home = npc.Household is { } id ? world.FindHousehold(id) : null;
-        bool Lacks(int resource) => home is null || home.Stock.GetValueOrDefault(new ResourceType(resource)) < 1;
+        // AD-157b: com a carga pessoal, a comida e a água que a pessoa leva também são dela; com fome e pão na carga, come em vez
+        // de furtar (antes olhava só a despensa, que fica vazia quando a casa leva a comida consigo)
+        bool Lacks(int resource) => (home is null || home.Stock.GetValueOrDefault(new ResourceType(resource)) < 1)
+            && (world.Invention is not { } carry || carry.CarriedQuantity(npc.Id.Value, resource) < 1);
         if (thirst <= rules.DesperateBelow && !Lacks(economy.WaterResourceId)) return -1; // com sede e água em casa, beber vem antes
         bool hungry = hunger <= rules.DesperateBelow && Lacks(economy.FoodResourceId);
         bool thirsty = thirst <= rules.DesperateBelow && Lacks(economy.WaterResourceId);

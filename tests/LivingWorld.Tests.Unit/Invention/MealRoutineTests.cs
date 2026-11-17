@@ -201,4 +201,24 @@ public class MealRoutineTests
         old["Invention"]!.AsObject().Remove("LeftAtMarket");
         Assert.False(WorldSnapshot.Deserialize(old.ToJsonString()).Invention!.IsLeftAtMarket(home.Id.Value));
     }
+
+    /// <summary>Junção AD-157b (seed 14): com fome e comida na própria carga, a pessoa não furta; antes o furto olhava só a despensa,
+    /// vazia porque a comida da casa estava com quem saiu.</summary>
+    [Fact]
+    public void Someone_desperately_hungry_with_food_in_their_own_load_does_not_count_as_lacking_food()
+    {
+        var world = NewWorld();
+        var npc = Adult(world);
+        var home = HomeOf(world, npc);
+        var food = Food(world);
+        if (home.Stock.GetValueOrDefault(food) > 0) home.Withdraw(food, home.Stock.GetValueOrDefault(food));
+        long now = world.CurrentDate.TotalHours;
+        npc.SetHunger(0, now);
+        npc.SetThirst(100, now);
+        Assert.Equal(food.Id, LivingWorld.Simulation.Crime.Theft.MissingAtHome(world, npc, now));
+
+        world.Invention!.Carry(npc.Id.Value, food.Id, 1);
+
+        Assert.Equal(-1, LivingWorld.Simulation.Crime.Theft.MissingAtHome(world, npc, now));
+    }
 }
