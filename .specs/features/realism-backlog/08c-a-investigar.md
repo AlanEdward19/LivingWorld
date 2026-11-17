@@ -81,3 +81,6 @@
      despensa da casa na hora, esteja o morto onde estiver (ou a dá por consumida se não há casa). Pedido: morreu em casa, fica
      com a casa; morreu longe, a carga e o recipiente ficam no local, para alguém da casa ir buscar ou para ser furtada por
      quem passa. Fatia AD-168, depois do bloco de desempenho (muda o mundo; a conservação tem de fechar com a carga no chão).
+
+> Ordem do dono (2026-11-17): os itens 149, 151, 152 e a reposição racionada do celeiro na quebra (fim do 148) se resolvem
+> nesta trilha, depois da refatoração do cliente Godot.
