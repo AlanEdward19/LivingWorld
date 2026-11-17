@@ -19,12 +19,12 @@ public static class RealtimeEndpoints
     {
         app.UseWebSockets();
 
-        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
+        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
         {
             var result = gateway.Snapshot(new VisualScope(scope, refId ?? ""), mode);
             if (!result.IsSuccess) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            return Results.Ok(WithProjectedPayload(result.Value!, world, playerNpcId));
+            return Results.Ok(WithProjectedPayload(result.Value!, world, playerNpcId, names.For(world.PeriodId)));
         });
 
         app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceTick, long sinceSequence, RealtimeGateway gateway) =>
@@ -35,7 +35,7 @@ public static class RealtimeEndpoints
             return result.IsSuccess ? Results.Ok(result.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
         });
 
-        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
+        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -46,7 +46,7 @@ public static class RealtimeEndpoints
             }
 
             http.Response.Headers.ContentType = "text/event-stream";
-            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world, playerNpcId));
+            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId)));
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -64,7 +64,7 @@ public static class RealtimeEndpoints
         // MapGet (não Map genérico) — o handshake de WebSocket é uma requisição GET
         // com header Upgrade; MapGet é o verbo correto E o único que o gerador de OpenAPI
         // consegue documentar (Map genérico fica sem verbo, invisível pro doc).
-        app.MapGet("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
+        app.MapGet("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -81,7 +81,7 @@ public static class RealtimeEndpoints
             }
 
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
-            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world, playerNpcId), http.RequestAborted);
+            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId)), http.RequestAborted);
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -107,13 +107,14 @@ public static class RealtimeEndpoints
     /// resolve. Escopo city em modo Player aplica FOW centrado em <paramref
     /// name="playerNpcId"/>; Spectator/admin sempre vê sem filtro.</summary>
     private static VisualSnapshotEnvelope<object?> WithProjectedPayload(
-        VisualSnapshotEnvelope<object?> envelope, WorldState world, long? playerNpcId)
+        VisualSnapshotEnvelope<object?> envelope, WorldState world, long? playerNpcId,
+        LivingWorld.Api.Visual.Observable.PresentationNames names)
     {
         object? payload = envelope.Scope.Kind switch
         {
-            VisualScopeKind.World => GlobalProjector.Build(world),
+            VisualScopeKind.World => GlobalProjector.Build(world, names),
             VisualScopeKind.City when Guid.TryParse(envelope.Scope.RefId, out var cityGuid) =>
-                BuildCityPayload(world, new CityId(cityGuid), envelope.Mode, playerNpcId),
+                BuildCityPayload(world, new CityId(cityGuid), envelope.Mode, playerNpcId, names),
             VisualScopeKind.Interior when long.TryParse(envelope.Scope.RefId, out var buildingIdValue) =>
                 InteriorProjector.Build(world, new BuildingId(buildingIdValue)) is { IsSuccess: true } result ? result.Value : null,
             _ => null,
@@ -125,9 +126,10 @@ public static class RealtimeEndpoints
     /// <summary>Espectador/admin sempre recebe o snapshot completo
     /// (override). Personagem sem <paramref name="playerNpcId"/> identificado não recebe nenhum
     /// morador — "área não descoberta" por padrão é mais seguro do que vazar tudo por engano.</summary>
-    private static object? BuildCityPayload(WorldState world, CityId cityId, ViewerMode mode, long? playerNpcId)
+    private static object? BuildCityPayload(WorldState world, CityId cityId, ViewerMode mode, long? playerNpcId,
+        LivingWorld.Api.Visual.Observable.PresentationNames names)
     {
-        var result = CityProjector.Build(world, cityId);
+        var result = CityProjector.Build(world, cityId, names);
         if (!result.IsSuccess) return null;
         if (mode != ViewerMode.Player) return result.Value;
 

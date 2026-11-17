@@ -137,6 +137,7 @@ builder.Services.AddSingleton(chronicles);
 // como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default pra nenhuma
 // WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo dela (mesmo
 // motivo documentado em WorldHost/Program.cs:71-74).
+builder.Services.AddSingleton<LivingWorld.Api.Visual.Observable.PresentationNameResolver>(); // AD-170: nomes do período, uma vez por período
 builder.Services.AddSingleton<TickLoopService>();
 if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
     builder.Services.AddHostedService(sp => sp.GetRequiredService<TickLoopService>());
@@ -183,18 +184,18 @@ app.MapGet("/world/calendar", () =>
     });
 });
 
-app.MapGet("/npcs/{id:long}", (long id) =>
+app.MapGet("/npcs/{id:long}", (long id, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
 {
     var result = NpcInspectionQuery.Inspect(worldHost.Current, new NpcId(id));
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+    return result.IsSuccess ? Results.Ok(LivingWorld.Api.Visual.Observable.EntityInspectionQuery.Named(result.Value!, names.For(worldHost.Current.PeriodId))) : Results.NotFound();
 });
 
 // Comando explícito e nomeado — o GET acima nunca materializa; quem precisa do detalhe
 // completo de um id ainda anônimo no pool agregado chama esta rota de propósito.
-app.MapPost("/npcs/{id:long}/materialize", (long id) =>
+app.MapPost("/npcs/{id:long}/materialize", (long id, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
 {
     var result = NpcInspectionQuery.MaterializeAndInspect(worldHost.Current, new NpcId(id));
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+    return result.IsSuccess ? Results.Ok(LivingWorld.Api.Visual.Observable.EntityInspectionQuery.Named(result.Value!, names.For(worldHost.Current.PeriodId))) : Results.NotFound();
 });
 
 // LLM_PROVIDER escolhe o provider real de diálogo; default "fake" para não mudar nenhum
@@ -225,6 +226,7 @@ app.MapSavedWorldEndpoints(worldHost, savedWorlds, simulationHost, restored => n
 app.MapWorldPreviewEndpoints();
 app.MapCultureTechnologyEndpoints(worldHost);
 app.MapDesignEndpoints(worldHost);
+LivingWorld.Api.Visual.Observable.EntityEndpoints.MapEntityEndpoints(app, worldHost); // AD-170: ficha genérica por tipo
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();

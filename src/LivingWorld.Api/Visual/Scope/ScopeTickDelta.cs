@@ -35,5 +35,20 @@ public sealed record ScopeTickDelta(
             [], [], [], [], [], [], [], [])
     { }
 
+    // AD-170 (ADR-0047 etapa 2): o observável do escopo, só o que mudou. Clima vem nulo quando não mudou.
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.BuildingStateVisual> BuildingStateUpserts { get; init; } = [];
+    public IReadOnlyList<long> BuildingStateRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.CropVisual> CropUpserts { get; init; } = [];
+    public IReadOnlyList<long> CropRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.AnimalVisual> AnimalUpserts { get; init; } = [];
+    public IReadOnlyList<long> AnimalRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.FaunaGroupVisual> FaunaGroupUpserts { get; init; } = [];
+    public IReadOnlyList<string> FaunaGroupRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.LeavingVisual> LeavingUpserts { get; init; } = [];
+    public IReadOnlyList<long> LeavingRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.ObjectVisual> ObjectUpserts { get; init; } = [];
+    public IReadOnlyList<long> ObjectRemoved { get; init; } = [];
+    public LivingWorld.Api.Visual.Observable.ScopeClimateVisual? Climate { get; init; }
+
     public static ScopeTickDelta Empty(long tick) => new(tick, [], [], [], [], [], [], [], [], [], []);
 }

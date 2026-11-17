@@ -22,7 +22,8 @@ public sealed class TickLoopService(
     SimulationHost simulationHost,
     RealtimeGateway gateway,
     SavedWorldLibrary library,
-    BufferingWorldEventSink sink) : IHostedService
+    BufferingWorldEventSink sink,
+    LivingWorld.Api.Visual.Observable.PresentationNameResolver names) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
     private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
@@ -90,6 +91,12 @@ public sealed class TickLoopService(
         long tick = world.CurrentDate.TotalHours;
 
         var subscribed = gateway.SubscribedScopeKeys;
+        if (subscribed.Count == 0) // sem assinante, nenhuma projeção (AD-170: custo por NPC-tick igual)
+        {
+            _lastInteriors.Clear();
+            return;
+        }
+        var presentation = names.For(world.PeriodId);
         foreach (var scopeKey in subscribed)
         {
             if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
@@ -102,7 +109,7 @@ public sealed class TickLoopService(
                 continue;
 
             var scope = ParseScope(scopeKey);
-            var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));
+            var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick), presentation);
             var before = _lastStates.TryGetValue(scopeKey, out var previous)
                 ? previous
                 : LivingScopeState.Empty;

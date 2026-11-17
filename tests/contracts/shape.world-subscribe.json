@@ -64,7 +64,23 @@
       },
       "Climate": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload": {
+          "month": "number",
+          "regions": [
+            {
+              "center": {
+                "x": "number",
+                "y": "number"
+              },
+              "cropYearFactorMilli": "number",
+              "drought": "boolean",
+              "regionId": "number",
+              "temperatureC": "number"
+            }
+          ],
+          "seasonIndex": "number",
+          "seasonKey": "string"
+        }
       },
       "Kingdoms": {
         "isModeled": "boolean",
@@ -107,6 +123,8 @@
       }
     },
     "livingState": {
+      "animals": "[]",
+      "buildingStates": "[]",
       "buildings": "[]",
       "cities": [
         {
@@ -115,6 +133,17 @@
             "width": "number",
             "x": "number",
             "y": "number"
+          },
+          "density": {
+            "actions": [
+              {
+                "action": "null",
+                "count": "number"
+              }
+            ],
+            "inside": "number",
+            "pooled": "number",
+            "temperatureC": "number"
           },
           "foundedFromCityId": "null",
           "id": {
@@ -128,10 +157,23 @@
           "population": "number"
         }
       ],
+      "climate": {
+        "cropYearFactorMilli": "number",
+        "drought": "boolean",
+        "month": "number",
+        "regionId": "number",
+        "seasonIndex": "number",
+        "seasonKey": "string",
+        "temperatureC": "number"
+      },
+      "crops": "[]",
       "events": "[]",
+      "faunaGroups": "[]",
       "indicators": "[]",
+      "leavings": "[]",
       "npcs": [
         {
+          "actionStartedAtTick": "number",
           "city": {
             "value": "string"
           },
@@ -144,9 +186,44 @@
             "x": "number",
             "y": "number"
           },
+          "observable": {
+            "ageYears": "number",
+            "carried": "[]",
+            "dominantEmotion?": "string",
+            "emotions": {
+              "anger": "number",
+              "fear": "number",
+              "grief": "number",
+              "joy": "number",
+              "loneliness": "number",
+              "shame": "number"
+            },
+            "growthFraction": "number",
+            "heightCm": "number",
+            "held?": {
+              "designId": "number",
+              "itemId": "number"
+            },
+            "illness?": {
+              "bedridden": "boolean",
+              "diseaseId": "number",
+              "symptomatic": "boolean"
+            },
+            "lifeStage": "string",
+            "mourning": "boolean",
+            "name": "string",
+            "pregnancy?": {
+              "babies": "number",
+              "fraction": "number"
+            },
+            "professionId": "number",
+            "professionName?": "string",
+            "sex": "string"
+          },
           "relocationDestination": "null"
         }
       ],
+      "objects": "[]",
       "processes": [
         {
           "appearanceToken": "null",
@@ -161,6 +238,8 @@
           "progress": "number",
           "quality": "null",
           "remainingHours": "number",
+          "resourceId": "number",
+          "resourceName?": "string",
           "targetId": "number"
         }
       ]

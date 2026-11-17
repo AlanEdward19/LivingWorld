@@ -1,0 +1,65 @@
+{
+  "id": "string",
+  "kind": "string",
+  "links": [
+    {
+      "id": "string",
+      "kind": "string",
+      "name": "string",
+      "relation": "string"
+    }
+  ],
+  "name": "string",
+  "recentEvents": [
+    {
+      "eventId": "number",
+      "involved": {
+        "amount": "number",
+        "authorId": "number",
+        "buildingId": "number",
+        "caseId": "number",
+        "cityId": "string",
+        "designId": "number",
+        "householdId": "number",
+        "leavingId": "number",
+        "otherId": "number",
+        "outcome": "string",
+        "recordOnly": "boolean",
+        "relatedIds": [
+          "number"
+        ],
+        "subjectId": "number",
+        "victimId": "number",
+        "workplaceId": "number"
+      },
+      "kind": "number",
+      "label": "string",
+      "location": {
+        "x": "number",
+        "y": "number"
+      },
+      "tick": "number"
+    }
+  ],
+  "state": {
+    "cityId": "string",
+    "dwellingId": "number",
+    "headId": "number",
+    "homeless": "boolean",
+    "id": "number",
+    "location": {
+      "x": "number",
+      "y": "number"
+    },
+    "memberIds": [
+      "number"
+    ],
+    "stock": [
+      {
+        "quantity": "number",
+        "resourceId": "number",
+        "resourceName": "null"
+      }
+    ]
+  }
+}
