@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
-using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Climate;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;

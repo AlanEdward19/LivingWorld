@@ -2,7 +2,6 @@ using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Simulation.Cities.Queries;
-using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Tests.Shared;

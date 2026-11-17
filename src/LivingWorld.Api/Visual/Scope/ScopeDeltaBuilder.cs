@@ -224,7 +224,10 @@ public static class LivingDeltaReducer
             ? kept
             : kept with
             {
-                ActionStartedAtTick = old.ActionStartedAtTick, ActionTarget = old.ActionTarget, Intent = old.Intent, IntentTarget = old.IntentTarget,
+                ActionStartedAtTick = old.ActionStartedAtTick,
+                ActionTarget = old.ActionTarget,
+                Intent = old.Intent,
+                IntentTarget = old.IntentTarget,
             };
     }
 
