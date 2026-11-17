@@ -90,7 +90,8 @@ public static class InventionIntake
             }
     }
 
-    public static void OnEvent(WorldState world, WorldEventKind kind, string payload, string sourceSystem, long tick)
+    public static void OnEvent(WorldState world, WorldEventKind kind, string payload, string sourceSystem, long tick,
+        Scheduling.TickContext? ctx = null, long? eventId = null)
     {
         // AD-166: toda morte (acidente, velhice, homicídio e forca também) leva o saber e devolve a carga à casa; antes essas
         // quatro deixavam o morto sabendo e a carga presa nele
@@ -106,7 +107,7 @@ public static class InventionIntake
             if (kind == WorldEventKind.Starvation) world.InventionTally.StarvedAway++; else world.InventionTally.DehydratedAway++;
         }
         Forget(world, dead, tick);
-        PersonalCarry.Forget(world, dead); // AD-147: o que levava fica com a casa
+        PersonalCarry.Forget(world, dead, ctx, eventId); // AD-147: o que levava fica com a casa; AD-168: longe dela, no chão
     }
 
     /// <summary>Quem morreu deixa de saber; um design sem ninguém que saiba e sem instância vira lápide.</summary>

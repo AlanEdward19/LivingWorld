@@ -208,6 +208,14 @@ public sealed partial record InventionRules
     /// parte do recipiente dela e só vai ao protótipo se resolver mais. Falso = para no primeiro que serve (AD-147).</summary>
     public bool ImproveCarrier { get; init; } = true;
 
+    /// <summary>AD-168: o espólio de quem morre longe de casa fica no chão. Nulo = o padrão (<see cref="LeavingsRules.Default"/>,
+    /// ligado); nulo não entra no snapshot (as regras guardam o mesmo texto de antes).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public LeavingsRules? LeavingsOverride { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public LeavingsRules Leavings => LeavingsOverride ?? LeavingsRules.Default;
+
     public int UnitGramsOf(int resourceId) => UnitGrams.TryGetValue(resourceId, out int g) && g > 0 ? g : DefaultUnitGrams;
 
     public int UnitMlOf(int resourceId) => UnitMl.TryGetValue(resourceId, out int ml) && ml > 0 ? ml : DefaultUnitMl;

@@ -125,7 +125,11 @@ public sealed partial class BehaviorDecisionSystem
         WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
         routineAction == ActionType.Sleep
             ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
-            : NeedsRestocking(world, npc, marketIndex, duringWork: routineAction == ActionType.Work) ? ActionType.Buy : routineAction;
+            : NeedsRestocking(world, npc, marketIndex, duringWork: routineAction == ActionType.Work) ? ActionType.Buy
+            // AD-168: fora do turno, alguém da casa vai buscar o que um morto da casa deixou longe
+            : routineAction != ActionType.Work && LivingWorld.Simulation.Invention.Leavings.WantsToFetch(world, npc, world.CurrentDate.TotalHours)
+                ? ActionType.Travel
+                : routineAction;
 
     /// <summary>Alguém da casa (fora o próprio) está no mercado ou a caminho dele para comprar (AD-148).</summary>
     internal static bool HouseholdShopperOut(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household household)

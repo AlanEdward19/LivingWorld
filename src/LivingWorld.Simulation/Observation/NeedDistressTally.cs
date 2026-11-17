@@ -26,8 +26,17 @@ public sealed class NeedDistressTally(WorldState world) : IWorldEventSink
     public InventionTally Invention => world.InventionTally;
     public PurchaseTally Purchases => world.PurchaseTally;
 
+    /// <summary>AD-168: furtos (todos, levou ou falhou) e os do espólio no chão, desde o início da medida.</summary>
+    public long Thefts, GroundThefts;
+
     public void Record(WorldEvent evt)
     {
+        if (evt.Tick >= MeasureFromTick && evt.Kind == WorldEventKind.TheftCommitted)
+        {
+            Thefts++;
+            if (evt.Payload is { } p && p.Contains("|espolio|", StringComparison.Ordinal)) GroundThefts++;
+            return;
+        }
         if (evt.Tick < MeasureFromTick || evt.SourceSystem != YearEventTally.DeathSource) return;
         if (evt.Kind == WorldEventKind.Starvation) Starved++;
         else if (evt.Kind == WorldEventKind.Dehydration) Dehydrated++;
@@ -96,7 +105,7 @@ public sealed class NeedDistressTally(WorldState world) : IWorldEventSink
         {
             double py = Math.Max(1e-9, t.PersonHours / hoursPerYear), depPy = Math.Max(1e-9, t.DependentHours / (double)hoursPerYear);
             var i = t.Invention;
-            sb.AppendLine(inv, $"aflicao seed={seed} pa={py:F0} fome_crit={t.HungerCrit / py:F2} sede_crit={t.ThirstCrit / py:F2} fome_crit_longe={t.HungerCritAway / py:F2} sede_crit_longe={t.ThirstCritAway / py:F2} dep_casa_crit={t.DependentCritAtHome / depPy:F2} trab_h_dia={t.AdultWorkHours * t.HoursPerDay / Math.Max(1, t.AdultHours):F3} mortes_fome={t.Starved} mortes_sede={t.Dehydrated} fome_longe={i.StarvedAway} sede_longe={i.DehydratedAway} comeu_carga={i.PackEaten} bebeu_carga={i.PackDrunk} volta_comer={i.HomeForMeal} longe_sem_nada={i.CriticalAwayFromPack} racao_longe={t.Purchases.FoodRationsAway} volta_comer_pa={i.HomeForMeal / py:F2} casa_sem_comida={t.HomeNoFood / py:F2} levando_comida={t.CarryingFood / py:F2} levando_em_casa={t.CarryingFoodAtHome / py:F2} fome_urg={t.HungerUrgent / py:F2} fc_ida_comer={t.HungerTravelToEat / py:F2} fc_viagem={t.HungerTravel / py:F2} fc_trab={t.HungerWork / py:F2} fc_comendo={t.HungerEating / py:F2} fc_dormindo={t.HungerSleeping / py:F2} fc_outro={t.HungerOther / py:F2} fc_comendo_longe={t.HungerEatingAway / py:F2} fc_comendo_casa_vazia={t.HungerEatingEmpty / py:F2} fc_dormindo_longe={t.HungerSleepingAway / py:F2} fc_comendo_longo={t.HungerEatingLong / py:F2} fc_comendo_sem_refeicao={t.HungerEatingNoMeal / py:F2} comeu_antes={i.AteBeforeLeaving} bebeu_antes={i.DrankBeforeLeaving} ceia={i.SupperBeforeSleep} copo_noite={i.DrankBeforeSleep} refeicao_casa={i.MealTimeAtHome} pausa_trab={i.WorkBreakMeals} comendo_vindo_de={string.Join(",", t.EatingFrom.OrderByDescending(kv => kv.Value).Take(6).Select(kv => kv.Key + ":" + kv.Value))} volta_do_trab={i.HomeForMealFromWork} volta_de_local={i.HomeForMealFromOtherPlace} volta_com_sede={i.HomeForMealThirsty} volta_de_casa_alheia={i.HomeForMealFromOtherHome} volta_conversa={i.HomeForMealSocial} volta_ocio={i.HomeForMealIdle} volta_viajando={i.HomeForMealTravel}");
+            sb.AppendLine(inv, $"aflicao seed={seed} pa={py:F0} fome_crit={t.HungerCrit / py:F2} sede_crit={t.ThirstCrit / py:F2} fome_crit_longe={t.HungerCritAway / py:F2} sede_crit_longe={t.ThirstCritAway / py:F2} dep_casa_crit={t.DependentCritAtHome / depPy:F2} trab_h_dia={t.AdultWorkHours * t.HoursPerDay / Math.Max(1, t.AdultHours):F3} mortes_fome={t.Starved} mortes_sede={t.Dehydrated} fome_longe={i.StarvedAway} sede_longe={i.DehydratedAway} comeu_carga={i.PackEaten} bebeu_carga={i.PackDrunk} volta_comer={i.HomeForMeal} longe_sem_nada={i.CriticalAwayFromPack} racao_longe={t.Purchases.FoodRationsAway} volta_comer_pa={i.HomeForMeal / py:F2} casa_sem_comida={t.HomeNoFood / py:F2} levando_comida={t.CarryingFood / py:F2} levando_em_casa={t.CarryingFoodAtHome / py:F2} fome_urg={t.HungerUrgent / py:F2} fc_ida_comer={t.HungerTravelToEat / py:F2} fc_viagem={t.HungerTravel / py:F2} fc_trab={t.HungerWork / py:F2} fc_comendo={t.HungerEating / py:F2} fc_dormindo={t.HungerSleeping / py:F2} fc_outro={t.HungerOther / py:F2} fc_comendo_longe={t.HungerEatingAway / py:F2} fc_comendo_casa_vazia={t.HungerEatingEmpty / py:F2} fc_dormindo_longe={t.HungerSleepingAway / py:F2} fc_comendo_longo={t.HungerEatingLong / py:F2} fc_comendo_sem_refeicao={t.HungerEatingNoMeal / py:F2} comeu_antes={i.AteBeforeLeaving} bebeu_antes={i.DrankBeforeLeaving} ceia={i.SupperBeforeSleep} copo_noite={i.DrankBeforeSleep} refeicao_casa={i.MealTimeAtHome} pausa_trab={i.WorkBreakMeals} comendo_vindo_de={string.Join(",", t.EatingFrom.OrderByDescending(kv => kv.Value).Take(6).Select(kv => kv.Key + ":" + kv.Value))} volta_do_trab={i.HomeForMealFromWork} volta_de_local={i.HomeForMealFromOtherPlace} volta_com_sede={i.HomeForMealThirsty} volta_de_casa_alheia={i.HomeForMealFromOtherHome} volta_conversa={i.HomeForMealSocial} volta_ocio={i.HomeForMealIdle} volta_viajando={i.HomeForMealTravel} furtos={t.Thefts} furtos_espolio={t.GroundThefts} esp_deixados={i.LeavingsLeft} esp_em_casa={i.LeavingsAtHome} esp_idas={i.LeavingsFetches} esp_recolhidos={i.LeavingsCollected} esp_achados={i.LeavingsFound} esp_furtados={i.LeavingsStolen} esp_unid={i.LeftUnits} esp_unid_recolhidas={i.CollectedUnits} esp_unid_furtadas={i.StolenUnits} esp_unid_estragadas={i.SpoiledUnits}");
         }
         return sb.ToString();
     }
