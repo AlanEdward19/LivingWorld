@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Medida de FPS do cliente (ADR-0047): sobe uma API própria (porta 5291, período "cidade-media", seed 2), roda
-# 3x `stress:500` (medida antiga, com vsync) e 3x `bench:500` (sem vsync, cidade real aberta, ficha aberta,
-# FPS médio e tempo de quadro p95). Uso: bash client/godot/tools/bench.sh [rodadas]
+# 3x `stress:500` (medida antiga, com vsync), 3x `bench:500` (sem vsync, cidade real aberta, ficha aberta,
+# FPS médio e tempo de quadro p95) e 3x `benchbig:500` (a mesma cidade com 40 prédios a mais e, no cliente com a projeção
+# do observável, lavouras, animais e corpos pelo estado). Uso: bash client/godot/tools/bench.sh [rodadas]
 # Rode pela fila pesada: bash .specs/features/realism-backlog/relatorios/lw-um-por-vez.sh bash client/godot/tools/bench.sh
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
@@ -32,4 +33,7 @@ for _ in $(seq 1 "$ROUNDS"); do
 done
 for _ in $(seq 1 "$ROUNDS"); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep '^bench:' || echo 'bench: falhou'
+done
+for _ in $(seq 1 "$ROUNDS"); do
+  "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;benchbig:500;quit' 2>&1 | grep '^benchbig:' || echo 'benchbig: falhou'
 done

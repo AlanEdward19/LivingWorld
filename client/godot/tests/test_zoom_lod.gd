@@ -50,14 +50,15 @@ func test_far_zoom_in_world_turns_npcs_into_bubbles() -> void:
 func test_settlement_ground_is_paved_only_inside_a_city() -> void:
 	var store := Store.new()
 	store.kind = "City"
-	store.city = {"bounds": Rect2i(0, 0, 3, 2)}
-	store.buildings = {1: {"footprint": [{"cell": Vector2i(1, 1), "material": 0}]}}
+	store.city = {"bounds": Rect2i(0, 0, 4, 2)}
+	store.buildings = {1: {"cell": Vector2i.ZERO, "footprint": [{"cell": Vector2i(1, 1), "material": 0}]}}
 	var view := WorldView.new()
 	view.store = store
 	var cells: Dictionary = view._settlement_cells()
-	eq(cells.size(), 6, "toda a área do assentamento")
+	eq(cells.size(), 8, "toda a área do assentamento")
 	eq(cells[Vector2i(1, 1)], WorldView.YARD_COLOR, "sob o prédio: terra batida")
-	eq(cells[Vector2i(0, 0)], WorldView.STREET_COLOR, "fora dos prédios: rua de pedra")
+	eq(cells[Vector2i(0, 0)], WorldView.YARD_COLOR, "quintal em volta do prédio (AD-171)")
+	eq(cells[Vector2i(3, 0)], WorldView.STREET_COLOR, "fora dos lotes: rua de pedra")
 	store.kind = "World"
 	eq(view._settlement_cells().size(), 0, "no mapa-múndi o chão segue natural")
 	view.free()

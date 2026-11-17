@@ -23,6 +23,30 @@ A fazer:
 
 Perguntas abertas para o dono (fazer quando a vez chegar): 2D ou 3D; nível de detalhe esperado ao aproximar; o que do crime e da violência (arquivo 06) o cliente mostra.
 
+## 1b. Lacunas que sobraram da etapa 3 do ADR-0047 (AD-171, cliente)
+
+Contrato (formas gravadas pelo AD-170, `tests/contracts/`), urgente:
+- [ ] **Formas estritas demais para mundo rodando**: `processes[].resourceId` nulo, `buildingStates[].workplaceId`/`locationTypeId` nulos (moradia) e, no `visual-delta`, `npcUpserts[].observable`/`actionTarget`/`intent`/`intentTarget` obrigatórios embora "omitido = não mudou". Com validação ligada o cliente descarta o snapshot (mundo pausado em tick 0 passa). Medido em 2026-11-17: 103 divergências no Mundo, 34 na Cidade após 150 ticks. Marcar opcionais (`campo?`). O cliente agora mostra a faixa "fora do contrato" em vez de "Conectando…".
+
+Motor/projeção (o cliente já tem o lugar para usar):
+- [ ] Alvo da ação só para trabalho, sono e conversa com o cônjuge: conversa com outros, compra, furto e ajuda não viram para o alvo nem ganham a linha.
+- [ ] Animal sem idade, porte nem atividade (pastar, fugir, caçar): o desenho é parado, só espécie, energia e doença.
+- [ ] Lavoura ocupa uma célula (só hectares): o campo não tem área em células.
+- [ ] `intentTarget` sem formato documentado: o cliente não usa.
+- [ ] Sem `GET /entities/event/{id}`: a ficha do evento vive só na memória do cliente (some ao reiniciar); `recentEvents` só desde o último esvaziamento do buffer da API.
+- [ ] Nome do prédio na inspeção é genérico ("prédio 0"); `typeName`/`locationTypeName` dizem mais.
+- [ ] Ficha da cidade: `links` lista todos os prédios (o cliente mostra os 12 primeiros).
+- [ ] Interior: `ObjectDescriptor` sem nome e material, mobília sem andar (herdado da etapa 2).
+
+Cliente (feito em parte):
+- [ ] Prédio muda enfeite e placa pela função, não o corpo (paredes e telhado iguais).
+- [ ] Bench mede mundo pausado (o do `bench.sh` nasce pausado): medir com o mundo rodando quando as formas acima forem corrigidas.
+- [ ] Sem chuva nem queda de folhas; animais e bandos não andam entre deltas.
+- [ ] Prédio translúcido: o mouse sobre a parte VISÍVEL de um prédio de trás abre o da frente; parte totalmente escondida
+  só é alcançável depois que algo em foco abre o da frente (não há "ciclar" entre prédios sob o cursor).
+- [ ] Ruas: sem a camada `Roads` do motor (hoje `isModeled: false`), rua = o que não é quintal (1 célula em volta de cada
+  prédio) dentro dos limites; quando o motor ganhar ruas e lotes, o cliente já lê a camada.
+
 ## 2. Fatia do jogador
 
 Base: `docs/roadmap/phase-25-players.md` (hoje parcial: encarnar, agir, logout e procura) e as fases 11 (conversa com NPC via LLM, sem a LLM alterar o mundo) e 26 (console).
