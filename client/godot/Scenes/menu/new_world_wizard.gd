@@ -1,7 +1,8 @@
 extends Control
-## Novo mundo como jornada em passos: época → nome e semente → tamanho → mapa → resumo, com Voltar/Avançar, barra de
-## progresso e "Surpreenda-me" (preenche tudo). "Personalizar" é um desvio opcional a partir do mapa. Guarda o
-## rascunho do cenário (texto cru do período com as escolhas) e só fala com a API pelo ApiClient.
+## Novo mundo como jornada em passos: começo (lugar) → nome e semente → tamanho → mapa → resumo, com Voltar/Avançar,
+## barra de progresso e "Surpreenda-me" (preenche tudo). "Personalizar" é um desvio opcional a partir do mapa. Guarda o
+## rascunho do cenário (texto cru do período com as escolhas) e só fala com a API pelo ApiClient. Criar usa a criação em
+## segundo plano do servidor (AD-175) e repassa as etapas reais dele (`creation_progress`); API antiga cai na criação de uma vez.
 
 signal cancelled()
 signal creating() ## pedido de criação enviado (o menu mostra o carregamento)
@@ -9,18 +10,21 @@ signal created(touchup: bool) ## o servidor criou o mundo
 signal create_failed()
 signal map_previewed(body: Dictionary) ## mapa real para o fundo 3D do menu
 signal family_requested()
+signal creation_progress(index: int, count: int, text: String) ## etapa real da criação, dita pelo servidor
 
 const Kit := preload("res://Scenes/menu/menu_kit.gd")
 const Pages := preload("res://Scenes/menu/wizard_pages.gd")
 const PeriodArt := preload("res://Scenes/menu/period_art.gd")
 const CustomizePanel := preload("res://Scenes/menu/customize_panel.gd")
 const WorldEditor := preload("res://Scenes/world_editor.gd")
+const UiSounds := preload("res://Scenes/menu/ui_sounds.gd")
 
-const STEP_NAMES: Array[String] = ["Época", "Nome", "Tamanho", "Mapa", "Resumo"]
+const STEP_NAMES: Array[String] = ["Começo", "Nome", "Tamanho", "Mapa", "Resumo"]
 const MAP_STEP := 3
 const SUMMARY_STEP := 4
 const CUSTOM_STEP := 5 ## fora da barra: desvio opcional
 const MAX_SEED := 999999999
+const MAX_POLLS := 2400 ## consultas do andamento da criação antes de desistir (com 0,25 s: 10 minutos)
 
 var api
 var step := 0
@@ -36,6 +40,8 @@ var size_choice := -1
 var touchup_after := false
 var preview_body: Dictionary = {}
 var busy := false
+var start_running := false ## pedir o mundo já rodando (só com o token de admin da sessão; o menu decide)
+var poll_seconds := 0.25 ## intervalo entre as consultas do andamento (os testes usam 0)
 
 var pages_box: Control
 var pages: Array[Control] = []
@@ -46,6 +52,7 @@ var surprise_button: Button
 var next_button: Button
 var period_cards: HBoxContainer
 var period_info: Label
+var period_hint: Label
 var name_edit: LineEdit
 var name_error: Label
 var seed_edit: LineEdit
@@ -193,13 +200,16 @@ func validate(index: int) -> String:
 			if selected_period == "" or draft == "":
 				period_info.text = "Escolha um lugar para começar (se a lista está vazia, o mundo pode estar desligado)."
 				period_info.add_theme_color_override("font_color", Kit.ERROR)
+				UiSounds.cue(self, "error")
 				return period_info.text
 		1:
 			if world_name.strip_edges() == "":
 				name_error.text = "Dê um nome ao seu mundo (ou aperte Sortear)."
+				UiSounds.cue(self, "error")
 				return name_error.text
 			if not seed_edit.text.strip_edges().is_valid_int() or int(seed_edit.text) < 1 or int(seed_edit.text) > MAX_SEED:
 				seed_error.text = "A semente é um número inteiro de 1 a 999.999.999."
+				UiSounds.cue(self, "error")
 				return seed_error.text
 			commit_seed()
 	return ""
@@ -282,11 +292,22 @@ func select_period(id: String) -> void:
 		period_info.text = "Ofícios deste lugar: %s" % ", ".join(professions.values())
 	else:
 		period_info.text = ""
+	var card: Dictionary = _card(id)
+	if String(card.get("startingTechnology", "")) != "":
+		period_info.text += ("\n" if period_info.text != "" else "") + "Começa com: " + String(card.startingTechnology)
 	if draft != "":
 		var values: Dictionary = WorldEditor.read(draft)
 		size_choice = PeriodArt.nearest_size(int(values.population))
 		_sync_size()
 		custom.sync()
+
+
+## Cartão que o servidor mandou para o período (vazio com API antiga).
+func _card(id: String) -> Dictionary:
+	var index := period_ids.find(id)
+	if index < 0 or index >= periods.size() or not (periods[index].get("card") is Dictionary):
+		return {}
+	return periods[index].card
 
 
 ## Cartão apertado: escolhe; apertar de novo o já escolhido (Enter duas vezes) avança.
@@ -374,8 +395,10 @@ func refresh_preview() -> void:
 func _fill_summary() -> void:
 	var values: Dictionary = WorldEditor.read(draft) if draft != "" else {"population": 0, "width": 0, "height": 0}
 	var period: Dictionary = periods[period_ids.find(selected_period)] if selected_period in period_ids else {}
+	var era := PeriodArt.era_for(period)
 	summary_label.text = "Nome: %s\nLugar: %s\nPessoas: %d (%s)\nMapa: %d por %d terras\nSemente: %d%s" % [
-		world_name.strip_edges(), PeriodArt.name_for(period), int(values.population), PeriodArt.crowd_label(int(values.population)),
+		world_name.strip_edges(), PeriodArt.name_for(period) + (" (%s)" % era if era != "" else ""),
+		int(values.population), PeriodArt.crowd_label(int(values.population)),
 		int(values.width), int(values.height), seed_value,
 		"\nDepois de criar: ajustar algumas pessoas" if touchup_after else ""]
 
@@ -387,11 +410,13 @@ func create() -> void:
 	busy = true
 	clear_errors()
 	creating.emit()
-	var response: Dictionary = await api.world_create(draft, world_name.strip_edges(), selected_period) if draft != "" else {"ok": false, "status": 0, "body": "lugar indisponível"}
+	var response: Dictionary = await _create_on_server() if draft != "" else {"ok": false, "status": 0, "body": "lugar indisponível"}
 	busy = false
 	if response.ok:
+		UiSounds.cue(self, "confirm")
 		created.emit(touchup_after)
 		return
+	UiSounds.cue(self, "error")
 	if int(response.get("status", 0)) == 409:
 		message_label.text = "Já existe um mundo com esta semente. Sorteie outra semente ou abra esse mundo em Meus mundos."
 	elif int(response.get("status", 0)) == 0:
@@ -399,6 +424,31 @@ func create() -> void:
 	else:
 		message_label.text = "Não deu para criar este mundo: %s" % str(response.body)
 	create_failed.emit()
+
+
+## Cria em segundo plano e acompanha as etapas reais do servidor até o fim; devolve {ok, status, body} como a criação
+## de uma vez. Servidor sem a rota assíncrona (404/405) cai em `/worlds/create`.
+func _create_on_server() -> Dictionary:
+	var chosen := world_name.strip_edges()
+	var started: Dictionary = await api.world_create_async(draft, chosen, selected_period, start_running)
+	if int(started.status) == 404 or int(started.status) == 405:
+		return await api.world_create(draft, chosen, selected_period, start_running)
+	if not started.ok:
+		return started
+	var url := String(started.body.get("statusUrl", "")) if started.body is Dictionary else ""
+	for i in MAX_POLLS:
+		var job: Dictionary = await api.world_create_job(url)
+		if not job.ok:
+			return {"ok": false, "status": int(job.status), "body": "o servidor parou de dizer como vai a criação"}
+		var state: Dictionary = job.body
+		creation_progress.emit(int(state.stageIndex), int(state.stageCount), String(state.stageLabel))
+		if bool(state.done):
+			if bool(state.failed):
+				return {"ok": false, "status": int(state.status), "body": String(state.error)}
+			return {"ok": true, "status": 200, "body": state.get("result"), "running": bool(state.running)}
+		if poll_seconds > 0.0 and is_inside_tree():
+			await get_tree().create_timer(poll_seconds).timeout
+	return {"ok": false, "status": 0, "body": "a criação demorou demais"}
 
 
 func _unhandled_input(event: InputEvent) -> void:

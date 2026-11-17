@@ -42,9 +42,16 @@ func test_shrinking_the_map_pulls_settlements_inside() -> void:
 
 func _transport() -> RefCounted:
 	var transport := FakeTransport.new()
+	# criação em segundo plano (AD-175): pronta na primeira consulta
+	transport.on("POST /worlds/create/async", {"status": 202, "body": {"jobId": "j", "statusUrl": "/worlds/create/jobs/j", "stages": []}})
+	transport.on("GET /worlds/create/jobs/", {"status": 200, "body": {"jobId": "j", "stage": "ready", "stageLabel": "Pronto!", "stageIndex": 5,
+		"stageCount": 6, "done": true, "failed": false, "status": 200, "error": "", "result": {"npcCount": 1, "worldId": "w", "name": "x",
+		"tick": 0, "initialScope": "world"}, "running": false}})
 	transport.on("GET /periods/medieval/catalog", {"status": 200, "body": {"professionIds": [1], "professionNames": {}}})
 	transport.on("GET /periods/medieval", {"status": 200, "body": {}, "text": '{"periodDefinition":' + SCENARIO + '}'})
-	transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "width": 10, "height": 10}]})
+	transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "version": 1, "source": "medieval", "createdAtUtc": "2026-11-18T00:00:00Z",
+		"width": 10, "height": 10, "card": {"name": "Medieval", "era": "", "description": "", "startingTechnology": "", "initialPopulation": 10,
+		"settlementCount": 1, "professionCount": 1, "professions": [], "inventionEnabled": true}}]})
 	transport.on("POST /worlds/preview", {"status": 200, "body": {"width": 10, "height": 10, "cells": [], "settlements": []}})
 	transport.on("POST /worlds/create", {"status": 200, "body": {}})
 	transport.on("GET /npcs?", {"status": 200, "body": {"total": 1, "items": [{"id": {"value": 1}, "name": "ana", "action": null, "cityId": {"value": "c"}, "location": {"x": 1, "y": 1}}]}})
@@ -76,7 +83,7 @@ func test_menu_edits_flow_into_the_scenario_sent_on_create() -> void:
 	check("POST /worlds/preview" in transport.calls, "a prévia usa o rascunho")
 	custom.touchup_check.button_pressed = true
 	await wizard.create()
-	var sent: String = transport.bodies["POST /worlds/create"][0].scenarioJson
+	var sent: String = transport.bodies["POST /worlds/create/async"][0].scenarioJson
 	eq(WorldEditor.read(sent).population, 300, "o cenário enviado leva a edição")
 	check(menu.touchup != null, "com os retoques marcados, criar abre os retoques")
 	menu.free()

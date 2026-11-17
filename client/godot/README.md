@@ -23,11 +23,20 @@ LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path clie
 ```
 
 **Menu (AD-174, `Scenes/menu/`)**: título sobre uma ilha 3D girando · Continuar (só com mundo; nome, ano, pessoas) · Novo
-mundo em passos (época → nome e semente → tamanho e pessoas → mapa de `/worlds/preview`, que também vira o fundo 3D → resumo),
+mundo em passos (começo → nome e semente → tamanho e pessoas → mapa de `/worlds/preview`, que também vira o fundo 3D → resumo),
 com Voltar/Avançar, barra e "Surpreenda-me"; "Personalizar" (mapa, vilas, prédios, famílias, retoques) é desvio opcional ·
 carregamento por etapas reais · Meus mundos (jogar, apagar com confirmação pelo nome) · Opções (tamanho da interface,
 volume, tela cheia, vsync, idioma; `user://settings.cfg`). Mouse, teclado (setas, Enter, Esc) e controle. No jogo: dicas da
 primeira vez (6, puláveis, lembradas), **?**/F1 ajuda, **Esc** menu de pausa (pausa o tempo se o jogador pode).
+
+**O que vem do servidor (AD-175)**: o cartão de cada lugar (`GET /periods` → `card`: nome, época, descrição, pessoas, vilas,
+ofícios, tecnologia de partida; os três de hoje são a mesma época em três tamanhos, e o passo diz isso); a lista de mundos
+(`GET /worlds`: período, ano, aberto agora, quando foi jogado, origem `player`/`automatic`), que Continuar e Meus mundos usam
+sem adivinhar; Renomear (`POST /worlds/{id}/rename`, o erro do servidor aparece no diálogo); as etapas da criação
+(`POST /worlds/create/async` e `GET /worlds/create/jobs/{id}`, mostradas na tela de carregamento); "Salvar agora" na pausa
+(`POST /world/save`, com "salvo pela última vez há…"); e o mundo criado ou aberto já rodando (`?startRunning=true`, só com o
+token da sessão; o cliente não despausa mais por conta própria). Sons de interface (clique, foco, confirmar, voltar, erro)
+gerados por código em `Scenes/menu/ui_sounds.gd`, no barramento Master (volume das Opções).
 
 ## Controles
 

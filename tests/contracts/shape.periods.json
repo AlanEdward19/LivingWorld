@@ -1,0 +1,23 @@
+[
+  {
+    "card": {
+      "description": "string",
+      "era": "string",
+      "initialPopulation": "number",
+      "inventionEnabled": "boolean",
+      "name": "string",
+      "professionCount": "number",
+      "professions": [
+        "string"
+      ],
+      "settlementCount": "number",
+      "startingTechnology": "string"
+    },
+    "createdAtUtc": "string",
+    "height": "number",
+    "periodId": "string",
+    "source": "string",
+    "version": "number",
+    "width": "number"
+  }
+]

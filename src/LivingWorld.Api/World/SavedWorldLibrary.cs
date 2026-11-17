@@ -13,7 +13,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LivingWorld.Api.World;
 
-public sealed record SavedWorldInfo(Guid WorldId, string Name, ulong Seed, long CreatedAt, long CurrentDate, long Population, DateTimeOffset LastSavedAtUtc);
+/// <summary>Metadado de um mundo salvo (arquivo <c>{id}.json</c>), fora do estado simulado. Os campos do AD-175 faltam nos
+/// arquivos gravados antes dele (nulos ao ler) e são preenchidos na próxima gravação do mundo.</summary>
+public sealed record SavedWorldInfo(Guid WorldId, string Name, ulong Seed, long CreatedAt, long CurrentDate, long Population, DateTimeOffset LastSavedAtUtc,
+    string? PeriodId = null, long? Year = null, string? Origin = null, DateTimeOffset? LastPlayedAtUtc = null);
+
+/// <summary>Item de <c>GET /worlds</c> (AD-175): os campos de antes mais período, ano, quando foi jogado, se é o mundo aberto
+/// e a origem (<see cref="SavedWorldLibrary.PlayerOrigin"/> ou <see cref="SavedWorldLibrary.AutomaticOrigin"/>).</summary>
+public sealed record SavedWorldSummary(Guid WorldId, string Name, ulong Seed, long CreatedAt, long CurrentDate, long Population,
+    DateTimeOffset LastSavedAtUtc, string PeriodId, string PeriodName, long Year, DateTimeOffset LastPlayedAtUtc, bool IsCurrent, string Origin);
+
+public enum RenameOutcome { Renamed, NotFound, Duplicate }
 
 /// <summary>Catálogo operacional; cada entrada reutiliza o formato de snapshot e o repositório existentes.</summary>
 public sealed class SavedWorldLibrary : IDisposable
@@ -24,7 +34,13 @@ public sealed class SavedWorldLibrary : IDisposable
     private readonly Dictionary<Guid, Entry> _entries = new();
     private readonly BufferingWorldEventSink _sink;
     private Guid _current;
+    public const string PlayerOrigin = "player";
+    public const string AutomaticOrigin = "automatic";
+    /// <summary>Seed do mundo inicial que a API cria sozinha (<c>Program.cs</c>): só decide a origem de um arquivo gravado antes
+    /// do AD-175, que não a guardava.</summary>
+    public const ulong BootstrapSeed = 1;
     public object Gate { get; } = new();
+    public Guid CurrentId { get { lock (Gate) return _current; } }
     public PersistentWorldRunner Runner => _entries[_current].Runner;
     public IWorldRepository Repository => _entries[_current].Repository;
 
@@ -52,6 +68,8 @@ public sealed class SavedWorldLibrary : IDisposable
                     && Guid.TryParse(File.ReadAllText(Path.Combine(_directory, "current")), out var marked) && _info.ContainsKey(marked)) active = marked;
                 var restored = Open(active).Runner.LoadLatest() ?? throw new InvalidDataException("Mundo salvo sem snapshot.");
                 _current = active;
+                ApplyStoredName(active, restored);
+                Touch(restored, saved: false);
                 return restored;
             }
             _current = WorldIdentity.WorldIdFor(legacy.Seed);
@@ -62,7 +80,7 @@ public sealed class SavedWorldLibrary : IDisposable
             entry.Repository.SaveSnapshotWithEvents(BranchId.Root, legacy.CurrentDate.TotalHours, "",
                 WorldSnapshot.CanonicalHash(legacy), WorldSnapshot.VolatileHash(legacy), events, PositionalSnapshot.EncodeFull(legacy, out _));
             entry.ColdTier?.Save(legacy.ColdArchive.AllNpcSummaries, legacy.Calendar);
-            RecordInfo(legacy);
+            RecordInfo(legacy, AutomaticOrigin);
             return legacy;
         }
     }
@@ -71,6 +89,51 @@ public sealed class SavedWorldLibrary : IDisposable
     {
         lock (Gate) return _info.Values.OrderByDescending(w => w.LastSavedAtUtc).ThenBy(w => w.WorldId).ToArray();
     }
+    /// <summary>Lista de <c>GET /worlds</c>; <paramref name="periodName"/> traduz o id do período no nome do cartão.</summary>
+    public IReadOnlyList<SavedWorldSummary> Summaries(Func<string, string> periodName)
+    {
+        lock (Gate)
+            return List().Select(w =>
+            {
+                string period = w.PeriodId ?? "";
+                return new SavedWorldSummary(w.WorldId, w.Name, w.Seed, w.CreatedAt, w.CurrentDate, w.Population, w.LastSavedAtUtc,
+                    period, period == "" ? "" : periodName(period),
+                    w.Year ?? w.CurrentDate / LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultCalendar.HoursPerYear,
+                    w.LastPlayedAtUtc ?? w.LastSavedAtUtc, w.WorldId == _current,
+                    w.Origin ?? (w.Seed == BootstrapSeed ? AutomaticOrigin : PlayerOrigin));
+            }).ToArray();
+    }
+
+    /// <summary>Grava o mundo aberto agora (o mesmo instantâneo do laço a cada 24 ticks) e devolve o metadado gravado.</summary>
+    public SavedWorldInfo SaveNow(WorldState world)
+    {
+        lock (Gate)
+        {
+            Save(world);
+            return _info[WorldIdentity.WorldIdFor(world.Seed)];
+        }
+    }
+
+    /// <summary>Troca o nome de um mundo salvo. O nome é metadado volátil (fora do hash canônico): no mundo aberto vale na
+    /// hora; num mundo fechado fica no catálogo e é aplicado ao carregá-lo.</summary>
+    public RenameOutcome Rename(Guid id, string name, WorldHost host)
+    {
+        lock (Gate)
+        {
+            if (!_info.TryGetValue(id, out var info)) return RenameOutcome.NotFound;
+            if (_info.Values.Any(w => w.WorldId != id && string.Equals(w.Name.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                return RenameOutcome.Duplicate;
+            if (id == _current) host.Current.Rename(name);
+            var renamed = info with { Name = name };
+            if (_directory is not null) WriteAtomic(Path.Combine(_directory, $"{id:D}.json"), JsonSerializer.Serialize(renamed));
+            _info[id] = renamed;
+            return RenameOutcome.Renamed;
+        }
+    }
+
+    public SavedWorldSummary? Summary(Guid id, Func<string, string> periodName) =>
+        Summaries(periodName).FirstOrDefault(w => w.WorldId == id);
+
     public bool Contains(ulong seed)
     {
         lock (Gate) return _info.ContainsKey(WorldIdentity.WorldIdFor(seed));
@@ -87,11 +150,41 @@ public sealed class SavedWorldLibrary : IDisposable
         }
     }
 
-    private void RecordInfo(WorldState world)
+    private void RecordInfo(WorldState world, string? origin = null)
     {
         var id = WorldIdentity.WorldIdFor(world.Seed);
+        var now = DateTimeOffset.UtcNow;
+        _info.TryGetValue(id, out var previous);
         var info = new SavedWorldInfo(id, world.Name, world.Seed, 0, world.CurrentDate.TotalHours,
-                world.Npcs.Count(n => n.IsAlive) + world.Cities.Sum(c => c.AggregatePool.Count), DateTimeOffset.UtcNow);
+                world.Npcs.Count(n => n.IsAlive) + world.Cities.Sum(c => c.AggregatePool.Count), now,
+                world.PeriodId, world.CurrentDate.Year,
+                origin ?? previous?.Origin ?? (world.Seed == BootstrapSeed ? AutomaticOrigin : PlayerOrigin), now);
+        Write(info);
+    }
+
+    /// <summary>Ao abrir um mundo sem gravá-lo (início da API): marca quando foi jogado e completa período e ano.</summary>
+    private void Touch(WorldState world, bool saved)
+    {
+        var id = WorldIdentity.WorldIdFor(world.Seed);
+        if (saved || !_info.TryGetValue(id, out var info)) return;
+        Write(info with
+        {
+            PeriodId = world.PeriodId,
+            Year = world.CurrentDate.Year,
+            LastPlayedAtUtc = DateTimeOffset.UtcNow,
+            Origin = info.Origin ?? (world.Seed == BootstrapSeed ? AutomaticOrigin : PlayerOrigin),
+        });
+    }
+
+    /// <summary>Nome dado em "Renomear" com o mundo fechado: o catálogo vale sobre o nome guardado no instantâneo.</summary>
+    private void ApplyStoredName(Guid id, WorldState world)
+    {
+        if (_info.TryGetValue(id, out var info) && info.Name != world.Name) world.Rename(info.Name);
+    }
+
+    private void Write(SavedWorldInfo info)
+    {
+        var id = info.WorldId;
         if (_directory is not null)
         {
             WriteAtomic(Path.Combine(_directory, $"{id:D}.json"), JsonSerializer.Serialize(info));
@@ -111,7 +204,7 @@ public sealed class SavedWorldLibrary : IDisposable
             // A falha de persistência do novo mundo não troca o mundo corrente nem seu identificador.
             var preparedClock = new WorldClock(clock.Systems, clock.MaxIterationsPerTick, _sink);
             entry.Runner.Snapshot(world, new BufferingWorldEventSink());
-            RecordInfo(world);
+            RecordInfo(world, PlayerOrigin);
             _current = id;
             host.Replace(world, preparedClock);
             simulation.Resume(); // descarta o teto de pausa pertencente ao mundo anterior
@@ -128,6 +221,7 @@ public sealed class SavedWorldLibrary : IDisposable
             var restored = Open(id).Runner.LoadLatest() ?? throw new InvalidDataException("Mundo salvo sem snapshot.");
             var preparedClock = clockFor(restored);
             Save(host.Current);
+            ApplyStoredName(id, restored);
             RecordInfo(restored);
             _current = id;
             host.Replace(restored, preparedClock);
