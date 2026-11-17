@@ -69,6 +69,35 @@ public class OntogenyLanguageRegressionTests
         return new Scene(world, clock, child, sink);
     }
 
+    // --- AD-182 (08c item 149): o marco atingido se consolida pelos anos vividos ---
+
+    /// <summary>Adolescente de 15,3 anos que se desenvolve devagar (taxa 0,85, "idade" de 13) e já atingiu o raciocínio (0,76).</summary>
+    private static (double Regressed, double RegressedBefore) SlowTeenRegression()
+    {
+        var (world, _) = ScenarioRunner.Create(1, initialPopulation: 0, ontogenyRules: OntogenyDefaults.Human);
+        var teen = new Npc(
+            world.NextNpcIdAndAdvance(), "jovem", Sex.Male, world.CurrentDate.AddYears(-15), new CultureId(CultureA), Home, null, null, null,
+            100, Neutral, new ProfessionType(1), Home, rateGene: new RateGene(0.85));
+        world.AddNpc(teen);
+        var state = DevelopmentState.Newborn with { Abstraction = 0.76 };
+        var rules = OntogenyDefaults.Human;
+        double now = rules.Regress(state, MilestoneProgressSystem.RegressionAgeYears(world, teen)).Abstraction;
+        double before = rules.Regress(state, OntogenyMechanic.EffectiveAgeYears(world, teen)).Abstraction;
+        return (now, before);
+    }
+
+    [Fact]
+    public void A_slow_developing_teen_who_reached_reasoning_keeps_it_through_a_disease()
+    {
+        Assert.True(SlowTeenRegression().Regressed >= 0.7);
+    }
+
+    [Fact]
+    public void Before_ad182_a_disease_took_reasoning_from_a_slow_developing_teen()
+    {
+        Assert.True(SlowTeenRegression().RegressedBefore < 0.7);
+    }
+
     // --- Critério 7: o idioma vem de quem cria ---
 
     [Fact]

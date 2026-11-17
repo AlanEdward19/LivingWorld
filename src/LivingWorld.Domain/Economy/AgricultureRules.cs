@@ -70,6 +70,16 @@ public sealed record AgricultureRules(
     public bool LandTakesAnotherHand(long arableSeed, int hands) =>
         arableSeed <= 0 || ExpectedHarvest(arableSeed, hands + 1) - ExpectedHarvest(arableSeed, hands) >= HandKeepPerYear;
 
+    /// <summary>AD-182 (08c item 148): na carestia (o celeiro solta por dia menos do que a venda pede), o vendedor reparte: cada compra
+    /// de comida leva no máximo esta ração de dias por morador da casa, para o pouco do dia chegar a mais casas em vez de a primeira
+    /// levar a semana. Era a regra das cidades na carestia (venda em pouca quantidade, contra o açambarcamento) [precisa de
+    /// conferência]. 0 desliga (a compra leva a meta inteira, como antes).</summary>
+    public int DearthSaleDays { get; init; } = 2;
+
+    /// <summary>AD-182: a semente do ano seguinte não vai à venda; o dono do celeiro a guarda mesmo na fome (antes, celeiro vazio,
+    /// a venda comia a semente). Falso = o de antes.</summary>
+    public bool SeedKeptFromSale { get; init; } = true;
+
     /// <summary>Lote diário antigo (trigo em 24 h): padrão de mundo construído à mão e de snapshot antigo.</summary>
     public static AgricultureRules Disabled { get; } = new(false);
 

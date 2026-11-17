@@ -98,6 +98,8 @@ public static class InventionIntake
         if (sourceSystem != DeathSource || kind is not (WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
             or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath or WorldEventKind.Accident
             or WorldEventKind.OldAge or WorldEventKind.Homicide or WorldEventKind.Executed)) return;
+        if (!world.InventionRules!.EveryDeathForgets && kind is WorldEventKind.Accident or WorldEventKind.OldAge
+            or WorldEventKind.Homicide or WorldEventKind.Executed) return; // AD-182: o de antes, só para medir
         int bar = payload.IndexOf('|');
         if (!long.TryParse(bar < 0 ? payload : payload[..bar], System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture, out long dead)) return;

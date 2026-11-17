@@ -24,6 +24,8 @@ public sealed partial class BehaviorDecisionSystem
         if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
         if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home))
         {
+            // AD-182 (08c item 111): o recipiente de quem está indo comprar perto de casa fica com ele até a compra acabar
+            if (!carries && PersonalCarry.HoldsForMarket(world, npc, home)) return;
             PersonalCarry.Unpack(world, npc, home); // em casa (a despensa ao alcance da hora)
             return;
         }
@@ -74,6 +76,7 @@ public sealed partial class BehaviorDecisionSystem
         // AD-157b: o destino e a ida ficam para a conta da chegada logo a seguir (TravelArrivalTick), que os refazia
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         _departure = (npc.Id.Value, now, npc.CurrentLocation, npc.TravelPurpose, destination, leg);
+        if (npc.TravelPurpose == ActionType.Buy) PersonalCarry.TakeCarrierToMarket(world, npc, home); // AD-182 (08c item 111)
         if (!PersonalCarry.LeavesPantryBehind(world, npc, home, destination)) return; // AD-151: perto de casa não arruma nada
         long stay = npc.TravelPurpose is { } purpose
             ? Objects.ObjectUse.DurationHours(world, npc, purpose, world.ActionCatalog)

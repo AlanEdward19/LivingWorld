@@ -45,6 +45,12 @@ public sealed record FamilyRules(
     /// cref="UnionRules.Medieval"/>; snapshot sem o campo abre com ele.</summary>
     public UnionRules Unions { get; init; } = UnionRules.Medieval;
 
+    /// <summary>AD-182 (08c item 151): com o ciclo hormonal ligado, a fome que impede a concepção é a do corpo da mulher (amenorreia da
+    /// subnutrição, <c>Endocrine</c>), não a despensa do dia: o piso de comida em casa (<see cref="ConceptionResourceFloor"/>) deixa de
+    /// valer. Antes a casa que mandava comida a parente (AD-166) ficava abaixo de 5 unidades no fechamento do mês e o casal não
+    /// concebia (natalidade 0,988×). Falso = o de antes (o piso vale sempre).</summary>
+    public bool ConceptionFloorReadsBody { get; init; } = true;
+
     /// <summary>Freios preventivos da pressão da população (AD-145). Nulo = desligado (padrão; omitido do snapshot e do hash).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public PopulationPressureRules? Pressure { get; init; }

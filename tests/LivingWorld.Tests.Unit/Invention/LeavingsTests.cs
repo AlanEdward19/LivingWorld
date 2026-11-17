@@ -51,6 +51,64 @@ public class LeavingsTests
 
     private static ResourceType Food(WorldState world) => new(world.EconomyRules.FoodResourceId);
 
+    /// <summary>Recua o instante de cada espólio em <paramref name="days"/> dias: o estrago do mês conta os dias que ele passou no chão.</summary>
+    private static void AgeLeavings(WorldState world, int days)
+    {
+        var list = world.Invention!.Leavings!;
+        for (int i = 0; i < list.Count; i++) list[i] = list[i] with { Tick = list[i].Tick - days * (long)world.Calendar.HoursPerDay };
+    }
+
+    /// <summary>Unidades perdidas no chão (evento de perda do espólio) de um recurso.</summary>
+    private static long LostOnGround(Sink sink, int resourceId) => sink.Events
+        .Where(e => e.Kind == WorldEventKind.ResourceLost && e.Payload!.StartsWith("espolio-", StringComparison.Ordinal)
+            && e.Payload.Split('|')[1] == resourceId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        .Sum(e => long.Parse(e.Payload!.Split('|')[2], System.Globalization.CultureInfo.InvariantCulture));
+
+    /// <summary>AD-182 (08c item 156): o espólio de <paramref name="units"/> de <paramref name="resourceId"/> passa 30 dias no chão e o
+    /// mês fecha; devolve o que se perdeu.</summary>
+    private static long GroundLossOverAMonth(InventionRules rules, int resourceId, int units)
+    {
+        var (world, ctx, sink) = NewWorld(rules);
+        var (dead, _) = Pair(world);
+        world.Invention!.Carry(dead.Id.Value, resourceId, units);
+        world.Invention.Hold(dead.Id.Value, 0);
+        DieCarrying(world, ctx, dead, FarFrom(world, dead, HomeOf(world, dead)));
+        AgeLeavings(world, 30);
+        Leavings.Spoil(world, ctx, world.EconomyRules, 30);
+        return LostOnGround(sink, resourceId);
+    }
+
+    [Fact]
+    public void Leavings_water_left_on_the_ground_is_lost_over_the_month()
+    {
+        var world = NewWorld().World;
+        long lost = GroundLossOverAMonth(ScenarioRunner.DefaultInventionRules, world.EconomyRules.WaterResourceId, 400);
+        Assert.True(lost > 0, "a água no chão evapora e vaza (antes nunca se perdia)");
+    }
+
+    [Fact]
+    public void Leavings_food_on_the_ground_spoils_faster_than_in_the_pantry()
+    {
+        var world = NewWorld().World;
+        int food = world.EconomyRules.FoodResourceId;
+        var pantryRate = ScenarioRunner.DefaultInventionRules with
+        {
+            LeavingsOverride = LeavingsRules.Default with { GroundSpoilagePm = 1000, GroundQ10 = 1 },
+        };
+        var ground = ScenarioRunner.DefaultInventionRules with { LeavingsOverride = LeavingsRules.Default with { GroundQ10 = 1 } };
+        long asPantry = GroundLossOverAMonth(pantryRate, food, 1000), outdoors = GroundLossOverAMonth(ground, food, 1000);
+        Assert.True(outdoors > 2 * asPantry, $"ao relento {outdoors}, na taxa da despensa {asPantry}");
+    }
+
+    [Fact]
+    public void Leavings_ground_loss_grows_with_the_heat_of_the_place()
+    {
+        var world = NewWorld().World;
+        var rules = ScenarioRunner.DefaultInventionRules.Leavings;
+        Assert.True(Leavings.HeatFactor(world, rules with { GroundReferenceCelsius = -30 }, world.Map.Cells[0].Coord, 0)
+            > Leavings.HeatFactor(world, rules with { GroundReferenceCelsius = 40 }, world.Map.Cells[0].Coord, 0));
+    }
+
     /// <summary>O morto leva 3 de comida e morre em <paramref name="where"/>.</summary>
     private static void DieCarrying(WorldState world, TickContext ctx, Npc dead, CellCoord where)
     {
@@ -221,13 +279,15 @@ public class LeavingsTests
     }
 
     [Fact]
-    public void Leavings_ground_counts_in_the_world_stock_and_spoils_by_the_pantry_rate()
+    public void Leavings_ground_counts_in_the_world_stock_and_spoils()
     {
+        // AD-182: o estrago conta os dias no chão; o espólio é posto 30 dias antes do fechamento do mês
         var (world, ctx, sink) = NewWorld();
         var (dead, _) = Pair(world);
         var food = Food(world);
         world.Invention!.Carry(dead.Id.Value, food.Id, 200);
         DieCarrying(world, ctx, dead, FarFrom(world, dead, HomeOf(world, dead)));
+        AgeLeavings(world, 30);
         long ground = world.Invention.GroundTotal(food.Id);
 
         Leavings.Spoil(world, ctx, world.EconomyRules, 30);

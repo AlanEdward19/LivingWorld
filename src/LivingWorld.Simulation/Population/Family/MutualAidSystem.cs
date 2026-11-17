@@ -46,6 +46,7 @@ public sealed class MutualAidSystem : ISimulationSystem
         var water = new ResourceType(economy.WaterResourceId);
         long day = ctx.CurrentTick / world.CurrentDate.Calendar.HoursPerDay;
         _alms.Clear();
+        world.GrainReliefRequests.Clear(); // AD-182: os pedidos de hoje (a lavoura os serve neste tick)
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value))
         {
@@ -70,11 +71,21 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
             bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
+            // AD-182 (08c item 149): moeda na mão de quem não sabe comprar não alimenta; a ajuda vai em comida
+            if (moneyBuysFood && world.FamilyRules.Pressure is { AidSeesWhoCanBuy: true } && !SomeoneCanBuy(world, members))
+                moneyBuysFood = false;
             if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
             long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
             RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food, moneyBuysFood);
+            // AD-182 (08c item 148): a moeda não compra comida aqui (banca vazia ou ninguém que saiba comprar): depois dos parentes, a
+            // cidade pede socorro em grão, servido pela lavoura neste tick de dentro da ração do celeiro (GrainRelief)
+            if (!moneyBuysFood && world.FamilyRules.Pressure is { GrainReliefDays: > 0 } relief)
+            {
+                long missing = count * relief.GrainReliefDays - household.Stock.GetValueOrDefault(food);
+                if (missing > 0) world.GrainReliefRequests.Add((household, recipient, missing));
+            }
         }
 
         GiveRationedAlms(world, ctx);
@@ -103,6 +114,14 @@ public sealed class MutualAidSystem : ISimulationSystem
             }
         }
         return best;
+    }
+
+    /// <summary>AD-182: algum morador tem o marco de comprar (o desenvolvimento dele não barra a compra).</summary>
+    private static bool SomeoneCanBuy(WorldState world, List<Npc> members)
+    {
+        foreach (var m in members)
+            if (world.OntogenyRules.IsEligible(m.Development, LivingWorld.Domain.Behavior.ActionType.Buy)) return true;
+        return false;
     }
 
     private static bool IsGrown(WorldState world, Npc npc) =>

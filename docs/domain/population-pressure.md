@@ -44,7 +44,10 @@ um ofício ou a casa de quem morreu (`HoldingRules`, `Pressure.Holdings`; `Holdi
 ## O primeiro filho também
 O casal sem ninguém trabalhando e com a despensa curta concebe menos o primeiro filho, na média da prudência dos dois
 (`FirstBirthMeansWeight`). Depois do primeiro parto, fecundidade natural: o controle dentro do casamento era
-fraco na época, e o motor não o inventa.
+fraco na época, e o motor não o inventa. AD-182 (08c 151): com o ciclo hormonal a fome que impede conceber é a do corpo
+(amenorreia da subnutrição); o piso de 5 de comida em casa (`ConceptionResourceFloor`) deixou de valer
+(`FamilyRules.ConceptionFloorReadsBody`). Era ele, e não `FirstBirthMeansWeight` (que nunca segurou nada: quase todo casal tem
+trabalho), que tirava filhos da casa que mandava comida a parente.
 
 ## A família de origem antes da esmola
 `MutualAidSystem`: a casa sem comida e sem dinheiro recebe primeiro dos seus. Pais, **avós** (também idosos) e irmãos
@@ -57,7 +60,9 @@ socorrida, em comida. A comida vem de parente **ou gente de afeto**, acima de 2 
 12 meses de quebra: furtos 448 → 410 (carga desligada 394), banidos 35 → 27 (28), vivos no ano 6: 55 → 63 (64).
 40 × 15 pareado: fome crítica 1,055× (IC90 0,90–1,20), mortes de fome 0,88×, mortalidade 0,99×, natalidade 0,979×
 (0,966–0,992: quem dá fica com a despensa curta, que adia o primeiro filho). Só a moeda que vê a banca, sem a comida
-do excedente, sobe a fome (1,03×; cortar também a moeda e a esmola nesse caso dava 1,10×, revertido).
+do excedente, sobe a fome (1,03×; cortar também a moeda e a esmola nesse caso dava 1,10×, revertido). AD-182: moeda na mão de
+quem não sabe comprar (o marco de comprar do desenvolvimento) também não alimenta (`AidSeesWhoCanBuy`), e a casa cuja moeda não
+compra pede socorro em grão à cidade ([land-and-harvest](land-and-harvest.md)).
 
 ## Esmola racionada
 O tesouro só enche na virada do mês (imposto do salário e dízimo, AD-140). A esmola do dia é repartida entre todos os

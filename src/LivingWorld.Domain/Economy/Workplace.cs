@@ -52,9 +52,10 @@ public sealed class Workplace
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
         NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null,
-        IReadOnlyList<WorkplaceStake>? partners = null, bool closed = false)
+        IReadOnlyList<WorkplaceStake>? partners = null, bool closed = false, bool rationedSale = false)
     {
         Closed = closed;
+        RationedSale = rationedSale;
         _partners = partners is null ? [] : partners.Where(p => p.Basis > 0).OrderBy(p => p.Npc.Value).ToList();
         _board = board is null ? [] : board.Where(d => d.Owed > 0).OrderBy(d => d.Npc.Value).ToList();
         Id = id;
@@ -82,6 +83,14 @@ public sealed class Workplace
     /// pode reabrir com capital novo. Falso fica fora do snapshot (o de antes fica igual).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool Closed { get; private set; }
+
+    /// <summary>AD-182 (08c item 148): o celeiro desta venda solta menos do que ela pediria (carestia): o vendedor reparte, cada
+    /// compra de comida leva no máximo a ração de poucos dias da casa (<c>AgricultureRules.DearthSaleDays</c>). Falso fica fora do
+    /// snapshot.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RationedSale { get; private set; }
+
+    public void SetRationedSale(bool rationed) => RationedSale = rationed;
 
     public void SetClosed(bool closed)
     {

@@ -290,9 +290,11 @@ public class NatalitySystemTests
     [Fact]
     public void Tick_does_not_conceive_when_resource_floor_not_met()
     {
+        // AD-182 (08c item 151): o piso da despensa só vale com a regra de antes (o corpo decide quando o ciclo hormonal está ligado)
         var rules = PermissiveFamilyRules() with
         {
             ConceptionResourceFloor = new Dictionary<int, long> { [1] = 10_000 },
+            ConceptionFloorReadsBody = false,
         };
         var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
             ScenarioRunner.DefaultPopulationCatalog, seed: 3, familyRules: rules);
@@ -300,6 +302,31 @@ public class NatalitySystemTests
         new NatalitySystem().Tick(world, ctx);
 
         Assert.Null(mother.PregnantUntil);
+    }
+
+    /// <summary>AD-182 (08c item 151): casal da vila padrão (ciclo hormonal ligado) com a despensa abaixo do piso de 5.</summary>
+    private static bool CoupleWithEmptyPantryMeetsFloors(bool readsBody)
+    {
+        var (world, _) = ScenarioRunner.Create(3);
+        var mother = world.Npcs.OrderBy(n => n.Id.Value).First(n => n.IsAlive && n.Sex == Sex.Female && n.Spouse is not null && n.Household is not null);
+        var father = world.FindNpc(mother.Spouse!.Value)!;
+        var home = world.FindHousehold(mother.Household!.Value)!;
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        if (home.Stock.GetValueOrDefault(food) > 0) home.Withdraw(food, home.Stock.GetValueOrDefault(food));
+        Assert.True(world.PopulationRules.Fertility.Endocrine.Enabled);
+        return NatalitySystem.MeetsConceptionFloors(world, mother, father, world.FamilyRules with { ConceptionFloorReadsBody = readsBody });
+    }
+
+    [Fact]
+    public void With_the_hormonal_cycle_an_empty_pantry_does_not_block_conception()
+    {
+        Assert.True(CoupleWithEmptyPantryMeetsFloors(readsBody: true));
+    }
+
+    [Fact]
+    public void Before_ad182_an_empty_pantry_blocked_conception()
+    {
+        Assert.False(CoupleWithEmptyPantryMeetsFloors(readsBody: false));
     }
 
     [Fact]

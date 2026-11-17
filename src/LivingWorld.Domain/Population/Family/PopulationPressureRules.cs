@@ -32,6 +32,16 @@ public sealed record PopulationPressureRules
     /// colheita a banca esvazia e a casa com moeda e despensa vazia passa a ser socorrida, em comida.</summary>
     public bool AidSeesFoodForSale { get; init; } = true;
 
+    /// <summary>AD-182 (08c item 149): a moeda só tira a casa da ajuda se alguém dela sabe comprar (o marco de comprar do
+    /// desenvolvimento); a casa de quem não sabe (o adolescente que ficou só depois de regredir na doença) é socorrida em comida,
+    /// como a casa sem banca. Falso = o de antes.</summary>
+    public bool AidSeesWhoCanBuy { get; init; } = true;
+
+    /// <summary>AD-182 (08c item 148): dias de comida por morador que a cidade compra do celeiro da fazenda e entrega à casa carente cuja
+    /// moeda não compra comida (banca vazia na carestia, ou ninguém da casa sabe comprar), depois dos parentes. 0 desliga (só a
+    /// esmola em moeda, como antes). Escolha do modelo: três dias, a ração de uma semana de socorro em duas idas [precisa de conferência].</summary>
+    public int GrainReliefDays { get; init; } = 3;
+
     /// <summary>Caminho (horas, ida) até onde o mercado conta para a ajuda. Bracton (séc. XIII): mercados a 6⅔ milhas, um terço
     /// da jornada de 20 milhas (ir, negociar, voltar) — umas 3–4 h a pé [precisa de conferência].</summary>
     public int AidMarketReachHours { get; init; } = 4;

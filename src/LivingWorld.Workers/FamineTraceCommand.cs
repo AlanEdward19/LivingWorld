@@ -35,13 +35,13 @@ public static class FamineTraceCommand
 
     public static int Run(ulong seed, int years)
     {
-        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules());
+        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(), agricultureRules: AgricultureSwitch.AgricultureRules(), ontogenyRules: ExperimentSwitch.OntogenyRules());
         var sink = new Sink();
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sink);
         var food = new ResourceType(world.EconomyRules.FoodResourceId);
         var water = new ResourceType(world.EconomyRules.WaterResourceId);
         var inv = CultureInfo.InvariantCulture;
-        Console.WriteLine("ano mes vivos casas carentes carentes_com_moeda moeda_casas moeda_carentes despensa levado venda preco furtos ajuda_moeda ajuda_comida(unid) esmolas banidos fome");
+        Console.WriteLine("ano mes vivos casas carentes carentes_com_moeda moeda_casas moeda_carentes despensa levado venda preco furtos ajuda_moeda ajuda_comida(unid) esmolas banidos fome celeiro semente");
         for (int m = 0; m < years * 12; m++)
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
@@ -64,12 +64,16 @@ public static class FamineTraceCommand
                 if (wallets >= alive.Count * 2 * unit * 4) needyWithMoney++;
             }
             long carried = (world.Invention?.CarriedTotal(food.Id) ?? 0) + (world.Invention?.GroundTotal(food.Id) ?? 0); // AD-168: e o espólio no chão
+            long barn = 0, seedStock = 0; // AD-182: o celeiro e a semente das fazendas
+            foreach (var w in world.Workplaces)
+                if (w.LocationType.Id == LivingWorld.Simulation.Economy.Production.CropSystem.DefaultFarmLocationTypeId && world.FindCropAt(w.Location) is { } crop)
+                { barn += crop.Barn; seedStock += crop.SeedReserve; }
             long sale = 0, price = 0;
             foreach (var w in world.Workplaces)
                 if (w.Prices.TryGetValue(food, out var p) && p > 0) { sale += w.Stock.GetValueOrDefault(food); price = Math.Max(price, p); }
             Console.WriteLine(string.Create(inv,
                 $"{m / 12} {m % 12} {world.AliveNpcIndex.Alive.Count} {houses} {needy} {needyWithMoney} {money} {needyMoney} {pantry} {carried} {sale} {price} " +
-                $"{sink.Thefts} {sink.AidMoney} {sink.AidFood}({sink.AidFoodUnits}) {sink.Alms} {sink.Banished} {sink.Starved}"));
+                $"{sink.Thefts} {sink.AidMoney} {sink.AidFood}({sink.AidFoodUnits}) {sink.Alms} {sink.Banished} {sink.Starved} {barn} {seedStock}"));
             sink.Thefts = sink.AidMoney = sink.AidFood = sink.AidFoodUnits = sink.Alms = sink.Banished = sink.Starved = 0;
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
