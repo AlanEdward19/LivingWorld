@@ -20,6 +20,11 @@ public class TechDiscoveryTests
 {
     private static readonly ResourceType Iron = new(4);
     private const long Year = 17280 / 2; // horas por ano no calendário padrão
+    /// <summary>AD-176: estes testes medem a tecnologia de mobilidade; sem a rua de verdade, a técnica de calçar (outra categoria,
+    /// testada em <c>StreetRouteTests</c>) não entra na conta de tecnologias e de estoque gasto.</summary>
+    private static readonly LivingWorld.Domain.Cities.CityLayoutRules MobilityOnly =
+        LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Off };
+
     private static readonly EmergenceRules Pressured = EmergenceRules.Mobility with { PressureTravelTicks = 2 };
 
     private static (WorldState World, WorldClock Clock) Village(ulong seed, EmergenceRules rules)
@@ -29,7 +34,7 @@ public class TechDiscoveryTests
         {
             Recipes = ScenarioRunner.DefaultEconomyCatalog.Recipes.ToDictionary(kv => kv.Key, kv => kv.Value with { Tool = null }),
         };
-        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules, economyCatalog: noTools);
+        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules, economyCatalog: noTools, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, 5000);
         return (world, clock);
     }
@@ -83,7 +88,7 @@ public class TechDiscoveryTests
     [Fact]
     public void Without_enough_stock_no_prototype_starts()
     {
-        var (world, clock) = ScenarioRunner.Create(2, emergenceRules: Pressured);
+        var (world, clock) = ScenarioRunner.Create(2, emergenceRules: Pressured, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, Pressured.PrototypeResourceCost - 1);
 
         clock.Run(world, world.Calendar.HoursPerYear * 2);
@@ -162,7 +167,7 @@ public class TechDiscoveryTests
     [Fact]
     public void An_adopted_technology_shortens_the_trip_and_so_the_pantry_the_household_keeps()
     {
-        var (world, _) = ScenarioRunner.Create(7, emergenceRules: Pressured);
+        var (world, _) = ScenarioRunner.Create(7, emergenceRules: Pressured, cityLayout: MobilityOnly);
         var buyer = world.Npcs.First(n => n.Household is not null);
         var household = world.FindHousehold(buyer.Household!.Value)!;
         var index = MarketIndex.BuildForTick(world);
@@ -181,7 +186,7 @@ public class TechDiscoveryTests
     [Fact]
     public void A_technology_spreads_to_a_city_of_the_same_culture_through_a_strong_tie()
     {
-        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured);
+        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly);
         var home = world.ActiveCities().First();
         var other = new LivingWorld.Domain.Cities.City(
             world.NextCityId(), new CellCoord(8, 8), 0, null, LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);

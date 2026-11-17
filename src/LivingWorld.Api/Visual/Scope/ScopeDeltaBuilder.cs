@@ -42,6 +42,8 @@ public static class ScopeDeltaBuilder
             ObjectUpserts = Changed(before.Objects, after.Objects, item => item.Id),
             ObjectRemoved = Removed(before.Objects, after.Objects, item => item.Id),
             Climate = Equals(before.Climate, after.Climate) ? null : after.Climate,
+            RoadUpserts = ReferenceEquals(before.Roads, after.Roads) ? [] : Changed(before.Roads, after.Roads, item => item.Cell),
+            RoadRemoved = ReferenceEquals(before.Roads, after.Roads) ? [] : Removed(before.Roads, after.Roads, item => item.Cell),
         };
     }
 
@@ -215,6 +217,7 @@ public static class LivingDeltaReducer
             Leavings = Merge(state.Leavings, delta.LeavingUpserts, delta.LeavingRemoved, item => item.Id),
             Objects = Merge(state.Objects, delta.ObjectUpserts, delta.ObjectRemoved, item => item.Id),
             Climate = delta.Climate ?? state.Climate,
+            Roads = Merge(state.Roads, delta.RoadUpserts, delta.RoadRemoved, item => item.Cell, item => (item.Cell.Y, item.Cell.X)),
             Tick = delta.Tick,
         };
 

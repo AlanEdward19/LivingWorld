@@ -18,7 +18,7 @@ public class MarketAndRegionIndexTests
         long bestTicks = long.MaxValue;
         foreach (var market in world.Workplaces.Where(w => world.EconomyCatalog.MarketLocationTypeIds.Contains(w.LocationType.Id)))
         {
-            long ticks = TravelResolution.TicksBetween(world.Map, origin, market.Location);
+            long ticks = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, origin, market.Location); // AD-176: a mesma rota do índice
             if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < best!.Id.Value))
             {
                 bestTicks = ticks;

@@ -164,12 +164,14 @@ public class CityLayoutTests
     [Fact]
     public void A_street_used_by_enough_people_is_trodden_into_dirt()
     {
-        var world = ScenarioRunner.Create(seed: 1).World;
+        // AD-176: a superfície vem do pisoteio das viagens de verdade (não mais de quantos moram na rua): meio ano de vila
+        var (world, clock) = ScenarioRunner.Create(seed: 1);
+        clock.Run(world, world.Calendar.HoursPerMonth * 7);
         var city = world.ActiveCities().First();
 
         var roads = CityStreets.RoadsOf(world, city);
 
-        Assert.Contains(roads, r => r.Surface == StreetSurface.Dirt && r.Users >= world.CityRules.EffectiveLayout().TrodResidents);
+        Assert.Contains(roads, r => r.Surface == StreetSurface.Dirt && r.Users > 0 && r.Wear >= world.StreetRules.DirtWear / 2);
     }
 
     [Fact]

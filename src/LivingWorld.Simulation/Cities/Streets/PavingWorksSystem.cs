@@ -42,50 +42,14 @@ public sealed class PavingWorksSystem : ISimulationSystem
             ground.Works.Remove(work);
             ground.WorksDone++;
             ctx.LogEvent(WorldEventKind.StreetWorkDone,
-                $"{work.Id}|{work.City}|{work.Surface}|{(work.Repair ? 1 : 0)}|{work.Cells.Count}|{work.Paid}", sourceSystem: SystemName);
+                $"{work.Id}|{work.City}|{work.Surface}|{(work.Repair ? 1 : 0)}|{work.Cells.Count}|{work.Paid}", sourceSystem: SystemName,
+                causeEventId: work.StartEventId);
         }
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
 
-    /// <summary>Debita o jornal do dia de quem paga; falha sem mexer em nada se alguém não tem.</summary>
-    private static bool Pay(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, PavingWork work, long due)
-    {
-        if (work.Payers.Count == 0)
-        {
-            if (city.Treasury.Amount < due || !city.TryDebitTreasury(new Money(due)).IsSuccess) return false;
-            world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: due);
-            return true;
-        }
-        long share = (due + work.Payers.Count - 1) / work.Payers.Count;
-        foreach (long payer in work.Payers)
-            if (PavingDecision.MeansOf(world, payer) < share) return false;
-        long paid = 0;
-        foreach (long payer in work.Payers)
-        {
-            long left = Math.Min(share, due - paid);
-            var home = world.FindHousehold(new HouseholdId(payer))!;
-            foreach (var member in home.Members.OrderBy(m => m.Value))
-            {
-                if (left <= 0) break;
-                if (world.FindNpc(member) is not { IsAlive: true } npc || npc.Wallet.Amount <= 0) continue;
-                long take = Math.Min(left, npc.Wallet.Amount);
-                if (!npc.TryDebitWallet(new Money(take)).IsSuccess) continue;
-                left -= take;
-                paid += take;
-            }
-        }
-        // a arrecadação é exatamente o jornal (as partes arredondadas para cima param no total)
-        return paid == due || Refund(world, work, paid);
-    }
-
-    private static bool Refund(WorldState world, PavingWork work, long paid)
-    {
-        // não deveria acontecer (conferido antes); devolve ao primeiro pagador para a moeda fechar
-        if (paid > 0 && world.FindHousehold(new HouseholdId(work.Payers[0])) is { } home
-            && home.Members.Select(m => world.FindNpc(m)).FirstOrDefault(n => n is { IsAlive: true }) is { } npc)
-            npc.CreditWallet(new Money(paid));
-        return false;
-    }
+    private static bool Pay(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, PavingWork work, long due) =>
+        PavingDecision.PayFrom(world, ctx, city, work.Payers, due);
 }
 
 /// <summary>A técnica de calçar (AD-176) entra pelo sistema de tecnologia que já existe (<c>TechDiscoverySystem</c>): numa cidade

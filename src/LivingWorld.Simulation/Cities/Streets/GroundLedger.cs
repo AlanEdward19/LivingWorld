@@ -42,6 +42,8 @@ public sealed class PavingWork
     /// <summary>Casas da frente que pagam a parte delas (vazio = o tesouro da cidade paga).</summary>
     public List<long> Payers { get; set; } = [];
     public long Paid { get; set; }
+    /// <summary>Evento que abriu a obra (causa do evento de obra pronta).</summary>
+    public long StartEventId { get; set; }
 }
 
 /// <summary>Estado do chão das cidades (AD-176), canônico: pisoteio por célula, superfície em vigor, calçamento e obras. Grade

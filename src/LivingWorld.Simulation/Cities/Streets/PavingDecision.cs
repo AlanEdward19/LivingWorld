@@ -52,14 +52,19 @@ internal static class PavingDecision
         if (cells.Count == 0) return;
         var surface = ground.PavingAt(cells[0]);
         cells.RemoveAll(c => ground.PavingAt(c) != surface);
+        var material = MaterialFor(world, city, surface, cells.Count);
+        if (material is null) return;
         long hours = 0;
         foreach (int c in cells)
         {
-            long full = HoursFor(world, ground.CellOf(c), surface);
+            long full = HoursFor(world, ground.CellOf(c), surface, material.Value.Source);
             if (full < 0) return;
             hours += Math.Max(1, full * (1000 - ground.ConditionAt(c)) / 1000);
         }
-        Open(world, ctx, city, surface, cells, hours, repair: true);
+        // conserto repõe só a parte gasta do material
+        int worn = cells.Sum(c => 1000 - ground.ConditionAt(c));
+        var part = material.Value with { Units = (material.Value.Units * worn + cells.Count * 1000 - 1) / Math.Max(1, cells.Count * 1000) };
+        Open(world, ctx, city, surface, cells, hours, repair: true, part);
     }
 
     private static void TryPave(WorldState world, TickContext ctx, City city, GroundSurface best)
@@ -81,23 +86,29 @@ internal static class PavingDecision
 
         // pedra se a técnica e o terreno dão, senão cascalho; sem fonte de material ao alcance, não calça
         var surface = best;
-        if (surface == GroundSurface.Stone && HoursFor(world, world.Ground!.CellOf(chosen[0].Index), surface) < 0) surface = GroundSurface.Gravel;
+        var material = MaterialFor(world, city, surface, chosen.Count);
+        if (material is null && surface == GroundSurface.Stone)
+        {
+            surface = GroundSurface.Gravel;
+            material = MaterialFor(world, city, surface, chosen.Count);
+        }
+        if (material is null) return;
         long hours = 0;
         double hoursSavedPerYear = 0;
         var state = StreetRoutes.StateOf(world);
         double gain = StreetRoutes.FactorOf(rules, GroundSurface.Dirt) - StreetRoutes.FactorOf(rules, surface);
         foreach (var (index, passes) in chosen)
         {
-            long h = HoursFor(world, ground.CellOf(index), surface);
+            long h = HoursFor(world, ground.CellOf(index), surface, material.Value.Source);
             if (h < 0) return;
             hours += h;
             hoursSavedPerYear += passes * 12.0 * state.Base * state.Terrain[index] * gain;
         }
         long dayWage = DayWage(world);
-        long cost = CostOf(hours, dayWage, rules);
+        long cost = CostOf(hours, dayWage, rules) + material.Value.Units * material.Value.Price;
         double hourValue = (double)dayWage / Math.Max(1, rules.CrewHoursPerDay);
         if (hoursSavedPerYear * rules.PaybackYears * hourValue < cost) return; // o tempo poupado não paga a obra
-        Open(world, ctx, city, surface, chosen.Select(c => c.Index).ToList(), hours, repair: false);
+        Open(world, ctx, city, surface, chosen.Select(c => c.Index).ToList(), hours, repair: false, material.Value);
     }
 
     internal static long CostOf(long hours, long dayWage, StreetRules rules) =>
@@ -111,12 +122,36 @@ internal static class PavingDecision
         return Math.Max(1, median / Math.Max(1, world.Calendar.DaysPerMonth));
     }
 
-    /// <summary>Horas de trabalho de uma célula: assentar mais buscar o material (ida e volta pela rota, <see cref="StreetRules.LoadsPerCell"/>
-    /// viagens) na fonte mais perto — água (cascalho do leito) ou terreno pedregoso (pedra). -1 sem fonte ao alcance.</summary>
-    internal static long HoursFor(WorldState world, CellCoord cell, GroundSurface surface)
+    /// <summary>De onde vem o material (AD-176): a pedra, de um mercado que a vende (o recurso da economia, comprado e trazido pela
+    /// rota), se o mundo tem esse recurso; senão, como o cascalho, do chão (fonte achada célula a célula). Nulo: não há pedra à
+    /// venda bastante quando a economia tem pedra.</summary>
+    internal readonly record struct Material(LivingWorld.Domain.Economy.Workplace? Source, long Units, long Price);
+
+    internal static Material? MaterialFor(WorldState world, City city, GroundSurface surface, int cells)
     {
         var rules = world.StreetRules;
-        var source = NearestSource(world, cell, surface, radius: 40);
+        if (surface != GroundSurface.Stone) return new Material(null, 0, 0);
+        var stone = new ResourceType(rules.StoneResourceId);
+        bool economyHasStone = world.Workplaces.Any(w => w.Prices.ContainsKey(stone));
+        if (!economyHasStone) return new Material(null, 0, 0);
+        long units = (long)cells * rules.StoneUnitsPerCell;
+        LivingWorld.Domain.Economy.Workplace? best = null;
+        double bestCost = double.MaxValue;
+        foreach (var market in world.Workplaces.OrderBy(w => w.Id.Value))
+        {
+            if (market.Stock.GetValueOrDefault(stone) < units || !market.Prices.TryGetValue(stone, out long price) || price <= 0) continue;
+            double cost = StreetRoutes.CostOf(world, market.Location, city.Location).Cost;
+            if (cost < bestCost) { bestCost = cost; best = market; }
+        }
+        return best is null ? null : new Material(best, units, best.Prices[stone]);
+    }
+
+    /// <summary>Horas de trabalho de uma célula: assentar mais buscar o material (ida e volta pela rota, <see cref="StreetRules.LoadsPerCell"/>
+    /// viagens) no mercado que o vendeu ou na fonte mais perto — água (cascalho do leito) ou terreno pedregoso (pedra). -1 sem fonte.</summary>
+    internal static long HoursFor(WorldState world, CellCoord cell, GroundSurface surface, LivingWorld.Domain.Economy.Workplace? from = null)
+    {
+        var rules = world.StreetRules;
+        var source = from?.Location ?? NearestSource(world, cell, surface, radius: 40);
         if (source is not { } s) return -1;
         double haul = StreetRoutes.CostOf(world, s, cell).Cost + StreetRoutes.CostOf(world, cell, s).Cost;
         long lay = surface == GroundSurface.Stone ? rules.StoneHoursPerCell : rules.GravelHoursPerCell;
@@ -140,24 +175,67 @@ internal static class PavingDecision
     }
 
     /// <summary>Abre a obra: as casas de frente pagam se todas podem a parte delas; senão o tesouro, se pode; senão não abre.</summary>
-    private static void Open(WorldState world, TickContext ctx, City city, GroundSurface surface, List<int> cells, long hours, bool repair)
+    private static void Open(WorldState world, TickContext ctx, City city, GroundSurface surface, List<int> cells, long hours, bool repair,
+        Material material)
     {
         var rules = world.StreetRules;
-        long cost = CostOf(hours, DayWage(world), rules);
+        long stoneMoney = material.Units * material.Price;
+        long cost = CostOf(hours, DayWage(world), rules) + stoneMoney;
         var frontage = FrontageHouseholds(world, cells);
         List<long> payers = [];
         if (frontage.Count > 0 && frontage.All(h => MeansOf(world, h) >= cost / frontage.Count + 1)) payers = frontage;
         else if (city.Treasury.Amount < cost) return;
+        if (material.Source is { } quarry && material.Units > 0)
+        {
+            // a pedra é comprada já: sai do estoque do mercado (consumida) e o dinheiro vai ao caixa dele
+            if (!PayFrom(world, ctx, city, payers, stoneMoney)) return;
+            var stone = new ResourceType(rules.StoneResourceId);
+            quarry.Withdraw(stone, material.Units);
+            world.RecordResourceConsumed(stone, material.Units);
+            quarry.CreditTreasury(new Money(stoneMoney));
+        }
         var ground = world.Ground!;
         var work = new PavingWork
         {
             Id = ground.NextWorkId++, City = city.Id.Value, Surface = surface, Repair = repair, Cells = cells, HoursTotal = hours,
-            HoursLeft = hours, StartTick = ctx.CurrentTick, Payers = payers,
+            HoursLeft = hours, StartTick = ctx.CurrentTick, Payers = payers, Paid = stoneMoney,
         };
         ground.Works.Add(work);
-        ctx.LogEvent(WorldEventKind.StreetWorkStarted,
+        work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,
             $"{work.Id}|{city.Id.Value}|{surface}|{(repair ? 1 : 0)}|{cells.Count}|{hours}|{(payers.Count == 0 ? "tesouro" : "frente")}",
             sourceSystem: StreetGroundSystem.SystemName);
+    }
+
+    /// <summary>Debita <paramref name="amount"/> de quem paga a obra (tesouro ou casas de frente em partes iguais); falso sem mexer em
+    /// nada se alguém não tem.</summary>
+    internal static bool PayFrom(WorldState world, TickContext ctx, City city, List<long> payers, long amount)
+    {
+        if (amount <= 0) return true;
+        if (payers.Count == 0)
+        {
+            if (city.Treasury.Amount < amount || !city.TryDebitTreasury(new Money(amount)).IsSuccess) return false;
+            world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: amount);
+            return true;
+        }
+        long share = (amount + payers.Count - 1) / payers.Count;
+        foreach (long payer in payers)
+            if (MeansOf(world, payer) < share) return false;
+        long paid = 0;
+        foreach (long payer in payers)
+        {
+            long left = Math.Min(share, amount - paid);
+            var home = world.FindHousehold(new HouseholdId(payer))!;
+            foreach (var member in home.Members.OrderBy(m => m.Value))
+            {
+                if (left <= 0) break;
+                if (world.FindNpc(member) is not { IsAlive: true } npc || npc.Wallet.Amount <= 0) continue;
+                long take = Math.Min(left, npc.Wallet.Amount);
+                if (!npc.TryDebitWallet(new Money(take)).IsSuccess) continue;
+                left -= take;
+                paid += take;
+            }
+        }
+        return true;
     }
 
     /// <summary>Casas cuja soleira dá numa das células (ou ao lado): quem mora de frente para o trecho.</summary>

@@ -113,11 +113,11 @@ public static class StreetRoutes
         var state = StateOf(world);
         int o = Index(state, origin), d = Index(state, destination);
         if (o < 0 || d < 0)
-            return new StreetRoute
-            {
-                Cost = LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, origin, destination),
-                Water = LivingWorld.Simulation.Invention.WaterCrossing.CellsBetween(world.Map, origin, destination),
-            };
+        {
+            // ponta fora do mapa (não deveria haver): a reta pelo custo base, sem terreno nem água
+            double dx = destination.X - origin.X, dy = destination.Y - origin.Y;
+            return new StreetRoute { Cost = world.Map.Cost.Base * Math.Sqrt(dx * dx + dy * dy) };
+        }
         long key = ((long)o << 32) | (uint)d;
         if (state.Pairs.TryGetValue(key, out var known)) return known;
         var route = Compute(state, o, d);
@@ -432,6 +432,49 @@ public static class StreetRoutes
         return leg;
     }
 
+    /// <summary>AD-176: as células por onde a pessoa anda, em ordem — a célula onde está, a soleira, a reta ou o caminho pela rede,
+    /// a soleira do destino e a célula de chegada (água e prédio atravessado inclusive). Sem a rua de verdade, a reta de antes.</summary>
+    public static IReadOnlyList<CellCoord> PathOf(WorldState world, CellCoord origin, CellCoord destination)
+    {
+        var cells = new List<int>();
+        if (!world.StreetsOn || origin == destination)
+            return origin == destination ? [origin] : LinePath(world.Map.Width, world.Map.Height, origin, destination);
+        var state = StateOf(world);
+        var route = Get(world, origin, destination);
+        int o = Index(state, origin), d = Index(state, destination);
+        if (o < 0 || d < 0) return [origin, destination];
+        if (route.Internal) return [origin, destination];
+        var all = new List<int> { o };
+        void Add(int c) { if (all[^1] != c) all.Add(c); }
+        void Line(int a, int b) { var tmp = new List<int>(); LineCells(state, a, b, tmp, all: true); foreach (int c in tmp) Add(c); }
+        if (route.E < 0) Line(route.A, route.B);
+        else
+        {
+            Line(route.A, route.E);
+            if (route.E != route.X) foreach (int c in Leg(state, route.E, route.X).Path) Add(c);
+            Line(route.X, route.B);
+        }
+        Add(d);
+        return [.. all.Select(c => new CellCoord(c % state.W, c / state.W))];
+    }
+
+    private static List<CellCoord> LinePath(int w, int h, CellCoord a, CellCoord b)
+    {
+        var result = new List<CellCoord> { a };
+        int dx = Math.Abs(b.X - a.X), dy = Math.Abs(b.Y - a.Y);
+        int sx = b.X > a.X ? 1 : -1, sy = b.Y > a.Y ? 1 : -1;
+        int x = a.X, y = a.Y, steps = dx + dy, error = dx - dy;
+        dx *= 2; dy *= 2;
+        for (int i = 1; i < steps; i++)
+        {
+            if (error > 0) { x += sx; error -= dy; }
+            else { y += sy; error += dx; }
+            result.Add(new CellCoord(x, y));
+        }
+        result.Add(b);
+        return result;
+    }
+
     /// <summary>As células por onde a rota passa (soleiras inclusive), sem prédio nem água: onde o pisoteio fica.</summary>
     internal static void CellsOf(StreetRouteState state, StreetRoute route, List<int> into)
     {
@@ -443,14 +486,14 @@ public static class StreetRoutes
         LineCells(state, route.X, route.B, into, skipFirst: true);
     }
 
-    private static void Keep(StreetRouteState state, int c, List<int> into)
+    private static void Keep(StreetRouteState state, int c, List<int> into, bool all = false)
     {
-        if (state.Owner[c] == 0 && !state.Water[c]) into.Add(c);
+        if (all || (state.Owner[c] == 0 && !state.Water[c])) into.Add(c);
     }
 
-    private static void LineCells(StreetRouteState state, int a, int b, List<int> into, bool skipFirst = false)
+    private static void LineCells(StreetRouteState state, int a, int b, List<int> into, bool skipFirst = false, bool all = false)
     {
-        if (!skipFirst) Keep(state, a, into);
+        if (!skipFirst) Keep(state, a, into, all);
         if (a == b) return;
         int ax = a % state.W, ay = a / state.W, bx = b % state.W, by = b / state.W;
         int dx = Math.Abs(bx - ax), dy = Math.Abs(by - ay);
@@ -461,9 +504,9 @@ public static class StreetRoutes
         {
             if (error > 0) { x += sx; error -= dy; }
             else { y += sy; error += dx; }
-            Keep(state, y * state.W + x, into);
+            Keep(state, y * state.W + x, into, all);
         }
-        Keep(state, b, into);
+        Keep(state, b, into, all);
     }
 
     /// <summary>Tipo de acesso à porta do prédio (AD-176): <c>street</c> (porta em caminho ou rua), <c>path</c> (caminho a pé até

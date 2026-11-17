@@ -49,6 +49,9 @@ public sealed record ScopeTickDelta(
     public IReadOnlyList<LivingWorld.Api.Visual.Observable.ObjectVisual> ObjectUpserts { get; init; } = [];
     public IReadOnlyList<long> ObjectRemoved { get; init; } = [];
     public LivingWorld.Api.Visual.Observable.ScopeClimateVisual? Climate { get; init; }
+    // AD-176: rua de verdade por célula, só o que mudou (superfície, faixa de uso, obra, condição)
+    public IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView> RoadUpserts { get; init; } = [];
+    public IReadOnlyList<CellCoord> RoadRemoved { get; init; } = [];
 
     public static ScopeTickDelta Empty(long tick) => new(tick, [], [], [], [], [], [], [], [], [], []);
 }

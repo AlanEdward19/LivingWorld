@@ -92,15 +92,17 @@ public sealed class AgriculturalYearTests
     [Fact]
     public void Reapers_take_part_of_the_harvest_home()
     {
-        long HomeFoodAfterHarvest(double share)
+        // AD-176: três seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272)
+        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21 }.Sum(seed =>
         {
-            var (world, clock) = ScenarioRunner.Create(19, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
+            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
             clock.Run(world, 8L * HoursPerMonth);
             var food = new ResourceType(world.EconomyRules.FoodResourceId);
             return world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
-        }
+        });
 
-        Assert.True(HomeFoodAfterHarvest(0.5) > HomeFoodAfterHarvest(0));
+        long half = HomeFoodAfterHarvest(0.5), none = HomeFoodAfterHarvest(0);
+        Assert.True(half > none, $"metade {half} nada {none}");
     }
 
     [Fact]

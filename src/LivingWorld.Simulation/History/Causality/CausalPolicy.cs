@@ -44,6 +44,7 @@ public static class CausalPolicy
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
         WorldEventKind.OutbreakEnded,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
+        WorldEventKind.StreetWorkDone, // AD-176: causa = a obra aberta
         WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
         // AD-168: o espólio no chão vem da morte de quem o levava
         WorldEventKind.LeavingsLeft,
@@ -70,6 +71,7 @@ public static class CausalPolicy
         WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold, WorldEventKind.ProfitDrawn, WorldEventKind.VentureFounded,
         WorldEventKind.LeavingsCollected, // AD-168: recolher o espólio é contabilidade, como a venda
         WorldEventKind.LoanGranted,
+        WorldEventKind.StreetWorkStarted, // AD-176: decisão de calçar (quem paga decide pelo uso do trecho)
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

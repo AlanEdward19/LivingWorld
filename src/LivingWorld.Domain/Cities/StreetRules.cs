@@ -24,6 +24,9 @@ namespace LivingWorld.Domain.Cities;
 /// <param name="LoadsPerCell">Viagens de material (ida e volta da fonte) por célula.</param>
 /// <param name="StoneTerrainId">Terreno de onde sai pedra (o mais pesado do catálogo padrão); cascalho sai de célula com água
 /// (leito do rio, vau).</param>
+/// <param name="StoneResourceId">Recurso da economia que é pedra (o da pedreira no cenário padrão, AD-090). Se algum mercado o
+/// vende, a pedra da obra é comprada lá e trazida pela rota; se ninguém no mundo lida com ele, sai do terreno pedregoso.</param>
+/// <param name="StoneUnitsPerCell">Unidades de pedra por célula calçada.</param>
 /// <param name="CrewMax">Diaristas por obra.</param>
 /// <param name="CrewHoursPerDay">Horas de trabalho de cada diarista por dia.</param>
 /// <param name="PaybackYears">Horizonte em que o tempo poupado por quem passa tem de pagar a obra.</param>
@@ -54,6 +57,8 @@ public sealed record StreetRules(
     int StoneHoursPerCell = 120,
     int LoadsPerCell = 4,
     int StoneTerrainId = 3,
+    int StoneResourceId = 5,
+    int StoneUnitsPerCell = 4,
     int CrewMax = 6,
     int CrewHoursPerDay = 8,
     int PaybackYears = 10,
