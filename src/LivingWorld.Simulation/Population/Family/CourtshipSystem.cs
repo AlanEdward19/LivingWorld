@@ -311,7 +311,7 @@ public sealed class CourtshipSystem : ISimulationSystem
     internal static double RegardSignal(WorldState world, Npc target, long now)
     {
         double gain = world.FamilyRules.Names.ReputationCourtshipGain;
-        if (gain <= 0 || (world.Honor is null && !world.CrimeOn)) return 1;
+        if (gain <= 0 || (world.Honor is null && (!world.CrimeOn || world.Crime!.Records.Count == 0))) return 1;
         return Math.Max(0, 1 + gain * LivingWorld.Simulation.Population.Naming.Honor.RegardOf(world, target, now));
     }
 
@@ -338,6 +338,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         Npc? best = null, bestAccepting = null;
         double bestScore = double.NegativeInfinity, bestAcceptingScore = double.NegativeInfinity;
         Npc? firstRejected = null;
+        double seekerRegard = RegardSignal(world, seeker, now.TotalHours); // AD-183: o nome do pretendente, visto por todos
 
         foreach (var candidate in candidates.OrderBy(c => c.Id.Value))
         {
@@ -355,7 +356,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             if (score > bestScore) (bestScore, best) = (score, candidate);
             // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
             double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * RegardSignal(world, seeker, now.TotalHours)
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * seekerRegard
                     * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
                     >= ThresholdOf(world, candidate)
                 && ready > bestAcceptingScore)

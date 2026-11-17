@@ -139,6 +139,11 @@ public class WorldSnapshotTests
         var credit = new LivingWorld.Simulation.Economy.Credit.CreditLedger();
         credit.Add(new LivingWorld.Simulation.Economy.Credit.Loan { Lender = 1, Borrower = 2, Principal = 10, Balance = 11, Installment = 1 });
         world.RestoreCredit(credit);
+        // AD-183: um feito no livro da honra, para o mutador ter folha em Honor.
+        world.RestoreHonor(new LivingWorld.Simulation.Population.Naming.HonorLedger
+        {
+            Records = [new() { Npc = 1, Family = "Galmor", City = city.Id.Value, Honor = 5, Tick = 3 }],
+        });
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.

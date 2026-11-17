@@ -108,6 +108,7 @@ public static class Honor
     /// <summary>O nome de alguém (−1..1): boa fama vista menos má fama vista, cada uma com a da linhagem.</summary>
     public static double RegardOf(WorldState world, Npc npc, long now)
     {
+        if (world.Honor is null && (!world.CrimeOn || world.Crime!.Records.Count == 0)) return 0; // ninguém tem fama nenhuma
         double honor = StandingOf(world, npc, now);
         double infamy = 0;
         if (world.CrimeOn)
