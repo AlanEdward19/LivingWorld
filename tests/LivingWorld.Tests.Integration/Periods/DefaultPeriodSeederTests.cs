@@ -117,7 +117,11 @@ public class DefaultPeriodSeederTests
         string periodId = FirstPresetId();
         repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
         {
-            PeriodId = periodId, Version = 1, PayloadJson = old.ToJsonString(), CreatedAtUtc = DateTime.UnixEpoch, Source = FirstPresetSource(),
+            PeriodId = periodId,
+            Version = 1,
+            PayloadJson = old.ToJsonString(),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = FirstPresetSource(),
         });
 
         DefaultPeriodSeeder.SeedIfEmpty(repository);
@@ -139,7 +143,11 @@ public class DefaultPeriodSeederTests
         payload.Remove("Presentation");
         repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
         {
-            PeriodId = FirstPresetId(), Version = 1, PayloadJson = payload.ToJsonString(), CreatedAtUtc = DateTime.UnixEpoch, Source = "operador",
+            PeriodId = FirstPresetId(),
+            Version = 1,
+            PayloadJson = payload.ToJsonString(),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = "operador",
         });
 
         DefaultPeriodSeeder.SeedIfEmpty(repository);

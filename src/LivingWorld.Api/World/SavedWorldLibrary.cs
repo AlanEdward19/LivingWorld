@@ -169,7 +169,9 @@ public sealed class SavedWorldLibrary : IDisposable
         if (saved || !_info.TryGetValue(id, out var info)) return;
         Write(info with
         {
-            PeriodId = world.PeriodId, Year = world.CurrentDate.Year, LastPlayedAtUtc = DateTimeOffset.UtcNow,
+            PeriodId = world.PeriodId,
+            Year = world.CurrentDate.Year,
+            LastPlayedAtUtc = DateTimeOffset.UtcNow,
             Origin = info.Origin ?? (world.Seed == BootstrapSeed ? AutomaticOrigin : PlayerOrigin),
         });
     }
