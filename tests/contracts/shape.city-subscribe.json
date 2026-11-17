@@ -84,7 +84,30 @@
               "cropYearFactorMilli": "number",
               "drought": "boolean",
               "regionId": "number",
-              "temperatureC": "number"
+              "temperatureC": "number",
+              "weather?": {
+                "coldWave": "boolean",
+                "daylightHours": "number",
+                "drought": "boolean",
+                "feelsLikeC": "number",
+                "frost": "boolean",
+                "ground": "string",
+                "groundWetPm": "number",
+                "hail": "boolean",
+                "heatWave": "boolean",
+                "intensity": "string",
+                "maxC": "number",
+                "minC": "number",
+                "outdoorLostDays": "number",
+                "precipitation": "string",
+                "precipitationMm": "number",
+                "snowCm": "number",
+                "storm": "boolean",
+                "sunriseHour": "number",
+                "sunsetHour": "number",
+                "temperatureNowC": "number",
+                "windMs": "number"
+              }
             }
           ],
           "seasonIndex": "number",
@@ -242,7 +265,30 @@
         "regionId": "number",
         "seasonIndex": "number",
         "seasonKey": "string",
-        "temperatureC": "number"
+        "temperatureC": "number",
+        "weather?": {
+          "coldWave": "boolean",
+          "daylightHours": "number",
+          "drought": "boolean",
+          "feelsLikeC": "number",
+          "frost": "boolean",
+          "ground": "string",
+          "groundWetPm": "number",
+          "hail": "boolean",
+          "heatWave": "boolean",
+          "intensity": "string",
+          "maxC": "number",
+          "minC": "number",
+          "outdoorLostDays": "number",
+          "precipitation": "string",
+          "precipitationMm": "number",
+          "snowCm": "number",
+          "storm": "boolean",
+          "sunriseHour": "number",
+          "sunsetHour": "number",
+          "temperatureNowC": "number",
+          "windMs": "number"
+        }
       },
       "crops": [
         {
@@ -479,13 +525,16 @@
             "value": "string"
           },
           "condition?": "number",
+          "ground?": "string",
           "main": "boolean",
           "planned": "boolean",
+          "snowCm?": "number",
           "square": "boolean",
           "surface": "number",
           "useBand": "number",
           "users": "number",
           "wear": "number",
+          "wetPm?": "number",
           "work?": {
             "payer": "string",
             "progressPct": "number",
