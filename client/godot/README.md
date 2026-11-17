@@ -5,23 +5,36 @@ determinismo; este projeto só desenha o que a API projeta. Godot 4.7 (qualquer 
 
 ## Rodar
 
-Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **menu principal** (Continuar · Novo mundo · F10 volta ao menu; Novo mundo tem "Personalizar" (mapa, assentamentos, prédios, famílias e pessoas) e, depois de criar, "Retoques"). Manualmente:
+**Jogar**: dois cliques em `Jogar.command` (raiz do projeto, macOS) ou `bash scripts/play.sh`. Ele confere .NET 10 e Godot 4
+(diz o que instalar se faltar), compila a API só quando o código mudou, liga a API numa porta livre (5214 ou a próxima),
+espera ficar pronta e abre o jogo no menu; ao fechar o jogo, desliga só a API que ele ligou (ou herdou de um lançador que
+já fechou; outro jogo aberto continua usando). Já ligada, reaproveita. Mundos e banco em
+`~/Library/Application Support/LivingWorld/` (`mundo.db`, `worlds/`, `api.log`, `api.state` com porta e token, modo 600):
+"Continuar" volta ao último mundo depois de reiniciar. `--api-only` só liga a API. O token de admin é da sessão: pausa,
+velocidade e passo funcionam sem o jogador saber dele.
+
+Aberto sozinho (sem lançador), o cliente usa a API do `api.state` se estiver ligada; senão mostra "O mundo ainda não está
+ligado" e, se a API já foi compilada, liga ele mesmo `dotnet src/LivingWorld.Api/bin/Release/net10.0/LivingWorld.Api.dll`
+(caminho fixo; nunca compila) e a desliga ao sair (`Contract/local_server.gd`). Manualmente:
 
 ```bash
-# 1. API (outro terminal) — porta 5214
 ADMIN_TOKEN=dev ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214
-# 2. Cliente
-LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
+LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot   # LW_API_URL troca o endereço
 ```
 
-Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin-Token` igual a `ADMIN_TOKEN` e o cliente manda o valor de `LW_ADMIN_TOKEN` (o `play.sh` gera um por sessão). Sem o token os botões do tempo aparecem desabilitados, com o motivo na dica (nada é mandado).
+**Menu (AD-174, `Scenes/menu/`)**: título sobre uma ilha 3D girando · Continuar (só com mundo; nome, ano, pessoas) · Novo
+mundo em passos (época → nome e semente → tamanho e pessoas → mapa de `/worlds/preview`, que também vira o fundo 3D → resumo),
+com Voltar/Avançar, barra e "Surpreenda-me"; "Personalizar" (mapa, vilas, prédios, famílias, retoques) é desvio opcional ·
+carregamento por etapas reais · Meus mundos (jogar, apagar com confirmação pelo nome) · Opções (tamanho da interface,
+volume, tela cheia, vsync, idioma; `user://settings.cfg`). Mouse, teclado (setas, Enter, Esc) e controle. No jogo: dicas da
+primeira vez (6, puláveis, lembradas), **?**/F1 ajuda, **Esc** menu de pausa (pausa o tempo se o jogador pode).
 
 ## Controles
 
 | Ação | Tecla / mouse |
 | --- | --- |
 | Mover / girar / zoom | botão direito arrasta · Shift+arrasta · roda · WASD/setas · Q/E |
-| Entrar na cidade | zoom até a escala de cidade, ou duplo clique na cidade |
+| Entrar na cidade | zoom até a escala de cidade, ou duplo clique na cidade · sair: afastar ou ◀ Mapa do mundo (antes: Esc, que agora abre a pausa) |
 | Prédio | clique abre a ficha (tipo, andares, preço, quem está dentro) · duplo clique ou botão Entrar entra (andares: PgUp/PgDn) · Esc sai |
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC, também dentro do interior |
 | Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo, lavoura, animal, bando, espólio, objeto inventado, mobília, trabalho, casa e evento; lê `GET /entities/{kind}/{id}` (nome real, vínculos, história recente); atualiza sozinho; links (mãe, pai, cônjuge, todos os filhos, casa, trabalho e o prédio dele, dono, moradores, trabalhadores, envolvidos) · Ir até lá · ◀ Voltar ou Backspace |
@@ -32,7 +45,7 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Conversar | T (ou botão Conversar na ficha) pede a conversa; o NPC pode recusar (ocupado, hostil, indisponível) · Enter envia · Esc encerra |
 | Narrativas | botão Biografia na ficha do NPC · botão Crônica na ficha da cidade (mês/ano/década) · R lista os relatos que circulam, com a confiança de cada um · botão O que a cidade acredita (crenças distorcidas e a distância do fato) · Esc fecha |
 | Jogar | I (ou botão Encarnar) toma o NPC selecionado; a faixa do topo pede a ação (só as que o motor aceita), "Deixar o motor decidir" ou Sair; sair faz o personagem desaparecer, não congelar; se o cliente reiniciou com o personagem ainda ativo, o HUD oferece "Sair do personagem anterior". `playerId` local em `user://player.cfg` (sem login ainda) |
-| Console de admin | só com `LW_ADMIN_TOKEN` (o `play.sh` já define): F8 ou botão Console · abas Mundo (pausa com motivo e teto, retomar, velocidade), Busca (abre a ficha) e Auditoria · a barra do topo avisa todos quando o mundo está pausado |
+| Console de admin | só com `LW_ADMIN_TOKEN` (o lançador já define): F8 ou botão Console · abas Mundo (pausa com motivo e teto, retomar, velocidade), Busca (abre a ficha) e Auditoria · a barra do topo avisa todos quando o mundo está pausado |
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
@@ -68,7 +81,7 @@ Delta enxuto (AD-172): num NPC já conhecido, `city: null` = mesma cidade, `appe
 | `Scenes/inspector_describe.gd`, `event_timeline.gd` | Texto e links de cada tipo de ficha; linha do tempo com Próximo e Assistir |
 | `tests/` | Testes headless (`bash scripts/client-test.sh [--filter arquivo::teste]`), com transporte falso |
 
-Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`).
+Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`); do menu, `--steps "menu;new;step:3;shot:…"` (`Scenes/menu/menu_steps.gd`).
 
 ## Desempenho
 

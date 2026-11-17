@@ -22,9 +22,12 @@ const SkyLife := preload("res://Scenes/sky_life.gd")
 const Ambience := preload("res://Scenes/ambience.gd")
 const DayCycle := preload("res://Scenes/day_cycle.gd")
 const EventTimeline := preload("res://Scenes/event_timeline.gd")
+const PauseMenu := preload("res://Scenes/pause_menu.gd")
+const FirstSteps := preload("res://Scenes/first_steps.gd")
+const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · N: próximo evento · V: assistir · Esc: fecha a janela da frente · PgUp/PgDn: andar · M: som"
-const NO_ADMIN := "Só o admin controla o tempo (ADR-0015): abra o cliente com LW_ADMIN_TOKEN (o play.sh já define)."
+const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · N: próximo evento · V: assistir · Esc: fecha a janela da frente ou abre a pausa · ?: ajuda · PgUp/PgDn: andar · M: som"
+const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
 
 
 static func build(app) -> void:
@@ -43,6 +46,7 @@ static func build(app) -> void:
 	_side(app, ui)
 	_windows(app, ui)
 	_bottom(app, ui)
+	_overlays(app, ui)
 
 
 static func _top_bar(app, ui: Control) -> void:
@@ -58,6 +62,12 @@ static func _top_bar(app, ui: Control) -> void:
 	app.breadcrumb.text = "Mundo"
 	app.breadcrumb.add_theme_font_size_override("font_size", 19)
 	bar.add_child(app.breadcrumb)
+	app.world_button = Button.new()
+	app.world_button.text = "◀ Mapa do mundo"
+	app.world_button.tooltip_text = "Sai da cidade e mostra o mundo todo"
+	app.world_button.visible = false
+	app.world_button.pressed.connect(func(): app.enter_scope("World", ""))
+	bar.add_child(app.world_button)
 	app.follow_label = Label.new()
 	app.follow_label.add_theme_color_override("font_color", Color("9fe0a8"))
 	bar.add_child(app.follow_label)
@@ -89,9 +99,15 @@ static func _top_bar(app, ui: Control) -> void:
 		console_button.text = "Console (F8)"
 		console_button.pressed.connect(func(): app._toggle_admin())
 		bar.add_child(console_button)
+	app.help_button = Button.new()
+	app.help_button.text = " ? "
+	app.help_button.tooltip_text = "Dicas e atalhos"
+	app.help_button.pressed.connect(func(): app.first_steps.toggle_help())
+	bar.add_child(app.help_button)
 	var menu_button := Button.new()
-	menu_button.text = "☰ Menu (F10)"
-	menu_button.pressed.connect(func(): app.menu_requested.emit())
+	menu_button.text = "☰ Menu (Esc)"
+	menu_button.tooltip_text = "Pausa, opções, voltar ao menu principal (F10) ou sair"
+	menu_button.pressed.connect(func(): app.pause_menu.toggle())
 	bar.add_child(menu_button)
 	app.banner = Label.new()
 	app.banner.visible = false
@@ -262,17 +278,31 @@ static func _bottom(app, ui: Control) -> void:
 	app.tooltip_label = Label.new()
 	app.tooltip.add_child(app.tooltip_label)
 	ui.add_child(app.tooltip)
-	var loading := ColorRect.new()
-	loading.color = Color("0d1420")
-	loading.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var loading_label := Label.new()
-	loading_label.text = "Conectando ao mundo…"
-	loading_label.add_theme_font_size_override("font_size", 30)
-	loading_label.set_anchors_preset(Control.PRESET_CENTER)
-	loading_label.position = Vector2(-170, -20)
-	loading.add_child(loading_label)
+	var loading := LoadingScreen.new()
 	ui.add_child(loading)
+	loading.set_heading("Entrando no mundo")
+	loading.set_stage(3)
 	app.loading = loading
+
+
+## Por cima de tudo: dicas dos primeiros passos, ajuda, menu de pausa e a cortina que abre suave ao entrar no mundo.
+static func _overlays(app, ui: Control) -> void:
+	app.first_steps = FirstSteps.new()
+	app.first_steps.app = app
+	app.first_steps.settings = app.settings
+	ui.add_child(app.first_steps)
+	app.pause_menu = PauseMenu.new()
+	app.pause_menu.app = app
+	app.pause_menu.menu_pressed.connect(func(): app.menu_requested.emit())
+	app.pause_menu.quit_pressed.connect(func(): app.quit_requested.emit())
+	app.pause_menu.help_pressed.connect(func(): app.first_steps.open_help())
+	ui.add_child(app.pause_menu)
+	app.curtain = ColorRect.new()
+	app.curtain.color = Color("0d1420")
+	app.curtain.set_anchors_preset(Control.PRESET_FULL_RECT)
+	app.curtain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	app.curtain.visible = false
+	ui.add_child(app.curtain)
 
 
 ## Cena 3D: mundo, câmera, sol, ambiente, céu, som e ciclo do dia.

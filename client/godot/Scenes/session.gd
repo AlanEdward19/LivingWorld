@@ -32,6 +32,7 @@ func on_snapshot(envelope: Dictionary) -> void:
 	if not first_snapshot:
 		first_snapshot = true
 		app.loading.visible = false
+		app.on_world_shown()
 		app.minimap.rebuild()
 		app.sky_life.build(Vector2(app.store.map_size))
 		app.rig.fit_to_map(maxi(app.store.map_size.x, app.store.map_size.y))
@@ -100,7 +101,7 @@ func on_connection(state: String, retry_in: float) -> void:
 		app.banner.text = "sem conexão — nova tentativa em %d s" % int(retry_in)
 		app.loading.visible = not first_snapshot
 		if not first_snapshot:
-			(app.loading.get_child(0) as Label).text = "Sem conexão com o servidor…\nnova tentativa em %d s" % int(retry_in)
+			app.loading.set_message("O mundo não está respondendo. Nova tentativa em %d s…" % int(retry_in))
 
 
 func enter_building(building_id: int) -> void:
