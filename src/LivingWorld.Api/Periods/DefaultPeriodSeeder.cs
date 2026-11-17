@@ -28,7 +28,7 @@ public static class DefaultPeriodSeeder
         new("cidade-media", "Cidade média", Width: 20, Height: 20, Seed: 2, InitialPopulation: 150, "Vila",
             "Lavradores e artesãos lado a lado: vizinhos, ofícios e conversa."),
         new("grande-metropole", "Grande metrópole", Width: 32, Height: 32, Seed: 3, InitialPopulation: 400, "Cidade",
-            "Centenas de vidas ao mesmo tempo, para quem gosta de observar multidões. O computador trabalha mais."),
+            "Centenas de vidas ao mesmo tempo, para quem gosta de observar multidões."),
     ];
 
     public static void SeedIfEmpty(IPeriodTemplateRepository repository)
