@@ -46,7 +46,6 @@ public sealed class MutualAidSystem : ISimulationSystem
         var water = new ResourceType(economy.WaterResourceId);
         long day = ctx.CurrentTick / world.CurrentDate.Calendar.HoursPerDay;
         _alms.Clear();
-        world.GrainReliefRequests.Clear(); // AD-182: os pedidos de hoje (a lavoura os serve neste tick)
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value))
         {
@@ -79,13 +78,6 @@ public sealed class MutualAidSystem : ISimulationSystem
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
             long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
             RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food, moneyBuysFood);
-            // AD-182 (08c item 148): a moeda não compra comida aqui (banca vazia ou ninguém que saiba comprar): depois dos parentes, a
-            // cidade pede socorro em grão, servido pela lavoura neste tick de dentro da ração do celeiro (GrainRelief)
-            if (!moneyBuysFood && world.FamilyRules.Pressure is { GrainReliefDays: > 0 } relief)
-            {
-                long missing = count * relief.GrainReliefDays - household.Stock.GetValueOrDefault(food);
-                if (missing > 0) world.GrainReliefRequests.Add((household, recipient, missing));
-            }
         }
 
         GiveRationedAlms(world, ctx);

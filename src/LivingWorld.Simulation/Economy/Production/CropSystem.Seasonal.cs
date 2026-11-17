@@ -68,11 +68,10 @@ public sealed partial class CropSystem
             else if (field.Status == CropStatus.Mature)
                 Harvest(world, ctx, ag, farm, field, workers, food, residents, farmsPerCity);
 
-            StockShop(world, ctx, econ, ag, farm, field, farms, residents, food);
+            StockShop(world, econ, ag, farm, field, farms, residents, food);
             if (monthStart)
                 SpoilStores(ctx, ag, farm, field, food);
         }
-        world.GrainReliefRequests.Clear(); // AD-182: o pedido que nenhuma fazenda serviu hoje não fica para amanhã
     }
 
     /// <summary>Fazendas em ordem de id, cada uma com o seu campo (criado em pousio na primeira vez).</summary>
@@ -242,7 +241,7 @@ public sealed partial class CropSystem
     /// <summary>A venda da fazenda é abastecida do celeiro (o próprio e, faltando, o das outras fazendas da cidade) até alguns
     /// dias de consumo de quem mora na cidade, dentro da capacidade do estoque.</summary>
     private static void StockShop(
-        WorldState world, TickContext ctx, EconomyRules econ, AgricultureRules ag, Workplace farm, CropBatch field,
+        WorldState world, EconomyRules econ, AgricultureRules ag, Workplace farm, CropBatch field,
         List<(Workplace Farm, CropBatch Field)> farms, Dictionary<CityId, long> residents, ResourceType food)
     {
         long capacity = econ.CapacityOf(food, farm.LocationType);
@@ -254,9 +253,7 @@ public sealed partial class CropSystem
         foreach (var (other, otherField) in farms)
             if (other.City == farm.City) cityBarn += otherField.Barn;
         long ration = Math.Max(1, cityBarn / DaysToNextHarvest(world, ag, field));
-        // AD-182 (08c item 148): a cidade tira primeiro, da ração do dia, o socorro em grão das casas carentes; a venda fica com o resto
-        ration -= LivingWorld.Simulation.Population.Family.GrainRelief.Serve(world, ctx, farm, field, food, ration);
-        // AD-182: a venda sabe que o celeiro está racionando (o vendedor reparte a compra; ver DearthSaleDays)
+        // AD-182 (08c item 148): a venda sabe que o celeiro está racionando (o vendedor reparte a compra; ver DearthSaleDays)
         farm.SetRationedSale(ag.DearthSaleDays > 0 && missing > ration);
         missing = Math.Min(missing, ration);
         if (missing <= 0) return;

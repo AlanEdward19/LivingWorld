@@ -7,15 +7,13 @@ using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
-using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Economy;
 
-/// <summary>AD-182 (08c item 148): na carestia o celeiro racionava certo até a colheita, mas a venda ia a quem pagava e a esmola em
-/// moeda não comprava na banca vazia. Agora a cidade compra do celeiro e socorre em grão a casa cuja moeda não compra, o vendedor
-/// reparte a compra e a semente do ano seguinte não vai à venda.</summary>
+/// <summary>AD-182 (08c item 148): na carestia o celeiro racionava certo até a colheita, mas a primeira casa a comprar levava a semana
+/// do pouco que saía no dia. Agora o vendedor reparte a compra e a semente do ano seguinte não vai à venda.</summary>
 public sealed class DearthReliefTests
 {
     private sealed class NoSink : IWorldEventSink
@@ -37,39 +35,6 @@ public sealed class DearthReliefTests
         long have = house.Stock.GetValueOrDefault(food);
         if (have > 0) house.Withdraw(food, have);
         return house;
-    }
-
-    [Fact]
-    public void The_city_buys_grain_from_the_barn_for_a_hungry_house_whose_coins_buy_nothing()
-    {
-        var (world, ctx, farm, field) = Village();
-        field.StoreBarn(10_000);
-        var house = EmptyHouse(world);
-        var food = new ResourceType(world.EconomyRules.FoodResourceId);
-        var city = world.FindCity(house.City)!;
-        city.CreditTreasury(new Money(100_000)); // o tesouro só enche na virada do mês
-        long barn = field.Barn, treasury = city.Treasury.Amount, farmCash = farm.Treasury.Amount;
-        world.GrainReliefRequests.Add((house, world.FindNpc(house.Head)!, 6));
-
-        long served = GrainRelief.Serve(world, ctx, farm, field, food, ration: 100);
-
-        long paid = treasury - city.Treasury.Amount;
-        Assert.True(served == 6 && house.Stock.GetValueOrDefault(food) == 6 && field.Barn == barn - 6 && paid > 0
-            && farm.Treasury.Amount == farmCash + paid, $"entregue {served}, celeiro {barn} → {field.Barn}, pago {paid}");
-    }
-
-    [Fact]
-    public void Grain_relief_comes_out_of_the_day_ration_and_never_beyond_it()
-    {
-        var (world, ctx, farm, field) = Village();
-        field.StoreBarn(10_000);
-        var house = EmptyHouse(world);
-        world.FindCity(house.City)!.CreditTreasury(new Money(100_000));
-        world.GrainReliefRequests.Add((house, world.FindNpc(house.Head)!, 1_000));
-
-        long served = GrainRelief.Serve(world, ctx, farm, field, new ResourceType(world.EconomyRules.FoodResourceId), ration: 40);
-
-        Assert.Equal(40, served);
     }
 
     /// <summary>Comprador com moeda farta e a casa vazia no mercado da fazenda; devolve a comida que a compra trouxe.</summary>

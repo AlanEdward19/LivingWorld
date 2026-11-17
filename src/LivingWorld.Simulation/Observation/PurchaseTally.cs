@@ -32,7 +32,7 @@ public sealed class PurchaseTally
     public long FirstBirthHeldBackMilli;
 
     // AD-182 (08c item 148): compras de comida cortadas à ração da carestia
-    public long FoodDearthCapped, GrainReliefUnits;
+    public long FoodDearthCapped;
 
     // Diagnóstico da hora de trabalho (só a sonda liga): o empregado na hora da rotina de trabalho, o que a decisão fez dela
     public static bool Diagnose;

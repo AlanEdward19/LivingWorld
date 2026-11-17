@@ -29,14 +29,19 @@ realismo** (08c): a notícia devia chegar por quem estava junto, por quem passa 
 Quem chega ao lugar, é de outra casa e tem idade de furtar pensa em levar pelo furto de sempre (AD-150, `Theft.Commit`,
 alvo `espolio`): ninguém da casa ali de guarda; o temperamento (peso de Furtar) contra a barreira — a fome a rebaixa
 (`NeedBarrier`), sem fome é a do furto planejado (`PlannedBarrier`), a dissuasão sobe as duas e cada pessoa acordada no lugar
-(até 3) soma `SeenBarrierPerWitness` (0,15) —; a chance é `TheftChancePm` (250‰) vezes a inclinação, no sorteio semeado.
+(até 3) soma `SeenBarrierPerWitness` (0,15) e, AD-182, o laço de quem passa com o morto soma `KnownDeadBarrier` (0,5) vezes o
+maior entre confiança e afeto (0–1): o que era de um conhecido não se leva —; a chance é `TheftChancePm` (250‰) vezes a
+inclinação, no sorteio semeado.
 O ladrão leva o que couber na carga (vai para casa com ele); a vítima é o chefe da casa dona; justiça, testemunhas e luta no
 flagrante como em todo furto.
 
 ## Estrago e conservação
-O perecível no chão estraga uma vez por mês na taxa da despensa (`SpoilagePerDayByResource` × `GroundSpoilagePm`, 1000‰),
-pelo mesmo `ResourceLost` (payload `espolio-<id>|recurso|unidades`). O que ninguém busca fica lá; a peça que vence no chão
-some com o item. Os testes de conservação somam despensas + `CarriedTotal` + `GroundTotal`.
+AD-182 (08c 156): uma vez por mês, cobrando só os dias que o espólio passou no chão (`CountDaysOnGround`), o perecível estraga
+na taxa da despensa vezes `GroundSpoilagePm` (3000‰: ao relento pega chuva e orvalho e fica ao alcance de rato, cão e ave) e a
+água se perde a `GroundWaterLossPerDayPm` (20‰/dia: evapora e vaza do recipiente largado; antes nunca se perdia); as duas
+crescem com o calor do lugar (`GroundQ10` 2 a cada 10 °C acima de 15 °C; o frio conserva). Pelo mesmo `ResourceLost`
+(payload `espolio-<id>|recurso|unidades`). A peça que vence no chão some com o item. Os testes de conservação somam despensas +
+`CarriedTotal` + `GroundTotal`. Medir o de antes: `LW_GROUND=old`.
 
 ## Medida (40 seeds × 15 anos, pareado com `LW_LEAVINGS=off`)
 28 espólios em 600 seed-anos (mais 11 mortes em casa com carga): 7 idas de busca, 19 recolhidos pela casa, 4 achados sem
@@ -44,6 +49,14 @@ dono, 5 furtados, nada estragado. Natalidade 1,005× (IC90 1,001–1,008), morta
 furtos 1,002×, 0 extinções; custo a 1.000 NPCs: tempo 0,991×, bytes 1,002×. Quase ninguém morre longe levando carga: o
 efeito no mundo é pequeno (08c item 155).
 
+## Exercício dos números (AD-182, 08c 155)
+A sonda `leavings-exercise` provoca a morte por acidente de um viajante longe de casa com carga a cada 60 dias (16 seeds × 8
+anos, ~70 mortes). Na vila de referência **todo** espólio cai a menos de 6 h de casa: `MaxFetchHours` (24 h) nunca limita e
+o estrago quase não age (recolhido em ~4 dias). Sem o laço: 74 espólios, 40 recolhidos pela casa (10 na hora), 4 achados, 26
+furtados (35%); com `KnownDeadBarrier`: 78, 45, 4, 24 (31%). O furto vem sobretudo de quem passa com fome nas carestias.
+`MaxFetchHours` e `MinFetcherAgeYears` não se exercitam sem viagens longas (cenário de duas vilas: pedido de issue no AD-182).
+
 ## Números sem fonte
-`MaxFetchHours` 24, `TheftChancePm` 250, `SeenBarrierPerWitness` 0,15, `GroundSpoilagePm` 1000 (no chão devia estragar mais)
-e `MinFetcherAgeYears` 12 são escolha do modelo, confiança baixa (precisam de conferência).
+`MaxFetchHours` 24, `TheftChancePm` 250, `SeenBarrierPerWitness` 0,15, `KnownDeadBarrier` 0,5, `GroundSpoilagePm` 3000,
+`GroundWaterLossPerDayPm` 20, `GroundQ10` 2 (a regra geral da biologia é 2–3) e `MinFetcherAgeYears` 12 são escolha do modelo,
+confiança baixa (precisam de conferência).

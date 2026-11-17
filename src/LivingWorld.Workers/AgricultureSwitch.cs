@@ -32,6 +32,7 @@ public static class AgricultureSwitch
         // AD-182 (08c item 148): olddearth = sem repartir a venda na carestia e com a semente à venda (o de antes); dearth=n troca os dias
         if (keys.Contains("olddearth")) ag = ag with { DearthSaleDays = 0, SeedKeptFromSale = false };
         if (Number("dearth") is { } dearth) ag = ag with { DearthSaleDays = (int)dearth };
+        if (keys.Contains("seedsale")) ag = ag with { SeedKeptFromSale = false };
         return ag;
     }
 

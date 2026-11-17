@@ -308,13 +308,18 @@ public class NatalitySystemTests
     private static bool CoupleWithEmptyPantryMeetsFloors(bool readsBody)
     {
         var (world, _) = ScenarioRunner.Create(3);
-        var mother = world.Npcs.OrderBy(n => n.Id.Value).First(n => n.IsAlive && n.Sex == Sex.Female && n.Spouse is not null && n.Household is not null);
+        // a relação do casal fundador ainda não cresceu no tick 0: só a despensa decide aqui
+        var rules = world.FamilyRules with { ConceptionRelationshipFloor = 0 };
+        var noFloor = rules with { ConceptionResourceFloor = new Dictionary<int, long>() };
+        // um casal que passa nos outros pisos (saúde, relação), para só a despensa decidir
+        var mother = world.Npcs.OrderBy(n => n.Id.Value).First(n => n.IsAlive && n.Sex == Sex.Female && n.Spouse is not null
+            && n.Household is not null && NatalitySystem.MeetsConceptionFloors(world, n, world.FindNpc(n.Spouse.Value)!, noFloor));
         var father = world.FindNpc(mother.Spouse!.Value)!;
         var home = world.FindHousehold(mother.Household!.Value)!;
         var food = new ResourceType(world.EconomyRules.FoodResourceId);
         if (home.Stock.GetValueOrDefault(food) > 0) home.Withdraw(food, home.Stock.GetValueOrDefault(food));
         Assert.True(world.PopulationRules.Fertility.Endocrine.Enabled);
-        return NatalitySystem.MeetsConceptionFloors(world, mother, father, world.FamilyRules with { ConceptionFloorReadsBody = readsBody });
+        return NatalitySystem.MeetsConceptionFloors(world, mother, father, rules with { ConceptionFloorReadsBody = readsBody });
     }
 
     [Fact]

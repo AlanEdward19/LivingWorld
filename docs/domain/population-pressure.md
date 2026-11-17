@@ -61,8 +61,7 @@ socorrida, em comida. A comida vem de parente **ou gente de afeto**, acima de 2 
 40 × 15 pareado: fome crítica 1,055× (IC90 0,90–1,20), mortes de fome 0,88×, mortalidade 0,99×, natalidade 0,979×
 (0,966–0,992: quem dá fica com a despensa curta, que adia o primeiro filho). Só a moeda que vê a banca, sem a comida
 do excedente, sobe a fome (1,03×; cortar também a moeda e a esmola nesse caso dava 1,10×, revertido). AD-182: moeda na mão de
-quem não sabe comprar (o marco de comprar do desenvolvimento) também não alimenta (`AidSeesWhoCanBuy`), e a casa cuja moeda não
-compra pede socorro em grão à cidade ([land-and-harvest](land-and-harvest.md)).
+quem não sabe comprar (o marco de comprar do desenvolvimento) também não alimenta (`AidSeesWhoCanBuy`): a casa é socorrida em comida.
 
 ## Esmola racionada
 O tesouro só enche na virada do mês (imposto do salário e dízimo, AD-140). A esmola do dia é repartida entre todos os

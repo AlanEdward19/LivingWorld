@@ -15,9 +15,9 @@
      casal novo não constrói casa (hospeda ou aluga). Terra, cerca e trabalho por célula de quintal ficam para a obra da família.
 163. **Meios iguais na fundação**: o pecúlio inicial é o mesmo para todos, então a faixa de riqueza só separa casas
      construídas depois (oficinas e obras). Época e tecnologia não entram na escolha do lote.
-164. **Fome caiu com a casa mais longe**: pareado 40 seeds × 15 anos, mortes de fome ×0,47 (IC90 0,29–0,64) e natalidade
-     ×1,02 (1,003–1,037), embora a distância casa→trabalho medida suba ~10–20% (17,9 × 15,4 na seed 1). Achar a causa (mais
-     casas com porta livre? aperto?) antes de atribuir ao traçado; sede crítica igual (×0,99, 0,97–1,02).
+164. ~~**Fome caiu com a casa mais longe**~~ (AD-182): não se repete na base do AD-182 (rua de verdade, AD-176): 40 × 15
+     `starvation-trace`, traçado ligado 49 mortes de fome, desligado 51, mesmo perfil (17 contra 22 jovens sós empregados, o
+     morto do 08c 149, corrigido na causa). Sem efeito a explicar, nada a corrigir no traçado.
 165. **Casa solitária de cidade nova**: com água em volta do largo, a primeira casa pode cair a mais de `AbsorptionRingCells`
      dos 3×3 da cidade sem gente e fica fora do limite (não é desenhada). A absorção encadeada só parte do limite existente.
 166. **Ruas sobre outra cidade**: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra

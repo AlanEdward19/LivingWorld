@@ -41,13 +41,14 @@ public class PreventiveCheckTests
     /// <summary>A configuração medida no AD-145 (o padrão do cenário deixa tudo desligado).</summary>
     private static readonly FamilyRules Measured = ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured };
 
-    private static WorldState World(FamilyRules? family = null, CityRules? cities = null)
+    private static WorldState World(FamilyRules? family = null, CityRules? cities = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogeny = null)
     {
         var world = new WorldState(
             Calendar, 3, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), economyCatalog: ScenarioRunner.DefaultEconomyCatalog,
-            familyRules: family ?? Measured, cityRules: cities);
+            familyRules: family ?? Measured, cityRules: cities, ontogenyRules: ontogeny);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(40);
         return world;
     }
@@ -161,7 +162,8 @@ public class PreventiveCheckTests
     /// banca ao lado; a moeda dele não alimenta, então a avó manda comida. Devolve a comida que chegou em 10 dias.</summary>
     private static long FoodSentToLoneTeenWhoCannotBuy(bool seesWhoCanBuy)
     {
-        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = seesWhoCanBuy } });
+        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = seesWhoCanBuy } },
+            ontogeny: LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
         var shop = new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 5, employees: [],
             stock: new Dictionary<ResourceType, long> { [Food] = 500 }, treasury: Money.Zero,
             prices: new Dictionary<ResourceType, long> { [Food] = 1 });

@@ -44,3 +44,18 @@ Ver `docs/decisions-log.md` (AD-149) e a linha `por_decada` do `demography-repor
 ## Ver também
 - [population-pressure.md](population-pressure.md) — freios preventivos que a terra cheia aciona
 - [household-provisioning.md](household-provisioning.md) — como a casa se abastece
+
+## A carestia (AD-182, 08c item 148)
+A quebra de colheita da seed 14 (AD-166) não acontece mais na base do AD-182; as carestias agora caem nas seeds 22, 26, 35,
+44, 70 e 71 (40 × 15). Medido na seed 26 (colheita do ano 4 pela metade): o celeiro tinha 16 mil unidades e soltava por dia
+o que dura até a colheita — e acabou um mês antes dela (690 unidades): **o racionamento estava certo**. Quem morria era quem
+não comprava: a primeira casa a chegar levava a semana inteira do pouco que saía no dia, a banca ficava vazia ao preço-teto
+(20) e as 20–25 casas carentes só tinham esmola em moeda.
+- **O vendedor reparte** (`AgricultureRules.DearthSaleDays`, 2): com o celeiro racionando, cada compra de comida leva no máximo
+  dois dias por morador da casa (a venda em pouca quantidade das cidades na carestia, contra o açambarcamento; precisa de
+  conferência). `Workplace.RationedSale` marca a venda que raciona.
+- **A semente não vai à venda** (`SeedKeptFromSale`): com o celeiro vazio, o dono guarda a semente do ano seguinte.
+- O preço já sobe com a escassez (`MarketPricingSystem`). Medir o de antes: `LW_AG=olddearth`.
+- **Tentado e retirado**: socorro em grão da cidade (o tesouro comprava do celeiro e entregava às casas cuja moeda não compra).
+  Por cima da ração do dia, adiantava o consumo e matava no fim da carestia (4,6× as mortes de fome); de dentro da ração, 2,5×
+  as mortes de fome e +38% de furtos (80 × 15). A causa não foi isolada (pedido de issue no AD-182).
