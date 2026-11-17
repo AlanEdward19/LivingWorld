@@ -67,10 +67,13 @@ public sealed class MutualAidSystem : ISimulationSystem
             ShareWithinHousehold(world, members, recipient, count * dailyCostPerPerson * RelieveDays, dailyCostPerPerson);
 
             long wallets = members.Sum(m => m.Wallet.Amount);
-            if (wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
+            // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
+            bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
+                                 || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
+            if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
-            long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
-            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food);
+            long deficit = count * dailyCostPerPerson * RelieveDays - (moneyBuysFood ? wallets : 0);
+            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food, moneyBuysFood);
         }
 
         GiveRationedAlms(world, ctx);
@@ -123,11 +126,31 @@ public sealed class MutualAidSystem : ISimulationSystem
         }
     }
 
+    /// <summary>Algum mercado a até <paramref name="reachHours"/> de caminho da casa tem comida em estoque com preço, e a casa não
+    /// está esperando para voltar a uma banca que achou vazia (AD-148). Só para casas carentes, uma vez por dia.</summary>
+    private static bool FoodForSaleWithin(WorldState world, Household household, ResourceType food, int reachHours)
+    {
+        if (world.NeedsRules.Provisioning.FoodStallRetryHours > 0 && world.CurrentDate.TotalHours < household.FoodStallRetryTick)
+            return false;
+        var markets = world.EconomyCatalog.MarketLocationTypeIds;
+        foreach (var market in world.Workplaces)
+        {
+            if (!markets.Contains(market.LocationType.Id) || market.Stock.GetValueOrDefault(food) <= 0
+                || !market.Prices.TryGetValue(food, out var price) || price <= 0) continue;
+            if (LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, household.Location, market.Location) <= reachHours)
+                return true;
+        }
+        return false;
+    }
+
     private void RelieveHousehold(
         WorldState world, TickContext ctx, Household household, List<Npc> members, Npc recipient,
-        long deficit, long dailyCostPerPerson, long unitPrice, long day, ResourceType food)
+        long deficit, long dailyCostPerPerson, long unitPrice, long day, ResourceType food, bool moneyBuysFood)
     {
         bool kinAid = world.FamilyRules.Pressure?.KinFoodAid == true;
+        // AD-166: quem socorre manda comida da despensa acima da reserva dela (parente ou gente de afeto)
+        bool surplusFood = world.FamilyRules.Pressure is { FoodAidFromSurplus: true };
+        int reserveDays = surplusFood ? world.FamilyRules.Pressure!.FoodAidReserveDays : HelperReserveDays;
         var memberIds = members.Select(m => m.Id).ToHashSet();
         var candidates = new SortedSet<NpcId>(Comparer<NpcId>.Create((a, b) => a.Value.CompareTo(b.Value)));
         foreach (var member in members)
@@ -160,7 +183,9 @@ public sealed class MutualAidSystem : ISimulationSystem
             considered++;
 
             long surplus = helper.Wallet.Amount - HelperReserve(world, helper, dailyCostPerPerson);
-            long spareFood = kinAid && kin && foodNeed > 0 ? SpareFood(world, helper, household, fedFrom, food) : 0;
+            long spareFood = foodNeed > 0 && (surplusFood || (kinAid && kin)) ? SpareFood(world, helper, household, fedFrom, food, reserveDays) : 0;
+            // AD-166: sem comida à venda, moeda dada não compra nada: só a comida conta
+            if (!moneyBuysFood) surplus = 0;
             if (surplus < dailyCostPerPerson && spareFood <= 0) continue;
 
             double altruism = helper.Personality.Altruism / 100.0;
@@ -198,7 +223,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
         }
 
-        if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
+        if (deficit <= 0 || !moneyBuysFood || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
         if (AlmsGiver(world, household) is not { } city) return;
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
@@ -219,12 +244,12 @@ public sealed class MutualAidSystem : ISimulationSystem
         if (parent.FatherId is { } f) into.Add(f);
     }
 
-    /// <summary>Comida que a casa do parente pode mandar hoje (AD-145): o que passa de <see cref="HelperReserveDays"/> dias dos
-    /// moradores dela. Uma remessa por casa de origem por dia; a própria casa necessitada não conta.</summary>
-    private static long SpareFood(WorldState world, Npc helper, Household needy, HashSet<HouseholdId> fedFrom, ResourceType food)
+    /// <summary>Comida que a casa de quem socorre pode mandar hoje (AD-145; AD-166 com a reserva da regra): o que passa de
+    /// <paramref name="reserveDays"/> dias dos moradores dela. Uma remessa por casa de origem por dia; a própria casa necessitada não conta.</summary>
+    private static long SpareFood(WorldState world, Npc helper, Household needy, HashSet<HouseholdId> fedFrom, ResourceType food, int reserveDays)
     {
         if (helper.Household is not { } id || id == needy.Id || fedFrom.Contains(id) || world.FindHousehold(id) is not { } origin) return 0;
-        return origin.Stock.GetValueOrDefault(food) - Math.Max(1, origin.Members.Count) * (long)HelperReserveDays;
+        return origin.Stock.GetValueOrDefault(food) - Math.Max(1, origin.Members.Count) * (long)reserveDays;
     }
 
     /// <summary>Esmola da cidade (AD-128), racionada (AD-145): a casa que continua sem um dia de compra na carteira depois de

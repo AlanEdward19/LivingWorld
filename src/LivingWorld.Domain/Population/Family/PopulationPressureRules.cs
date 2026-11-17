@@ -27,6 +27,24 @@ public sealed record PopulationPressureRules
     /// <summary>A esmola do dia é repartida entre os pedidos até o tesouro dividido pelos dias até a virada do mês.</summary>
     public bool RationedAlms { get; init; } = true;
 
+    /// <summary>AD-166 (08c item 148): a moeda só tira a casa da ajuda se compra comida — algum mercado a até
+    /// <see cref="AidMarketReachHours"/> de caminho tem comida à venda e a casa não acabou de achar a banca vazia. Na quebra de
+    /// colheita a banca esvazia e a casa com moeda e despensa vazia passa a ser socorrida, em comida.</summary>
+    public bool AidSeesFoodForSale { get; init; } = true;
+
+    /// <summary>Caminho (horas, ida) até onde o mercado conta para a ajuda. Bracton (séc. XIII): mercados a 6⅔ milhas, um terço
+    /// da jornada de 20 milhas (ir, negociar, voltar) — umas 3–4 h a pé [precisa de conferência].</summary>
+    public int AidMarketReachHours { get; init; } = 4;
+
+    /// <summary>AD-166: quem socorre (parente ou gente de afeto) manda comida da despensa da própria casa acima de
+    /// <see cref="FoodAidReserveDays"/> por morador. Antes só o parente mandava, e só acima de 14 dias, que despensa nenhuma
+    /// tinha (a meta da compra é de poucos dias): a ajuda em comida era zero.</summary>
+    public bool FoodAidFromSurplus { get; init; } = true;
+
+    /// <summary>Dias de comida por morador que a casa de quem socorre guarda para si antes de mandar comida: a meta da compra da
+    /// casa (2 dias, `ProvisionTargetDays`). Medido na seed 14: 3 dias deixava 433 furtos na quebra, 2 dias 352 (sem a carga, 394).</summary>
+    public int FoodAidReserveDays { get; init; } = 2;
+
     /// <summary>A compra completa a meta da despensa em vez de somar a meta por cima, e só se vai ao mercado pelo que se paga.</summary>
     public bool TopUpPurchases { get; init; } = true;
 
@@ -43,6 +61,7 @@ public sealed record PopulationPressureRules
     {
         if (MarriageMeansWeight is < 0 or > 1 || FirstBirthMeansWeight is < 0 or > 1) return "Pressure: peso dos meios fora de [0,1]";
         if (MarriageSavingsMonths <= 0 || MarriageEarnerShare is < 0 or > 1) return "Pressure: economias devem ser > 0 e trabalho em [0,1]";
+        if (AidMarketReachHours < 0 || FoodAidReserveDays < 0) return "Pressure: alcance do mercado e reserva da ajuda devem ser >= 0";
         return Holdings?.Validate() ?? Emigration.Validate();
     }
 }

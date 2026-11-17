@@ -291,7 +291,7 @@ public sealed partial class BehaviorDecisionSystem
                 AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Grief, -psyche.GriefWorkPenalty * mood.Grief);
                 AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Shame, -psyche.GriefWorkPenalty * psyche.ShameWithdrawal * mood.Shame);
                 break;
-            case ActionType.Idle:
+            case ActionType.Idle when mood.Grief > 0 && !(psyche.GriefYieldsToBody && BodyCallsBeyondIdle(ctx, economy)):
                 AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Grief, psyche.GriefIdleBonus * mood.Grief);
                 break;
             case ActionType.Socialize:
@@ -310,6 +310,11 @@ public sealed partial class BehaviorDecisionSystem
 
         return sum;
     }
+
+    /// <summary>AD-166: o corpo ou a casa pedem mais que ficar à toa: comer o que a despensa serve ou ir comprar valem acima do
+    /// valor de referência das ações sem necessidade. Aí o luto não puxa para o ócio (continua tirando do trabalho e do convívio).</summary>
+    private static bool BodyCallsBeyondIdle(DecisionContext ctx, EconomyRules economy) =>
+        EatUtilityOf(ctx, economy) > NonNeedBaselineUtility || BuyUtilityOf(ctx, economy) > NonNeedBaselineUtility;
 
     /// <summary>Um termo da vida interior: entra na soma de sempre, na ordem de sempre, e no grupo (Affect ou Pressure).</summary>
     private static void AddInner<TLens>(

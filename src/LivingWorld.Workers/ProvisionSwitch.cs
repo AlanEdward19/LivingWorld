@@ -23,6 +23,9 @@ public static class ProvisionSwitch
         // AD-165 (correções #13): LW_PULL=N troca a força humana sustentada puxando
         if (int.TryParse(Environment.GetEnvironmentVariable("LW_PULL"), System.Globalization.CultureInfo.InvariantCulture, out int pull))
         { rules = rules with { HumanPullN = pull }; changed = true; }
+        // AD-166 (correções #6): LW_FOOT_KG=N troca a carga a pé
+        if (int.TryParse(Environment.GetEnvironmentVariable("LW_FOOT_KG"), System.Globalization.CultureInfo.InvariantCulture, out int foot))
+        { rules = rules with { FootCarryKg = foot }; changed = true; }
         return changed ? rules : null;
     }
 
@@ -35,6 +38,13 @@ public static class ProvisionSwitch
         {
             var n = ScenarioRunner.DefaultNeedsRules;
             return n with { Psyche = n.Psyche with { FearTravelPenalty = fear } };
+        }
+        // AD-166: LW_GRIEF=old (sem luto por acidente/velhice e luto vencendo o comer), mourn (só o luto novo), yield (só o luto
+        // cedendo ao corpo)
+        if (Environment.GetEnvironmentVariable("LW_GRIEF") is { Length: > 0 } grief)
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Psyche = n.Psyche with { MournEveryDeath = grief == "mourn", GriefYieldsToBody = grief == "yield" } };
         }
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var keys = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet();
