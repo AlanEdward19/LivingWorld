@@ -9,7 +9,7 @@
 74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
 75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
 76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
-77. **Uma ida e volta inteira por carga que ficou** — AD-163, medido (40×100, sonda `TripProbe`): 0,6% das idas são cortadas pela
+77. ~~tratado no AD-157b~~ (a casa volta pelo resto: `LeftAtMarket`; 08c 147). **Uma ida e volta inteira por carga que ficou** — AD-163, medido (40×100, sonda `TripProbe`): 0,6% das idas são cortadas pela
     carga; a ida seguinte da casa vem em 120 h (mediana) contra 79 h depois de uma ida normal, 5,6% em 24 h contra 33,5%. A casa
     **não volta** pelo que ficou: defeito — a reposição precisa saber o que faltou (fatia da carga pessoal).
 78. ~~**Carregador de 30 kg**~~ (AD-161): fora da faixa — água na cabeça ~20 kg (Limpopo, UEA); sugerido 20 em correções.
