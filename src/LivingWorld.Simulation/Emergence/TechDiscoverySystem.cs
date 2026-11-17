@@ -1,5 +1,4 @@
 using System.Globalization;
-using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Emergence;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;

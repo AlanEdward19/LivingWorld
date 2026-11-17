@@ -12,8 +12,9 @@ namespace LivingWorld.Domain.Cities;
 /// <param name="DirtPm">Custo de andar na terra batida.</param>
 /// <param name="GravelPm">Custo de andar no cascalho.</param>
 /// <param name="StonePm">Custo de andar na pedra.</param>
-/// <param name="DetourPm">Custo extra (em células) de passar por um prédio solto: contornar.</param>
-/// <param name="OverPm">Custo extra (em células) de passar por casa colada a outra: escada, laje ou telhado.</param>
+/// <param name="DetourPm">Custo extra (milésimos de célula) de cada trecho de prédio solto na reta: contornar. 830 = a volta em
+/// grade de 8 vizinhos em torno de um obstáculo (2√2 − 2 células).</param>
+/// <param name="OverPm">Custo extra (milésimos de célula) de cada trecho de casas coladas na reta: escada, laje ou telhado.</param>
 /// <param name="HaulerOffRoadCells">Células sem caminho que o veículo de terra (trenó, padiola, carroça) aguenta na rota; mais
 /// que isso, a carga volta aos braços.</param>
 /// <param name="PavingDirtCells">Células de terra batida da cidade que pressionam a descobrir como calçar.</param>
@@ -47,8 +48,8 @@ public sealed record StreetRules(
     int DirtPm = 800,
     int GravelPm = 750,
     int StonePm = 700,
-    int DetourPm = 1000,
-    int OverPm = 2000,
+    int DetourPm = 830,
+    int OverPm = 1500,
     int HaulerOffRoadCells = 2,
     int PavingDirtCells = 12,
     long PavingPrototypeTicks = 720,

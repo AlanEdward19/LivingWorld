@@ -28,7 +28,7 @@ public class StreetRouteTests
     /// <summary>Trecho reto de 20 células secas (e a fileira de cima também, de terreno não mais pesado).</summary>
     private static (CellCoord A, CellCoord B) OpenPair(WorldState world)
     {
-        bool Dry(int x, int y) => !world.Map.CellAt(new CellCoord(x, y)).HasWater ;
+        bool Dry(int x, int y) => !world.Map.CellAt(new CellCoord(x, y)).HasWater;
         for (int y = world.Map.Height - 3; y > 2; y--)
             for (int x = 1; x + 21 < world.Map.Width; x++)
                 if (Enumerable.Range(x, 20).All(c => Dry(c, y) && Dry(c, y - 1))

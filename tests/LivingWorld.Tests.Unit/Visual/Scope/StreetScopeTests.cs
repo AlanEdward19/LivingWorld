@@ -1,6 +1,5 @@
 using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain.Behavior;
-using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Emergence;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;

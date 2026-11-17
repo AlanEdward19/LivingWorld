@@ -128,7 +128,8 @@ public static class ScaleScenarioFixture
                 (false, false) => null,
                 (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
-                    with { Streets = LivingWorld.Domain.Cities.StreetRules.Off },
+                    with
+                { Streets = LivingWorld.Domain.Cities.StreetRules.Off },
             },
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,

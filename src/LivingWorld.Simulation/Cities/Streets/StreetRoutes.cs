@@ -168,9 +168,22 @@ public static class StreetRoutes
         int w = map.Width, h = map.Height, n = w * h;
         var state = new StreetRouteState
         {
-            Map = map, W = w, H = h, Base = map.Cost.Base, AltWeight = map.Cost.AltitudeWeight,
-            Terrain = new double[n], Alt = new int[n], Water = new bool[n], Factor = new double[n], Net = new bool[n],
-            Owner = new int[n], Kind = new byte[n], Entry = new int[n], G = new double[n], Prev = new int[n], Seen = new int[n],
+            Map = map,
+            W = w,
+            H = h,
+            Base = map.Cost.Base,
+            AltWeight = map.Cost.AltitudeWeight,
+            Terrain = new double[n],
+            Alt = new int[n],
+            Water = new bool[n],
+            Factor = new double[n],
+            Net = new bool[n],
+            Owner = new int[n],
+            Kind = new byte[n],
+            Entry = new int[n],
+            G = new double[n],
+            Prev = new int[n],
+            Seen = new int[n],
         };
         double min = double.MaxValue;
         foreach (var cell in map.Cells)
@@ -330,7 +343,13 @@ public static class StreetRoutes
         }
         return new StreetRoute
         {
-            Cost = best.Cost + extraA + extraB, Water = best.Water, OffNet = best.OffNet, A = a, B = b, E = best.E, X = best.X,
+            Cost = best.Cost + extraA + extraB,
+            Water = best.Water,
+            OffNet = best.OffNet,
+            A = a,
+            B = b,
+            E = best.E,
+            X = best.X,
         };
     }
 
@@ -362,7 +381,7 @@ public static class StreetRoutes
         int sx = bx > ax ? 1 : -1, sy = by > ay ? 1 : -1;
         int x = ax, y = ay, water = 0, off = (state.Net[a] ? 0 : 1) + (state.Net[b] ? 0 : 1);
         double factor = state.Factor[a] + state.Factor[b];
-        int count = 2, overPm = 0;
+        int count = 2, overPm = 0, runKind = 0;
         int steps = dx + dy, error = dx - dy;
         dx *= 2; dy *= 2;
         for (int i = 1; i < steps; i++)
@@ -373,9 +392,11 @@ public static class StreetRoutes
             factor += state.Factor[c];
             count++;
             if (state.Water[c]) water++;
-            if (state.Kind[c] == 1) overPm += state.Rules.DetourPm;
-            else if (state.Kind[c] == 2) overPm += state.Rules.OverPm;
-            else if (!state.Net[c] && !state.Water[c]) off++;
+            // prédio no caminho: cada trecho seguido de prédio custa uma volta (o solto) ou uma subida por cima (o colado)
+            int kind = state.Kind[c];
+            if (kind != 0 && kind != runKind) overPm += kind == 1 ? state.Rules.DetourPm : state.Rules.OverPm;
+            runKind = kind;
+            if (kind == 0 && !state.Net[c] && !state.Water[c]) off++;
         }
         double cost = Movement(state, a, b) * (factor / count) + state.Base * overPm / 1000.0;
         return (cost, water, off);

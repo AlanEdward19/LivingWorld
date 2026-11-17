@@ -92,7 +92,8 @@ public static class CityStreets
             if (used[i])
                 result.Add(new StreetCellView(
                     city.Id, network.Cells[i], users[i] >= trod ? StreetSurface.Dirt : StreetSurface.Trail, users[i],
-                    network.IsMain[i], network.InSquare(i)) { Planned = true });
+                    network.IsMain[i], network.InSquare(i))
+                { Planned = true });
         return result;
     }
 

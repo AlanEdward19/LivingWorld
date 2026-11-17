@@ -27,7 +27,7 @@ internal static class PavingDecision
             if (ground.Works.Any(w => w.City == city.Id.Value)) continue; // uma obra por cidade por vez
             var best = PavingTechnique.BestSurface(world, city.Id);
             if (best == GroundSurface.None) continue;
-            TryRepair(world, ctx, city) ;
+            TryRepair(world, ctx, city);
             if (ground.Works.Any(w => w.City == city.Id.Value)) continue;
             TryPave(world, ctx, city, best);
         }
@@ -197,8 +197,16 @@ internal static class PavingDecision
         var ground = world.Ground!;
         var work = new PavingWork
         {
-            Id = ground.NextWorkId++, City = city.Id.Value, Surface = surface, Repair = repair, Cells = cells, HoursTotal = hours,
-            HoursLeft = hours, StartTick = ctx.CurrentTick, Payers = payers, Paid = stoneMoney,
+            Id = ground.NextWorkId++,
+            City = city.Id.Value,
+            Surface = surface,
+            Repair = repair,
+            Cells = cells,
+            HoursTotal = hours,
+            HoursLeft = hours,
+            StartTick = ctx.CurrentTick,
+            Payers = payers,
+            Paid = stoneMoney,
         };
         ground.Works.Add(work);
         work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,

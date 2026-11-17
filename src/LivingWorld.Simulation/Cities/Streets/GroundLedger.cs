@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using LivingWorld.Domain.Geography;
 
 namespace LivingWorld.Simulation.Cities.Streets;
@@ -100,8 +99,13 @@ public sealed class GroundLedger
                 if (_wear[i] != 0 || _passes[i] != 0 || _surface[i] != 0 || _paving[i] != 0)
                     rows.Add(new GroundCellRow
                     {
-                        X = i % Width, Y = i / Width, Wear = _wear[i], Passes = _passes[i], Surface = (GroundSurface)_surface[i],
-                        Paving = (GroundSurface)_paving[i], Condition = _condition[i],
+                        X = i % Width,
+                        Y = i / Width,
+                        Wear = _wear[i],
+                        Passes = _passes[i],
+                        Surface = (GroundSurface)_surface[i],
+                        Paving = (GroundSurface)_paving[i],
+                        Condition = _condition[i],
                     });
             return rows;
         }

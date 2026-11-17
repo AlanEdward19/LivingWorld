@@ -99,8 +99,12 @@ internal sealed record RunningWorldSamples(
         ground.SetSurface(paved, LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel);
         ground.Works.Add(new LivingWorld.Simulation.Cities.Streets.PavingWork
         {
-            Id = ground.NextWorkId++, City = city.Id.Value, Surface = LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel,
-            Cells = [ground.IndexOf(planned[1])], HoursTotal = 100_000, HoursLeft = 100_000,
+            Id = ground.NextWorkId++,
+            City = city.Id.Value,
+            Surface = LivingWorld.Simulation.Cities.Streets.GroundSurface.Gravel,
+            Cells = [ground.IndexOf(planned[1])],
+            HoursTotal = 100_000,
+            HoursLeft = 100_000,
         });
         ground.SurfaceVersion++;
     }

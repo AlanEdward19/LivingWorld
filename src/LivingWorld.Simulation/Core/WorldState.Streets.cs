@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using LivingWorld.Domain.Cities;
-using LivingWorld.Simulation.Cities.Streets;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Streets;
 
 namespace LivingWorld.Simulation.Core;
 

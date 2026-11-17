@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
