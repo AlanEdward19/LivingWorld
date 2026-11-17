@@ -17,9 +17,9 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 
 ## Rota (`Streets/StreetRoutes`)
 - Pontas na **soleira** do prédio onde a pessoa está (por ela se entra e sai). Duas opções, fica a mais rápida: a **reta** pelo
-  terreno (custo do mapa × passo médio das células, mais o contorno de cada prédio solto atravessado `DetourPm`, ou a subida
-  por cima do colado `OverPm`), ou **ir ao caminho mais perto**, seguir a **rede** (trilha+, A* de 8 vizinhos) e sair perto do
-  destino. Passo por superfície: sem caminho 1,00; trilha 0,85; terra 0,80; cascalho 0,75; pedra 0,70.
+  terreno (custo do mapa × passo médio das células, mais, por trecho de prédio atravessado, a volta em torno do solto
+  `DetourPm` = 2√2−2 célula ou a subida por cima do colado `OverPm`), ou **ir ao caminho mais perto**, seguir a **rede**
+  (trilha+, A* de 8 vizinhos) e sair perto do destino. Passo: sem caminho 1,00; trilha 0,85; terra 0,80; cascalho 0,75; pedra 0,70.
 - O tempo de toda viagem (trabalho, cama, mercado, água, ajuda mútua, pressão de tecnologia) sai da rota; o vau da invenção soma
   a água da rota. Cache por par origem–destino, refeito quando a rede (revisão) ou os obstáculos (mês) mudam.
 - **Veículo de terra** (AD-153) só leva carga se a rota tem até `HaulerOffRoadCells` células sem caminho; senão, braços.
@@ -30,8 +30,9 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
   hábil; nasce a tecnologia `paving` (espalha por vínculo, como a de mobilidade). Eixo de habilidade ≥ `StoneSkillAxis` → pedra.
 - **Decisão** (mensal): o trecho de terra mais passado vira obra se o tempo poupado em `PaybackYears` paga a mão de obra.
   Pagam as **casas de frente** (soleira no trecho) se todas podem; senão o **tesouro** (pavage).
-- **Material e mão de obra**: horas de assentar + buscar o material na fonte mais perto pela rota (cascalho do leito, pedra do
-  terreno `StoneTerrainId`); diaristas = adultos sem emprego da cidade, jornal pago por dia; sem diarista ou dinheiro, para.
+- **Material e mão de obra**: horas de assentar + buscar o material pela rota (`LoadsPerCell` idas e voltas): pedra comprada no
+  mercado que vende o recurso `StoneResourceId` (pedreira; estoque consumido, dinheiro ao caixa dela), ou, se o mundo não tem esse
+  recurso, do terreno `StoneTerrainId`; cascalho do leito (água). Diaristas = adultos sem emprego da cidade, jornal por dia.
 - **Manutenção**: a condição cai com o tempo e as passagens; abaixo de `RepairBelowPm` pede conserto; a zero, volta a terra.
 
 ## Acesso a toda casa
@@ -45,15 +46,15 @@ remediado; degraus 0–5 quando falta terra. Quintal: `Building.CroftCells`.
 
 ## Cidade-filha pela causa real
 O aglomerado que nasceu longe por falta de lote perto só funda cidade se, pela rota, quem mora nele gasta em média
-`FoundingCommuteHours` ou mais para o trabalho + o mercado. 10 anos, `default.json` seeds 1/2/3/7: filhas/fusões 15/8 (rua
-desligada 19/11; antes do traçado 26/19).
+`FoundingCommuteHours` ou mais para chegar ao que a mãe dá (largo ou mercado, o mais perto) + o trabalho fora do aglomerado.
+10 anos, `default.json` seeds 1/2/3/7: filhas/fusões 20/12 (rua desligada 19/11; antes do traçado 26/19).
 
 ## Contrato (só acréscimo)
 - `BuildingVisual.Lot.access`: `street|path|alley|stair|roof|none` (ausente sem a rua de verdade).
 - Camada `Roads` e `LivingScopeState.roads` (escopos Cidade e Mundo), delta `roadUpserts`/`roadRemoved` (chave = `cell`):
-  `StreetCellView(city, cell, surface: Trail|Dirt|Gravel|Paved, users, main, square)` + `wear`, `useBand` (0–4: <10, <30,
-  <100, <300, 300+ passagens/mês), `planned`, `condition?` (0–1000, calçado), `work?` = `{surface, progressPct, repair,
-  payer: treasury|frontage}`. `users` = passagens do último mês.
+  `StreetCellView(city, cell, surface, users, main, square)` + `wear`, `useBand` (0–4: <10, <30, <100, <300, 300+
+  passagens/mês), `planned`, `condition?` (0–1000, calçado), `work?` = `{surface, progressPct, repair, payer: treasury|
+  frontage}`. `surface` vai como número: 0 trilha, 1 terra batida, 2 cascalho, 3 pedra. `users` = passagens do último mês.
 - `NpcVisual.route?`: células da rota (soleira a soleira, pontas dentro do prédio) de quem viaja, e `routeArrivalTick?`.
   O cliente anda o boneco por elas entre o início da ação e a chegada; ausente = não viaja.
 
@@ -65,6 +66,11 @@ desligada 19/11; antes do traçado 26/19).
 - Calçamento pago por quem mora de frente e concessão de *pavage* nas cidades inglesas do séc. XIII em diante — média.
 - Escolhidos (sem fonte): horas por célula (40/120), viagens de material (4), equipe (6×8 h), retorno (10 anos), desgaste.
 - Fundação: 2 h de caminho, na ordem do orçamento diário de deslocamento (Marchetti, 1994, ~1 h/dia) — baixa.
+
+## Medido (AD-176)
+Vila de código, seeds 1/2/7, anos 1/10/20: chão trilha/terra 190/47 → 30/116 (seed 1; a rede se concentra), traçado usado 9–20%,
+trilhas fora do traçado 113–182, h casa→trabalho 1,46 → 1,16, casas sem rota 0. Com a tecnologia ligada, 1–3 obras de pedra em
+20 anos (8–23 células) e casa→trabalho 1,25 → 0,84 h. `cidade-media`: quase não há viagem para fora do prédio, nenhuma trilha.
 
 ## Medir
 `LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
