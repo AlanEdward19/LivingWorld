@@ -34,7 +34,11 @@ public static class PopulationSeeder
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
                 world, placementCity, count, householdCount, houseIds, composition),
             bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
-            householdsComposed: groups => composition = groups);
+            householdsComposed: groups =>
+            {
+                composition = groups;
+                Naming.PersonNaming.NameFounders(world, culture, groups); // AD-178: nome próprio e de família por casa
+            });
 
         Register(world, generated, houseIds);
     }

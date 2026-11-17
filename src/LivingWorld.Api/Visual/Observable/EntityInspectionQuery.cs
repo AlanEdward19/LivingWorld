@@ -105,10 +105,15 @@ public static class EntityInspectionQuery
     private sealed class Reader(WorldState world, ObservableContext ctx, BufferingWorldEventSink? sink)
     {
         private string? NpcName(long id) => world.FindNpc(new NpcId(id))?.Name ?? world.ColdArchive.Lookup(id)?.Name;
+
+        /// <summary>AD-178: a casa leva o nome de família do responsável ("casa dos Galmoren"); nome legado de uma palavra só
+        /// (mundo antigo) cai no "casa de npc-…" de antes.</summary>
+        private string? HouseName(long headId) => NpcName(headId) is not { } name ? null
+            : name.LastIndexOf(' ') is var cut and > 0 ? $"casa dos {name[(cut + 1)..]}" : $"casa de {name}";
         private EntityLink Person(string relation, long id) => new(relation, "npc", id.ToString(), NpcName(id));
         private EntityLink? Person(string relation, long? id) => id is { } v && v >= 0 ? Person(relation, v) : null;
         private EntityLink Home(string relation, long id) =>
-            new(relation, "household", id.ToString(), world.FindHousehold(new HouseholdId(id)) is { } h ? $"casa de {NpcName(h.Head.Value)}" : null);
+            new(relation, "household", id.ToString(), world.FindHousehold(new HouseholdId(id)) is { } h ? HouseName(h.Head.Value) : null);
         private EntityLink BuildingLink(string relation, long id) =>
             new(relation, "building", id.ToString(), world.FindBuilding(new BuildingId(id)) is { } b ? ctx.Names.BuildingType(b.BuildingTypeId) : null);
         private EntityLink WorkplaceLink(string relation, Workplace w) => new(relation, "workplace", w.Id.Value.ToString(), ctx.Names.LocationType(w.LocationType.Id));
@@ -146,8 +151,8 @@ public static class EntityInspectionQuery
             if (occupancy.TypeName is { } typeName) return typeName;
             if (workplace is not null && ctx.Names.LocationType(workplace.LocationType.Id) is { } place) return place;
             if (occupancy.HouseholdIds.Count > 0 && world.FindHousehold(new HouseholdId(occupancy.HouseholdIds[0])) is { } home
-                && NpcName(home.Head.Value) is { } head)
-                return $"casa de {head}";
+                && HouseName(home.Head.Value) is { } house)
+                return house;
             return occupancy.Function switch
             {
                 "workplace" or "dwelling,workplace" or "lodging,workplace" => $"oficina {id}",
@@ -278,7 +283,7 @@ public static class EntityInspectionQuery
             var links = Links(Person("head", home.Head.Value), CityLink("city", home.City),
                 home.Dwelling is { } d ? BuildingLink("dwelling", d.Value) : null);
             foreach (var member in home.Members) links.Add(Person("member", member.Value));
-            return new EntityInspection("household", id.ToString(), $"casa de {NpcName(home.Head.Value)}",
+            return new EntityInspection("household", id.ToString(), HouseName(home.Head.Value) ?? $"casa {id}",
                 new HouseholdEntityState(id, home.City.ToString(), home.Location, home.Head.Value,
                     new ValueList<long>(home.Members.Select(m => m.Value).ToArray()), home.Dwelling?.Value, home.IsHomeless, Stock(home.Stock)),
                 links, Events(e => e.HouseholdId == id));

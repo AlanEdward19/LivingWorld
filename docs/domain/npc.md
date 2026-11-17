@@ -20,6 +20,17 @@ pronto.
 | Profissão, classe social | Mudam com a vida; ver behavior.md |
 | Religião, facção | Podem ser abandonadas ou trocadas |
 
+**Nome (AD-178):** "próprio família" (`Name`; `GivenName`/`FamilyName` = antes/depois do último espaço, sem campo novo no
+snapshot). Cada cultura tem a sua fonologia, sorteada pelo RNG do mundo (`StreamFor("culture-naming", cultura)`): 9 das
+mesmas sílabas dos nomes de cidade, terminações feminina, masculina e de família, e o costume — linhagem (70% patrilinear),
+cônjuge que adota o nome da linhagem (50%), chance de homenagear um parente (15–50%). Regras: fundador nasce de família
+própria, a casa e as crianças levam o nome da linhagem do casal; recém-nascido de casal casado leva o da linhagem, fora do
+casamento o da mãe; o costume dá ao bebê o nome próprio de um avô/avó do mesmo sexo (de preferência morto) ou do pai morto
+antes do parto; órfão acolhido mantém o nome; materializado ganha nome novo; família autorada (cenário, jogador) mantém o
+escolhido; nunca dois vivos com o mesmo nome completo na casa. Cada pessoa sorteia num stream próprio não guardado: o
+resto do mundo não muda. Mundo salvo antes mantém o `npc-…`; filho de quem tem nome legado recebe um nome de família
+estável derivado do id do pai/mãe. A ficha da casa vira "casa dos <família>".
+
 ## Atributos
 
 **Físicos:** força, resistência, agilidade, saúde, fertilidade, longevidade, aparência,

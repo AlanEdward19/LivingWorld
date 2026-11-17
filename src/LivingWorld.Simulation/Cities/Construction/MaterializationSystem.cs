@@ -151,7 +151,7 @@ public sealed class MaterializationSystem : ISimulationSystem
             : default;
 
         var npc = new Npc(
-            id, $"npc-materialized-{id.Value}", sex, birthDate, culture, city.Location,
+            id, LivingWorld.Simulation.Population.Naming.PersonNaming.NameStranger(world, culture, sex, id), sex, birthDate, culture, city.Location,
             motherId: null, fatherId: null, household: null, health: (int)healthPerHead,
             personality: personality, profession: profession, currentLocation: city.Location,
             wallet: new Money(wealthPerHead), city: city.Id, materializedAtTick: ctx.CurrentTick);

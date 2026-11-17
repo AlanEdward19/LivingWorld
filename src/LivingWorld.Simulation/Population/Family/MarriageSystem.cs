@@ -37,6 +37,7 @@ public static class MarriageSystem
         BringDependents(world, ctx, previousB, spouseB, household);
         spouseA.Marry(spouseB.Id);
         spouseB.Marry(spouseA.Id);
+        LivingWorld.Simulation.Population.Naming.PersonNaming.OnMarriage(world, spouseA, spouseB); // AD-178: costume do nome
         BeginUnion(world, spouseA);
         BeginUnion(world, spouseB);
 

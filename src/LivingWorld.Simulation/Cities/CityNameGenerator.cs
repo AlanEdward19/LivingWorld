@@ -12,7 +12,7 @@ namespace LivingWorld.Simulation.Cities;
 /// sequência de <see cref="WorldState.NextCityId"/>.</summary>
 public static class CityNameGenerator
 {
-    private static readonly string[] Syllables =
+    internal static readonly string[] Syllables = // raiz comum: o nome das pessoas sai destas mesmas sílabas (AD-178)
     [
         "Al", "Bar", "Cor", "Dun", "El", "Fen", "Gal", "Hol", "Is", "Kar",
         "Lor", "Mor", "Nor", "Os", "Pel", "Qua", "Ren", "Sil", "Tor", "Ur", "Val", "Wyn",
