@@ -73,7 +73,23 @@
       },
       "Climate": {
         "isModeled": "boolean",
-        "payload": "null"
+        "payload": {
+          "month": "number",
+          "regions": [
+            {
+              "center": {
+                "x": "number",
+                "y": "number"
+              },
+              "cropYearFactorMilli": "number",
+              "drought": "boolean",
+              "regionId": "number",
+              "temperatureC": "number"
+            }
+          ],
+          "seasonIndex": "number",
+          "seasonKey": "string"
+        }
       },
       "Conflicts": {
         "isModeled": "boolean",
@@ -93,12 +109,41 @@
       }
     },
     "livingState": {
+      "animals": "[]",
+      "buildingStates": [
+        {
+          "buildingId": "number",
+          "buildingTypeId": "number",
+          "closed": "boolean",
+          "function": "string",
+          "householdIds": "[]",
+          "locationTypeId": "number",
+          "locationTypeName?": "string",
+          "ownerId?": "number",
+          "pantryUnits": "number",
+          "residentIds": "[]",
+          "stock": "[]",
+          "typeName?": "string",
+          "workerIds": "[]",
+          "workplaceId": "number"
+        }
+      ],
       "buildings": [
         {
           "buildingTypeId": "number",
           "cityId": {
             "value": "string"
           },
+          "floors": "number",
+          "groundFootprint": [
+            {
+              "cell": {
+                "x": "number",
+                "y": "number"
+              },
+              "material": "number"
+            }
+          ],
           "id": {
             "value": "number"
           },
@@ -106,19 +151,59 @@
             "x": "number",
             "y": "number"
           },
-          "orientation": "number"
+          "lodging?": {
+            "nightlyRate": "number",
+            "occupied": "number",
+            "rentPerMonth": "number",
+            "units": "number"
+          },
+          "orientation": "number",
+          "value": "number"
         }
       ],
       "cities": "[]",
+      "climate": {
+        "cropYearFactorMilli": "number",
+        "drought": "boolean",
+        "month": "number",
+        "regionId": "number",
+        "seasonIndex": "number",
+        "seasonKey": "string",
+        "temperatureC": "number"
+      },
+      "crops": [
+        {
+          "arableHectares": "number",
+          "expectedHarvest": "number",
+          "farmId": "number",
+          "fraction": "number",
+          "id": "number",
+          "ownerId?": "number",
+          "plot": {
+            "x": "number",
+            "y": "number"
+          },
+          "resourceId": "number",
+          "resourceName?": "string",
+          "sownHectares": "number",
+          "stage": "string",
+          "standing": "number",
+          "status": "string",
+          "thirsty": "boolean"
+        }
+      ],
       "events": "[]",
+      "faunaGroups": "[]",
       "indicators": [
         {
           "key": "string",
           "value": "number"
         }
       ],
+      "leavings": "[]",
       "npcs": [
         {
+          "actionStartedAtTick": "number",
           "city": {
             "value": "string"
           },
@@ -131,9 +216,44 @@
             "x": "number",
             "y": "number"
           },
+          "observable": {
+            "ageYears": "number",
+            "carried": "[]",
+            "dominantEmotion?": "string",
+            "emotions": {
+              "anger": "number",
+              "fear": "number",
+              "grief": "number",
+              "joy": "number",
+              "loneliness": "number",
+              "shame": "number"
+            },
+            "growthFraction": "number",
+            "heightCm": "number",
+            "held?": {
+              "designId": "number",
+              "itemId": "number"
+            },
+            "illness?": {
+              "bedridden": "boolean",
+              "diseaseId": "number",
+              "symptomatic": "boolean"
+            },
+            "lifeStage": "string",
+            "mourning": "boolean",
+            "name": "string",
+            "pregnancy?": {
+              "babies": "number",
+              "fraction": "number"
+            },
+            "professionId": "number",
+            "professionName?": "string",
+            "sex": "string"
+          },
           "relocationDestination": "null"
         }
       ],
+      "objects": "[]",
       "processes": [
         {
           "appearanceToken": "null",
@@ -148,6 +268,8 @@
           "progress": "number",
           "quality": "null",
           "remainingHours": "number",
+          "resourceId": "number",
+          "resourceName?": "string",
           "targetId": "number"
         }
       ]

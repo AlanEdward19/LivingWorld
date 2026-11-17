@@ -5,9 +5,58 @@
     "tick": "number"
   },
   "payload": {
+    "animalRemoved": [
+      "number"
+    ],
+    "animalUpserts": [
+      {
+        "carriesDisease": "boolean",
+        "energy": "number",
+        "id": "number",
+        "position": {
+          "x": "number",
+          "y": "number"
+        },
+        "predatorOf": "string",
+        "species": "string"
+      }
+    ],
     "buildingRemoved": [
       {
         "value": "number"
+      }
+    ],
+    "buildingStateRemoved": [
+      "number"
+    ],
+    "buildingStateUpserts": [
+      {
+        "buildingId": "number",
+        "buildingTypeId": "number",
+        "closed": "boolean",
+        "function": "string",
+        "householdIds": [
+          "number"
+        ],
+        "locationTypeId": "number",
+        "locationTypeName": "string",
+        "ownerId": "number",
+        "pantryUnits": "number",
+        "residentIds": [
+          "number"
+        ],
+        "stock": [
+          {
+            "quantity": "number",
+            "resourceId": "number",
+            "resourceName": "string"
+          }
+        ],
+        "typeName": "string",
+        "workerIds": [
+          "number"
+        ],
+        "workplaceId": "number"
       }
     ],
     "buildingUpserts": [
@@ -16,6 +65,16 @@
         "cityId": {
           "value": "string"
         },
+        "floors": "number",
+        "groundFootprint": [
+          {
+            "cell": {
+              "x": "number",
+              "y": "number"
+            },
+            "material": "number"
+          }
+        ],
         "id": {
           "value": "number"
         },
@@ -23,7 +82,14 @@
           "x": "number",
           "y": "number"
         },
-        "orientation": "number"
+        "lodging": {
+          "nightlyRate": "number",
+          "occupied": "number",
+          "rentPerMonth": "number",
+          "units": "number"
+        },
+        "orientation": "number",
+        "value": "number"
       }
     ],
     "cityRemoved": [
@@ -39,6 +105,17 @@
           "x": "number",
           "y": "number"
         },
+        "density": {
+          "actions": [
+            {
+              "action": "number",
+              "count": "number"
+            }
+          ],
+          "inside": "number",
+          "pooled": "number",
+          "temperatureC": "number"
+        },
         "foundedFromCityId": "null",
         "id": {
           "value": "string"
@@ -51,18 +128,106 @@
         "population": "number"
       }
     ],
+    "climate": {
+      "cropYearFactorMilli": "number",
+      "drought": "boolean",
+      "month": "number",
+      "regionId": "number",
+      "seasonIndex": "number",
+      "seasonKey": "string",
+      "temperatureC": "number"
+    },
+    "cropRemoved": [
+      "number"
+    ],
+    "cropUpserts": [
+      {
+        "arableHectares": "number",
+        "expectedHarvest": "number",
+        "farmId": "number",
+        "fraction": "number",
+        "id": "number",
+        "ownerId": "number",
+        "plot": {
+          "x": "number",
+          "y": "number"
+        },
+        "resourceId": "number",
+        "resourceName": "string",
+        "sownHectares": "number",
+        "stage": "string",
+        "standing": "number",
+        "status": "string",
+        "thirsty": "boolean"
+      }
+    ],
     "events": [
       {
+        "eventId": "number",
+        "involved": {
+          "amount": "number",
+          "authorId": "number",
+          "buildingId": "number",
+          "caseId": "number",
+          "cityId": "string",
+          "designId": "number",
+          "householdId": "number",
+          "leavingId": "number",
+          "otherId": "number",
+          "outcome": "string",
+          "recordOnly": "boolean",
+          "relatedIds": [
+            "number"
+          ],
+          "subjectId": "number",
+          "victimId": "number",
+          "workplaceId": "number"
+        },
         "kind": "number",
         "label": "string",
         "location": "null",
         "tick": "number"
       }
     ],
+    "faunaGroupRemoved": [
+      "string"
+    ],
+    "faunaGroupUpserts": [
+      {
+        "center": {
+          "x": "number",
+          "y": "number"
+        },
+        "count": "number",
+        "regionId": "number",
+        "species": "string"
+      }
+    ],
     "indicators": [
       {
         "key": "string",
         "value": "number"
+      }
+    ],
+    "leavingRemoved": [
+      "number"
+    ],
+    "leavingUpserts": [
+      {
+        "carrierId": "number",
+        "deadId": "number",
+        "designId": "number",
+        "fetcherId": "number",
+        "heirHouseholdId": "number",
+        "householdId": "number",
+        "id": "number",
+        "itemId": "number",
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "tick": "number",
+        "units": "number"
       }
     ],
     "moved": [
@@ -83,17 +248,84 @@
     ],
     "npcUpserts": [
       {
+        "actionStartedAtTick": "number",
+        "actionTarget": {
+          "id": "string",
+          "kind": "string"
+        },
         "city": "null",
         "currentAction?": "number",
         "extraordinary": "null",
         "id": {
           "value": "number"
         },
+        "intent": "number",
+        "intentTarget": "string",
         "location": {
           "x": "number",
           "y": "number"
         },
+        "observable": {
+          "ageYears": "number",
+          "carried": [
+            {
+              "quantity": "number",
+              "resourceId": "number",
+              "resourceName": "string"
+            }
+          ],
+          "dominantEmotion": "string",
+          "emotions": {
+            "anger": "number",
+            "fear": "number",
+            "grief": "number",
+            "joy": "number",
+            "loneliness": "number",
+            "shame": "number"
+          },
+          "growthFraction": "number",
+          "heightCm": "number",
+          "held": {
+            "designId": "number",
+            "itemId": "number"
+          },
+          "illness": {
+            "bedridden": "boolean",
+            "diseaseId": "number",
+            "symptomatic": "boolean"
+          },
+          "lifeStage": "string",
+          "mourning": "boolean",
+          "name": "string",
+          "pregnancy": {
+            "babies": "number",
+            "fraction": "number"
+          },
+          "professionId": "number",
+          "professionName": "string",
+          "sex": "string"
+        },
         "relocationDestination": "null"
+      }
+    ],
+    "objectRemoved": [
+      "number"
+    ],
+    "objectUpserts": [
+      {
+        "designId": "number",
+        "forSale": "boolean",
+        "holderId": "number",
+        "householdId": "number",
+        "id": "number",
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "marketId": "number",
+        "qualityFraction": "number",
+        "rootMaterial": "number",
+        "rootShape": "string"
       }
     ],
     "processRemoved": [
@@ -110,6 +342,8 @@
         "progress": "number",
         "quality": "null",
         "remainingHours": "null",
+        "resourceId": "number",
+        "resourceName": "string",
         "targetId": "number"
       }
     ],

@@ -206,7 +206,6 @@ public class CityProjectorTests
     [InlineData(VisualLayerId.Routes)]
     [InlineData(VisualLayerId.Migrations)]
     [InlineData(VisualLayerId.Conflicts)]
-    [InlineData(VisualLayerId.Climate)]
     public void Build_returns_not_yet_modeled_for_every_local_layer(VisualLayerId layerId)
     {
         var (world, city, _) = MakeWorldWithCity();

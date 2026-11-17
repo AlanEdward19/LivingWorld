@@ -18,6 +18,28 @@ namespace LivingWorld.Tests.Integration.Visual;
 [Collection(ApiEndpointCollection.Name)]
 public class ApiContractTests
 {
+    /// <summary>Um exemplo preenchido de cada registro do observável (AD-170), para a forma gravada mostrar todo campo.</summary>
+    private static class ObservableSample
+    {
+        private static readonly LivingWorld.Domain.Geography.CellCoord Cell = new(2, 3);
+        public static readonly LivingWorld.Api.Visual.Observable.NpcObservable Npc = new(
+            "Ana", "Female",
+            30, "Adult", 1, "lavrador", 165, 1, new(0.5, 1), new(3, true, true), new(0.6, 0, 0, 0, 0, 0.2), "grief", true,
+            [new LivingWorld.Api.Visual.Observable.CarriedVisual(1, 3, "trigo")], new(9, 77));
+        public static readonly LivingWorld.Api.Visual.Observable.CityDensityVisual Density = new(12, 30, [new(ActionType.Work, 5)], 14.5);
+        public static readonly LivingWorld.Api.Visual.Observable.EventInvolved Involved = new(
+            1, 2, 3, 4, [5L], 6, 7, 8, 9, 10, 11, "city", 12, "levou", true);
+        public static readonly LivingWorld.Api.Visual.Observable.BuildingStateVisual BuildingState = new(
+            7, -1, "casa", "dwelling,workplace", 1, 2, "fazenda", 3, [4L], [5L], [6L], [new(1, 20, "trigo")], 40, false);
+        public static readonly LivingWorld.Api.Visual.Observable.CropVisual Crop = new(
+            3, Cell, 1, "Growing", "growing", 0.4, false, 1.2, 2.5, 0, "trigo", 1, 2, 300);
+        public static readonly LivingWorld.Api.Visual.Observable.AnimalVisual Animal = new(5, "wolf", Cell, 80, false, "deer");
+        public static readonly LivingWorld.Api.Visual.Observable.FaunaGroupVisual FaunaGroup = new("wolf", 1, 4, Cell);
+        public static readonly LivingWorld.Api.Visual.Observable.LeavingVisual Leaving = new(6, Cell, 1, 2, 3, 4, 5, 9, 77, 7, 8);
+        public static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(9, 77, 2, 1, Cell, true, 3, "cylinder", 4, 0.9);
+        public static readonly LivingWorld.Api.Visual.Observable.ScopeClimateVisual Climate = new(6, 2, "summer", 21.5, 1, 900, false);
+    }
+
     private static readonly bool Record = Environment.GetEnvironmentVariable("LW_RECORD_CONTRACT") == "1";
     private readonly LivingWorldApiFactory _factory;
 
@@ -110,6 +132,9 @@ public class ApiContractTests
         foreach (var key in new[] { "household", "spouse", "motherId", "fatherId", "employer" })
             Optional(shape, key, Id());
         Optional(shape, "currentAction", "number");
+        // AD-170: prédio da casa e emprego legível só existem para quem tem casa com prédio e emprego
+        Optional(shape, "householdBuildingId", Id());
+        Optional(shape, "employment", new JsonObject { ["buildingId?"] = Id(), ["id"] = Id(), ["locationTypeId"] = "number", ["name?"] = "string", ["ownerId?"] = Id() });
         Optional(shape, "actionTarget", new JsonObject { ["id"] = "string", ["kind"] = "string" });
         Optional(shape, "rest", new JsonObject { ["blocked"] = "boolean", ["kind"] = "number", ["location"] = new JsonObject { ["x"] = "number", ["y"] = "number" }, ["quality"] = "number", ["remainingHours"] = "number" });
         Optional(shape, "food", new JsonObject { ["blocked"] = "boolean", ["preparation"] = "number", ["remainingHours"] = "number", ["resourceId"] = "number" });
@@ -200,16 +225,40 @@ public class ApiContractTests
         var city = new LivingWorld.Domain.Shared.CityId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
         var delta = new LivingWorld.Api.Visual.Scope.ScopeTickDelta(
             4,
-            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, null, null)],
+            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, null, null)
+            {
+                Observable = ObservableSample.Npc, ActionStartedAtTick = 3,
+                ActionTarget = new LivingWorld.Simulation.Cities.Queries.NpcActionTargetDto("workplace", "1"), Intent = ActionType.Work,
+                IntentTarget = "workplace:1",
+            }],
             [npc],
-            [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2))],
+            [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2))
+                { Density = ObservableSample.Density }],
             [city],
-            [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(7), city, -1, cell, 90)],
+            [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(7), city, -1, cell, 90)
+                { Floors = 2, GroundFootprint = [new LivingWorld.Domain.Cities.Buildings.FootprintCell(cell, LivingWorld.Domain.Cities.Buildings.BuildingMaterial.Door)],
+                  Value = 100, Lodging = new LivingWorld.Api.Visual.Projection.LodgingMarker(2, 1, 30, 2) }],
             [new LivingWorld.Domain.Shared.BuildingId(7)],
-            [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed")],
+            [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed") { ResourceId = 1, ResourceName = "trigo" }],
             [1L],
             [new LivingWorld.Api.Visual.Scope.IndicatorUpdate("population", 10)],
-            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)]);
+            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)
+                { Involved = ObservableSample.Involved, EventId = 12 }])
+        {
+            BuildingStateUpserts = [ObservableSample.BuildingState],
+            BuildingStateRemoved = [7L],
+            CropUpserts = [ObservableSample.Crop],
+            CropRemoved = [3L],
+            AnimalUpserts = [ObservableSample.Animal],
+            AnimalRemoved = [5L],
+            FaunaGroupUpserts = [ObservableSample.FaunaGroup],
+            FaunaGroupRemoved = ["wolf:1"],
+            LeavingUpserts = [ObservableSample.Leaving],
+            LeavingRemoved = [6L],
+            ObjectUpserts = [ObservableSample.Object],
+            ObjectRemoved = [9L],
+            Climate = ObservableSample.Climate,
+        };
         var occupant = new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null);
         var world = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, delta);
         var interior = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(
@@ -220,6 +269,36 @@ public class ApiContractTests
         AssertMatchesContract("shape.visual-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(world, options))));
         AssertMatchesContract("shape.interior-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(interior, options))));
     }
+
+    /// <summary>AD-170: ficha genérica <c>GET /entities/{kind}/{id}</c> por tipo, no mundo canônico (o estado tem forma por tipo).</summary>
+    [Theory]
+    [InlineData("npc")]
+    [InlineData("building")]
+    [InlineData("city")]
+    [InlineData("household")]
+    public async Task Entity_inspection_shapes_match_the_committed_contract(string kind)
+    {
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        var home = world.Households.First(h => h.Dwelling is not null && !h.IsEmpty);
+        string id = kind switch
+        {
+            "npc" => home.Members[0].Value.ToString(),
+            "building" => home.Dwelling!.Value.Value.ToString(),
+            "city" => world.ActiveCities().First().Id.ToString(),
+            _ => home.Id.Value.ToString(),
+        };
+
+        var response = await _factory.CreateClient().GetAsync($"/entities/{kind}/{id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
+        shape["recentEvents"] = new JsonArray(EventViewShape());
+        AssertMatchesContract($"shape.entity-{kind}.json", shape);
+    }
+
+    private static JsonNode EventViewShape() => ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(
+        new LivingWorld.Api.Visual.Observable.EntityEventView(4, 12, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento",
+            new LivingWorld.Domain.Geography.CellCoord(1, 2), ObservableSample.Involved),
+        new JsonSerializerOptions(JsonSerializerDefaults.Web))))!;
 
     /// <summary>Estrutura sem valores: objeto → propriedades ordenadas; lista → forma do primeiro elemento
     /// ("[]" quando vazia); folha → tipo JSON. Dois mundos diferentes têm a mesma forma.</summary>
@@ -250,6 +329,19 @@ public class ApiContractTests
         return result;
     }
 
+    /// <summary>AD-170: campos do observável que só vêm quando existem (a gravação do mundo canônico os vê nulos).</summary>
+    private static readonly (string Key, Func<JsonNode> Typed)[] ObservableOptionals =
+    [
+        ("intent", () => "number"), ("intentTarget", () => "string"), ("professionName", () => "string"),
+        ("actionTarget", () => new JsonObject { ["id"] = "string", ["kind"] = "string" }),
+        ("pregnancy", () => new JsonObject { ["babies"] = "number", ["fraction"] = "number" }),
+        ("illness", () => new JsonObject { ["bedridden"] = "boolean", ["diseaseId"] = "number", ["symptomatic"] = "boolean" }),
+        ("held", () => new JsonObject { ["designId"] = "number", ["itemId"] = "number" }),
+        ("dominantEmotion", () => "string"), ("typeName", () => "string"), ("locationTypeName", () => "string"),
+        ("workplaceId", () => "number"), ("locationTypeId", () => "number"), ("ownerId", () => "number"), ("treasuryCents", () => "number"),
+        ("resourceName", () => "string"), ("farmId", () => "number"), ("resourceId", () => "number"),
+    ];
+
     /// <summary>Campos que a gravação viu nulos mas que têm forma conhecida quando preenchidos: viram opcionais tipados em qualquer
     /// profundidade (ex.: `action` do diretório e dos deltas de interior, `lodging` dos prédios).</summary>
     private static readonly Dictionary<string, (string Key, Func<JsonNode> Typed)[]> TypedOptionals = new()
@@ -257,10 +349,15 @@ public class ApiContractTests
         ["shape.npc-directory.json"] = [("action", () => "number")],
         ["shape.interior-delta.json"] = [("action", () => "number")],
         ["shape.visual-delta.json"] = [("currentAction", () => "number")],
+        ["shape.world-subscribe.json"] = ObservableOptionals,
+        ["shape.entity-npc.json"] = ObservableOptionals,
+        ["shape.entity-building.json"] = ObservableOptionals,
         ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" }),
             // Indicadores sem fonte (AD-123): sempre nulos hoje; quando #118/#122/#124 derem fonte viram número.
-            ("security", () => "number"), ("education", () => "number"), ("infrastructure", () => "number")],
+            ("security", () => "number"), ("education", () => "number"), ("infrastructure", () => "number"),
+            .. ObservableOptionals],
     };
+
 
     private static void ApplyTypedOptionals(string file, JsonNode node)
     {

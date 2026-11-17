@@ -63,6 +63,14 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.Rest)] = (dto, npc, world) => Equals(dto.Rest, RestPresentation.Of(world, npc)),
         [nameof(NpcInspectionDto.Appearance)] = (dto, npc, _) => Equals(dto.Appearance, npc.Appearance),
         [nameof(NpcInspectionDto.Food)] = (dto, npc, world) => Equals(dto.Food, FoodPresentation.Of(world, npc)),
+        // AD-170: filhos vivos, prédio da casa e emprego legível, derivados do mundo sem reler o DTO
+        [nameof(NpcInspectionDto.ChildIds)] = (dto, npc, world) => dto.ChildIds!.SequenceEqual(world.Npcs
+            .Where(c => c.IsAlive && (c.MotherId == npc.Id || c.FatherId == npc.Id)).Select(c => c.Id).OrderBy(c => c.Value)),
+        [nameof(NpcInspectionDto.HouseholdBuildingId)] = (dto, npc, world) =>
+            dto.HouseholdBuildingId == world.Households.FirstOrDefault(h => h.Id == npc.Household)?.Dwelling,
+        [nameof(NpcInspectionDto.Employment)] = (dto, npc, world) =>
+            dto.Employment?.Id == npc.Employer
+            && dto.Employment?.BuildingId == world.Workplaces.FirstOrDefault(w => w.Id == npc.Employer)?.Building,
         [nameof(NpcInspectionDto.CognitionTrace)] = (dto, npc, world) =>
             dto.CognitionTrace.SequenceEqual(world.CognitionLog.RecentEntries(npc.Id, int.MaxValue)),
     };
