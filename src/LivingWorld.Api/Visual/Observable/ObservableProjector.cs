@@ -106,7 +106,8 @@ public static class ObservableProjector
         string sex = npc.Sex.ToString();
         string lifeStage = world.LifeStageRules.LifeStageOf(age).ToString();
         string? profession = ctx.Names.Profession(npc.Profession.Id);
-        if (previous is not null && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
+        bool mourning = PsycheMechanic.Mourns(affect); // AD-183: o critério do motor, não um limiar de tela
+        if (previous is not null && previous.Mourning == mourning && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
             && ReferenceEquals(previous.Held, held) && ReferenceEquals(previous.Illness, illness)
             && ReferenceEquals(previous.Pregnancy, pregnancy) && previous.AgeYears == age && previous.HeightCm == heightCm
             && previous.GrowthFraction == growth && previous.ProfessionId == npc.Profession.Id && previous.Name == npc.Name
@@ -114,7 +115,7 @@ public static class ObservableProjector
             return previous;
         return new NpcObservable(
             npc.Name, sex, age, lifeStage, npc.Profession.Id, profession, heightCm, growth,
-            pregnancy, illness, emotions, Dominant(emotions), emotions.Grief >= 0.1, carried, held);
+            pregnancy, illness, emotions, Dominant(emotions), mourning, carried, held);
     }
 
     private static IReadOnlyList<CarriedVisual> CarriedOf(ObservableContext ctx, Npc npc, IReadOnlyList<CarriedVisual>? previous)

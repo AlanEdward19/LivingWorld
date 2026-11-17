@@ -254,17 +254,24 @@ public sealed class CourtshipSystem : ISimulationSystem
 
         var aToB = world.Relationships.GetValueOrDefault(new RelationshipKey(seeker.Id, candidate.Id));
         var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
-        // cada um tem de querer o outro (AD-136)
-        double wants = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
-        double wanted = Preference(candidate, seeker, bToA, familyRules, populationRules, now);
+        // cada um tem de querer o outro (AD-136); AD-183: cada um pesa o nome do outro (fama da linhagem) e, se a regra manda, o
+        // mesmo nome de família sem ascendente comum conhecido, como na escolha
+        long tick = now.TotalHours;
+        double wants = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * RegardSignal(world, candidate, tick);
+        double wanted = Preference(candidate, seeker, bToA, familyRules, populationRules, now) * RegardSignal(world, seeker, tick);
         double seekerThreshold = ThresholdOf(world, seeker), candidateThreshold = ThresholdOf(world, candidate);
-        if (wants < seekerThreshold || wanted < candidateThreshold)
+        double name = familyRules.Names.NameSignalOnAcceptance ? NameSignal(world, seeker, candidate, familyRules, lineage) : 1;
+        if (wants * name < seekerThreshold || wanted * name < candidateThreshold)
         {
+            var why = wants >= seekerThreshold && wanted >= candidateThreshold
+                ? CourtshipRejectionReason.MesmoNome : CourtshipRejectionReason.SemAfinidade;
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
-                $"{CourtshipRejectionReason.SemAfinidade}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
+                $"{why}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
             return;
         }
+        wants *= name;
+        wanted *= name;
 
         // AD-145: os dois se querem, mas cada um pesa se o casal tem com o que montar casa (trabalho, economias)
         if (wants * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant) < seekerThreshold
@@ -297,6 +304,15 @@ public sealed class CourtshipSystem : ISimulationSystem
 
         var dueDate = world.CurrentDate.AddDays(familyRules.CourtshipDurationDays);
         ctx.ScheduleEvent(dueDate.TotalHours, SystemName, OrderedPairPayload(a.Id, b.Id));
+    }
+
+    /// <summary>AD-183: o nome do outro na preferência, ×(1 + peso × nome), nome = boa fama menos má fama vistas (−1..1), cada uma
+    /// com a da linhagem na cidade. Ninguém quer casar na casa do ladrão; a casa do fundador é bom partido.</summary>
+    internal static double RegardSignal(WorldState world, Npc target, long now)
+    {
+        double gain = world.FamilyRules.Names.ReputationCourtshipGain;
+        if (gain <= 0 || (world.Honor is null && !world.CrimeOn)) return 1;
+        return Math.Max(0, 1 + gain * LivingWorld.Simulation.Population.Naming.Honor.RegardOf(world, target, now));
     }
 
     /// <summary>AD-178: multiplicador da preferência quando os dois levam o mesmo nome de família sem ascendente comum conhecido.</summary>
@@ -334,11 +350,13 @@ public sealed class CourtshipSystem : ISimulationSystem
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
             // AD-178: o mesmo nome de família, onde a genealogia não alcança, é tomado por sinal de parentesco
             double nameSignal = NameSignal(world, seeker, candidate, familyRules, lineage);
-            double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * nameSignal;
+            double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * nameSignal
+                * RegardSignal(world, candidate, now.TotalHours);
             if (score > bestScore) (bestScore, best) = (score, candidate);
             // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
             double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * RegardSignal(world, seeker, now.TotalHours)
+                    * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
                     >= ThresholdOf(world, candidate)
                 && ready > bestAcceptingScore)
                 (bestAcceptingScore, bestAccepting) = (ready, candidate);

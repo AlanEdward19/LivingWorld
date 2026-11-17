@@ -24,7 +24,12 @@ public static class EventInvolvementReader
             WorldEventKind.Marriage or WorldEventKind.CourtshipStarted or WorldEventKind.AffairStarted
                 => new(SubjectId: L(0), OtherId: L(1)),
             WorldEventKind.SupportPaid => new(SubjectId: L(0), OtherId: L(1), Amount: L(3), RelatedIds: Ids(L(2))),
-            WorldEventKind.AidGiven => new(SubjectId: L(0), OtherId: L(1), Amount: L(2)),
+            WorldEventKind.AidGiven => new(SubjectId: L(0), OtherId: L(1), Amount: L(2), Motive: S(4)),
+            // AD-183: os motivos do nome que o motor grava no evento
+            WorldEventKind.CourtshipRejected => new(SubjectId: L(1), OtherId: L(2), Outcome: S(0),
+                Motive: S(0) == "MesmoNome" ? "mesmo-nome" : null),
+            WorldEventKind.EstateSettled => new(SubjectId: L(0), OtherId: L(5), Amount: L(6), Motive: L(5) is null ? null : "xara"),
+            WorldEventKind.SettlementFounded => new(SubjectId: L(2), CityId: S(0), Outcome: S(3), Motive: L(2) is null ? null : "fundador"),
             WorldEventKind.TheftCommitted => new(AuthorId: L(0), VictimId: L(1), Amount: L(6), Outcome: S(7), CaseId: L(9),
                 RecordOnly: ChildVictim(1)),
             WorldEventKind.TheftDiscovered => new(AuthorId: L(0), VictimId: L(1), Amount: L(2), Outcome: S(3)),
@@ -37,7 +42,7 @@ public static class EventInvolvementReader
                 RecordOnly: S(3) == "crianca" || ChildVictim(1)),
             WorldEventKind.KidnappingEnded => new(VictimId: L(0), AuthorId: L(1), Outcome: S(2), Amount: L(4), CaseId: L(5),
                 RecordOnly: ChildVictim(0)),
-            WorldEventKind.CrimeReported => new(SubjectId: L(0), AuthorId: L(1), CaseId: L(2), Outcome: S(3)),
+            WorldEventKind.CrimeReported => new(SubjectId: L(0), AuthorId: L(1), CaseId: L(2), Outcome: S(3), Motive: S(5)),
             WorldEventKind.Verdict => new(AuthorId: L(0), VictimId: L(1), CaseId: L(2), Amount: L(6),
                 Outcome: S(4) is { } verdict ? $"{verdict}:{S(5)}" : null),
             WorldEventKind.Banished => new(SubjectId: L(0), CaseId: L(1), Outcome: S(3)),

@@ -20,22 +20,8 @@ pronto.
 | Profissão, classe social | Mudam com a vida; ver behavior.md |
 | Religião, facção | Podem ser abandonadas ou trocadas |
 
-**Nome (AD-178):** "próprio família" (`Name`; `GivenName`/`FamilyName` = antes/depois do último espaço, sem campo novo no
-snapshot). Cada cultura tem a sua fonologia, sorteada pelo RNG do mundo (`StreamFor("culture-naming", cultura)`): 9 das
-mesmas sílabas dos nomes de cidade, terminações feminina, masculina e de família, e o costume — linhagem (70% patrilinear),
-cônjuge que adota o nome da linhagem (50%), chance de homenagear um parente (15–50%). Regras: fundador nasce de família
-própria, a casa e as crianças levam o nome da linhagem do casal; recém-nascido de casal casado leva o da linhagem, fora do
-casamento o da mãe; o costume dá ao bebê o nome próprio de um avô/avó do mesmo sexo (de preferência morto) ou do pai morto
-antes do parto; órfão acolhido mantém o nome; materializado ganha nome novo; família autorada (cenário, jogador) mantém o
-escolhido; sem homônimo vivo na casa. Mundo salvo antes mantém o `npc-…` (filho dele ganha família estável pelo id do pai/mãe).
-Ficha: "casa dos <família>". A cidade leva nome da língua da cultura que a funda (sílabas e sufixo de lugar dela; com o
-costume, 40% das culturas, a filha herda a primeira sílaba da mãe).
-
-**O nome pesa (`FamilyRules.Names`, `LW_NAMES` nos Workers):** xará = mesmo sexo e nome próprio de pai/mãe ou avô/avó.
-Na ajuda mútua o xará socorre com +50% de chance e a linhagem (mesmo nome de família na cidade) é chamada com proximidade
-0,3; o xará enluta o homenageado (luto de amigo ×0,6) e herda 10% da carteira dele antes da partilha; no namoro, o mesmo nome
-de família sem ascendente comum conhecido corta a preferência pela metade; a má fama do pior da linhagem na cidade respinga
-×0,25 na suspeita, na troca de culpado e no crédito. Quem troca de nome ao casar passa à linhagem do cônjuge.
+**Nome (AD-178, AD-183):** "próprio família", pela língua e o costume da cultura; o nome pesa na ajuda, no luto, no legado,
+no namoro e na fama (boa e má) da linhagem, e a cidade-filha registra quem a fundou. Ver [names.md](names.md).
 
 ## Atributos
 
@@ -93,6 +79,7 @@ cai depois dos 55. Na vila padrão: ~6 aos 10 anos, ~28 aos 15, ~48 aos 20, ~77 
 | Idoso | Físico decai, prestígio e conhecimento sobem; ensina, lidera, transmite herança |
 
 ## Ver também
+- [names.md](names.md) — nome, linhagem, honra e fundador
 - [behavior.md](behavior.md) — como esses números viram decisão
 - [genetics-and-family.md](genetics-and-family.md) — o que é herdado e o que é ambiental
 - [memory.md](memory.md) — o que o NPC guarda do que viveu

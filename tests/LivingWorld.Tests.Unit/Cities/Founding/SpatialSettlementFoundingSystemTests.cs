@@ -296,6 +296,38 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(newCity.Id, head.City);
     }
 
+    /// <summary>AD-183: quem lidera a saída fica registrado como fundador, a fundação vai ao log com ele e o feito vira boa fama
+    /// dele (que respinga na linhagem).</summary>
+    [Fact]
+    public void HandleEvent_records_the_founder_logs_the_founding_and_honors_him()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var map = MapGenerator.Generate(911, width: 300, height: 300, regionSize: 300, TinyCatalog, TinyCostWeights, []).Value!;
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, 911, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules, cityRules: rules,
+            familyRules: ScenarioRunner.DefaultFamilyRules);
+        var (motherCity, overflow) = SeedOneOverflowBuilding(world);
+        var head = new Npc(new NpcId(1), "Tor Galmor", Sex.Male, world.CurrentDate.AddYears(-35), ScenarioRunner.DefaultCulture,
+            overflow.Position!.Value, motherId: null, fatherId: null, household: null, health: 80, personality: NeutralPersonality,
+            profession: ProfessionType.None, currentLocation: overflow.Position!.Value, city: motherCity.Id);
+        world.AddNpc(head);
+        world.AddHousehold(new Household(new HouseholdId(1), overflow.Position!.Value, head.Id, [head.Id], city: motherCity.Id));
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var sink = new RecordingSink();
+
+        system.HandleEvent(world, new TickContext(world, world.Rng, world.Scheduler, sink), Assert.Single(world.PendingEvents));
+
+        var newCity = world.Cities.Single(c => c.Id != motherCity.Id);
+        var founding = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.SettlementFounded);
+        Assert.Equal(head.Id.Value, newCity.FounderId);
+        Assert.StartsWith($"{newCity.Id.Value}|{motherCity.Id.Value}|{head.Id.Value}|", founding.Payload);
+        Assert.Equal(world.FamilyRules.Names.HonorForFounding,
+            LivingWorld.Simulation.Population.Naming.Honor.OwnOf(world, head.Id.Value, world.CurrentDate.TotalHours), 3);
+    }
+
     /// <summary>Repro da fundação a partir de overflow: a posição corrente identifica a família
     /// fundadora mesmo quando sua residência ainda aponta para a cidade-mãe. Ao fundar, residência
     /// e workplace contidos no cluster precisam acompanhar a família para não puxá-la de volta.</summary>
