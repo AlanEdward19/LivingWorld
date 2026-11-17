@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · xray · plan · street · lot · ground (AD-177) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -140,6 +140,24 @@ static func run(app: Node, steps: Array) -> void:
 				print("ground: scope=%s roads=%d drawn=%d buildings=%d with_croft=%d road_pieces=%d lot_pieces=%d syncs=%d" % [app.store.kind,
 					app.store.roads.size(), app.world_view.ground.drawn_roads.size(), app.store.buildings.size(), crofts,
 					app.world_view.ground.road_pieces, app.world_view.ground.lot_pieces, app.road_sync.refreshes])
+			"roads": # AD-181: rua por delta, obras e quem anda pela rota agora
+				var surfaces := {}
+				for cell in app.store.roads:
+					surfaces[app.store.roads[cell].surface] = surfaces.get(app.store.roads[cell].surface, 0) + 1
+				var walking: int = app.world_view.npc_nodes.values().filter(func(a): return a.walk != null).size()
+				print("roads: scope=%s live=%s cells=%d drawn=%d reserved=%d surfaces=%s works=%d walking=%d routes=%d syncs=%d" % [app.store.kind,
+					app.store.roads_live, app.store.roads.size(), app.world_view.ground.drawn_roads.size(), app.world_view.ground.reserved.size(),
+					surfaces, preload("res://Store/road_book.gd").work_cells(app.store.roads).size(), walking,
+					app.store.npcs.values().filter(func(n): return not n.get("route", []).is_empty()).size(), app.road_sync.refreshes])
+			"walker": # segue alguém andando pela rota (rota no chão)
+				for id in app.world_view.npc_nodes:
+					if app.world_view.npc_nodes[id].walk != null and not app.world_view.npc_nodes[id].walk.done:
+						await app.select_npc(int(id))
+						app._highlight(int(id))
+						app.follow_selected()
+						break
+			"heat":
+				app.reading.toggle_heat()
 			"log":
 				var moving := 0
 				var actions := {}
