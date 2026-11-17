@@ -534,6 +534,22 @@ func _animate() -> void:
 			_arms[1].rotation.x = -1.3
 			_arms[0].rotation.x = -1.3
 			_head.rotation.x = 0.1
+		"steal": # furtivo: agachado, olha para os lados, um braço estendido e rápido para a frente
+			_body.position.y = -0.06
+			_body.rotation.x = 0.35
+			_head.rotation.y = sin(phase * 0.9) * 0.9
+			_arms[1].rotation.x = -1.4 + sin(phase * 2.2) * 0.25
+			_arms[0].rotation.x = 0.3
+			_legs[0].rotation.x = 0.45
+			_legs[1].rotation.x = -0.2
+		"cry": # cabeça baixa, mãos no rosto, ombros sacudindo
+			_head.rotation.x = 0.45
+			_arms[0].rotation.x = -2.3
+			_arms[1].rotation.x = -2.3
+			_arms[0].rotation.z = -0.35
+			_arms[1].rotation.z = 0.35
+			_body.position.y = absf(sin(phase * 2.6)) * 0.025
+			_body.rotation.x = 0.12
 		"power":
 			_body.position.y = 0.12 + sin(phase * 0.6) * 0.06
 			_arms[0].rotation.z = 0.9

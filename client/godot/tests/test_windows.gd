@@ -37,27 +37,59 @@ func _open_count(app: Node) -> int:
 	return n
 
 
-func test_opening_an_info_window_closes_the_others() -> void:
+## AD-169 (pedido do dono, ADR-0047): as janelas deixaram de fechar umas às outras. O teste antigo verificava que
+## cada entrada abria a sua janela; continua verificando isso, e agora também que as anteriores seguem abertas.
+func test_opening_an_info_window_keeps_the_others_open() -> void:
 	var app := await _app()
 	await app.select_npc(7)
 
 	await app.open_brain(7)
 	eq(_open_count(app), 1)
 	await app.open_biography(7)
-	eq([app.brain_panel.is_open, app.narrative.is_open], [false, true], "narrativa abre e o cérebro fecha")
+	eq([app.brain_panel.is_open, app.narrative.is_open], [true, true], "narrativa abre e o cérebro continua")
 	await app.open_trades(4)
-	eq([app.narrative.is_open, app.economy.is_open], [false, true], "economia abre e a narrativa fecha")
+	eq([app.narrative.is_open, app.economy.is_open], [true, true], "economia abre e a narrativa continua")
 	app.city_panel.show_city({"id": "city-a", "name": "Alfa", "indicators": {"population": 1, "wealth": 1, "health": 1, "inequality": 0.1, "economy": 1, "housing": 1}})
 	await app.open_treasury("city-a")
-	eq(_open_count(app), 1, "tesouro substitui as vendas")
+	eq(app.economy.mode, "treasury", "tesouro substitui as vendas na MESMA janela de economia")
+	eq(_open_count(app), 3)
 	await app._show_technologies(1)
-	eq([app.economy.is_open, app.technology.is_open], [false, true])
+	eq([app.economy.is_open, app.technology.is_open], [true, true])
 	app._toggle_admin()
-	eq([app.technology.is_open, app.admin_window.is_open], [false, true], "o console fecha as demais")
+	eq(app.admin_window.is_open, true, "o console abre junto")
 	app._toggle_reports()
 	await tree.process_frame
-	eq([app.admin_window.is_open, app.narrative.is_open, app.narrative.mode], [false, true, "reports"])
-	eq(_open_count(app), 1, "nunca duas ao mesmo tempo")
+	eq([app.narrative.is_open, app.narrative.mode], [true, "reports"])
+	eq(_open_count(app), 5, "as cinco convivem")
+	eq(app.router.top(), app.narrative, "a última aberta fica na frente")
+	app.queue_free()
+
+
+func test_open_windows_tile_without_overlapping_and_esc_closes_the_front_one() -> void:
+	var app := await _app()
+	await app.open_brain(7)
+	await app.open_biography(7)
+	var rects: Array = app.router.open_windows().map(func(w): return Rect2(w.position, w.size))
+	for i in rects.size():
+		for j in range(i + 1, rects.size()):
+			check(not rects[i].intersects(rects[j]), "encaixe sem sobrepor: %s x %s" % [rects[i], rects[j]])
+	await app._show_technologies(1)
+	await app.open_trades(4)
+	app._toggle_admin()
+	var corners := {}
+	for window in app.router.open_windows():
+		corners[window.position] = true
+	eq(corners.size(), 5, "com as cinco abertas nenhuma fica escondida atrás de outra (cada título num lugar)")
+	app.admin_window.close()
+	app.economy.close()
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	app._unhandled_input(esc)
+	eq([app.technology.is_open, app.narrative.is_open, app.brain_panel.is_open], [false, true, true], "Esc fecha só a da frente")
+	app.router.drag(app.narrative, Vector2(40, 30))
+	check(app.router.floating.has(app.narrative), "arrastar solta a janela do encaixe")
+	eq(app.brain_panel.size.x, app.router.area().size.x, "a que ficou no encaixe ocupa a largura da área")
 	app.queue_free()
 
 
@@ -71,15 +103,20 @@ func test_conversation_and_the_player_hud_are_not_closed_by_info_windows() -> vo
 	app.queue_free()
 
 
-func test_windows_keep_a_minimum_height_and_the_same_margin_on_any_viewport() -> void:
+func test_windows_keep_a_minimum_height_and_stay_inside_the_central_area() -> void:
 	var app := await _app()
+	await app.open_brain(7)
+	var area: Rect2 = app.router.area()
 	for window in app._info_windows():
 		check(window.custom_minimum_size.y >= 220.0, "altura mínima")
-		eq(window.offset_left, 310.0, "margem fixa: o canvas tem sempre 1600 unidades ou mais de largura")
+	eq(app.brain_panel.position.x, 310.0, "margem fixa à esquerda: o canvas tem sempre 1600 unidades ou mais de largura")
+	check(area.encloses(Rect2(app.brain_panel.position, app.brain_panel.size)), "dentro da área central")
 	app.queue_free()
 
 
-func test_every_entry_closes_the_window_that_was_open_and_the_player_hud_stays() -> void:
+## Reescrito no AD-169: antes cada par verificava "só uma aberta"; agora verifica que a segunda entrada abre a sua
+## janela sem fechar a primeira (salvo quando é a mesma janela, como tesouro e vendas) e que o HUD do jogador fica.
+func test_every_entry_opens_its_window_without_closing_the_other_and_the_player_hud_stays() -> void:
 	var app := await _app()
 	app.city_panel.show_city({"id": "city-a", "name": "Alfa", "indicators": {"population": 1, "wealth": 1, "health": 1, "inequality": 0.1, "economy": 1, "housing": 1}})
 	await app.select_npc(7)
@@ -99,10 +136,17 @@ func test_every_entry_closes_the_window_that_was_open_and_the_player_hud_stays()
 		for second in entries:
 			if first[0] == second[0]:
 				continue
+			for window in app._info_windows():
+				if window.is_open:
+					window.close()
 			await first[1].call()
 			await tree.process_frame
+			var first_window = app.router.top()
 			await second[1].call()
 			await tree.process_frame
-			eq(_open_count(app), 1, "%s depois de %s: só uma aberta" % [second[0], first[0]])
+			var second_window = app.router.top()
+			check(second_window != null and second_window.is_open, "%s abre a sua janela" % second[0])
+			if first_window != second_window:
+				eq(first_window.is_open, true, "%s depois de %s: a primeira continua aberta" % [second[0], first[0]])
 	eq(app.player_hud.visible, true, "o HUD do jogador não é uma janela de informação")
 	app.queue_free()
