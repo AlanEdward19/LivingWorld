@@ -55,10 +55,10 @@ Pré-requisitos: [.NET SDK 10](https://dotnet.microsoft.com/download), `bash` (G
 ```bash
 git clone https://github.com/AlanEdward19/LivingWorld && cd LivingWorld
 bash scripts/verify.sh            # gate: docs + build + lint + testes rápidos (sai 0 = tudo ok)
-GODOT_BIN=/caminho/do/godot bash scripts/play.sh   # sobe a API com o mundo vivo e abre o cliente
+bash scripts/play.sh              # jogar: liga o mundo e abre o jogo no menu (macOS: dois cliques em Jogar.command)
 ```
 
-Só a API: `bash scripts/play.sh --api-only` (porta 5214) ou `run.cmd` no Windows. Controles e telas do cliente:
+Só a API: `bash scripts/play.sh --api-only` (porta 5214 ou a próxima livre) ou `run.cmd` no Windows. Controles e telas do cliente:
 [client/godot/README.md](client/godot/README.md). Cenários e períodos ficam em [`scenarios/`](scenarios/).
 
 <details>
