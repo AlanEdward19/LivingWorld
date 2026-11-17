@@ -2,7 +2,7 @@ extends RefCounted
 ## Leitura da cidade (AD-177, "tá tudo muito grudado, não dá para analisar nada"): alternar entre os prédios empilhados
 ## sob o cursor (Tab ou Alt+roda: os da frente ficam translúcidos e o clique pega o escolhido), raio-x (X: todos os
 ## prédios translúcidos, telhado quase some) e a planta baixa (P: lotes, ruas por superfície, prédios pela função,
-## com legenda). Só leitura; nada aqui fala com o servidor.
+## com legenda) e o mapa de calor do pisoteio (H, AD-181). Só leitura; nada aqui fala com o servidor.
 
 const CityPlan := preload("res://Scenes/city_plan.gd")
 
@@ -90,6 +90,16 @@ func toggle_xray() -> bool:
 	app.world_view.buildings.set_xray(on)
 	app.toasts.push("Ver por dentro (raio-x): %s · X alterna" % ("ligado" if on else "desligado"))
 	return on
+
+
+## H (AD-181): mapa de calor do pisoteio (`wear` de cada rua) no chão 3D e na planta.
+func toggle_heat() -> bool:
+	var ground = app.world_view.ground
+	ground.set_heat(not ground.heat)
+	if plan_open():
+		plan.queue_redraw()
+	app.toasts.push("Mapa de calor do pisoteio: %s · H alterna" % ("ligado" if ground.heat else "desligado"))
+	return ground.heat
 
 
 func plan_open() -> bool:

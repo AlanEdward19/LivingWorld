@@ -191,8 +191,12 @@ func describe(hit: Dictionary) -> String:
 			var road = store.roads.get(Registry.street_cell(String(id)))
 			if road != null:
 				var users := int(road.users)
-				return "%s · %d pessoa%s passa%s por aqui\nclique: ficha da rua" % [Style.title_of(road), users,
-					"" if users == 1 else "s", "" if users == 1 else "m"]
+				var work := Style.work_of(road)
+				var doing := "\nem obra: %s · %d%%" % [Style.surface_name(int(work.surface)), int(work.progress)] if not work.is_empty() else ""
+				if int(road.get("use_band", -1)) >= 0: # AD-176: `users` = passagens do último mês
+					return "%s · %d passage%s no último mês%s\nclique: ficha da rua" % [Style.title_of(road), users, "m" if users == 1 else "ns", doing]
+				return "%s · %d pessoa%s passa%s por aqui%s\nclique: ficha da rua" % [Style.title_of(road), users,
+					"" if users == 1 else "s", "" if users == 1 else "m", doing]
 	return ""
 
 
@@ -207,6 +211,9 @@ static func _lot_hint(building) -> String:
 		parts.append("caminho de %d até a rua" % parcel.front_path.size())
 	elif parcel.street != null:
 		parts.append("porta na rua")
+	var access := Style.access_of(parcel)
+	if access not in ["", "street", "path"]:
+		parts.append(("⚠ " if access == "none" else "") + "acesso: %s" % Style.access_style(access).name)
 	return "\nlote: " + " · ".join(parts)
 
 

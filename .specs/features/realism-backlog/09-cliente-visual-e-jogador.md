@@ -42,9 +42,9 @@ Cliente (feito em parte):
 - [ ] Prédio muda enfeite e placa pela função, não o corpo (paredes e telhado iguais).
 - [ ] Bench mede mundo pausado (o do `bench.sh` nasce pausado): medir com o mundo rodando quando as formas acima forem corrigidas.
 - [ ] Sem chuva nem queda de folhas; animais e bandos não andam entre deltas.
-- [ ] Prédio translúcido: o mouse sobre a parte VISÍVEL de um prédio de trás abre o da frente; parte totalmente escondida
+- [x] (AD-177: Tab/Alt+roda alterna os prédios sob o cursor) Prédio translúcido: o mouse sobre a parte VISÍVEL de um prédio de trás abre o da frente; parte totalmente escondida
   só é alcançável depois que algo em foco abre o da frente (não há "ciclar" entre prédios sob o cursor).
-- [ ] Ruas: sem a camada `Roads` do motor (hoje `isModeled: false`), rua = o que não é quintal (1 célula em volta de cada
+- [x] (AD-177/AD-181: rua do motor por retrato e delta) Ruas: sem a camada `Roads` do motor (hoje `isModeled: false`), rua = o que não é quintal (1 célula em volta de cada
   prédio) dentro dos limites; quando o motor ganhar ruas e lotes, o cliente já lê a camada.
 
 ## 2. Fatia do jogador

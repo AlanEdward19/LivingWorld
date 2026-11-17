@@ -64,6 +64,8 @@ static func handle(app, event: InputEvent) -> void:
 				app.reading.toggle_xray()
 			KEY_P: # planta baixa da cidade
 				app.reading.toggle_plan()
+			KEY_H: # mapa de calor do pisoteio das ruas (AD-181)
+				app.reading.toggle_heat()
 			KEY_TAB: # o prédio de trás sob o cursor
 				app.reading.cycle(app.get_viewport().get_mouse_position(), -1 if event.shift_pressed else 1)
 			KEY_PAGEUP, KEY_BRACKETRIGHT:

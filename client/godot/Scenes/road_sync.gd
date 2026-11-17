@@ -1,8 +1,8 @@
 extends Node
-## Relê a camada `Roads` sem recarregar a cena (AD-177). O motor só manda as ruas no retrato do mundo (não há delta de
-## rua): a cada REFRESH_SECONDS, e logo depois de um prédio novo chegar com um lote que encosta numa rua ainda
-## desconhecida, pede o retrato do mundo pela rota sem estado e troca só as ruas (o chão redesenha; nada mais).
-## Lacuna anotada para a AD-176: um delta de rua tornaria esta releitura desnecessária.
+## QUEDA para servidor antigo (AD-177): relê a camada `Roads` sem recarregar a cena. Desde a AD-181 o escopo manda as ruas
+## no retrato (`livingState.roads`) e por delta (`roadUpserts`/`roadRemoved`): com isso (`store.roads_live`) esta releitura
+## NÃO roda. Sem o campo: a cada REFRESH_SECONDS, e logo depois de um prédio novo chegar com um lote que encosta numa rua
+## ainda desconhecida, pede o retrato do mundo pela rota sem estado e troca só as ruas (o chão redesenha; nada mais).
 
 const REFRESH_SECONDS := 30.0
 const HINT_DELAY := 2.0 ## prédio novo pediu rua desconhecida: relê logo, mas junta os pedidos de uma rajada
@@ -21,6 +21,8 @@ func setup(p_app) -> void:
 
 ## Lote que encosta numa rua que a camada ainda não tem: a rua nasceu com o prédio, vale reler.
 func _on_buildings(ids: Array) -> void:
+	if app.store.roads_live:
+		return
 	for id in ids:
 		var parcel: Dictionary = app.store.buildings.get(id, {}).get("lot", {})
 		var street = parcel.get("street")
@@ -31,7 +33,7 @@ func _on_buildings(ids: Array) -> void:
 
 
 func _process(delta: float) -> void:
-	if app == null or app.store == null or not app.store.kind in ["World", "City"]:
+	if app == null or app.store == null or not app.store.kind in ["World", "City"] or app.store.roads_live:
 		return
 	_clock += delta
 	var hinted := false
