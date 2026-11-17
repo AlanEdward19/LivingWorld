@@ -2,6 +2,8 @@
 
 Levantadas na etapa 1 (AD-169), que não mudou o contrato. Cada linha diz o campo que falta, de onde viria
 e onde o cliente já tem o lugar para usá-lo. Tudo só leitura, por acréscimo (decisão 4 do dono no ADR-0047).
+**Estado**: a etapa 2 (AD-170) entregou os campos; a etapa 3 (AD-171) os consome. O que ainda falta está em
+`.specs/features/realism-backlog/09-cliente-visual-e-jogador.md`, seção 1b.
 
 ## Corpo e ação de todos os NPCs (escopo: `livingState.npcs`, `npcUpserts`)
 

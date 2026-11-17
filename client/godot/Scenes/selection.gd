@@ -4,6 +4,7 @@ extends RefCounted
 ## Devolve sempre um "acerto" {kind, id} que o inspetor sabe abrir; nunca fala com o servidor.
 
 const Registry := preload("res://Store/entity_registry.gd")
+const Look := preload("res://Scenes/npc_look.gd")
 
 const NEAR_PIXELS := 32.0
 
@@ -54,6 +55,19 @@ func hit_at(screen: Vector2) -> Dictionary:
 	var process = nearest(app.world_view.processes.positions, camera, screen, 18.0)
 	if process != null:
 		return Registry.ref(Registry.PROCESS, int(process))
+	var animal = nearest(app.world_view.fauna.positions, camera, screen, 20.0)
+	if animal != null:
+		return Registry.ref(Registry.ANIMAL, int(animal))
+	var group = nearest(app.world_view.fauna.group_positions, camera, screen, 26.0)
+	if group != null:
+		return Registry.ref(Registry.FAUNA, String(group))
+	var thing = nearest(app.world_view.items.positions, camera, screen, 18.0)
+	if thing != null:
+		var parts := String(thing).split(":")
+		return Registry.ref(Registry.LEAVING if parts[0] == "leaving" else Registry.ITEM, int(parts[1]))
+	var crop = nearest(app.world_view.crops.positions, camera, screen, 22.0)
+	if crop != null:
+		return Registry.ref(Registry.CROP, int(crop))
 	var hit := raycast(screen)
 	if hit.is_empty():
 		return {}
@@ -97,7 +111,14 @@ func raycast(screen: Vector2) -> Dictionary:
 	var origin := camera.project_ray_origin(screen)
 	var end := origin + camera.project_ray_normal(screen) * 400.0
 	var query := PhysicsRayQueryParameters3D.create(origin, end)
-	return camera.get_world_3d().direct_space_state.intersect_ray(query)
+	var space := camera.get_world_3d().direct_space_state
+	var hit: Dictionary = space.intersect_ray(query)
+	for _i in 4: # prédio translúcido não segura o mouse: o raio passa para o que está atrás
+		if hit.is_empty() or not hit.collider.has_meta("building_id") or not app.world_view.buildings.is_faded(int(hit.collider.get_meta("building_id"))):
+			break
+		query.exclude = query.exclude + [hit.rid]
+		hit = space.intersect_ray(query)
+	return hit
 
 
 ## Texto da dica para um acerto (testável sem mouse). Aceita também o formato antigo {npc_id|building_id|city_id}.
@@ -121,12 +142,23 @@ func describe(hit: Dictionary) -> String:
 				action = int(app.stage.interior_view.occupant_nodes[int(id)].action)
 			var name: String = store.names.get(int(id), "NPC %d" % int(id))
 			var label: String = app.labels.label_for(action) if action >= 0 else ""
-			return name if label == "" else "%s\n%s" % [name, label]
+			if label != "" and npc != null and npc.get("target", {}).get("kind", "") == "npc":
+				label += " com %s" % app.registry.person_name(int(npc.target.id))
+			var text := name if label == "" else "%s\n%s" % [name, label]
+			var hint := Look.hint_of(npc.get("obs", {})) if npc != null else ""
+			return text if hint == "" else "%s\n%s" % [text, hint]
 		Registry.BUILDING:
 			var building = store.buildings.get(int(id))
 			var floors: int = building.floors if building != null else 1
 			var kind_name: String = app.registry.building_type_name(int(building.type)) if building != null else "Edifício"
+			var state: Dictionary = store.building_states.get(int(id), {})
+			if String(state.get("location_type_name", "")) != "":
+				kind_name = "%s (%s)" % [state.location_type_name, kind_name]
 			var text := "%s · Edifício %d · %d andar%s" % [kind_name, int(id), floors, "es" if floors > 1 else ""]
+			if int(state.get("owner_id", -1)) >= 0:
+				text += "\ndono: %s" % app.registry.person_name(int(state.owner_id))
+			if not state.get("residents", []).is_empty():
+				text += " · %d morador(es)" % state.residents.size()
 			return text + _price_lines(building) + "\nclique: ficha · duplo clique: entrar"
 		Registry.CITY:
 			var city = store.cities.get(String(id))
@@ -137,7 +169,14 @@ func describe(hit: Dictionary) -> String:
 			if process != null:
 				return "%s · %d%%" % [app.registry.process_name(process), int(round(float(process.progress) * 100.0))]
 		Registry.EVENT:
-			return String(app.registry.events.get(int(id), {}).get("label", "Evento")) + "\nclique: ficha do evento"
+			return app.registry.event_title(app.registry.events.get(int(id), {})) + "\nclique: ficha do evento"
+		Registry.CROP:
+			var crop = store.crops.get(int(id))
+			if crop != null:
+				return "%s · %s\ncolheita esperada %d · clique: ficha" % [app.registry.title_of(entity),
+					Registry.STAGE_NAMES.get(String(crop.stage), String(crop.stage)), int(crop.expected)]
+		Registry.ANIMAL, Registry.FAUNA, Registry.LEAVING, Registry.ITEM:
+			return "%s\nclique: ficha" % app.registry.title_of(entity)
 		Registry.OBJECT:
 			return "%s\nclique: ficha do objeto" % app.registry.title_of(entity)
 	return ""
@@ -158,12 +197,53 @@ static func _price_lines(building) -> String:
 	return ""
 
 
+## Pontos que não podem ficar escondidos atrás de um prédio: o que está sob o mouse, a pessoa selecionada e o alvo seguido.
+## Cada um é [ponto, id do prédio a ignorar] (o próprio prédio em foco não cobre a si mesmo).
+func focus_points(hovered: Dictionary) -> Array:
+	var points: Array = []
+	var entities: Array = [hovered]
+	if app.selected_npc >= 0:
+		entities.append(Registry.ref(Registry.PERSON, app.selected_npc))
+	if app.director.active():
+		entities.append(app.director.target)
+	for entity in entities:
+		if entity.is_empty():
+			continue
+		match String(entity.kind):
+			Registry.PERSON:
+				var node = app.world_view.npc_nodes.get(int(entity.id))
+				if node != null:
+					points.append([node.position + Vector3(0, 0.6 * node.scale.y, 0), -1])
+			Registry.BUILDING:
+				var center: Vector3 = app.world_view.building_center(int(entity.id))
+				if center != Vector3.INF:
+					points.append([center + Vector3(0, 0.5, 0), int(entity.id)])
+			_:
+				var point: Vector3 = app.point_of(entity)
+				if point != Vector3.INF:
+					points.append([point, -1])
+	if app.director.active() and String(app.director.target.get("kind", "")) != Registry.PERSON and app.director.last_point != Vector3.INF:
+		points.append([app.director.last_point + Vector3(0, 0.5, 0), -1])
+	return points
+
+
+## Prédio que cobre o que importa fica translúcido enquanto cobrir (só a cidade; no interior não há prédio na frente).
+func update_fade(hovered: Dictionary) -> void:
+	if app.stage.active or app.store.kind != "City":
+		app.world_view.buildings.set_faded({})
+		return
+	var camera: Camera3D = app.rig.camera
+	var view_dir := -camera.global_transform.basis.z if camera.is_inside_tree() else Vector3(-0.5, -0.7, -0.5).normalized()
+	app.world_view.buildings.set_faded(app.world_view.buildings.occluders(focus_points(hovered), view_dir))
+
+
 func update_hover() -> void:
 	if app.stage == null or not app.rig.camera.is_inside_tree():
 		app.tooltip.visible = false
 		return
 	var mouse: Vector2 = app.get_viewport().get_mouse_position()
 	var hit: Dictionary = hit_at(mouse)
+	update_fade(hit)
 	app.hover_text = describe(hit)
 	app.world_view.hover_npc(int(hit.id) if not hit.is_empty() and hit.kind == Registry.PERSON and not app.stage.active else -1)
 	app.tooltip.visible = app.hover_text != "" and not app.list_panel.get_global_rect().has_point(mouse)

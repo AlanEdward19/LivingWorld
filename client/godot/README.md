@@ -24,7 +24,8 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Entrar na cidade | zoom até a escala de cidade, ou duplo clique na cidade |
 | Prédio | clique abre a ficha (tipo, andares, preço, quem está dentro) · duplo clique ou botão Entrar entra (andares: PgUp/PgDn) · Esc sai |
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC, também dentro do interior |
-| Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo/lavoura, objeto, trabalho, casa e evento; atualiza sozinho; links (mãe, pai, cônjuge, filhos conhecidos, casa, trabalho, cidade, quem está dentro, quem usa) · ◀ Voltar ou Backspace |
+| Ficha (inspetor) | um painel à direita para pessoa, prédio, cidade, processo, lavoura, animal, bando, espólio, objeto inventado, mobília, trabalho, casa e evento; lê `GET /entities/{kind}/{id}` (nome real, vínculos, história recente); atualiza sozinho; links (mãe, pai, cônjuge, todos os filhos, casa, trabalho e o prédio dele, dono, moradores, trabalhadores, envolvidos) · Ir até lá · ◀ Voltar ou Backspace |
+| Direção | **N** pula para o próximo evento (câmera no lugar, ficha aberta, segue quem está envolvido) · **V** modo assistir (acompanha sozinho o evento mais novo ainda não visto; sem evento, alguém na rua fazendo algo) · linha do tempo "Acontecimentos" (embaixo, clicável) |
 | Seguir | botão Seguir na ficha (pessoa, casa ou cidade) ou F; continua ao trocar de escopo, entrar num prédio e sair da cidade |
 | Janelas | cérebro, narrativa, economia, tecnologias e console convivem: encaixam lado a lado (ou em cascata) · arraste pelo título para soltar · Esc fecha a da frente |
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · **E se…?** simula a decisão com outros estímulos (nada é gravado) · Esc fecha |
@@ -35,9 +36,23 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
-| Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · lavoura e processos em andamento desenhados com progresso |
+| Orientação | passe o mouse (dica com ação, alvo e corpo visível) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · processos com barra de progresso |
+| Crime | evento no mapa e na ficha (autor, vítima, caso, desfecho), sem cena nem animação; `recordOnly` (violência sexual, doméstica e contra criança) mostra **só o registro**, nunca o texto narrado (aviso, linha do tempo, dica e ficha) |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra (só admin); o céu segue a hora do mundo |
+
+## Aparência pelo estado (ADR-0047 etapa 3, AD-171)
+
+Formas geradas por código (sem pacote de assets), a partir da projeção do observável (AD-170):
+- **Pessoas (todas, não só a da ficha)**: escala pela altura real (bebê, criança, adulto, idoso), cabelo pelo sexo, roupa e chapéu do ofício (catálogo `assets.json` ou o nome do ofício), barriga de gravidez, palidez e esteira de quem está de cama, roupa de luto, postura pela emoção dominante, saco ou jarro da carga nas costas. **Perto** (zoom ≤ 7,5): ferramenta do ofício na mão no trabalho, recipiente levado (forma e cor de `/designs/{id}`) e rosto com expressão. Quem conversa com alvo vira para o outro e uma linha discreta liga os dois.
+- **Prédios**: enfeite e placa pela função (`buildingStates`): chaminé, hospedaria com lanterna, fazenda com cerca, ferraria, padaria, mercado com toldo, taverna, pedreira, templo; fechado com tábuas na porta.
+- **Lavoura**: canteiro por estágio (sem semear, plantado, crescendo, maduro, colhido, pousio), cor e altura pela cultura, amarelado com sede.
+- **Estação e clima**: paleta do chão e das copas (primavera, verão/seca, outono, inverno), neve caindo abaixo de 0 °C; estação e temperatura no relógio do topo.
+- **Fauna**: animais por espécie na cidade; bandos com o número no mapa-múndi. **Espólio** (saco e trouxa) e **objetos inventados** fora de casa pela forma e material do design.
+- **Mapa-múndi vivo**: um ponto por morador na rua, na cor da ação; a placa diz quantos estão na rua, no pool, o que fazem e a temperatura.
+- **LOD em três níveis**: mundo (densidade, bandos, eventos) · cidade (corpos, prédios, lavoura, animais, objetos) · perto (ferramenta, objeto em uso, rosto). Lavoura, fauna, itens, densidade e linhas de conversa são MultiMesh por tipo; peças do corpo têm malha e material compartilhados e não projetam sombra.
+
+Delta enxuto (AD-172): num NPC já conhecido, `city: null` = mesma cidade, `appearance` ausente = a anterior, `actionStartedAtTick` ausente = início, alvo e intenção de antes (presente = grupo novo), `observable` ausente = não mudou; `rest`/`food` não reenviados avançam pelo tick do delta (`Store/observable_parse.gd` `advance_processes`). Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). **Leitura**: prédio que fica na frente do que está sob o mouse, da pessoa selecionada ou do que se segue fica translúcido enquanto cobrir (e o mouse atravessa o translúcido); quem divide uma célula se espalha nela (lugar estável por id) e quem se cruza passa pela direita — o clique pega o corpo onde ele está desenhado; quintal de terra em volta de cada prédio, rua no resto (camada `Roads` do mundo, quando vier, decide a rua). Delta: chave ausente e `null` valem o mesmo. Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
 
 ## Estrutura
 
@@ -48,7 +63,9 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | `Contract/world_reader.gd` | Camada única de leitura: todo painel recebe este objeto; ficha do NPC em cache por hora do mundo |
 | `Store/entity_registry.gd` | Registro local de entidades {kind, id}, nomes do catálogo e vínculos aprendidos das fichas |
 | `Scenes/` | `app.gd` (raiz e ligação) · `app_ui.gd` (montagem) · `session.gd` (escopos) · `selection.gd` (clique e dica) · `inspector.gd` · `window_router.gd` · `follow_director.gd` · `shortcuts.gd` · câmera, interior, ciclo do dia, painéis |
-| `Scenes/render/` | Um renderizador por tipo: terreno, cidade, prédio, NPC, processo (MultiMesh), marcador de evento; `world_view.gd` coordena |
+| `Scenes/render/` | Um renderizador por tipo: terreno (+ `season_palette.gd`), cidade (densidade), prédio (+ `building_dress.gd`), NPC, processo, lavoura, fauna, espólio/objeto (MultiMesh), marcador de evento; `world_view.gd` coordena e escolhe o LOD |
+| `Scenes/npc_look.gd`, `npc_props.gd` | Corpo pelo estado (função pura, testável) e as peças geradas por código |
+| `Scenes/inspector_describe.gd`, `event_timeline.gd` | Texto e links de cada tipo de ficha; linha do tempo com Próximo e Assistir |
 | `tests/` | Testes headless (`bash scripts/client-test.sh [--filter arquivo::teste]`), com transporte falso |
 
 Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`).
@@ -82,3 +99,12 @@ Indicadores da cidade (2026-11-09, #112 fatia E, M1 Pro com a máquina dividida 
 `bash client/godot/tools/bench.sh` (pela fila pesada) sobe uma API própria (porta 5291, período `cidade-media`, seed 2) e roda 3× `stress:500` (medida antiga, com vsync) e 3× `bench:500`: sem vsync, cidade real aberta, ficha do 1º morador aberta, multidão completada até 500 NPCs andando dentro da cidade; FPS médio e tempo de quadro p95 de 6 s. `LW_BENCH_CLIENT` aponta outra cópia do cliente para comparar.
 Antes (2026-11-17, M1 Pro, máquina dividida com outros agentes, base `8f792e50`): `stress:500` 74,0 / 74,5 / 72,7 FPS; `bench:500` 76,5 / 77,7 / 77,2 FPS, p95 14,03 / 13,69 / 13,77 ms (cidade com 5 prédios).
 Depois (AD-169, mesma máquina e comando, vsync confirmado desligado `vsync=0`): `stress:500` 73,3 / 71,9 / 71,8 FPS (média 72,3 contra 73,7: −1,4, dentro do ±3 de ruído histórico desta medida); `bench:500` 77,1 / 77,0 / 77,1 FPS (média 77,1 = antes), p95 14,06 / 13,89 / 14,10 ms (+0,2 ms, ruído). Uma rodada intermediária, antes de o inspetor deixar de refazer os links a cada segundo, deu 76,6 / 76,6 / 76,2 e p95 ~14,3 ms. Muito acima do piso de 50 FPS. `client-test.sh`: 291 → 304 testes, 0 falhas.
+
+### Aparência pelo estado (AD-171, ADR-0047 etapa 3)
+
+`bench.sh` ganhou a 3ª medida, `benchbig:500`: a mesma cidade com 40 prédios 2x2 a mais e, no cliente com a projeção do observável, estado de prédio (placas, enfeites), 30 lavouras, 20 animais e corpo pelo estado nos 500 NPCs (a cidade de 5 prédios era pequena para pegar regressão). Mesma máquina (M1 Pro dividida com outros agentes), base `c6df9eac` (cópia do cliente, `LW_BENCH_CLIENT`) e entrega, 3 rodadas cada:
+- `stress:500` (com vsync): antes 72,3 / 73,2 / 72,7 FPS; depois 71,9 / 71,5 / 71,9 (média 72,7 → 71,8).
+- `bench:500` (sem vsync, cidade real): antes 75,6 / 77,2 / 78,3 FPS, p95 14,22 / 13,99 / 13,88 ms; depois 76,3 / 75,9 / 75,9, p95 14,09 / 14,28 / 14,26 (média 77,0 → 76,0; p95 14,03 → 14,21 ms).
+- `benchbig:500`: antes 67,2 / 67,2 / 66,8 FPS, p95 16,00 / 16,06 / 16,17 ms; depois 66,5 / 66,7 / 66,1, p95 16,58 / 16,28 / 16,16 (média 67,1 → 66,4; p95 16,08 → 16,34 ms).
+Diferenças dentro do ruído histórico (±3 FPS) e muito acima do piso de 50. Uma rodada antes de fundir chapéu e saco numa malha só deu 75,4 e 65,7. O mundo do `bench.sh` nasce pausado: com o mundo rodando, ver a lacuna das formas do contrato (backlog 09, 1b). `client-test.sh`: 304 → 329 testes, 0 falhas.
+Depois dos pedidos do dono (prédio translúcido, NPCs espalhados na célula, delta sem nulos), mesma medida: `stress:500` 71,5 / 70,9 / 72,3 FPS; `bench:500` 75,9 / 75,5 / 76,1, p95 14,12 / 13,76 / 13,82 ms; `benchbig:500` 66,0 / 66,4 / 66,2, p95 16,19 / 16,01 / 16,12 ms (dentro do ruído; o teste de cobertura roda junto com a dica, a cada 70 ms).

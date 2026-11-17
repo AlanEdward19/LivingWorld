@@ -17,7 +17,7 @@
           "x": "number",
           "y": "number"
         },
-        "predatorOf": "string",
+        "predatorOf?": "string",
         "species": "string"
       }
     ],
@@ -38,9 +38,9 @@
         "householdIds": [
           "number"
         ],
-        "locationTypeId": "number",
-        "locationTypeName": "string",
-        "ownerId": "number",
+        "locationTypeId?": "number",
+        "locationTypeName?": "string",
+        "ownerId?": "number",
         "pantryUnits": "number",
         "residentIds": [
           "number"
@@ -49,14 +49,14 @@
           {
             "quantity": "number",
             "resourceId": "number",
-            "resourceName": "string"
+            "resourceName?": "string"
           }
         ],
-        "typeName": "string",
+        "typeName?": "string",
         "workerIds": [
           "number"
         ],
-        "workplaceId": "number"
+        "workplaceId?": "number"
       }
     ],
     "buildingUpserts": [
@@ -82,7 +82,7 @@
           "x": "number",
           "y": "number"
         },
-        "lodging": {
+        "lodging?": {
           "nightlyRate": "number",
           "occupied": "number",
           "rentPerMonth": "number",
@@ -108,7 +108,7 @@
         "density": {
           "actions": [
             {
-              "action": "number",
+              "action?": "number",
               "count": "number"
             }
           ],
@@ -116,7 +116,9 @@
           "pooled": "number",
           "temperatureC": "number"
         },
-        "foundedFromCityId": "null",
+        "foundedFromCityId?": {
+          "value": "string"
+        },
         "id": {
           "value": "string"
         },
@@ -128,7 +130,7 @@
         "population": "number"
       }
     ],
-    "climate": {
+    "climate?": {
       "cropYearFactorMilli": "number",
       "drought": "boolean",
       "month": "number",
@@ -144,16 +146,16 @@
       {
         "arableHectares": "number",
         "expectedHarvest": "number",
-        "farmId": "number",
+        "farmId?": "number",
         "fraction": "number",
         "id": "number",
-        "ownerId": "number",
+        "ownerId?": "number",
         "plot": {
           "x": "number",
           "y": "number"
         },
         "resourceId": "number",
-        "resourceName": "string",
+        "resourceName?": "string",
         "sownHectares": "number",
         "stage": "string",
         "standing": "number",
@@ -165,27 +167,30 @@
       {
         "eventId": "number",
         "involved": {
-          "amount": "number",
-          "authorId": "number",
-          "buildingId": "number",
-          "caseId": "number",
-          "cityId": "string",
-          "designId": "number",
-          "householdId": "number",
-          "leavingId": "number",
-          "otherId": "number",
-          "outcome": "string",
+          "amount?": "number",
+          "authorId?": "number",
+          "buildingId?": "number",
+          "caseId?": "number",
+          "cityId?": "string",
+          "designId?": "number",
+          "householdId?": "number",
+          "leavingId?": "number",
+          "otherId?": "number",
+          "outcome?": "string",
           "recordOnly": "boolean",
-          "relatedIds": [
+          "relatedIds?": [
             "number"
           ],
-          "subjectId": "number",
-          "victimId": "number",
-          "workplaceId": "number"
+          "subjectId?": "number",
+          "victimId?": "number",
+          "workplaceId?": "number"
         },
         "kind": "number",
         "label": "string",
-        "location": "null",
+        "location?": {
+          "x": "number",
+          "y": "number"
+        },
         "tick": "number"
       }
     ],
@@ -214,14 +219,14 @@
     ],
     "leavingUpserts": [
       {
-        "carrierId": "number",
+        "carrierId?": "number",
         "deadId": "number",
-        "designId": "number",
-        "fetcherId": "number",
-        "heirHouseholdId": "number",
-        "householdId": "number",
+        "designId?": "number",
+        "fetcherId?": "number",
+        "heirHouseholdId?": "number",
+        "householdId?": "number",
         "id": "number",
-        "itemId": "number",
+        "itemId?": "number",
         "location": {
           "x": "number",
           "y": "number"
@@ -248,33 +253,58 @@
     ],
     "npcUpserts": [
       {
-        "actionStartedAtTick": "number",
-        "actionTarget": {
+        "actionStartedAtTick?": "number",
+        "actionTarget?": {
           "id": "string",
           "kind": "string"
         },
-        "city": "null",
+        "appearance?": {
+          "build": "number",
+          "hairCurl": "number",
+          "hairTone": "number",
+          "skinTone": "number"
+        },
+        "city?": {
+          "value": "string"
+        },
         "currentAction?": "number",
-        "extraordinary": "null",
+        "extraordinary?": {
+          "canFly": "boolean",
+          "isManifested": "boolean",
+          "manifestationState": "string",
+          "movementTrail": "string",
+          "needSubstitution?": {
+            "replacesNeed": "string",
+            "resourceId": "number",
+            "unitsPerUse": "number"
+          },
+          "powerIds": [
+            "string"
+          ],
+          "scaleMultiplier": "number",
+          "senescenceRateMultiplier": "number",
+          "skinTint": "string",
+          "speedMultiplier": "number"
+        },
         "id": {
           "value": "number"
         },
-        "intent": "number",
-        "intentTarget": "string",
+        "intent?": "number",
+        "intentTarget?": "string",
         "location": {
           "x": "number",
           "y": "number"
         },
-        "observable": {
+        "observable?": {
           "ageYears": "number",
           "carried": [
             {
               "quantity": "number",
               "resourceId": "number",
-              "resourceName": "string"
+              "resourceName?": "string"
             }
           ],
-          "dominantEmotion": "string",
+          "dominantEmotion?": "string",
           "emotions": {
             "anger": "number",
             "fear": "number",
@@ -285,11 +315,11 @@
           },
           "growthFraction": "number",
           "heightCm": "number",
-          "held": {
+          "held?": {
             "designId": "number",
             "itemId": "number"
           },
-          "illness": {
+          "illness?": {
             "bedridden": "boolean",
             "diseaseId": "number",
             "symptomatic": "boolean"
@@ -297,15 +327,18 @@
           "lifeStage": "string",
           "mourning": "boolean",
           "name": "string",
-          "pregnancy": {
+          "pregnancy?": {
             "babies": "number",
             "fraction": "number"
           },
           "professionId": "number",
-          "professionName": "string",
+          "professionName?": "string",
           "sex": "string"
         },
-        "relocationDestination": "null"
+        "relocationDestination?": {
+          "x": "number",
+          "y": "number"
+        }
       }
     ],
     "objectRemoved": [
@@ -315,17 +348,17 @@
       {
         "designId": "number",
         "forSale": "boolean",
-        "holderId": "number",
+        "holderId?": "number",
         "householdId": "number",
         "id": "number",
-        "location": {
+        "location?": {
           "x": "number",
           "y": "number"
         },
-        "marketId": "number",
+        "marketId?": "number",
         "qualityFraction": "number",
-        "rootMaterial": "number",
-        "rootShape": "string"
+        "rootMaterial?": "number",
+        "rootShape?": "string"
       }
     ],
     "processRemoved": [
@@ -333,17 +366,25 @@
     ],
     "processUpserts": [
       {
-        "appearanceToken": "null",
+        "appearanceToken?": "string",
         "descriptorKey": "string",
-        "footprint": "null",
+        "footprint?": [
+          {
+            "x": "number",
+            "y": "number"
+          }
+        ],
         "id": "number",
         "kind": "string",
-        "location": "null",
+        "location?": {
+          "x": "number",
+          "y": "number"
+        },
         "progress": "number",
-        "quality": "null",
-        "remainingHours": "null",
-        "resourceId": "number",
-        "resourceName": "string",
+        "quality?": "number",
+        "remainingHours?": "number",
+        "resourceId?": "number",
+        "resourceName?": "string",
         "targetId": "number"
       }
     ],

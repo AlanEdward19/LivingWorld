@@ -38,6 +38,98 @@ public class ApiContractTests
         public static readonly LivingWorld.Api.Visual.Observable.LeavingVisual Leaving = new(6, Cell, 1, 2, 3, 4, 5, 9, 77, 7, 8);
         public static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(9, 77, 2, 1, Cell, true, 3, "cylinder", 4, 0.9);
         public static readonly LivingWorld.Api.Visual.Observable.ScopeClimateVisual Climate = new(6, 2, "summer", 21.5, 1, 900, false);
+        public static readonly LivingWorld.Api.Visual.Catalogs.ExtraordinaryNpcVisual Extraordinary = new(
+            ["voo"], true, "manifest", 1.2, "#ffffff", "faisca", new("hunger", 1, 2), 0.5, true, 1.5);
+    }
+
+    /// <summary>AD-172: cada registro do escopo com todo campo anulável nulo — a forma marca como opcional tudo o que pode faltar,
+    /// não só o que o mundo de exemplo deixou nulo.</summary>
+    private static class MinimalSample
+    {
+        private static readonly LivingWorld.Domain.Geography.CellCoord Cell = new(1, 1);
+        private static readonly LivingWorld.Domain.Shared.CityId City = new(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        private static readonly LivingWorld.Api.Visual.Observable.NpcObservable Observable = new(
+            "Bia", "Male", 3, "Child", 0, null, 90, 0.5, null, null, new(0, 0, 0, 0, 0, 0), null, false,
+            [new LivingWorld.Api.Visual.Observable.CarriedVisual(1, 1)], null);
+        private static readonly LivingWorld.Api.Visual.Scope.NpcVisual Npc =
+            new(new LivingWorld.Domain.Shared.NpcId(2), Cell, null, null, null,
+                ObservableSample.Extraordinary with { NeedSubstitution = null }, null)
+            { Observable = Observable };
+        private static readonly LivingWorld.Api.Visual.Scope.CityVisual CityItem =
+            new(City, "B", Cell, 0, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 1, 1))
+            { Density = new(0, 0, [new(null, 1)], 0) };
+        private static readonly LivingWorld.Api.Visual.Scope.BuildingVisual Building =
+            new(new LivingWorld.Domain.Shared.BuildingId(8), City, -1, Cell);
+        private static readonly LivingWorld.Api.Visual.Scope.ProcessVisual Process = new(2, "construction", 1, 0, "construction");
+        private static readonly LivingWorld.Api.Visual.Scope.NotableVisualEvent Event =
+            new(4, LivingWorld.Domain.History.WorldEventKind.Death, "Morte") { Involved = new() };
+        private static readonly LivingWorld.Api.Visual.Observable.BuildingStateVisual BuildingState =
+            new(8, -1, null, "structure", null, null, null, null, [], [], [], [new(1, 2)], 0, false);
+        private static readonly LivingWorld.Api.Visual.Observable.CropVisual Crop =
+            new(4, Cell, 1, "Fallow", "fallow", 0, false, 0, 0, 0, null, null, null, 0);
+        private static readonly LivingWorld.Api.Visual.Observable.AnimalVisual Animal = new(6, "deer", Cell, 10, false, null);
+        private static readonly LivingWorld.Api.Visual.Observable.LeavingVisual Leaving = new(7, Cell, 1, null, null, 1, 0, null, null, null, null);
+        private static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(10, 1, 1, null, null, false, null, null, null, 0);
+
+        public static LivingWorld.Api.Visual.Scope.LivingScopeState State => LivingWorld.Api.Visual.Scope.LivingScopeState.Empty with
+        {
+            Npcs = [Npc],
+            Cities = [CityItem],
+            Buildings = [Building],
+            Processes = [Process],
+            Events = [Event],
+            BuildingStates = [BuildingState],
+            Crops = [Crop],
+            Animals = [Animal],
+            Leavings = [Leaving],
+            Objects = [Object],
+        };
+
+        public static LivingWorld.Api.Visual.Scope.ScopeTickDelta Delta(long tick) =>
+            new(tick, [Npc], [], [CityItem], [], [Building], [], [Process], [], [], [Event])
+            {
+                BuildingStateUpserts = [BuildingState],
+                CropUpserts = [Crop],
+                AnimalUpserts = [Animal],
+                LeavingUpserts = [Leaving],
+                ObjectUpserts = [Object],
+            };
+    }
+
+    /// <summary>AD-172: forma de um snapshot = a resposta canônica + cada snapshot de um mundo rodando + um <c>livingState</c> com
+    /// todo registro preenchido (lista que o mundo não encheu ainda fica com a forma do elemento).</summary>
+    private static JsonNode RunningShape(string canonical, IReadOnlyList<JsonNode> running)
+    {
+        var shape = ContractShapes.Merge(ContractShapes.Of(JsonNode.Parse(canonical)), RunningWorldSamples.ShapeOf(running));
+        var city = new LivingWorld.Domain.Shared.CityId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        var cell = new LivingWorld.Domain.Geography.CellCoord(2, 3);
+        var filled = LivingWorld.Api.Visual.Scope.LivingScopeState.Empty with
+        {
+            Npcs = [new LivingWorld.Api.Visual.Scope.NpcVisual(new LivingWorld.Domain.Shared.NpcId(1), cell, ActionType.Work, city, cell,
+                ObservableSample.Extraordinary, new LivingWorld.Domain.Population.Appearance(1, 2, 3, 4))
+            {
+                Observable = ObservableSample.Npc, ActionStartedAtTick = 3,
+                ActionTarget = new LivingWorld.Simulation.Cities.Queries.NpcActionTargetDto("workplace", "1"), Intent = ActionType.Work,
+                IntentTarget = "workplace:1",
+            }],
+            Processes = [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed", 1, 3, cell, [cell], "brilho")
+                { ResourceId = 1, ResourceName = "trigo" }],
+            Events = [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", cell)
+                { Involved = ObservableSample.Involved, EventId = 12 }],
+            BuildingStates = [ObservableSample.BuildingState],
+            Crops = [ObservableSample.Crop],
+            Animals = [ObservableSample.Animal],
+            FaunaGroups = [ObservableSample.FaunaGroup],
+            Leavings = [ObservableSample.Leaving],
+            Objects = [ObservableSample.Object],
+            Climate = ObservableSample.Climate,
+        };
+        var living = ContractShapes.Merge(
+            ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(filled))),
+            ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(MinimalSample.State))));
+        var payload = shape["payload"]!.AsObject();
+        payload["livingState"] = ContractShapes.Merge(payload["livingState"]!, living);
+        return shape;
     }
 
     private static readonly bool Record = Environment.GetEnvironmentVariable("LW_RECORD_CONTRACT") == "1";
@@ -68,6 +160,8 @@ public class ApiContractTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
+        if (name == "world-subscribe")
+            shape = RunningShape(await response.Content.ReadAsStringAsync(), RunningWorldSamples.ForRecording.WorldSnapshots);
         if (name == "simulation-status")
         {
             // Quem pausou, por quê, desde quando e até quando só existem com o mundo pausado por admin (ADR-0027).
@@ -197,7 +291,7 @@ public class ApiContractTests
         var city = JsonNode.Parse(cityText)!;
         var buildings = city["payload"]!["buildings"]!.AsArray();
         Assert.NotEmpty(buildings);
-        AssertMatchesContract("shape.city-subscribe.json", ShapeOf(city));
+        AssertMatchesContract("shape.city-subscribe.json", RunningShape(cityText, RunningWorldSamples.ForRecording.CitySnapshots));
         foreach (var marker in buildings)
         {
             Assert.True(marker!["floors"]!.GetValue<int>() >= 1);
@@ -225,24 +319,25 @@ public class ApiContractTests
         var city = new LivingWorld.Domain.Shared.CityId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
         var delta = new LivingWorld.Api.Visual.Scope.ScopeTickDelta(
             4,
-            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, null, null)
+            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, ActionType.Work, city, cell, ObservableSample.Extraordinary,
+                new LivingWorld.Domain.Population.Appearance(1, 2, 3, 4))
             {
                 Observable = ObservableSample.Npc, ActionStartedAtTick = 3,
                 ActionTarget = new LivingWorld.Simulation.Cities.Queries.NpcActionTargetDto("workplace", "1"), Intent = ActionType.Work,
                 IntentTarget = "workplace:1",
             }],
             [npc],
-            [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2))
+            [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2), city)
                 { Density = ObservableSample.Density }],
             [city],
             [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(7), city, -1, cell, 90)
                 { Floors = 2, GroundFootprint = [new LivingWorld.Domain.Cities.Buildings.FootprintCell(cell, LivingWorld.Domain.Cities.Buildings.BuildingMaterial.Door)],
                   Value = 100, Lodging = new LivingWorld.Api.Visual.Projection.LodgingMarker(2, 1, 30, 2) }],
             [new LivingWorld.Domain.Shared.BuildingId(7)],
-            [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed") { ResourceId = 1, ResourceName = "trigo" }],
+            [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed", 1, 3, cell, [cell], "brilho") { ResourceId = 1, ResourceName = "trigo" }],
             [1L],
             [new LivingWorld.Api.Visual.Scope.IndicatorUpdate("population", 10)],
-            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)
+            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", cell)
                 { Involved = ObservableSample.Involved, EventId = 12 }])
         {
             BuildingStateUpserts = [ObservableSample.BuildingState],
@@ -266,7 +361,12 @@ public class ApiContractTests
             new LivingWorld.Api.Visual.Scope.InteriorTickDelta(4, new LivingWorld.Domain.Shared.BuildingId(7),
                 [occupant], [occupant], [occupant], [new LivingWorld.Domain.Shared.NpcId(2)]));
 
-        AssertMatchesContract("shape.visual-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(world, options))));
+        // AD-172: o delta vai pelo fio sem as chaves nulas; a forma junta o exemplo preenchido com os deltas de um mundo rodando
+        var sample = ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(world)));
+        var minimal = ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(
+            new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, MinimalSample.Delta(4)))));
+        AssertMatchesContract("shape.visual-delta.json", ContractShapes.Merge(ContractShapes.Merge(sample, minimal),
+            RunningWorldSamples.ShapeOf(RunningWorldSamples.ForRecording.Deltas)));
         AssertMatchesContract("shape.interior-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(interior, options))));
     }
 
@@ -367,8 +467,12 @@ public class ApiContractTests
             if (n is JsonObject obj)
             {
                 foreach (var (key, typed) in rules)
+                {
                     if (obj.TryGetPropertyValue(key, out var current) && current is JsonValue v && v.GetValueKind() == System.Text.Json.JsonValueKind.String && v.GetValue<string>() == "null")
                         Optional(obj, key, typed());
+                    else if (obj.TryGetPropertyValue(key + "?", out var optional) && optional is JsonValue o && o.GetValueKind() == System.Text.Json.JsonValueKind.String && o.GetValue<string>() == "null")
+                        obj[key + "?"] = typed(); // AD-172: forma juntada de amostras já marca o opcional
+                }
                 foreach (var child in obj.Select(p => p.Value).ToList()) Walk(child);
             }
             else if (n is JsonArray arr)

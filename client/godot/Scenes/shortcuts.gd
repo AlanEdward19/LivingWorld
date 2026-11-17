@@ -37,6 +37,10 @@ static func handle(app, event: InputEvent) -> void:
 					app.talk_to(app.selected_npc)
 			KEY_M:
 				app.ambience.set_muted(not app.ambience.muted)
+			KEY_N:
+				app.next_event()
+			KEY_V:
+				app.toggle_watch()
 			KEY_L:
 				app.list_panel.visible = not app.list_panel.visible
 				if app.list_panel.visible and app.list_panel.rows.is_empty():

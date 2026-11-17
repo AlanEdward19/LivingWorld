@@ -45,13 +45,23 @@ func _material(kind: int) -> StandardMaterial3D:
 	return _materials[color]
 
 
-## Põe um marcador e devolve o id local (0 se o evento não tem lugar).
+## Põe um marcador e devolve o id (0 se o evento não tem lugar). Evento já lido (Parse.event) usa o id do servidor;
+## o formato cru do delta ganha um id local.
 func add(event: Dictionary) -> int:
-	if not event.get("location") is Dictionary:
-		return 0
-	var cell := Vector2i(int(event.location.x), int(event.location.y))
-	var id := _next_id
-	_next_id += 1
+	var cell: Vector2i
+	var id: int
+	if event.has("has_cell"):
+		if not bool(event.has_cell):
+			return 0
+		cell = event.cell
+		id = int(event.id)
+		remove(id)
+	else:
+		if not event.get("location") is Dictionary:
+			return 0
+		cell = Vector2i(int(event.location.x), int(event.location.y))
+		id = _next_id
+		_next_id += 1
 	var root := Node3D.new()
 	root.name = "Event_%d" % id
 	root.position = Grid.to_world(cell)
@@ -67,7 +77,11 @@ func add(event: Dictionary) -> int:
 	_markers[id] = {"node": root, "born": _clock}
 	positions[id] = root.position + Vector3(0, 1.75, 0)
 	while _markers.size() > MAX_MARKERS:
-		remove(_markers.keys().min())
+		var oldest: int = _markers.keys()[0]
+		for key in _markers:
+			if float(_markers[key].born) < float(_markers[oldest].born):
+				oldest = key
+		remove(oldest)
 	return id
 
 
