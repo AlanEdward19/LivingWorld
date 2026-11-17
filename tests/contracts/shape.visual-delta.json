@@ -88,7 +88,24 @@
           "rentPerMonth": "number",
           "units": "number"
         },
-        "lot": "null",
+        "lot?": {
+          "croft": [
+            {
+              "x": "number",
+              "y": "number"
+            }
+          ],
+          "frontPath": [
+            {
+              "x": "number",
+              "y": "number"
+            }
+          ],
+          "street": {
+            "x": "number",
+            "y": "number"
+          }
+        },
         "orientation": "number",
         "value": "number"
       }
