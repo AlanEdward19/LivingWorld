@@ -35,9 +35,10 @@ public sealed partial class BehaviorDecisionSystem
     /// trabalho nem viajar; a sede, da água do poço da propriedade. Antes só comia na urgência, e a fome sozinha só vencia crítica.</summary>
     private static void WorkBreakMeal(WorldState world, Npc npc, long now)
     {
+        int meal = PersonalCarry.MealTimeDeficit;
+        if (100 - npc.HungerAt(now) < meal && 100 - npc.ThirstAt(now) < meal) return; // o caso comum: sem fome nem sede na hora
         if (npc.Employer is not { } employer || world.FindWorkplace(employer) is not { } work || work.Location != npc.CurrentLocation) return;
         var econ = world.EconomyRules;
-        int meal = PersonalCarry.MealTimeDeficit;
         if (100 - npc.HungerAt(now) >= meal && !PersonalCarry.ConsumeFromPack(world, npc, now, meal))
         {
             var food = new ResourceType(econ.FoodResourceId);
@@ -61,14 +62,19 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>Ao sair de casa (a viagem começa na porta): estima quanto tempo fica fora (ida, o que vai fazer lá e volta) e leva o
     /// que a sede e a fome vão pedir. Quem saiu para comer em casa (estava longe) não arruma nada.</summary>
+    /// <summary>AD-157b: a última saída arrumada (pessoa, tick, destino, ida), só memória do mesmo tick.</summary>
+    [ThreadStatic] private static (long Npc, long Tick, CellCoord From, ActionType? Purpose, CellCoord Destination, long Leg) _departure;
+
     internal static void PackOnDeparture(WorldState world, Npc npc, MarketIndex marketIndex, long now)
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return; // sem despensa em casa, levar não muda nada
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         if (npc.TravelPurpose == ActionType.Eat || PersonalCarry.PantryOutOfReach(world, npc, home)) return; // só sai de casa quem está nela
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation) return;
-        if (!PersonalCarry.LeavesPantryBehind(world, npc, home, destination)) return; // AD-151: perto de casa não arruma nada
+        // AD-157b: o destino e a ida ficam para a conta da chegada logo a seguir (TravelArrivalTick), que os refazia
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+        _departure = (npc.Id.Value, now, npc.CurrentLocation, npc.TravelPurpose, destination, leg);
+        if (!PersonalCarry.LeavesPantryBehind(world, npc, home, destination)) return; // AD-151: perto de casa não arruma nada
         long stay = npc.TravelPurpose is { } purpose
             ? Objects.ObjectUse.DurationHours(world, npc, purpose, world.ActionCatalog)
             : 0;
@@ -156,7 +162,7 @@ public sealed partial class BehaviorDecisionSystem
             ActionType.Sleep => world.NeedsRules.UrgencyThreshold,
             _ => int.MaxValue,
         };
-        if (threshold == int.MaxValue || !world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+        if (threshold == int.MaxValue || 100 - npc.HungerAt(now) < threshold || !world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
             || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
             return false;
         if (100 - npc.HungerAt(now) < threshold) return false;

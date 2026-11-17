@@ -22,11 +22,14 @@ public sealed partial class BehaviorDecisionSystem
     internal static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (npc.CurrentAction != ActionType.Travel) return null;
-        if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation)
-            return null;
+        long now = world.CurrentDate.TotalHours;
+        var departed = _departure; // AD-157b: a saída acabou de calcular destino e ida (mesma pessoa, mesmo tick)
+        bool known = departed.Npc == npc.Id.Value && departed.Tick == now && departed.From == npc.CurrentLocation && departed.Purpose == npc.TravelPurpose;
+        var destination = known ? departed.Destination : TravelDestinationOf(world, npc, marketIndex) ?? npc.CurrentLocation;
+        if (destination == npc.CurrentLocation) return null;
         if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
 
-        long ticksNeeded = Mobility.TravelTicks(
+        long ticksNeeded = known ? departed.Leg : Mobility.TravelTicks(
             world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         return npc.ActionStartedAtTick + ticksNeeded;
     }
