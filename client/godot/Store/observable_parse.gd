@@ -32,6 +32,15 @@ static func _int_or(value: Variant, fallback: int = -1) -> int:
 	return fallback if value == null else int(value)
 
 
+## `npc.route` (AD-176): células da rota, de onde está até a chegada; ponto sem x/y é pulado. Menos de 2 = não anda.
+static func route(list: Variant) -> Array:
+	var out: Array = []
+	for value in list if list is Array else []:
+		if value is Dictionary and value.get("x") != null and value.get("y") != null:
+			out.append(Vector2i(int(value.x), int(value.y)))
+	return out if out.size() >= 2 else []
+
+
 static func _ids(list: Variant) -> Array:
 	var out: Array = []
 	for value in list if list is Array else []:

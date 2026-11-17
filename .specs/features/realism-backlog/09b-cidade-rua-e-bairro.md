@@ -51,3 +51,22 @@
 - "Resolva a cidade média sem trilha, tem que funcionar no jogo." (08d item 181) → AD-179.
 - Sobre a lama sem chuva: "implemente todas as estações, e temperatura." → AD-180 (clima completo).
 - Sobre o diarista que recebe sem mudar a agenda: "deve mudar." (08d item 178) → AD-179: obra ocupa o tempo de quem trabalha nela.
+
+## Cliente da AD-181 (rua de verdade na tela) e lacunas do contrato
+**Fechados no cliente**: 12 (neve na rua e no caminho, estação no quintal), 9 (rua por `livingState.roads` + `roadUpserts`/`roadRemoved`; a releitura de 30 s só roda com servidor
+antigo), 10 (obra com progresso e ficha; `lot.access` desenhado e na ficha), 14 em parte (a planta mostra as pessoas) e 15 (o
+boneco anda pela `npc.route` até o `routeArrivalTick`).
+16. **Evento de obra sem lugar nem obra**: `StreetWorkStarted`/`StreetWorkDone` vêm sem `location`, sem id da obra e (no
+    payload projetado) sem `cityId` garantido; o cliente põe o marcador nas células com `work` (começo) ou nas que perderam
+    `work` no mesmo delta (fim). Pedir `location` (célula do meio da obra) e `involved.workId`.
+17. **Quem trabalha na obra**: `work` não traz os diaristas; a ficha diz "o motor ainda não diz" e tem o gancho
+    (`work.workers`/`workerIds` vira link). Chega com a AD-179 (obra ocupa o tempo de quem trabalha).
+18. **Acesso só da porta**: `lot.access` diz o tipo, não a geometria (de que vizinho é a escada, que laje se atravessa,
+    onde a viela sai); o cliente desenha a peça na porta, para fora. Pedir as células do acesso.
+19. **Rota sem a passagem por cima**: a rota que atravessa prédio colado (`OverPm`) vem como células comuns; o boneco
+    anda no chão por dentro da planta. Pedir a marca da célula "por cima" na rota.
+20. **Início da viagem**: o cliente usa `actionStartedAtTick` como saída; se o grupo da ação não vier (delta enxuto) e a
+    rota mudar, cai na hora em que a rota chegou. Uma `routeDepartedTick` explícita tiraria a ambiguidade.
+21. **Reserva sem uso**: `planned` marca o traçado mesmo quando usado; "reserva sem uso" é dedução do cliente
+    (`planned` sem pisoteio, sem gente, sem obra, sem calçamento). Com a rua desligada (`LW_STREETS=off`) tudo vem `planned`.
+22. **Desempenho a medir com mundo rodando**: o `bench.sh` mede com o mundo pausado (sem rota nem delta de rua).

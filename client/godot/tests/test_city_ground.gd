@@ -62,7 +62,8 @@ func test_roads_layer_is_read_in_the_contract_shape_and_unknown_fields_are_toler
 	eq(Ground.roads({"isModeled": false, "payload": [road(1, 1, 1, 1)]}), {}, "camada não modelada: sem rua")
 	eq(Ground.roads(null), {}, "camada ausente: sem rua")
 	eq(Ground.lot(null), {}, "lote nulo")
-	eq(Ground.lot({"croft": null, "frontPath": [], "street": null}), {"croft": [], "front_path": [], "street": null}, "listas vazias")
+	eq(Ground.lot({"croft": null, "frontPath": [], "street": null}), {"croft": [], "front_path": [], "street": null, "access": ""},
+		"listas vazias (acesso ausente = servidor sem a rua de verdade)")
 
 
 func test_each_surface_has_its_own_look_and_main_square_and_users_show() -> void:

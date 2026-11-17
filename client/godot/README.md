@@ -58,7 +58,7 @@ gerados por código em `Scenes/menu/ui_sounds.gd`, no barramento Master (volume 
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
-| Ler a cidade (AD-177) | **X** raio-x (todos os prédios translúcidos, telhado quase some, continuam clicáveis) · **P** planta baixa (lotes, ruas por superfície, prédios pela função, legenda; clique abre a ficha; P/Esc fecha) · **Tab** ou **Alt+roda** alterna entre os prédios empilhados sob o cursor (Shift+Tab volta) · rótulo do prédio de perto (zoom ≤ 11) · clique numa rua abre a ficha dela; no quintal, a do prédio |
+| Ler a cidade (AD-177, AD-181) | **X** raio-x (todos os prédios translúcidos, telhado quase some, continuam clicáveis) · **P** planta baixa (lotes, ruas por superfície e uso, obras com barra, acessos, reserva do traçado como traço, **pessoas como pontos** — amarelo = andando pela rota; clique abre a ficha; P/Esc fecha) · **H** mapa de calor do pisoteio (chão 3D e planta) · **Tab** ou **Alt+roda** alterna entre os prédios empilhados sob o cursor (Shift+Tab volta) · rótulo do prédio de perto (zoom ≤ 11) · clique numa rua abre a ficha dela; no quintal, a do prédio |
 | Orientação | passe o mouse (dica com ação, alvo e corpo visível) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · processos com barra de progresso |
 | Crime | evento no mapa e na ficha (autor, vítima, caso, desfecho), sem cena nem animação; `recordOnly` (violência sexual, doméstica e contra criança) mostra **só o registro**, nunca o texto narrado (aviso, linha do tempo, dica e ficha) |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
@@ -85,12 +85,28 @@ capim pisado, terra batida, cascalho (pedrinhas), pedra (lajes); largo ocupa a c
 larga com marco no meio; mais gente (`users`) alarga. **Lote** (`lot` do prédio): quintal só onde vem `croft`, com chão
 próprio e cerca de varas (porteira para o caminho); `frontPath` vira caminho da porta até a rua; `lot` nulo, listas vazias e
 `street` nulo = nada desenhado; casa colada fica colada (a ficha diz "parede-meia"). Duas MultiMesh (ruas, lotes), uma caixa
-e um material compartilhados; redesenho só quando muda (próximo quadro). O motor só manda ruas no retrato do mundo:
+e um material compartilhados; redesenho só quando muda (próximo quadro). Servidor sem rua no escopo (antes da AD-176):
 `Scenes/road_sync.gd` relê a camada pela rota sem estado a cada 30 s e logo depois de um lote apontar uma rua desconhecida,
-sem recarregar a cena. **Ponto único** para a AD-176 (tipo de acesso, obra de rua) e superfície nova:
+sem recarregar a cena (com delta de rua, ver AD-181 abaixo, não roda). **Ponto único** para a AD-176 (tipo de acesso, obra de rua) e superfície nova:
 `Scenes/render/street_style.gd` (`ACCESS_STYLES`, `WORK_STYLE`, `access_of`, `works_of`); superfície desconhecida cai em
 `NEUTRAL`, campo desconhecido fica em `road.extra`. Ficha da rua (`street`, id "x,y"): superfície, quantas pessoas passam,
 principal/largo, prédios cuja porta dá ali; ficha do prédio: quintal (tamanho), rua da frente e caminho, parede-meia.
+
+## Rua de verdade e gente andando por ela (AD-181)
+
+**Rua por delta**: o escopo (Cidade e Mundo) manda `livingState.roads` no retrato e `roadUpserts`/`roadRemoved` a cada tick
+(`Store/road_book.gd`, aplicado por `Store/scope_delta.gd`); a releitura de 30 s (`road_sync.gd`) só roda com servidor antigo
+(sem o campo). Rua que nasce, alarga, muda de superfície ou some faz isso em 0,8 s (`ground_renderer.gd`: só nesses quadros a
+malha de ruas é refeita). **Chão**: largura pela faixa de uso (`useBand`), cor e capim na beira pelo pisoteio (`wear`), lajes
+faltando e terra à mostra com `condition` < 600; `planned` sem uso não é rua (traço na planta). **Obra** (`work`): trecho já
+assentado cresce com o %, pilha de pedra/cascalho baixa, estacas; ficha diz o que vira, %, conserto ou obra nova e quem paga
+(gancho para quem trabalha nela, que o motor ainda não manda); `StreetWorkStarted`/`StreetWorkDone` viram marcador na obra e
+entram na linha do tempo. **Acesso** (`lot.access`): viela (corredor escuro), escada encostada, passarela por cima; a ficha diz
+como se chega e `none` é alerta. Peças em `Scenes/render/street_pieces.gd`. **Rota**: quem viaja anda célula a célula pela
+`npc.route` (`Scenes/route_walk.gd`), chegando no `routeArrivalTick` pelo relógio do mundo (`Scenes/route_clock.gd`: tick do
+delta + velocidade do jogo, nunca mais de 1 tick à frente; pausa congela; 200× só chega antes); anda pela direita (desvio só
+visual), sai do espalhamento da célula e entra no da chegada; o clique e o F pegam o boneco onde está. Selecionado ou seguido:
+a rota restante aparece como linha no chão (`Scenes/render/route_line.gd`). Dev: passos `roads`, `walker`, `heat`.
 
 ## Estrutura
 
@@ -165,3 +181,17 @@ entrega; a cidade do `bench.sh` agora tem 22 células de rua e 6 quintais do mot
 Medianas 88,5 → 88,4; 70,1 → 71,1; 61,1 → 61,1 (dentro do ruído, acima de 50). `client-test.sh`: 359 → 369, 0 falhas.
 Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 1.352 ticks e Cidade ~1.480 ticks, 0 divergência de contrato,
 0 erro de script; a releitura da camada `Roads` trocou as ruas uma vez na Cidade sem recarregar.
+
+### Rua de verdade e gente andando (AD-181)
+
+`bench.sh 3` pela fila pesada, M1 Pro dividida com outros agentes, base `87c56bbd` (cópia do cliente, `LW_BENCH_CLIENT`) →
+entrega, duas rodadas (a 1ª com uma hora entre base e entrega; a 2ª pareada, base e entrega no mesmo comando):
+- 1ª: `stress:500` 92,8 / 93,4 / 93,5 → 90,0 / 90,2 / 87,9; `bench:500` 71,9 / 71,1 / 70,3 (p95 15,08 / 14,92 / 15,08 ms) →
+  70,5 / 70,2 / 69,8 (p95 15,06 / 15,11 / 15,12); `benchbig:500` 61,5 / 61,6 / 61,9 (p95 17,58 / 17,61 / 17,13) → 60,4 / 60,9 / 60,7.
+- 2ª (pareada): `stress:500` 86,3 / 88,4 / 89,0 → 88,2 / 87,2 / 87,8; `bench:500` 70,6 / 69,9 / 70,4 (p95 14,97 / 15,37 / 14,98) →
+  69,7 / 70,1 / 70,0 (p95 15,03 / 15,08 / 14,98); `benchbig:500` 58,0 / 60,7 / 60,6 (p95 18,98 / 17,56 / 17,57) → 60,4 / 60,2 / 60,7.
+Medianas pareadas 88,4 → 87,8; 70,4 → 70,0; 60,6 → 60,4 (ruído; acima de 50). Por quadro só entrou: relógio da rota, um teste
+`walk != null` por boneco, linha da rota 5×/s e transição do chão só enquanto há rua mudando. O mundo do `bench.sh` está pausado
+(sem rota nem delta de rua); quem anda custa O(1) amortizado por boneco (cursor que só avança). `client-test.sh` 369 → 381.
+Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 2.041 deltas e Cidade 2.020, 0 divergência de contrato, 0 erro de
+script; na Cidade 30 células de trilha nasceram por delta (0 → 30) e 14–31 pessoas andavam pela rota ao mesmo tempo.

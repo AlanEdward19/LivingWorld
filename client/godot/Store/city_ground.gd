@@ -2,9 +2,11 @@ extends RefCounted
 ## Chão da cidade que o motor expõe (AD-173, lido pelo cliente na AD-177): a camada `Roads` (uma célula de rua por
 ## entrada: cidade, superfície, quantas pessoas usam, principal, largo) e o lote de cada prédio (`lot`: quintal, caminho
 ## da porta, célula de rua da frente). Só lê: nada aqui inventa rua ou quintal. Campo desconhecido não quebra: vai para
-## `extra` (a AD-176 vai acrescentar tipo de acesso e obra de rua; quem desenha decide em `street_style.gd`).
+## `extra` (quem desenha decide em `street_style.gd`). AD-181: pisoteio (`wear`), faixa de uso (`useBand`), reserva do
+## traçado (`planned`), condição do calçamento (`condition`, 0–1000) e obra (`work`); `lot.access` (como se chega à porta).
 
-const KNOWN_ROAD_KEYS := ["city", "cell", "surface", "users", "main", "square"]
+const KNOWN_ROAD_KEYS := ["city", "cell", "surface", "users", "main", "square", "wear", "useBand", "planned", "condition", "work"]
+const KNOWN_WORK_KEYS := ["surface", "progressPct", "repair", "payer"]
 
 
 static func _cell(value: Variant) -> Variant:
@@ -32,16 +34,46 @@ static func road(entry: Variant) -> Variant:
 		"users": maxi(int(entry.get("users")) if entry.get("users") != null else 0, 0),
 		"main": bool(entry.get("main")) if entry.get("main") != null else false,
 		"square": bool(entry.get("square")) if entry.get("square") != null else false,
+		"wear": maxi(_int(entry.get("wear"), 0), 0),
+		"use_band": clampi(_int(entry.get("useBand"), -1), -1, 4), ## -1 = servidor antigo (sem faixa: vale `users`)
+		"planned": bool(entry.get("planned")) if entry.get("planned") != null else false,
+		"condition": _int(entry.get("condition"), -1), ## -1 = sem calçamento (trilha, terra) ou não veio
+		"work": work(entry.get("work")),
 		"extra": extra,
 	}
 
 
+static func _int(value: Variant, fallback: int) -> int:
+	return int(value) if value is float or value is int else fallback
+
+
+## Obra de calçamento da célula: {surface, progress (0–100), repair, payer, extra}; {} sem obra. `extra` guarda o que o
+## contrato ainda vai trazer (ex.: quem trabalha nela).
+static func work(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	var extra := {}
+	for key in raw:
+		if not String(key) in KNOWN_WORK_KEYS:
+			extra[String(key)] = raw[key]
+	return {"surface": _int(raw.get("surface"), -1), "progress": clampi(_int(raw.get("progressPct"), 0), 0, 100),
+		"repair": bool(raw.get("repair")) if raw.get("repair") != null else false,
+		"payer": String(raw.get("payer")) if raw.get("payer") != null else "", "extra": extra}
+
+
 ## Camada `Roads` inteira -> {célula: rua}; vazia se não modelada ou fora do formato. A primeira entrada da célula vence.
 static func roads(layer: Variant) -> Dictionary:
-	var out := {}
 	if not layer is Dictionary or not bool(layer.get("isModeled", false)) or not layer.get("payload") is Array:
+		return {}
+	return road_list(layer.payload)
+
+
+## Lista de ruas (`livingState.roads` do escopo ou `payload` da camada) -> {célula: rua}.
+static func road_list(list: Variant) -> Dictionary:
+	var out := {}
+	if not list is Array:
 		return out
-	for entry in layer.payload:
+	for entry in list:
 		var parsed = road(entry)
 		if parsed != null and not out.has(parsed.cell):
 			out[parsed.cell] = parsed
@@ -52,7 +84,8 @@ static func roads(layer: Variant) -> Dictionary:
 static func lot(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return {}
-	return {"croft": _cells(raw.get("croft")), "front_path": _cells(raw.get("frontPath")), "street": _cell(raw.get("street"))}
+	return {"croft": _cells(raw.get("croft")), "front_path": _cells(raw.get("frontPath")), "street": _cell(raw.get("street")),
+		"access": String(raw.get("access")) if raw.get("access") != null else ""} ## "" = servidor sem a rua de verdade
 
 
 static func _cells(list: Variant) -> Array:

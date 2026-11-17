@@ -31,6 +31,7 @@ const WorldView := preload("res://Scenes/world_view.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 const CityReading := preload("res://Scenes/city_reading.gd")
 const RoadSync := preload("res://Scenes/road_sync.gd")
+const RoadBook := preload("res://Store/road_book.gd")
 
 var transport
 var api ## WorldReader: a camada única de leitura (todo painel recebe este objeto)
@@ -182,6 +183,7 @@ func _on_clock_status(status: Dictionary) -> void:
 	pause_label.text = admin_window.pause_banner(status)
 	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
+	world_view.npcs.clock.set_status(int(status.tick), float(status.ticksPerSecond), bool(status.isPaused)) # rota (AD-181)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
 
@@ -210,6 +212,7 @@ func _process(delta: float) -> void:
 		world_view.far_zoom = rig.zoom_size > 16.0
 		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
 		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size))
+		world_view.followed_npc = int(director.target.id) if director != null and String(director.target.get("kind", "")) == Registry.PERSON else -1
 	if world_button != null:
 		world_button.visible = store.kind == "City" and not stage.active
 	if minimap != null:
@@ -236,7 +239,8 @@ func _on_events(events: Array) -> void:
 	var ids: Array = []
 	for raw in events:
 		_local_event_id -= 1
-		var event := Parse.event(raw, _local_event_id)
+		# obra de rua (AD-181) vem sem lugar: o marcador vai para as células da obra que o motor mandou nas ruas
+		var event := RoadBook.place_event(Parse.event(raw, _local_event_id), store.roads, store.finished_works)
 		registry.remember_event(event)
 		toasts.push(registry.event_title(event))
 		world_view.events.add(event)

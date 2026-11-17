@@ -268,6 +268,8 @@ static func street(store, id: String) -> Dictionary:
 		var parcel: Dictionary = store.buildings[building_id].get("lot", {})
 		if parcel.get("street") == cell:
 			links.append(["Porta dá aqui", Registry.ref(Registry.BUILDING, int(building_id))])
+	for worker in Style.workers_of(road): # gancho (AD-181): quem trabalha na obra, quando o motor mandar
+		links.append(["Trabalha na obra", Registry.ref(Registry.PERSON, int(worker))])
 	return {"text": "\n".join(Style.lines_of(road)), "links": links}
 
 
@@ -283,6 +285,10 @@ static func lot(store, id: int) -> Dictionary:
 		var croft := int(parcel.croft.size())
 		lines.append("Quintal: %d célula%s, cercado" % [croft, "" if croft == 1 else "s"] if croft > 0 else "Sem quintal")
 		var street = parcel.street
+		var access := Style.access_of(parcel)
+		if access != "": # AD-176: como se chega à porta; `none` é alerta
+			var look := Style.access_style(access)
+			lines.append(("⚠ " if bool(look.get("alert", false)) else "") + "Como se chega: " + String(look.line))
 		if street == null:
 			lines.append("Não dá para nenhuma rua")
 		else:
