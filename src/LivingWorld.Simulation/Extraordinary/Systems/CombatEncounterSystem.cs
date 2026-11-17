@@ -58,14 +58,14 @@ public static class CombatEncounterSystem
         ApplyStrike(world, tick, encounter, attacker, defender, isAttackerStrike: true, roundNumber);
         if (defender.Health <= 0)
         {
-            NpcDeath.Apply(world, tick, defender, WorldEventKind.Death);
+            NpcDeath.Apply(world, tick, defender, WorldEventKind.Death, "combate");
             return FinishResolved(world, tick, encounter with { RoundsElapsed = roundNumber }, attacker, defender);
         }
 
         ApplyStrike(world, tick, encounter, defender, attacker, isAttackerStrike: false, roundNumber);
         if (attacker.Health <= 0)
         {
-            NpcDeath.Apply(world, tick, attacker, WorldEventKind.Death);
+            NpcDeath.Apply(world, tick, attacker, WorldEventKind.Death, "combate");
             return FinishResolved(world, tick, encounter with { RoundsElapsed = roundNumber }, attacker, defender);
         }
 

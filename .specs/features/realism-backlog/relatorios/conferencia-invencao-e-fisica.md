@@ -40,3 +40,8 @@ Fontes: [Engineering ToolBox, atrito](https://www.engineeringtoolbox.com/frictio
 [arraste de toras](https://hrcak.srce.hr/file/6540) · [carga de água na cabeça](https://doi.org/10.1186%2F1476-069X-9-52) ·
 [UEA, crippling burdens](https://www.uea.ac.uk/research/research-archive/crippling-burdens) · [Garg et al. 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4672999/) ·
 [FAO, tração animal](https://www.fao.org/4/w0613t/w0613T0g.htm) · [Wood Handbook](https://research.fs.usda.gov/treesearch/37427)
+
+**AD-164, item 73:** Snook & Ciriello 1991 segue sem tabela legível (os PDFs da Ohio BWC e da Liberty Mutual não abrem como
+texto). Um guia da indústria automobilística dá 24 lb (~107 N) de empurrar/puxar sustentado com as duas mãos
+([Ergoweb](https://ergoweb.com/force-guidelines/), [L], limite de projeto para quase todos). 250 N fica acima da faixa provável:
+candidato a 150–200 N em [correções](correcoes-sugeridas.md) (#13), sem aplicar.

@@ -8,6 +8,7 @@ using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Health;
+using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
@@ -348,6 +349,58 @@ public class DiseaseTests
         var causes = DeathCauseRules.PreIndustrial;
         Assert.True(causes.AccidentShare(30, male: true, 0.006) > causes.AccidentShare(30, male: false, 0.006));
         Assert.Equal(0, causes.OldAgeShareByAge.At(40));
+    }
+
+    [Fact]
+    public void The_unnamed_rest_of_the_table_is_named_by_age_at_death()
+    {
+        var world = NewWorld();
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        var mortality = new MortalitySystem();
+        var byAge = new long[] { 3, 180, 2 * 360, 10 * 360, 30 * 360, 70 * 360 }.Select(days =>
+        {
+            var npc = new Npc(world.NextNpcIdAndAdvance(), "npc", Sex.Female, WorldDate.Epoch(Calendar).AddDays(-days), new CultureId(1),
+                Here, null, null, household: null, health: 100, personality: Neutral, profession: new ProfessionType(1), currentLocation: Here);
+            world.AddNpc(npc);
+            return (days, npc);
+        }).ToList();
+
+        // marca vazia (neonatal), marca de antes do AD-137 e snapshot antigo sem marca: todos levam nome
+        foreach (var (_, npc) in byAge)
+            mortality.HandleEvent(world, ctx, new ScheduledEvent(1, 0, MortalitySystem.SystemName, $"age|{npc.Id.Value}"));
+
+        var names = byAge.Select(p => sink.Events.Single(e => e.Kind == WorldEventKind.Death
+            && e.Payload.StartsWith(p.npc.Id.Value + "|", StringComparison.Ordinal)).Payload.Split('|')[1]).ToList();
+        Assert.Equal(["debilidade", "convulsoes", "denticao", "lombrigas", "hidropisia", "apoplexia"], names);
+        Assert.Equal("", DeathCauseRules.None.ResidualLabel(30));
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void No_death_of_the_default_village_leaves_without_a_cause_and_the_name_changes_nobody_who_dies()
+    {
+        static List<WorldEvent> Deaths(NeedsRules? needs)
+        {
+            var (world, _) = ScenarioRunner.Create(3, needsRules: needs);
+            var sink = new RecordingSink();
+            new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 10L * world.Calendar.HoursPerYear);
+            return sink.Events.Where(e => e.SourceSystem == "NpcDeath" && DemographyDeath.IsNpcDeath(e.Kind)).ToList();
+        }
+
+        var basis = ScenarioRunner.DefaultNeedsRules;
+        var unnamed = basis with
+        {
+            Physiology = basis.Physiology with { DeathCauses = basis.Physiology.DeathCauses with { ResidualByAge = [] } },
+        };
+        var named = Deaths(null);
+        var before = Deaths(unnamed);
+
+        Assert.True(named.Count > 20, $"só {named.Count} mortes: o teste não mediu nada");
+        Assert.DoesNotContain(named, e => e.Kind == WorldEventKind.Death && !e.Payload.Contains('|'));
+        Assert.Contains(before, e => e.Kind == WorldEventKind.Death && !e.Payload.Contains('|')); // o braço de antes tinha sobra
+        // só rótulo: as mesmas pessoas morrem na mesma hora e do mesmo tipo
+        Assert.Equal(before.Select(e => (e.Tick, e.Kind, e.Payload.Split('|')[0])), named.Select(e => (e.Tick, e.Kind, e.Payload.Split('|')[0])));
     }
 
     [Fact]

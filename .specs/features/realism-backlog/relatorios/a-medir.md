@@ -17,7 +17,7 @@ sexo; natimortos; construções boas e falhas; CV mínimo de vitalidade; lembran
 
 - **86, 85, 62, 80**: se fome sobe com a doméstica/sequestro/violência sexual (85), com a carga pessoal ligada (62) e com o açoite e o
   banimento (80), pelo desenho estatístico abaixo, em vez da contagem bruta em 20 seeds.
-- **34** (AD-163: 36,1% sem causa é a sobra da tábua sem rótulo; nenhuma seed abaixo de 51): fração de mortes ainda sem causa (era 34,7%), doença de 1 a 4 anos contra a tábua, e se alguma seed ainda cai a dezenas de
+- ~~**34**~~ (AD-164: sobra nomeada pela idade, 0% sem causa) (AD-163: 36,1% sem causa é a sobra da tábua sem rótulo; nenhuma seed abaixo de 51): fração de mortes ainda sem causa (era 34,7%), doença de 1 a 4 anos contra a tábua, e se alguma seed ainda cai a dezenas de
   vivos (a seed 18 do AD-140).
 - ~~**30**~~ (AD-163: 103,2, IC90 101,1–105,4): razão de sexo ao nascer com intervalo (o 107,7 do AD-139 é ruído do sorteio 105:100? com ~11 mil nascidos o erro-padrão
   da razão é ~2 pontos [C], então 107,7 fica a ~1,3 erro-padrão de 105).
@@ -50,6 +50,10 @@ sexo; natimortos; construções boas e falhas; CV mínimo de vitalidade; lembran
    Theory* (número de réplicas pela estabilização do CV); Lee et al. 2015, *JASSS* 18(4):4 (análise de saída de modelos de agentes).
 
 ## 2. Custo por NPC-tick em pares alternados, fila de uma vaga (itens 4, 24, 18, 32, 43, 44, 52, 61, 63, 65, 72, 79, 106)
+
+> **AD-164 rodou a parte sem commits antigos**: 24 (mesma DLL 5×: 194/202 B em dois degraus, junto com o tempo), 106 (poderes
+> ligados 1,9× o tempo, 2,1× os bytes) e o acumulado de hoje a 5.000 (1,25–1,28 µs, 172 B). Falta o lado a lado com os commits
+> antigos (4, 32, 43, 52, 61, 65, 72, 79) e o 18 (teste sozinho × com o gate).
 
 Uma sessão de custo: árvore de hoje contra a base antes do AD-145, e cada chave suspeita ligada/desligada, a **1.000 e 5.000 NPCs**,
 em pares alternados (A, B, A, B…), mínimo de 3 pares, mesma janela de máquina. Responde o custo nunca medido a 5.000 dos AD-145,

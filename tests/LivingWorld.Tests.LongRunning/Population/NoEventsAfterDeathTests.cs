@@ -26,7 +26,7 @@ public class NoEventsAfterDeathTests
 
         var deathTick = new Dictionary<string, long>();
         foreach (var e in sink.Events.Where(e => e.Kind is WorldEventKind.Death or WorldEventKind.Starvation && e.SourceSystem == "NpcDeath"))
-            deathTick[e.Payload] = e.Tick;
+            deathTick[e.Payload.Split('|')[0]] = e.Tick; // Death leva a causa depois do id (AD-164)
         Assert.NotEmpty(deathTick);
 
         foreach (var e in sink.Events)

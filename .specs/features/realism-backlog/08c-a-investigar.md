@@ -2,6 +2,7 @@
 
 > AD-161 (2026-11-16): todos os itens desta página foram conferidos em fonte
 > ([família](relatorios/conferencia-familia-e-nupcialidade.md), [economia](relatorios/conferencia-economia-e-credito.md)).
+> AD-164: 108–113 são da fatia da carga pessoal e 140–146 do cérebro (outras fatias em andamento); não tocados.
 
 ## Da natalidade e nupcialidade de época (AD-158)
 120. ~~**A mulher ainda casa cedo (~21) e quase nenhuma fica solteira**~~ (AD-161): a referência confere (mulher 24–25, homem 27–28;

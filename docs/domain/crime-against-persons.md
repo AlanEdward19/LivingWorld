@@ -23,7 +23,15 @@ do dia não muda (stream próprio `crime-person-day-N`).
 - AD-163, medida pela grandeza da fonte: **esposas agredidas no ano ÷ anos de esposa** (`ReferenceTally`): 3,0% (40×100),
   abaixo de 10–20% (OMS 2018 / Sardinha 2022: 13% no último ano, moderno [B]). 0,036 dá 9,5–10,2% com separações 12 → 16 e
   natalidade igual, mas (20×100, pareado) horas de fome crítica 1,28× (IC90 1,01–1,67), fome dos menores de 5 2,0× (1,25–3,6),
-  homicídios 1,28×: **não aplicado**; falta achar por que a agressão leva à fome (dano e trabalho? separação?).
+  homicídios 1,28×: **não aplicado**.
+- AD-164, por que leva à fome (sonda `DomesticHungerProbe`, 12 pares × 50 anos, ×3): horas de fome crítica 1,73× (IC90
+  1,11–2,48). **Não é o dano**: a vítima adulta trabalha 28,5% → 28,8% das horas (igual à média). **Nem a perda do provedor**:
+  12 mortos ou agressores enforcados/banidos em 2.046 agressões. A casa não pula de fome depois da agressão (90 dias depois ÷
+  antes 1,12). O caminho local mais forte é a **separação depois da agressão**: quem sai leva os filhos pequenos e uma parte da
+  despensa, sem sustento depois — fome crítica 15,8 h/pa (aldeia 5,2) e 17,6 h/pa nos menores de 5 (aldeia 1,7). A vítima no
+  ano seguinte tem 1,75× a aldeia sem trabalhar menos (hipótese não provada: o medo corta `Travel`). ~60% do excesso cai em quem não teve agressão
+  em casa em 5 anos: difuso, pede ~160 pares. Correção proposta: pensão do separado (a separação canônica obrigava o marido a
+  sustentar a mulher) e o medo pesar só no caminho onde está o agressor.
 - Justiça: a vítima sabe quem foi, mas a denúncia é rara (fração 0,15, uma decisão só) e a corte condena menos (0,5).
 
 ## Sequestro (`KidnappingRules`)
