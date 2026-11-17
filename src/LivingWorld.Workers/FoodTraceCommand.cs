@@ -12,7 +12,9 @@ public static class FoodTraceCommand
 {
     public static int Run(ulong seed, int years, string? scenarioPath = null)
     {
-        var (world, baseClock) = scenarioPath is null ? ScenarioRunner.Create(seed) : Load(scenarioPath, seed);
+        var (world, baseClock) = scenarioPath is null
+            ? ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules()) // AD-166: os interruptores de medida
+            : Load(scenarioPath, seed);
         var tally = new FoodTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         var food = new ResourceType(world.EconomyRules.FoodResourceId);

@@ -11,6 +11,15 @@ public static class PressureSwitch
     public static FamilyRules? FamilyRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PRESSURE");
+        // AD-166: LW_AID=old (ajuda de antes), market (só a moeda que vê a banca), food (só a comida do excedente)
+        if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_AID") is { Length: > 0 } aid)
+            return ScenarioRunner.DefaultFamilyRules with
+            {
+                Pressure = PopulationPressureRules.Measured with { AidSeesFoodForSale = aid == "market", FoodAidFromSurplus = aid == "food" },
+            };
+        // AD-166: LW_AID_RESERVE=n troca os dias que quem socorre guarda antes de mandar comida
+        if (string.IsNullOrWhiteSpace(raw) && int.TryParse(Environment.GetEnvironmentVariable("LW_AID_RESERVE"), out int reserve))
+            return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { FoodAidReserveDays = reserve } };
         if (string.IsNullOrWhiteSpace(raw)) return null;
         if (raw == "off") return ScenarioRunner.DefaultFamilyRules with { Pressure = null }; // AD-148: o padrão agora é ligado
         if (raw == "nohouse") return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { Holdings = null } }; // AD-158

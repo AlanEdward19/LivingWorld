@@ -180,6 +180,8 @@ public class OntogenyModelTests
 
     // --- Critério 1b: ninguém age acima do próprio desenvolvimento em 10 anos; desligar a checagem reprova ---
 
+    private static readonly List<string> Seen = [];
+
     private static int CountViolations(WorldState world, OntogenyRules judge)
     {
         int violations = 0;
@@ -187,7 +189,10 @@ public class OntogenyModelTests
             // O marco vale para a intenção: a viagem que atende uma intenção elegível (ir à cama) é assistida, quem não anda é levado.
             if (npc.IsAlive && npc.CurrentAction is { } action
                 && !judge.IsEligible(npc.Development, action == ActionType.Travel ? npc.TravelPurpose ?? action : action))
+            {
                 violations++;
+                Seen.Add($"{npc.Id.Value}:{action}/{npc.TravelPurpose}@{world.CurrentDate.TotalHours} dev={npc.Development}");
+            }
         return violations;
     }
 
@@ -209,7 +214,8 @@ public class OntogenyModelTests
     [Fact]
     public void No_npc_acts_above_its_development_across_ten_years()
     {
-        Assert.Equal(0, RunAndCountViolations(OntogenyDefaults.Human, seedStatesFromHuman: false));
+        int violations = RunAndCountViolations(OntogenyDefaults.Human, seedStatesFromHuman: false);
+        Assert.True(violations == 0, string.Join(" | ", Seen.Take(5)));
     }
 
     [Fact]

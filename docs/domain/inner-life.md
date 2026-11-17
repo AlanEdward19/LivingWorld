@@ -41,6 +41,9 @@ emocional para sempre; casar dá +1 (a personalidade muda devagar com a vida).
 - **Decisão urgente**: termos de vida interior na utilidade (luto tira de Work e Socialize e
   puxa para Idle; vergonha recolhe; alegria aproxima; medo segura Travel; solidão recente
   desconta a esperança de achar alguém; sem moeda e com a despensa baixa, `IncomeNeed` pesa em Work).
+  AD-166: o luto não puxa para Idle quando comer (o que a despensa serve) ou comprar vale acima de 50
+  (`GriefYieldsToBody`): quem chora come e abastece a casa. Com isso a morte por acidente e por velhice também enluta
+  (`MournEveryDeath`); 40 × 15 pareado: fome crítica 1,003×, mortalidade 0,977×, sede crítica 0,981×.
 - **Despensa**: quem passou fome quer meta e compra maiores (até ×2).
 - **Ajuda mútua**: quem foi ajudado ajuda mais (a casa de quem ajudou, sobretudo).
 - **Vínculos**: quem foi traído, roubado ou abandonado confia menos em todos e menos ainda

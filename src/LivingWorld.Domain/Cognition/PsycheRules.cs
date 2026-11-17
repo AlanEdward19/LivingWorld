@@ -90,6 +90,14 @@ public sealed record PsycheRules
 
     public double GriefWorkPenalty { get; init; } = 40;
     public double GriefIdleBonus { get; init; } = 30;
+
+    /// <summary>AD-166: o luto tira do trabalho e do lazer, mas não da comida. Com a fome ou a sede pedindo comer (o que a
+    /// despensa serve) ou a casa pedindo compra, o apelo do luto a ficar à toa não entra: quem chora o morto ainda come e
+    /// abastece a casa. Falso volta ao de antes (o luto podia vencer o comer e o comprar).</summary>
+    public bool GriefYieldsToBody { get; init; } = true;
+
+    /// <summary>AD-166: morte por acidente e por velhice também enlutam (antes só as outras causas). Falso volta ao de antes.</summary>
+    public bool MournEveryDeath { get; init; } = true;
     public double GriefSocialPenalty { get; init; } = 20;
     public double ShameSocialPenalty { get; init; } = 30;
     public double FearTravelPenalty { get; init; } = 40;

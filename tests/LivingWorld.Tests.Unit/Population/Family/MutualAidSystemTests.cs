@@ -41,13 +41,20 @@ public class MutualAidSystemTests
 
     /// <summary>Casa necessitada: mãe adulta (recipient) e filho, sem comida e sem dinheiro. Ajudante: a avó,
     /// adulta, com casa própria e <paramref name="helperWallet"/> na carteira.</summary>
-    private static Scene Build(int helperAltruism, long helperWallet, bool helperIsKin = true, double? affection = null)
+    private static Scene Build(int helperAltruism, long helperWallet, bool helperIsKin = true, double? affection = null,
+        long foodForSale = 1000)
     {
         var world = new WorldState(
             Calendar, 7, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Rules,
-            familyRules: ScenarioRunner.DefaultFamilyRules);
+            familyRules: ScenarioRunner.DefaultFamilyRules,
+            economyCatalog: new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [1], new Dictionary<int, int>()));
+        // AD-166: o mercado da vila, ao lado da casa; a moeda só conta para a ajuda se ele tem comida à venda
+        world.AddWorkplace(new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 5, employees: [],
+            stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = foodForSale, [new ResourceType(2)] = 1000 },
+            treasury: Money.Zero, prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 1, [new ResourceType(2)] = 1 }));
 
         Npc Make(string name, int ageYears, Personality personality, NpcId? mother = null, long wallet = 0)
         {
@@ -170,6 +177,43 @@ public class MutualAidSystemTests
 
         var friend = Build(helperAltruism: 100, helperWallet: 5000, helperIsKin: false, affection: 90);
         Assert.Contains(RunDays(friend, days: 60), e => e.Kind == WorldEventKind.AidGiven);
+    }
+
+    /// <summary>AD-166 (08c item 148): na quebra a banca não tem comida; a moeda da casa não compra nada e não a tira da ajuda. Quem
+    /// socorre manda comida da despensa acima da reserva dela (2 dias por morador), e a comida só muda de casa.</summary>
+    [Fact]
+    public void With_no_food_for_sale_a_household_with_money_is_helped_with_food_from_the_helpers_pantry()
+    {
+        var food = new ResourceType(1);
+        var famine = Build(helperAltruism: 100, helperWallet: 5000, foodForSale: 0);
+        famine.Recipient.CreditWallet(new Money(500));   // muito acima dos 4 dias de compra: com comida à venda, nada de ajuda
+        var helperHome = famine.World.FindHousehold(famine.Helper.Household!.Value)!;
+        helperHome.Deposit(food, 20);
+        long before = helperHome.Stock.GetValueOrDefault(food) + famine.NeedyHouse.Stock.GetValueOrDefault(food);
+
+        var events = RunDays(famine, days: 5);
+
+        Assert.Contains(events, e => e.Kind == WorldEventKind.AidGiven && e.Payload.EndsWith("|food", StringComparison.Ordinal));
+        Assert.True(famine.NeedyHouse.Stock.GetValueOrDefault(food) > 0);
+        Assert.True(helperHome.Stock.GetValueOrDefault(food) >= 2, "quem socorre guarda a própria reserva");
+        Assert.Equal(before, helperHome.Stock.GetValueOrDefault(food) + famine.NeedyHouse.Stock.GetValueOrDefault(food));
+        Assert.Equal(5000, famine.Helper.Wallet.Amount);   // sem comida à venda, moeda dada não compra nada
+
+        var market = Build(helperAltruism: 100, helperWallet: 5000);
+        market.Recipient.CreditWallet(new Money(500));
+        market.World.FindHousehold(market.Helper.Household!.Value)!.Deposit(food, 20);
+        Assert.DoesNotContain(RunDays(market, days: 5), e => e.Kind == WorldEventKind.AidGiven);
+    }
+
+    /// <summary>AD-166: a amiga de afeto (não parente) também manda comida da despensa, não só a família de origem.</summary>
+    [Fact]
+    public void A_friend_with_food_beyond_her_reserve_sends_food_too()
+    {
+        var food = new ResourceType(1);
+        var scene = Build(helperAltruism: 100, helperWallet: 0, helperIsKin: false, affection: 90, foodForSale: 0);
+        scene.World.FindHousehold(scene.Helper.Household!.Value)!.Deposit(food, 20);
+
+        Assert.Contains(RunDays(scene, days: 10), e => e.Kind == WorldEventKind.AidGiven && e.Payload.EndsWith("|food", StringComparison.Ordinal));
     }
 
     private sealed class RecordingSink : IWorldEventSink

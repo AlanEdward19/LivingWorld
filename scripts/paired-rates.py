@@ -23,7 +23,8 @@ def read(paths):
                 kv = dict(tok.split("=", 1) for tok in line.split()[1:] if "=" in tok)
                 if line.startswith("aflicao "):
                     seed = int(kv.pop("seed"))
-                    seeds.setdefault(seed, {}).update({"af_" + k: float(v) for k, v in kv.items()})
+                    # AD-166: campos de texto da aflição (comendo_vindo_de) ficam de fora
+                    seeds.setdefault(seed, {}).update({"af_" + k: float(v) for k, v in kv.items() if v.replace(".", "", 1).replace("-", "", 1).isdigit()})
                     continue
                 row = {}
                 for k, v in kv.items():

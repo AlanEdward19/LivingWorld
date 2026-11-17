@@ -218,7 +218,9 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 candidate = ConstrainByDevelopment(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.DevelopmentAtWork++;
                 // só quem já decidiu buscar comida ou água (comer, comprar) pensa em furtar: o resto das decisões urgentes não paga a conta
-                if (urgent && candidate is ActionType.Eat or ActionType.Buy && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now))
+                // AD-166: o furto também passa pelo marco (Steal pede cognição social); antes entrava depois dele e a criança furtava
+                if (urgent && candidate is ActionType.Eat or ActionType.Buy && npc.ControlledAction is null && world.TheftRules.Enabled
+                    && ConstrainByDevelopment(world, npc, ActionType.Steal) == ActionType.Steal && TheftResolver.Wants(world, npc, now))
                     candidate = ActionType.Steal; // fome sem comida nem como comprar + temperamento + algo a levar (AD-150)
                 var sickAware = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
                 if (workHour && !urgent && sickAware != candidate) { if (sickAware == ActionType.Idle) diag.CareAtWork++; else diag.SickAtWork++; }

@@ -223,6 +223,30 @@ public class PersonalCarryTests
         Assert.False(PersonalCarry.PantryOutOfReach(world, npc, home));
     }
 
+    /// <summary>AD-166: qualquer morte leva o saber e devolve a carga à casa. Antes acidente, velhice, homicídio e forca deixavam
+    /// o morto sabendo o design e a comida presa nele.</summary>
+    [Theory]
+    [InlineData(LivingWorld.Domain.History.WorldEventKind.Accident)]
+    [InlineData(LivingWorld.Domain.History.WorldEventKind.OldAge)]
+    [InlineData(LivingWorld.Domain.History.WorldEventKind.Homicide)]
+    [InlineData(LivingWorld.Domain.History.WorldEventKind.Executed)]
+    public void Any_death_forgets_what_the_dead_knew_and_returns_the_load_to_the_household(LivingWorld.Domain.History.WorldEventKind kind)
+    {
+        var (world, ctx) = NewWorld();
+        var npc = Adults(world).First(n => HomeOf(world, n).Members.Count > 1);
+        var home = HomeOf(world, npc);
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var design = GiveContainer(world, npc, Container(Formable, 2000, strap: false));
+        world.Invention!.Carry(npc.Id.Value, food.Id, 3);
+        long before = home.Stock.GetValueOrDefault(food);
+
+        LivingWorld.Simulation.Population.Lifecycle.NpcDeath.Apply(world, ctx, npc, kind);
+
+        Assert.DoesNotContain(world.Invention.Known, k => k.NpcId == npc.Id.Value && k.DesignId == design.Id);
+        Assert.False(world.Invention.CarriesAnything(npc.Id.Value));
+        Assert.Equal(before + 3, home.Stock.GetValueOrDefault(food));
+    }
+
     [Fact]
     public void Back_home_what_is_left_returns_to_the_pantry()
     {
