@@ -24,6 +24,8 @@ public enum WorldEventKind
     /// <summary>Cortejo iniciado — payload <c>npcAId|npcBId</c>.</summary>
     CourtshipStarted,
 
+    /// <summary>Cortejo recusado — payload <c>motivo|pretendenteId|candidatoId</c> (motivo: <c>CourtshipRejectionReason</c>;
+    /// <c>MesmoNome</c>, AD-183: o mesmo nome de família sem ascendente comum conhecido pesou como sinal de parentesco).</summary>
     CourtshipRejected,
 
     /// <summary>Cortejo concluído — emitido antes de <see cref="Marriage"/>.</summary>
@@ -52,7 +54,9 @@ public enum WorldEventKind
     /// <c>correctsFactId|correctedPayload|reason</c>.</summary>
     CompensatingCorrection,
 
-    /// <summary>Fundação de assentamento — cidade nova a partir da mãe.</summary>
+    /// <summary>Fundação de assentamento — cidade nova a partir da mãe. AD-183: registrado na fundação da cidade-filha pelo
+    /// aglomerado — payload <c>cidadeId|maeId|fundadorId|nome</c> (fundador -1 = ninguém; nome: <c>mae</c>, <c>fundador</c>,
+    /// <c>novo</c>, o costume que deu o nome).</summary>
     SettlementFounded,
 
     /// <summary>Uma cidade-filha adjacente foi absorvida pela cidade-mãe (FixT18).</summary>
@@ -141,7 +145,8 @@ public enum WorldEventKind
     PossessionResisted,
 
     /// <summary>Ajuda mútua: alguém deu dinheiro a uma casa em necessidade — payload
-    /// <c>ajudanteId|receptorId|valor</c>.</summary>
+    /// <c>ajudanteId|receptorId|valor[|food][|motivo]</c> (<c>food</c>: comida da despensa em vez de moeda; motivo, AD-183:
+    /// <c>xara</c> ou <c>linhagem</c>, quando o nome pesou; com motivo e moeda, o quarto campo vem vazio).</summary>
     AidGiven,
 
     /// <summary>Morte por sede sustentada — payload: npcId (mesmo molde de <see cref="Starvation"/>).</summary>
@@ -155,7 +160,8 @@ public enum WorldEventKind
     Trade,
 
     /// <summary>Espólio de um NPC morto repartido entre os herdeiros — payload:
-    /// <c>mortoId|herdeiros(ids por vírgula, vazio = tesouro da cidade)|moeda|unidadesDeEstoque|oficinasTransferidas</c>.</summary>
+    /// <c>mortoId|herdeiros(ids por vírgula, vazio = tesouro da cidade)|moeda|unidadesDeEstoque|oficinasTransferidas[|xaraId|legado]</c>
+    /// (AD-183: o legado ao xará, quando houve).</summary>
     EstateSettled,
 
     /// <summary>Morte por doença — payload: <c>npcId|doençaId</c>.</summary>
@@ -267,7 +273,8 @@ public enum WorldEventKind
     /// <summary>Morte por agressão (AD-150), pelo mesmo caminho das outras mortes — payload: <c>npcId</c>.</summary>
     Homicide,
 
-    /// <summary>Alguém denunciou (AD-150) — payload: <c>denuncianteId|acusadoId|casoId|crime|culpadoDeVerdade(1/0)</c>.</summary>
+    /// <summary>Alguém denunciou (AD-150) — payload: <c>denuncianteId|acusadoId|casoId|crime|culpadoDeVerdade(1/0)[|motivo]</c>
+    /// (motivo, AD-183: <c>fama-da-linhagem</c> quando a suspeita, sem testemunha, pesou a fama da linhagem).</summary>
     CrimeReported,
 
     /// <summary>Julgamento (AD-150) — payload: <c>acusadoId|vitimaId|casoId|crime|veredito|punicao|valor|culpadoDeVerdade(1/0)</c>

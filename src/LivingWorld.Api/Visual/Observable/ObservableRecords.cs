@@ -100,7 +100,9 @@ public sealed record ScopeClimateVisual(
     int Month, int SeasonIndex, string SeasonKey, double TemperatureC, int RegionId, int CropYearFactorMilli, bool Drought);
 
 /// <summary>Envolvidos de um evento, lidos do payload do motor. Crime traz autor, vítima, caso e desfecho, sem descrição; violência
-/// sexual, doméstica e contra criança vêm com <see cref="RecordOnly"/> (só registro, sem cena).</summary>
+/// sexual, doméstica e contra criança vêm com <see cref="RecordOnly"/> (só registro, sem cena). <see cref="Motive"/> (AD-183): o
+/// nome que pesou na decisão do motor — <c>xara</c> (socorro do xará, legado ao xará), <c>linhagem</c> (socorro de quem tem o
+/// mesmo nome de família), <c>mesmo-nome</c> (namoro recusado), <c>fama-da-linhagem</c> (suspeita), <c>fundador</c> (fundação).</summary>
 public sealed record EventInvolved(
     long? SubjectId = null,
     long? OtherId = null,
@@ -116,7 +118,8 @@ public sealed record EventInvolved(
     string? CityId = null,
     long? Amount = null,
     string? Outcome = null,
-    bool RecordOnly = false);
+    bool RecordOnly = false,
+    string? Motive = null);
 
 /// <summary>Planta e andares de um prédio (pura do id, tipo e orientação): guardada por chave para não regerar todo tick.</summary>
 public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint);

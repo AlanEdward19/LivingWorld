@@ -59,10 +59,14 @@
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
 
 ## Dos nomes (AD-178)
-185. **Costume de nome não é dado de cenário**: linhagem, adoção do nome no casamento e chance de homenagem saem do RNG da
-     cultura (padrão 70% / 50% / 15–50%); o período não declara. Bloco opcional `Naming` por cultura no cenário, com
-     loader e snapshot, se um período quiser fixar o costume.
+185. ~~**Costume de nome não é dado de cenário**~~ — fechado na AD-183: bloco opcional `Naming` por cultura (linhagem,
+     cônjuge adota o nome, chance de homenagem, nome da cidade-filha), validado, no snapshot; ausente = o sorteio da cultura.
 186. ~~**Cidade ainda não fala a língua da cultura**~~ — fechado na AD-178: nome de cidade pela fonologia da cultura que funda.
 187. ~~**Nome sem consequência causal**~~ — fechado na AD-178: xará e linhagem na ajuda, luto, legado, namoro e fama
-     (`NameBondRules`). Aberto dele: honra (feito) não respinga, só vergonha; o nome do fundador na cidade-filha não existe.
+     (`NameBondRules`). ~~Aberto dele: honra não respinga; fundador da cidade-filha não existe~~ — fechado na AD-183 (honra
+     dos feitos que respinga como a vergonha; fundador registrado e homenageado no nome pelo costume).
 188. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
+189. **Honra só de quatro feitos** (AD-183): socorro, invenção, negócio aberto, cidade fundada. Mestria no ofício, riqueza,
+     cargo, filhos criados e coragem em luta não viram boa fama (bloco de issue no relatório da AD-183).
+190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha (depende do traçado, `Cities/Layout`).
+191. **Nome na sociedade**: o nome da família pesa na contratação e no crédito, não na escolha de sócio do negócio (`Venture`).

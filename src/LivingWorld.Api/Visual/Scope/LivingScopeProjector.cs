@@ -281,7 +281,7 @@ public static class LivingScopeProjector
                 WorldEventKind.SettlementFounded,
                 LivingEventPresentationCatalog.Describe(WorldEventKind.SettlementFounded),
                 city.Location)
-            { Involved = new EventInvolved(CityId: city.Id.ToString()) });
+            { Involved = new EventInvolved(SubjectId: city.FounderId, CityId: city.Id.ToString(), Motive: city.FounderId is null ? null : "fundador") });
         return logged
             .Concat(founding)
             .DistinctBy(evt => (evt.Tick, evt.Kind, evt.Label))

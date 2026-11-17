@@ -186,8 +186,9 @@ public sealed class MutualAidSystem : ISimulationSystem
                 continue;
 
             double closeness = kin ? 1.0 : ClosenessTo(world, helper, members);
+            string? why = null; // AD-183: o motivo do nome fica no evento
             if (closeness < names.LineageAidCloseness && Naming.NameBonds.LineageOfAny(helper, members))
-                closeness = names.LineageAidCloseness; // AD-178: "é dos nossos"
+                (closeness, why) = (names.LineageAidCloseness, "linhagem"); // AD-178: "é dos nossos"
             if (closeness <= 0) continue;
             considered++;
 
@@ -202,7 +203,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                 * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, members, ctx.CurrentTick);
             // AD-178: o xará socorre a casa do homenageado (e o homenageado a do xará) com mais vontade
             if (names.NamesakeAidGain > 0 && Naming.NameBonds.NamesakeOfAny(world, helper, members))
-                chance *= 1 + names.NamesakeAidGain;
+                (chance, why) = (chance * (1 + names.NamesakeAidGain), "xara");
             // Uma rolagem por (ajudante, dia): o mesmo fluxo atende, em ordem de id, as casas que precisam.
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;
@@ -217,7 +218,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                     foodNeed -= sent;
                     deficit -= sent * unitPrice; // a comida que chegou é a que não precisa ser comprada
                     Thank(world, ctx, recipient, helper);
-                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food", sourceSystem: SystemName);
+                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food{(why is null ? "" : "|" + why)}", sourceSystem: SystemName);
                 }
                 if (deficit <= 0 && (moneyBuysFood || foodNeed <= 0)) break;
             }
@@ -230,7 +231,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             recipient.CreditWallet(new Money(give));
             deficit -= give;
             Thank(world, ctx, recipient, helper);
-            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}{(why is null ? "" : "||" + why)}", sourceSystem: SystemName);
         }
 
         if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;

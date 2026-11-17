@@ -22,6 +22,7 @@
         "designId": "number",
         "householdId": "number",
         "leavingId": "number",
+        "motive": "null",
         "otherId": "number",
         "outcome": "string",
         "recordOnly": "boolean",
@@ -54,6 +55,8 @@
     },
     "foundedAtTick": "number",
     "foundedFromCityId": "null",
+    "founderId": "null",
+    "founderName": "null",
     "households": "number",
     "id": "string",
     "indicators": {

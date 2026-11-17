@@ -27,7 +27,9 @@ public static class ExperimentSwitch
 
     /// <summary>AD-178: <c>LW_NAMES=off</c> desliga tudo o que o nome faz; <c>LW_NAMES=-aid,-grief,-legacy,-lineage,-courtship,-infamy</c>
     /// desliga só os efeitos listados (xará na ajuda, luto do xará, legado ao xará, linhagem na ajuda, nome no namoro, fama
-    /// da linhagem). Vazio = padrão (todos ligados).</summary>
+    /// da linhagem). AD-183: <c>-honor</c> (boa fama dos feitos e o que ela faz), <c>-founder</c> (fundador e nome da cidade-filha),
+    /// <c>-matchrep</c> (nome da família no namoro), <c>-hirerep</c> (nome na contratação), <c>-refuse</c> (mesmo nome pesado também
+    /// por quem é pedido). Vazio = padrão (todos ligados).</summary>
     public static NameBondRules? Names(NameBondRules baseRules)
     {
         var raw = Environment.GetEnvironmentVariable("LW_NAMES");
@@ -43,6 +45,20 @@ public static class ExperimentSwitch
                 "-lineage" => r with { LineageAidCloseness = 0 },
                 "-courtship" => r with { SameFamilyCourtshipFactor = 1 },
                 "-infamy" => r with { LineageInfamySpill = 0 },
+                "-honor" => r with
+                {
+                    LineageHonorSpill = 0,
+                    HonorPerAid = 0,
+                    HonorPerInvention = 0,
+                    HonorPerVenture = 0,
+                    HonorForFounding = 0,
+                    HonorOffsetsInfamy = 0,
+                    HonorCreditTrust = 0,
+                },
+                "-founder" => r with { FounderHonor = false },
+                "-matchrep" => r with { ReputationCourtshipGain = 0 },
+                "-hirerep" => r with { ReputationHiringOrder = false },
+                "-refuse" => r with { NameSignalOnAcceptance = false },
                 _ => throw new ArgumentException($"LW_NAMES: chave desconhecida '{key}'"),
             };
         return r;

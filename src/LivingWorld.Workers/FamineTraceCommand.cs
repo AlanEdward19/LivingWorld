@@ -22,7 +22,7 @@ public static class FamineTraceCommand
             {
                 case WorldEventKind.TheftCommitted when evt.Payload.Split('|').ElementAtOrDefault(4) == "comida": Thefts++; break;
                 case WorldEventKind.AidGiven when evt.Payload.StartsWith("city-", StringComparison.Ordinal): Alms++; break;
-                case WorldEventKind.AidGiven when evt.Payload.EndsWith("|food", StringComparison.Ordinal):
+                case WorldEventKind.AidGiven when evt.Payload.Split('|').ElementAtOrDefault(3) == "food": // AD-183: motivo pode vir depois
                     AidFood++;
                     AidFoodUnits += long.Parse(evt.Payload.Split('|')[2], CultureInfo.InvariantCulture);
                     break;

@@ -58,6 +58,12 @@ public sealed class CrimeCase
     public long Value { get; set; }
     public string Good { get; set; } = "";
     public string Motive { get; set; } = "";
+
+    /// <summary>AD-183: por que o acusado foi apontado sem testemunha (<c>fama-da-linhagem</c>: a fama da linhagem pesou na
+    /// suspeita). Nulo = testemunha ou a própria fama; fora do snapshot quando nulo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Why { get; set; }
+
     public long Accused { get; set; } = -1;
     public int Witnesses { get; set; }
     public bool Caught { get; set; }
