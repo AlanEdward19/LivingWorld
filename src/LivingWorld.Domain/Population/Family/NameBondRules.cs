@@ -32,7 +32,11 @@ public sealed record NameBondRules
 
     public static NameBondRules Off { get; } = new()
     {
-        NamesakeAidGain = 0, NamesakeGriefScale = 0, NamesakeLegacyShare = 0, LineageAidCloseness = 0,
-        SameFamilyCourtshipFactor = 1, LineageInfamySpill = 0,
+        NamesakeAidGain = 0,
+        NamesakeGriefScale = 0,
+        NamesakeLegacyShare = 0,
+        LineageAidCloseness = 0,
+        SameFamilyCourtshipFactor = 1,
+        LineageInfamySpill = 0,
     };
 }

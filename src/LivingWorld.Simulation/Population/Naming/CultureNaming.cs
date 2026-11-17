@@ -64,7 +64,8 @@ public sealed record CultureNaming(
         bool daughter = rng.NextDouble() < DaughterTakesMotherNameShare;
         return new CultureNaming(syllables, female, male, family, lineage, spouseTakes, ancestor)
         {
-            PlaceSuffixes = place, DaughterTakesMotherName = daughter,
+            PlaceSuffixes = place,
+            DaughterTakesMotherName = daughter,
         };
     }
 
