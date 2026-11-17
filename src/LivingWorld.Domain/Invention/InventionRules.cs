@@ -216,6 +216,18 @@ public sealed partial record InventionRules
     [System.Text.Json.Serialization.JsonIgnore]
     public LeavingsRules Leavings => LeavingsOverride ?? LeavingsRules.Default;
 
+    /// <summary>AD-166/AD-182 (08c item 152): toda morte (acidente, velhice, homicídio, forca também) leva o saber e a carga do morto.
+    /// Falso = o de antes do AD-166 (essas quatro deixavam o morto sabendo e a carga presa nele): só para a medida pareada.</summary>
+    public bool EveryDeathForgets { get; init; } = true;
+
+    /// <summary>AD-182: a ida ao mercado com o recipiente da casa (08c itens 111 e 147). Nulo = o padrão
+    /// (<see cref="MarketTripRules.Default"/>, ligado); nulo não entra no snapshot.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public MarketTripRules? MarketTripOverride { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public MarketTripRules MarketTrip => MarketTripOverride ?? MarketTripRules.Default;
+
     public int UnitGramsOf(int resourceId) => UnitGrams.TryGetValue(resourceId, out int g) && g > 0 ? g : DefaultUnitGrams;
 
     public int UnitMlOf(int resourceId) => UnitMl.TryGetValue(resourceId, out int ml) && ml > 0 ? ml : DefaultUnitMl;

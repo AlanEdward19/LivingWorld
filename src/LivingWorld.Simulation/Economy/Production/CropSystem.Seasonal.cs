@@ -252,7 +252,10 @@ public sealed partial class CropSystem
         long cityBarn = 0;
         foreach (var (other, otherField) in farms)
             if (other.City == farm.City) cityBarn += otherField.Barn;
-        missing = Math.Min(missing, Math.Max(1, cityBarn / DaysToNextHarvest(world, ag, field)));
+        long ration = Math.Max(1, cityBarn / DaysToNextHarvest(world, ag, field));
+        // AD-182 (08c item 148): a venda sabe que o celeiro está racionando (o vendedor reparte a compra; ver DearthSaleDays)
+        farm.SetRationedSale(ag.DearthSaleDays > 0 && missing > ration);
+        missing = Math.Min(missing, ration);
         if (missing <= 0) return;
 
         long taken = field.TakeBarn(missing);
@@ -264,7 +267,7 @@ public sealed partial class CropSystem
         }
 
         // celeiro vazio: a fome come a semente do ano que vem (o que só acontece entre a colheita e a semeadura)
-        if (taken < missing)
+        if (taken < missing && !ag.SeedKeptFromSale)
             taken += field.TakeSeed(missing - taken);
 
         if (taken > 0)

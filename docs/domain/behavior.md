@@ -53,6 +53,11 @@ cada tick quando duas notas ficam próximas — *thrashing*. A ação em curso g
 continuidade** até concluir, e trocar exige margem sobre a nota atual: gente que termina o
 que começou.
 
+**O corpo antes do lazer** (AD-147; AD-182, 08c 149): com fome ou sede crítica, Conversar e Ficar à toa param no déficit crítico
+quando há saída que sirva o corpo — a despensa (Comer) ou, desde o AD-182, a compra (moeda, comida à venda e o marco de comprar,
+`PsycheRules.CriticalBodyCountsPurchase`). O jovem que ficou só em casa, com 85–154 moedas e a despensa vazia, conversava sozinho
+(solidão no zero e peso de personalidade, ~190) contra a compra (160) por 25 dias até morrer de fome.
+
 ## Aprendizado
 
 Repetição, treinamento, escola, pais, observação, ofício, leitura, experiência, falha e

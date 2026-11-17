@@ -70,12 +70,19 @@ public static class ExperimentSwitch
     };
 
     /// <summary><c>LW_FINEMOTOR=1</c> liga o motor fino no rendimento (AD-163, 08 item 50); <c>0</c> desliga.</summary>
-    public static LivingWorld.Domain.Ontogeny.OntogenyRules? OntogenyRules() => Environment.GetEnvironmentVariable("LW_FINEMOTOR") switch
+    /// AD-182 (08c item 149): <c>LW_REGRESSION=old</c> volta o piso da regressão pela idade escalada pela taxa.
+    public static LivingWorld.Domain.Ontogeny.OntogenyRules? OntogenyRules()
     {
-        "1" => LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human with { FineMotorScalesWork = true },
-        "0" => LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human with { FineMotorScalesWork = false },
-        _ => null,
-    };
+        var rules = Environment.GetEnvironmentVariable("LW_FINEMOTOR") switch
+        {
+            "1" => LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human with { FineMotorScalesWork = true },
+            "0" => LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human with { FineMotorScalesWork = false },
+            _ => null,
+        };
+        if (Environment.GetEnvironmentVariable("LW_REGRESSION") == "old")
+            rules = (rules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human) with { RegressionByEffectiveAge = true };
+        return rules;
+    }
 
     public static Func<ISimulationSystem, ISimulationSystem>? SwapSystem()
     {

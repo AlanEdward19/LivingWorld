@@ -27,6 +27,13 @@ public sealed class PurchaseTally
     // líquido do mês não cobre), cobrada da carteira de quem saiu, perdoada (morreu ou saiu sem moeda) e negadas (ofício sem salário)
     public long BoardCharged, BoardWithheld, BoardInKind, BoardCollected, BoardForgiven, BoardRefused;
 
+    // AD-182 (08c item 151): primeiros filhos que o adiamento pelos meios tirou, em milésimos de concepção esperada por ciclo
+    // (soma de chance × (1 − prontidão))
+    public long FirstBirthHeldBackMilli;
+
+    // AD-182 (08c item 148): compras de comida cortadas à ração da carestia
+    public long FoodDearthCapped;
+
     // Diagnóstico da hora de trabalho (só a sonda liga): o empregado na hora da rotina de trabalho, o que a decisão fez dela
     public static bool Diagnose;
     public long[] UrgentAtWork = new long[16];

@@ -54,10 +54,21 @@ public sealed class MilestoneProgressSystem : ISimulationSystem
         return disease;
     }
 
+    /// <summary>AD-182 (08c item 149): a idade com que a doença julga o que já se consolidou. Os anos vividos (ou a idade escalada
+    /// pela taxa, se maior): quem se desenvolve devagar e já atingiu o marco não o perde aos 15 anos por ter "idade de 13". Com
+    /// <see cref="OntogenyRules.RegressionByEffectiveAge"/>, a idade escalada (o de antes).</summary>
+    internal static double RegressionAgeYears(WorldState world, Npc npc)
+    {
+        double effective = OntogenyMechanic.EffectiveAgeYears(world, npc);
+        if (world.OntogenyRules.RegressionByEffectiveAge) return effective;
+        double lived = Math.Max(0, (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / npc.BirthDate.Calendar.HoursPerYear);
+        return Math.Max(effective, lived);
+    }
+
     /// <summary>Regressão com causa nomeada: toda queda de marco vem junto de um evento no mesmo tick dizendo a doença.</summary>
     private static DevelopmentState Regress(WorldState world, TickContext ctx, Npc npc, DevelopmentState state, int disease)
     {
-        var lowered = world.OntogenyRules.Regress(state, OntogenyMechanic.EffectiveAgeYears(world, npc));
+        var lowered = world.OntogenyRules.Regress(state, RegressionAgeYears(world, npc));
         foreach (var axis in Enum.GetValues<DevelopmentAxis>())
             if (lowered.Get(axis) < state.Get(axis))
                 ctx.LogEvent(

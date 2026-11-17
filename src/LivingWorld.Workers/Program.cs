@@ -51,6 +51,14 @@ if (args.Length == 4 && args[0] == "brain-trace")
 if (args.Length == 4 && args[0] == "provision-trace")
     return ProvisionTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
 
+// Exercício do espólio (AD-182, 08c item 155): `dotnet <dll> leavings-exercise <seed-inicial> <seeds> <anos> <horas>`.
+if (args.Length == 5 && args[0] == "leavings-exercise")
+    return LeavingsExerciseCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Sonda de uma pessoa (AD-182): `dotnet <dll> person-trace <seed> <npc> <anos>`.
+if (args.Length == 4 && args[0] == "person-trace")
+    return PersonTraceCommand.Run(ulong.Parse(args[1]), long.Parse(args[2]), int.Parse(args[3]));
+
 // Sonda da quebra de colheita (AD-166): `dotnet <dll> famine-trace <seed> <anos>`.
 if (args.Length == 3 && args[0] == "famine-trace")
     return FamineTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));

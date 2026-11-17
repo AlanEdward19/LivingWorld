@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;
@@ -17,7 +18,7 @@ namespace LivingWorld.Simulation.Invention;
 public static class PersonalCarry
 {
     /// <summary>Espaço para levar: peso de conteúdo (g), volume seco (ml), a parte estanque dele (ml) e o recipiente (item; 0 = mãos).</summary>
-    internal readonly record struct Room(long WeightG, long DryMl, long WetMl, long ItemId = 0);
+    internal readonly record struct Room(long WeightG, long DryMl, long WetMl, long ItemId = 0, bool Worn = false);
 
     /// <summary>AD-157b: a comida comida antes da hora (desjejum, ceia) só quando a fome chegaria a este déficit (o crítico da decisão);
     /// a água, mais barata (o poço é de todos), já na urgência.</summary>
@@ -41,7 +42,7 @@ public static class PersonalCarry
         if (!carrier.Exists) return new Room(body, rules.HandsVolumeMl, 0);
         long hands = carrier.Worn ? rules.HandsVolumeMl : 0; // segurar o recipiente ocupa as mãos
         long weight = Math.Min(body - carrier.MassG, carrier.CapacityG + hands * rules.WaterDensityKgM3 / 1000);
-        return new Room(Math.Max(0, weight), hands + carrier.InnerMl, carrier.WatertightMl, itemId);
+        return new Room(Math.Max(0, weight), hands + carrier.InnerMl, carrier.WatertightMl, itemId, carrier.Worn);
     }
 
     /// <summary>A despensa não alcança: a casa (não sem-teto) fica a mais de uma hora de caminho de onde a pessoa está.</summary>
@@ -202,9 +203,32 @@ public static class PersonalCarry
         took += Take(food, wantFood, rules.IsLiquid(food.Id) ? wet : dry, keepFood);
         if (took == 0) return;
         if (room.ItemId != 0 && ledger.HeldBy(npc.Id.Value) != room.ItemId) ledger.Hold(npc.Id.Value, room.ItemId);
+        if (room.ItemId != 0) { world.InventionTally.PackTripsWithCarrier++; if (room.Worn) world.InventionTally.PackTripsWorn++; } // AD-182 (113): só medida
         world.InventionTally.PackTrips++;
         world.InventionTally.PackUnits += took;
     }
+
+    /// <summary>AD-182 (08c item 111): quem sai para comprar leva o recipiente da casa (o que já leva, ou o melhor que ninguém da casa
+    /// levou) mesmo sem arrumar lanche: antes, perto de casa, o recipiente ficava livre e outro morador podia sair com ele no meio da
+    /// compra, e a carga de quem comprava caía para os braços.</summary>
+    public static void TakeCarrierToMarket(WorldState world, Npc npc, Household home)
+    {
+        var rules = world.InventionRules!;
+        if (!rules.MarketTrip.HoldsCarrier || home.IsHomeless) return;
+        var ledger = world.Invention!;
+        if (ledger.HeldBy(npc.Id.Value) != 0) return;
+        var carrier = ledger.CarrierFor(npc.Id.Value, home.Id.Value, rules, out long itemId);
+        if (itemId == 0) return;
+        ledger.Hold(npc.Id.Value, itemId);
+        world.InventionTally.MarketCarrierHeld++;
+        if (carrier.Worn) world.InventionTally.PackTripsWorn++;
+    }
+
+    /// <summary>AD-182: quem só leva o recipiente vazio e está a caminho do mercado ou comprando (fora da célula da casa) segura o
+    /// recipiente até a compra acabar; a volta para casa o devolve.</summary>
+    public static bool HoldsForMarket(WorldState world, Npc npc, Household home) =>
+        world.InventionRules!.MarketTrip.HoldsCarrier && npc.CurrentLocation != home.Location
+        && (npc.CurrentAction == ActionType.Buy || (npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Buy));
 
     /// <summary>Em casa: o que sobrou do que levou volta para a despensa, e o recipiente volta para a casa.</summary>
     public static void Unpack(WorldState world, Npc npc, Household home)

@@ -70,6 +70,9 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
             bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
+            // AD-182 (08c item 149): moeda na mão de quem não sabe comprar não alimenta; a ajuda vai em comida
+            if (moneyBuysFood && world.FamilyRules.Pressure is { AidSeesWhoCanBuy: true } && !SomeoneCanBuy(world, members))
+                moneyBuysFood = false;
             if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
@@ -103,6 +106,14 @@ public sealed class MutualAidSystem : ISimulationSystem
             }
         }
         return best;
+    }
+
+    /// <summary>AD-182: algum morador tem o marco de comprar (o desenvolvimento dele não barra a compra).</summary>
+    private static bool SomeoneCanBuy(WorldState world, List<Npc> members)
+    {
+        foreach (var m in members)
+            if (world.OntogenyRules.IsEligible(m.Development, LivingWorld.Domain.Behavior.ActionType.Buy)) return true;
+        return false;
     }
 
     private static bool IsGrown(WorldState world, Npc npc) =>

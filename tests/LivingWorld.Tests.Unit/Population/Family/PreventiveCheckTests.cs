@@ -41,13 +41,14 @@ public class PreventiveCheckTests
     /// <summary>A configuração medida no AD-145 (o padrão do cenário deixa tudo desligado).</summary>
     private static readonly FamilyRules Measured = ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured };
 
-    private static WorldState World(FamilyRules? family = null, CityRules? cities = null)
+    private static WorldState World(FamilyRules? family = null, CityRules? cities = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogeny = null)
     {
         var world = new WorldState(
             Calendar, 3, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), economyCatalog: ScenarioRunner.DefaultEconomyCatalog,
-            familyRules: family ?? Measured, cityRules: cities);
+            familyRules: family ?? Measured, cityRules: cities, ontogenyRules: ontogeny);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(40);
         return world;
     }
@@ -155,6 +156,52 @@ public class PreventiveCheckTests
         Assert.True(needy.Stock.GetValueOrDefault(Food) > 0);
         Assert.Equal(300, needy.Stock.GetValueOrDefault(Food) + grannyHome.Stock.GetValueOrDefault(Food)); // só mudou de casa
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.AidGiven && e.Payload.EndsWith("|food", StringComparison.Ordinal));
+    }
+
+    /// <summary>AD-182 (08c item 149): o adolescente que ficou só e regrediu na doença abaixo do marco de comprar tem moeda e a
+    /// banca ao lado; a moeda dele não alimenta, então a avó manda comida. Devolve a comida que chegou em 10 dias.</summary>
+    private static long FoodSentToLoneTeenWhoCannotBuy(bool seesWhoCanBuy)
+    {
+        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = seesWhoCanBuy } },
+            ontogeny: LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
+        var shop = new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 5, employees: [],
+            stock: new Dictionary<ResourceType, long> { [Food] = 500 }, treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long> { [Food] = 1 });
+        world.AddWorkplace(shop);
+        var granny = Person(world, Sex.Female, 70, Restless);
+        var mother = Person(world, Sex.Female, 45, Restless, mother: granny.Id);
+        var teen = Person(world, Sex.Male, 15, Prudent, wallet: 1000, mother: mother.Id);
+        teen.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn with
+        {
+            GrossMotor = 1,
+            FineMotor = 1,
+            Language = 1,
+            SelfCare = 1,
+            SocialCognition = 1,
+            Abstraction = 0.6,
+        });
+        var lone = House(world, teen);
+        var grannyHome = House(world, granny, mother);
+        grannyHome.Deposit(Food, 300);
+        var sink = new Sink();
+        for (int day = 0; day < 10; day++)
+        {
+            world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(40).AddDays(day);
+            new MutualAidSystem().Tick(world, Ctx(world, sink));
+        }
+        return lone.Stock.GetValueOrDefault(Food);
+    }
+
+    [Fact]
+    public void A_lone_teen_who_cannot_buy_gets_food_from_kin_despite_his_coins()
+    {
+        Assert.True(FoodSentToLoneTeenWhoCannotBuy(seesWhoCanBuy: true) > 0);
+    }
+
+    [Fact]
+    public void Before_ad182_the_coins_of_a_teen_who_cannot_buy_kept_kin_food_away()
+    {
+        Assert.Equal(0, FoodSentToLoneTeenWhoCannotBuy(seesWhoCanBuy: false));
     }
 
     [Fact]

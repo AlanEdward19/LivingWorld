@@ -180,6 +180,8 @@ public class MealRoutineTests
         Assert.False(BehaviorDecisionSystem.NeedsRestocking(world, npc, index));
 
         world.Invention!.LeaveAtMarket(home.Id.Value, left: true);
+        // AD-182 (08c item 147): a compra guarda quanto ficou; um dia de comida da casa vale a volta
+        world.Invention.SetLeftUnitsAtMarket(home.Id.Value, Food(world).Id, home.Members.Count);
         Assert.True(BehaviorDecisionSystem.NeedsRestocking(world, npc, index));
 
         world.Invention.LeaveAtMarket(home.Id.Value, left: false); // a ida seguinte trouxe tudo
