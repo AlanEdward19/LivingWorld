@@ -191,6 +191,9 @@ static func run(app: Node, steps: Array) -> void:
 				await app.get_tree().create_timer(0.3).timeout
 				print("hover: ", app.hover_text.replace("\n", " | "))
 			"stress", "stress_look":
+				if app.banner != null:
+					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas de teste. Isto não é o mundo do jogo."
+					app.banner.visible = true
 				# Carga sintética: N NPCs andando pelo mapa para medir quadros por segundo. `stress_look` dá a cada um
 				# genes de aparência (como um mundo com o bloco Appearance); `stress` mantém o sorteio local de sempre.
 				var count := int(arg)
@@ -219,6 +222,10 @@ static func run(app: Node, steps: Array) -> void:
 							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
 				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
 			"bench", "benchbig":
+				# quem olha a janela durante a medida precisa saber que isto não é o mundo: é carga sintética local
+				if app.banner != null:
+					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas e prédios de teste, colocados em grade. Isto não é o mundo do jogo."
+					app.banner.visible = true
 				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
 			"near": # câmera bem perto de um morador na rua (LOD "perto": ferramenta, objeto e rosto)
 				var id := _street_npc(app)
