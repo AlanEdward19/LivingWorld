@@ -83,8 +83,10 @@ public sealed record UnionRules
     /// <summary>Sustento depois da separação (AD-165): enquanto houver filho comum abaixo desta idade morando com o ex-cônjuge, o
     /// pai ou a mãe que não mora com ele manda, uma vez por mês, comida da própria despensa e depois moeda da própria carteira,
     /// até cobrir o mês da casa do filho, sem descer abaixo da própria reserva. 0 = sem sustento (antes do AD-165). No abandono,
-    /// quem fugiu não manda nada. A separação canônica "de mesa e leito" obrigava o marido a sustentar mulher e filhos.</summary>
-    public int SupportChildUntilAge { get; init; }
+    /// quem fugiu não manda nada. A separação canônica "de mesa e leito" obrigava o marido a sustentar mulher e filhos. 12: a idade
+    /// em que a criança da vila começava a servir fora (precisa de conferência). 20×50 com a doméstica ×3: fome crítica 0,81×,
+    /// vítima 0,59×; na taxa de hoje 0,97×, mortes de fome 0,85×.</summary>
+    public int SupportChildUntilAge { get; init; } = 12;
 
     /// <summary>Com sustento, a mãe separada que cria o filho também conta como dependente (alimentos da separação canônica).</summary>
     public bool SupportIncludesCarer { get; init; } = true;
