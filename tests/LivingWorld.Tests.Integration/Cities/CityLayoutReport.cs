@@ -30,7 +30,9 @@ public class CityLayoutReport
         string cidadeMedia = PeriodPayload("cidade-media");
         foreach (ulong seed in new ulong[] { 1, 2, 7 })
         {
-            var (world, clock) = ScenarioRunner.Create(seed, cityLayout: StreetsOff
+            // AD-176: LW_CITY_LAYOUT_EMERGENCE=1 liga a tecnologia (mobilidade e calçar) na vila de código, para ver obra de calçamento
+            var emergence = Environment.GetEnvironmentVariable("LW_CITY_LAYOUT_EMERGENCE") == "1" ? LivingWorld.Domain.Emergence.EmergenceRules.Mobility : null;
+            var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: emergence, cityLayout: StreetsOff
                 ? (Off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default) with { Streets = LivingWorld.Domain.Cities.StreetRules.Off }
                 : Off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : null);
             Report(output, $"padrao seed={seed}", world, clock, years, seed == 1);

@@ -40,7 +40,8 @@ public class CityFoundingReport
                     if (city.MergedIntoCityId is not null) merged.Add(city.Id.Value);
                 }
             }
-            output.WriteLine($"modo={(mode == "" ? "on" : mode)} rua={Environment.GetEnvironmentVariable("LW_STREETS") ?? "on"} cadeia={Environment.GetEnvironmentVariable("LW_CHAIN_REACH") ?? "padrao"} seed={seed} filhas={founded.Count} fundidas={merged.Count} ativas={world.ActiveCities().Count()} predios={world.Buildings.Count}");
+            output.WriteLine($"modo={(mode == "" ? "on" : mode)} rua={Environment.GetEnvironmentVariable("LW_STREETS") ?? "on"} cadeia={Environment.GetEnvironmentVariable("LW_CHAIN_REACH") ?? "padrao"} seed={seed} filhas={founded.Count} fundidas={merged.Count} ativas={world.ActiveCities().Count()} predios={world.Buildings.Count} " +
+                $"calcar={world.Technologies.Count(t => t.Category == LivingWorld.Simulation.Cities.Streets.PavingTechnique.Category)} {LivingWorld.Simulation.Cities.Streets.StreetDiagnostics.Line(world)}");
             output.Flush();
         }
     }
