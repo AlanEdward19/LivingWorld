@@ -64,5 +64,7 @@ static func handle(app, event: InputEvent) -> void:
 			KEY_PAGEDOWN, KEY_BRACKETLEFT:
 				if app.stage.active:
 					app.stage.set_floor(app.stage.interior_view.current_floor - 1)
+	elif event is InputEventJoypadButton and event.pressed and (event.button_index == JOY_BUTTON_START or event.is_action_pressed("ui_cancel")):
+		escape(app) # controle: Start ou B fazem o mesmo que Esc
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		app._pick(event.position, event.double_click)

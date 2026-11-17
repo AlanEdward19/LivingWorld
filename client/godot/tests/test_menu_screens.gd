@@ -129,6 +129,18 @@ func test_pause_menu_pauses_time_for_the_player_and_resumes_on_continue() -> voi
 	app.queue_free()
 
 
+func test_controller_start_opens_the_pause_menu() -> void:
+	var app = await T.make_app(tree, T.transport())
+	var start := InputEventJoypadButton.new()
+	start.button_index = JOY_BUTTON_START
+	start.pressed = true
+	Shortcuts.handle(app, start)
+	await tree.process_frame
+	eq(app.pause_menu.is_open(), true, "Start do controle abre a pausa")
+	app.pause_menu.close()
+	app.queue_free()
+
+
 func test_pause_menu_without_time_control_does_not_touch_the_clock() -> void:
 	var fake = T.transport()
 	var app = await T.make_app(tree, fake)

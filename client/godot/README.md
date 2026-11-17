@@ -121,3 +121,11 @@ Depois (AD-169, mesma máquina e comando, vsync confirmado desligado `vsync=0`):
 - `benchbig:500`: antes 67,2 / 67,2 / 66,8 FPS, p95 16,00 / 16,06 / 16,17 ms; depois 66,5 / 66,7 / 66,1, p95 16,58 / 16,28 / 16,16 (média 67,1 → 66,4; p95 16,08 → 16,34 ms).
 Diferenças dentro do ruído histórico (±3 FPS) e muito acima do piso de 50. Uma rodada antes de fundir chapéu e saco numa malha só deu 75,4 e 65,7. O mundo do `bench.sh` nasce pausado: com o mundo rodando, ver a lacuna das formas do contrato (backlog 09, 1b). `client-test.sh`: 304 → 329 testes, 0 falhas.
 Depois dos pedidos do dono (prédio translúcido, NPCs espalhados na célula, delta sem nulos), mesma medida: `stress:500` 71,5 / 70,9 / 72,3 FPS; `bench:500` 75,9 / 75,5 / 76,1, p95 14,12 / 13,76 / 13,82 ms; `benchbig:500` 66,0 / 66,4 / 66,2, p95 16,19 / 16,01 / 16,12 ms (dentro do ruído; o teste de cobertura roda junto com a dica, a cada 70 ms).
+
+### Menu de videogame e pausa (AD-174)
+
+`bench.sh 3` pela fila pesada, mesma máquina (M1 Pro dividida com outros agentes), cópias do cliente fora do repo (`LW_BENCH_CLIENT`), base `9711face` → entrega. O `--steps` pula o menu; mede o jogo com as camadas novas (dicas, ajuda, pausa, cortina, botão do mapa):
+- `stress:500`: 71,0 / 71,4 / 71,1 → 73,6 / 72,9 / 72,6 FPS.
+- `bench:500`: 74,8 / 76,5 / 76,0 FPS, p95 13,93 / 13,82 / 13,82 ms → 77,0 / 76,3 / 76,1, p95 13,45 / 13,76 / 13,81.
+- `benchbig:500`: 64,6 / 66,3 / 65,9 FPS, p95 16,61 / 16,02 / 16,22 ms → 65,8 / 65,6 / 64,9, p95 16,22 / 16,04 / 17,06.
+Sem regressão (medianas 71,1 → 72,9; 76,0 → 76,3; 65,9 → 65,6, dentro do ruído). `client-test.sh`: 330 → 346 testes, 0 falhas.
