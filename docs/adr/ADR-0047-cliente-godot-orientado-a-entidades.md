@@ -1,8 +1,8 @@
 # ADR-0047: Cliente Godot orientado a entidades sobre uma projeção do observável
 
-- **Status**: proposto (aguarda aprovação do dono; nada implementado)
+- **Status**: aceito (aprovado pelo dono em 2026-11-17, com as opções recomendadas)
 - **Data**: 2026-11-17
-- **Decisores**: dono do projeto (Alan), pendente; rascunho por agente
+- **Decisores**: dono do projeto (Alan); rascunho por agente
 
 ## Contexto
 O dono pediu "uma refatoração completa do motor visual, que hoje é muito abstrato; não consigo interagir direito
@@ -56,7 +56,7 @@ do `stress:500`) e vira o piso de toda etapa: nenhuma entra com regressão.
 - **Follow-ups**: ADR próprio se entrar pacote de arte (dependência nova e licença); fases 15, 27 e 28 do roadmap
   ajustadas ao que for aprovado.
 
-## Decisões pendentes do dono
+## Decisões do dono (2026-11-17: "Aprovo o recomendado")
 1. **2D ou 3D**: recomendado manter 3D isométrico.
 2. **Arte**: continuar com formas geradas por código (mais ricas, derivadas do estado) ou adotar um pacote
    low-poly de licença livre (dependência nova). Recomendado: formas por código agora; pacote só com ADR próprio.
@@ -65,5 +65,5 @@ do `stress:500`) e vira o piso de toda etapa: nenhuma entra com regressão.
 4. **Contrato**: liberar acréscimos na API para a projeção do observável (rotas e campos novos, nada removido).
 5. **Crime e violência na tela**: recomendado mostrar o fato como evento no mapa e na ficha (autor, vítima, caso,
    consequências), sem cena; violência sexual, doméstica e contra criança só como registro, igual ao motor.
-6. **Tempo**: pausa e velocidade só para o admin (ADR-0015, como hoje) ou também para quem assiste um mundo local.
+6. **Tempo**: sem recomendação na proposta; fica como hoje (só admin, ADR-0015) até o dono dizer o contrário.
 7. **Piso de FPS**: manter 50 FPS no M1 Pro com 500 NPCs, agora medido sem vsync e com cidade aberta.
