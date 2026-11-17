@@ -139,6 +139,7 @@ public static class LivingScopeProjector
             Leavings = ObservableProjector.Leavings(observable, InScope),
             Objects = focusedCity is { } objectCity ? ObservableProjector.Objects(observable, objectCity) : [],
             Climate = ObservableProjector.Climate(world, climateCell),
+            Roads = RoadsOf(world, focusedCity, isWorld),
             Tick = frame.Tick,
         };
     }
@@ -155,15 +156,43 @@ public static class LivingScopeProjector
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
             && previous.Intent == npc.CurrentIntent && previous.IntentTarget == npc.IntentTarget)
             return previous; // AD-172: nada visível mudou desde o tick anterior
+        var (route, arrival) = RouteOf(frame, npc, previous);
         return new NpcVisual(
             npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
         {
+            Route = route,
+            RouteArrivalTick = arrival,
             Observable = observable,
             ActionStartedAtTick = npc.ActionStartedAtTick,
             ActionTarget = target,
             Intent = npc.CurrentIntent,
             IntentTarget = npc.IntentTarget,
         };
+    }
+
+    /// <summary>AD-176: a rota real de quem viaja, da célula onde está até a chegada, e o tick da chegada; o mesmo registro da
+    /// viagem do tick anterior se ela não mudou (mesma ação, mesmo início, mesmo lugar).</summary>
+    private static (IReadOnlyList<CellCoord>? Route, long? Arrival) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
+    {
+        if (npc.CurrentAction != ActionType.Travel) return (null, null);
+        if (previous is { Route: not null } && previous.CurrentAction == ActionType.Travel
+            && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation)
+            return (previous.Route, previous.RouteArrivalTick);
+        var world = frame.World;
+        if (LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelDestinationFor(world, npc, frame.Markets) is not { } to
+            || to == npc.CurrentLocation)
+            return (null, null);
+        var cells = LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(world, npc.CurrentLocation, to);
+        long? arrival = LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelArrivalTick(world, npc, frame.Markets);
+        return (ValueList<CellCoord>.Of(cells), arrival);
+    }
+
+    /// <summary>AD-176: as ruas do escopo, em ordem de célula (linha, coluna).</summary>
+    private static IReadOnlyList<StreetCellView> RoadsOf(WorldState world, CityId? focusedCity, bool isWorld)
+    {
+        if (focusedCity is { } id) return world.FindActiveCity(id) is { } city ? CityStreets.RoadsOf(world, city) : [];
+        if (!isWorld) return [];
+        return world.ActiveCities().SelectMany(c => CityStreets.RoadsOf(world, c)).OrderBy(r => r.Cell.Y).ThenBy(r => r.Cell.X).ToList();
     }
 
     /// <summary>O alvo do tick anterior ainda vale (mesmo tipo e id), sem montar o texto do id de novo. Espelha

@@ -455,7 +455,8 @@ public static class CityOccupancy
             }
             int loose = level - PlacementPolicy.StreetLevels;
             var policy = PlacementPolicy.For(world.Map, loose);
-            var guard = loose < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, doorstep) : null;
+            var guard = loose < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, doorstep, world.Map.Width, world.Map.Height)
+                : doorstep is { } step && world.StreetsOn ? GroundGuard.DoorOnMap(step, world.Map.Width, world.Map.Height) : null;
             ulong shapeHash = ShapeHash(shape, level);
             var position = ScanForFreeOriginFrom(
                 ground.Occupied, bounds, shape, policy, plan?.ScanStartFor(shapeHash, id.Value) ?? 0, out int scanIndex, guard);

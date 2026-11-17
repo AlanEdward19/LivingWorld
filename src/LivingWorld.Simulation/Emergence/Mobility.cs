@@ -30,6 +30,8 @@ public static class Mobility
         int best = 0;
         foreach (var tech in world.Technologies)
         {
+            // AD-176: só a tecnologia de mobilidade encurta o passo; a de calçar muda a rua, não a pessoa
+            if (tech.Category != LivingWorld.Domain.Emergence.EmergenceRules.MobilityCategory) continue;
             if (tech.Vector.Axes[0] <= best || !tech.AdoptedBy.Contains(city)) continue;
             best = tech.Vector.Axes[0];
         }
@@ -40,7 +42,8 @@ public static class Mobility
     /// escalado pelo corpo/poder, encurtado pela tecnologia que a cidade do NPC adotou. Local distinto custa ao menos 1 tick.</summary>
     public static long TravelTicks(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier)
     {
-        long ticks = WaterAware(world, npc.Household, origin, destination, bodyMultiplier)
+        long ticks = world.StreetsOn ? Routed(world, npc.Household, origin, destination, bodyMultiplier)
+            : WaterAware(world, npc.Household, origin, destination, bodyMultiplier)
             ?? TravelResolution.TicksBetween(world.Map, origin, destination, bodyMultiplier);
         return ticks == 0 ? 0 : Math.Max(1, Apply(ticks, BonusPct(world, npc.City)));
     }
@@ -48,8 +51,24 @@ public static class Mobility
     /// <summary>Trajeto de compra do domicílio (casa ↔ mercado): o mesmo custo de mapa da memória de trajetos, com a água do
     /// caminho e a embarcação da casa quando a invenção está ligada (AD-141), encurtado pela tecnologia da cidade.</summary>
     public static long HouseholdTicks(WorldState world, LivingWorld.Domain.Population.Family.Household household, CellCoord origin, CellCoord destination) =>
-        Apply(WaterAware(world, household.Id, origin, destination, 1.0)
+        Apply(world.StreetsOn ? Routed(world, household.Id, origin, destination, 1.0)
+            : WaterAware(world, household.Id, origin, destination, 1.0)
             ?? LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, origin, destination), BonusPct(world, household.City));
+
+    /// <summary>AD-176: ticks da rota real (rede de caminhos, superfície, prédios no caminho), com o vau a pé ou a embarcação da
+    /// casa na água da rota quando a invenção está ligada.</summary>
+    private static long Routed(WorldState world, HouseholdId? household, CellCoord origin, CellCoord destination, double bodyMultiplier)
+    {
+        if (origin == destination) return 0;
+        var (cost, water) = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, origin, destination);
+        if (water > 0 && world.InventionOn)
+        {
+            var rules = world.InventionRules!;
+            int craft = household is { } h ? world.Invention!.BestCraftSpeed(h.Value, rules) : 0;
+            cost += LivingWorld.Simulation.Invention.WaterCrossing.ExtraCost(world.Map, rules, water, craft);
+        }
+        return Math.Max(1, (long)Math.Ceiling(Math.Max(0, cost) * Math.Max(0.1, bodyMultiplier)));
+    }
 
     /// <summary>Ticks do trajeto com água no caminho (AD-141), ou nulo quando a invenção está desligada ou não há água: aí vale o
     /// custo de antes, byte a byte. A pé, a água custa o vau; com embarcação da casa, remar.</summary>

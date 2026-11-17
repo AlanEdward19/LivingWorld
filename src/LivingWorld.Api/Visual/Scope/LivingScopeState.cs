@@ -36,6 +36,15 @@ public sealed record NpcVisual(
     public ActionType? Intent { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? IntentTarget { get; init; }
+
+    /// <summary>AD-176: células da rota real de quem viaja (onde está, soleira, caminho, soleira do destino, chegada), em ordem;
+    /// ausente = não está viajando. O cliente anda o boneco por elas até <see cref="RouteArrivalTick"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<CellCoord>? Route { get; init; }
+
+    /// <summary>AD-176: tick em que a viagem chega (o motor move o NPC para o destino nele).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? RouteArrivalTick { get; init; }
 }
 public sealed record CityVisual(
     CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,
@@ -95,6 +104,9 @@ public sealed record LivingScopeState(
     public IReadOnlyList<ObjectVisual> Objects { get; init; } = [];
     public ScopeClimateVisual? Climate { get; init; }
 
+    /// <summary>AD-176: as ruas de verdade do escopo (Cidade: as dela; Mundo: todas), as mesmas da camada <c>Roads</c>.</summary>
+    public IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView> Roads { get; init; } = [];
+
     /// <summary>AD-172: tick desta foto (fora do JSON e da igualdade). O delta e o redutor avançam os processos lineares pela
     /// diferença entre o tick do delta e este.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -114,6 +126,7 @@ public sealed record LivingScopeState(
         && FaunaGroups.SequenceEqual(other.FaunaGroups)
         && Leavings.SequenceEqual(other.Leavings)
         && Objects.SequenceEqual(other.Objects)
+        && Roads.SequenceEqual(other.Roads)
         && Equals(Climate, other.Climate);
 
     public override int GetHashCode()
@@ -131,6 +144,7 @@ public sealed record LivingScopeState(
         AddRange(ref hash, FaunaGroups);
         AddRange(ref hash, Leavings);
         AddRange(ref hash, Objects);
+        AddRange(ref hash, Roads);
         hash.Add(Climate);
         return hash.ToHashCode();
     }

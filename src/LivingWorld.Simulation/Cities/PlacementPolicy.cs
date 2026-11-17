@@ -76,10 +76,21 @@ internal sealed class PlacementPolicy
 
 /// <summary>AD-173, nos degraus sem rua: a planta não cai em rua nem na passagem de porta de outro prédio, e a soleira do
 /// próprio prédio (a célula na frente da porta) fica livre e seca, para a porta ter por onde sair.</summary>
-internal sealed class GroundGuard(HashSet<CellCoord> streets, HashSet<CellCoord> passages, CellCoord? doorstep)
+internal sealed class GroundGuard(HashSet<CellCoord> streets, HashSet<CellCoord> passages, CellCoord? doorstep,
+    int mapWidth = int.MaxValue, int mapHeight = int.MaxValue, bool onlyOnMap = false)
 {
+    /// <summary>AD-176: nos últimos degraus (encostando, só sem sobreposição) a soleira pode cair em outro prédio (aí se entra por
+    /// escada, laje ou telhado), mas nunca fora do mapa: casa sem acesso não nasce.</summary>
+    public static GroundGuard DoorOnMap(CellCoord doorstep, int mapWidth, int mapHeight) => new([], [], doorstep, mapWidth, mapHeight, onlyOnMap: true);
+
     public bool Allows(IReadOnlyList<CellCoord> shape, CellCoord origin, HashSet<CellCoord> occupied, HashSet<CellCoord>? water)
     {
+        if (doorstep is { } door)
+        {
+            int x = door.X + origin.X, y = door.Y + origin.Y;
+            if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return false;
+            if (onlyOnMap) return true;
+        }
         for (int i = 0; i < shape.Count; i++)
         {
             var abs = new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y);

@@ -105,6 +105,23 @@ public class SpatialSettlementFoundingSystemTests
     }
 
     [Fact]
+    public void Tick_does_not_schedule_when_the_cluster_is_near_by_road_to_what_the_mother_city_offers()
+    {
+        // AD-176: a causa é o caminho; com o limiar de horas acima da viagem real, o mesmo aglomerado não funda
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10) with
+        {
+            Layout = CityLayoutRules.Default with { Streets = StreetRules.Default with { FoundingCommuteHours = 1_000 } },
+        };
+        var world = MakeWorld(rules, seed: 901);
+        var (_, overflow) = SeedOneOverflowBuilding(world);
+        world.AddNpc(MakeNpc(world, 1, overflow.Position!.Value));
+
+        new SpatialSettlementFoundingSystem().Tick(world, MakeCtx(world));
+
+        Assert.Empty(world.PendingEvents);
+    }
+
+    [Fact]
     public void Tick_does_not_schedule_when_the_cluster_has_buildings_but_no_residents()
     {
         var rules = MakeRules(foundingConcentrationThreshold: 0.5);

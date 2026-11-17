@@ -311,6 +311,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             // AD-141: quem atravessou água a pé sente o tempo perdido; quem foi na embarcação da casa, não
             if (world.InventionOn) LivingWorld.Simulation.Invention.InventionIntake.OnTravelArrived(world, npc, npc.CurrentLocation, destination, now);
+            if (world.StreetsOn) world.Ground!.RecordTrip(npc.CurrentLocation, destination); // AD-176: o pisoteio desta viagem
             MoveTracked(npc, destination, now, occupancy);
             LivingWorld.Simulation.Invention.Leavings.OnArrived(world, ctx, npc, destination); // AD-168: o espólio no caminho
             return true;

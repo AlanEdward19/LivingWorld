@@ -537,6 +537,8 @@ public sealed partial class WorldState
         FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         CityRules = cityRules ?? CityRules.Disabled;
+        // AD-176: o chão das cidades nasce vazio (sem trilha) com o mundo; o snapshot restaura o guardado em UseGround
+        Ground = CityRules.EffectiveLayout().Streets.Enabled ? new LivingWorld.Simulation.Cities.Streets.GroundLedger(map.Width, map.Height, CurrentDate.TotalHours) : null;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
@@ -754,6 +756,8 @@ public sealed partial class WorldState
         _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = nextCropBatchId;
         CityRules = cityRules ?? CityRules.Disabled;
+        // AD-176: o chão das cidades nasce vazio (sem trilha) com o mundo; o snapshot restaura o guardado em UseGround
+        Ground = CityRules.EffectiveLayout().Streets.Enabled ? new LivingWorld.Simulation.Cities.Streets.GroundLedger(map.Width, map.Height, CurrentDate.TotalHours) : null;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;

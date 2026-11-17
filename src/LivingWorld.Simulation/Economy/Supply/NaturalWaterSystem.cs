@@ -31,13 +31,43 @@ public sealed class NaturalWaterSystem : ISimulationSystem
         var water = new ResourceType(world.EconomyRules.WaterResourceId);
         foreach (var household in world.Households.OrderBy(h => h.Id.Value))
         {
-            if (household.IsEmpty || WalkToWater(world.Map, household.Location, rules.SearchRadiusCells) > rules.MaxWalkTicks)
+            if (household.IsEmpty || WalkToWater(world, household.Location, rules.SearchRadiusCells) > rules.MaxWalkTicks)
                 continue;
             long missing = household.Members.Count * (long)rules.DaysOfSupply - household.Stock.GetValueOrDefault(water);
             if (missing <= 0) continue;
             household.Deposit(water, missing);
             world.RecordResourceProduced(water, missing);
         }
+    }
+
+    private sealed class RoutedWalk
+    {
+        public (long, int, bool) Stamp;
+        public readonly Dictionary<CellCoord, long> ByHome = [];
+    }
+
+    private static readonly ConditionalWeakTable<WorldState, RoutedWalk> RoutedWalks = new();
+
+    /// <summary>AD-176: horas pela rota real (rede de caminhos, prédios no caminho) até a água mais próxima no raio; sem a rua de
+    /// verdade, a reta de antes. Memo por casa, refeito quando a rede ou os obstáculos mudam.</summary>
+    public static long WalkToWater(WorldState world, CellCoord home, int radius)
+    {
+        if (!world.StreetsOn) return WalkToWater(world.Map, home, radius);
+        var memo = RoutedWalks.GetOrCreateValue(world);
+        var stamp = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Stamp(world);
+        if (memo.Stamp != stamp) { memo.ByHome.Clear(); memo.Stamp = stamp; }
+        if (memo.ByHome.TryGetValue(home, out long known)) return known;
+        var map = world.Map;
+        long best = long.MaxValue;
+        for (int dy = -radius; dy <= radius; dy++)
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                var cell = new CellCoord(home.X + dx, home.Y + dy);
+                if (!map.TryGetCell(cell, out var found) || !found.HasWater) continue;
+                best = Math.Min(best, LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, home, cell));
+            }
+        memo.ByHome[home] = best;
+        return best;
     }
 
     /// <summary>Horas de caminhada da célula até a água mais próxima no raio; <see cref="long.MaxValue"/> se não houver.</summary>

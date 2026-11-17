@@ -131,7 +131,9 @@ public class GlobalProjectorTests
     [Fact]
     public void Build_models_the_roads_layer_with_the_streets_in_use()
     {
-        var world = LivingWorld.Simulation.Scenarios.ScenarioRunner.Create(seed: 1).World;
+        // AD-176: rua é o chão que o uso pisou; no mundo recém-criado ainda não há trilha, então roda até a primeira revisão
+        var (world, clock) = LivingWorld.Simulation.Scenarios.ScenarioRunner.Create(seed: 1);
+        clock.Run(world, world.Calendar.HoursPerMonth * 4);
 
         var layer = GlobalProjector.Build(world).Layers[VisualLayerId.Roads];
 

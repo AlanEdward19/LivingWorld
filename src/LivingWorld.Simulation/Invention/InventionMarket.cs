@@ -28,7 +28,7 @@ public static class InventionMarket
     {
         if (!world.InventionOn) return long.MaxValue;
         var rules = world.InventionRules!;
-        int water = WaterCrossing.CellsBetween(world.Map, household.Location, market);
+        int water = LivingWorld.Simulation.Cities.Streets.StreetRoutes.WaterCells(world, household.Location, market); // AD-176: a água da rota real
         if (water == 0 && (!rules.LandCargo || household.Location == market)) return long.MaxValue;
         long foot = rules.FootCarryKg * 1000L;
         // AD-147: o recipiente da casa: preso ao corpo soma ao que os braços levam; na mão, leva o que ele aguenta
@@ -41,8 +41,12 @@ public static class InventionMarket
             world.InventionTally.CarrierCargoTrips++;
             world.InventionTally.CarrierCargoGrams += foot - rules.FootCarryKg * 1000L;
         }
+        // AD-176: o veículo de terra pede caminho que o comporte; com mais terreno sem caminho na rota, a carga volta aos braços
         if (rules.LandVehicles && world.Invention.BestHauler(household.Id.Value, rules) is { Exists: true } hauler && hauler.CapacityG > foot)
-            foot = hauler.CapacityG;
+        {
+            if (LivingWorld.Simulation.Cities.Streets.StreetRoutes.CartFits(world, household.Location, market)) foot = hauler.CapacityG;
+            else world.InventionTally.HaulerRouteBlocked++;
+        }
         if (water == 0) return foot;
         var craft = world.Invention!.BestCraft(household.Id.Value, rules);
         if (craft.SpeedMmS > 0 && WaterCrossing.ExtraCost(world.Map, rules, water, craft.SpeedMmS) < WaterCrossing.ExtraCost(world.Map, rules, water, 0))
@@ -86,7 +90,7 @@ public static class InventionMarket
         if (!world.InventionOn || cargoStart == long.MaxValue) return;
         var rules = world.InventionRules!;
         var tally = world.InventionTally;
-        if (cutG > 0 && WaterCrossing.CellsBetween(world.Map, household.Location, market) == 0)
+        if (cutG > 0 && LivingWorld.Simulation.Cities.Streets.StreetRoutes.WaterCells(world, household.Location, market) == 0)
         {
             tally.LandCargoCapped++;
             tally.LandCargoGramsCut += cutG;
