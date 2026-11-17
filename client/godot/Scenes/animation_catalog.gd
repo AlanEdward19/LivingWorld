@@ -8,7 +8,10 @@ const NEUTRAL_POSE := "idle"
 const POSE_BY_ACTION := {
 	0: "eat", 1: "sleep", 2: "work", 3: "socialize", 4: "walk", 5: "idle", 6: "buy", 7: "power", 8: "steal", 9: "cry",
 }
-const POSES: Array[String] = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power", "steal", "cry"]
+## Vocabulário de pose de USO de objeto (espelha ObjectPoses.Known do servidor; um teste .NET compara a linha).
+const POSES: Array[String] = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power"]
+## Poses que só vêm da ação (nenhum objeto as declara): furtar e chorar.
+const ACTION_ONLY_POSES: Array[String] = ["steal", "cry"]
 
 
 ## Pose do NPC: a que o objeto em uso declara (ponto de uso, ADR-0037) quando o cliente a conhece; senão a da ação.

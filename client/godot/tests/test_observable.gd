@@ -75,6 +75,8 @@ func test_located_event_becomes_a_clickable_marker_that_fades() -> void:
 func test_steal_and_cry_have_their_own_pose() -> void:
 	eq(Anim.pose_for(8), "steal")
 	eq(Anim.pose_for(9), "cry")
+	check(Anim.ACTION_ONLY_POSES.has("steal") and not Anim.POSES.has("steal"), "pose só de ação: o vocabulário de uso de objeto (do servidor) não muda")
+	eq(Anim.pose_for(5, "steal"), "idle", "objeto não pode declarar pose que não é de uso")
 	var idle := NpcActor.new()
 	idle.setup(1, Vector2i.ZERO, 5, null)
 	var thief := NpcActor.new()
