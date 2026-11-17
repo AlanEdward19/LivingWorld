@@ -315,7 +315,7 @@ public static class PersonalCarry
             var load = ledger.Carried[i];
             // AD-157b: sem casa a quem voltar (morreu sozinho, a casa se desfez), a carga se perde com a pessoa: vai ao razão de
             // consumido para nada sumir da conta do mundo
-            if (home is not null) home.Deposit(new ResourceType(load.ResourceId), load.Quantity);
+            if (home is { IsEmpty: false }) home.Deposit(new ResourceType(load.ResourceId), load.Quantity); // casa desfeita não guarda nada
             else world.RecordResourceConsumed(new ResourceType(load.ResourceId), load.Quantity);
             ledger.Carry(npcId, load.ResourceId, -load.Quantity);
         }

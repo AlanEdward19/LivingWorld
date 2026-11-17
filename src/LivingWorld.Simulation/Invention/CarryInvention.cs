@@ -23,7 +23,12 @@ internal static class CarryInvention
         var ledger = world.Invention!;
         for (int i = ledger.Carried.Count - 1; i >= 0; i--) // quem saiu do mundo sem morrer (emigrou) leva o que tinha
             if (world.FindNpc(new NpcId(ledger.Carried[i].NpcId)) is not { IsAlive: true })
-                ledger.Carry(ledger.Carried[i].NpcId, ledger.Carried[i].ResourceId, -ledger.Carried[i].Quantity);
+            {
+                // AD-157b: o que sai do mundo com a pessoa vai ao razão de consumido (antes sumia da conta: conservação)
+                var load = ledger.Carried[i];
+                world.RecordResourceConsumed(new LivingWorld.Domain.Geography.ResourceType(load.ResourceId), load.Quantity);
+                ledger.Carry(load.NpcId, load.ResourceId, -load.Quantity);
+            }
         Minds(world, ctx, now);
         Knowers(world, ctx, now);
     }

@@ -206,6 +206,40 @@ public class EconomyDepthScenarioTests
         Assert.True(more >= 15, $"fatia maior na fazenda so em {more}/20 seeds");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ZZZ_diag_weak_well(bool carry)
+    {
+        int more = 0; double gap = 0, cw = 0, dw = 0;
+        for (int seed = 1; seed <= 20; seed++)
+        {
+            static void Dry(JsonObject node)
+            {
+                node["NaturalWater"] = new JsonObject { ["Enabled"] = false };
+                node["Theft"] = new JsonObject { ["Enabled"] = false };
+                node["Crime"] = new JsonObject { ["Enabled"] = false };
+            }
+            var (control, controlClock) = LoadWith(seed, population: 40, Dry);
+            var (dry, dryClock) = LoadWith(seed, population: 40, node => { Dry(node); node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 2 }; });
+            var r = LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = carry };
+            control.UseInvention(r); dry.UseInvention(r);
+            double controlShare = 0, dryShare = 0;
+            for (int day = 0; day < 300; day++)
+            {
+                controlClock.Run(control, 24);
+                dryClock.Run(dry, 24);
+                if (day < 100) continue;
+                controlShare += (double)EmployeesAt(control, 1) / Math.Max(1, control.Npcs.Count(n => n.IsAlive));
+                dryShare += (double)EmployeesAt(dry, 1) / Math.Max(1, dry.Npcs.Count(n => n.IsAlive));
+            }
+            if (dryShare > controlShare) more++;
+            gap += (dryShare - controlShare) / 200; cw += control.Workplaces.Where(w => w.LocationType.Id == 1).Sum(w => w.Prices.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(2)));
+            dw += dry.Workplaces.Where(w => w.LocationType.Id == 1).Sum(w => w.Prices.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(2)));
+        }
+        Assert.Fail($"carga={carry} mais={more}/20 gap_medio={gap / 20:F4} preco_agua_controle={cw / 20:F1} fraco={dw / 20:F1}");
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
