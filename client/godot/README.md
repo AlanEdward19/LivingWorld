@@ -58,6 +58,7 @@ gerados por código em `Scenes/menu/ui_sounds.gd`, no barramento Master (volume 
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Moradores anônimos | a ficha da cidade mostra "Conhecer um dos N moradores anônimos" (pool agregado): abre a ficha anônima com "Ver em detalhe", que materializa o morador |
+| Ler a cidade (AD-177) | **X** raio-x (todos os prédios translúcidos, telhado quase some, continuam clicáveis) · **P** planta baixa (lotes, ruas por superfície, prédios pela função, legenda; clique abre a ficha; P/Esc fecha) · **Tab** ou **Alt+roda** alterna entre os prédios empilhados sob o cursor (Shift+Tab volta) · rótulo do prédio de perto (zoom ≤ 11) · clique numa rua abre a ficha dela; no quintal, a do prédio |
 | Orientação | passe o mouse (dica com ação, alvo e corpo visível) · minimapa (clique/arraste) · avisos de eventos e marcador no mapa para evento com lugar (clicável, some em 30 s) · processos com barra de progresso |
 | Crime | evento no mapa e na ficha (autor, vítima, caso, desfecho), sem cena nem animação; `recordOnly` (violência sexual, doméstica e contra criança) mostra **só o registro**, nunca o texto narrado (aviso, linha do tempo, dica e ficha) |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
@@ -74,7 +75,22 @@ Formas geradas por código (sem pacote de assets), a partir da projeção do obs
 - **Mapa-múndi vivo**: um ponto por morador na rua, na cor da ação; a placa diz quantos estão na rua, no pool, o que fazem e a temperatura.
 - **LOD em três níveis**: mundo (densidade, bandos, eventos) · cidade (corpos, prédios, lavoura, animais, objetos) · perto (ferramenta, objeto em uso, rosto). Lavoura, fauna, itens, densidade e linhas de conversa são MultiMesh por tipo; peças do corpo têm malha e material compartilhados e não projetam sombra.
 
-Delta enxuto (AD-172): num NPC já conhecido, `city: null` = mesma cidade, `appearance` ausente = a anterior, `actionStartedAtTick` ausente = início, alvo e intenção de antes (presente = grupo novo), `observable` ausente = não mudou; `rest`/`food` não reenviados avançam pelo tick do delta (`Store/observable_parse.gd` `advance_processes`). Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). **Leitura**: prédio que fica na frente do que está sob o mouse, da pessoa selecionada ou do que se segue fica translúcido enquanto cobrir (e o mouse atravessa o translúcido); quem divide uma célula se espalha nela (lugar estável por id) e quem se cruza passa pela direita — o clique pega o corpo onde ele está desenhado; quintal de terra em volta de cada prédio, rua no resto (camada `Roads` do mundo, quando vier, decide a rua). Delta: chave ausente e `null` valem o mesmo. Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
+Delta enxuto (AD-172): num NPC já conhecido, `city: null` = mesma cidade, `appearance` ausente = a anterior, `actionStartedAtTick` ausente = início, alvo e intenção de antes (presente = grupo novo), `observable` ausente = não mudou; `rest`/`food` não reenviados avançam pelo tick do delta (`Store/observable_parse.gd` `advance_processes`). Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). **Leitura**: prédio que fica na frente do que está sob o mouse, da pessoa selecionada ou do que se segue fica translúcido enquanto cobrir (e o mouse atravessa o translúcido); quem divide uma célula se espalha nela (lugar estável por id) e quem se cruza passa pela direita — o clique pega o corpo onde ele está desenhado. (O quintal em volta de todo prédio e a "cidade inteira = rua" da AD-171 saíram na AD-177: ver abaixo.) Delta: chave ausente e `null` valem o mesmo. Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
+
+## Cidade que o motor diz (AD-177)
+
+O cliente não inventa chão: fora de rua e de lote, a cidade é o terreno do mapa. **Rua** = cada célula da camada `Roads`
+(`Store/city_ground.gd`), desenhada por `Scenes/render/ground_renderer.gd` pela superfície: trilha estreita e irregular de
+capim pisado, terra batida, cascalho (pedrinhas), pedra (lajes); largo ocupa a célula e é mais claro; rua principal mais
+larga com marco no meio; mais gente (`users`) alarga. **Lote** (`lot` do prédio): quintal só onde vem `croft`, com chão
+próprio e cerca de varas (porteira para o caminho); `frontPath` vira caminho da porta até a rua; `lot` nulo, listas vazias e
+`street` nulo = nada desenhado; casa colada fica colada (a ficha diz "parede-meia"). Duas MultiMesh (ruas, lotes), uma caixa
+e um material compartilhados; redesenho só quando muda (próximo quadro). O motor só manda ruas no retrato do mundo:
+`Scenes/road_sync.gd` relê a camada pela rota sem estado a cada 30 s e logo depois de um lote apontar uma rua desconhecida,
+sem recarregar a cena. **Ponto único** para a AD-176 (tipo de acesso, obra de rua) e superfície nova:
+`Scenes/render/street_style.gd` (`ACCESS_STYLES`, `WORK_STYLE`, `access_of`, `works_of`); superfície desconhecida cai em
+`NEUTRAL`, campo desconhecido fica em `road.extra`. Ficha da rua (`street`, id "x,y"): superfície, quantas pessoas passam,
+principal/largo, prédios cuja porta dá ali; ficha do prédio: quintal (tamanho), rua da frente e caminho, parede-meia.
 
 ## Estrutura
 
@@ -138,3 +154,14 @@ Depois dos pedidos do dono (prédio translúcido, NPCs espalhados na célula, de
 - `bench:500`: 74,8 / 76,5 / 76,0 FPS, p95 13,93 / 13,82 / 13,82 ms → 77,0 / 76,3 / 76,1, p95 13,45 / 13,76 / 13,81.
 - `benchbig:500`: 64,6 / 66,3 / 65,9 FPS, p95 16,61 / 16,02 / 16,22 ms → 65,8 / 65,6 / 64,9, p95 16,22 / 16,04 / 17,06.
 Sem regressão (medianas 71,1 → 72,9; 76,0 → 76,3; 65,9 → 65,6, dentro do ruído). `client-test.sh`: 330 → 346 testes, 0 falhas.
+
+### Cidade que o motor diz (AD-177)
+
+`bench.sh 3` pela fila pesada, M1 Pro dividida com outros agentes, base `01b35a38` (cópia do cliente, `LW_BENCH_CLIENT`) →
+entrega; a cidade do `bench.sh` agora tem 22 células de rua e 6 quintais do motor desenhados (ruas e lotes em 2 MultiMesh):
+- `stress:500`: 89,0 / 87,5 / 88,5 → 87,0 / 88,4 / 88,4 FPS.
+- `bench:500`: 70,0 / 70,2 / 70,1 FPS, p95 15,43 / 15,15 / 15,46 ms → 71,1 / 70,7 / 71,1, p95 15,31 / 15,38 / 15,21.
+- `benchbig:500`: 61,4 / 61,1 / 61,0 FPS, p95 17,57 / 18,04 / 17,57 ms → 61,4 / 61,1 / 59,9, p95 17,75 / 17,88 / 18,29.
+Medianas 88,5 → 88,4; 70,1 → 71,1; 61,1 → 61,1 (dentro do ruído, acima de 50). `client-test.sh`: 359 → 369, 0 falhas.
+Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 1.352 ticks e Cidade ~1.480 ticks, 0 divergência de contrato,
+0 erro de script; a releitura da camada `Roads` trocou as ruas uma vez na Cidade sem recarregar.

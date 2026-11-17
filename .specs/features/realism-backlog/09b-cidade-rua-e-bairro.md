@@ -29,3 +29,20 @@
    sem fonte, queda da fome sem causa achada.
 8. **Cliente**: desenha só o que o motor disser (lote, rua por superfície, bairro denso, acessos); sai o quintal e a rua
    inventados na AD-171.
+   **Feito na AD-177** (item 8, parte do cliente): rua pela camada `Roads` e superfície, lote pelo `lot`, ficha de rua e
+   de lote, raio-x, planta, Tab. Bairro denso e acessos esperam o motor (AD-176).
+
+## Lacunas do cliente deixadas pela AD-177
+9. **Sem delta de rua**: o motor só manda `Roads` no retrato do mundo; o cliente relê a camada a cada 30 s (e logo depois de
+   um lote apontar rua desconhecida), um retrato do mundo inteiro por vez. Pedir `roadUpserts`/`roadRemoved` no delta.
+10. **Acesso e obra de rua** (viela, escada, laje, calçamento em andamento): só o ponto único em `street_style.gd`
+    (`ACCESS_STYLES`, `WORK_STYLE`); falta o campo no contrato.
+11. **Cerca ou sebe**: o motor diz "cercado" sem o tipo; o cliente desenha só cerca de varas. Quintal sem uso modelado
+    (horta, bichos, poço; item 4): só o chão do terreiro.
+12. **Estação no chão da cidade**: neve e seca recolorem o terreno, não a rua nem o quintal.
+13. **Árvores fora da cidade**: a vegetação de enfeite (`scenery.gd`) ainda evita toda a caixa da cidade; o motor não diz
+    onde há árvore.
+14. **Raio-x sem interior**: o escopo Cidade não traz cômodos; a planta não mostra pessoas; o rótulo só usa o nome do
+    prédio depois que a ficha dele foi lida (o escopo não traz nome).
+15. **Andar pela rua**: o NPC segue as células que o servidor manda; se o motor andar em linha reta (item 1), o desenho
+    também anda.

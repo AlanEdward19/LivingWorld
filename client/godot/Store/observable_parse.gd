@@ -202,3 +202,22 @@ static func advance_processes(processes: Dictionary, dt: int, skip: Dictionary =
 		process.progress = clampf(1.0 - remaining / duration, 0.0, 1.0) if duration > 0.0 else 1.0
 		changed = true
 	return changed
+
+
+## ProcessVisual do servidor: `kind` (rest, food, cook, water, crop, construction, extraordinary-construct, process),
+## `targetId` (o NPC que age; a lavoura; o tipo de prédio da obra), progresso 0..1 e célula quando o servidor sabe onde.
+static func process(visual: Dictionary) -> Dictionary:
+	var location = visual.get("location")
+	return {"id": int(visual.id), "kind": _s(visual, "kind", "process"), "target": _i(visual, "targetId", -1),
+		"progress": clampf(_f(visual, "progress", 0.0), 0.0, 1.0), "descriptor": _s(visual, "descriptorKey"),
+		"quality": visual.get("quality"), "remaining": visual.get("remainingHours"),
+		"cell": Vector2i(int(location.x), int(location.y)) if location is Dictionary else Vector2i.ZERO, "has_cell": location is Dictionary}
+
+
+static func apply_bag(bag: Dictionary, upserts: Array, removed: Array, parse: Callable) -> bool:
+	for raw in upserts:
+		bag[int(raw.id)] = parse.call(raw)
+	var touched := not upserts.is_empty()
+	for id in removed:
+		touched = bag.erase(int(id.value) if id is Dictionary and id.has("value") else int(id)) or touched
+	return touched

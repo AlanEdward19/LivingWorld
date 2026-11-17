@@ -9,6 +9,8 @@ static func escape(app) -> void:
 	if app.pause_menu != null and app.pause_menu.is_open():
 		app.pause_menu.close()
 		return
+	if app.reading != null and app.reading.close_overlays():
+		return
 	if app.router.close_top():
 		return
 	if app.conversation.is_open:
@@ -58,6 +60,12 @@ static func handle(app, event: InputEvent) -> void:
 					app.unfollow()
 				else:
 					app.follow_selected()
+			KEY_X: # raio-x: todos os prédios translúcidos (AD-177)
+				app.reading.toggle_xray()
+			KEY_P: # planta baixa da cidade
+				app.reading.toggle_plan()
+			KEY_TAB: # o prédio de trás sob o cursor
+				app.reading.cycle(app.get_viewport().get_mouse_position(), -1 if event.shift_pressed else 1)
 			KEY_PAGEUP, KEY_BRACKETRIGHT:
 				if app.stage.active:
 					app.stage.set_floor(app.stage.interior_view.current_floor + 1)
@@ -66,5 +74,7 @@ static func handle(app, event: InputEvent) -> void:
 					app.stage.set_floor(app.stage.interior_view.current_floor - 1)
 	elif event is InputEventJoypadButton and event.pressed and (event.button_index == JOY_BUTTON_START or event.is_action_pressed("ui_cancel")):
 		escape(app) # controle: Start ou B fazem o mesmo que Esc
+	elif event is InputEventMouseButton and event.pressed and event.alt_pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		app.reading.cycle(event.position, 1 if event.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1) # Alt+roda: igual ao Tab
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		app._pick(event.position, event.double_click)

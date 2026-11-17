@@ -18,14 +18,16 @@ signal crops_changed()
 signal fauna_changed() ## animais (cidade) ou bandos (mundo)
 signal items_changed() ## espólio no chão e objetos inventados
 signal climate_changed()
+signal roads_changed() ## camada `Roads` mudou (retrato do mundo ou releitura da camada): só o chão da cidade redesenha
 
 const NO_ACTION := -1
 const Parse := preload("res://Store/observable_parse.gd")
+const Ground := preload("res://Store/city_ground.gd")
 
 var kind := ""
 var map_size := Vector2i.ZERO
 var rivers: Dictionary = {} ## Vector2i -> true
-var roads: Dictionary = {} ## Vector2i -> true (camada `Roads` do mundo quando o motor a modela; vazia hoje)
+var roads: Dictionary = {} ## Vector2i -> rua do motor (Ground.road: cidade, superfície, usuários, principal, largo, extra)
 var terrain: Dictionary = {} ## Vector2i -> int (id de terreno), vem do mundo e persiste entre escopos
 var names: Dictionary = {} ## npc id -> nome (vem do escopo: `observable.name`)
 var cities: Dictionary = {} ## id (String) -> {id,name,location,population,bounds:Rect2i,density}
@@ -100,12 +102,7 @@ func _load_world(payload: Dictionary) -> void:
 	if river_layer != null and river_layer.get("isModeled", false):
 		for entry in river_layer.payload:
 			rivers[cell_of(entry)] = true
-	var road_layer = payload.get("layers", {}).get("Roads")
-	roads.clear()
-	if road_layer is Dictionary and road_layer.get("isModeled", false) and road_layer.get("payload") is Array:
-		for entry in road_layer.payload:
-			if entry is Dictionary and entry.get("x") != null:
-				roads[cell_of(entry)] = true
+	refresh_roads(payload.get("layers", {}).get("Roads"), false)
 	var climate_layer = payload.get("layers", {}).get("Climate")
 	climate_regions = climate_layer.payload.get("regions", []) if climate_layer is Dictionary and climate_layer.get("isModeled", false) \
 		and climate_layer.get("payload") is Dictionary else []
@@ -165,7 +162,7 @@ func _load_processes(living: Variant) -> void:
 	processes.clear()
 	if living is Dictionary:
 		for visual in living.get("processes", []) if living.get("processes") != null else []:
-			var process := _process(visual)
+			var process := Parse.process(visual)
 			processes[process.id] = process
 
 
@@ -193,6 +190,17 @@ func _load_observable(state: Dictionary) -> void:
 	for raw in _list(state, "objects"):
 		objects[int(raw.id)] = Parse.object(raw)
 	climate = Parse.climate(state.get("climate"))
+
+
+## Camada `Roads` (retrato do mundo ou releitura periódica): troca as ruas e avisa só se mudaram.
+func refresh_roads(layer: Variant, notify := true) -> bool:
+	var parsed := Ground.roads(layer)
+	if parsed == roads:
+		return false
+	roads = parsed
+	if notify:
+		roads_changed.emit()
+	return true
 
 
 static func _list(source: Variant, key: String) -> Array:
@@ -236,16 +244,6 @@ func _npc(id: int, cell: Vector2i, action: Variant, city_id: String, look: Dicti
 		"intent_target": "", "started": -1}
 
 
-## ProcessVisual do servidor: `kind` (rest, food, cook, water, crop, construction, extraordinary-construct, process),
-## `targetId` (o NPC que age; a lavoura; o tipo de prédio da obra), progresso 0..1 e célula quando o servidor sabe onde.
-static func _process(visual: Dictionary) -> Dictionary:
-	var location = visual.get("location")
-	return {"id": int(visual.id), "kind": Parse._s(visual, "kind", "process"), "target": Parse._i(visual, "targetId", -1),
-		"progress": clampf(Parse._f(visual, "progress", 0.0), 0.0, 1.0), "descriptor": Parse._s(visual, "descriptorKey"),
-		"quality": visual.get("quality"), "remaining": visual.get("remainingHours"),
-		"cell": cell_of(location), "has_cell": location is Dictionary}
-
-
 ## Genes de aparência do motor ({skinTone,...}) no formato do cliente; vazio quando o mundo não os tem.
 static func look_of(appearance: Variant) -> Dictionary:
 	if not appearance is Dictionary:
@@ -262,6 +260,7 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 		"id": id, "type": Parse._i(marker, "buildingTypeId", -1), "cell": cell_of(marker.get("location")),
 		"orientation": Parse._i(marker, "orientation", 0), "floors": Parse._i(marker, "floors", 1),
 		"footprint": footprint, "value": Parse._i(marker, "value", 0), "lodging": marker.get("lodging"),
+		"lot": Ground.lot(marker.get("lot")), ## AD-173: quintal, caminho da porta e rua da frente; {} = sem lote
 	}
 
 
@@ -322,6 +321,7 @@ func apply_delta(envelope: Dictionary) -> void:
 			buildings[id].floors = known.floors
 			buildings[id].value = known.value
 			buildings[id].lodging = known.lodging
+			buildings[id].lot = known.get("lot", {})
 		if buildings[id].footprint.is_empty():
 			pending_footprints[id] = true # sem planta: canteiro até o próximo retrato (nenhuma leitura extra)
 		else:
@@ -337,7 +337,7 @@ func apply_delta(envelope: Dictionary) -> void:
 	var processes_touched := false
 	var sent := {}
 	for visual in delta.get("processUpserts", []):
-		var process := _process(visual)
+		var process := Parse.process(visual)
 		processes[process.id] = process
 		sent[process.id] = true
 		processes_touched = true
@@ -385,9 +385,9 @@ func _apply_observable_delta(delta: Dictionary) -> void:
 			states.append(int(id_of(removed)))
 	if not states.is_empty():
 		building_states_changed.emit(states)
-	if _apply_bag(crops, _list(delta, "cropUpserts"), _list(delta, "cropRemoved"), Parse.crop):
+	if Parse.apply_bag(crops, _list(delta, "cropUpserts"), _list(delta, "cropRemoved"), Parse.crop):
 		crops_changed.emit()
-	var fauna_touched := _apply_bag(animals, _list(delta, "animalUpserts"), _list(delta, "animalRemoved"), Parse.animal)
+	var fauna_touched := Parse.apply_bag(animals, _list(delta, "animalUpserts"), _list(delta, "animalRemoved"), Parse.animal)
 	for raw in _list(delta, "faunaGroupUpserts"):
 		var group := Parse.fauna_group(raw)
 		fauna_groups[group.key] = group
@@ -396,22 +396,13 @@ func _apply_observable_delta(delta: Dictionary) -> void:
 		fauna_touched = fauna_groups.erase(String(removed)) or fauna_touched
 	if fauna_touched:
 		fauna_changed.emit()
-	var items_touched := _apply_bag(leavings, _list(delta, "leavingUpserts"), _list(delta, "leavingRemoved"), Parse.leaving)
-	items_touched = _apply_bag(objects, _list(delta, "objectUpserts"), _list(delta, "objectRemoved"), Parse.object) or items_touched
+	var items_touched := Parse.apply_bag(leavings, _list(delta, "leavingUpserts"), _list(delta, "leavingRemoved"), Parse.leaving)
+	items_touched = Parse.apply_bag(objects, _list(delta, "objectUpserts"), _list(delta, "objectRemoved"), Parse.object) or items_touched
 	if items_touched:
 		items_changed.emit()
 	if delta.get("climate") is Dictionary:
 		climate = Parse.climate(delta.climate)
 		climate_changed.emit()
-
-
-static func _apply_bag(bag: Dictionary, upserts: Array, removed: Array, parse: Callable) -> bool:
-	for raw in upserts:
-		bag[int(raw.id)] = parse.call(raw)
-	var touched := not upserts.is_empty()
-	for id in removed:
-		touched = bag.erase(int(id_of(id))) or touched
-	return touched
 
 
 ## Delta de interior do servidor: `entered`, `moved` (célula OU ação mudou), `changedFloor` e `exited`.
