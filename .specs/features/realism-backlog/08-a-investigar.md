@@ -8,11 +8,11 @@
 
 ## Da fatia de corpo, saúde e amamentação (AD-134)
 1. ~~**Quase todas as mortes sem causa explícita**~~ resolvido: doença com causa no AD-137, fração medida no AD-140 (sobra no 34).
-2. **Teste de traço neutro afrouxado.** `Unselected_trait_stays_in_the_neutral_band` (calibração de família) perdeu a exigência de diferença média zero no intervalo de confiança pareado; ficou só a faixa calibrada. A diferença medida foi −0,009 (2,8 erros-padrão). Hipótese do subagente, não provada: o braço real escolhe parceiro pela saúde, que agora varia, e o braço neutro escolhe ao acaso; com sucesso reprodutivo mais desigual um traço neutro perde mais variância. Investigar: (a) rodar com a escolha de parceiro sem o fator saúde e ver se a diferença some; (b) rodar mais seeds para saber se −0,009 é efeito ou acaso; (c) se for efeito real, decidir se é seleção indireta legítima (carona genética) e reescrever o teste para medi-la, em vez de deixá-lo afrouxado; (d) se for defeito, corrigir e devolver a exigência. **AD-163** (`trait-drift 1 40 10`): real − neutro +0,0051 ± 0,0048, sem a saúde na escolha +0,0036 ± 0,0034, par −0,0015 ± 0,0037: o −0,009 não se repete e a saúde não pesa. A exigência pode voltar (o teste é do `--full`; não reescrito aqui).
+2. ~~**Teste de traço neutro afrouxado**~~ (AD-163: 40 seeds +0,0051 ± 0,0048, sem a saúde igual). **AD-164:** exigência do IC pareado de volta em `Unselected_trait_stays_in_the_neutral_band`; nas seeds do teste (1–20 × 10 anos, `trait-drift`) −0,0098 ± 0,0067 (1,5 EP, dentro de 1,96), sem a saúde −0,0074 ± 0,0057. Roda no `--full`.
 3. ~~**Dois números sem fonte**~~ conferidos (AD-161, [família](relatorios/conferencia-familia-e-nupcialidade.md)): natimorto de 30% com a mãe morta confere (RR 9,48, Saleem 2014); desgaste 12× é escolha de modelo.
 4. **Tempo por NPC-tick não comparável.** O "antes" e o "depois" da fatia foram medidos com cargas diferentes na máquina; só a alocação é confiável (141 bytes, igual). Medir pela fila de uma vaga, em pares alternados, o tick a 1.000 e 5.000 NPCs no commit anterior à fatia (`ee6f0416`) e no posterior (`bce8e56c`).
 5. ~~**Demografia saiu da referência calibrada**~~ resolvido no AD-148 (e0 31,0, 1º ano 205‰, dentro dos alvos).
-6. **Sobrevivência do bebê sem mãe.** Razão medida de 0,39 (30% contra 76%), abaixo do alvo de 0,5 da auditoria. Conferir em fonte (Knodel e outros sobre órfãos de mãe) e recalibrar. (AD-161: não conferido — os estudos confirmam a direção, nenhum número lido; o alvo 0,5 também não tem fonte.)
+6. **Sobrevivência do bebê sem mãe.** Razão medida de 0,39 (30% contra 76%), abaixo do alvo de 0,5 da auditoria. Conferir em fonte (Knodel e outros sobre órfãos de mãe) e recalibrar. (AD-161: não conferido — os estudos confirmam a direção, nenhum número lido; o alvo 0,5 também não tem fonte. AD-164: Estônia e Knodel seguem ilegíveis; Espanha rural ~40% dos órfãos de mãe no 1º ano chegam aos 15 [B], sem braço com mãe.)
 
 ## Da fatia de vocação e família (AD-136)
 7. ~~**População subiu 17% sem explicação**~~ superado: causa do crescimento medida no AD-149 (terra sem fim, emigração presa) e nupcialidade no AD-158.
@@ -36,7 +36,7 @@
 21. ~~**Cognição (AD-138), números sem conferência**~~ (AD-161): luto de 120 d confere (Maciejewski 2007); as outras meias-vidas e a capacidade são escolha de modelo.
 22. ~~**Cognição: lembranças dominadas por ajuda**~~ (AD-163, 40×100): 5,2% das lembranças dos adultos no fim (IC90 4,3–6,3%), era 54%.
 23. ~~**Cognição: teste de intervenção em grade sintética**~~ respondido (AD-161): a grade fica (unidade); `CivilizationScopeTests` voltou a 3 vivos no AD-140; efeito no mundo na #146.
-24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela.
+24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela. **AD-164** (mesma DLL 5× seguidas, 1.000 NPCs, fila): 194, 194, 194, 202, 202 B; as duas de 202 B foram as lentas (2,75 contra 2,49 µs). Oscila em dois degraus (~4%), junto com o tempo: comparar a moda de ≥ 3 corridas de cada lado. A 5.000: 172 B nas três.
 25. ~~**Agricultura (AD-135), números sem conferência**~~ (AD-161, [economia](relatorios/conferencia-economia-e-credito.md)): 4 por semente, CV 20%, perda 15%, ceifa 100 conferem; 1300 graus-dia é desvio declarado (real ~2000).
 26. ~~**Agricultura: população mínima 112 e fecundidade presa à despensa**~~ freio no AD-145/158, furto no AD-150; lobos e celeiro na #167.
 27. ~~**Contrato `shape.world/city-subscribe` regravado**~~ respondido (AD-161): o cliente Godot não lê o campo; nada a avisar.
@@ -46,7 +46,7 @@
 31. ~~**Invenção (AD-141), números físicos de memória**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): madeira e pedra conferem; junco, margens e vau são escolha de modelo.
 32. **Invenção: custo a 1000 NPCs inconclusivo** (1,98 → 2,19 µs/NPC-tick em três pares, ruído da mesma ordem, máquina ocupada); a 5000 NPCs e em alocação não houve regressão. Medir de novo com a máquina livre. ~~Mortes no 1º ano e construções~~ (AD-163, 40×100): 1q0 de coorte 203‰ (IC90 199–207); 0,48 construção falha por boa (0,37–0,61), era 0,66; plausível para quem aprende o ofício, sem fonte.
 33. ~~**Cérebro (AD-142), números sem fonte**~~ (AD-161): escolha de modelo (não há grandeza empírica); o puxão da criação deve ficar pequeno.
-34. **Recalibração (AD-140)** — AD-163, 40×100: nenhuma seed abaixo de 51 vivos (a seed 18 não cai mais); 1–4 anos 39,4‰ ao ano (doença 21,7‰, 55%); **36,1% das mortes sem causa** (IC90 35,0–37,1): é a sobra da tábua que `MortalitySystem.CauseMark` não nomeia (nem doença, nem acidente, nem velhice). Defeito de rótulo: nomear a sobra por idade (fraqueza e convulsões do bebê, males crônicos do adulto, como nos registros de óbito) — correção proposta, sem efeito no mundo.
+34. ~~**Recalibração (AD-140)**~~ — AD-163, 40×100: nenhuma seed abaixo de 51 vivos; 1–4 anos 39,4‰ (doença 55%); 36,1% sem causa era a sobra da tábua sem rótulo. **AD-164:** a sobra leva o nome da idade (`DeathCauseRules.ResidualByAge`: debilidade, convulsões, dentição, lombrigas, hidropisia, apoplexia, como nas listas de óbito; combate = `combate`), no payload do `Death`. 6×50: sem causa 0,0%, sobra nomeada 39%; teste pareado prova as mesmas mortes na mesma hora. Hash canônico muda só pelo payload.
 35. **AD-140, calibração sem fonte**: 160 vagas, 150 de semeadura por morador e dízimo são escolha de modelo (AD-161); **faixas da doença não conferidas** (tema próprio). Custo: em [a-medir](relatorios/a-medir.md) grupo 2.
 36. ~~**Demografia de 20 × 100 da árvore final (`95e9cdc2`) não medida**~~ medida no AD-145 (`902075dd`: pop 264,9, e0 27,0, 1º ano 236‰, fome 11,4%).: os números do AD-140 são sem a invenção.
 
@@ -57,7 +57,7 @@
 40. ~~**Água aos milhares**~~ resolvido no AD-148: a compra completa a meta por padrão (`ProvisioningRules.TopUp`); seed 7, anos 30–50: água das casas 7 por morador (antes até 8.900).
 41. ~~**Ceifa perde 22–26%**~~ resolvido no AD-149 ([land-and-harvest](../../../docs/domain/land-and-harvest.md)): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho e a parte em espécie vai à turma inteira; rendimento por semente 4,34 → 4,59 (20×100).
 42. ~~**Emigração** sem saudade, sem casa inteira, `MoveTo` sem teste~~ confirmado no código (AD-161, [respostas](relatorios/respostas-de-codigo.md)); lacunas na #173, teste em correções. **AD-162:** teste de `MoveTo` com vaga do ofício em outra cidade.
-43. **Custo do AD-145 não medido** (pares a 1.000 e 5.000 NPCs). Goldens e linhas novas do relatório: feitos (AD-161, [respostas](relatorios/respostas-de-codigo.md)).
+43. **Custo do AD-145 não medido** (pares a 1.000 e 5.000 NPCs). AD-164: o acumulado da árvore de hoje (`9ce91e71` + rótulo) a 5.000 é 1,25–1,28 µs e 172 B por NPC-tick (3 corridas); a 1.000, 2,49 µs e 194 B (moda de 5). Isolar cada AD (43, 52, 61, 65, 72, 79) pede compilar os commits antigos lado a lado: sessão de custo própria (grupo 2). Goldens e linhas novas do relatório: feitos (AD-161, [respostas](relatorios/respostas-de-codigo.md)).
 44. ~~**Invenção fatia 2 (AD-143)**~~ (AD-161): 30 kg a pé fora da faixa (sugerido 20), 700 g confere, peixe e rumor escolha de modelo; contrato sem consumidor no Godot; CPU da grade em [a-medir](relatorios/a-medir.md) grupo 2.
 45. ~~**Freios ligados depois do AD-146**~~ causa achada no AD-148: 55% dos adultos não podiam trabalhar (motor fino 1,0) e a casa ia ao mercado sem poder pagar; com os consertos, freios ligados: 0 extinções em 20×100.
 46. ~~**Quem compra sem poder pagar**~~ resolvido no AD-148 (`ProvisioningRules.OnlyIfCanPay`): antes 70% das idas não compravam nada (seed 4, ano 30).
@@ -91,7 +91,7 @@
 68. ~~**Números sem fonte do AD-152**~~ (AD-161): mestre aos 21 plausível (7 anos de aprendizagem); o resto escolha de modelo.
 69. ~~**Confiança mínima do sócio (60) e até dois sócios**~~ (AD-161): escolha de modelo (*commenda* ⅔/⅓, companhias com vários sócios).
 70. **Vila só sustenta ~1 ferreiro**: 32 negócios em 20 seeds × 100 anos, quase todos quando o mestre parou. Conferir ferreiros por
-    habitante numa aldeia inglesa (AD-161: não achado; contar nas listas da poll tax de 1379/1381).
+    habitante numa aldeia inglesa (AD-161: não achado; contar nas listas da poll tax de 1379/1381). AD-164: de novo sem razão pronta; contar à mão.
 71. ~~**Equipamento de fora a preço de teto**~~ confirmado no código (`VentureFounding.cs:36-54`); issue #168.
 72. **Custo do AD-152 a 5.000 NPCs** e seeds 21–40 não medidos; goldens, pins e baselines feitos na junção (AD-161).
 

@@ -113,7 +113,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null, ReferenceTally? Reference = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null, ReferenceTally? Reference = null, DomesticHungerProbe? DomesticHunger = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -152,7 +152,8 @@ public static class DemographyReport
         var distress = new NeedDistressTally(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-157
         var reference = new ReferenceTally(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-163
         reference.Attach();
-        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit), distress), reference);
+        var domestic = new DomesticHungerProbe(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-164
+        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit), distress), new BothSinks(reference, domestic));
         if (extra is not null) sinks = new BothSinks(sinks, extra);
         // AD-163: só para medir (item 8): troca um sistema do relógio por outro com regras diferentes
         var systems = swapSystem is null ? baseClock.Systems : baseClock.Systems.Select(swapSystem).ToList();
@@ -169,6 +170,7 @@ public static class DemographyReport
                     clock.Run(world, 1);
                     workday.SampleHour(); // AD-148: o dia do adulto
                     distress.SampleHour(); // AD-157: horas com fome ou sede crítica
+                    domestic.SampleHour(); // AD-164: de onde vem a fome depois da agressão
                 }
                 tally.Disease.SampleDay();
             }
@@ -183,6 +185,7 @@ public static class DemographyReport
             ventures.SampleMonth();
             credit.SampleMonth();
             reference.SampleMonth();
+            domestic.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) reference.SampleYear();
             afterMonth?.Invoke(world, m);
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
@@ -192,7 +195,8 @@ public static class DemographyReport
         tally.Reproduction.SampleGenetics();
         economy.SampleYear(years);
         reference.Finish();
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress, reference);
+        domestic.Finish();
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress, reference, domestic);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -306,7 +310,7 @@ public static class DemographyReport
         var byCause = new SortedDictionary<string, long[]>(StringComparer.Ordinal);
         foreach (var (cause, row) in t.Disease.DeathsByCauseAndBand)
         {
-            string key = cause.StartsWith("Disease:", StringComparison.Ordinal) ? "Disease" : cause;
+            string key = cause.StartsWith("Disease:", StringComparison.Ordinal) ? "Disease" : cause.Replace(':', '.'); // Death.nome (AD-164)
             if (!byCause.TryGetValue(key, out var acc)) byCause[key] = acc = new long[bands.Length];
             for (int i = 0; i < row.Length; i++) acc[i] += row[i];
         }
@@ -332,6 +336,7 @@ public static class DemographyReport
         var fam = t.Family;
         sb.Append(inv, $" oficio_n={fam.FollowCompared} oficio_segue={fam.Followed} oficio_acaso={fam.FollowByChance:F2} oficio_alta_n={fam.HighPressureCompared} oficio_alta={fam.HighPressureFollowed} oficio_baixa_n={fam.LowPressureCompared} oficio_baixa={fam.LowPressureFollowed}");
         r.Reference?.Append(sb);
+        r.DomesticHunger?.Append(sb);
         return sb.ToString();
     }
 
