@@ -6,11 +6,13 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Streets;
 
-/// <summary>Obra de calçamento, <c>Daily</c> (AD-176): os diaristas do dia (adultos da cidade sem emprego, até
-/// <see cref="LivingWorld.Domain.Cities.StreetRules.CrewMax"/>) trabalham <see cref="LivingWorld.Domain.Cities.StreetRules.CrewHoursPerDay"/>
-/// horas cada e recebem o jornal de quem paga (o tesouro ou as casas de frente, em partes iguais). Sem diarista ou sem dinheiro
-/// no dia, a obra para. Pronta, a célula ganha o calçamento com condição cheia (a rede muda na revisão seguinte).</summary>
-[LivingCapability("STREETS", Events = [WorldEventKind.StreetWorkDone], Consumers = ["streets.surface", "economy.wallet"])]
+/// <summary>Obra de calçamento, <c>Daily</c> (AD-176, AD-179): cada dia a turma de cada obra se refaz (<see cref="SiteWork.Staff"/>:
+/// sai quem já não precisa, entra quem aceita pela utilidade dele, até <see cref="LivingWorld.Domain.Cities.StreetRules.CrewMax"/>).
+/// A obra não anda sozinha: só as horas de quem está no trecho contam, pagas por hora a quem as trabalhou
+/// (<see cref="SiteWork.Clock"/>, quando a jornada acaba). Pronta, a célula ganha o calçamento com condição cheia (a rede muda na
+/// revisão seguinte).</summary>
+[LivingCapability("STREETS", Events = [WorldEventKind.StreetWorkDone, WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft],
+    Consumers = ["streets.surface", "economy.wallet", "behavior.work-destination"])]
 public sealed class PavingWorksSystem : ISimulationSystem
 {
     public const string SystemName = "paving-works";
@@ -21,35 +23,34 @@ public sealed class PavingWorksSystem : ISimulationSystem
     public void Tick(WorldState world, TickContext ctx)
     {
         if (!world.StreetsOn || world.Ground!.Works.Count == 0) return;
-        var ground = world.Ground;
-        var rules = world.StreetRules;
-        long dayWage = PavingDecision.DayWage(world);
-        foreach (var work in ground.Works.OrderBy(w => w.Id).ToList())
+        foreach (var work in world.Ground.Works.OrderBy(w => w.Id).ToList())
         {
-            var cityId = new CityId(work.City);
-            var city = world.FindActiveCity(cityId);
-            if (city is null) { ground.Works.Remove(work); continue; }
-            var crew = PavingDecision.DayLaborers(world, city.Id, rules.CrewMax);
-            if (crew.Count == 0) continue;
-            long due = dayWage * crew.Count;
-            if (!Pay(world, ctx, city, work, due)) continue;
-            foreach (var worker in crew) worker.CreditWallet(new Money(dayWage));
-            work.Paid += due;
-            work.HoursLeft -= (long)crew.Count * rules.CrewHoursPerDay;
-            if (work.HoursLeft > 0) continue;
-
-            foreach (int cell in work.Cells) ground.SetPaving(cell, work.Surface, 1000);
-            ground.Works.Remove(work);
-            ground.WorksDone++;
-            ctx.LogEvent(WorldEventKind.StreetWorkDone,
-                $"{work.Id}|{work.City}|{work.Surface}|{(work.Repair ? 1 : 0)}|{work.Cells.Count}|{work.Paid}", sourceSystem: SystemName,
-                causeEventId: work.StartEventId);
+            if (world.FindActiveCity(new CityId(work.City)) is null) { world.Ground.Works.Remove(work); continue; }
+            // AD-179: sem nenhuma hora de turma por meses (vila sem mão livre), a obra é desfeita; o material comprado fica gasto
+            if (ctx.CurrentTick - work.LastProgressTick > world.StreetRules.SiteStaleMonths * world.Calendar.HoursPerMonth)
+            {
+                world.Ground.Works.Remove(work);
+                world.Ground.WorksAbandoned++;
+                foreach (long id in work.Crew)
+                    ctx.LogEvent(WorldEventKind.SiteWorkLeft, $"{id}|{work.Id}|desfeita", sourceSystem: SiteWork.SourceSystem);
+                continue;
+            }
+            SiteWork.Staff(world, ctx, work);
         }
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
 
-    private static bool Pay(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, PavingWork work, long due) =>
-        PavingDecision.PayFrom(world, ctx, city, work.Payers, due);
+    /// <summary>A obra acabou: o calçamento entra com condição cheia, a turma se desfaz (a obra sai da lista) e o evento conta.</summary>
+    internal static void Finish(WorldState world, TickContext ctx, PavingWork work)
+    {
+        var ground = world.Ground!;
+        foreach (int cell in work.Cells) ground.SetPaving(cell, work.Surface, 1000);
+        ground.Works.Remove(work);
+        ground.WorksDone++;
+        ctx.LogEvent(WorldEventKind.StreetWorkDone,
+            $"{work.Id}|{work.City}|{work.Surface}|{(work.Repair ? 1 : 0)}|{work.Cells.Count}|{work.Paid}", sourceSystem: SystemName,
+            causeEventId: work.StartEventId);
+    }
 }
 
 /// <summary>A técnica de calçar (AD-176) entra pelo sistema de tecnologia que já existe (<c>TechDiscoverySystem</c>): numa cidade

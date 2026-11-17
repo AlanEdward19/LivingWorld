@@ -37,6 +37,9 @@ public enum UtilityTerm : byte
 
     /// <summary>AD-147: fome ou sede crítica tira o lazer da frente (o teto de Conversar e Ficar à toa).</summary>
     BodyOverride,
+
+    /// <summary>AD-179: a oferta de trabalho de diarista numa obra (precisa de dinheiro, não tem emprego, a ida não come o dia).</summary>
+    SiteWork,
 }
 
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
@@ -162,6 +165,13 @@ public sealed partial class BehaviorDecisionSystem
 
         score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout, ref lens);
         score += HormoneTerms(ctx, action, baseValue, sink, knockout, ref lens);
+        if (action == ActionType.Work && ctx.SiteOffer > 0 && knockout != UtilityTerm.SiteWork)
+        {
+            // AD-179: a obra que paga quem precisa puxa para o trabalho, como a necessidade de renda (grupo Pressão)
+            score += ctx.SiteOffer;
+            lens.Credit(UtilityGroup.Pressure, ctx.SiteOffer);
+            Note(sink, action, UtilityTerm.SiteWork, ctx.SiteOffer, ref lens, UtilityGroup.Pressure);
+        }
 
         // AD-139: o jovem no pico do impulso desconta parte das consequências que a antevisão mostra e muda de ideia mais rápido
         var hormones = knockout == UtilityTerm.Adolescence ? default : ctx.Hormones;

@@ -26,6 +26,23 @@ public sealed class ConstructionProject(
 
     public void JoinCity(CityId city) => City = city;
 
+    /// <summary>AD-179: lote onde a obra acontece (a turma trabalha ali); -1 = ainda não escolhido.</summary>
+    public int SiteX { get; set; } = -1;
+    public int SiteY { get; set; } = -1;
+
+    /// <summary>AD-179: diaristas da turma (ids de NPC); a obra só anda pelas horas deles no lote.</summary>
+    public List<long> Crew { get; set; } = [];
+
+    /// <summary>AD-179: horas trabalhadas no lote ainda não gastas pelo passo da fila (cada hora de turma = um tick da receita).</summary>
+    public long HoursBanked { get; set; }
+
+    /// <summary>AD-179: horas-homem trabalhadas e jornal pago até agora.</summary>
+    public long HoursWorked { get; set; }
+    public long Paid { get; set; }
+
+    /// <summary>AD-179: horas de carregar o material do estoque da cidade (o largo) até o lote, ainda por fazer.</summary>
+    public long HaulHoursLeft { get; set; }
+
     // SPEC_DEVIATION: design.md declara Consumed só como dado de construção
     // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao
     // longo dos ticks") — sem mutador, Consumed nunca sairia de vazio.

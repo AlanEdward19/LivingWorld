@@ -43,6 +43,15 @@ public sealed class PavingWork
     public long Paid { get; set; }
     /// <summary>Evento que abriu a obra (causa do evento de obra pronta).</summary>
     public long StartEventId { get; set; }
+
+    /// <summary>AD-179: diaristas da turma (ids de NPC, na ordem em que entraram); a obra só anda pelas horas deles no trecho.</summary>
+    public List<long> Crew { get; set; } = [];
+
+    /// <summary>AD-179: horas-homem trabalhadas no trecho até agora.</summary>
+    public long HoursWorked { get; set; }
+
+    /// <summary>AD-179: tick da última hora de turma (ou da abertura); sem hora por <c>SiteStaleMonths</c>, a obra é desfeita.</summary>
+    public long LastProgressTick { get; set; }
 }
 
 /// <summary>Estado do chão das cidades (AD-176), canônico: pisoteio por célula, superfície em vigor, calçamento e obras. Grade
@@ -86,6 +95,9 @@ public sealed class GroundLedger
 
     /// <summary>Obras de calçamento concluídas (novas e consertos).</summary>
     public int WorksDone { get; set; }
+
+    /// <summary>AD-179: obras desfeitas por ficarem sem turma.</summary>
+    public int WorksAbandoned { get; set; }
 
     public List<PavingWork> Works { get; set; } = [];
 
@@ -181,6 +193,15 @@ public sealed class GroundLedger
         if (a < 0 || b < 0 || a == b) return;
         long key = ((long)a << 32) | (uint)b;
         _trips[key] = _trips.GetValueOrDefault(key) + 1;
+    }
+
+    /// <summary>AD-179: <paramref name="count"/> viagens do mesmo par (o mês típico da história da vila).</summary>
+    internal void RecordTrips(CellCoord from, CellCoord to, int count)
+    {
+        int a = IndexOf(from), b = IndexOf(to);
+        if (a < 0 || b < 0 || a == b || count <= 0) return;
+        long key = ((long)a << 32) | (uint)b;
+        _trips[key] = _trips.GetValueOrDefault(key) + count;
     }
 
     internal int PendingTripPairs => _trips.Count;

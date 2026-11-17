@@ -490,7 +490,9 @@
             "payer": "string",
             "progressPct": "number",
             "repair": "boolean",
-            "surface": "number"
+            "surface": "number",
+            "workId": "number",
+            "workerIds": "[]"
           }
         }
       ]

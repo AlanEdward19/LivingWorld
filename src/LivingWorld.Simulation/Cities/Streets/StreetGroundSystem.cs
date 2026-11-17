@@ -50,6 +50,69 @@ public sealed class StreetGroundSystem : ISimulationSystem
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
 
+    /// <summary>AD-179 (08d item 180): o mundo começa no meio da história. A vila semeada existe há anos, então nasce com o chão
+    /// que o uso de sempre deixou: o mês típico (cada empregado vai e volta do trabalho em todo dia do mês; cada casa vai
+    /// <see cref="StreetRules.HistoryMarketTripsPerMonth"/> vezes ao mercado mais perto e volta) deposita as passagens pelas rotas
+    /// de hoje, e o pisoteio vai ao valor estacionário do próprio processo mensal (passagens ÷ (1 − o que sobra por mês)); a
+    /// revisão vira trilha e terra batida. Repetido <see cref="StreetRules.HistoryRounds"/> vezes (as rotas seguem a rede que acabou
+    /// de nascer). Só lê o mundo e escreve o chão; em ordem de id, sem sorteio. 0 rodadas: nasce sem caminho (o modelo da AD-176).</summary>
+    public static void SeedHistory(WorldState world)
+    {
+        if (!world.StreetsOn) return;
+        var ground = world.Ground!;
+        var rules = world.StreetRules;
+        if (rules.HistoryRounds <= 0 || rules.WearRetainPm >= 1000) return;
+        var marketTypes = world.EconomyCatalog.MarketLocationTypeIds;
+        var markets = world.Workplaces.Where(w => !w.Closed && marketTypes.Contains(w.LocationType.Id)).OrderBy(w => w.Id.Value).ToList();
+        int days = world.Calendar.DaysPerMonth;
+        for (int round = 0; round < rules.HistoryRounds; round++)
+        {
+            foreach (var home in world.Households.OrderBy(h => h.Id.Value))
+            {
+                if (home.IsEmpty || home.IsHomeless) continue;
+                foreach (var member in home.Members.OrderBy(m => m.Value))
+                {
+                    if (world.FindNpc(member) is not { IsAlive: true } npc || HistoricWorkplace(world, npc, home.Location) is not { } work) continue;
+                    ground.RecordTrips(home.Location, work, days);
+                    ground.RecordTrips(work, home.Location, days);
+                }
+                if (markets.Count == 0 || rules.HistoryMarketTripsPerMonth <= 0) continue;
+                var market = markets.OrderBy(m => StreetRoutes.CostOf(world, home.Location, m.Location).Cost).ThenBy(m => m.Id.Value).First();
+                ground.RecordTrips(home.Location, market.Location, rules.HistoryMarketTripsPerMonth);
+                ground.RecordTrips(market.Location, home.Location, rules.HistoryMarketTripsPerMonth);
+            }
+            Deposit(world, ground);
+            for (int i = 0; i < ground.Count; i++)
+                ground.SetWear(i, (int)Math.Min(int.MaxValue, (long)ground.PassesAt(i) * 1000 / (1000 - rules.WearRetainPm)));
+            Review(ground, rules);
+        }
+        ground.ClearPasses(); // o mês de verdade começa vazio: as passagens do primeiro mês são as do mundo
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
+    /// <summary>Onde o adulto trabalhou na história: o emprego, se já tem; senão a oficina aberta do ofício dele mais perto de casa
+    /// pela rota (no mundo recém-criado ninguém foi contratado ainda: o primeiro dia contrata).</summary>
+    private static LivingWorld.Domain.Geography.CellCoord? HistoricWorkplace(WorldState world, LivingWorld.Domain.Population.Npc npc,
+        LivingWorld.Domain.Geography.CellCoord home)
+    {
+        if (npc.Employer is { } employer) return world.FindWorkplace(employer)?.Location;
+        if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LivingWorld.Domain.Population.Body.LifeStage.Adult) return null;
+        if (!world.EconomyCatalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out int type)) return null;
+        LivingWorld.Domain.Geography.CellCoord? best = null;
+        double bestCost = double.MaxValue;
+        foreach (var place in world.Workplaces)
+        {
+            if (place.Closed || place.LocationType.Id != type || place.City != npc.City) continue;
+            double cost = StreetRoutes.CostOf(world, home, place.Location).Cost;
+            if (cost < bestCost || cost == bestCost && best is { } b && (place.Location.Y, place.Location.X).CompareTo((b.Y, b.X)) < 0)
+            {
+                bestCost = cost;
+                best = place.Location;
+            }
+        }
+        return best;
+    }
+
     /// <summary>Cada viagem do mês deixa uma passagem em cada célula da rota que fez (com a rede e os obstáculos do mês).</summary>
     internal static void Deposit(WorldState world, GroundLedger ground)
     {

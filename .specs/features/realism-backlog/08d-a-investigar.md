@@ -44,15 +44,15 @@
 ## Da rua de verdade (AD-176; itens 158–160 e 167 fechados por ela)
 174. **Lama sem chuva**: o motor não tem chuva nem umidade (o fator de clima é de safra), então a rua de terra não vira lama na
      estação; ligar quando houver precipitação por região e mês.
-175. **Carga a pé não muda o passo**: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
+175. ~~**Carga a pé não muda o passo**~~ AD-179: a carga levada alonga o passo (0,5%/kg até 40 kg), o material de obra também.: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
 177. **Entrada e saída da rede pela célula de caminho mais perto** de cada ponta, não a melhor combinação; rota boa, não ótima.
-178. **Diarista da obra recebe o jornal sem ir à obra**: a agenda dele não muda (não anda até o trecho nem deixa de ficar à toa).
+178. ~~**Diarista da obra recebe o jornal sem ir à obra**~~ AD-179: aceita pela utilidade, vai pela rota, conta e recebe por hora no trecho.: a agenda dele não muda (não anda até o trecho nem deixa de ficar à toa).
 179. **Cascalho não é mercadoria**: sai do leito do rio pela rota; a pedra é comprada quando o mundo tem o recurso (pedreira).
-180. **Mundo novo sem trilha**: a vila semeada nasce sem caminho até a primeira revisão (3 meses); pisar o chão dos anos de antes
+180. ~~**Mundo novo sem trilha**~~ AD-179: nasce com o chão estacionário do mês típico da história.: a vila semeada nasce sem caminho até a primeira revisão (3 meses); pisar o chão dos anos de antes
      da fundação daria rua no ano 0.
-181. **`cidade-media` quase não pisa o chão**: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
+181. ~~**`cidade-media` quase não pisa o chão**~~ AD-179: era fixture sem economia; agora ~55 viagens/pessoa-mês.: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
      aperto do item 172); sem trilha nenhuma em 20 anos. Ver junto com o 172.
 182. **Prédio vira obstáculo só na virada do mês** (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
 183. **Técnica de calçar sem protótipo pago**: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.

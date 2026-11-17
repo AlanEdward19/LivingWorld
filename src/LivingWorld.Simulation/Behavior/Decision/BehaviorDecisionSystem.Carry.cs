@@ -89,6 +89,10 @@ public sealed partial class BehaviorDecisionSystem
             if (food) foodHours = 2 * leg + margin;
         }
         PersonalCarry.PackForTrip(world, npc, home, waterHours, foodHours, now);
+        // AD-179 (item 175): carregado, a ida demora mais; a chegada agendada usa a ida com a carga
+        if (Mobility.LoadFactor(world, npc) != 1.0)
+            _departure = (npc.Id.Value, now, npc.CurrentLocation, npc.TravelPurpose, destination,
+                Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)));
     }
 
     /// <summary>O que o local de trabalho dá a quem trabalha lá (AD-151): a água do poço da propriedade e a refeição por conta do

@@ -24,7 +24,11 @@ public static class StreetViews
         var ground = world.Ground!;
         var cities = world.ActiveCities().OrderBy(c => c.Id.Value).ToList();
         long hoursLeft = 0;
-        foreach (var open in ground.Works) hoursLeft = hoursLeft * 31 + open.HoursLeft + open.Id;
+        foreach (var open in ground.Works)
+        {
+            hoursLeft = hoursLeft * 31 + open.HoursLeft + open.Id;
+            foreach (long id in open.Crew) hoursLeft = hoursLeft * 31 + id; // AD-179: a turma muda a ficha da rua
+        }
         var key = (ground.Months, ground.SurfaceVersion, ground.WorksDone, hoursLeft, cities.Count, LivingWorld.Domain.Cities.Buildings.Building.LayoutVersion);
         var memo = Memos.GetOrCreateValue(world);
         if (memo.Key == key) return memo.ByCity;
@@ -64,7 +68,11 @@ public static class StreetViews
                 Condition = ground.PavingAt(i) != GroundSurface.None ? ground.ConditionAt(i) : null,
                 Work = job is null ? null : new StreetWorkView(ViewOf(job.Surface),
                     (int)Math.Clamp(100 * (job.HoursTotal - Math.Max(0, job.HoursLeft)) / Math.Max(1, job.HoursTotal), 0, 100),
-                    job.Repair, job.Payers.Count == 0 ? "treasury" : "frontage"),
+                    job.Repair, job.Payers.Count == 0 ? "treasury" : "frontage")
+                {
+                    WorkId = job.Id,
+                    WorkerIds = [.. job.Crew],
+                },
             });
         }
         var byCity = new Dictionary<CityId, IReadOnlyList<StreetCellView>>();

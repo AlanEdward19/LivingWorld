@@ -120,7 +120,37 @@ public static class EconomyScenarioLoader
         var created = EconomyRules.Create(
             enabled, foodResourceId, waterResourceId, capacity, spoilage, wage, priceFloor, priceCeiling,
             priceSensitivity, demand, taxRate);
-        return created.IsSuccess && levy > 0 ? Result<EconomyRules>.Ok(created.Value! with { SurplusDrawShare = levy }) : created;
+        if (!created.IsSuccess) return created;
+        var rules = levy > 0 ? created.Value! with { SurplusDrawShare = levy } : created.Value!;
+        // AD-179: o que o cenário de código já liga, agora também por dado (os períodos do menu são mundos completos). Ausente = como antes.
+        if (root["PresenceNeedsWork"] is { } presenceNode)
+        {
+            if (!(presenceNode is JsonValue pv && pv.TryGetValue<bool>(out bool presence)))
+                return Result<EconomyRules>.Fail("PresenceNeedsWork: deve ser booleano");
+            rules = rules with { PresenceNeedsWork = presence };
+        }
+        if (root["Venture"] is { } ventureNode)
+        {
+            if (ventureNode is not JsonObject venture) return Result<EconomyRules>.Fail("Venture: objeto inválido");
+            var types = new List<int>();
+            if (venture["LocationTypeIds"] is JsonArray typesNode)
+                foreach (var item in typesNode)
+                {
+                    if (item is not JsonValue v || !v.TryGetValue<int>(out int id)) return Result<EconomyRules>.Fail("Venture.LocationTypeIds: valor inválido");
+                    types.Add(id);
+                }
+            int equipment = venture["EquipmentResourceId"] is JsonValue ev && ev.TryGetValue<int>(out int e) ? e : 0;
+            long units = venture["EquipmentUnits"] is JsonValue uv && uv.TryGetValue<long>(out long u) ? u : 0;
+            rules = rules with { Venture = VentureRules.Default with { LocationTypeIds = types, EquipmentResourceId = equipment, EquipmentUnits = units } };
+        }
+        if (root["Credit"] is { } creditNode)
+        {
+            if (creditNode is not JsonObject credit) return Result<EconomyRules>.Fail("Credit: objeto inválido");
+            if (!(credit["Enabled"] is null || credit["Enabled"] is JsonValue cv && cv.TryGetValue<bool>(out _)))
+                return Result<EconomyRules>.Fail("Credit.Enabled: deve ser booleano");
+            if (credit["Enabled"]?.GetValue<bool>() != false) rules = rules with { Credit = CreditRules.Default };
+        }
+        return Result<EconomyRules>.Ok(rules);
     }
 
     private static Result<EconomyCatalog> ParseCatalog(JsonObject root)

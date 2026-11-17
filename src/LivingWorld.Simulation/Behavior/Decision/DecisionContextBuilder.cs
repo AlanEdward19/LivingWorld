@@ -53,7 +53,8 @@ public static class DecisionContextBuilder
             Inner: BuildInnerLife(world, npc, tick),
             FoodUnitPrice: foodUnitPrice,
             ShopperOut: shopperOut,
-            FoodStallKnownEmpty: foodStallKnownEmpty);
+            FoodStallKnownEmpty: foodStallKnownEmpty,
+            SiteOffer: LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc)); // AD-179: a obra que chama o diarista
     }
 
     /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>

@@ -31,6 +31,13 @@ public static class DefaultPeriodSeeder
             "Centenas de vidas ao mesmo tempo, para quem gosta de observar multidões."),
     ];
 
+    /// <summary>Ids dos períodos do menu, na ordem do cartão.</summary>
+    public static IReadOnlyList<string> PresetIds { get; } = Presets.Select(p => p.Id).ToList();
+
+    /// <summary>AD-179: o payload que o seeder grava para o período, sem banco (testes de cenário e diagnóstico).</summary>
+    public static string PayloadFor(string periodId) =>
+        BuildPayload(Presets.FirstOrDefault(p => p.Id == periodId) ?? throw new ArgumentException($"período desconhecido: {periodId}", nameof(periodId)));
+
     public static void SeedIfEmpty(IPeriodTemplateRepository repository)
     {
         foreach (var preset in Presets)
@@ -43,7 +50,14 @@ public static class DefaultPeriodSeeder
             }
             if (latest.Source != preset.Name) continue; // cadastro do operador: nunca tocado
             var stored = JsonNode.Parse(latest.PayloadJson)?.AsObject();
-            if (stored is null || stored.ContainsKey("Presentation")) continue;
+            if (stored is null) continue;
+            // AD-179: o preset gravado como fixture (economia desligada) vira o mundo completo, numa versão nova
+            if (stored["EconomyEnabled"] is JsonValue economy && economy.TryGetValue<bool>(out bool on) && !on)
+            {
+                Save(repository, preset, latest.Version + 1, BuildPayload(preset));
+                continue;
+            }
+            if (stored.ContainsKey("Presentation")) continue;
             stored["Presentation"] = PresentationOf(preset);
             Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
@@ -67,14 +81,52 @@ public static class DefaultPeriodSeeder
         ["Technology"] = Technology,
     };
 
+    /// <summary>AD-179: lado do mapa pela população, a mesma regra da vila de código (<c>InitialMapSideForPopulation</c>: lote de
+    /// cada casa e oficina com folga). 10×10 para 40, 20×20 para 150 e 32×32 para 400 apertavam a cidade num quarteirão.</summary>
+    private static int SideOf(Preset preset) =>
+        Math.Max(Math.Max(preset.Width, preset.Height), LivingWorld.Simulation.Scenarios.ScenarioRunner.InitialMapSideForPopulation(preset.InitialPopulation));
+
+    /// <summary>AD-179: uma fazenda e uma forja por centena de moradores, com as vagas e o caixa das da vila de código; a posição
+    /// pedida é o centro e o lote sai do traçado (<c>WorkplacePlacer</c>).</summary>
+    private static JsonArray WorkplacesOf(Preset preset)
+    {
+        int c = SideOf(preset) / 2;
+        int sets = Math.Max(1, (preset.InitialPopulation + 99) / 100);
+        var list = new JsonArray();
+        for (int i = 0; i < sets; i++)
+        {
+            list.Add(new JsonObject
+            {
+                ["LocationTypeId"] = 1,
+                ["X"] = c,
+                ["Y"] = c,
+                ["MaxVacancies"] = 160,
+                ["Treasury"] = 500_000,
+                ["Stock"] = new JsonObject(),
+                ["Prices"] = new JsonObject { ["1"] = 5, ["2"] = 5 },
+            });
+            list.Add(new JsonObject
+            {
+                ["LocationTypeId"] = 2,
+                ["X"] = c,
+                ["Y"] = c,
+                ["MaxVacancies"] = 40,
+                ["Treasury"] = 500_000,
+                ["Stock"] = new JsonObject(),
+                ["Prices"] = new JsonObject { ["4"] = LivingWorld.Simulation.Scenarios.ScenarioRunner.ForgeToolPrice },
+            });
+        }
+        return list;
+    }
+
     private static string BuildPayload(Preset preset)
     {
         var root = new JsonObject
         {
             // AD-175: o cartão do menu (só apresentação; nenhum sistema lê)
             ["Presentation"] = PresentationOf(preset),
-            ["Width"] = preset.Width,
-            ["Height"] = preset.Height,
+            ["Width"] = SideOf(preset),
+            ["Height"] = SideOf(preset),
             ["Seed"] = preset.Seed,
             ["RegionSize"] = 5,
             ["TerrainIds"] = new JsonArray(1, 2, 3),
@@ -82,21 +134,22 @@ public static class DefaultPeriodSeeder
             ["ResourceIds"] = new JsonArray(),
             ["CostWeights"] = new JsonObject
             {
-                ["Base"] = 1.0,
-                ["AltitudeWeight"] = 0.5,
+                // AD-179: a escala da vila de código (célula de ~30 min a pé); 1,0 fazia cada célula valer horas
+                ["Base"] = 0.05,
+                ["AltitudeWeight"] = 0.05,
                 ["TerrainWeight"] = new JsonObject { ["1"] = 1.0, ["2"] = 1.5, ["3"] = 3.0 },
             },
             ["Settlements"] = new JsonArray(new JsonObject
             {
                 ["Name"] = "vila",
-                ["X"] = preset.Width / 2,
-                ["Y"] = preset.Height / 2,
+                ["X"] = SideOf(preset) / 2,
+                ["Y"] = SideOf(preset) / 2,
             }),
 
             ["InitialPopulation"] = preset.InitialPopulation,
             ["Culture"] = 1,
-            ["VillageX"] = preset.Width / 2,
-            ["VillageY"] = preset.Height / 2,
+            ["VillageX"] = SideOf(preset) / 2,
+            ["VillageY"] = SideOf(preset) / 2,
             ["CultureIds"] = new JsonArray(1),
             ["ProfessionIds"] = new JsonArray(1, 2),
             ["LocationTypeIds"] = new JsonArray(),
@@ -160,22 +213,48 @@ public static class DefaultPeriodSeeder
                 new JsonObject { ["ProfessionId"] = null, ["Stage"] = "Elder", ["HourStart"] = 0, ["HourEnd"] = 6, ["Action"] = "Sleep" }),
             ["DefaultAction"] = "Idle",
 
-            // Estes presets não autoram cadeia produtiva, estoque ou preços. Mantê-los com a
-            // economia ligada fazia a população morrer de fome durante a simples observação.
-            ["EconomyEnabled"] = false,
+            // AD-179: os períodos do menu são mundos completos, com a economia da vila de código (ScenarioRunner): fazenda (trigo e
+            // poço) e forja, salário, mercado, ferramenta, presença no trabalho, empreendimento e crédito. Antes eram fixture (economia
+            // desligada, sem trabalho, mercado nem água da natureza): ninguém saía de casa e a metrópole morria de sede em 2 meses.
+            ["EconomyEnabled"] = true,
             ["FoodResourceId"] = 1,
             ["WaterResourceId"] = 2,
-            ["PriceSensitivity"] = 0.1,
-            ["CapacityByResourceLocation"] = new JsonObject(),
-            ["SpoilagePerDayByResource"] = new JsonObject(),
-            ["WageByProfession"] = new JsonObject(),
-            ["PriceFloor"] = new JsonObject(),
-            ["PriceCeiling"] = new JsonObject(),
-            ["DemandBaselinePerNpc"] = new JsonObject(),
-            ["Recipes"] = new JsonObject(),
-            ["MarketLocationTypeIds"] = new JsonArray(),
-            ["LocationTypeByProfession"] = new JsonObject(),
-            ["Workplaces"] = new JsonArray(),
+            ["PriceSensitivity"] = 0.2,
+            ["WageTaxRate"] = 0.05,
+            ["SurplusDrawShare"] = 1.0,
+            ["PresenceNeedsWork"] = true,
+            ["Venture"] = new JsonObject { ["LocationTypeIds"] = new JsonArray(2), ["EquipmentResourceId"] = 4, ["EquipmentUnits"] = 40 },
+            ["Credit"] = new JsonObject { ["Enabled"] = true },
+            ["CapacityByResourceLocation"] = new JsonObject { ["1,1"] = 1000, ["2,1"] = 1000, ["4,2"] = 1000 },
+            ["SpoilagePerDayByResource"] = new JsonObject { ["1"] = 0.00045 },
+            ["WageByProfession"] = new JsonObject { ["1"] = 90, ["2"] = 110 },
+            ["PriceFloor"] = new JsonObject { ["1"] = 1, ["2"] = 1, ["4"] = 1 },
+            ["PriceCeiling"] = new JsonObject { ["1"] = 20, ["2"] = 15, ["4"] = 80 },
+            ["DemandBaselinePerNpc"] = new JsonObject { ["1"] = 0.5, ["2"] = 0.3 },
+            ["Recipes"] = new JsonObject
+            {
+                ["1"] = new JsonObject
+                {
+                    ["Inputs"] = new JsonObject(),
+                    ["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 8 },
+                    ["RequiresCellResource"] = null,
+                    ["MaxWorkersPerCycle"] = 80,
+                    ["Tool"] = new JsonObject { ["ResourceId"] = 4, ["KitPerWorker"] = 3.0, ["WearPerWorkerYear"] = 2.0, ["UntooledOutput"] = 0.6 },
+                },
+                ["2"] = new JsonObject
+                {
+                    ["Inputs"] = new JsonObject(),
+                    ["Outputs"] = new JsonObject { ["4"] = 5 },
+                    ["RequiresCellResource"] = null,
+                    ["MaxWorkersPerCycle"] = 40,
+                },
+            },
+            ["MarketLocationTypeIds"] = new JsonArray(1, 2),
+            ["LocationTypeByProfession"] = new JsonObject { ["1"] = 1, ["2"] = 2 },
+            ["CraftLocationTypeIds"] = new JsonArray(2),
+            ["Workplaces"] = WorkplacesOf(preset),
+            // AD-179: tecnologia e descoberta ligadas (mobilidade, calçar): a vila do menu pode chegar à rua calçada
+            ["Emergence"] = new JsonObject { ["Enabled"] = true },
 
             ["CitiesEnabled"] = true,
             ["FoodShortageThreshold"] = 0.1,
