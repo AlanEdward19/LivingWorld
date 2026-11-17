@@ -108,20 +108,9 @@ public sealed partial class BehaviorDecisionSystem
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
-        if (hungry)
-        {
-            world.InventionTally.SupperBeforeSleep++;
-            return true; // a ceia: comer e beber antes de deitar
-        }
-        if (!thirsty) return false;
-        // só a sede: um copo antes de deitar, sem gastar a ração do dia (comer sem fome esvaziava a despensa); a fome que vier depois
-        // tem a hora da refeição (MealTimeAtHome)
-        var water = new ResourceType(econ.WaterResourceId);
-        if (!home.Withdraw(water, 1).IsSuccess) return false;
-        npc.SetThirst(Math.Max(npc.ThirstAt(now), Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst)), now);
-        world.RecordResourceConsumed(water, 1);
-        world.InventionTally.DrankBeforeSleep++;
-        return false;
+        if (!hungry && !thirsty) return false;
+        world.InventionTally.SupperBeforeSleep++;
+        return true; // a ceia: comer e beber antes de deitar (beber sozinho deixava a fome sozinha, que perde para o resto até a crítica)
     }
 
     /// <summary>AD-157b: a hora da refeição em casa. Com a despensa em casa, quem está em casa sem urgência e com a fome perto da
