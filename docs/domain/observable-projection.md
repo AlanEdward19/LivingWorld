@@ -26,9 +26,27 @@ novo, sem mudar ordem de nada. Sem assinante o laço não projeta (`TickLoopServ
 | `events[]` | `eventId`, `involved{subjectId,otherId,authorId,victimId,relatedIds,householdId,buildingId,workplaceId,caseId,leavingId,designId,cityId,amount,outcome,recordOnly}` | envolvidos lidos do payload |
 
 Delta: `buildingStateUpserts/Removed`, `cropUpserts/Removed`, `animalUpserts/Removed`, `faunaGroupUpserts/Removed` (chave
-`espécie:região`), `leavingUpserts/Removed`, `objectUpserts/Removed`, `climate` (nulo = não mudou). Em `npcUpserts`, `observable`
-**omitido = não mudou** (o NPC que só andou não reenvia). Camada `layers.Climate` passa a `isModeled: true` com
-`{month, seasonIndex, seasonKey, regions[]{regionId, center, temperatureC, cropYearFactorMilli, drought}}`.
+`espécie:região`), `leavingUpserts/Removed`, `objectUpserts/Removed`, `climate` (nulo = não mudou). Camada `layers.Climate` passa a
+`isModeled: true` com `{month, seasonIndex, seasonKey, regions[]{regionId, center, temperatureC, cropYearFactorMilli, drought}}`.
+
+## Delta enxuto (AD-172): o que o cliente mantém sozinho
+Nenhum campo saiu do contrato; o snapshot vem sempre completo. No **delta**, para um NPC **já conhecido** no escopo:
+| Em `npcUpserts[i]` | Significa |
+|---|---|
+| `observable` ausente | igual ao anterior (AD-170) |
+| `city: null` | mesma cidade de antes |
+| `appearance` ausente | igual à anterior |
+| `actionStartedAtTick` ausente | `actionStartedAtTick`, `actionTarget`, `intent` e `intentTarget` iguais aos anteriores; presente = grupo inteiro novo (ausência de `actionTarget`/`intent`/`intentTarget` aí = nulo) |
+NPC que entra no escopo (novo ou voltando) sempre vem completo. `currentAction`, `location`, `relocationDestination` e
+`extraordinary` vêm sempre.
+
+**Processos que andam sozinhos.** `rest` e `food` com `remainingHours > 0` e `progress < 1` não são reenviados quando só
+avançaram no relógio. A cada delta, todo processo conhecido que não veio em `processUpserts` nem em `processRemoved` avança
+`dt = delta.tick − tick do último snapshot/delta aplicado`: `duração = round(remainingHours / (1 − progress))`,
+`remainingHours = max(0, remainingHours − dt)`, `progress = clamp(1 − remainingHours / duração, 0, 1)`. Os outros tipos ficam como
+estão. O servidor só pula o processo quando essa mesma conta (`ProcessAdvance`) dá exatamente o valor real; senão manda o upsert.
+O cliente guarda o tick de cada snapshot e delta que aplica. Escopo que fica sem assinante perde a base: o primeiro delta depois
+de reassinar traz tudo.
 
 Crime: `involved` traz autor, vítima, caso e desfecho, sem descrição; violência sexual, doméstica e contra criança com
 `recordOnly: true` (só registro, sem cena). O `label` existente não mudou. Posição do evento: célula do espólio; senão a pessoa

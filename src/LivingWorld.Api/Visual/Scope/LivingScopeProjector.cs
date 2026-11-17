@@ -132,7 +132,7 @@ public static class LivingScopeProjector
             : new CellCoord(world.Map.Width / 2, world.Map.Height / 2);
         return new LivingScopeState(npcs, cities, buildings, processes, indicators, Events(world, events))
         {
-            BuildingStates = ObservableProjector.BuildingStates(observable, visibleBuildings),
+            BuildingStates = frame.BuildingStates(visibleBuildings),
             Crops = ObservableProjector.Crops(observable, InScope),
             Animals = focusedCity is not null ? ObservableProjector.Animals(observable, InScope) : [],
             FaunaGroups = isWorld ? frame.FaunaGroups : [],
@@ -143,20 +143,44 @@ public static class LivingScopeProjector
         };
     }
 
-    private static NpcVisual NpcVisualOf(ScopeProjectionFrame frame, ScopedNpc scoped)
+    private static NpcVisual NpcVisualOf(ScopeProjectionFrame frame, ScopedNpc scoped, NpcVisual? previous)
     {
         var npc = scoped.Npc;
+        var observable = ObservableProjector.Npc(frame.Observable, npc, previous?.Observable);
+        var target = previous is not null && SameTarget(previous.ActionTarget, npc) ? previous.ActionTarget : NpcInspectionQuery.TargetOf(npc);
+        var extraordinary = ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id);
+        if (previous is not null && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
+            && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
+            && previous.RelocationDestination == scoped.Relocation && Equals(previous.Extraordinary, extraordinary)
+            && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
+            && previous.Intent == npc.CurrentIntent && previous.IntentTarget == npc.IntentTarget)
+            return previous; // AD-172: nada visível mudou desde o tick anterior
         return new NpcVisual(
-            npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation,
-            ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id), npc.Appearance)
+            npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
         {
-            Observable = ObservableProjector.Npc(frame.Observable, npc),
+            Observable = observable,
             ActionStartedAtTick = npc.ActionStartedAtTick,
-            ActionTarget = NpcInspectionQuery.TargetOf(npc),
+            ActionTarget = target,
             Intent = npc.CurrentIntent,
             IntentTarget = npc.IntentTarget,
         };
     }
+
+    /// <summary>O alvo do tick anterior ainda vale (mesmo tipo e id), sem montar o texto do id de novo. Espelha
+    /// <c>NpcInspectionQuery.TargetOf</c>; o teste de cadência confere contra a projeção sem memória a cada tick.</summary>
+    private static bool SameTarget(NpcActionTargetDto? previous, Npc npc) => (npc.CurrentAction, previous) switch
+    {
+        (ActionType.Work, null) => npc.Employer is null,
+        (ActionType.Sleep, null) => npc.Household is null,
+        (ActionType.Socialize, null) => npc.Spouse is null,
+        (_, null) => true,
+        (ActionType.Work, { Kind: "workplace" }) when npc.Employer is { } workplace => IsId(previous.Id, workplace.Value),
+        (ActionType.Sleep, { Kind: "household" }) when npc.Household is { } household => IsId(previous.Id, household.Value),
+        (ActionType.Socialize, { Kind: "npc" }) when npc.Spouse is { } spouse => IsId(previous.Id, spouse.Value),
+        _ => false,
+    };
+
+    private static bool IsId(string text, long id) => long.TryParse(text, out long parsed) && parsed == id;
 
     private static List<BuildingVisual> Buildings(ScopeProjectionFrame frame, CityId cityId, List<Building> visible)
     {

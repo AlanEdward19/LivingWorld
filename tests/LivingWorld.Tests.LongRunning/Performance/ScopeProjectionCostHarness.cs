@@ -9,7 +9,9 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// <summary>AD-170: custo da projeção do observável com assinante (não é gate). Uma cidade de 500 NPCs (<c>LW_MEASURE_POP</c>), 240
 /// ticks: µs do tick sozinho por NPC-tick, µs da projeção + diff + serialização do escopo Cidade e do Mundo por tick, e bytes do
 /// delta (média, p95, máximo) e do snapshot. Escreve em <c>LW_MEASURE_OUT</c>. Sem assinante o laço não projeta nada
-/// (<c>TickLoopService.PublishDeltas</c> sai antes), então o custo por NPC-tick do motor é o mesmo.</summary>
+/// (<c>TickLoopService.PublishDeltas</c> sai antes), então o custo por NPC-tick do motor é o mesmo. AD-172: projeta como o laço (uma
+/// leitura do tick para os dois escopos, com a do tick anterior), mede KB alocados por tick e confere a cada tick que snapshot +
+/// deltas reconstroem a projeção nova (<c>replayMismatches</c>). <c>LW_MEASURE_SAMPLE=prefixo</c> grava cada delta em JSON.</summary>
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
 [Trait("Category", "Report")]
@@ -43,6 +45,7 @@ public class ScopeProjectionCostHarness
         long alive = 0;
         long allocated = 0;
         int replayMismatches = 0;
+        ScopeProjectionFrame? lastFrame = null;
         var (cityReplay, worldReplay) = (cityState, worldState);
         var cityFields = new Dictionary<string, long>();
         var worldFields = new Dictionary<string, long>();
@@ -62,7 +65,8 @@ public class ScopeProjectionCostHarness
             long tick = world.CurrentDate.TotalHours;
             long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             projectWatch.Start();
-            var frame = new ScopeProjectionFrame(world); // AD-172: uma leitura do tick para os dois escopos, como o laço faz
+            // AD-172: uma leitura do tick para os dois escopos, com a do tick anterior, como o laço faz
+            var frame = lastFrame = new ScopeProjectionFrame(world, previous: lastFrame);
             var nextCity = LivingScopeProjector.Build(frame, city);
             var nextWorld = LivingScopeProjector.Build(frame, global);
             var cityDiff = ScopeDeltaBuilder.Diff(tick, cityState, nextCity);

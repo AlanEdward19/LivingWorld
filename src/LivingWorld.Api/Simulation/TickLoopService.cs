@@ -26,6 +26,7 @@ public sealed class TickLoopService(
     LivingWorld.Api.Visual.Observable.PresentationNameResolver names) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
+    private ScopeProjectionFrame? _lastFrame; // AD-172: o NPC que não mudou reaproveita o registro do tick anterior
     private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
@@ -95,6 +96,7 @@ public sealed class TickLoopService(
         {
             _lastInteriors.Clear();
             _lastStates.Clear();
+            _lastFrame = null;
             return;
         }
         // AD-172: uma leitura do tick para todos os escopos (limites, quem está onde, índices do observável).
@@ -111,7 +113,7 @@ public sealed class TickLoopService(
                 continue;
 
             var scope = ParseScope(scopeKey);
-            frame ??= new ScopeProjectionFrame(world, names.For(world.PeriodId));
+            frame ??= new ScopeProjectionFrame(world, names.For(world.PeriodId), _lastFrame);
             var state = LivingScopeProjector.Build(frame, scope, sink.EventsAt(tick));
             var before = _lastStates.TryGetValue(scopeKey, out var previous)
                 ? previous
@@ -122,6 +124,7 @@ public sealed class TickLoopService(
             gateway.Publish(scope, delta);
         }
 
+        if (frame is not null) _lastFrame = frame;
         if (_lastInteriors.Count > 0)
             foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
                 _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova

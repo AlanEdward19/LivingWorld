@@ -1,4 +1,5 @@
 using LivingWorld.Api.Visual.Observable;
+using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
@@ -28,13 +29,20 @@ public sealed class ScopeProjectionFrame
     private readonly List<ScopedNpc> _npcs = new();
     private readonly HashSet<long> _deliveringWater = new();
     private readonly Dictionary<long, NpcVisual> _npcVisuals = new();
+    private readonly Dictionary<long, NpcVisual>? _previousVisuals;
+    private readonly Dictionary<long, BuildingStateVisual> _buildingStates = new();
+    private readonly Dictionary<long, BuildingStateVisual>? _previousBuildingStates;
     private List<ProcessVisual>? _resourceProcesses;
     private List<ProcessVisual>? _cropProcesses;
     private Dictionary<CityId, CityDensityVisual>? _densities;
     private IReadOnlyList<FaunaGroupVisual>? _faunaGroups;
 
-    public ScopeProjectionFrame(WorldState world, PresentationNames? names = null)
+    /// <param name="previous">A leitura do tick anterior (AD-172): o NPC que não mudou nada visível reaproveita o registro de lá,
+    /// sem alocar, e o diff o reconhece por referência. Só a API guarda isso; o mundo não sabe.</param>
+    public ScopeProjectionFrame(WorldState world, PresentationNames? names = null, ScopeProjectionFrame? previous = null)
     {
+        _previousVisuals = previous?._npcVisuals;
+        _previousBuildingStates = previous?._buildingStates;
         World = world;
         Tick = world.CurrentDate.TotalHours;
         Observable = new ObservableContext(world, names);
@@ -80,13 +88,22 @@ public sealed class ScopeProjectionFrame
     public bool IsDeliveringWater(NpcId npc) => _deliveringWater.Contains(npc.Value);
 
     /// <summary>O visual do NPC, montado uma vez por tick mesmo quando ele aparece em dois escopos (quem muda de cidade).</summary>
-    public NpcVisual NpcVisualOf(in ScopedNpc scoped, Func<ScopeProjectionFrame, ScopedNpc, NpcVisual> build)
+    public NpcVisual NpcVisualOf(in ScopedNpc scoped, Func<ScopeProjectionFrame, ScopedNpc, NpcVisual?, NpcVisual> build)
     {
         long id = scoped.Npc.Id.Value;
         if (_npcVisuals.TryGetValue(id, out var cached)) return cached;
-        var visual = build(this, scoped);
+        var visual = build(this, scoped, _previousVisuals?.GetValueOrDefault(id));
         _npcVisuals[id] = visual;
         return visual;
+    }
+
+    /// <summary>Estado dos prédios visíveis do escopo, reaproveitando o do tick anterior quando nada mudou (AD-172).</summary>
+    public IReadOnlyList<BuildingStateVisual> BuildingStates(IReadOnlyList<Building> visible)
+    {
+        var states = ObservableProjector.BuildingStates(
+            Observable, visible, _previousBuildingStates is { } previous ? id => previous.GetValueOrDefault(id) : null);
+        foreach (var state in states) _buildingStates[state.BuildingId] = state;
+        return states;
     }
 
     /// <summary>Processos de material em andamento: não dependem do escopo, montados uma vez.</summary>
