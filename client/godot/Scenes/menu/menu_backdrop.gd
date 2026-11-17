@@ -39,12 +39,12 @@ func _ready() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("1a2338")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8fa3c7")
+	env.ambient_light_color = Color("a9b7cf")
 	env.ambient_light_energy = 0.7
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.fog_enabled = true
 	env.fog_light_color = Color("2a3554")
-	env.fog_density = 0.012
+	env.fog_density = 0.004
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -138,7 +138,7 @@ func _build(cells: Array, village: Array, seed_value: int) -> void:
 		var land := not bool(cell.water)
 		var top := 0.05 if not land else 0.25 + float(cell.h) * 1.4
 		heights[key] = top
-		var color: Color = SAND if land and float(cell.h) < 0.25 else GRASS
+		var color: Color = SAND if land and float(cell.h) < 0.16 else GRASS.lerp(Color("4f7a3c"), clampf(float(cell.h), 0.0, 1.0) * 0.6)
 		if cell.has("terrain") and land:
 			color = TERRAIN_COLORS[int(cell.terrain) % TERRAIN_COLORS.size()]
 		if land and float(cell.h) > 0.72:
@@ -146,7 +146,7 @@ func _build(cells: Array, village: Array, seed_value: int) -> void:
 		if not land:
 			color = SAND.darkened(0.35)
 		ground.append([Transform3D(Basis.from_scale(Vector3(1, maxf(top, 0.05) + 0.4, 1)), Vector3(cell.x, (maxf(top, 0.05) + 0.4) / 2.0 - 0.4, cell.y) - half), color.lerp(Color(rng.randf(), rng.randf(), rng.randf()), 0.04)])
-		if land and float(cell.h) > 0.25 and float(cell.h) < 0.7 and not village.has(key) and rng.randf() < 0.35:
+		if land and float(cell.h) > 0.2 and float(cell.h) < 0.7 and not village.has(key) and rng.randf() < 0.35:
 			var at := Vector3(cell.x + rng.randf_range(-0.25, 0.25), top + 0.45, cell.y + rng.randf_range(-0.25, 0.25)) - half
 			trees.append([Transform3D(Basis.from_scale(Vector3.ONE * rng.randf_range(0.8, 1.3)), at), Color("3f6e3a").lerp(Color("5c8a3c"), rng.randf())])
 	var houses: Array = []

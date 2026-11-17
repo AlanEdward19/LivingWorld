@@ -44,9 +44,9 @@ func _ready() -> void:
 	volume_label.custom_minimum_size.x = 56
 	volume_row.add_child(volume_label)
 	_line(box, "Volume", volume_row)
-	fullscreen_check = _check("Ligada", settings.fullscreen, func(on: bool): settings.fullscreen = on; _changed())
+	fullscreen_check = _check(settings.fullscreen, func(on: bool): settings.fullscreen = on; _changed())
 	_line(box, "Tela cheia", fullscreen_check)
-	vsync_check = _check("Ligada (imagem sem cortes)", settings.vsync, func(on: bool): settings.vsync = on; _changed())
+	vsync_check = _check(settings.vsync, func(on: bool): settings.vsync = on; _changed())
 	_line(box, "Sincronia vertical", vsync_check)
 	language_pick = OptionButton.new()
 	language_pick.add_item("Português (Brasil)")
@@ -69,12 +69,14 @@ func _line(parent: Control, caption: String, control: Control) -> void:
 	row.add_child(control)
 
 
-func _check(caption: String, on: bool, action: Callable) -> CheckButton:
+## Interruptor que diz o próprio estado ("Ligada"/"Desligada").
+func _check(on: bool, action: Callable) -> CheckButton:
 	var check := CheckButton.new()
-	check.text = caption
+	check.text = "Ligada" if on else "Desligada"
 	check.button_pressed = on
 	check.focus_mode = Control.FOCUS_ALL
 	check.toggled.connect(action)
+	check.toggled.connect(func(now: bool): check.text = "Ligada" if now else "Desligada")
 	return check
 
 

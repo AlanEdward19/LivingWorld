@@ -21,8 +21,9 @@ var world_info: Dictionary = {} ## {name, year, population}; vazio = sem mundo p
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var box := Kit.screen(self, 440, false)
+	var box := Kit.screen(self, 560, false)
 	var logo := Kit.title("LIVING WORLD", 64, box, Color("fff4d6"))
+	logo.autowrap_mode = TextServer.AUTOWRAP_OFF
 	logo.add_theme_constant_override("outline_size", 10)
 	logo.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
 	Kit.title("Um mundo que continua vivo, mesmo quando você só observa", 18, box, Kit.SOFT)

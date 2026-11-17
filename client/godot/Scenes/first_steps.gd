@@ -21,6 +21,7 @@ const SHORTCUTS: Array[Array] = [
 	["Aproximar e afastar", "rodinha do mouse"],
 	["Girar a câmera", "Shift + botão direito · Q e E"],
 	["Ver quem é", "clique numa pessoa, casa ou cidade"],
+	["Voltar na ficha", "Backspace"],
 	["Entrar numa casa", "duplo clique · PgUp/PgDn troca o andar"],
 	["Seguir", "F (ou botão Seguir na ficha)"],
 	["Próximo acontecimento", "N"],
@@ -32,6 +33,8 @@ const SHORTCUTS: Array[Array] = [
 	["Histórias que circulam", "R"],
 	["Som liga/desliga", "M"],
 	["Fechar janela · menu de pausa", "Esc"],
+	["Console do mundo", "F8"],
+	["Esta ajuda", "? ou F1"],
 	["Voltar ao menu principal", "F10"],
 ]
 
@@ -142,8 +145,9 @@ func _build_help() -> Control:
 	grid.add_theme_constant_override("v_separation", 6)
 	box.add_child(grid)
 	for entry in SHORTCUTS:
-		Kit.text(entry[0], grid, 16, Color.WHITE)
-		Kit.text(entry[1], grid, 16, Kit.SOFT)
+		for i in 2:
+			var cell := Kit.text(entry[i], grid, 16, Color.WHITE if i == 0 else Kit.SOFT)
+			cell.autowrap_mode = TextServer.AUTOWRAP_OFF
 	var row := Kit.row(box)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	Kit.button("Ver as dicas de novo", row, func(): start(true))

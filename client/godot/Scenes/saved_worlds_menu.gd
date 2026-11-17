@@ -81,15 +81,21 @@ func _card(world: Dictionary, is_current: bool) -> void:
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(info)
-	var name_label := Kit.title(String(world.name), 22, info, Color.WHITE)
+	var name_label := Kit.title(display_name(world), 22, info, Color.WHITE)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	Kit.text(describe(world, is_current), info, 15)
 	var play := Kit.button("Jogar", row, func(): load_world(String(world.worldId)))
 	play.custom_minimum_size.x = 120
-	var remove := Kit.button("Apagar", row, func(): request_delete(String(world.worldId), String(world.name)))
+	var remove := Kit.button("Apagar", row, func(): request_delete(String(world.worldId), display_name(world)))
 	if is_current:
 		remove.disabled = true
 		remove.tooltip_text = "Este mundo está aberto agora. Abra outro antes de apagar este."
+
+
+## O mundo que a API cria sozinha no primeiro uso não tem nome.
+static func display_name(world: Dictionary) -> String:
+	var name := String(world.get("name", "")).strip_edges()
+	return name if name != "" else "Mundo sem nome"
 
 
 func describe(world: Dictionary, is_current: bool) -> String:

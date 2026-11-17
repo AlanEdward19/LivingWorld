@@ -84,7 +84,7 @@ static func size(w) -> Control:
 		var spec: Dictionary = PeriodArt.SIZES[i]
 		var card := Kit.card("%s" % spec.name, "%s\n%d pessoas · mapa %d×%d" % [spec.line, spec.population, spec.side, spec.side],
 			PeriodArt.picture([3, 7, 13][i], 20 + i), row, func(): w.pick_size(i))
-		card.custom_minimum_size.y = 230
+		card.custom_minimum_size.y = 270
 		w.size_buttons.append(card)
 	Kit.spacer(page, 4)
 	var people := Kit.row(page)

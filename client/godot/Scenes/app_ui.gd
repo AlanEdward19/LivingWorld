@@ -26,7 +26,7 @@ const PauseMenu := preload("res://Scenes/pause_menu.gd")
 const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · clique: ficha · duplo clique: entrar · Backspace: voltar na ficha · L: pessoas · F: seguir · B: cérebro · T: conversar · R: relatos · I: encarnar · N: próximo evento · V: assistir · Esc: fecha a janela da frente ou abre a pausa · ?: ajuda · PgUp/PgDn: andar · M: som"
+const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · ? ou F1: todos os atalhos · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
 
 
@@ -91,6 +91,7 @@ static func _top_bar(app, ui: Control) -> void:
 	app.clock_panel = Panels.ClockPanel.new()
 	app.clock_panel.api = app.api
 	app.clock_panel.status_changed.connect(app._on_clock_status)
+	app.clock_panel.show_status_text = false # o relógio do topo já diz ano e pausa; a linha técnica vira dica (cabe em 1280)
 	bar.add_child(app.clock_panel)
 	if not app.admin_enabled:
 		app.clock_panel.set_control_enabled(false, NO_ADMIN)
@@ -105,7 +106,7 @@ static func _top_bar(app, ui: Control) -> void:
 	app.help_button.pressed.connect(func(): app.first_steps.toggle_help())
 	bar.add_child(app.help_button)
 	var menu_button := Button.new()
-	menu_button.text = "☰ Menu (Esc)"
+	menu_button.text = "☰"
 	menu_button.tooltip_text = "Pausa, opções, voltar ao menu principal (F10) ou sair"
 	menu_button.pressed.connect(func(): app.pause_menu.toggle())
 	bar.add_child(menu_button)

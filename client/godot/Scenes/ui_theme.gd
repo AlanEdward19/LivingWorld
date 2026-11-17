@@ -45,6 +45,15 @@ static func build() -> Theme:
 	theme.set_stylebox("panel", "ItemList", _box(Color(0.1, 0.12, 0.17, 0.6), 6))
 	theme.set_stylebox("selected", "ItemList", _box(Color(0.3, 0.5, 0.8, 0.9), 4))
 	theme.set_stylebox("selected_focus", "ItemList", _box(Color(0.3, 0.5, 0.8, 0.9), 4))
+	var track := _box(Color(0.22, 0.26, 0.34, 1.0), 4, Color(0, 0, 0, 0))
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	theme.set_stylebox("slider", "HSlider", track)
+	var filled := _box(Color("ffd27a"), 4, Color(0, 0, 0, 0))
+	filled.content_margin_top = 3
+	filled.content_margin_bottom = 3
+	theme.set_stylebox("grabber_area", "HSlider", filled)
+	theme.set_stylebox("grabber_area_highlight", "HSlider", filled)
 	theme.set_stylebox("background", "ProgressBar", _box(Color(0.16, 0.19, 0.25, 1.0), 4, Color(0, 0, 0, 0)))
 	theme.set_stylebox("fill", "ProgressBar", _box(Color("5fb36b"), 4, Color(0, 0, 0, 0)))
 	return theme

@@ -180,7 +180,7 @@ func continue_info(status_body: Dictionary) -> Dictionary:
 		return {}
 	var newest: Dictionary = list.body[0]
 	var name := String(identity.body.get("name", "")) if identity.ok and identity.body is Dictionary else ""
-	return {"name": name if name != "" else String(newest.name), "year": int(status_body.get("year", 0)),
+	return {"name": name if name != "" else SavedWorldsMenu.display_name(newest), "year": int(status_body.get("year", 0)),
 		"population": int(newest.get("population", 0))}
 
 
