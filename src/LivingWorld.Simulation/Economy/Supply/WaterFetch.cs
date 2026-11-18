@@ -149,6 +149,12 @@ public static class WaterFetch
         return true;
     }
 
+    /// <summary>Em casa, com sede urgente e água na despensa.</summary>
+    internal static bool ThirstyAtHomeWithWater(WorldState world, Npc npc, long now) =>
+        On(world) && 100 - npc.ThirstAt(now) > world.NeedsRules.UrgencyThreshold && npc.Household is { } h
+        && world.FindHousehold(h) is { IsHomeless: false } home && npc.CurrentLocation == home.Location
+        && home.Stock.GetValueOrDefault(Water(world)) > 0;
+
     /// <summary>A sede urgente fora de casa, com água em casa mais perto que qualquer fonte: a escolha tem de ser voltar para beber
     /// (a utilidade às vezes ficava à toa e a pessoa morria de sede a uma hora da despensa).</summary>
     internal static bool ThirstyAwayWithWaterHome(WorldState world, Npc npc, long now)

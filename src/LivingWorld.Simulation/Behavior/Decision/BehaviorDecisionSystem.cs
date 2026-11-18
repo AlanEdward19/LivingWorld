@@ -253,6 +253,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                // AD-185: em casa, com sede urgente e água na despensa, bebe antes de sair (a mudança de cidade levava a criança com
+                // sede para uma viagem de um dia, ao lado da água de casa)
+                if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
+                    chosen = ActionType.Eat;
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat
                     ? candidate
                     : null;
