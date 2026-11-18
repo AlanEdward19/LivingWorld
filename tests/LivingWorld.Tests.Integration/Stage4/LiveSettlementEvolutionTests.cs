@@ -32,7 +32,8 @@ public class LiveSettlementEvolutionTests
         migrationSecurityWeight: 0, migrationFamilyTiesWeight: 0, foundingConcentrationThreshold: 0.1,
         foundingResourceThreshold: 0, foundingRouteThreshold: 0, foundingDefensibilityThreshold: 0,
         foundingLeadershipThreshold: 0, organizationTicks: 1, materializationIdleTicksBeforeEligible: 5).Value!
-        with { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
+        with
+    { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
 
     private static WorldState MakeWorld(CityRules rules, ulong seed = 51) => new(
         ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed),

@@ -26,7 +26,8 @@ public class AutonomousConstructionTests
         migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 1,
         foundingResourceThreshold: 1, foundingRouteThreshold: 1, foundingDefensibilityThreshold: 1,
         foundingLeadershipThreshold: 1, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5).Value!
-        with { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
+        with
+    { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
 
     private static CityCatalog HousingCatalog(long timberCost = 10, long ticks = 3, long capacity = 4) => new(
         new Dictionary<int, BuildingRecipe>
