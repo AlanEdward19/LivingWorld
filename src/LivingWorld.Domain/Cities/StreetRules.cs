@@ -126,6 +126,10 @@ public sealed record StreetRules(
     public int HouseMaterialResourceId { get; init; } = 3;
     public int HouseMaterialUnits { get; init; } = 20;
 
+    /// <summary>AD-184: quanto vale à família ter a casa própria em vez de morar de favor ou apertada, em dias de jornal por morador
+    /// por ano: a casa nova só compensa se as idas de cada dia de lá não custam mais que isso a mais que as de onde ela está.</summary>
+    public int OwnHomeDaysPerYear { get; init; } = 30;
+
     /// <summary>AD-184: lotes de rua que a família compara ao escolher onde levantar a casa (o de sempre é o primeiro).</summary>
     public int LotChoices { get; init; } = 8;
 

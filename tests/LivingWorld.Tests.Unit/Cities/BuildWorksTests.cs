@@ -102,12 +102,28 @@ public class BuildWorksTests
         var options = LivingWorld.Simulation.Cities.CityOccupancy.CandidateLots(world, city, bounds, new BuildingId(world.NextBuildingId), -1, 0, profile, 1, 8);
         Assert.True(options.Count > 1, "há mais de um lote para escolher");
         foreach (var npc in members) npc.CreditWallet(new Money(100_000)); // o foro não decide aqui
+        home.Evict(world.CurrentDate.TotalHours); // sem casa: muda de qualquer jeito, o teste é qual lote
 
         Assert.True(BuildWorks.StartHouse(world, Ctx(world), city, home, members));
         var work = world.Ground!.Builds.Single(w => w.Household == home.Id.Value);
         double chosen = places.YearlyCost(world, new LivingWorld.Domain.Geography.CellCoord(work.X, work.Y));
         Assert.True(chosen <= places.YearlyCost(world, options[0].Origin) + 1e-6, "não pior que o lote de sempre");
         Assert.True(chosen <= options.Min(o => places.YearlyCost(world, o.Origin)) + 1e-6, "o melhor dos que ela podia ter");
+    }
+
+    /// <summary>Quem mora (de favor, apertado) só muda se a casa nova não custa em idas mais que o que vale ter casa própria; quem não
+    /// tem casa nenhuma muda sempre.</summary>
+    [Fact]
+    public void A_family_with_a_roof_moves_only_if_the_new_place_is_worth_its_daily_trips()
+    {
+        var (world, clock, _) = World(streets: StreetRules.Default with { OwnHomeDaysPerYear = -100_000 }); // casa própria não vale nada
+        clock.Run(world, 24);
+        var city = world.ActiveCities().First();
+        var home = world.Households.First(h => !h.IsEmpty && h.Dwelling is not null);
+        var members = home.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList();
+        Assert.False(BuildWorks.StartHouse(world, Ctx(world), city, home, members));
+        home.Evict(world.CurrentDate.TotalHours);
+        Assert.True(BuildWorks.StartHouse(world, Ctx(world), city, home, members));
     }
 
     [Fact]
@@ -124,7 +140,7 @@ public class BuildWorksTests
     [Fact]
     public void The_house_work_hours_add_the_croft_and_the_material_gathered_from_the_land()
     {
-        var (world, clock, sink) = World();
+        var (world, clock, sink) = World(streets: StreetRules.Default with { OwnHomeDaysPerYear = 100_000 }); // o custo das idas não impede a obra aqui
         var (a, b) = Singles(world);
         MarriageSystem.Marry(world, Ctx(world, sink), a, b);
         clock.Run(world, 24 * 8);
@@ -268,7 +284,7 @@ public class BuildWorksTests
     [Fact]
     public void Reopened_world_with_house_works_goes_on_the_same()
     {
-        var (world, clock, _) = World(seed: 6);
+        var (world, clock, _) = World(seed: 6, streets: StreetRules.Default with { OwnHomeDaysPerYear = 100_000 });
         var (a, b) = Singles(world);
         MarriageSystem.Marry(world, Ctx(world), a, b);
         clock.Run(world, 24 * 12 + 7);

@@ -163,7 +163,7 @@ public static class BuildWorks
             best = b;
             bestCost = cost;
         }
-        if (best is null) return false;
+        if (best is null || !WorthMoving(world, household, places!, bestCost)) return false;
         if (household.Dwelling is { } old) tenants[old] = Math.Max(0, tenants.GetValueOrDefault(old) - 1);
         household.MoveIn(best.Id, DwellingCapacity.InteriorCellOf(best, best.Position!.Value));
         tenants[best.Id] = 1;
@@ -216,6 +216,7 @@ public static class BuildWorks
                 fee = lotFee;
             }
         if (chosen is null) return false; // sem lote de rua que a casa possa ter: segue apertada
+        if (!WorthMoving(world, household, places, (best - fee) / Math.Max(1, rules.PaybackYears))) return false; // longe demais: vale mais seguir apertada onde está
         if (fee > 0 && PavingDecision.PayFrom(world, ctx, city, [household.Id.Value], fee))
         {
             city.CreditTreasury(new Money(fee));
@@ -228,6 +229,16 @@ public static class BuildWorks
         Open(world, ctx, city, BuildKind.House, typeId, site.Position, site.Orientation, site.Croft, household.Id.Value,
             household.Head.Value, hours, spent + fee, $"{household.Id.Value}|{hours}|{croftArea}|{spent + fee}");
         return true;
+    }
+
+    /// <summary>Mudar vale a pena? Quem não tem casa muda sempre. Quem mora (de favor, apertado) compara: as idas de cada dia do lugar
+    /// novo contra as de onde está, mais o que vale ter a casa própria (<see cref="StreetRules.OwnHomeDaysPerYear"/> dias de jornal
+    /// por ano por morador). Uma casa a horas do trabalho e da água não compensa: a família segue onde está.</summary>
+    private static bool WorthMoving(WorldState world, Household household, HomePlaces places, double newCost)
+    {
+        if (household.Dwelling is null) return true;
+        double own = world.StreetRules.OwnHomeDaysPerYear * (double)PavingDecision.DayWage(world) * Math.Max(1, household.Members.Count);
+        return newCost <= places.YearlyCost(world, household.Location) + own;
     }
 
     private static int CroftArea(Building candidate, int orientation, int croft)
