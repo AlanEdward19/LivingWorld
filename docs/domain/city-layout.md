@@ -92,9 +92,9 @@ tem emprego só abaixo de 1 dia ou sem outro livre perto) vai à água mais pert
 L, recipiente ou veículo da casa) e volta carregado; a despensa só recebe o que chegou; a ida segue até o fim (a escolha da hora não a
 recomeça) e vem antes até da mudança de cidade. Sede urgente (qualquer idade que ande) sem água vai à fonte mais perto de onde está (até
 6 h; com moeda e mercado mais perto, salvo se a escolha foi comprar); casa sem apto recebe água dos seus, senão do vizinho. Com a fonte
-não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Rede: A* com marcos (as oito
-pontas, ALT) e campos dos polos. Emprego: a oficina do ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`,
-`routeOver`, `lot.accessCells`, `accessViaBuildingId`, `accessState`. `LW_AD185=off` desliga.
-## Medir
-`LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
-rua); `LW_STREETS=off` desliga a rua de verdade (relatórios, Workers, fixture de escala); `LW_CITY_LAYOUT=off`, o traçado.
+não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Emprego: a oficina do
+ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`, `routeOver`, `lot.accessCells`, `accessViaBuildingId`,
+`accessState`. `LW_AD185=off` desliga. **Busca na rede (AD-187, só custo)**: A* no índice compacto da rede, campos dos polos, até 16
+marcos (as pontas e os mais afastados pela rede, 6 por busca), empate da estimativa a 1e-10 h pelo mais fundo (muda só o desempate
+entre caminhos de custo igual); a volta é a ida ao contrário; pedaços sem ligação nem buscam; "é longe de casa?" pelo piso do custo.
+**Medir**: `LW_CITY_LAYOUT_OUT=arq ... --project integration --filter CityLayoutReport`; `LW_STREETS=off` desliga a rua de verdade.
