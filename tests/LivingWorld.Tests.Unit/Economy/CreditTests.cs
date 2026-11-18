@@ -208,6 +208,30 @@ public sealed class CreditTests
     }
 
     [Fact]
+    public void A_father_who_already_puts_his_part_as_partner_does_not_lend_the_same_coin_again()
+    {
+        // AD-185: o fundador ousado com metade do capital guarda parte da poupança e pede emprestado; o pai que arrisca entra de sócio
+        // com o que pode e passaria também na conta de emprestar o resto da mesma carteira. Sem moeda para as duas, não empresta
+        // (antes a conta passava e o débito da parte de sócio falhava com exceção no meio da abertura)
+        long needed = Needed();
+        var v = Make();
+        var father = Person(v.World, "pai", 55, riskAversion: 10);
+        var founder = Smith(v, Person(v.World, "ousado", 30, riskAversion: 20, ambition: 80, parent: father), 0);
+        founder.CreditWallet(new Money(VentureCapital.ReserveOf(v.World, v.Rules, founder) + needed / 2));
+        long fatherWallet = VentureCapital.ReserveOf(v.World, v.Rules, father) + needed * 45 / 100;
+        Assert.True(fatherWallet < needed * 3 / 4, $"cenário: a parte de sócio e o empréstimo ({needed * 3 / 4}) passam da carteira {fatherWallet}");
+        father.CreditWallet(new Money(fatherWallet));
+        long before = Coin(v.World), minted = v.World.MoneyMinted.Amount;
+
+        var shop = Found(v, founder); // sem exceção
+
+        Assert.NotNull(shop);
+        Assert.Equal(father.Id, Assert.Single(shop!.Partners!).Npc);
+        Assert.True(father.Wallet.Amount >= 0, $"{father.Wallet.Amount}");
+        Assert.Equal((before, minted), (Coin(v.World), v.World.MoneyMinted.Amount));
+    }
+
+    [Fact]
     public void A_cautious_founder_with_savings_puts_in_his_own_money_and_borrows_nothing()
     {
         long needed = Needed();
