@@ -92,8 +92,9 @@ public sealed class AgriculturalYearTests
     [Fact]
     public void Reapers_take_part_of_the_harvest_home()
     {
-        // AD-176: três seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272)
-        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21 }.Sum(seed =>
+        // AD-176: seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272);
+        // AD-182: com a venda repartida na carestia, três seeds voltaram a inverter por ruído (806 × 820), então são oito
+        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21, 22, 23, 24, 25, 26 }.Sum(seed =>
         {
             var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
             clock.Run(world, 8L * HoursPerMonth);
@@ -102,7 +103,7 @@ public sealed class AgriculturalYearTests
         });
 
         long half = HomeFoodAfterHarvest(0.5), none = HomeFoodAfterHarvest(0);
-        Assert.True(half > none, $"metade {half} nada {none}");
+        Assert.True(half > none * 1.02, $"metade {half} nada {none}");
     }
 
     [Fact]
