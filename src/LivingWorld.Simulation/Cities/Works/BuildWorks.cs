@@ -535,9 +535,16 @@ internal sealed class HomePlaces
             foreach (var t in targets) best = Math.Min(best, Streets.StreetRoutes.CostOf(world, cell, t).Cost);
             return best == double.MaxValue ? 0 : best;
         }
-        double water = Nearest(_water);
-        long natural = LivingWorld.Simulation.Economy.Supply.NaturalWaterSystem.WalkToWater(world, cell, 30);
-        if (natural != long.MaxValue && (natural < water || _water.Count == 0)) water = natural;
+        // a água: a fonte de verdade da AD-185 (a ida a pé pela rota, como a casa vai buscar); sem ela, o poço que vende
+        double water;
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world))
+            water = LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, cell) is { } source ? source.Ticks : Nearest(_water) is > 0 and var sold ? sold : 24;
+        else
+        {
+            water = Nearest(_water);
+            long natural = LivingWorld.Simulation.Economy.Supply.NaturalWaterSystem.WalkToWater(world, cell, 30);
+            if (natural != long.MaxValue && (natural < water || _water.Count == 0)) water = natural;
+        }
         double hours = 2 * (_members * rules.WaterTripsPerMemberDay * water + _members * rules.MarketTripsPerMemberDay * Nearest(_food));
         foreach (var job in _work) hours += 2 * Streets.StreetRoutes.CostOf(world, cell, job).Cost;
         double hourValue = PavingDecision.DayWage(world) / (double)Math.Max(1, rules.CrewHoursPerDay);
