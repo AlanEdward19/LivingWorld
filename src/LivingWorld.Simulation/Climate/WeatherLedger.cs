@@ -78,16 +78,21 @@ public sealed class WeatherLedger
     [System.Text.Json.Serialization.JsonIgnore]
     public long Version { get; set; }
 
-    private Dictionary<int, WeatherRegionRow>? _byRegion;
+    private WeatherRegionRow?[]? _byRegion;
+    private int _indexed = -1;
 
+    /// <summary>A linha da região (índice denso pelo id; caminho quente da viagem).</summary>
     internal WeatherRegionRow? Find(int region)
     {
-        if (_byRegion is null || _byRegion.Count != Regions.Count)
+        if (_byRegion is null || _indexed != Regions.Count)
         {
-            _byRegion = new Dictionary<int, WeatherRegionRow>(Regions.Count);
-            foreach (var row in Regions) _byRegion[row.Region] = row;
+            int max = 0;
+            foreach (var row in Regions) max = Math.Max(max, row.Region);
+            _byRegion = new WeatherRegionRow?[max + 1];
+            foreach (var row in Regions) if (row.Region >= 0) _byRegion[row.Region] = row;
+            _indexed = Regions.Count;
         }
-        return _byRegion.GetValueOrDefault(region);
+        return (uint)region < (uint)_byRegion.Length ? _byRegion[region] : null;
     }
 
     internal void Reindex() => _byRegion = null;
