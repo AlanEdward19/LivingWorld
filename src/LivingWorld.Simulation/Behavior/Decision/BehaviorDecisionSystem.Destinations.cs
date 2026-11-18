@@ -75,12 +75,14 @@ public sealed partial class BehaviorDecisionSystem
     {
         var psyche = world.NeedsRules.Psyche;
         if (!psyche.Enabled || !psyche.SocializeNeedsCompany || !psyche.SeekCompany || world.FamilyRules.Bonds is not { } bonds) return null;
-        if (npc.Household is not { } hh || world.FindHousehold(hh) is not { } home) return null;
         // a ida em curso vai ao destino escolhido na saída, guardado no intento (o motivo da viagem fica no NPC depois de chegar:
         // só vale enquanto ainda viaja); não se escolhe de novo a cada despertar
         if (npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize) return CompanyTargetOf(npc);
-        // só quem está em casa e sente falta de gente (convívio abaixo da linha de urgência) sai à procura; o resto conversa onde está
         long now = world.CurrentDate.TotalHours;
+        // quem nem guarda solidão não procura ninguém: o teste mais barato vem antes de achar a casa
+        if (npc.Psyche is not { } stored || now >= stored.CalmFromTick || stored.Loneliness < psyche.SeekCompanyLoneliness * 1000) return null;
+        if (npc.Household is not { } hh || world.FindHousehold(hh) is not { } home) return null;
+        // só quem está em casa e sente falta de gente (convívio abaixo da linha de urgência) sai à procura; o resto conversa onde está
         if (WhyNotSeeking(world, npc, home, now) != SeekGate.Open) return null;
         // a mesma pergunta volta no refino, na saída, na chegada agendada e na conclusão do mesmo tick: só memória do tick
         var last = _company;
@@ -99,11 +101,13 @@ public sealed partial class BehaviorDecisionSystem
 
     internal static SeekGate WhyNotSeeking(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household home, long now)
     {
-        if (npc.CurrentLocation != home.Location) return SeekGate.Away;
+        // o mais barato primeiro (custo, AD-186): a solidão guardada, sem decaimento, já é o teto da solidão de agora
+        double threshold = world.NeedsRules.Psyche.SeekCompanyLoneliness;
+        if (npc.Psyche is not { } stored || now >= stored.CalmFromTick || stored.Loneliness < threshold * 1000) return SeekGate.NotLonely;
         if (100 - npc.SocialAt(now) <= world.NeedsRules.UrgencyThreshold) return SeekGate.Content;
+        if (npc.CurrentLocation != home.Location) return SeekGate.Away;
         // e só quem já se sente só (a solidão das conversas sem ninguém): uma noite sozinho em casa não tira ninguém de casa
-        if (LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness < world.NeedsRules.Psyche.SeekCompanyLoneliness)
-            return SeekGate.NotLonely;
+        if (LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness < threshold) return SeekGate.NotLonely;
         return SeekGate.Open;
     }
 
