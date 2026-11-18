@@ -172,9 +172,17 @@ func test_world_map_shows_density_fauna_groups_and_lod_levels() -> void:
 	app.queue_free()
 
 
+const WEATHER_SNOW := {"precipitation": "snow", "intensity": "moderate", "precipitationMm": 4.0, "storm": false, "hail": false,
+	"frost": true, "drought": false, "heatWave": false, "coldWave": false, "windMs": 3.0, "temperatureNowC": -4.0, "feelsLikeC": -7.0,
+	"minC": -6.0, "maxC": -1.0, "daylightHours": 8.0, "sunriseHour": 8.0, "sunsetHour": 16.0, "ground": "snow", "snowCm": 6.0,
+	"groundWetPm": 300, "outdoorLostDays": 4}
+
+
 func test_season_recolors_ground_snow_falls_and_hud_shows_temperature() -> void:
-	var winter := {"season_key": "winter", "temperature": -4.0, "drought": false}
+	var winter := {"season_key": "winter", "temperature": -4.0, "drought": false,
+		"weather": {"precipitation": "snow", "intensity": "moderate", "ground": "snow", "snow_cm": 10.0, "now_c": -4.0}}
 	check(Season.snowing(winter))
+	check(not Season.snowing({"season_key": "winter", "temperature": -4.0}), "sem o tempo do motor, nada de neve inventada")
 	check(Season.ground(Color("6aa84f"), winter).v > Color("6aa84f").v + 0.2, "neve clareia o chão")
 	check(Season.ground(Color("6aa84f"), {"season_key": "summer", "temperature": 30.0, "drought": true}).r > 0.5, "seca amarela")
 	check(Season.crown(Color("4a8a3a"), {"season_key": "autumn", "temperature": 10.0}, 0.1).r > 0.5, "outono alaranja as copas")
@@ -183,7 +191,7 @@ func test_season_recolors_ground_snow_falls_and_hud_shows_temperature() -> void:
 	await app.enter_scope("City", "city-a")
 	eq(app.world_view.snow.emitting, false)
 	app.stream.delta_applied.emit(O.delta({"climate": {"month": 0, "seasonIndex": 0, "seasonKey": "winter", "temperatureC": -4.0,
-		"regionId": 0, "cropYearFactorMilli": 1000, "drought": false}}))
+		"regionId": 0, "cropYearFactorMilli": 1000, "drought": false, "weather": WEATHER_SNOW}}))
 	eq(app.world_view.snow.emitting, true, "o clima diz neve")
 	app._update_time_label({"tick": 5, "year": 1, "isPaused": false})
 	check("-4 °C" in app.time_label.text, app.time_label.text)

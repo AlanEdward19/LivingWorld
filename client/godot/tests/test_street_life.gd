@@ -303,7 +303,7 @@ func test_unknown_fields_and_odd_values_are_tolerated() -> void:
 func test_season_reaches_streets_and_crofts() -> void:
 	var colors := []
 	for climate in [{}, {"month": 1, "seasonIndex": 3, "seasonKey": "winter", "temperatureC": -6.0, "regionId": 0,
-			"cropYearFactorMilli": 1000, "drought": false}]:
+			"cropYearFactorMilli": 1000, "drought": false, "weather": {"precipitation": "none", "ground": "snow", "snowCm": 8.0}}]:
 		var snapshot := city()
 		snapshot.payload.livingState.climate = climate if not climate.is_empty() else snapshot.payload.livingState.climate
 		var app = await city_app(tree, snapshot)

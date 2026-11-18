@@ -27,6 +27,7 @@ const FollowDirector := preload("res://Scenes/follow_director.gd")
 const Parse := preload("res://Store/observable_parse.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
+const WeatherLook := preload("res://Scenes/render/weather_look.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 const CityReading := preload("res://Scenes/city_reading.gd")
@@ -77,6 +78,7 @@ var banner: Label
 var breadcrumb: Label
 var follow_label: Label
 var time_label: Label
+var weather_label: Label ## AD-180: indicador do tempo do dia
 var loading: Control
 var tooltip: PanelContainer
 var tooltip_label: Label
@@ -196,6 +198,18 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var weather := Season.hud_text(store.climate) if store != null else ""
 	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
 		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]
+
+
+## Tempo sob a câmera (AD-180): sol pelo nascer e pôr do motor, céu encoberto e o indicador do topo.
+func _on_weather(weather: Dictionary) -> void:
+	day_cycle.set_weather(weather)
+	var text := WeatherLook.hud(weather)
+	weather_label.visible = text != ""
+	weather_label.text = text
+	weather_label.tooltip_text = WeatherLook.tooltip(weather)
+	var alert := bool(weather.get("storm", false)) or bool(weather.get("heat_wave", false)) or bool(weather.get("cold_wave", false)) \
+		or bool(weather.get("drought", false))
+	weather_label.add_theme_color_override("font_color", Color("ffb070") if alert else Color("cfe3f0"))
 
 
 func _exit_tree() -> void:

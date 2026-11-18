@@ -94,3 +94,7 @@ Ordem (dono, 2026-11-17): "Coloca isso após fazer a parte do jogador". Itens 23
 (`npc.routeDepartedTick`), 21 (`lot.accessState`: `reserved`/`planned`/`trodden`). Buscar água virou viagem (`WaterFetch`), emprego
 vai à oficina mais perto de casa, fazendas da metrópole na borda. Em aberto (issues da AD-185): carga e veículo pela superfície,
 poço como obra, água pesando onde a casa nasce, vizinho que leva a água.
+
+## Cliente da AD-188 (o que o motor já mandava)
+**Fechados no cliente**: 17 (`work.workerIds`), 18 (`accessCells`, vizinho), 19 (`routeOver`), 20 (`routeDepartedTick`), 21 (acesso
+pelo `accessState`), 22 (`bench.sh`: `benchrun` mundo rodando, `benchrain`), tempo da AD-180 na tela. Issue: 27 piso com o mundo rodando, 28 vento sem direção/folha sem queda (`client/godot/docs/`).

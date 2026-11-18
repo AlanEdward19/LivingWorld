@@ -4,6 +4,7 @@ extends RefCounted
 ## classe; nenhum deles interpreta HTTP/WS. O cliente nunca palpita estado: lacuna => replay.
 
 const ShapeValidator := preload("res://Contract/shape_validator.gd")
+const Cost := preload("res://Contract/frame_cost.gd")
 
 signal snapshot_received(envelope: Dictionary)
 signal delta_applied(envelope: Dictionary)
@@ -113,7 +114,9 @@ func _delta_shape_ok(envelope: Dictionary) -> bool:
 	var shape = ShapeValidator.load_shape(DELTA_SHAPE_BY_SCOPE.get(scope_kind, ""))
 	if shape == null:
 		return true
+	var started := Time.get_ticks_usec()
 	var errors := ShapeValidator.validate(envelope, shape)
+	Cost.add("shape", started)
 	if errors.is_empty():
 		return true
 	contract_error.emit(errors)
@@ -141,7 +144,9 @@ func _on_delta(generation: int, envelope: Dictionary) -> void:
 		await _replay(generation) # lacuna: o delta recebido é descartado, o replay o traz de volta
 		return
 	cursor = envelope.toCursor
+	var started := Time.get_ticks_usec()
 	delta_applied.emit(envelope)
+	Cost.add("apply", started)
 
 
 func _replay(generation: int) -> void:

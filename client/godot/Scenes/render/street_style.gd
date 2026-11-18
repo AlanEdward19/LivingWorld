@@ -46,6 +46,18 @@ const SQUARE_TINT := Color(1.12, 1.08, 1.0)
 const PLAN_SQUARE := Color("c8b48a")
 
 
+## Onde o acesso desemboca (`lot.accessState`, AD-185): nome na ficha e cor do chão do acesso.
+const ACCESS_STATES := {
+	"trodden": {"line": "sai num caminho aberto pelo pisoteio, fora do traçado", "color": Color("7a5f42")},
+	"planned": {"line": "sai numa rua do traçado já em uso", "color": Color("9b8460")},
+	"reserved": {"line": "sai numa rua do traçado ainda sem uso (só reservada)", "color": Color("b9a57e")},
+}
+
+
+static func access_state_color(state: String) -> Color:
+	return Color(ACCESS_STATES.get(state, {"color": PATH_COLOR}).color)
+
+
 ## Tipo de acesso do lote ("" = o motor não disse).
 static func access_of(lot: Dictionary) -> String:
 	return String(lot.get("access", ""))
@@ -91,6 +103,7 @@ static func style_of(road: Dictionary) -> Dictionary:
 		style.color = Color(base.color) * SQUARE_TINT
 		style.plan = PLAN_SQUARE
 	style.work = work_of(road)
+	style.road = road ## a célula inteira (chão do tempo, AD-180: `ground`, `snow_cm`)
 	return style
 
 
@@ -141,8 +154,10 @@ static func lines_of(road: Dictionary) -> Array[String]:
 		lines.append("Em obra: %s para %s · %d%% feito" % ["conserto" if bool(work.repair) else "obra nova",
 			surface_name(int(work.surface)), int(work.progress)])
 		lines.append("Quem paga: %s" % PAYERS.get(String(work.payer), String(work.payer) if String(work.payer) != "" else "não informado"))
-		lines.append("Quem trabalha nela: %s" % ("%d pessoa(s)" % workers_of(road).size() if not workers_of(road).is_empty()
+		lines.append("Quem trabalha nela: %s" % ("%d pessoa(s) (links abaixo)" % workers_of(road).size() if not workers_of(road).is_empty()
 			else "ninguém no momento (obra parada)"))
+		if work.get("extra", {}).get("workId") != null:
+			lines.append("Obra nº %d" % int(work.extra.workId))
 	lines.append("Célula %d,%d" % [road.cell.x, road.cell.y])
 	return lines
 

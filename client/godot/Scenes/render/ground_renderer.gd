@@ -14,6 +14,7 @@ const Ground := preload("res://Store/city_ground.gd")
 const Roads := preload("res://Store/road_book.gd")
 const Registry := preload("res://Store/entity_registry.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
+const WeatherLook := preload("res://Scenes/render/weather_look.gd")
 
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const ROAD_Y := 0.014
@@ -158,7 +159,9 @@ func _road_cell(cell: Vector2i, style: Dictionary) -> void:
 		return
 	var jitter := float(style.jitter)
 	var shade := 0.93 + Scenery.cell_hash(cell, 5) * 0.12
-	var color: Color = _season(Color(style.color) * shade, true)
+	var ground := "" if heat else WeatherLook.road_ground(style.road)
+	var color: Color = _season(Color(style.color) * shade, true) if ground == "" \
+		else WeatherLook.ground_tint(Color(style.color) * shade, ground, float(style.road.get("snow_cm", 0.0)))
 	color.a = 1.0
 	var center := Grid.to_world(cell, ROAD_Y)
 	center += Vector3(Scenery.cell_hash(cell, 1) - 0.5, 0, Scenery.cell_hash(cell, 2) - 0.5) * 2.0 * jitter
@@ -172,6 +175,7 @@ func _road_cell(cell: Vector2i, style: Dictionary) -> void:
 			var other := w if not drawn_roads.has(next) else minf(w, float(_shown.get(next, [w])[0]))
 			_arm(center, cell, dir, other, color, ROAD_Y)
 	Pieces.surface_detail(_add, cell, center, style)
+	Pieces.puddles(_add, cell, center, w, WeatherLook.puddles(ground))
 	if not style.work.is_empty():
 		Pieces.work(_add, cell, center, style)
 	if bool(style.main) and not bool(style.square):
@@ -225,7 +229,7 @@ func _lot(building: Dictionary) -> void:
 			var next: Vector2i = cell + dir
 			if path.has(next) or footprint.has(next) or (street != null and next == street) or drawn_roads.has(next):
 				_arm(center, cell, dir, 0.34, Style.PATH_COLOR, PATH_Y)
-	Pieces.access(_add, building)
+	Pieces.access(_add, building, store.buildings.get(int(parcel.get("access_via", -1)), {}))
 
 
 ## Cerca de varas no lado `dir` da célula: dois postes e duas travessas.
