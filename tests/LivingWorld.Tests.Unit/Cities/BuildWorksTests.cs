@@ -85,6 +85,31 @@ public class BuildWorksTests
             && e.CauseEventId == started.EventId);
     }
 
+    /// <summary>A família escolhe o lote pelas idas de cada dia (água, mercado, o trabalho de cada um): o lote da obra não custa mais
+    /// a ela que o lote de sempre (o mais perto do largo), nem que nenhum dos outros que ela podia ter.</summary>
+    [Fact]
+    public void The_family_picks_the_lot_that_costs_it_least_in_daily_trips()
+    {
+        var (world, clock, _) = World();
+        clock.Run(world, 24); // o primeiro dia contrata
+        var city = world.ActiveCities().First();
+        var home = world.Households.First(h => !h.IsEmpty && h.Members.Any(m => world.FindNpc(m)?.Employer is not null));
+        var members = home.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList();
+        var places = HomePlaces.Of(world, city.Id, members);
+        var bounds = LivingWorld.Simulation.Cities.CityOccupancy.ResolveGrownBounds(world, city,
+            LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
+        var profile = LivingWorld.Simulation.Cities.Layout.LotProfiles.ForHousehold(world, city.Id, members);
+        var options = LivingWorld.Simulation.Cities.CityOccupancy.CandidateLots(world, city, bounds, new BuildingId(world.NextBuildingId), -1, 0, profile, 1, 8);
+        Assert.True(options.Count > 1, "há mais de um lote para escolher");
+        foreach (var npc in members) npc.CreditWallet(new Money(100_000)); // o foro não decide aqui
+
+        Assert.True(BuildWorks.StartHouse(world, Ctx(world), city, home, members));
+        var work = world.Ground!.Builds.Single(w => w.Household == home.Id.Value);
+        double chosen = places.YearlyCost(world, new LivingWorld.Domain.Geography.CellCoord(work.X, work.Y));
+        Assert.True(chosen <= places.YearlyCost(world, options[0].Origin) + 1e-6, "não pior que o lote de sempre");
+        Assert.True(chosen <= options.Min(o => places.YearlyCost(world, o.Origin)) + 1e-6, "o melhor dos que ela podia ter");
+    }
+
     [Fact]
     public void Without_the_rule_the_couple_stays_in_the_cell_and_no_house_work_opens()
     {

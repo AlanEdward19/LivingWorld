@@ -185,7 +185,7 @@ public static class BuildWorks
     /// <summary>Abre a obra da casa: o lote pelo perfil da família (ofício, tamanho, meios), o quintal só se ela pode pagar o foro da
     /// terra dele (senão o lote sem quintal), o material comprado se alguém vende e ela pode pagar (senão buscado na natureza) e as
     /// horas = casa + quintal + material. O canteiro ocupa o lote desde já.</summary>
-    private static bool StartHouse(WorldState world, TickContext ctx, City city, Household household, List<Npc> members)
+    internal static bool StartHouse(WorldState world, TickContext ctx, City city, Household household, List<Npc> members)
     {
         var rules = world.StreetRules;
         long now = ctx.CurrentTick;
