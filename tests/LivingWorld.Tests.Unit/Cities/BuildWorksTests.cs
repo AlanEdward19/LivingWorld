@@ -189,6 +189,37 @@ public class BuildWorksTests
         Assert.Null(quitter.Employer); // largou o ofício: é diarista agora
     }
 
+    /// <summary>Quem largou o ofício pela obra volta ao lugar de antes quando sai da turma (a obra acabou), se ainda há vaga lá.</summary>
+    [Fact]
+    public void Who_left_the_trade_for_the_work_gets_the_old_place_back_when_it_ends()
+    {
+        var (world, clock, _) = World(streets: StreetRules.Default with { HelpersBuild = false });
+        clock.Run(world, 24);
+        var ctx = Ctx(world);
+        var city = world.ActiveCities().First();
+        var owner = world.Households.First(h => !h.IsEmpty);
+        world.FindNpc(owner.Head)!.CreditWallet(new Money(1_000_000));
+        var work = BuildWorks.Open(world, ctx, city, BuildKind.House, -1, city.Location, 0, 0, owner.Id.Value, owner.Head.Value, 4000, 0, "teste");
+        work.OfferPm = world.StreetRules.OfferMaxPm; // paga o bastante para tirar alguém do ofício
+        var site = new WorkSite(null, null, null, work);
+        long? quitter = null;
+        WorkplaceId? from = null;
+        for (int day = 0; day < 30 && quitter is null; day++)
+        {
+            var before = world.Npcs.Where(n => n.IsAlive && n.Employer is not null).ToDictionary(n => n.Id.Value, n => n.Employer!.Value);
+            world.CurrentDate = world.CurrentDate.AddHours(24);
+            SiteWork.Staff(world, ctx, site);
+            foreach (long id in work.Crew)
+                if (before.TryGetValue(id, out var shop)) { quitter = id; from = shop; break; }
+        }
+        Assert.NotNull(quitter);
+        var npc = world.FindNpc(new NpcId(quitter!.Value))!;
+        Assert.Null(npc.Employer);
+        BuildWorks.Progress(world, ctx, work, npc, work.HoursLeft, paid: 0, world.CurrentDate.TotalHours); // a obra acaba
+        BuildWorks.Tick(world, ctx);
+        Assert.Equal(from, npc.Employer);
+    }
+
     [Fact]
     public void Employed_take_the_work_only_above_their_wage_by_the_margin_and_the_unemployed_first()
     {

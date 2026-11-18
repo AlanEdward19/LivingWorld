@@ -69,7 +69,27 @@ public static class BuildWorks
         ground.Lodgers.RemoveAll(id => world.FindHousehold(new HouseholdId(id)) is not { IsEmpty: false } h
             || h.Dwelling is not { } d || !SharesDwelling(world, h, d));
         if (rules.HouseIsWork) StartHouses(world, ctx);
+        ReturnFromLeave(world, ctx);
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
+    /// <summary>Quem largou o ofício pela obra e já saiu da turma (a obra acabou, foi desfeita, ele saiu) volta ao lugar de antes se a
+    /// oficina ainda existe, está aberta e tem vaga; senão procura trabalho como qualquer um. Quem já arrumou emprego sai da lista.</summary>
+    private static void ReturnFromLeave(WorldState world, TickContext ctx)
+    {
+        var leave = world.Ground!.OnLeave;
+        for (int i = 0; i < leave.Count; )
+        {
+            var npc = world.FindNpc(new NpcId(leave[i][0]));
+            if (npc is { IsAlive: true, Employer: null } && SiteWork.WorkOf(world, npc) is not null) { i++; continue; } // ainda na obra
+            var shopId = new LivingWorld.Domain.Shared.WorkplaceId(leave[i][1]);
+            leave.RemoveAt(i);
+            if (npc is not { IsAlive: true, Employer: null } || world.FindWorkplace(shopId) is not { Closed: false } shop
+                || shop.Employees.Count >= shop.MaxVacancies) continue;
+            shop.Hire(npc.Id);
+            npc.Hire(shop.Id);
+            ctx.LogEvent(WorldEventKind.Hired, $"{npc.Id.Value}|{shop.Id.Value}", sourceSystem: SiteWork.SourceSystem);
+        }
     }
 
     internal static string TypeOf(BuildWork work) => work.Kind == BuildKind.House ? "casa" : "oficina";

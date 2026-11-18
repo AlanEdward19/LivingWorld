@@ -369,6 +369,7 @@ public static class SiteWork
         world.FindWorkplace(employerId)?.Fire(npc.Id);
         npc.Fire();
         npc.MarkJobChange(ctx.CurrentTick);
+        world.Ground!.OnLeave.Add([npc.Id.Value, employerId.Value]); // o lugar dele: volta quando a obra acaba, se houver vaga
         long? cause = site.Paving?.StartEventId ?? site.Build?.StartEventId ?? site.Project!.StartEventId;
         ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{employerId.Value}|obra-{site.Label}", sourceSystem: SourceSystem,
             causeEventId: cause is > 0 ? cause : null);

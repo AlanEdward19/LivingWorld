@@ -9,10 +9,15 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
   já morava no seu andar de uma casa de vários não conta. A família mais antiga da casa é a dona. Cada casa olha uma vez por
   semana (pelo id e pelo dia, sem sorteio). Só lote com porta para a rua (degraus de rua da AD-173): sem ele, segue apertada.
 - **Onde mora enquanto isso** (`MarriageSystem`): a casa que um dos noivos deixou vazia fica com o casal; senão eles moram de favor
-  na casa de onde o chefe saiu, apertados com a família de lá. Casa vazia na cidade (do falecido): muda para ela sem obra.
-- **O lote**: o do traçado pelo perfil da família (AD-173: ofício, tamanho, meios). O quintal só se a casa paga o foro da terra
-  dele (`CroftFeeDaysPerCell` dias de jornal por célula, ao tesouro); senão o lote sem quintal. O canteiro (prédio com
-  `UnderWork`) ocupa o lote desde já; ninguém mora nem trabalha nele até a obra acabar.
+  na casa de um dos pais, a mais conveniente para os dois. Casa vazia na cidade (do falecido): a mais conveniente, sem obra.
+- **Conveniência** (`HomePlaces`): o custo por ano de morar numa célula = as idas de cada dia pela rota — água (a fonte da
+  AD-185, `WaterFetchFor`) e mercado de comida por morador (`WaterTripsPerMemberDay`, `MarketTripsPerMemberDay`), ida e volta ao
+  trabalho de cada empregado — pelo valor da hora. O peso sai da casa: quantos são, quem trabalha e onde.
+- **O lote**: a família compara lotes de rua (`LotChoices`, do largo para fora e perto do trabalho e da água de cada um) pela
+  conveniência nos anos da casa mais o foro do quintal (`CroftFeeDaysPerCell` dias de jornal por célula, ao tesouro; o quintal que
+  ela não paga fica de fora). Quem já mora (de favor, apertado) só muda se o lugar novo não custa mais que o de agora mais o que
+  vale a casa própria (`OwnHomeDaysPerYear`, 30 dias de jornal por morador por ano); uma casa a horas do trabalho não compensa.
+  O canteiro (prédio com `UnderWork`) ocupa o lote desde já; ninguém mora nem trabalha nele até a obra acabar.
 - **Custo e prazo**: horas = `HouseHours` + quintal × `CroftHoursPerCell` + material. Material (`HouseMaterialResourceId`, madeira
   no `default.json`) comprado de quem vende na cidade se a casa pode pagar, e então só as viagens de carregar; senão
   `HouseGatherHours` de buscar na natureza (a vila de código não vende madeira).

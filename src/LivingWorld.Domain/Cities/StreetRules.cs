@@ -172,7 +172,7 @@ public sealed record StreetRules(
     public int SiteComfortReserves { get; init; } = 10;
 
     /// <summary>AD-184: a margem do lavrador na entressafra (fora da semeadura e da ceifa: a ceifa o toma de volta) e no pico.</summary>
-    public double QuitMarginSlack { get; init; } = 1.0;
+    public double QuitMarginSlack { get; init; } = 1.1;
     public double QuitMarginPeak { get; init; } = 2.0;
 
     /// <summary>AD-184: dias sem hora de obra depois dos quais ela conta como parada (evento); volta a contar ao retomar.</summary>
