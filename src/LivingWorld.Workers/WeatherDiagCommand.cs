@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using LivingWorld.Domain.Climate;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Simulation.Cities.Streets;
 using LivingWorld.Simulation.Climate;
 using LivingWorld.Simulation.Scenarios;
 

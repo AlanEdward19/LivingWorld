@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using LivingWorld.Simulation.Climate;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Climate;
 
 namespace LivingWorld.Simulation.Core;
 
