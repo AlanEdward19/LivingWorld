@@ -22,7 +22,9 @@ public sealed partial class BehaviorDecisionSystem
         if (!ledger.CarriesOrHolds(npc.Id.Value)) return; // AD-167: uma consulta no lugar de duas buscas (o caso comum: nada)
         bool carries = ledger.Carried.Count > 0 && ledger.CarriesAnything(npc.Id.Value);
         if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
-        if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home))
+        // AD-185: a água da fonte só entra na despensa quando quem a leva chega em casa (perto não basta)
+        if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home)
+            && !LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc))
         {
             PersonalCarry.Unpack(world, npc, home); // em casa (a despensa ao alcance da hora)
             return;
@@ -70,6 +72,7 @@ public sealed partial class BehaviorDecisionSystem
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return; // sem despensa em casa, levar não muda nada
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         if (npc.TravelPurpose == ActionType.Eat || PersonalCarry.PantryOutOfReach(world, npc, home)) return; // só sai de casa quem está nela
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.Outbound(world, npc)) return; // AD-185: o cântaro sai vazio para a fonte
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation) return;
         // AD-157b: o destino e a ida ficam para a conta da chegada logo a seguir (TravelArrivalTick), que os refazia
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
@@ -190,5 +193,18 @@ public sealed partial class BehaviorDecisionSystem
         else if (npc.CurrentAction == ActionType.Travel) t.HomeForMealTravel++;
         if (100 - npc.ThirstAt(world.CurrentDate.TotalHours) > world.NeedsRules.UrgencyThreshold) t.HomeForMealThirsty++;
         PersonalCarry.FeltAway(world, npc, Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0));
+    }
+
+    /// <summary>AD-185: a sede urgente sem água no que leva nem em casa vai à fonte, se a fonte fica mais perto que o mercado mais
+    /// perto com água ou se não há com que pagar a água dele. Marca a ida.</summary>
+    private static bool ThirstGoesToSource(WorldState world, Npc npc, long now, MarketIndex marketIndex)
+    {
+        if (!LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyWithoutWater(world, npc, now)) return false;
+        var market = NearestEssentialsMarket(world, npc, marketIndex);
+        long marketTicks = market is null ? long.MaxValue
+            : Mobility.TravelTicks(world, npc, npc.CurrentLocation, market.Location, BodyMechanic.MovementCostMultiplier(world, npc));
+        bool canPay = market is not null && market.Prices.TryGetValue(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId), out var price)
+            && price > 0 && npc.Wallet.Amount >= price;
+        return LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstSendsToSource(world, npc, now, marketTicks, canPay);
     }
 }

@@ -74,6 +74,15 @@ public sealed partial class BehaviorDecisionSystem
 
         var market = NearestProvisionMarket(world, household, marketIndex);
         if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
+        // AD-185: com a fonte a pé não mais longe que o mercado, a água vem de lá (de graça): o mercado é só pela comida
+        bool waterFetched = LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
+            && LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, household.Location) is { } source
+            && source.Ticks <= Mobility.HouseholdTicks(world, household, household.Location, market.Location);
+        if (waterFetched)
+        {
+            if (foodBlocked) return false;
+            scarcest = foodStock;
+        }
 
         // AD-138: quem passou fome quer a despensa mais cheia
         if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
@@ -94,7 +103,7 @@ public sealed partial class BehaviorDecisionSystem
         // AD-145: só vai se pode pagar o que está faltando. A compra completa a meta (não soma por cima), então com a água
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
         return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
-            || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
+            || (!waterFetched && Affords(npc, market, economy.WaterResourceId, waterStock, members, target));
     }
 
     /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a
@@ -123,8 +132,16 @@ public sealed partial class BehaviorDecisionSystem
     /// (à noite dorme) ou quando o choro de uma criança da casa não pode esperar (aí levanta mesmo de madrugada).</summary>
     internal static ActionType NonUrgentCandidate(
         WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
-        routineAction == ActionType.Sleep
-            ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
+        // AD-185: quem encheu o cântaro na fonte volta para casa com a água antes de tudo que não é urgente
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc) ? ActionType.Travel
+        : routineAction == ActionType.Sleep
+            ? CaregiverHearsCry(world, npc, stage) // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
+                // AD-185: sem água em casa e com a fonte ao alcance, levanta e vai buscá-la; senão, ao mercado
+                ? LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, world.CurrentDate.TotalHours) ? ActionType.Travel : ActionType.Buy
+                : routineAction
+            // AD-185: no tempo livre, com a água da casa baixa, alguém vai buscá-la a pé (antes da compra: a água da fonte é de graça)
+            : routineAction != ActionType.Work && LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, world.CurrentDate.TotalHours)
+                ? ActionType.Travel
             : NeedsRestocking(world, npc, marketIndex, duringWork: routineAction == ActionType.Work) ? ActionType.Buy
             // AD-168: fora do turno, alguém da casa vai buscar o que um morto da casa deixou longe
             : routineAction != ActionType.Work && LivingWorld.Simulation.Invention.Leavings.WantsToFetch(world, npc, world.CurrentDate.TotalHours)

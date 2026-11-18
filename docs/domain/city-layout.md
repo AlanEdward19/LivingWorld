@@ -87,6 +87,14 @@ pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra,
 `cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`.
 `LW_MENU_WORLDS_OUT=arq ... --filter MenuWorldsReport` (diagnóstico) e `MenuWorldsCostReport` (custo).
 
+## Buscar água, emprego perto e dados de rota (AD-185)
+`WaterFetch`: com a água da casa abaixo de 2 dias por morador, quem está em casa ou perto com tempo livre (8+ anos, fora da cama; quem tem
+emprego só abaixo de 1 dia ou sem outro livre) vai à água mais perto pela rota (até 3 h, raio 6), bebe, enche o cântaro (20 L, ou
+o recipiente ou o veículo da casa) no peso a pé e volta carregado; a despensa só recebe o que chegou. A sede urgente sem água vai à
+fonte se ela fica mais perto que o mercado. Casa sem quem possa ir recebe água dos seus (`MutualAidSystem`). Emprego: a oficina do
+ofício com vaga mais perto de casa (`StreetRules.NearestJob`). Contrato: `routeDepartedTick`, `routeOver`, `lot.accessCells`,
+`accessViaBuildingId`, `accessState`. `LW_AD185=off` desliga.
+
 ## Medir
 `LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
 rua); `LW_STREETS=off` desliga a rua de verdade (relatórios, Workers, fixture de escala); `LW_CITY_LAYOUT=off`, o traçado.

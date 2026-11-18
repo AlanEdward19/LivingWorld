@@ -130,11 +130,12 @@ public static class DemographyReport
         LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null, LivingWorld.Domain.Economy.EconomyRules? economyRules = null,
         LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null,
         Func<LivingWorld.Simulation.Scheduling.ISimulationSystem, LivingWorld.Simulation.Scheduling.ISimulationSystem>? swapSystem = null,
-        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null, LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null)
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null, LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null,
+        LivingWorld.Domain.Economy.NaturalWaterRules? naturalWaterRules = null)
     {
         var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules, needsRules: needsRules, inventionRules: inventionRules,
             agricultureRules: agricultureRules, economyRules: economyRules, crimeRules: crimeRules, extraordinary: extraordinary, ontogenyRules: ontogenyRules,
-            cityLayout: cityLayout);
+            cityLayout: cityLayout, naturalWaterRules: naturalWaterRules);
         if (brain is not null) world.UseBrain(brain); // AD-160b: nulo = o do cenário (ligado); BrainRules.Off desliga
         var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };

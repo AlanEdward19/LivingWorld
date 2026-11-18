@@ -33,7 +33,7 @@ public class SystemProfileHarness
         else if (Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") is "0" or "1" && world.InventionRules is { } inv)
             world.UseInvention(inv with { PantryNeedsPresence = Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") == "1" });
 
-        var report = SystemProfiler.Measure(world, clock, warmupTicks: 240, ticks);
+        var report = SystemProfiler.Measure(world, clock, warmupTicks: ReadInt("LW_PROFILE_WARMUP", 240) is var w && Environment.GetEnvironmentVariable("LW_PROFILE_WARMUP") == "0" ? 0 : w, ticks); // AD-185: LW_PROFILE_WARMUP=0 mede o começo do mundo (o cache de rotas frio)
 
         string text = $"pop={(villageYears > 0 ? $"vila-padrao-{villageYears}a" : population)}\n{report.Format()}";
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_PROFILE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-profile.txt"), text);

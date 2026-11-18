@@ -21,6 +21,10 @@ public sealed partial class WorldState
     /// <summary>Cache volátil das rotas (função pura do chão, dos prédios e do mapa): nunca no snapshot.</summary>
     internal StreetRouteState? RouteState { get; set; }
 
+    /// <summary>AD-185, só para o teste de equivalência: sem o cache de rotas (par e trecho da rede), toda rota é recalculada. O
+    /// mundo tem de sair igual com e sem ele. Volátil, fora do snapshot.</summary>
+    internal bool RouteCacheOff { get; set; }
+
     /// <summary>Liga o chão (criação do mundo) ou restaura o guardado (snapshot); com a regra desligada, fica nulo.</summary>
     public void UseGround(GroundLedger? ledger)
     {

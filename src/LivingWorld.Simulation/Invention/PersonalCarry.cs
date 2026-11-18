@@ -305,6 +305,7 @@ public static class PersonalCarry
     internal static void Forget(WorldState world, long npcId, Scheduling.TickContext? ctx = null, long? cause = null)
     {
         var ledger = world.Invention!;
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.Forget(world, npcId); // AD-185: a ida de água acaba com a pessoa
         int mind = ledger.CarryMindIndex(npcId);
         if (mind >= 0) ledger.RemoveCarryMind(mind);
         if (ctx is not null && Leavings.Drop(world, ctx, npcId, cause)) return;

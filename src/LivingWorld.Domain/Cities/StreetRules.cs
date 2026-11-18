@@ -109,6 +109,10 @@ public sealed record StreetRules(
     /// <summary>AD-179: unidades de material por viagem do estoque da cidade ao lote (um cesto ou padiola).</summary>
     public int BuildUnitsPerLoad { get; init; } = 2;
 
+    /// <summary>AD-185: quem procura emprego vai à oficina do ofício com vaga mais perto de casa pela rota (antes: a de menor id,
+    /// e na metrópole todos iam à primeira fazenda, a 2 h de casa); desligado, a de menor id.</summary>
+    public bool NearestJob { get; init; } = true;
+
     public static StreetRules Default { get; } = new();
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>

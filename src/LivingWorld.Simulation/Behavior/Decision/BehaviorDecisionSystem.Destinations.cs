@@ -43,6 +43,8 @@ public sealed partial class BehaviorDecisionSystem
                 ? purposeDest
                 : LivingWorld.Simulation.Invention.Leavings.ErrandDestination(world, npc) is { } errand && errand != npc.CurrentLocation
                     ? errand // AD-168: a ida para buscar o espólio de alguém da casa
+                : LivingWorld.Simulation.Economy.Supply.WaterFetch.ErrandDestination(world, npc) is { } spring && spring != npc.CurrentLocation
+                    ? spring // AD-185: a ida à fonte e a volta para casa com a água
                 : SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
                     ? sleepDest
                     : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation

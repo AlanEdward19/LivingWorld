@@ -70,3 +70,9 @@ boneco anda pela `npc.route` até o `routeArrivalTick`).
 21. **Reserva sem uso**: `planned` marca o traçado mesmo quando usado; "reserva sem uso" é dedução do cliente
     (`planned` sem pisoteio, sem gente, sem obra, sem calçamento). Com a rua desligada (`LW_STREETS=off`) tudo vem `planned`.
 22. **Desempenho a medir com mundo rodando**: o `bench.sh` mede com o mundo pausado (sem rota nem delta de rua).
+
+## Motor da AD-185 (rota de verdade)
+**Fechados no contrato**: 18 (`lot.accessCells`, `accessViaBuildingId`), 19 (`npc.routeOver`, índices na rota), 20
+(`npc.routeDepartedTick`), 21 (`lot.accessState`: `reserved`/`planned`/`trodden`). Buscar água virou viagem (`WaterFetch`), emprego
+vai à oficina mais perto de casa, fazendas da metrópole na borda. Em aberto (issues da AD-185): carga e veículo pela superfície,
+poço como obra, água pesando onde a casa nasce, vizinho que leva a água.

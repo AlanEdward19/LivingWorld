@@ -44,6 +44,8 @@ internal sealed class StreetRouteState
     public bool[] Water = [];
     public double[] Factor = [];
     public bool[] Net = [];
+    /// <summary>AD-185: célula de caminho fora de prédio (onde o trecho da rede anda): uma leitura no A* em vez de duas.</summary>
+    public bool[] Walk = [];
     public bool AnyNet;
     public int[] Owner = [];
     public byte[] Kind = [];
@@ -58,6 +60,10 @@ internal sealed class StreetRouteState
     public int[] Prev = [];
     public int[] Seen = [];
     public int Stamp;
+    /// <summary>AD-185: quantas vezes as rotas guardadas foram jogadas fora (o carimbo dos caches derivados de rota).</summary>
+    public long RouteVersion;
+    /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
+    public readonly PriorityQueue<int, (double, int)> Queue = new();
 }
 
 /// <summary>Rota real do NPC (AD-176): da soleira de onde está até a soleira de onde vai, ou em linha reta pelo terreno (pagando
@@ -84,8 +90,19 @@ public static class StreetRoutes
     }
 
     /// <summary>Carimbo do que as rotas leem (obstáculos, superfície, vau): cache derivado de rota é válido enquanto ele não muda.</summary>
+    /// AD-185: com a rua ligada, a versão das rotas guardadas (só muda quando alguma rota pode ter mudado), não o mês dos obstáculos.
     internal static (long Obstacles, int Surfaces, bool Ford) Stamp(WorldState world) =>
-        world.StreetsOn ? (world.Ground!.ObstacleTick, world.Ground.SurfaceVersion, world.InventionOn) : (long.MinValue, int.MinValue, world.InventionOn);
+        world.StreetsOn ? (StateOf(world).RouteVersion, world.Ground!.SurfaceVersion, world.InventionOn) : (long.MinValue, int.MinValue, world.InventionOn);
+
+    /// <summary>AD-185: o menor custo possível por célula andada (o terreno mais barato no passo mais rápido): limite inferior de
+    /// qualquer rota, para a busca da fonte parar cedo.</summary>
+    internal static double CheapestCostPerCell(WorldState world)
+    {
+        var state = StateOf(world);
+        var r = state.Rules;
+        double fastest = Math.Min(1000, Math.Min(Math.Min(r.TrailPm, r.DirtPm), Math.Min(r.GravelPm, r.StonePm))) / 1000.0;
+        return state.Base * state.MinTerrain * fastest;
+    }
 
     /// <summary>Custo da rota a pé (unidade de <c>MovementCost</c>) e as células d'água dela.</summary>
     internal static (double Cost, int Water) CostOf(WorldState world, CellCoord origin, CellCoord destination)
@@ -119,6 +136,7 @@ public static class StreetRoutes
             return new StreetRoute { Cost = world.Map.Cost.Base * Math.Sqrt(dx * dx + dy * dy) };
         }
         long key = ((long)o << 32) | (uint)d;
+        if (world.RouteCacheOff) { state.Legs.Clear(); return Compute(state, o, d); }
         if (state.Pairs.TryGetValue(key, out var known)) return known;
         var route = Compute(state, o, d);
         if (state.Pairs.Count >= MaxCachedPairs) state.Pairs.Clear();
@@ -134,10 +152,10 @@ public static class StreetRoutes
     {
         var ground = world.Ground!;
         var rules = world.StreetRules;
-        double ford = world.InventionOn ? world.Map.Cost.Base * world.InventionRules!.FordExtraCellsPm / 1000.0 : 0;
+        double fordPerCell = world.InventionOn ? world.Map.Cost.Base * world.InventionRules!.FordExtraCellsPm / 1000.0 : 0;
         var state = world.RouteState;
         if (state is not null && ReferenceEquals(state.Map, world.Map) && state.ObstacleTick == ground.ObstacleTick
-            && state.SurfaceVersion == ground.SurfaceVersion && state.FordPerCell == ford && ReferenceEquals(state.Rules, rules))
+            && state.SurfaceVersion == ground.SurfaceVersion && state.FordPerCell == fordPerCell && ReferenceEquals(state.Rules, rules))
         {
             if (state.BuildingsSeen == world.Buildings.Count) return state;
             // prédio novo depois do carimbo não muda nada (só vira obstáculo na virada do mês); um com data até o carimbo, sim
@@ -149,16 +167,33 @@ public static class StreetRoutes
             state.ObstacleTick = long.MinValue; // refaz os obstáculos abaixo
         }
 
-        if (state is null || !ReferenceEquals(state.Map, world.Map)) state = NewState(world.Map);
-        bool surfaces = state.SurfaceVersion != ground.SurfaceVersion || !ReferenceEquals(state.Rules, rules);
+        bool fresh = state is null || !ReferenceEquals(state.Map, world.Map);
+        if (fresh) state = NewState(world.Map);
+        bool surfaces = state!.SurfaceVersion != ground.SurfaceVersion || !ReferenceEquals(state.Rules, rules);
         state.Rules = rules;
-        if (state.ObstacleTick != ground.ObstacleTick || state.BuildingsSeen != world.Buildings.Count) BuildObstacles(world, state, ground.ObstacleTick);
+        bool obstaclesChanged = false;
+        if (state.ObstacleTick != ground.ObstacleTick || state.BuildingsSeen != world.Buildings.Count)
+        {
+            // AD-185: a virada do mês refaz os obstáculos; se saíram iguais (nenhum prédio novo virou obstáculo), as rotas guardadas
+            // continuam valendo e não são recalculadas (antes todo mês esvaziava o cache e cada rota era refeita)
+            var owner = fresh ? null : (int[])state.Owner.Clone();
+            var kind = fresh ? null : (byte[])state.Kind.Clone();
+            var door = state.Door;
+            var doorOver = state.DoorOver;
+            BuildObstacles(world, state, ground.ObstacleTick);
+            obstaclesChanged = owner is null || !owner.AsSpan().SequenceEqual(state.Owner) || !kind.AsSpan().SequenceEqual(state.Kind)
+                || !door.AsSpan().SequenceEqual(state.Door) || !doorOver.AsSpan().SequenceEqual(state.DoorOver);
+        }
         state.BuildingsSeen = world.Buildings.Count;
         if (surfaces) BuildSurfaces(state, ground);
         state.ObstacleTick = ground.ObstacleTick;
         state.SurfaceVersion = ground.SurfaceVersion;
-        state.FordPerCell = ford;
-        state.Pairs.Clear();
+        bool ford = state.FordPerCell != fordPerCell;
+        state.FordPerCell = fordPerCell;
+        if (surfaces || obstaclesChanged || fresh)
+            for (int i = 0; i < state.Walk.Length; i++) state.Walk[i] = state.Net[i] && state.Owner[i] == 0;
+        if (fresh || surfaces || obstaclesChanged || ford) { state.Pairs.Clear(); state.RouteVersion++; }
+        if (obstaclesChanged && !surfaces) state.Legs.Clear(); // o trecho da rede não entra em célula de prédio
         world.RouteState = state;
         return state;
     }
@@ -178,6 +213,7 @@ public static class StreetRoutes
             Water = new bool[n],
             Factor = new double[n],
             Net = new bool[n],
+            Walk = new bool[n],
             Owner = new int[n],
             Kind = new byte[n],
             Entry = new int[n],
@@ -277,7 +313,8 @@ public static class StreetRoutes
         if (!state.AnyNet) return;
         var dist = state.G;
         Array.Fill(dist, double.PositiveInfinity);
-        var queue = new PriorityQueue<int, (double, int)>();
+        var queue = state.Queue;
+        queue.Clear();
         for (int i = 0; i < state.Net.Length; i++)
             if (state.Net[i]) { dist[i] = 0; state.Entry[i] = i; queue.Enqueue(i, (0, i)); }
         while (queue.TryDequeue(out int at, out var pri))
@@ -419,7 +456,8 @@ public static class StreetRoutes
             int ddx = Math.Abs(c % state.W - tx), ddy = Math.Abs(c / state.W - ty);
             return hUnit * (Math.Max(ddx, ddy) + (Math.Sqrt(2) - 1) * Math.Min(ddx, ddy));
         }
-        var queue = new PriorityQueue<int, (double, int)>();
+        var queue = state.Queue;
+        queue.Clear();
         state.Seen[e] = stamp; state.G[e] = 0; state.Prev[e] = -1;
         queue.Enqueue(e, (H(e), e));
         while (queue.TryDequeue(out int at, out var pri))
@@ -428,11 +466,12 @@ public static class StreetRoutes
             if (pri.Item1 > g + H(at) + 1e-12) continue;
             if (at == x)
             {
-                var path = new List<int>();
-                for (int c = x; c >= 0; c = state.Prev[c]) path.Add(c);
-                path.Reverse();
+                int length = 0;
+                for (int c = x; c >= 0; c = state.Prev[c]) length++;
+                var path = new int[length];
+                for (int c = x, k = length - 1; c >= 0; c = state.Prev[c], k--) path[k] = c;
                 leg.Cost = g + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
-                leg.Path = [.. path];
+                leg.Path = path;
                 break;
             }
             int ax = at % state.W, ay = at / state.W;
@@ -441,7 +480,7 @@ public static class StreetRoutes
                 int nx = ax + dx, ny = ay + dy;
                 if (nx < 0 || ny < 0 || nx >= state.W || ny >= state.H) continue;
                 int n = ny * state.W + nx;
-                if (!state.Net[n] || state.Owner[n] != 0) continue;
+                if (!state.Walk[n]) continue;
                 // a subida conta só o desnível entre as pontas, como a reta (MovementCost): a altitude célula a célula é ruído do mapa
                 double c = g + state.Base * len * (state.Terrain[at] + state.Terrain[n]) / 2.0 * (state.Factor[at] + state.Factor[n]) / 2.0;
                 if (state.Seen[n] == stamp && c >= state.G[n]) continue;
@@ -556,6 +595,46 @@ public static class StreetRoutes
             ? Blocked(state, doorstep.X - 1, doorstep.Y) && Blocked(state, doorstep.X + 1, doorstep.Y)
             : Blocked(state, doorstep.X, doorstep.Y - 1) && Blocked(state, doorstep.X, doorstep.Y + 1);
         return alley ? "alley" : "path";
+    }
+
+    /// <summary>AD-185: índices, na rota de <see cref="PathOf"/>, das células por onde a pessoa passa "por cima" (escada, laje ou
+    /// telhado de prédio colado: parede-meia), fora o prédio de onde sai e o de onde chega; vazio sem a rua de verdade.</summary>
+    public static IReadOnlyList<int> OverIndicesOf(WorldState world, IReadOnlyList<CellCoord> path)
+    {
+        if (!world.StreetsOn || path.Count < 3) return [];
+        var state = StateOf(world);
+        int from = Index(state, path[0]), to = Index(state, path[^1]);
+        int ownerFrom = from >= 0 ? state.Owner[from] : 0, ownerTo = to >= 0 ? state.Owner[to] : 0;
+        List<int>? over = null;
+        for (int i = 1; i < path.Count - 1; i++)
+        {
+            int c = Index(state, path[i]);
+            if (c < 0 || state.Kind[c] != 2) continue;
+            int owner = state.Owner[c];
+            if (owner == ownerFrom || owner == ownerTo) continue;
+            (over ??= []).Add(i);
+        }
+        return over ?? (IReadOnlyList<int>)[];
+    }
+
+    /// <summary>AD-185: a geometria do acesso à porta (o que a pessoa anda da soleira até o caminho mais perto, em ordem: a soleira, a
+    /// reta pelo terreno, a primeira célula de caminho), o prédio vizinho por onde se entra quando a soleira é dele (escada, laje ou
+    /// telhado) e a célula de caminho onde o acesso desemboca (nula sem rede). Nulo sem a rua de verdade ou prédio ainda não obstáculo.</summary>
+    public static (IReadOnlyList<CellCoord> Cells, long? Via, CellCoord? Outlet)? AccessGeometryOf(WorldState world, Building building)
+    {
+        if (!world.StreetsOn || building.Position is null) return null;
+        var state = StateOf(world);
+        int owner = Array.IndexOf(state.OwnerId, building.Id.Value, 1);
+        if (owner <= 0) return null;
+        int door = state.Door[owner];
+        if (door < 0) return ([], null, null);
+        long? via = state.DoorOver[owner] ? state.OwnerId[state.Owner[door]] : null;
+        int entry = state.AnyNet ? state.Entry[door] : -1;
+        var cells = new List<int>();
+        if (entry < 0 || entry == door) cells.Add(door);
+        else LineCells(state, door, entry, cells, all: true);
+        CellCoord At(int c) => new(c % state.W, c / state.W);
+        return (cells.Select(At).ToList(), via, entry >= 0 ? At(entry) : null);
     }
 
     private static bool Blocked(StreetRouteState state, int x, int y) =>

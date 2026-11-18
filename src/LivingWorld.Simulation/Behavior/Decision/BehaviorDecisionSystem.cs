@@ -181,6 +181,15 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
                     buySource = 1;
+                    // AD-185: a sede sem água em casa nem no que leva vai à fonte quando ela fica mais perto que o mercado (ou sem com que
+                    // pagar), qualquer que fosse a escolha (sem água nem moeda a utilidade não via saída e a pessoa morria de sede em casa);
+                    // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
+                    if (candidate != ActionType.Travel && ThirstGoesToSource(world, npc, now, marketIndex))
+                        candidate = ActionType.Travel;
+                    else if (candidate is not (ActionType.Travel or ActionType.Eat or ActionType.Buy)
+                             && LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeDry(world, npc)
+                             && LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, now))
+                        candidate = ActionType.Travel;
                     if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
                     {
@@ -317,6 +326,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             if (world.StreetsOn) world.Ground!.RecordTrip(npc.CurrentLocation, destination); // AD-176: o pisoteio desta viagem
             MoveTracked(npc, destination, now, occupancy);
             LivingWorld.Simulation.Invention.Leavings.OnArrived(world, ctx, npc, destination); // AD-168: o espólio no caminho
+            LivingWorld.Simulation.Economy.Supply.WaterFetch.OnArrived(world, ctx, npc, destination); // AD-185: fonte ou casa da ida de água
             return true;
         }
 

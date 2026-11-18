@@ -60,6 +60,10 @@ public sealed class MutualAidSystem : ISimulationSystem
             bool scarce = household.Stock.GetValueOrDefault(food) < count * NeedyStockDays
                           || household.Stock.GetValueOrDefault(water) < count * NeedyStockDays;
             if (!scarce) continue;
+            // AD-185: a casa sem ninguém que possa buscar água (só crianças pequenas, gente de cama) recebe a água dos seus
+            if (household.Stock.GetValueOrDefault(water) < count * NeedyStockDays && LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
+                && LivingWorld.Simulation.Economy.Supply.WaterFetch.NoFetcher(world, household))
+                RelieveWater(world, ctx, household, members, day, water);
 
             // Quem faz as compras da casa: o chefe se for adulto ou idoso, senão o primeiro adulto ou idoso, senão o chefe.
             var head = members.FirstOrDefault(m => m.Id == household.Head) ?? members[0];
@@ -238,6 +242,49 @@ public sealed class MutualAidSystem : ISimulationSystem
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
     }
+
+    /// <summary>AD-185: parente ou gente de afeto (adulto, como no socorro de comida) manda da despensa dele a água que passa de
+    /// <see cref="WaterAidReserveDays"/> dias dos moradores dele, pela mesma vontade (altruísmo × proximidade) e o mesmo sorteio por
+    /// ajudante e dia, até a semana da casa. Uma remessa por casa de origem por dia.</summary>
+    private static void RelieveWater(WorldState world, TickContext ctx, Household household, List<Npc> members, long day, ResourceType water)
+    {
+        long need = members.Count * (long)RelieveDays - household.Stock.GetValueOrDefault(water);
+        if (need <= 0) return;
+        var memberIds = members.Select(m => m.Id).ToHashSet();
+        var candidates = new SortedSet<NpcId>(Comparer<NpcId>.Create((a, b) => a.Value.CompareTo(b.Value)));
+        foreach (var member in members)
+        {
+            if (member.MotherId is { } mother) candidates.Add(mother);
+            if (member.FatherId is { } father) candidates.Add(father);
+            if (member.Spouse is { } spouse) candidates.Add(spouse);
+            foreach (var contact in world.RelationshipTargetsOf(member.Id)) candidates.Add(contact);
+        }
+        var sentFrom = new HashSet<HouseholdId>();
+        foreach (var helperId in candidates)
+        {
+            if (need <= 0) break;
+            if (memberIds.Contains(helperId) || world.FindNpc(helperId) is not { IsAlive: true } helper || !IsGrown(world, helper)) continue;
+            if (helper.Household is not { } origin || origin == household.Id || !sentFrom.Add(origin)
+                || world.FindHousehold(origin) is not { } from) { continue; }
+            long spare = from.Stock.GetValueOrDefault(water) - Math.Max(1, from.Members.Count) * (long)WaterAidReserveDays;
+            double closeness = IsKinOf(world, helper, members) ? 1.0 : ClosenessTo(world, helper, members);
+            if (spare <= 0 || closeness <= 0) { sentFrom.Remove(origin); continue; }
+            double chance = helper.Personality.Altruism / 100.0 * (0.4 + 0.6 * closeness);
+            var rng = ctx.StreamFor("water-aid", helper.Id.Value * 1_000_003L + day);
+            if (rng.NextDouble() >= chance) { sentFrom.Remove(origin); continue; }
+            long sent = Math.Min(need, spare);
+            if (!from.Withdraw(water, sent).IsSuccess) continue;
+            household.Deposit(water, sent);
+            need -= sent;
+            world.InventionTally.WaterAidGiven++;
+            world.InventionTally.WaterAidUnits += sent;
+            Thank(world, ctx, members[0], helper);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{members[0].Id.Value}|{sent}|water", sourceSystem: SystemName);
+        }
+    }
+
+    /// <summary>AD-185: dias de água dos próprios moradores que a casa de quem socorre guarda antes de mandar.</summary>
+    private const int WaterAidReserveDays = 3;
 
     private static void Thank(WorldState world, TickContext ctx, Npc recipient, Npc helper)
     {
