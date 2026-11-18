@@ -304,10 +304,14 @@ public sealed partial class BehaviorDecisionSystem
         long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location, npc);
         long cargoStart = cargo, cut = 0;
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
+        // AD-185: a casa que traz a água da fonte (não mais longe que o mercado) não a compra; antes a compra da comida enchia a
+        // carga com a água da meta, a carga cortava (×8) e a casa voltava ao mercado pelo resto
+        bool waterFromSource = WaterFromSource(world, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
+            if (waterFromSource && resourceId == econ.WaterResourceId) continue;
 
             // Água é bem comum: quem não tem uma moeda para pagar ainda enche o balde no poço da aldeia (a oficina que a
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.

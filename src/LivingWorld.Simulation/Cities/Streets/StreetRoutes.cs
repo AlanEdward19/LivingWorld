@@ -84,7 +84,7 @@ internal sealed class StreetRouteState
     public int NetCount;
     public readonly Stack<(double[] Dist, int[] Prev)> FieldPool = new();
     public long HubsStamp = long.MinValue;
-    /// <summary>AD-185: marcos do A* (os polos e as quatro pontas da rede): o campo de distância de cada um dá, pela desigualdade
+    /// <summary>AD-185: marcos do A* (as oito pontas da rede): o campo de distância de cada um dá, pela desigualdade
     /// triangular, um limite inferior muito mais justo que a reta (ALT), e a busca abre poucas células.</summary>
     public int[] Landmarks = [];
     /// <summary>AD-185: a geometria do acesso de cada prédio (o que a projeção pede a cada quadro), guardada até as rotas mudarem.</summary>
@@ -487,18 +487,24 @@ public static class StreetRoutes
                 if (door >= 0 && state.Entry[door] >= 0) hubs.Add(state.Entry[door]);
             }
         state.HubsStamp = world.Workplaces.Count;
-        var marks = new SortedSet<int>(hubs.Where(h => state.NetId.Length > h && state.NetId[h] >= 0));
-        int sMin = -1, sMax = -1, dMin = -1, dMax = -1;
+        // os marcos da heurística: as oito pontas da rede (cantos e lados). Antes os polos também eram marcos, e na cidade grande
+        // (centenas de oficinas) cada passo da busca somava centenas de campos: a heurística custava mais que a busca
+        var marks = new SortedSet<int>();
+        int sMin = -1, sMax = -1, dMin = -1, dMax = -1, xMin = -1, xMax = -1, yMin = -1, yMax = -1;
         for (int i = 0; i < state.Walk.Length; i++)
         {
             if (!state.Walk[i]) continue;
-            int sum = i % state.W + i / state.W, diff = i % state.W - i / state.W;
+            int x = i % state.W, y = i / state.W, sum = x + y, diff = x - y;
             if (sMin < 0 || sum < sMin % state.W + sMin / state.W) sMin = i;
             if (sMax < 0 || sum > sMax % state.W + sMax / state.W) sMax = i;
             if (dMin < 0 || diff < dMin % state.W - dMin / state.W) dMin = i;
             if (dMax < 0 || diff > dMax % state.W - dMax / state.W) dMax = i;
+            if (xMin < 0 || x < xMin % state.W) xMin = i;
+            if (xMax < 0 || x > xMax % state.W) xMax = i;
+            if (yMin < 0) yMin = i; // a primeira célula andável é a de menor y
+            yMax = i;
         }
-        foreach (int c in new[] { sMin, sMax, dMin, dMax }) if (c >= 0) marks.Add(c);
+        foreach (int c in new[] { sMin, sMax, dMin, dMax, xMin, xMax, yMin, yMax }) if (c >= 0) marks.Add(c);
         var landmarks = marks.ToArray();
         bool same = hubs.SetEquals(state.Hubs) && landmarks.AsSpan().SequenceEqual(state.Landmarks);
         state.Landmarks = landmarks;

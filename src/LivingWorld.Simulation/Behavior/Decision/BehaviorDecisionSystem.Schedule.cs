@@ -75,9 +75,7 @@ public sealed partial class BehaviorDecisionSystem
         var market = NearestProvisionMarket(world, household, marketIndex);
         if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
         // AD-185: com a fonte a pé não mais longe que o mercado, a água vem de lá (de graça): o mercado é só pela comida
-        bool waterFetched = LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
-            && LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, household.Location) is { } source
-            && source.Ticks <= Mobility.HouseholdTicks(world, household, household.Location, market.Location);
+        bool waterFetched = WaterFromSource(world, household, market);
         if (waterFetched)
         {
             if (foodBlocked) return false;
@@ -87,7 +85,10 @@ public sealed partial class BehaviorDecisionSystem
         // AD-138: quem passou fome quer a despensa mais cheia
         if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
         double target = ProvisionTargetAt(world, household, market) * hoard;
-        if ((double)scarcest / members >= target * RestockShortfall) return false;
+        // AD-185: sem a água para puxar a ida, a comida sozinha esperava cair à metade da meta e a compra grande passava da carga
+        // (idas cortadas ×9, fome crítica ×1,4): a casa que busca a água na fonte repõe a comida abaixo da meta, em idas que cabem
+        double shortfall = waterFetched ? 1.0 : RestockShortfall;
+        if ((double)scarcest / members >= target * shortfall) return false;
         // AD-148: no turno a compra espera o fim dele, a menos que a despensa não dure até lá; e uma pessoa da casa vai por todos
         if (duringWork && provisioning.RestockDuringWorkBelowDays >= 0 && (double)scarcest / members >= provisioning.RestockDuringWorkBelowDays)
         {
@@ -102,8 +103,8 @@ public sealed partial class BehaviorDecisionSystem
         if (world.FamilyRules.Pressure?.TopUpPurchases != true && !provisioning.TopUp) return true;
         // AD-145: só vai se pode pagar o que está faltando. A compra completa a meta (não soma por cima), então com a água
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
-        return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
-            || (!waterFetched && Affords(npc, market, economy.WaterResourceId, waterStock, members, target));
+        return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target, shortfall))
+            || (!waterFetched && Affords(npc, market, economy.WaterResourceId, waterStock, members, target, shortfall));
     }
 
     /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a
@@ -124,8 +125,15 @@ public sealed partial class BehaviorDecisionSystem
         return !(provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household));
     }
 
-    private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target) =>
-        (double)stock / members < target * RestockShortfall
+    /// <summary>AD-185: com a fonte a pé não mais longe que o mercado, a casa traz a água de lá (de graça): o mercado é só pela comida.</summary>
+    internal static bool WaterFromSource(WorldState world, LivingWorld.Domain.Population.Family.Household household, Workplace market) =>
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
+        && LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, household.Location) is { } source
+        && source.Ticks <= Mobility.HouseholdTicks(world, household, household.Location, market.Location);
+
+    private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target,
+        double shortfall = RestockShortfall) =>
+        (double)stock / members < target * shortfall
         && market.Prices.TryGetValue(new ResourceType(resourceId), out var price) && price > 0 && npc.Wallet.Amount >= price;
 
     /// <summary>Ação de quem não tem necessidade urgente: a da rotina, ou comprar quando a despensa baixa para a distância do mercado
