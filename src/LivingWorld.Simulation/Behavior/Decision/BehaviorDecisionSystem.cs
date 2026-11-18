@@ -236,7 +236,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
-                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat
+                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
                     ? candidate
                     : null;
 
@@ -244,6 +244,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 {
                     departing = chosen == ActionType.Travel;
                     if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
+                    if (departing && candidate == ActionType.Socialize && travelPurpose == ActionType.Socialize) world.InventionTally.CompanyTrips++;
                     // AD-179: o diarista que larga a jornada no meio (fome, sede, fim da rotina) conta as horas que fez no trecho
                     if (!justCompleted && npc.CurrentAction == ActionType.Work && npc.Employer is null)
                         LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, npc.ActionStartedAtTick, now);

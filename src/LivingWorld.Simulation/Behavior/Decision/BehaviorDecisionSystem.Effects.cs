@@ -446,6 +446,8 @@ public sealed partial class BehaviorDecisionSystem
     {
         var psyche = world.NeedsRules.Psyche;
         bool? company = SocializeWithSomeoneNearby(world, npc, tick, ctx);
+        if (company == true) world.InventionTally.SocializedWithCompany++;
+        else if (company == false) world.InventionTally.SocializedAlone++;
         if (company != false || !psyche.SocializeNeedsCompany)
             npc.SetSocial(100, tick);
         if (!psyche.Enabled || company is null) return;
@@ -586,6 +588,8 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Eat when EatDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel, // AD-147
         // AD-157b: fora do turno, quem está longe da despensa volta para casa (o fim do dia é em casa, não à toa perto da lavoura)
         ActionType.Idle or ActionType.Socialize when OffShiftFarFromPantry(world, npc) => ActionType.Travel,
+        // AD-186: quem quer conversar e não tem ninguém por perto vai aonde há alguém
+        ActionType.Socialize when CompanyDestinationOf(world, npc) is { } company && company != npc.CurrentLocation => ActionType.Travel,
         _ when RelocationDestinationOf(world, npc) is { } relocation && relocation != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };

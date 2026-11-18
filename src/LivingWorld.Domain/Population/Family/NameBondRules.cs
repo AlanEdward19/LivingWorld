@@ -50,6 +50,28 @@ public sealed record NameBondRules
     /// <summary>Boa fama de quem liderou a saída e fundou a cidade-filha (<see cref="FounderHonor"/> desliga só este feito).</summary>
     public double HonorForFounding { get; init; } = 30;
 
+    // --- AD-186: honra de outros feitos ---
+
+    /// <summary>Boa fama de quem chega à mestria no ofício que exerce (habilidade em <see cref="MasteryShareOfCap"/> do teto),
+    /// uma vez por pessoa enquanto a fama dura; 0 desliga.</summary>
+    public double HonorPerMastery { get; init; } = 10;
+
+    /// <summary>Fração do teto da habilidade que a cidade reconhece como mestria.</summary>
+    public double MasteryShareOfCap { get; init; } = 0.8;
+
+    /// <summary>Boa fama de cada pai e mãe vivos quando um filho chega à idade adulta (criou o filho); 0 desliga.</summary>
+    public double HonorPerChildRaised { get; init; } = 3;
+
+    /// <summary>Boa fama de quem tira lucro do próprio negócio, por retirada que passa de <see cref="ProsperityWageMonths"/>
+    /// salários mínimos do ofício mais barato (riqueza relativa: o lucro que se vê); 0 desliga.</summary>
+    public double HonorPerProsperity { get; init; } = 2;
+
+    /// <summary>Meses de salário mínimo que a retirada tem de passar para a cidade comentar a prosperidade.</summary>
+    public double ProsperityWageMonths { get; init; } = 3;
+
+    /// <summary>Boa fama de quem, atacado, sai de pé da luta e o agressor não (venceu ou fez fugir); 0 desliga.</summary>
+    public double HonorPerCourage { get; init; } = 10;
+
     /// <summary>Quanto da boa fama vista desconta da má fama vista (suspeita, troca de culpado, crédito): 0,5 = dois pontos de
     /// honra apagam um de vergonha.</summary>
     public double HonorOffsetsInfamy { get; init; } = 0.5;
@@ -62,6 +84,9 @@ public sealed record NameBondRules
 
     /// <summary>Com vaga escassa, quem tem nome melhor (boa fama menos má fama vistas) é contratado primeiro; empate por id.</summary>
     public bool ReputationHiringOrder { get; init; } = true;
+
+    /// <summary>AD-186: quem abre negócio chama antes, entre os amigos que confiam, o sócio de nome melhor (boa fama menos má fama).</summary>
+    public bool ReputationPartnerOrder { get; init; } = true;
 
     /// <summary>AD-183: o fundador fica registrado na cidade-filha e, se o costume manda, a cidade leva o nome dele.</summary>
     public bool FounderHonor { get; init; } = true;
@@ -83,7 +108,8 @@ public sealed record NameBondRules
     }
 
     /// <summary>Honra ligada: algum feito guarda boa fama (sem isso o livro de honra nem nasce).</summary>
-    public bool HonorOn => HonorPerAid > 0 || HonorPerInvention > 0 || HonorPerVenture > 0 || HonorForFounding > 0;
+    public bool HonorOn => HonorPerAid > 0 || HonorPerInvention > 0 || HonorPerVenture > 0 || HonorForFounding > 0
+        || HonorPerMastery > 0 || HonorPerChildRaised > 0 || HonorPerProsperity > 0 || HonorPerCourage > 0;
 
     public static NameBondRules Default { get; } = new();
 
@@ -100,10 +126,15 @@ public sealed record NameBondRules
         HonorPerInvention = 0,
         HonorPerVenture = 0,
         HonorForFounding = 0,
+        HonorPerMastery = 0,
+        HonorPerChildRaised = 0,
+        HonorPerProsperity = 0,
+        HonorPerCourage = 0,
         HonorOffsetsInfamy = 0,
         HonorCreditTrust = 0,
         ReputationCourtshipGain = 0,
         ReputationHiringOrder = false,
+        ReputationPartnerOrder = false,
         FounderHonor = false,
         NameSignalOnAcceptance = false,
     };

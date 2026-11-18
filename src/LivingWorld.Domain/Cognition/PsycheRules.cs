@@ -45,6 +45,11 @@ public sealed record PsycheRules
     /// <summary><c>Socialize</c> só satisfaz a necessidade social com alguém por perto.</summary>
     public bool SocializeNeedsCompany { get; init; } = true;
 
+    /// <summary>AD-186: quem quer conversar e não tem ninguém por perto sai para achar alguém — o conhecido de quem mais gosta (parente,
+    /// vizinho, amigo) que está a menos de uma hora de casa, e sem ninguém o largo da cidade — andando pela rota; antes conversava
+    /// sozinho, a solidão subia e Conversar seguia ganhando. Falso = o de antes.</summary>
+    public bool SeekCompany { get; init; } = true;
+
     /// <summary>AD-147 (backlog 08, item 47): com fome ou sede crítica que a despensa serve, Conversar e Ficar à toa param no déficit
     /// crítico e Comer vence. Ligado por padrão desde o AD-148 (com o trabalho e a compra da casa consertados, 6 seeds × 100 anos:
     /// sede 0,2% → 0,0%, fome 3,7% → 3,5%); a causa: sozinho em casa a solidão nunca alivia e o peso de personalidade, até 3×,
