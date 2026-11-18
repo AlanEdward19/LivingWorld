@@ -3,6 +3,7 @@ using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
@@ -43,6 +44,31 @@ public sealed class WaterFetchTests
     }
 
     private static long Now(WorldState world) => world.CurrentDate.TotalHours;
+
+    [Fact]
+    public void A_household_fed_by_the_source_restocks_food_below_the_target_not_at_half_of_it()
+    {
+        foreach (bool fetch in new[] { true, false })
+        {
+            var (world, _) = NewWorld(fetch ? null : NaturalWaterRules.Default with { Fetch = WaterFetchRules.Off });
+            var market = MarketIndex.BuildForTick(world);
+            var food = new ResourceType(world.EconomyRules.FoodResourceId);
+            // uma casa com a fonte não mais longe que o mercado
+            var home = world.Households.Where(h => !h.IsEmpty && !h.IsHomeless).OrderBy(h => h.Id.Value).First(h =>
+                market.NearestSelling(h.Location, food, Water(world)) is { } m
+                && BehaviorDecisionSystem.WaterFromSource(world, h, m) == fetch);
+            var free = home.Members.Select(m => world.FindNpc(m)!).Where(n => n.IsAlive && n.AgeYears(world.CurrentDate) >= 16).OrderBy(n => n.Id.Value).First();
+            free.CreditWallet(new Money(500));
+            double target = BehaviorDecisionSystem.ProvisionTargetFor(world, free, market);
+            // comida a três quartos da meta, água cheia: com a água da fonte a casa repõe; comprando a água, ainda não
+            long foodLevel = (long)Math.Floor(target * 0.75 * home.Members.Count);
+            home.Withdraw(food, home.Stock.GetValueOrDefault(food));
+            home.Deposit(food, foodLevel);
+            home.Deposit(Water(world), 1000);
+
+            Assert.Equal(fetch, BehaviorDecisionSystem.NeedsRestocking(world, free, market));
+        }
+    }
 
     [Fact]
     public void With_the_trip_on_the_daily_water_no_longer_fills_any_pantry()
