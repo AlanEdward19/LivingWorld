@@ -143,7 +143,7 @@ public sealed record StreetRules(
     public int BuildDaylightEndHour { get; init; } = 20;
 
     /// <summary>AD-184: fome e sede (0–100, cheio = 100) abaixo das quais a hora livre não vai à obra (come e bebe em casa).</summary>
-    public int HelperNeedFloor { get; init; } = 60;
+    public int HelperNeedFloor { get; init; } = 40;
 
     /// <summary>AD-184: ajudantes sem jornal (parentes e vizinhos) numa obra, fora a própria casa.</summary>
     public int HelpersMax { get; init; } = 6;

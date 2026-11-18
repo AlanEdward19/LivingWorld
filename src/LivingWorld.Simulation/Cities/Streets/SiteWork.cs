@@ -111,6 +111,8 @@ public static class SiteWork
         // com fome ou sede abaixo do piso a hora livre é de comer e beber em casa, não de levantar parede
         long now = world.CurrentDate.TotalHours;
         if (npc.HungerAt(now) < world.StreetRules.HelperNeedFloor || npc.ThirstAt(now) < world.StreetRules.HelperNeedFloor) return false;
+        // AD-185: a casa sem água bastante manda primeiro à fonte (quem ajuda na obra é quem iria buscá-la)
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeNeedsWater(world, npc)) return false;
         if (npc.Employer is null) return true;
         var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
         var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;

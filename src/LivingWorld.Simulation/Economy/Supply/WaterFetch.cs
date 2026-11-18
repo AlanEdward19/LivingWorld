@@ -73,6 +73,11 @@ public static class WaterFetch
     private static bool Below(WorldState world, Household home, int days) =>
         home.Stock.GetValueOrDefault(Water(world)) < Math.Max(1, home.Members.Count) * (long)days;
 
+    /// <summary>AD-184: a água da casa baixou ao ponto de alguém ir buscá-la (a hora livre é da fonte, não da obra).</summary>
+    internal static bool HomeNeedsWater(WorldState world, Npc npc) =>
+        On(world) && npc.Household is { } h && world.FindHousehold(h) is { IsHomeless: false, IsEmpty: false } home
+        && Below(world, home, world.NaturalWaterRules.Fetch.RefillBelowDays);
+
     /// <summary>Tempo livre, em casa ou perto dela: a água da casa baixou e ninguém da casa já foi. Marca a ida (a viagem começa nesta hora) e
     /// devolve verdadeiro para a decisão virar a viagem. Fonte na própria célula da casa: enche já, sem viagem.</summary>
     internal static bool WantsToFetch(WorldState world, Npc npc, long now)

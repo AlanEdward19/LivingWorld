@@ -159,9 +159,16 @@ public sealed class ConstructionSystem : ISimulationSystem
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
     }
 
-    /// <summary>AD-184: do largo ao lote em até um quarto da jornada (ida e volta deixam a maior parte do dia na obra).</summary>
-    private static bool InReach(WorldState world, City city, CellCoord site) =>
-        LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost <= world.StreetRules.CrewHoursPerDay / 4.0;
+    /// <summary>AD-184: alguém da cidade mora a menos de meia jornada do lote (a ida e a volta ainda deixam horas de obra no dia);
+    /// lote que ninguém alcança não recebe turma.</summary>
+    private static bool InReach(WorldState world, City city, CellCoord site)
+    {
+        double limit = world.StreetRules.CrewHoursPerDay / 2.0;
+        foreach (var home in world.Households)
+            if (home.City == city.Id && !home.IsEmpty
+                && LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, home.Location, site).Cost < limit) return true;
+        return false;
+    }
 
     /// <summary>AD-179: as horas da turma vão primeiro ao transporte do material; o que sobra vira passos da receita.</summary>
     private static long SpendHaul(ConstructionProject project)
