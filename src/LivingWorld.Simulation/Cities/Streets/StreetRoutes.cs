@@ -23,6 +23,66 @@ internal sealed class StreetRoute
     public int SoftPm = -1;
 }
 
+/// <summary>AD-187: tabela de endereço aberto (sondagem linear) de rota por chave (origem &lt;&lt; 32 | destino, nunca negativa), em
+/// vetores planos que dobram a 50% de ocupação. Só memória volátil: a ordem interna não sai daqui.</summary>
+internal sealed class RouteTable
+{
+    private long[] _keys = Fill(new long[1024]);
+    private StreetRoute?[] _values = new StreetRoute?[1024];
+    private int _mask = 1023;
+
+    public int Count { get; private set; }
+
+    private static long[] Fill(long[] keys) { Array.Fill(keys, -1L); return keys; }
+
+    private int Slot(long key) => (int)((ulong)(key * unchecked((long)0x9E3779B97F4A7C15)) >> 40) & _mask;
+
+    public bool TryGetValue(long key, out StreetRoute route)
+    {
+        var keys = _keys;
+        for (int i = Slot(key); ; i = (i + 1) & _mask)
+        {
+            long k = keys[i];
+            if (k == key) { route = _values[i]!; return true; }
+            if (k < 0) { route = null!; return false; }
+        }
+    }
+
+    public StreetRoute this[long key]
+    {
+        set
+        {
+            if ((Count + 1) * 2 > _keys.Length) Grow();
+            for (int i = Slot(key); ; i = (i + 1) & _mask)
+            {
+                long k = _keys[i];
+                if (k == key) { _values[i] = value; return; }
+                if (k >= 0) continue;
+                _keys[i] = key; _values[i] = value; Count++;
+                return;
+            }
+        }
+    }
+
+    public void Clear()
+    {
+        if (Count == 0) return;
+        Array.Fill(_keys, -1L);
+        Array.Clear(_values);
+        Count = 0;
+    }
+
+    private void Grow()
+    {
+        var keys = _keys; var values = _values;
+        _keys = Fill(new long[keys.Length * 2]);
+        _values = new StreetRoute?[keys.Length * 2];
+        _mask = _keys.Length - 1;
+        Count = 0;
+        for (int i = 0; i < keys.Length; i++) if (keys[i] >= 0) this[keys[i]] = values[i]!;
+    }
+}
+
 /// <summary>Trecho pela rede de caminhos entre duas células dela: custo e as células, em ordem.</summary>
 internal sealed class NetLeg
 {
@@ -57,7 +117,9 @@ internal sealed class StreetRouteState
     public bool[] DoorOver = [];
     public long[] OwnerId = [];
     public int[] Entry = [];
-    public readonly Dictionary<long, StreetRoute> Pairs = [];
+    /// <summary>AD-187: as rotas guardadas por par (origem, destino) numa tabela de endereço aberto (chave inteira, vetores planos):
+    /// a consulta de rota já guardada é a mais frequente do mundo (milhões por mês) e o dicionário custava o dobro.</summary>
+    public readonly RouteTable Pairs = new();
     public readonly Dictionary<long, NetLeg> Legs = [];
     public double[] G = [];
     public int[] Prev = [];
@@ -183,6 +245,31 @@ public static class StreetRoutes
         if (state.Pairs.Count >= MaxCachedPairs) state.Pairs.Clear();
         state.Pairs[key] = route;
         return route;
+    }
+
+    /// <summary>AD-187: um limite inferior do custo de <see cref="Get"/> (sem a água extra da invenção), sem buscar o trecho pela rede:
+    /// a rota guardada, se há; senão o menor entre a reta e o piso do caminho pela rede (as duas retas até ela e o passo mais barato da
+    /// rede na distância octil entre a entrada e a saída), mais o que custa sair e entrar dos prédios. Nulo quando não vale a conta
+    /// (dentro do mesmo prédio, ponta fora do mapa). Quem só pergunta "passa de tanto?" decide sem a busca quando o piso já passa.</summary>
+    internal static double? CostFloor(WorldState world, CellCoord origin, CellCoord destination)
+    {
+        var state = StateOf(world);
+        int o = Index(state, origin), d = Index(state, destination);
+        if (o < 0 || d < 0 || o == d) return null;
+        if (!world.RouteCacheOff && state.Pairs.TryGetValue(((long)o << 32) | (uint)d, out var known)) return known.Cost;
+        int ownerO = state.Owner[o], ownerD = state.Owner[d];
+        if (ownerO != 0 && ownerO == ownerD) return null;
+        int a = Snap(state, o, out double extraA), b = Snap(state, d, out double extraB);
+        double floor = Line(state, a, b).Cost;
+        if (state.AnyNet && a != b && state.Entry[a] >= 0 && state.Entry[b] >= 0)
+        {
+            int e = state.Entry[a], x = state.Entry[b];
+            int ddx = Math.Abs(e % state.W - x % state.W), ddy = Math.Abs(e / state.W - x / state.W);
+            double net = Line(state, a, e).Cost + Line(state, x, b).Cost
+                + state.NetRate * (Math.Max(ddx, ddy) + 0.41421356237309515 * Math.Min(ddx, ddy));
+            floor = Math.Min(floor, net);
+        }
+        return (floor + extraA + extraB) * (1 - 1e-9); // folga para a ordem das somas
     }
 
     private static int Index(StreetRouteState state, CellCoord c) =>
@@ -895,6 +982,9 @@ public static class StreetRoutes
 
     /// <summary>Custo do trecho pela rede de hoje (para o teste de equivalência de custo).</summary>
     internal static double LegCost(StreetRouteState state, int e, int x) => Leg(state, e, x).Cost;
+
+    /// <summary>As células do trecho pela rede de hoje (para o teste do trecho de volta).</summary>
+    internal static int[] LegPath(StreetRouteState state, int e, int x) => Leg(state, e, x).Path;
 
     private static bool Before(double ka, int ca, double kb, int cb) => ka < kb || (ka == kb && ca < cb);
 

@@ -55,6 +55,22 @@ public static class Mobility
         return ticks == 0 ? 0 : Math.Max(1, Apply(weather ? Weathered(world, origin, destination, ticks, route) : ticks, BonusPct(world, npc.City)));
     }
 
+    /// <summary>AD-187: <c>TravelTicks(..., weather: false) &gt; threshold</c> (a pergunta "é longe?"), sem buscar a rota quando o piso
+    /// do custo já passa do limite: o tempo só cresce com o custo, e a água a pé só soma. Com embarcação da casa (remar pode poupar
+    /// tempo) ou o piso abaixo do limite, a conta inteira de sempre.</summary>
+    public static bool FartherThan(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier, long threshold)
+    {
+        if (world.StreetsOn && origin != destination
+            && LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostFloor(world, origin, destination) is { } floor
+            && !(world.InventionOn && npc.Household is { } h && world.Invention!.BestCraftSpeed(h.Value, world.InventionRules!) > 0))
+        {
+            double body = bodyMultiplier * LoadFactor(world, npc);
+            long least = Math.Max(1, (long)Math.Ceiling(Math.Max(0, floor) * Math.Max(0.1, body)));
+            if (Math.Max(1, Apply(least, BonusPct(world, npc.City))) > threshold) return true;
+        }
+        return TravelTicks(world, npc, origin, destination, bodyMultiplier, weather: false) > threshold;
+    }
+
     /// <summary>AD-180: lama na parte sem calçamento da rota e neve na rota toda alongam a viagem (o tempo do lugar de saída).</summary>
     /// AD-187: <paramref name="route"/> é a rota já buscada para o tempo da viagem (a mesma do cache): não se procura de novo.
     private static long Weathered(WorldState world, CellCoord origin, CellCoord destination, long ticks,
