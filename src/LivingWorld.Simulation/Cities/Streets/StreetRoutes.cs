@@ -63,10 +63,6 @@ internal sealed class StreetRouteState
     public int[] Prev = [];
     public int[] Seen = [];
     public int Stamp;
-    /// <summary>AD-185: o limite inferior de cada célula na busca em curso (carimbo <see cref="HStamp"/>): a heurística dos marcos
-    /// é contada uma vez por célula, não a cada vez que a célula entra ou sai da fila.</summary>
-    public double[] HVal = [];
-    public int[] HStamp = [];
     /// <summary>AD-185: quantas vezes as rotas guardadas foram jogadas fora (o carimbo dos caches derivados de rota).</summary>
     public long RouteVersion;
     /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
@@ -74,11 +70,26 @@ internal sealed class StreetRouteState
     /// <summary>AD-185: a rede como lista de vizinhos (CSR): de cada célula andável, os vizinhos andáveis e o custo da passagem, já
     /// calculados quando a rede ou os obstáculos mudam; e o menor custo por unidade de distância da rede (a heurística do A*).</summary>
     public int[] AdjStart = [];
-    public int[] AdjCell = [];
+    /// <summary>AD-187: no índice compacto da rede (<see cref="NetId"/>): o começo dos vizinhos de cada um, o vizinho e o custo.</summary>
+    public int[] AdjNode = [];
     public double[] AdjCost = [];
     public double NetRate;
+    /// <summary>AD-187: componente conexo de cada célula andável (−1 fora da rede): trecho entre componentes diferentes não tem
+    /// caminho, e a busca nem começa (antes abria o componente inteiro da entrada para descobrir que não chegava).</summary>
+    public int[] Comp = [];
+    /// <summary>AD-187: os marcos da busca (as pontas da rede e, no maior componente, os mais afastados uns dos outros pela própria
+    /// rede) e a distância de cada célula da rede a cada marco, célula a célula (índice compacto × marcos): a leitura do limite
+    /// inferior fica junta na memória. Feito na primeira busca depois que a rede muda; função pura da rede.</summary>
+    public double[]? LmTable;
+    public int[] LmCells = [];
+    public int[] LmActive = new int[8];
+    public double[] LmToX = new double[8];
     /// <summary>AD-185: o heap do A* em vetores (chave = custo estimado, desempate pela célula), reaproveitado.</summary>
     public double[] HeapKey = new double[64];
+    /// <summary>AD-187: o heap do A* (degrau do custo estimado, custo andado, célula).</summary>
+    public long[] AHeapBucket = new long[64];
+    public double[] AHeapG = new double[64];
+    public int[] AHeapCell = new int[64];
     public int[] HeapCell = new int[64];
     /// <summary>AD-185: os polos da rede (a célula de caminho onde desemboca a porta de cada oficina e mercado), para onde e de onde
     /// vai quase toda viagem; de cada polo, um campo de distância por toda a rede (Dijkstra), feito na primeira vez que se pede e
@@ -89,6 +100,12 @@ internal sealed class StreetRouteState
     /// de campos jogados fora voltam para reuso.</summary>
     public int[] NetId = [];
     public int NetCount;
+    /// <summary>AD-187: a célula de cada índice compacto e as coordenadas dela; os vetores do A* no índice compacto.</summary>
+    public int[] NetCell = [], NetX = [], NetY = [];
+    /// <summary>AD-185/187: o limite inferior de cada um na busca em curso (carimbo <see cref="AHStamp"/>) é contado uma vez só.</summary>
+    public int[] ASeen = [], APrev = [], AHStamp = [];
+    public double[] AG = [], AH = [];
+    public int AStamp;
     public readonly Stack<(double[] Dist, int[] Prev)> FieldPool = new();
     public long HubsStamp = long.MinValue;
     /// <summary>AD-185: marcos do A* (as oito pontas da rede): o campo de distância de cada um dá, pela desigualdade
@@ -341,24 +358,32 @@ public static class StreetRoutes
         if (!state.AnyNet) return;
         var dist = state.G;
         Array.Fill(dist, double.PositiveInfinity);
-        var queue = state.Queue;
-        queue.Clear();
+        // AD-187: o heap em vetores (mesma ordem total da fila genérica: custo, depois a célula), sem tupla nem enumerador por passo
+        int size = 0;
+        var entry = state.Entry; var terrain = state.Terrain; var factor = state.Factor;
+        int w = state.W, h = state.H;
+        double baseCost = state.Base;
         for (int i = 0; i < state.Net.Length; i++)
-            if (state.Net[i]) { dist[i] = 0; state.Entry[i] = i; queue.Enqueue(i, (0, i)); }
-        while (queue.TryDequeue(out int at, out var pri))
+            if (state.Net[i]) { dist[i] = 0; entry[i] = i; Push(state, ref size, 0, i); }
+        var steps = Steps;
+        while (size > 0)
         {
-            if (pri.Item1 > dist[at]) continue;
-            int x = at % state.W, y = at / state.W;
-            foreach (var (dx, dy, len) in Steps)
+            double f = state.HeapKey[0];
+            int at = Pop(state, ref size);
+            if (f > dist[at]) continue;
+            int x = at % w, y = at / w;
+            double tAt = terrain[at], fAt = factor[at];
+            for (int k = 0; k < steps.Length; k++)
             {
+                var (dx, dy, len) = steps[k];
                 int nx = x + dx, ny = y + dy;
-                if (nx < 0 || ny < 0 || nx >= state.W || ny >= state.H) continue;
-                int n = ny * state.W + nx;
-                double c = pri.Item1 + state.Base * len * (state.Terrain[at] + state.Terrain[n]) * 0.5 * (state.Factor[at] + state.Factor[n]) * 0.5;
+                if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+                int n = ny * w + nx;
+                double c = f + baseCost * len * (tAt + terrain[n]) * 0.5 * (fAt + factor[n]) * 0.5;
                 if (c >= dist[n]) continue;
                 dist[n] = c;
-                state.Entry[n] = state.Entry[at];
-                queue.Enqueue(n, (c, n));
+                entry[n] = entry[at];
+                Push(state, ref size, c, n);
             }
         }
     }
@@ -475,6 +500,7 @@ public static class StreetRoutes
     private static void ClearLegs(StreetRouteState state)
     {
         state.Legs.Clear();
+        state.LmTable = null;
         foreach (var root in state.Fields.Keys.OrderBy(k => k)) state.FieldPool.Push(state.Fields[root]);
         state.Fields.Clear();
     }
@@ -522,7 +548,8 @@ public static class StreetRoutes
         state.RouteVersion++;
     }
 
-    /// <summary>Campo de distância de um polo por toda a rede (Dijkstra na lista de vizinhos; empate pela célula).</summary>
+    /// <summary>Campo de distância de um polo por toda a rede (Dijkstra na lista de vizinhos; empate pela célula). AD-187: tudo no
+    /// índice compacto da rede (a ordem do índice é a das células, então o empate é o mesmo); o anterior de cada um, também compacto.</summary>
     private static (double[] Dist, int[] Prev) FieldOf(StreetRouteState state, int root)
     {
         if (state.Fields.TryGetValue(root, out var field)) return field;
@@ -532,22 +559,21 @@ public static class StreetRoutes
         else { state.FieldPool.Clear(); dist = new double[n]; prev = new int[n]; }
         Array.Fill(dist, double.PositiveInfinity, 0, n);
         Array.Fill(prev, -1, 0, n);
-        var id = state.NetId;
-        var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
-        int size = 0;
-        dist[id[root]] = 0;
-        Push(state, ref size, 0, root);
+        var adjStart = state.AdjStart; var adjNode = state.AdjNode; var adjCost = state.AdjCost;
+        int size = 0, r = state.NetId[root];
+        dist[r] = 0;
+        Push(state, ref size, 0, r);
         while (size > 0)
         {
             double f = state.HeapKey[0];
             int at = Pop(state, ref size);
-            if (f > dist[id[at]]) continue;
+            if (f > dist[at]) continue;
             for (int j = adjStart[at], end = adjStart[at + 1]; j < end; j++)
             {
-                int m = adjCell[j], mi = id[m];
+                int m = adjNode[j];
                 double c = f + adjCost[j];
-                if (c >= dist[mi]) continue;
-                dist[mi] = c; prev[mi] = at;
+                if (c >= dist[m]) continue;
+                dist[m] = c; prev[m] = at;
                 Push(state, ref size, c, m);
             }
         }
@@ -557,29 +583,34 @@ public static class StreetRoutes
     }
 
     /// <summary>AD-185: monta a rede como lista de vizinhos (mesma ordem de passos e mesma conta de custo da busca) e a menor taxa de
-    /// custo por distância (terreno × passo de cada passagem ÷ o comprimento dela), o limite inferior da heurística.</summary>
+    /// custo por distância (terreno × passo de cada passagem ÷ o comprimento dela), o limite inferior da heurística. AD-187: no índice
+    /// compacto da rede (células andáveis em ordem), para a busca ler vetores pequenos e juntos.</summary>
     private static void BuildAdjacency(StreetRouteState state)
     {
         int n = state.Walk.Length;
-        if (state.AdjStart.Length != n + 1) state.AdjStart = new int[n + 1];
         if (state.NetId.Length != n) state.NetId = new int[n];
         int net = 0;
         for (int i = 0; i < n; i++) state.NetId[i] = state.Walk[i] ? net++ : -1;
         state.NetCount = net;
+        if (state.NetCell.Length != net) { state.NetCell = new int[net]; state.NetX = new int[net]; state.NetY = new int[net]; }
+        if (state.AdjStart.Length != net + 1) state.AdjStart = new int[net + 1];
         int count = 0;
         for (int i = 0; i < n; i++)
         {
-            state.AdjStart[i] = count;
             if (!state.Walk[i]) continue;
+            int id = state.NetId[i];
+            state.NetCell[id] = i;
+            state.AdjStart[id] = count;
             int x = i % state.W, y = i / state.W;
+            state.NetX[id] = x; state.NetY[id] = y;
             foreach (var (dx, dy, _) in Steps)
             {
                 int nx = x + dx, ny = y + dy;
                 if (nx >= 0 && ny >= 0 && nx < state.W && ny < state.H && state.Walk[ny * state.W + nx]) count++;
             }
         }
-        state.AdjStart[n] = count;
-        if (state.AdjCell.Length < count) { state.AdjCell = new int[count]; state.AdjCost = new double[count]; }
+        state.AdjStart[net] = count;
+        if (state.AdjNode.Length < count) { state.AdjNode = new int[count]; state.AdjCost = new double[count]; }
         double rate = double.PositiveInfinity;
         int k = 0;
         for (int i = 0; i < n; i++)
@@ -593,13 +624,46 @@ public static class StreetRoutes
                 int m = ny * state.W + nx;
                 if (!state.Walk[m]) continue;
                 double w = state.Base * len * (state.Terrain[i] + state.Terrain[m]) / 2.0 * (state.Factor[i] + state.Factor[m]) / 2.0;
-                state.AdjCell[k] = m;
+                state.AdjNode[k] = state.NetId[m];
                 state.AdjCost[k] = w;
                 k++;
                 rate = Math.Min(rate, w / len);
             }
         }
         state.NetRate = double.IsPositiveInfinity(rate) ? 0 : rate * (1 - 1e-12);
+        BuildComponents(state);
+    }
+
+    /// <summary>AD-187: rótulo de componente (busca em profundidade na lista de vizinhos; a passagem vale nos dois sentidos), por
+    /// célula (−1 fora da rede).</summary>
+    private static void BuildComponents(StreetRouteState state)
+    {
+        int n = state.Walk.Length, net = state.NetCount;
+        if (state.Comp.Length != n) state.Comp = new int[n];
+        Array.Fill(state.Comp, -1);
+        var comp = new int[net];
+        Array.Fill(comp, -1);
+        var stack = new Stack<int>();
+        int label = 0;
+        for (int i = 0; i < net; i++)
+        {
+            if (comp[i] >= 0) continue;
+            comp[i] = label;
+            stack.Push(i);
+            while (stack.Count > 0)
+            {
+                int at = stack.Pop();
+                for (int j = state.AdjStart[at], end = state.AdjStart[at + 1]; j < end; j++)
+                {
+                    int m = state.AdjNode[j];
+                    if (comp[m] >= 0) continue;
+                    comp[m] = label;
+                    stack.Push(m);
+                }
+            }
+            label++;
+        }
+        for (int i = 0; i < net; i++) state.Comp[state.NetCell[i]] = comp[i];
     }
 
     /// <summary>Trecho pela rede (AD-185): A* sobre a lista de vizinhos, heurística octil × a menor taxa da rede (admissível: nenhum
@@ -608,7 +672,14 @@ public static class StreetRoutes
     {
         long key = ((long)e << 32) | (uint)x;
         if (state.Legs.TryGetValue(key, out var known)) return known;
+        return Leg0(state, e, x, key);
+    }
+
+    private static NetLeg Leg0(StreetRouteState state, int e, int x, long key)
+    {
         var leg = new NetLeg();
+        // AD-187: pontas fora da rede ou em componentes diferentes: não há trecho (o que a busca acharia, sem abrir o componente)
+        if (state.Comp[e] < 0 || state.Comp[e] != state.Comp[x]) { state.Legs[key] = leg; return leg; }
         // AD-185: trecho para um polo (ou de um polo): segue o campo de distância dele; a passagem custa o mesmo nos dois sentidos
         bool onNet = state.NetId[e] >= 0 && state.NetId[x] >= 0; // a entrada pode ter ficado sob um prédio novo: aí, a busca
         bool toHub = onNet && state.Hubs.Contains(x), fromHub = onNet && !toHub && state.Hubs.Contains(e);
@@ -616,73 +687,71 @@ public static class StreetRoutes
         {
             var (fieldDist, fieldPrev) = FieldOf(state, toHub ? x : e);
             int from = toHub ? e : x;
-            var nid = state.NetId;
+            var nid = state.NetId; var cellOf = state.NetCell;
             if (!double.IsPositiveInfinity(fieldDist[nid[from]]))
             {
                 int length = 0;
-                for (int c = from; c >= 0; c = fieldPrev[nid[c]]) length++;
+                for (int c = nid[from]; c >= 0; c = fieldPrev[c]) length++;
                 var path = new int[length];
-                if (toHub) { int j = 0; for (int c = from; c >= 0; c = fieldPrev[nid[c]]) path[j++] = c; }
-                else { int j = length - 1; for (int c = from; c >= 0; c = fieldPrev[nid[c]]) path[j--] = c; }
+                if (toHub) { int j = 0; for (int c = nid[from]; c >= 0; c = fieldPrev[c]) path[j++] = cellOf[c]; }
+                else { int j = length - 1; for (int c = nid[from]; c >= 0; c = fieldPrev[c]) path[j--] = cellOf[c]; }
                 leg.Cost = fieldDist[nid[from]] + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
                 leg.Path = path;
             }
             state.Legs[key] = leg;
             return leg;
         }
-        int stamp = ++state.Stamp;
-        if (stamp == int.MaxValue) { Array.Clear(state.Seen); Array.Clear(state.HStamp); state.Stamp = stamp = 1; }
+        // AD-187: a passagem custa o mesmo nos dois sentidos: o trecho de volta é o de ida ao contrário (a busca roda sempre da
+        // ponta de menor célula), com o custo somado na ordem em que se anda (o mesmo que a busca daquele lado somaria por ele)
+        if (e > x) { leg = Reversed(state, Leg(state, x, e), e, x); state.Legs[key] = leg; return leg; }
+        int net = state.NetCount;
+        if (state.ASeen.Length != net) { state.ASeen = new int[net]; state.AG = new double[net]; state.APrev = new int[net]; state.AH = new double[net]; state.AHStamp = new int[net]; state.AStamp = 0; }
+        int stamp = ++state.AStamp;
+        if (stamp == int.MaxValue) { Array.Clear(state.ASeen); Array.Clear(state.AHStamp); state.AStamp = stamp = 1; }
         double hUnit = state.NetRate;
-        int w = state.W, tx = x % w, ty = x / w;
+        int tx = x % state.W, ty = x / state.W;
         const double Diag = 0.41421356237309515; // √2 − 1
         var nids = state.NetId;
-        int lmCount = 0;
-        var lmDist = new double[]?[state.Landmarks.Length];
-        var lmToX = new double[state.Landmarks.Length];
-        if (nids[x] >= 0)
-            foreach (int lm in state.Landmarks)
-            {
-                var d = FieldOf(state, lm).Dist;
-                double dx = d[nids[x]];
-                if (double.IsPositiveInfinity(dx)) continue;
-                lmDist[lmCount] = d; lmToX[lmCount] = dx; lmCount++;
-            }
-        var seen = state.Seen; var gs = state.G; var prev = state.Prev;
-        if (state.HVal.Length != seen.Length) { state.HVal = new double[seen.Length]; state.HStamp = new int[seen.Length]; }
-        var hVal = state.HVal; var hStamp = state.HStamp;
-        var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
+        var table = LandmarkTable(state);
+        int lmAll = state.LmCells.Length;
+        int ne = nids[e], nx = nids[x];
+        int lmCount = ActiveLandmarks(state, table, lmAll, ne, nx);
+        var lmActive = state.LmActive; var lmToX = state.LmToX;
+        var seen = state.ASeen; var gs = state.AG; var prev = state.APrev;
+        var hVal = state.AH; var hStamp = state.AHStamp;
+        var netX = state.NetX; var netY = state.NetY;
+        var adjStart = state.AdjStart; var adjNode = state.AdjNode; var adjCost = state.AdjCost;
         int size = 0;
-        seen[e] = stamp; gs[e] = 0; prev[e] = -1;
-        Push(state, ref size, Octile(e), e);
+        seen[ne] = stamp; gs[ne] = 0; prev[ne] = -1;
+        PushAStar(state, ref size, Octile(ne), 0, ne);
         while (size > 0)
         {
-            double f = state.HeapKey[0];
-            int at = Pop(state, ref size);
+            int at = PopAStar(state, ref size, out double gAt);
             double g = gs[at];
-            if (f > g + Octile(at) + 1e-12) continue;
-            if (at == x)
+            if (gAt > g) continue; // entrada velha: a célula já saiu por um custo menor
+            if (at == nx)
             {
                 int length = 0;
-                for (int c = x; c >= 0; c = prev[c]) length++;
+                for (int c = nx; c >= 0; c = prev[c]) length++;
                 var path = new int[length];
-                for (int c = x, j = length - 1; c >= 0; c = prev[c], j--) path[j] = c;
+                for (int c = nx, j = length - 1; c >= 0; c = prev[c], j--) path[j] = state.NetCell[c];
                 leg.Cost = g + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
                 leg.Path = path;
                 break;
             }
             for (int j = adjStart[at], end = adjStart[at + 1]; j < end; j++)
             {
-                int m = adjCell[j];
+                int m = adjNode[j];
                 double c = g + adjCost[j];
                 if (seen[m] == stamp && c >= gs[m]) continue;
                 seen[m] = stamp; gs[m] = c; prev[m] = at;
-                Push(state, ref size, c + Octile(m), m);
+                PushAStar(state, ref size, c + Octile(m), c, m);
             }
         }
         state.Legs[key] = leg;
         return leg;
 
-        // limite inferior do custo de c até x: a reta no passo mais barato da rede, ou o dos marcos (o maior dos dois)
+        // limite inferior do custo de c (índice compacto) até x: a reta no passo mais barato da rede, ou o dos marcos (o maior)
         double Octile(int c)
         {
             if (hStamp[c] == stamp) return hVal[c];
@@ -692,25 +761,194 @@ public static class StreetRoutes
 
         double Bound(int c)
         {
-            int ddx = Math.Abs(c % w - tx), ddy = Math.Abs(c / w - ty);
+            int ddx = Math.Abs(netX[c] - tx), ddy = Math.Abs(netY[c] - ty);
             double h = (Math.Max(ddx, ddy) + Diag * Math.Min(ddx, ddy)) * hUnit;
-            int nc = nids[c];
-            if (nc >= 0)
-                for (int k = 0; k < lmCount; k++)
-                {
-                    double dc = lmDist[k]![nc];
-                    if (double.IsPositiveInfinity(dc)) continue;
-                    double b = Math.Abs(lmToX[k] - dc) * (1 - 1e-12);
-                    if (b > h) h = b;
-                }
+            int baseAt = c * lmAll;
+            for (int k = 0; k < lmCount; k++)
+            {
+                double b = Math.Abs(lmToX[k] - table[baseAt + lmActive[k]]) * (1 - 1e-12);
+                if (b > h) h = b;
+            }
             return h;
         }
+    }
+
+    /// <summary>AD-187: o trecho de <paramref name="e"/> a <paramref name="x"/> pelo caminho do trecho de volta, andado ao contrário.</summary>
+    private static NetLeg Reversed(StreetRouteState state, NetLeg back, int e, int x)
+    {
+        var leg = new NetLeg();
+        if (double.IsPositiveInfinity(back.Cost)) return leg;
+        var path = new int[back.Path.Length];
+        for (int i = 0; i < path.Length; i++) path[i] = back.Path[path.Length - 1 - i];
+        double g = 0;
+        for (int i = 0; i + 1 < path.Length; i++)
+        {
+            int a = state.NetId[path[i]], b = state.NetId[path[i + 1]];
+            for (int j = state.AdjStart[a], end = state.AdjStart[a + 1]; j < end; j++)
+                if (state.AdjNode[j] == b) { g += state.AdjCost[j]; break; }
+        }
+        leg.Cost = g + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
+        leg.Path = path;
+        return leg;
+    }
+
+    private const int MaxLandmarks = 16, ActiveLandmarkCount = 6, MinLandmarkComponent = 64;
+
+    /// <summary>AD-187: a tabela de distâncias aos marcos (célula da rede × marco). Marcos: as pontas da rede (<see cref="BuildHubs"/>)
+    /// e, no maior componente, o mais afastado de todos os já escolhidos pela rede, até <see cref="MaxLandmarks"/> (empate: a menor
+    /// célula). Os campos dos marcos saem do cache depois de copiados.</summary>
+    private static double[] LandmarkTable(StreetRouteState state)
+    {
+        if (state.LmTable is { } ready) return ready;
+        int n = state.NetCount;
+        var marks = new List<int>(state.Landmarks);
+        var nid = state.NetId;
+        // o maior componente (empate: o de menor rótulo, o que começa na menor célula)
+        var sizes = new Dictionary<int, int>();
+        for (int i = 0; i < state.Comp.Length; i++) if (state.Comp[i] >= 0) sizes[state.Comp[i]] = sizes.GetValueOrDefault(state.Comp[i]) + 1;
+        int big = -1, bigSize = 0;
+        foreach (var (label, size) in sizes.OrderBy(kv => kv.Key)) if (size > bigSize) { big = label; bigSize = size; }
+        var fields = new List<double[]>();
+        foreach (int lm in marks) fields.Add(FieldDist(state, lm));
+        if (big >= 0 && bigSize >= MinLandmarkComponent)
+        {
+            var minD = new double[n];
+            Array.Fill(minD, double.PositiveInfinity);
+            bool any = false;
+            for (int k = 0; k < marks.Count; k++)
+            {
+                if (state.Comp[marks[k]] != big) continue;
+                any = true;
+                var d = fields[k];
+                for (int i = 0; i < n; i++) if (d[i] < minD[i]) minD[i] = d[i];
+            }
+            if (!any)
+            {
+                int seed = Array.IndexOf(state.Comp, big);
+                var d = FieldDist(state, seed);
+                for (int i = 0; i < n; i++) minD[i] = d[i];
+            }
+            var cells = state.NetCell;
+            while (marks.Count < MaxLandmarks)
+            {
+                int pick = -1; double far = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    double v = minD[i];
+                    if (double.IsPositiveInfinity(v) || v <= far) continue;
+                    far = v; pick = i;
+                }
+                if (pick < 0) break;
+                int cell = cells[pick];
+                marks.Add(cell);
+                var d = FieldDist(state, cell);
+                fields.Add(d);
+                for (int i = 0; i < n; i++) if (d[i] < minD[i]) minD[i] = d[i];
+            }
+        }
+        int count = marks.Count;
+        var table = new double[n * count];
+        for (int k = 0; k < count; k++)
+        {
+            var d = fields[k];
+            for (int i = 0; i < n; i++) table[i * count + k] = d[i];
+        }
+        state.LmCells = [.. marks];
+        if (state.LmActive.Length < count) { state.LmActive = new int[count]; state.LmToX = new double[count]; }
+        return state.LmTable = table;
+    }
+
+    /// <summary>Campo de distância de uma célula por toda a rede, sem guardar (os dos polos ficam no cache; este, só na tabela).</summary>
+    private static double[] FieldDist(StreetRouteState state, int root)
+    {
+        if (state.Fields.TryGetValue(root, out var kept)) return (double[])kept.Dist.Clone();
+        var field = FieldOf(state, root);
+        state.Fields.Remove(root);
+        var copy = (double[])field.Dist.Clone();
+        state.FieldPool.Push(field);
+        return copy;
+    }
+
+    /// <summary>AD-187: os marcos que mais apertam o limite inferior na saída (|d(marco, x) − d(marco, e)|, empate: o de menor
+    /// índice), até <see cref="ActiveLandmarkCount"/>; só os do componente de x (a distância a x é finita).</summary>
+    private static int ActiveLandmarks(StreetRouteState state, double[] table, int all, int ne, int nx)
+    {
+        int count = 0;
+        var active = state.LmActive; var toX = state.LmToX;
+        Span<double> score = stackalloc double[all];
+        for (int k = 0; k < all; k++)
+        {
+            double dx = table[nx * all + k];
+            if (double.IsPositiveInfinity(dx)) continue;
+            double s = Math.Abs(dx - table[ne * all + k]);
+            // inserção ordenada (maior primeiro; empate pelo índice menor, que já entra antes)
+            int at = count < ActiveLandmarkCount ? count : ActiveLandmarkCount;
+            while (at > 0 && score[at - 1] < s) at--;
+            if (at >= ActiveLandmarkCount) continue;
+            int last = Math.Min(count, ActiveLandmarkCount - 1);
+            for (int j = last; j > at; j--) { score[j] = score[j - 1]; active[j] = active[j - 1]; toX[j] = toX[j - 1]; }
+            score[at] = s; active[at] = k; toX[at] = dx;
+            if (count < ActiveLandmarkCount) count++;
+        }
+        return count;
     }
 
     /// <summary>Custo do trecho pela rede de hoje (para o teste de equivalência de custo).</summary>
     internal static double LegCost(StreetRouteState state, int e, int x) => Leg(state, e, x).Cost;
 
     private static bool Before(double ka, int ca, double kb, int cb) => ka < kb || (ka == kb && ca < cb);
+
+    /// <summary>AD-187: degrau do custo estimado no heap do A* (horas). Estimativas a menos de um degrau uma da outra empatam, e no
+    /// empate sai primeiro a mais funda (maior custo andado), depois a menor célula: num chão de passo igual há muitos caminhos do
+    /// mesmo custo, que só diferem no último algarismo da soma, e a busca abria todos eles. O trecho achado custa no máximo um degrau
+    /// a mais que o ótimo.</summary>
+    internal const double AStarStep = 1e-10;
+
+    private static bool BeforeAStar(long ba, double ga, int ca, long bb, double gb, int cb) =>
+        ba < bb || (ba == bb && (ga > gb || (ga == gb && ca < cb)));
+
+    private static void PushAStar(StreetRouteState state, ref int size, double f, double g, int cell)
+    {
+        if (size == state.AHeapBucket.Length)
+        {
+            Array.Resize(ref state.AHeapBucket, size * 2);
+            Array.Resize(ref state.AHeapG, size * 2);
+            Array.Resize(ref state.AHeapCell, size * 2);
+        }
+        long bucket = (long)Math.Floor(f / AStarStep);
+        int i = size++;
+        var bs = state.AHeapBucket; var gs = state.AHeapG; var cs = state.AHeapCell;
+        while (i > 0)
+        {
+            int parent = (i - 1) >> 1;
+            if (!BeforeAStar(bucket, g, cell, bs[parent], gs[parent], cs[parent])) break;
+            bs[i] = bs[parent]; gs[i] = gs[parent]; cs[i] = cs[parent];
+            i = parent;
+        }
+        bs[i] = bucket; gs[i] = g; cs[i] = cell;
+    }
+
+    private static int PopAStar(StreetRouteState state, ref int size, out double g)
+    {
+        var bs = state.AHeapBucket; var gs = state.AHeapG; var cs = state.AHeapCell;
+        int top = cs[0];
+        g = gs[0];
+        size--;
+        if (size == 0) return top;
+        long bucket = bs[size]; double gl = gs[size]; int cell = cs[size];
+        int i = 0;
+        while (true)
+        {
+            int l = 2 * i + 1;
+            if (l >= size) break;
+            int r = l + 1, child = r < size && BeforeAStar(bs[r], gs[r], cs[r], bs[l], gs[l], cs[l]) ? r : l;
+            if (!BeforeAStar(bs[child], gs[child], cs[child], bucket, gl, cell)) break;
+            bs[i] = bs[child]; gs[i] = gs[child]; cs[i] = cs[child];
+            i = child;
+        }
+        bs[i] = bucket; gs[i] = gl; cs[i] = cell;
+        return top;
+    }
 
     private static void Push(StreetRouteState state, ref int size, double key, int cell)
     {
@@ -758,7 +996,7 @@ public static class StreetRoutes
     {
         var leg = new NetLeg();
         int stamp = ++state.Stamp;
-        if (stamp == int.MaxValue) { Array.Clear(state.Seen); Array.Clear(state.HStamp); state.Stamp = stamp = 1; }
+        if (stamp == int.MaxValue) { Array.Clear(state.Seen); state.Stamp = stamp = 1; }
         var r = state.Rules;
         double hUnit = state.Base * state.MinTerrain * Math.Min(1000, Math.Min(Math.Min(r.TrailPm, r.DirtPm), Math.Min(r.GravelPm, r.StonePm))) / 1000.0;
         int tx = x % state.W, ty = x / state.W;
@@ -810,7 +1048,12 @@ public static class StreetRoutes
     internal static int SoftPm(WorldState world, CellCoord origin, CellCoord destination)
     {
         if (!world.StreetsOn || origin == destination) return 1000;
-        var route = Get(world, origin, destination);
+        return SoftPmOf(world, Get(world, origin, destination), origin, destination);
+    }
+
+    /// <summary>AD-187: <see cref="SoftPm"/> da rota já em mãos (a de <see cref="Get"/> para o mesmo par).</summary>
+    internal static int SoftPmOf(WorldState world, StreetRoute route, CellCoord origin, CellCoord destination)
+    {
         if (route.SoftPm >= 0) return route.SoftPm;
         var state = StateOf(world);
         var ground = world.Ground!;
