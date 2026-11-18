@@ -57,9 +57,11 @@ public static class DefaultPeriodSeeder
                 Save(repository, preset, latest.Version + 1, BuildPayload(preset));
                 continue;
             }
-            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate")) continue;
+            // AD-190: o clima gravado sem o desvio do ano de safra (faixa uniforme) ganha o do cenário de código
+            bool oldClimate = stored["Climate"] is JsonObject climate && !climate.ContainsKey("StdDevMilli");
+            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate") && !oldClimate) continue;
             if (!stored.ContainsKey("Presentation")) stored["Presentation"] = PresentationOf(preset);
-            if (!stored.ContainsKey("Climate")) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
+            if (!stored.ContainsKey("Climate") || oldClimate) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
             Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
     }
@@ -75,14 +77,25 @@ public static class DefaultPeriodSeeder
         });
 
     /// <summary>AD-180: clima ligado com o tempo diário da Inglaterra baixa (o padrão de <c>WeatherRules</c>): estações, temperatura,
-    /// chuva, neve, lama, seca e o ano de safra saindo do tempo.</summary>
-    private static JsonObject ClimateOf() => new()
+    /// chuva, neve, lama, seca e o ano de safra saindo do tempo. AD-190: o ano de safra com a média, o desvio, a persistência e a
+    /// parte comum do cenário de código (<see cref="LivingWorld.Domain.Climate.ClimateRules.Default"/>, AD-135: 1000 ± 200, 2% dos
+    /// anos abaixo de 600). Antes o bloco só tinha a faixa 500–1500, lida como uniforme: desvio de 289, sem persistência, um ano
+    /// em 18 no piso de 500 — a cidade média e a vila pequena morriam de fome na quebra que a vila de código quase não vê.</summary>
+    private static JsonObject ClimateOf()
     {
-        ["Enabled"] = true,
-        ["MinMilli"] = 500,
-        ["MaxMilli"] = 1500,
-        ["Weather"] = new JsonObject { ["Enabled"] = true },
-    };
+        var d = LivingWorld.Domain.Climate.ClimateRules.Default;
+        return new()
+        {
+            ["Enabled"] = true,
+            ["MinMilli"] = d.MinMilli,
+            ["MaxMilli"] = d.MaxMilli,
+            ["MeanMilli"] = d.MeanMilli,
+            ["StdDevMilli"] = d.StdDevMilli,
+            ["Persistence"] = d.Persistence,
+            ["SharedShare"] = d.SharedShare,
+            ["Weather"] = new JsonObject { ["Enabled"] = true },
+        };
+    }
 
     private static JsonObject PresentationOf(Preset preset) => new()
     {
