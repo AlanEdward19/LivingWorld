@@ -62,6 +62,11 @@ public sealed record JusticeRules
     public long GraveTheftValue { get; init; } = 100;
     public int BanishAfterConvictions { get; init; } = 4;
 
+    /// <summary>AD-190: o furto de comida por fome é julgado pela necessidade — o júri avalia o pão abaixo do valor grave
+    /// ("perjúrio piedoso", Hanawalt 1979 [precisa de conferência]): multa ou castigo, nunca o banimento do grave reincidente. Antes,
+    /// na carestia, o preço a 20 fazia de todo furto de comida um furto grave e a cidade média banía 54 de 150 num ano. Falso = o de antes.</summary>
+    public bool HungerTheftByNecessity { get; init; } = true;
+
     /// <summary>Dano do castigo no corpo (pelourinho, açoite), em pontos de saúde.</summary>
     public int CorporalHarm { get; init; } = 12;
 
