@@ -40,7 +40,7 @@ public sealed partial class BehaviorDecisionSystem
         RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest
             // AD-186: quem saiu atrás de companhia e a achou no caminho (ou perdeu o rumo) fica onde está, não segue à cama nem à banca
-            : npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc)
+            : npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc)
                 ? CompanyDestinationOf(world, npc) ?? npc.CurrentLocation
             : PurposeDestinationOf(world, npc, marketIndex) is { } purposeDest
                 ? purposeDest
@@ -67,9 +67,9 @@ public sealed partial class BehaviorDecisionSystem
         return destination is { } cell && cell != npc.CurrentLocation ? cell : null;
     }
 
-    /// <summary>AD-186: para onde vai quem quer conversar e não tem ninguém perto (<see cref="PsycheRules.SeekCompany"/>): o conhecido
-    /// vivo da mesma cidade de quem mais gosta (afeto acima de zero; empate pelo menor id), onde ele está agora, se lá fica a até
-    /// <c>SeekCompanyMaxCells</c> células da casa; sem ninguém, o largo da cidade (o centro), onde a gente passa. Nulo: há alguém por perto, a regra está
+    /// <summary>AD-186: para onde vai quem quer conversar e não tem ninguém perto (<see cref="PsycheRules.SeekCompany"/>): a casa do
+    /// conhecido vivo da mesma cidade de quem mais gosta (afeto acima de zero; empate pelo menor id), se ele está em casa, se lá fica a até
+    /// <c>SeekCompanyMaxCells</c> células da casa; sem ninguém, o largo da cidade (o centro), se há gente lá. Nulo: há alguém por perto, a regra está
     /// desligada, ou não há aonde ir. Só lê; a vizinhança é a mesma janela que a conversa olha (<c>SocializeRadius</c>).</summary>
     internal static CellCoord? CompanyDestinationOf(WorldState world, Npc npc)
     {
@@ -78,8 +78,13 @@ public sealed partial class BehaviorDecisionSystem
         if (npc.Household is not { } hh || world.FindHousehold(hh) is not { } home) return null;
         // só quem está em casa e sente falta de gente (convívio abaixo da linha de urgência) sai à procura; o resto conversa onde está
         long now = world.CurrentDate.TotalHours;
-        if (npc.CurrentLocation != home.Location && npc.TravelPurpose != ActionType.Socialize) return null;
+        // a ida em curso atrás de companhia (o motivo da viagem fica no NPC depois de chegar: só vale enquanto ainda viaja)
+        bool going = npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize;
+        if (npc.CurrentLocation != home.Location && !going) return null;
         if (100 - npc.SocialAt(now) <= world.NeedsRules.UrgencyThreshold) return null;
+        // e só quem já se sente só (a solidão das conversas sem ninguém): uma noite sozinho em casa não tira ninguém de casa
+        if (!going
+            && LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness < psyche.SeekCompanyLoneliness) return null;
         // a mesma pergunta volta no refino, na saída, na chegada agendada e na conclusão do mesmo tick: só memória do tick
         var last = _company;
         if (ReferenceEquals(last.World, world) && last.Npc == npc.Id.Value && last.Tick == now && last.From == npc.CurrentLocation)
@@ -108,6 +113,9 @@ public sealed partial class BehaviorDecisionSystem
             double affection = owned![i].Affection;
             if (affection <= 0 || affection < bestAffection || (affection == bestAffection && targets[i].Value > bestId)) continue;
             if (world.FindNpc(targets[i]) is not { IsAlive: true } friend || friend.City != npc.City) continue;
+            // a visita é na casa do conhecido, quando ele está lá: o destino não foge durante a ida
+            if (friend.Household is not { } fh || world.FindHousehold(fh) is not { IsHomeless: false } friendHome
+                || friend.CurrentLocation != friendHome.Location) continue;
             var cell = friend.CurrentLocation;
             // perto de casa pela medida barata (células, sem rota): a rota de cada amigo enchia a memória do alcance da despensa
             if (cell == here || Math.Max(Math.Abs(cell.X - home.Location.X), Math.Abs(cell.Y - home.Location.Y)) > psyche.SeekCompanyMaxCells) continue;
@@ -115,7 +123,9 @@ public sealed partial class BehaviorDecisionSystem
         }
         if (best is not null) return best;
         if (world.FindCity(npc.City) is not { } city || city.Location == here
-            || LivingWorld.Simulation.Invention.PersonalCarry.LeavesPantryBehind(world, npc, home, city.Location)) return null;
+            || Math.Max(Math.Abs(city.Location.X - home.Location.X), Math.Abs(city.Location.Y - home.Location.Y)) > psyche.SeekCompanyMaxCells
+            || !SomeoneWithin(world, npc, city.Location, bonds.SocializeRadius)) // ao largo só se há gente lá: ninguém sai para a praça vazia
+            return null;
         return city.Location;
     }
 

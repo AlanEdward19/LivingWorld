@@ -54,6 +54,10 @@ public sealed record PsycheRules
     /// (escolha do modelo; a regra da despensa a uma hora vale para o largo).</summary>
     public int SeekCompanyMaxCells { get; init; } = 12;
 
+    /// <summary>AD-186: solidão (0–1) a partir da qual quem quer conversar sai de casa atrás de alguém (cada conversa sem ninguém soma
+    /// <see cref="LonelinessPerSolitude"/>: umas três noites sozinho). Escolha do modelo.</summary>
+    public double SeekCompanyLoneliness { get; init; } = 0.2;
+
     /// <summary>AD-147 (backlog 08, item 47): com fome ou sede crítica que a despensa serve, Conversar e Ficar à toa param no déficit
     /// crítico e Comer vence. Ligado por padrão desde o AD-148 (com o trabalho e a compra da casa consertados, 6 seeds × 100 anos:
     /// sede 0,2% → 0,0%, fome 3,7% → 3,5%); a causa: sozinho em casa a solidão nunca alivia e o peso de personalidade, até 3×,

@@ -30,6 +30,7 @@ public class SeekCompanyTests
         world.AddHousehold(home);
         npc.JoinHousehold(home.Id);
         npc.SetSocial(0, world.CurrentDate.TotalHours); // sente falta de gente
+        LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(world, npc, world.CurrentDate.TotalHours, default, loneliness: 0.5); // e já se sente só
         return npc;
     }
 
@@ -49,8 +50,14 @@ public class SeekCompanyTests
 
         Assert.Equal(friend.CurrentLocation, BehaviorDecisionSystem.CompanyDestinationOf(world, lonely));
 
-        acquaintance.MoveTo(new CellCoord(lonely.CurrentLocation.X + 1, lonely.CurrentLocation.Y), 1);
-        Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(world, lonely));
+        // outro mundo (a resposta fica guardada no tick): com alguém ao lado, conversa ali mesmo
+        var other = World();
+        var c2 = other.ActiveCities().First().Location;
+        var withCompany = Person(other, 1, new CellCoord(c2.X + 6, c2.Y));
+        var neighbour = Person(other, 2, new CellCoord(c2.X + 7, c2.Y));
+        var far = Person(other, 3, new CellCoord(c2.X - 6, c2.Y));
+        Likes(other, withCompany, far, 80);
+        Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(other, withCompany));
     }
 
     [Fact]
@@ -68,12 +75,17 @@ public class SeekCompanyTests
     }
 
     [Fact]
-    public void Knowing_no_one_she_goes_to_the_square_and_without_the_rule_she_talks_alone()
+    public void Knowing_no_one_she_goes_to_the_square_when_people_are_there_and_without_the_rule_she_talks_alone()
     {
         var world = World();
         var city = world.ActiveCities().First().Location;
         var lonely = Person(world, 1, new CellCoord(city.X + 6, city.Y));
-        Assert.Equal(city, BehaviorDecisionSystem.CompanyDestinationOf(world, lonely));
+        Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(world, lonely)); // a praça vazia não chama ninguém
+        var busy = World();
+        var busyCity = busy.ActiveCities().First().Location;
+        var lonelyToo = Person(busy, 1, new CellCoord(busyCity.X + 6, busyCity.Y));
+        Person(busy, 2, busyCity); // alguém no largo
+        Assert.Equal(busyCity, BehaviorDecisionSystem.CompanyDestinationOf(busy, lonelyToo));
 
         var off = World(seek: false);
         var offCity = off.ActiveCities().First().Location;
