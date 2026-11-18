@@ -184,6 +184,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // AD-185: a sede sem água em casa nem no que leva vai à fonte quando ela fica mais perto que o mercado (ou sem com que
                     // pagar), qualquer que fosse a escolha (sem água nem moeda a utilidade não via saída e a pessoa morria de sede em casa);
                     // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.SickGetsWaterBrought(world, npc, now);
                     if (LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
                         && (100 - npc.HungerAt(now) < 95 || candidate == ActionType.Travel)) // a caminho da água: segue, salvo fome à beira da morte
                         candidate = ActionType.Travel;

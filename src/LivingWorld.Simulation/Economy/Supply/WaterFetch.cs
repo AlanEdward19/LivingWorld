@@ -149,6 +149,21 @@ public static class WaterFetch
         return true;
     }
 
+    /// <summary>De cama longe de casa, com sede urgente e sem água no que leva, a até uma hora de uma fonte: quem está por perto traz
+    /// um gole da fonte (o doente não anda; antes morria de sede a uma célula do rio). Devolve verdadeiro se bebeu.</summary>
+    internal static bool SickGetsWaterBrought(WorldState world, Npc npc, long now)
+    {
+        if (!On(world) || 100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
+        if (!LivingWorld.Simulation.Health.SickBehavior.IsBedridden(world, npc.Id)) return false;
+        if (world.Invention!.CarriedQuantity(npc.Id.Value, Water(world).Id) > 0) return false;
+        if (npc.Household is { } h && world.FindHousehold(h) is { } home && npc.CurrentLocation == home.Location
+            && home.Stock.GetValueOrDefault(Water(world)) > 0) return false;
+        if (NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, world.NaturalWaterRules.Fetch.RadiusCells) is not { Ticks: <= 1 }) return false;
+        DrinkHere(world, npc, now);
+        world.InventionTally.WaterAidGiven++;
+        return true;
+    }
+
     /// <summary>Em casa, com sede urgente e água na despensa.</summary>
     internal static bool ThirstyAtHomeWithWater(WorldState world, Npc npc, long now) =>
         On(world) && 100 - npc.ThirstAt(now) > world.NeedsRules.UrgencyThreshold && npc.Household is { } h
