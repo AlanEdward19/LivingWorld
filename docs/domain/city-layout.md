@@ -91,9 +91,9 @@ pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra,
 tem emprego só abaixo de 1 dia ou sem outro livre perto) vai à água mais perto pela rota (até 3 h, raio 6), bebe, enche o cântaro (20
 L, recipiente ou veículo da casa) e volta carregado; a despensa só recebe o que chegou; a ida segue até o fim (a escolha da hora não a
 recomeça) e vem antes até da mudança de cidade. Sede urgente (qualquer idade que ande) sem água vai à fonte mais perto de onde está (até
-6 h) e bebe lá, ou volta à despensa se ela é mais perto; casa sem ninguém apto recebe água dos seus, senão do vizinho mais perto.
-Rede: A* em lista de vizinhos com heap em vetor e heurística da menor taxa da rede; o trecho nem é buscado quando o limite inferior
-não vence a reta. Emprego: a oficina do ofício com vaga mais perto de casa (`StreetRules.NearestJob`). Contrato: `routeDepartedTick`,
+6 h; com moeda e mercado mais perto, salvo se a escolha foi comprar); casa sem apto recebe água dos seus, senão do vizinho. Com a fonte
+não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Rede: A* com marcos (as oito
+pontas, ALT) e campos dos polos. Emprego: a oficina do ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`,
 `routeOver`, `lot.accessCells`, `accessViaBuildingId`, `accessState`. `LW_AD185=off` desliga.
 ## Medir
 `LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
