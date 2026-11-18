@@ -72,8 +72,8 @@
 
 ## Do tempo de verdade (AD-180; detalhe em docs/domain/climate.md)
 192. **Sem lenha, roupa nem fogo**: a casa é o único abrigo do frio; madeira só existe como insumo de obra. Ligar a casa comprando
-     lenha no inverno (demanda do lenhador) e a roupa como objeto.
-193. **Rotina e sono não seguem a luz**: a rotina é tabela fixa por hora; a luz só encurta a jornada do campo (semear e ceifar).
-194. **Chuva não enche rio nem poço**: não há nível d'água; só a seca reduz a fonte natural.
-195. **Geada sobre a lavoura só no índice do ano** (geada tardia de abril–maio); o estágio do campo não é lido dia a dia.
+     lenha no inverno (demanda do lenhador) e a roupa como objeto. Issue #189.
+193. **Rotina e sono não seguem a luz**: a rotina é tabela fixa por hora; a luz só encurta a jornada do campo (semear e ceifar). #149.
+194. **Chuva não enche rio nem poço**: não há nível d'água; só a seca reduz a fonte natural. Issue #190.
+195. **Geada sobre a lavoura só no índice do ano** (geada tardia de abril–maio); decisão: não ler dia a dia (contaria duas vezes).
 196. **Viagem muda com o tempo no meio do caminho** (a duração é refeita na chegada com o tempo do dia); conferir o despertar.
