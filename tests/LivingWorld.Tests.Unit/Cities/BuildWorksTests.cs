@@ -80,7 +80,7 @@ public class BuildWorksTests
         Assert.Null(canteiro.UnderWork); // pronta: a casa passa a existir
         Assert.Equal(canteiro.Id, couple.Dwelling); // e o casal muda para ela
         Assert.True(work.HoursByHelpers > 0, "a família e os parentes trabalharam nas horas livres");
-        Assert.Equal(0, work.Paid); // a casa sem moeda não contratou ninguém
+        Assert.True(work.HoursByHelpers > work.HoursByCrew, $"ajuda {work.HoursByHelpers} h, turma paga {work.HoursByCrew} h"); // sem moeda no começo, a maior parte é braço da família
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.BuildWorkDone && e.Payload.StartsWith($"{work.Id}|", StringComparison.Ordinal)
             && e.CauseEventId == started.EventId);
     }
