@@ -539,7 +539,8 @@ public static class ObservableProjector
         return new FoliageVisual(Math.Round(row.LeafPm / 1000.0, 2), phase, Math.Round(turning, 2));
     }
 
-    [ThreadStatic] private static (WorldState? World, LivingWorld.Simulation.Climate.WeatherRegionRow? Row, long Version, double Daily,
+    [ThreadStatic]
+    private static (WorldState? World, LivingWorld.Simulation.Climate.WeatherRegionRow? Row, long Version, double Daily,
         ValueList<double>? Hourly, ValueList<double>? Feels) _hourly;
 
     /// <summary>AD-189: a temperatura e a sensação de cada hora do dia (meio grau), pela mesma curva do motor

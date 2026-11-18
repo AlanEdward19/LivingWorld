@@ -36,8 +36,12 @@ public sealed class WindAndFoliageTests
             WeatherGenerator.Foliage(r, row, seasonal, 30, 12, r.DaylightHours(doy + 0.5, Days), d == 0);
             days.Add((doy, new WeatherRegionRow
             {
-                WindFromDeg = row.WindFromDeg, AdvectionCenti = row.AdvectionCenti, MeanCenti = row.MeanCenti,
-                LeafPm = row.LeafPm, LeafPhase = row.LeafPhase, LeafColdTenths = row.LeafColdTenths,
+                WindFromDeg = row.WindFromDeg,
+                AdvectionCenti = row.AdvectionCenti,
+                MeanCenti = row.MeanCenti,
+                LeafPm = row.LeafPm,
+                LeafPhase = row.LeafPhase,
+                LeafColdTenths = row.LeafColdTenths,
             }));
         }
         return days;

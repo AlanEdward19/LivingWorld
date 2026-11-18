@@ -54,7 +54,9 @@ public static class WeatherGenerator
             value = value with
             {
                 Advection = r.Interpolate(r.WindAdvectionC, dayOfYear, daysPerMonth, monthsPerYear),
-                WarmFromDeg = warm, MeanCos = meanCos, VarCos = varCos,
+                WarmFromDeg = warm,
+                MeanCos = meanCos,
+                VarCos = varCos,
             };
         }
         _day = (r, dayOfYear, daysPerMonth, monthsPerYear, value);
