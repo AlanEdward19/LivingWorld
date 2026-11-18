@@ -2,7 +2,9 @@
 # Medida de FPS do cliente (ADR-0047): sobe uma API própria (porta 5291, período "cidade-media", seed 2), roda
 # 3x `stress:500` (medida antiga, com vsync), 3x `bench:500` (sem vsync, cidade real aberta, ficha aberta,
 # FPS médio e tempo de quadro p95) e 3x `benchbig:500` (a mesma cidade com 40 prédios a mais e, no cliente com a projeção
-# do observável, lavouras, animais e corpos pelo estado). Uso: bash client/godot/tools/bench.sh [rodadas]
+# do observável, lavouras, animais e corpos pelo estado). AD-188: depois, com o mundo RODANDO (40 ticks/s; rota, delta de rua e
+# tempo do motor chegando), 3x `benchrun` (= `bench:500`); antes, com o mundo ainda pausado e se o cliente tiver o passo, 3x
+# `benchrain` (o `bench:500` com chuva forte sintética no cliente: custo das partículas e do chão molhado). Uso: bash client/godot/tools/bench.sh [rodadas]
 # Rode pela fila pesada: bash .specs/features/realism-backlog/relatorios/lw-um-por-vez.sh bash client/godot/tools/bench.sh
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
@@ -28,12 +30,27 @@ print(json.dumps({"scenarioJson": json.dumps(scenario), "name": "bench", "period
 curl -fs -X POST -H 'Content-Type: application/json' --data @"$WORK/create.json" "http://localhost:$PORT/worlds/create" >/dev/null
 "$GODOT" --headless --path "$CLIENT" --editor --import --quit >/dev/null 2>&1 || true
 export LW_API_URL="http://localhost:$PORT"
-for _ in $(seq 1 "$ROUNDS"); do
+ONLY="${LW_BENCH_ONLY:-}" ## "run": só a medida com o mundo rodando (diagnóstico)
+[ "$ONLY" = run ] && ROUNDS_PAUSED=0 || ROUNDS_PAUSED="$ROUNDS"
+for _ in $(seq 1 "$ROUNDS_PAUSED"); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:2;stress:500;quit' 2>&1 | grep '^stress:' || echo 'stress: falhou'
 done
-for _ in $(seq 1 "$ROUNDS"); do
+for _ in $(seq 1 "$ROUNDS_PAUSED"); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep '^bench:' || echo 'bench: falhou'
 done
-for _ in $(seq 1 "$ROUNDS"); do
+for _ in $(seq 1 "$ROUNDS_PAUSED"); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;benchbig:500;quit' 2>&1 | grep '^benchbig:' || echo 'benchbig: falhou'
+done
+# AD-188: chuva forte sintética no cliente (mundo ainda pausado, compara com `bench`).
+if grep -q '"rain"' "$CLIENT/Scenes/dev_steps.gd" 2>/dev/null; then
+  for _ in $(seq 1 "$ROUNDS_PAUSED"); do
+    "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;rain:heavy;bench:500;quit' 2>&1 | grep '^bench:' | sed 's/^bench:/benchrain:/' || echo 'benchrain: falhou'
+  done
+fi
+# AD-188: mundo rodando (antes ficava pausado: sem rota nem delta de rua).
+curl -fs -X POST -H 'X-Admin-Token: bench' -H 'Content-Type: application/json' --data '{"ticksPerSecond":40}' "http://localhost:$PORT/simulation/speed" >/dev/null
+curl -fs -X POST -H 'X-Admin-Token: bench' "http://localhost:$PORT/simulation/resume" >/dev/null
+sleep 5
+for _ in $(seq 1 "$ROUNDS"); do
+  "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep -E '^bench(:|-cost:)' | sed 's/^bench:/benchrun:/' || echo 'benchrun: falhou'
 done

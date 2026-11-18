@@ -561,11 +561,11 @@ func is_moving() -> bool:
 
 
 ## Rota do motor (células, início da viagem, chegada em ticks). A mesma rota já em curso não recomeça. False se não dá.
-func set_route(cells: Array, start: float, arrival: float) -> bool:
+func set_route(cells: Array, start: float, arrival: float, heights: Dictionary = {}) -> bool:
 	if walk != null and walk.same(cells, start, arrival):
 		return true
 	var next = RouteWalk.new()
-	if not next.setup(cells, start, arrival, position):
+	if not next.setup(cells, start, arrival, position, heights):
 		walk = null
 		return false
 	walk = next

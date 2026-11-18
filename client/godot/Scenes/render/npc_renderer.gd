@@ -11,6 +11,7 @@ const NpcActor := preload("res://Scenes/npc_actor.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const RouteClock := preload("res://Scenes/route_clock.gd")
 
+const OVER_FLOOR := 1.0 ## altura de um andar (a mesma do `building_renderer.gd`): quem passa por cima anda no telhado
 const STEP_SECONDS := 1.0 ## duração visual de um passo; o servidor decide a posição, o cliente só interpola
 const LINK_SECONDS := 0.25
 const SOCIALIZE := 3
@@ -129,6 +130,9 @@ func spawn(info: Dictionary) -> void:
 	nodes[info.id] = actor
 	if not _apply_route(actor, info):
 		_join(int(info.id), info.cell)
+	else: # entrou no escopo no meio da viagem: já no ponto da rota pelo tempo decorrido, sem passar pela célula de partida
+		actor.walk.step(clock.tick)
+		actor.position = actor.walk.position
 	apply_known_model(int(info.id))
 	apply_observable(int(info.id))
 
@@ -176,6 +180,20 @@ func _apply_held(actor, design_id: int) -> void:
 		request_design.call(design_id)
 
 
+## Alvo do NPC para o tracejado da seleção (AD-188): a intenção com alvo (`intentTarget` "tipo:id") vence; senão o alvo da
+## ação. INF sem alvo do motor ou alvo que não está na cena.
+func goal_point(id: int) -> Vector3:
+	var npc = store.npcs.get(id)
+	if npc == null:
+		return Vector3.INF
+	var intent := String(npc.get("intent_target", ""))
+	if ":" in intent:
+		var point := target_point({"target": {"kind": intent.get_slice(":", 0), "id": intent.get_slice(":", 1)}})
+		if point != Vector3.INF:
+			return point
+	return target_point(npc)
+
+
 ## Ponto para onde o NPC parado olha: a pessoa com quem conversa ou a oficina onde trabalha; INF se a ação não tem alvo.
 func target_point(npc: Dictionary) -> Vector3:
 	var target: Dictionary = npc.get("target", {})
@@ -188,6 +206,12 @@ func target_point(npc: Dictionary) -> Vector3:
 		"workplace":
 			for state in store.building_states.values():
 				if int(state.workplace_id) == int(target.id):
+					return building_point.call(int(state.building_id))
+		"building":
+			return building_point.call(int(target.id))
+		"household":
+			for state in store.building_states.values():
+				if int(target.id) in state.households:
 					return building_point.call(int(state.building_id))
 	return Vector3.INF
 
@@ -218,17 +242,40 @@ func on_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int) ->
 
 
 ## Rota do motor no boneco: começa (ou continua) a caminhada; sem rota, para. Devolve se está andando pela rota.
-## Início = `actionStartedAtTick` da viagem; sem ele (ou inválido), a hora em que a rota chegou.
+## Início = `routeDepartedTick` (AD-185); servidor antigo: `actionStartedAtTick`; sem os dois (ou inválidos), a hora em que a
+## rota chegou. Células de `routeOver` vão na altura do prédio por cima do qual se passa.
 func _apply_route(actor, info: Dictionary) -> bool:
 	var cells: Array = info.get("route", [])
 	var arrival := int(info.get("arrival", -1))
 	if cells.size() < 2 or arrival < 0:
 		actor.clear_route()
 		return false
-	var start := float(info.get("started", -1))
+	var start := float(info.get("departed", -1))
+	if start < 0.0 or start >= float(arrival):
+		start = float(info.get("started", -1))
 	if start < 0.0 or start >= float(arrival):
 		start = actor.walk.start_tick if actor.walk != null and actor.walk.end_tick == float(arrival) else minf(clock.tick, float(arrival) - 1.0)
-	return actor.set_route(cells, start, float(arrival))
+	return actor.set_route(cells, start, float(arrival), over_heights(cells, info.get("route_over", [])))
+
+
+## Altura de cada índice "por cima" da rota: o telhado do prédio que cobre a célula (andares × altura do andar); sem prédio
+## conhecido ali, um andar. {} quando a rota é toda no chão (o caso comum: nada a procurar).
+func over_heights(cells: Array, over: Array) -> Dictionary:
+	var out := {}
+	if over.is_empty():
+		return out
+	var wanted := {}
+	for index in over:
+		wanted[cells[int(index)]] = int(index)
+	for building in store.buildings.values():
+		for entry in building.footprint:
+			var cell: Vector2i = building.cell + entry.cell
+			if wanted.has(cell):
+				out[wanted[cell]] = float(maxi(int(building.get("floors", 1)), 1)) * OVER_FLOOR
+	for index in over:
+		if not out.has(int(index)):
+			out[int(index)] = OVER_FLOOR
+	return out
 
 
 func on_removed(id: int) -> void:

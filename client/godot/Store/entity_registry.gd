@@ -262,7 +262,21 @@ func event_title(event: Dictionary) -> String:
 		if involved.has("outcome"):
 			parts.append(String(involved.outcome))
 		return " · ".join(parts)
-	return String(event.get("label", "Evento")) if String(event.get("label", "")) != "" else "Evento"
+	var title := String(event.get("label", "Evento")) if String(event.get("label", "")) != "" else "Evento"
+	var motive := String(event.get("involved", {}).get("motive", ""))
+	return title + (" (%s)" % motive_text(motive) if motive != "" else "")
+
+
+## Motivo do evento (`involved.motive`, AD-183/186) em palavras; motivo novo que o cliente não conhece vai como veio.
+const MOTIVES := {"xara": "leva o nome de quem morreu", "mesmo-nome": "mesmo nome na família", "fundador": "liderou a fundação",
+	"temperamento": "temperamento", "desemprego": "sem trabalho", "resgate": "resgate", "posse": "para ficar com a pessoa",
+	"fome": "fome", "miseria": "miséria", "oportunidade": "oportunidade", "ofensa": "ofensa", "ciume": "ciúme",
+	"traicao": "traição", "heranca": "herança", "denuncia": "denúncia", "vinganca": "vingança",
+	"procurar-companhia": "procurar companhia", "acolher-crianca": "acolher criança"}
+
+
+static func motive_text(motive: String) -> String:
+	return String(MOTIVES.get(motive, motive.replace("-", " ").replace("_", " ")))
 
 
 ## Envolvidos do evento como links: [rótulo, ref]. Para registro só de crime, também autor, vítima e caso (sem descrição).

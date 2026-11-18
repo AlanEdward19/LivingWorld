@@ -17,7 +17,11 @@ const GroundRenderer := preload("res://Scenes/render/ground_renderer.gd")
 const RouteLine := preload("res://Scenes/render/route_line.gd")
 const BuildingLabels := preload("res://Scenes/render/building_labels.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
+const WeatherRenderer := preload("res://Scenes/render/weather_renderer.gd")
+const WeatherLook := preload("res://Scenes/render/weather_look.gd")
 const Grid := preload("res://Scenes/grid.gd")
+
+signal weather_changed(weather: Dictionary) ## tempo sob a câmera mudou (o app atualiza o sol e o indicador)
 
 const TERRAIN_COLORS := TerrainRenderer.TERRAIN_COLORS
 const STEP_SECONDS := NpcRenderer.STEP_SECONDS
@@ -40,7 +44,12 @@ var followed_npc := -1 ## o app informa: pessoa seguida (F) — a rota dela tamb
 var registry ## EntityRegistry (nomes dos tipos de prédio para os rótulos)
 var zoom_size := 20.0 ## o app informa: rótulos só aparecem perto
 var _ground_dirty := false
-var snow: GPUParticles3D
+var weather: WeatherRenderer ## chuva, neve e granizo do tempo do motor (AD-180)
+var snow: GPUParticles3D:
+	get:
+		return weather.snow
+var _ground_signature := ""
+var _weather_poll := 0.0
 var lod := "city" ## "world" | "city" | "near" (o app calcula pelo zoom e pelo escopo)
 const NEAR_ZOOM := 7.5 ## abaixo deste tamanho de zoom, os NPCs perto do centro mostram ferramenta, objeto e rosto
 
@@ -106,8 +115,9 @@ func _init() -> void:
 	route_line = RouteLine.new()
 	route_line.name = "RouteLineRenderer"
 	add_child(route_line)
-	snow = _make_snow()
-	add_child(snow)
+	weather = WeatherRenderer.new()
+	weather.name = "Weather"
+	add_child(weather)
 
 
 func bind(p_store, p_labels) -> void:
@@ -123,6 +133,7 @@ func bind(p_store, p_labels) -> void:
 	store.roads_changed.connect(_mark_ground)
 	store.building_removed.connect(_on_building_gone)
 	npcs.building_point = building_center
+	route_line.target_of = npcs.goal_point
 	store.reloaded.connect(_on_reloaded)
 	store.npc_observed.connect(npcs.apply_observable)
 	store.building_states_changed.connect(_on_building_states)
@@ -205,43 +216,19 @@ func _relabel() -> void:
 	building_labels.rebuild(store, registry, buildings.nodes)
 
 
-## Estação e clima: paleta do chão e das copas, e neve caindo quando o clima diz.
+## Estação e tempo: paleta do chão e das copas, chão das ruas e o que cai do céu, tudo como o motor diz.
 func _apply_climate() -> void:
 	terrain.apply_season(store.climate)
-	_mark_ground() # rua, caminho e quintal também mudam com a estação
-	snow.emitting = Season.snowing(store.climate)
-	snow.visible = snow.emitting
+	var signature := TerrainRenderer.season_signature(store.climate)
+	if signature != _ground_signature: # rua, caminho e quintal só redesenham quando o chão do tempo muda (não a cada hora)
+		_ground_signature = signature
+		_mark_ground()
+	_set_weather(store.weather_at(Vector2i(int(view_center.x), int(view_center.z))))
 
 
-func _make_snow() -> GPUParticles3D:
-	var particles := GPUParticles3D.new()
-	particles.name = "Snow"
-	particles.amount = 400
-	particles.lifetime = 5.0
-	particles.emitting = false
-	particles.visible = false
-	particles.visibility_aabb = AABB(Vector3(-30, -10, -30), Vector3(60, 30, 60))
-	var process := ParticleProcessMaterial.new()
-	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	process.emission_box_extents = Vector3(22, 0.5, 22)
-	process.direction = Vector3(0.1, -1, 0)
-	process.spread = 8.0
-	process.initial_velocity_min = 1.6
-	process.initial_velocity_max = 2.4
-	process.gravity = Vector3(0, -0.4, 0)
-	particles.process_material = process
-	var flake := SphereMesh.new()
-	flake.radius = 0.04
-	flake.height = 0.08
-	flake.radial_segments = 4
-	flake.rings = 2
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(1, 1, 1, 0.9)
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	flake.material = material
-	particles.draw_pass_1 = flake
-	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return particles
+func _set_weather(here: Dictionary) -> void:
+	weather.apply(here)
+	weather_changed.emit(here)
 
 
 func _rebuild_npcs() -> void:
@@ -327,7 +314,13 @@ func _process(delta: float) -> void:
 		_ground_dirty = false
 		ground.rebuild(true) # rua por delta: nasce, muda e some em transição
 	ground.step(delta)
+	fauna.step(delta) # animais deslizam entre os deltas (AD-188)
 	building_labels.set_zoom(zoom_size, lod != "world")
 	events.advance(delta)
-	if snow.emitting:
-		snow.position = view_center + Vector3(0, 12, 0)
+	_weather_poll -= delta
+	if _weather_poll <= 0.0 and store != null and store.kind == "World": # no mapa-múndi, o tempo é o da região sob a câmera
+		_weather_poll = 0.5
+		var here: Dictionary = store.weather_at(Vector2i(int(view_center.x), int(view_center.z)))
+		if here != weather.weather:
+			_set_weather(here)
+	weather.follow(view_center, view_radius, WeatherLook.lod_ratio(lod, far_zoom, bubble_zoom))

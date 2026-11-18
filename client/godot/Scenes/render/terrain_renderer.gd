@@ -82,10 +82,13 @@ func rebuild(p_store) -> void:
 static func season_signature(climate: Dictionary) -> String:
 	if climate.is_empty():
 		return ""
-	return "%s|%s|%s" % [Season.season_key(climate), Season.snowing(climate), bool(climate.get("drought", false))]
+	var weather := Season.weather_of(climate)
+	return "%s|%.2f|%s|%s|%s" % [Season.season_key(climate), Season.snow_cover(climate), Season.drought(climate),
+		String(weather.get("ground", "")), bool(weather.get("frost", false))]
 
 
-## Paleta da estação no chão e nas copas: só recolore as instâncias quando a estação, a neve ou a seca mudam.
+## Paleta da estação e do chão do tempo (neve, lama, congelado, geada) no terreno e nas copas: só recolore as instâncias
+## quando a estação, a cobertura de neve, a seca ou o chão mudam (a temperatura da hora não recolore nada).
 func apply_season(climate: Dictionary) -> void:
 	var signature := season_signature(climate)
 	if signature == _season_key or _multi == null:

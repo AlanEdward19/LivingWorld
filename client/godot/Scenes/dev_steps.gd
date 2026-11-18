@@ -7,6 +7,7 @@ extends RefCounted
 
 const Registry := preload("res://Store/entity_registry.gd")
 const Grid := preload("res://Scenes/grid.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -227,6 +228,18 @@ static func run(app: Node, steps: Array) -> void:
 					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas e prédios de teste, colocados em grade. Isto não é o mundo do jogo."
 					app.banner.visible = true
 				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
+			"rain": # só medida/captura (AD-188): tempo sintético local (`rain:heavy|moderate|light`, `rain:snow`); o motor não muda
+				var snow := arg == "snow"
+				var fake := {"precipitation": "snow" if snow else "rain", "intensity": "heavy" if snow else (arg if arg != "" else "heavy"),
+					"storm": not snow, "wind": 9.0, "ground": "snow" if snow else "mud", "snow_cm": 12.0 if snow else 0.0, "now_c": -3.0 if snow else 9.0,
+					"feels_c": -7.0 if snow else 6.0, "sunrise": 7.0, "sunset": 17.0}
+				app.store.climate = app.store.climate.duplicate()
+				app.store.climate.weather = fake
+				for cell in app.store.roads:
+					app.store.roads[cell].ground = fake.ground if int(app.store.roads[cell].surface) < 2 else ("snow" if snow else "wet")
+					app.store.roads[cell].snow_cm = fake.snow_cm
+				app.store.climate_changed.emit()
+				app.world_view._mark_ground()
 			"near": # câmera bem perto de um morador na rua (LOD "perto": ferramenta, objeto e rosto)
 				var id := _street_npc(app)
 				if id >= 0:
@@ -344,6 +357,7 @@ static func _bench(app: Node, total: int, big: bool = false) -> void:
 	var frame_ms: Array = []
 	var clock := 0.0
 	var next_step := 0.5
+	var costed := false
 	var last := Time.get_ticks_usec()
 	while clock < 7.0:
 		await app.get_tree().process_frame
@@ -353,6 +367,9 @@ static func _bench(app: Node, total: int, big: bool = false) -> void:
 		clock += dt / 1000.0
 		if clock >= 1.0:
 			frame_ms.append(dt)
+			if not costed:
+				costed = true
+				FrameCost.reset()
 		if clock >= next_step:
 			next_step += 0.5
 			for id in synthetic:
@@ -372,6 +389,7 @@ static func _bench(app: Node, total: int, big: bool = false) -> void:
 	print("%s: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d vsync=%d" % ["benchbig" if big else "bench", app.store.kind, app.store.npcs.size(),
 		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size(),
 		DisplayServer.window_get_vsync_mode()])
+	print("bench-cost: ", FrameCost.report())
 
 
 ## Janelas com dados de exemplo (só para capturas de tela): `demo:biografia|cronica|crencas|relatos|tecnologias|tesouro|vendas`.

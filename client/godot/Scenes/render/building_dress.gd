@@ -38,6 +38,39 @@ static func style_of(state: Dictionary) -> String:
 	return "structure" if function != "" else ""
 
 
+## AD-188: o CORPO do prédio pela função que o motor diz (não só o enfeite): cor da parede (misturada ao material da planta,
+## que continua mandando pedra ou madeira), cor e inclinação do telhado. Celeiro alto e vermelho, ferraria escura e de
+## telhado baixo, templo claro e de telhado alto; casa e hospedaria com a cor de sempre.
+const BODIES := {
+	"dwelling": {"wall": null, "roof": null, "pitch": 0.75}, "lodging": {"wall": Color("c9b48a"), "roof": null, "pitch": 0.85},
+	"farm": {"wall": Color("8a4632"), "roof": Color("5e4a32"), "pitch": 1.05}, "smithy": {"wall": Color("4f4c4a"), "roof": Color("3d3a38"), "pitch": 0.5},
+	"bakery": {"wall": Color("e6dccb"), "roof": Color("a85a3a"), "pitch": 0.7}, "market": {"wall": Color("b48a5a"), "roof": Color("9a4a3a"), "pitch": 0.45},
+	"tavern": {"wall": Color("6e5034"), "roof": Color("5a3a2a"), "pitch": 0.85}, "quarry": {"wall": Color("8a8f98"), "roof": Color("6a6e74"), "pitch": 0.4},
+	"temple": {"wall": Color("ece4cc"), "roof": Color("8a8a96"), "pitch": 1.4}, "shop": {"wall": Color("a07c52"), "roof": null, "pitch": 0.65},
+	"structure": {"wall": Color("9a968e"), "roof": Color("77736c"), "pitch": 0.5},
+}
+
+
+## {style, wall (Color|null), roof (Color|null), pitch, people}: `people` = moradores (casa, hospedaria) ou trabalhadores
+## (oficina) que o motor diz; -1 sem estado (servidor antigo: todas as janelas acendem à noite, como antes).
+static func body_of(state: Dictionary) -> Dictionary:
+	var style := style_of(state)
+	var body: Dictionary = BODIES.get(style, {"wall": null, "roof": null, "pitch": 0.75}).duplicate()
+	body.style = style
+	var people := -1
+	if not state.is_empty():
+		people = (state.get("workers", []) as Array).size() if style not in ["dwelling", "lodging", ""] else (state.get("residents", []) as Array).size()
+	body.people = people
+	return body
+
+
+## Janelas acesas de noite: duas por pessoa que o motor põe no prédio (fechado: nenhuma); todas sem estado.
+static func lit_windows(body: Dictionary, windows: int, closed: bool) -> int:
+	if closed:
+		return 0
+	return windows if int(body.people) < 0 else mini(windows, int(body.people) * 2)
+
+
 ## Texto da placa: nome do tipo de local (oficina) ou do tipo de prédio; "Fechado" quando fechado.
 static func sign_text(state: Dictionary) -> String:
 	var name := String(state.get("location_type_name", ""))
