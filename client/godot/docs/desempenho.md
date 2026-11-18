@@ -82,10 +82,15 @@ contrato, aplicar o delta, NPCs e chão; draw calls). Pareado, M1 Pro dividida c
 - `bench:500`: 71,0 / 71,4 / 71,0 (p95 14,96 / 15,04 / 15,16 ms) → 161,0 / 158,6 / 159,4 (p95 7,06 / 7,97 / 8,02).
 - `benchbig:500`: 60,8 / 60,8 / 60,8 (p95 18,23 / 17,54 / 18,02) → 130,6 / 130,9 / 130,5 (p95 8,76 / 8,57 / 8,74).
 - `benchrain:500` (só a entrega): 159,0 / 159,5 / 159,5 (p95 7,36 / 7,14 / 7,21): a chuva forte não custa nada medível.
-- `benchrun:500` (mundo rodando): **24,1 / 25,5 / 24,7** (p95 54,07 / 50,10 / 53,73) → RUN_LINE.
+- `benchrun:500` (mundo rodando): **24,1 / 25,5 / 24,7** (p95 54,07 / 50,10 / 53,73) → 54,8 / 51,2 / 50,5 (p95 30,30 / 25,04 /
+  26,51); depois de a rua só redesenhar quando o chão muda: 54,5 / 50,9 / **48,6** (p95 29,71 / 25,47 / 27,47). No limite do piso.
+Rodada final da entrega sozinha (mesmo comando): `stress` 113,2 / 113,5 / 111,5; `bench` 153,5 / 153,5 / 154,1; `benchbig` 127,9 /
+127,7 / 127,4; `benchrain` 150,1 / 150,8 / 152,9. `client-test.sh` 381 → 394, 0 falhas.
 O mundo pausado escondia duas coisas: o **minimapa refazia os 500 pontos a cada quadro** (a câmera "mudava" todo quadro; agora
 só redesenha quando a câmera anda e os pontos no máximo 4×/s) e, com o mundo rodando, a **pose de 500 bonecos** (pausado, os
 bonecos ficam congelados). A multidão agora refaz a pose a cada 2 quadros perto do centro da vista e a cada 4 na borda (o
 passo é o mesmo; a posição continua todo quadro). O tempo só reconfigura as partículas quando o que cai ou o vento muda (o clima
-chega a cada tick). Custo que sobra com o mundo rodando, por quadro: aplicar o delta ~2–3,5 ms, NPCs ~2,6, contrato ~0,9.
+chega a cada tick) e a malha de ruas não é refeita quando só a umidade (`wetPm`) da célula mudou (vinha a cada tick). Custo que
+sobra com o mundo rodando, por quadro (`bench-cost`): aplicar o delta ~2–3,5 ms (NPCs ~1, clima/observável ~0,5), pose e passo dos
+NPCs ~2,6, contrato ~0,9; o resto é o servidor a 40 ticks/s na mesma máquina. Abaixo de 50 numa rodada: issue (09b item 27).
 
