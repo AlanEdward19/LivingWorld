@@ -17,7 +17,7 @@ public static class CityLayoutSwitch
         bool ad179Off = Environment.GetEnvironmentVariable("LW_AD179") == "off";
         string? ad184 = Environment.GetEnvironmentVariable("LW_AD184");
         bool ad184Off = ad184 == "off";
-        bool ad184Part = ad184 is "nohelpers" or "nobid" or "nohouse"; // AD-184: uma regra só desligada, para atribuir o efeito
+        bool ad184Part = ad184 is "nohelpers" or "nobid" or "nohouse" || ad184?.StartsWith("own", StringComparison.Ordinal) == true; // AD-184: uma regra só, para atribuir o efeito
         if (!layoutOff && !streetsOff && !ad179Off && !Ad185Off && !ad184Off && !ad184Part) return null;
         var rules = layoutOff ? CityLayoutRules.Off : CityLayoutRules.Default;
         if (streetsOff) return rules with { Streets = StreetRules.Off };
@@ -25,6 +25,7 @@ public static class CityLayoutSwitch
         if (ad184Off) rules = rules with { Streets = rules.Streets.WithoutAd184() }; // AD-184: obra como na AD-179
         if (ad184 == "nohelpers") rules = rules with { Streets = rules.Streets with { HelpersBuild = false } };
         if (ad184 == "nohouse") rules = rules with { Streets = rules.Streets with { HouseIsWork = false } };
+        if (ad184?.StartsWith("own", StringComparison.Ordinal) == true) rules = rules with { Streets = rules.Streets with { OwnHomeDaysPerYear = int.Parse(ad184[3..], System.Globalization.CultureInfo.InvariantCulture) } };
         if (ad184 == "nobid") rules = rules with { Streets = rules.Streets with { QuitMargin = 1e9, QuitMarginSlack = 1e9, QuitMarginPeak = 1e9 } };
         return ad179Off ? rules with { Streets = rules.Streets with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } } : rules;
     }
