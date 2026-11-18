@@ -304,14 +304,14 @@ public sealed partial class BehaviorDecisionSystem
         long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location, npc);
         long cargoStart = cargo, cut = 0;
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
-        // AD-185: a casa que traz a água da fonte (não mais longe que o mercado) não a compra; antes a compra da comida enchia a
-        // carga com a água da meta, a carga cortava (×8) e a casa voltava ao mercado pelo resto
+        // AD-185: a casa que traz a água da fonte (não mais longe que o mercado) só compra a água que ainda cabe na carga depois da
+        // comida, e o que não coube não fica devendo na banca (antes a água da meta passava da carga, a ida contava como cortada
+        // ×8 e a casa voltava ao mercado pelo resto)
         bool waterFromSource = WaterFromSource(world, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
-            if (waterFromSource && resourceId == econ.WaterResourceId) continue;
 
             // Água é bem comum: quem não tem uma moeda para pagar ainda enche o balde no poço da aldeia (a oficina que a
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
@@ -357,6 +357,9 @@ public sealed partial class BehaviorDecisionSystem
             // AD-148: banca de comida vazia para quem podia pagar: a casa não volta de hora em hora
             if (isFood && market.Stock.GetValueOrDefault(resource) <= 0 && npc.Wallet.Amount >= unitPrice && provisioning.FoodStallRetryHours > 0)
                 household.FoundFoodStallEmpty(world.CurrentDate.TotalHours, provisioning.FoodStallRetryHours, provisioning.FoodStallMaxRetryHours);
+            if (quantity <= 0) continue;
+            if (waterFromSource && !isFood && cargo != long.MaxValue)
+                quantity = Math.Min(quantity, cargo / world.InventionRules!.UnitGramsOf(resourceId));
             if (quantity <= 0) continue;
             long beforeFit = quantity;
             quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo, ref cut);
