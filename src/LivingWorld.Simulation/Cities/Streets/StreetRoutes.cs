@@ -84,6 +84,9 @@ internal sealed class StreetRouteState
     public int NetCount;
     public readonly Stack<(double[] Dist, int[] Prev)> FieldPool = new();
     public long HubsStamp = long.MinValue;
+    /// <summary>AD-185: marcos do A* (os polos e as quatro pontas da rede): o campo de distância de cada um dá, pela desigualdade
+    /// triangular, um limite inferior muito mais justo que a reta (ALT), e a busca abre poucas células.</summary>
+    public int[] Landmarks = [];
 }
 
 /// <summary>Rota real do NPC (AD-176): da soleira de onde está até a soleira de onde vai, ou em linha reta pelo terreno (pagando
@@ -480,7 +483,22 @@ public static class StreetRoutes
                 if (door >= 0 && state.Entry[door] >= 0) hubs.Add(state.Entry[door]);
             }
         state.HubsStamp = world.Workplaces.Count;
-        if (hubs.SetEquals(state.Hubs)) return;
+        var marks = new SortedSet<int>(hubs.Where(h => state.NetId.Length > h && state.NetId[h] >= 0));
+        int sMin = -1, sMax = -1, dMin = -1, dMax = -1;
+        for (int i = 0; i < state.Walk.Length; i++)
+        {
+            if (!state.Walk[i]) continue;
+            int sum = i % state.W + i / state.W, diff = i % state.W - i / state.W;
+            if (sMin < 0 || sum < sMin % state.W + sMin / state.W) sMin = i;
+            if (sMax < 0 || sum > sMax % state.W + sMax / state.W) sMax = i;
+            if (dMin < 0 || diff < dMin % state.W - dMin / state.W) dMin = i;
+            if (dMax < 0 || diff > dMax % state.W - dMax / state.W) dMax = i;
+        }
+        foreach (int c in new[] { sMin, sMax, dMin, dMax }) if (c >= 0) marks.Add(c);
+        var landmarks = marks.ToArray();
+        bool same = hubs.SetEquals(state.Hubs) && landmarks.AsSpan().SequenceEqual(state.Landmarks);
+        state.Landmarks = landmarks;
+        if (same) return;
         state.Hubs = hubs;
         ClearLegs(state);
         state.Pairs.Clear();
@@ -600,17 +618,29 @@ public static class StreetRoutes
         double hUnit = state.NetRate;
         int w = state.W, tx = x % w, ty = x / w;
         const double Diag = 0.41421356237309515; // √2 − 1
+        var nids = state.NetId;
+        int lmCount = 0;
+        var lmDist = new double[]?[state.Landmarks.Length];
+        var lmToX = new double[state.Landmarks.Length];
+        if (nids[x] >= 0)
+            foreach (int lm in state.Landmarks)
+            {
+                var d = FieldOf(state, lm).Dist;
+                double dx = d[nids[x]];
+                if (double.IsPositiveInfinity(dx)) continue;
+                lmDist[lmCount] = d; lmToX[lmCount] = dx; lmCount++;
+            }
         var seen = state.Seen; var gs = state.G; var prev = state.Prev;
         var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
         int size = 0;
         seen[e] = stamp; gs[e] = 0; prev[e] = -1;
-        Push(state, ref size, Octile(e) * hUnit, e);
+        Push(state, ref size, Octile(e), e);
         while (size > 0)
         {
             double f = state.HeapKey[0];
             int at = Pop(state, ref size);
             double g = gs[at];
-            if (f > g + Octile(at) * hUnit + 1e-12) continue;
+            if (f > g + Octile(at) + 1e-12) continue;
             if (at == x)
             {
                 int length = 0;
@@ -627,16 +657,27 @@ public static class StreetRoutes
                 double c = g + adjCost[j];
                 if (seen[m] == stamp && c >= gs[m]) continue;
                 seen[m] = stamp; gs[m] = c; prev[m] = at;
-                Push(state, ref size, c + Octile(m) * hUnit, m);
+                Push(state, ref size, c + Octile(m), m);
             }
         }
         state.Legs[key] = leg;
         return leg;
 
+        // limite inferior do custo de c até x: a reta no passo mais barato da rede, ou o dos marcos (o maior dos dois)
         double Octile(int c)
         {
             int ddx = Math.Abs(c % w - tx), ddy = Math.Abs(c / w - ty);
-            return Math.Max(ddx, ddy) + Diag * Math.Min(ddx, ddy);
+            double h = (Math.Max(ddx, ddy) + Diag * Math.Min(ddx, ddy)) * hUnit;
+            int nc = nids[c];
+            if (nc >= 0)
+                for (int k = 0; k < lmCount; k++)
+                {
+                    double dc = lmDist[k]![nc];
+                    if (double.IsPositiveInfinity(dc)) continue;
+                    double b = Math.Abs(lmToX[k] - dc) * (1 - 1e-12);
+                    if (b > h) h = b;
+                }
+            return h;
         }
     }
 
