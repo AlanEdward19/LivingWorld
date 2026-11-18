@@ -105,6 +105,15 @@ internal sealed record VentureCapital(
             Credit.LoanOffer? found = null;
             for (int t = term; found is null && t <= maxTerm; t += 12)
                 found = Credit.Lending.Find(world, founder, missing, t, collateral: true, capacity, why);
+            // o credor parente que também põe a parte dele (o cônjuge na parte do casal, o sócio) não empresta a mesma moeda duas
+            // vezes: sem carteira para as duas, não há empréstimo (antes a conta passava e o débito da parte falhava na hora)
+            if (found?.Lender is { } lender)
+            {
+                long committed = 0;
+                foreach (var (p, put) in partners) if (p.Id == lender.Id) committed += put;
+                if (spouse is not null && lender.Id == spouse.Id) committed += Math.Max(0, own + kept - founder.Wallet.Amount);
+                if (lender.Wallet.Amount - committed < found.Amount) found = null;
+            }
             if (found is not null) { missing = 0; probe?.Mark("credito_concedido"); }
             else if (why is not null) probe!.Refuse(why.Stage);
             return found;
