@@ -117,10 +117,10 @@ public sealed partial class CropSystem
         return field.ArableSeed > 0 ? Math.Min(target, field.ArableSeed) : target;
     }
 
-    /// <summary>AD-190: depois da carestia a cidade semeia mais. Por cidade, o que falta no celeiro e na semente das fazendas dela
-    /// para <see cref="AgricultureRules.InitialProvisionPerPerson"/> por morador (o bastante para chegar à colheita) aumenta a
-    /// semente desejada em até <see cref="AgricultureRules.DearthSowBoost"/> (1 = o dobro com o celeiro vazio), ainda presa às
-    /// mãos e à terra. Antes a semeadura era só a das bocas (150 por morador, "sem margem para ano ruim"): uma quebra no
+    /// <summary>AD-190: com a reserva curta a cidade semeia mais. Por cidade, o que falta no celeiro e na semente das fazendas dela
+    /// para duas vezes <see cref="AgricultureRules.InitialProvisionPerPerson"/> por morador (o que chega à colheita, mais outro tanto
+    /// de reserva) aumenta a semente desejada em até metade de <see cref="AgricultureRules.DearthSowBoost"/>, ainda presa às mãos e à
+    /// terra; abaixo do que chega à colheita, não (a semente a mais seria o pão de agora). Antes a semeadura era só a das bocas (150 por morador, "sem margem para ano ruim"): uma quebra no
     /// primeiro ano deixava a cidade média sem reserva e ela semeava o mesmo, ano após ano, com a fome por perto.</summary>
     private static Dictionary<CityId, double> DearthSowBoost(AgricultureRules ag, List<(Workplace Farm, CropBatch Field)> farms, Dictionary<CityId, long> residents)
     {
@@ -132,7 +132,10 @@ public sealed partial class CropSystem
         {
             long mouths = residents.GetValueOrDefault(city);
             if (mouths <= 0) continue;
-            double shortfall = Math.Clamp(1.0 - store / (double)(mouths * ag.InitialProvisionPerPerson), 0, 1);
+            double provision = mouths * (double)ag.InitialProvisionPerPerson;
+            // a semente a mais sai do que passa de chegar à colheita: com menos que isso, comer vem antes (a carestia não semeia o pão)
+            if (store < provision) continue;
+            double shortfall = Math.Clamp(1.0 - store / (2 * provision), 0, 1);
             boost[city] = 1.0 + ag.DearthSowBoost * shortfall;
         }
         return boost;

@@ -40,15 +40,12 @@ public sealed class MutualAidSystem : ISimulationSystem
         var economy = world.EconomyRules;
         if (!economy.Enabled) return;
 
-        long floorPrice = Math.Max(1, economy.PriceFloor.GetValueOrDefault(economy.FoodResourceId, 1));
+        long unitPrice = Math.Max(1, economy.PriceFloor.GetValueOrDefault(economy.FoodResourceId, 1));
+        long dailyCostPerPerson = 2 * unitPrice; // comida + água, uma unidade de cada por dia
         var food = new ResourceType(economy.FoodResourceId);
         var water = new ResourceType(economy.WaterResourceId);
         long day = ctx.CurrentTick / world.CurrentDate.Calendar.HoursPerDay;
         _alms.Clear();
-        // AD-190: a semana de comida vale o que custa hoje na venda da cidade, não o preço mínimo da regra. Antes a esmola e a
-        // ajuda davam 14 moedas por semana (1 por unidade) com o pão a 5–20: o velho só e o órfão sem moeda recebiam um a três dias
-        // de comida por semana e morriam de fome com comida à venda; e a casa com 8 moedas contava como tendo quatro dias.
-        var cityPrices = world.FamilyRules.Pressure is { AidAtMarketPrice: true } ? GoingPrices(world, food, water) : null;
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value))
         {
@@ -59,9 +56,6 @@ public sealed class MutualAidSystem : ISimulationSystem
                 .ToList();
             if (members.Count == 0) continue;
 
-            long unitPrice = floorPrice, dailyCostPerPerson = 2 * floorPrice; // comida + água, uma unidade de cada por dia
-            if (cityPrices is not null && cityPrices.TryGetValue(household.City, out var going))
-                (unitPrice, dailyCostPerPerson) = (Math.Max(floorPrice, going.Food), Math.Max(floorPrice, going.Food) + Math.Max(1, going.Water));
             long count = members.Count;
             bool scarce = household.Stock.GetValueOrDefault(food) < count * NeedyStockDays
                           || household.Stock.GetValueOrDefault(water) < count * NeedyStockDays;
@@ -91,34 +85,6 @@ public sealed class MutualAidSystem : ISimulationSystem
         }
 
         GiveRationedAlms(world, ctx);
-    }
-
-    /// <summary>AD-190: o preço de hoje por cidade — a comida e a água mais baratas entre as vendas da cidade com estoque (sem
-    /// estoque, a mais barata anunciada). Uma passada pelas oficinas por dia.</summary>
-    private static Dictionary<CityId, (long Food, long Water)> GoingPrices(WorldState world, ResourceType food, ResourceType water)
-    {
-        var markets = world.EconomyCatalog.MarketLocationTypeIds;
-        var best = new Dictionary<CityId, (long Food, bool FoodStock, long Water, bool WaterStock)>();
-        foreach (var w in world.Workplaces)
-        {
-            if (w.Closed || !markets.Contains(w.LocationType.Id)) continue;
-            var cur = best.TryGetValue(w.City, out var c) ? c : (long.MaxValue, false, long.MaxValue, false);
-            if (w.Prices.TryGetValue(food, out var fp) && fp > 0)
-            {
-                bool stock = w.Stock.GetValueOrDefault(food) > 0;
-                if ((stock && !cur.Item2) || (stock == cur.Item2 && fp < cur.Item1)) (cur.Item1, cur.Item2) = (fp, stock);
-            }
-            if (w.Prices.TryGetValue(water, out var wp) && wp > 0)
-            {
-                bool stock = w.Stock.GetValueOrDefault(water) > 0;
-                if ((stock && !cur.Item4) || (stock == cur.Item4 && wp < cur.Item3)) (cur.Item3, cur.Item4) = (wp, stock);
-            }
-            best[w.City] = cur;
-        }
-        var result = new Dictionary<CityId, (long Food, long Water)>(best.Count);
-        foreach (var (city, p) in best)
-            if (p.Food != long.MaxValue) result[city] = (p.Food, p.Water == long.MaxValue ? 1 : p.Water);
-        return result;
     }
 
     /// <summary>Pedidos de esmola do dia (quem recebe, quanto falta, cidade que dá), em ordem de casa. Só vive dentro do tick.</summary>

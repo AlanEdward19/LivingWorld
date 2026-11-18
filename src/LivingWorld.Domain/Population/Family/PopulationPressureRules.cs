@@ -50,10 +50,6 @@ public sealed record PopulationPressureRules
     /// casa (2 dias, `ProvisionTargetDays`). Medido na seed 14: 3 dias deixava 433 furtos na quebra, 2 dias 352 (sem a carga, 394).</summary>
     public int FoodAidReserveDays { get; init; } = 2;
 
-    /// <summary>AD-190: a semana de comida da ajuda e da esmola, a reserva de quem socorre e o "tem com que comprar" valem o preço
-    /// de hoje na venda da cidade (a mais barata com estoque), não o piso da regra. Falso = o de antes (piso).</summary>
-    public bool AidAtMarketPrice { get; init; } = true;
-
     /// <summary>AD-190: a casa sem comida que os seus não socorreram é vista pelos vizinhos: os <see cref="NeighbourAidHouses"/>
     /// mais perto na cidade decidem, cada um pelo altruísmo (o mesmo sorteio da ajuda, sem o peso do laço), mandar comida da
     /// despensa acima da reserva. Antes só parente, gente de afeto e linhagem eram chamados: o órfão e o velho sós, sem moeda ou
