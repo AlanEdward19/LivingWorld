@@ -60,8 +60,7 @@ public static class PersonalCarry
     private static bool FarFromHome(WorldState world, Npc npc, Household home, CellCoord cell, bool outbound)
     {
         var memo = world.Invention!.ReachMemo;
-        // AD-180: a lama e a neve mudam a ida de um dia para o outro; a memória vale só no mesmo tempo do dia
-        long touches = unchecked(world.Invention.Touches + (world.Weather is { } weather ? (weather.Day + 1) * 1_000_000_007L : 0));
+        long touches = world.Invention.Touches;
         int bonus = Mobility.BonusPct(world, npc.City);
         long id = home.Id.Value;
         bool keyed = id is >= 0 and < (1L << 29);
@@ -70,8 +69,8 @@ public static class PersonalCarry
             && known.Touches == touches && known.Bonus == bonus)
             return known.Out;
         bool far = (outbound
-            ? Mobility.TravelTicks(world, npc, home.Location, cell, 1.0)
-            : Mobility.TravelTicks(world, npc, cell, home.Location, 1.0)) > 1;
+            ? Mobility.TravelTicks(world, npc, home.Location, cell, 1.0, weather: false) // AD-180: "longe" é distância, não o chão do dia
+            : Mobility.TravelTicks(world, npc, cell, home.Location, 1.0, weather: false)) > 1;
         if (!keyed) return far;
         if (memo.Count >= 8192) memo.Clear();
         memo[key] = new ReachKnown(home.Location, npc.City, touches, bonus, far);

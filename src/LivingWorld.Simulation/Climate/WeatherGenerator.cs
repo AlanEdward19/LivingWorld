@@ -23,29 +23,50 @@ public static class WeatherGenerator
     public static double NormalRainMm(WeatherRules r, double dayOfYear, int daysPerMonth, int monthsPerYear) =>
         r.Interpolate(r.RainMmPerMonth, dayOfYear, daysPerMonth, monthsPerYear) * monthsPerYear / 365.0;
 
+    private readonly record struct Climatology(double Sd, double Clim, double Freq, double NormalMm, double Range, double Wind);
+
+    [ThreadStatic] private static (WeatherRules? Rules, double Day, int Dpm, int Mpy, Climatology Value) _day;
+
+    /// <summary>A climatologia do dia, igual para todas as regiões: calculada uma vez por dia (antes era por região).</summary>
+    private static Climatology DayClimate(WeatherRules r, double dayOfYear, int daysPerMonth, int monthsPerYear)
+    {
+        var known = _day;
+        if (ReferenceEquals(known.Rules, r) && known.Day == dayOfYear && known.Dpm == daysPerMonth && known.Mpy == monthsPerYear) return known.Value;
+        var value = new Climatology(
+            r.Interpolate(r.AnomalySdC, dayOfYear, daysPerMonth, monthsPerYear),
+            r.Interpolate(r.MeanTempC, dayOfYear, daysPerMonth, monthsPerYear),
+            Math.Clamp(r.Interpolate(r.WetDaysPerMonth, dayOfYear, daysPerMonth, monthsPerYear) / (365.0 / monthsPerYear), 0.02, 0.95),
+            NormalRainMm(r, dayOfYear, daysPerMonth, monthsPerYear),
+            r.Interpolate(r.DiurnalRangeC, dayOfYear, daysPerMonth, monthsPerYear),
+            r.Interpolate(r.WindMs, dayOfYear, daysPerMonth, monthsPerYear));
+        _day = (r, dayOfYear, daysPerMonth, monthsPerYear, value);
+        return value;
+    }
+
     /// <summary>Avança a linha um dia. <paramref name="first"/> = o primeiro dia do mundo (chuva média e chão meio molhado).</summary>
     public static void Step(
         WeatherRules r, WeatherRegionRow row, Draws shared, Draws local, double dayOfYear, int daysPerMonth, int monthsPerYear,
         bool first)
     {
+        var c = DayClimate(r, dayOfYear, daysPerMonth, monthsPerYear);
         double w = Math.Clamp(r.SharedShare, 0, 1);
         double z = row.RegimeMilli / 1000.0;
         double rho = Math.Clamp(r.AnomalyPersistence, 0, 0.99);
-        double sd = r.Interpolate(r.AnomalySdC, dayOfYear, daysPerMonth, monthsPerYear);
+        double sd = c.Sd;
         double shock = Math.Sqrt(w) * shared.TempNormal + Math.Sqrt(1 - w) * local.TempNormal;
         double anomaly = (first ? 0 : rho * row.AnomalyCenti / 100.0) + sd * Math.Sqrt(1 - rho * rho) * shock;
-        double clim = r.Interpolate(r.MeanTempC, dayOfYear, daysPerMonth, monthsPerYear);
+        double clim = c.Clim;
         double mean = clim + anomaly + z * r.RegimeTempC;
 
         // chuva: cadeia de Markov de dois estados; a frequência do mês, mudada pelo regime do ano
-        double normalFreq = Math.Clamp(r.Interpolate(r.WetDaysPerMonth, dayOfYear, daysPerMonth, monthsPerYear) / (365.0 / monthsPerYear), 0.02, 0.95);
+        double normalFreq = c.Freq;
         double freq = Math.Clamp(normalFreq * (1 + z * r.RegimeRainShare), 0.02, 0.95);
         double p11 = Math.Max(Math.Clamp(r.WetAfterWet, 0, 0.99), freq + 0.01);
         double p01 = freq * (1 - p11) / (1 - freq);
         bool shareDraw = local.Pick < w;
         double u = shareDraw ? shared.RainU : local.RainU;
         bool wet = u < (row.Wet && !first ? p11 : p01);
-        double normalMm = NormalRainMm(r, dayOfYear, daysPerMonth, monthsPerYear);
+        double normalMm = c.NormalMm;
         double intensity = Math.Max(1.0, normalMm / normalFreq); // o regime muda quantos dias chovem, não quanto chove por dia
         double amount = 0;
         if (wet)
@@ -55,14 +76,14 @@ public static class WeatherGenerator
         }
 
         // nublado e chuvoso: amplitude menor; seco e limpo: maior (a média do mês continua a da fonte)
-        double range = r.Interpolate(r.DiurnalRangeC, dayOfYear, daysPerMonth, monthsPerYear);
+        double range = c.Range;
         range *= wet ? 0.75 : (1 - 0.75 * freq) / (1 - freq);
         double min = mean - range / 2, max = mean + range / 2;
 
         var kind = !wet ? Precipitation.None : mean <= r.SnowAtOrBelowC ? Precipitation.Snow : Precipitation.Rain;
         bool storm = wet && amount >= r.StormAtOrAboveMm;
         double windU = shareDraw ? shared.WindU : local.WindU;
-        double wind = r.Interpolate(r.WindMs, dayOfYear, daysPerMonth, monthsPerYear) * (0.5 + windU);
+        double wind = c.Wind * (0.5 + windU);
         if (storm) wind = Math.Max(wind, r.StormWindMs);
 
         // neve no chão e o que ela solta derretendo

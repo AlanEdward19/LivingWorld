@@ -40,12 +40,17 @@ public static class Mobility
 
     /// <summary>Ponto único da duração de um deslocamento de NPC (trabalho, cama, mercado, visita, migração): custo do mapa
     /// escalado pelo corpo/poder, encurtado pela tecnologia que a cidade do NPC adotou. Local distinto custa ao menos 1 tick.</summary>
-    public static long TravelTicks(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier)
+    public static long TravelTicks(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier) =>
+        TravelTicks(world, npc, origin, destination, bodyMultiplier, weather: true);
+
+    /// <summary><paramref name="weather"/> = false: a distância de caminhada sem o chão do dia (lama, neve), para quem só pergunta
+    /// "é perto?" (AD-180).</summary>
+    public static long TravelTicks(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier, bool weather)
     {
         long ticks = world.StreetsOn ? Routed(world, npc.Household, origin, destination, bodyMultiplier)
             : WaterAware(world, npc.Household, origin, destination, bodyMultiplier)
             ?? TravelResolution.TicksBetween(world.Map, origin, destination, bodyMultiplier);
-        return ticks == 0 ? 0 : Math.Max(1, Apply(Weathered(world, origin, destination, ticks), BonusPct(world, npc.City)));
+        return ticks == 0 ? 0 : Math.Max(1, Apply(weather ? Weathered(world, origin, destination, ticks) : ticks, BonusPct(world, npc.City)));
     }
 
     /// <summary>AD-180: lama na parte sem calçamento da rota e neve na rota toda alongam a viagem (o tempo do lugar de saída).</summary>
