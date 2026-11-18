@@ -31,26 +31,26 @@ curl -fs -X POST -H 'Content-Type: application/json' --data @"$WORK/create.json"
 "$GODOT" --headless --path "$CLIENT" --editor --import --quit >/dev/null 2>&1 || true
 export LW_API_URL="http://localhost:$PORT"
 ONLY="${LW_BENCH_ONLY:-}" ## "run": só a medida com o mundo rodando (diagnóstico)
-[ "$ONLY" = run ] && ROUNDS_PAUSED=0 || ROUNDS_PAUSED="$ROUNDS"
-for _ in $(seq 1 "$ROUNDS_PAUSED"); do
+paused_rounds() { [ "$ONLY" = run ] || seq 1 "$ROUNDS"; } ## (o `seq 1 0` do macOS conta para trás)
+for _ in $(paused_rounds); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:2;stress:500;quit' 2>&1 | grep '^stress:' || echo 'stress: falhou'
 done
-for _ in $(seq 1 "$ROUNDS_PAUSED"); do
-  "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep '^bench:' || echo 'bench: falhou'
+for _ in $(paused_rounds); do
+  "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep -E '^bench(:|-cost:)' || echo 'bench: falhou'
 done
-for _ in $(seq 1 "$ROUNDS_PAUSED"); do
+for _ in $(paused_rounds); do
   "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;benchbig:500;quit' 2>&1 | grep '^benchbig:' || echo 'benchbig: falhou'
 done
 # AD-188: chuva forte sintética no cliente (mundo ainda pausado, compara com `bench`).
 if grep -q '"rain"' "$CLIENT/Scenes/dev_steps.gd" 2>/dev/null; then
-  for _ in $(seq 1 "$ROUNDS_PAUSED"); do
+  for _ in $(paused_rounds); do
     "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;rain:heavy;bench:500;quit' 2>&1 | grep '^bench:' | sed 's/^bench:/benchrain:/' || echo 'benchrain: falhou'
   done
 fi
 # AD-188: mundo rodando (antes ficava pausado: sem rota nem delta de rua).
-curl -fs -X POST -H 'X-Admin-Token: bench' -H 'Content-Type: application/json' --data '{"ticksPerSecond":40}' "http://localhost:$PORT/simulation/speed" >/dev/null
+curl -fs -X POST -H 'X-Admin-Token: bench' -H 'Content-Type: application/json' --data "{\"ticksPerSecond\":${LW_BENCH_TPS:-40}}" "http://localhost:$PORT/simulation/speed" >/dev/null
 curl -fs -X POST -H 'X-Admin-Token: bench' "http://localhost:$PORT/simulation/resume" >/dev/null
 sleep 5
 for _ in $(seq 1 "$ROUNDS"); do
-  "$GODOT" --path "$CLIENT" -- --steps 'wait:3;city;wait:3;bench:500;quit' 2>&1 | grep -E '^bench(:|-cost:)' | sed 's/^bench:/benchrun:/' || echo 'benchrun: falhou'
+  "$GODOT" --path "$CLIENT" -- --steps "${LW_BENCH_RUN_STEPS:-wait:3;city;wait:3;bench:500;quit}" 2>&1 | grep -E '^bench(:|-cost:)' | sed 's/^bench:/benchrun:/' || echo 'benchrun: falhou'
 done

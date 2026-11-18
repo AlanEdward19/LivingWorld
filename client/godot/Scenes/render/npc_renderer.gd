@@ -358,7 +358,10 @@ func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: b
 		var distance: float = actor.position.distance_to(view_center)
 		var near: bool = not bubble_zoom and distance <= view_radius
 		actor.set_detail(detail_zoom and distance <= detail_radius)
-		actor.tick(delta, near, not crowded or (id + _frame) % 2 == 0)
+		# multidão: pose a cada 2 quadros perto do centro da vista e a cada 4 na borda (o tempo pulado se acumula: o passo não
+		# muda, só a frequência com que a pose é refeita); a posição continua todo quadro (AD-188, medida com o mundo rodando)
+		var stride := 1 if not crowded else (2 if distance <= view_radius * 0.5 or id == selected else 4)
+		actor.tick(delta, near, (id + _frame) % stride == 0)
 	_link_clock += delta
 	if _link_clock >= LINK_SECONDS:
 		_link_clock = 0.0

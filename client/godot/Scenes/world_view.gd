@@ -19,6 +19,7 @@ const BuildingLabels := preload("res://Scenes/render/building_labels.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const WeatherRenderer := preload("res://Scenes/render/weather_renderer.gd")
 const WeatherLook := preload("res://Scenes/render/weather_look.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 const Grid := preload("res://Scenes/grid.gd")
 
 signal weather_changed(weather: Dictionary) ## tempo sob a câmera mudou (o app atualiza o sol e o indicador)
@@ -308,12 +309,16 @@ func set_lod(level: String) -> void:
 
 
 func _process(delta: float) -> void:
+	var started := Time.get_ticks_usec()
 	npcs.advance(delta, view_center, view_radius, far_zoom, bubble_zoom)
+	FrameCost.add("npcs", started)
 	route_line.step(delta, [npcs.selected, followed_npc], npcs.nodes)
+	started = Time.get_ticks_usec()
 	if _ground_dirty:
 		_ground_dirty = false
 		ground.rebuild(true) # rua por delta: nasce, muda e some em transição
 	ground.step(delta)
+	FrameCost.add("ground", started)
 	fauna.step(delta) # animais deslizam entre os deltas (AD-188)
 	building_labels.set_zoom(zoom_size, lod != "world")
 	events.advance(delta)

@@ -228,6 +228,8 @@ static func run(app: Node, steps: Array) -> void:
 					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas e prédios de teste, colocados em grade. Isto não é o mundo do jogo."
 					app.banner.visible = true
 				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
+			"unsub": # só medida (AD-188): para de receber deltas (separa o custo do cliente do da máquina dividida com o servidor)
+				app.stream.close()
 			"rain": # só medida/captura (AD-188): tempo sintético local (`rain:heavy|moderate|light`, `rain:snow`); o motor não muda
 				var snow := arg == "snow"
 				var fake := {"precipitation": "snow" if snow else "rain", "intensity": "heavy" if snow else (arg if arg != "" else "heavy"),
@@ -370,6 +372,10 @@ static func _bench(app: Node, total: int, big: bool = false) -> void:
 			if not costed:
 				costed = true
 				FrameCost.reset()
+			FrameCost.usec["~process"] = int(FrameCost.usec.get("~process", 0)) + int(Performance.get_monitor(Performance.TIME_PROCESS) * 1000000.0)
+			FrameCost.count["~process"] = int(FrameCost.count.get("~process", 0)) + 1
+			FrameCost.usec["~draws"] = int(FrameCost.usec.get("~draws", 0)) + int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)) * 1000
+			FrameCost.count["~draws"] = int(FrameCost.count.get("~draws", 0)) + 1
 		if clock >= next_step:
 			next_step += 0.5
 			for id in synthetic:
@@ -389,7 +395,8 @@ static func _bench(app: Node, total: int, big: bool = false) -> void:
 	print("%s: scope=%s npcs=%d buildings=%d fps_avg=%.1f p95_ms=%.2f frames=%d vsync=%d" % ["benchbig" if big else "bench", app.store.kind, app.store.npcs.size(),
 		app.store.buildings.size(), frame_ms.size() / (total_ms / 1000.0) if total_ms > 0 else 0.0, p95, frame_ms.size(),
 		DisplayServer.window_get_vsync_mode()])
-	print("bench-cost: ", FrameCost.report())
+	print("bench-cost: ", FrameCost.report(), " walkers=", app.world_view.npc_nodes.values().filter(func(a): return a.walk != null).size(),
+		" nodes=", Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
 
 
 ## Janelas com dados de exemplo (só para capturas de tela): `demo:biografia|cronica|crencas|relatos|tecnologias|tesouro|vendas`.

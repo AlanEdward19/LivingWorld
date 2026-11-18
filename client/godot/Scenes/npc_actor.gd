@@ -669,7 +669,8 @@ func _reset_pose() -> void:
 	for i in _legs.size():
 		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
 	_torso.scale = Vector3.ONE
-	_shirt.emission = Color.BLACK
+	if _shirt.emission != Color.BLACK: # só o poder acende a roupa: não reenvia o material de 500 NPCs a cada quadro
+		_shirt.emission = Color.BLACK
 
 
 func _animate() -> void:
