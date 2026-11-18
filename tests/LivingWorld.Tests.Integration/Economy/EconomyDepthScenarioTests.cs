@@ -84,7 +84,8 @@ public class EconomyDepthScenarioTests
     [Fact]
     public void House_build_consumes_exactly_the_recipe_from_city_stock()
     {
-        var (world, _) = Load(seed: 1);
+        // AD-184: só o sistema da fila roda (ninguém trabalha): a receita anda um tick por dia, sem a turma ligada por padrão
+        var (world, _) = LoadWith(1, 40, root => root["CityLayout"] = new JsonObject { ["Streets"] = new JsonObject { ["BuildNeedsCrew"] = false } });
         var city = world.ActiveCities().Single();
         var recipe = world.CityCatalog.BuildingRecipes[10];
         Assert.Equal(20, recipe.Inputs[Wood]);

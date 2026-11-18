@@ -18,12 +18,15 @@ public class AutonomousConstructionTests
 {
     private static readonly ResourceType Timber = new(1);
 
+    // AD-184: estes testes medem a fila da cidade sem gente (o estoque e o prazo da receita); a obra com turma (ligada por
+    // padrão) é coberta em SiteWorkTests e BuildWorksTests, então aqui a fila anda um tick da receita por dia, como antes
     private static CityRules MakeRules() => CityRules.Create(
         enabled: true, foodShortageThreshold: 100, housingShortageThreshold: 100, securityShortageThreshold: 100,
         emigrationRatePerDeficitUnit: 0, migrationEmploymentWeight: 1, migrationFoodWeight: 1,
         migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 1,
         foundingResourceThreshold: 1, foundingRouteThreshold: 1, foundingDefensibilityThreshold: 1,
-        foundingLeadershipThreshold: 1, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5).Value!;
+        foundingLeadershipThreshold: 1, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5).Value!
+        with { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
 
     private static CityCatalog HousingCatalog(long timberCost = 10, long ticks = 3, long capacity = 4) => new(
         new Dictionary<int, BuildingRecipe>

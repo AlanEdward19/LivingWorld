@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Works;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
@@ -21,6 +22,23 @@ internal static class ConstructionWorks
         project.Stalled = true;
         WorkEvents.Log(ctx, WorldEventKind.WorkStalled, id, city.Id.Value, TypeOf(project), project.SiteX, project.SiteY,
             (idle / world.Calendar.HoursPerDay).ToString(System.Globalization.CultureInfo.InvariantCulture), cause: project.StartEventId);
+    }
+
+    internal static bool Abandoned(WorldState world, TickContext ctx, City city, ConstructionProject project)
+    {
+        if (project.WorkId is not { } id || project.LastProgressTick is not { } last) return false;
+        long idle = ctx.CurrentTick - last;
+        if (idle <= world.StreetRules.SiteStaleMonths * world.Calendar.HoursPerMonth) return false;
+        if (project.Canteiro is { } b && world.FindBuilding(new BuildingId(b)) is { UnderWork: not null } canteiro) world.RemoveBuilding(canteiro);
+        foreach (long npc in project.Crew)
+            ctx.LogEvent(WorldEventKind.SiteWorkLeft, $"{npc}|{id}|desfeita", sourceSystem: LivingWorld.Simulation.Cities.Streets.SiteWork.SourceSystem);
+        project.Crew.Clear();
+        city.RemoveConstructionProject(project);
+        LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
+        WorkEvents.Log(ctx, WorldEventKind.WorkAbandoned, id, city.Id.Value, TypeOf(project), project.SiteX, project.SiteY,
+            $"sem-mao|{project.HoursWorked}", cause: project.StartEventId);
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
+        return true;
     }
 
     internal static void Progressed(WorldState world, TickContext ctx, City city, ConstructionProject project, long now)

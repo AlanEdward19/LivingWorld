@@ -11,8 +11,7 @@ namespace LivingWorld.Simulation.Cities.Streets;
 /// A obra não anda sozinha: só as horas de quem está no trecho contam, pagas por hora a quem as trabalhou
 /// (<see cref="SiteWork.Clock"/>, quando a jornada acaba). Pronta, a célula ganha o calçamento com condição cheia (a rede muda na
 /// revisão seguinte).</summary>
-[LivingCapability("STREETS", Events = [WorldEventKind.StreetWorkDone, WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft,
-    WorldEventKind.WorkStalled, WorldEventKind.WorkAbandoned],
+[LivingCapability("STREETS", Events = [WorldEventKind.StreetWorkDone, WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft],
     Consumers = ["streets.surface", "economy.wallet", "behavior.work-destination"])]
 public sealed class PavingWorksSystem : ISimulationSystem
 {
