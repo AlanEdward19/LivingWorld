@@ -144,9 +144,9 @@
       "Seed": 18,
       "VitalityDifference": -0.036359813359149284,
       "OpennessDifference": 0.06605754427985588,
-      "MinimumVitalityCv": 0.3063396196980987,
-      "MinimumAlive": 69,
-      "FinalAlive": 206
+      "MinimumVitalityCv": 0.29622690642543686,
+      "MinimumAlive": 88,
+      "FinalAlive": 169
     },
     {
       "Seed": 19,

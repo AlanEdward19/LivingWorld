@@ -12,16 +12,13 @@ namespace LivingWorld.Simulation.Economy.Market;
 /// recalcular origens × mercados a cada hora era o maior custo do tick de decisão.</summary>
 public sealed class MarketIndex
 {
-    private readonly HashSet<CellCoord> _origins;
-    private readonly Dictionary<CellCoord, Workplace?> _nearestByOrigin;
+    private readonly Memo _memo;
     private readonly Workplace[] _markets;
     private readonly WorldState _world;
 
-    private MarketIndex(
-        HashSet<CellCoord> origins, Dictionary<CellCoord, Workplace?> nearestByOrigin, Workplace[] markets, WorldState world)
+    private MarketIndex(Memo memo, Workplace[] markets, WorldState world)
     {
-        _origins = origins;
-        _nearestByOrigin = nearestByOrigin;
+        _memo = memo;
         _markets = markets;
         _world = world;
     }
@@ -79,18 +76,33 @@ public sealed class MarketIndex
     private static bool Sells(Workplace market, ResourceType resource) =>
         market.Stock.GetValueOrDefault(resource) > 0 && market.Prices.TryGetValue(resource, out var price) && price > 0;
 
-    public Workplace? NearestTo(CellCoord origin) =>
-        _origins.Contains(origin) && _nearestByOrigin.TryGetValue(origin, out var market) ? market : null;
+    public Workplace? NearestTo(CellCoord origin)
+    {
+        var memo = _memo;
+        int i = memo.CellOf(origin);
+        if (i < 0) return memo.OffOrigins.Contains(origin) && memo.OffNearest.TryGetValue(origin, out var off) ? off : null;
+        return memo.OriginMark[i] == memo.Mark && memo.Known[i] ? memo.Nearest[i] : null;
+    }
 
+    /// <summary>AD-187: a visão do tick e o mais perto por célula em vetores do tamanho do mapa (marca do tick por célula, sem hash:
+    /// eram duas consultas de tabela por pessoa viva a cada hora); célula fora do mapa (não deveria haver) no conjunto de antes.</summary>
     private sealed class Memo
     {
         public WorldMap? Map;
         public (long, int, bool) Routes;
         public Workplace[] Markets = [];
         public CellCoord[] MarketLocations = [];
-        public readonly Dictionary<CellCoord, Workplace?> Nearest = new();
-        /// <summary>Reaproveitado a cada tick (a visão do tick anterior já foi descartada).</summary>
-        public readonly HashSet<CellCoord> Origins = new();
+        public int W, H;
+        public Workplace?[] Nearest = [];
+        public bool[] Known = [];
+        /// <summary>Reaproveitado a cada tick (a visão do tick anterior já foi descartada): a célula está na visão quando a marca
+        /// dela é a do tick.</summary>
+        public int[] OriginMark = [];
+        public int Mark;
+        public readonly Dictionary<CellCoord, Workplace?> OffNearest = new();
+        public readonly HashSet<CellCoord> OffOrigins = new();
+
+        public int CellOf(CellCoord c) => c.X >= 0 && c.Y >= 0 && c.X < W && c.Y < H ? c.Y * W + c.X : -1;
     }
 
     private static readonly ConditionalWeakTable<WorldState, Memo> Memos = new();
@@ -111,23 +123,44 @@ public sealed class MarketIndex
             memo.Map = map;
             memo.Markets = markets;
             memo.MarketLocations = markets.Select(m => m.Location).ToArray();
-            memo.Nearest.Clear();
+            if (memo.W != map.Width || memo.H != map.Height)
+            {
+                memo.W = map.Width; memo.H = map.Height;
+                int n = memo.W * memo.H;
+                memo.Nearest = new Workplace?[n]; memo.Known = new bool[n]; memo.OriginMark = new int[n]; memo.Mark = 0;
+            }
+            else
+            {
+                Array.Clear(memo.Nearest);
+                Array.Clear(memo.Known);
+            }
+            memo.OffNearest.Clear();
         }
 
-        var origins = memo.Origins;
-        origins.Clear();
+        if (++memo.Mark == int.MaxValue) { Array.Clear(memo.OriginMark); memo.Mark = 1; }
+        memo.OffOrigins.Clear();
         foreach (var npc in world.AliveNpcIndex.Alive)
-            origins.Add(npc.CurrentLocation);
+            AddOrigin(world, memo, npc.CurrentLocation);
         foreach (var wp in world.Workplaces)
-            origins.Add(wp.Location);
+            AddOrigin(world, memo, wp.Location);
 
-        foreach (var origin in origins)
+        return new MarketIndex(memo, memo.Markets, world);
+    }
+
+    private static void AddOrigin(WorldState world, Memo memo, CellCoord origin)
+    {
+        int i = memo.CellOf(origin);
+        if (i < 0)
         {
-            if (!memo.Nearest.ContainsKey(origin))
-                memo.Nearest[origin] = NearestMarket(world, origin, memo.Markets);
+            if (memo.OffOrigins.Add(origin) && !memo.OffNearest.ContainsKey(origin))
+                memo.OffNearest[origin] = NearestMarket(world, origin, memo.Markets);
+            return;
         }
-
-        return new MarketIndex(origins, memo.Nearest, memo.Markets, world);
+        if (memo.OriginMark[i] == memo.Mark) return;
+        memo.OriginMark[i] = memo.Mark;
+        if (memo.Known[i]) return;
+        memo.Nearest[i] = NearestMarket(world, origin, memo.Markets);
+        memo.Known[i] = true;
     }
 
     /// <summary>Compara o conjunto atual de mercados com o memo sem alocar. Só vale quando
