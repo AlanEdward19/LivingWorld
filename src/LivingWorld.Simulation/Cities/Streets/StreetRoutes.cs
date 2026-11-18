@@ -87,6 +87,10 @@ internal sealed class StreetRouteState
     /// <summary>AD-185: marcos do A* (os polos e as quatro pontas da rede): o campo de distância de cada um dá, pela desigualdade
     /// triangular, um limite inferior muito mais justo que a reta (ALT), e a busca abre poucas células.</summary>
     public int[] Landmarks = [];
+    /// <summary>AD-185: a geometria do acesso de cada prédio (o que a projeção pede a cada quadro), guardada até as rotas mudarem.</summary>
+    public readonly Dictionary<long, (IReadOnlyList<CellCoord> Cells, long? Via, CellCoord? Outlet)> Access = [];
+    public long AccessVersion = long.MinValue;
+    public Dictionary<long, int>? OwnerIndex;
 }
 
 /// <summary>Rota real do NPC (AD-176): da soleira de onde está até a soleira de onde vai, ou em linha reta pelo terreno (pagando
@@ -908,17 +912,29 @@ public static class StreetRoutes
     {
         if (!world.StreetsOn || building.Position is null) return null;
         var state = StateOf(world);
-        int owner = Array.IndexOf(state.OwnerId, building.Id.Value, 1);
-        if (owner <= 0) return null;
+        if (state.AccessVersion != state.RouteVersion * 31 + state.ObstacleTick)
+        {
+            state.Access.Clear();
+            state.OwnerIndex = null;
+            state.AccessVersion = state.RouteVersion * 31 + state.ObstacleTick;
+        }
+        if (state.Access.TryGetValue(building.Id.Value, out var known)) return known;
+        if (state.OwnerIndex is null)
+        {
+            state.OwnerIndex = [];
+            for (int k = 1; k < state.OwnerId.Length; k++) state.OwnerIndex[state.OwnerId[k]] = k;
+        }
+        if (!state.OwnerIndex.TryGetValue(building.Id.Value, out int owner) || owner <= 0) return null;
         int door = state.Door[owner];
-        if (door < 0) return ([], null, null);
+        if (door < 0) return state.Access[building.Id.Value] = ([], null, null);
         long? via = state.DoorOver[owner] ? state.OwnerId[state.Owner[door]] : null;
         int entry = state.AnyNet ? state.Entry[door] : -1;
         var cells = new List<int>();
         if (entry < 0 || entry == door) cells.Add(door);
         else LineCells(state, door, entry, cells, all: true);
-        CellCoord At(int c) => new(c % state.W, c / state.W);
-        return (cells.Select(At).ToList(), via, entry >= 0 ? At(entry) : null);
+        var coords = new CellCoord[cells.Count];
+        for (int i = 0; i < cells.Count; i++) coords[i] = new CellCoord(cells[i] % state.W, cells[i] / state.W);
+        return state.Access[building.Id.Value] = (coords, via, entry >= 0 ? new CellCoord(entry % state.W, entry / state.W) : null);
     }
 
     private static bool Blocked(StreetRouteState state, int x, int y) =>
