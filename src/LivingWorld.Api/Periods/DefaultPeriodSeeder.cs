@@ -94,10 +94,12 @@ public static class DefaultPeriodSeeder
     {
         int c = SideOf(preset) / 2;
         int sets = Math.Max(1, (preset.InitialPopulation + 99) / 100);
+        // AD-185: acima da vila pequena, uma fazenda por 50 moradores (lavouras menores, cada uma perto de um bairro), na borda
+        int farms = sets == 1 ? 1 : Math.Max(1, (preset.InitialPopulation + 49) / 50);
         int ring = sets == 1 ? 0 : SideOf(preset) / 5; // a borda da parte construída (a cidade inicial ocupa ~40% do lado)
         (int Dx, int Dy)[] directions = [(1, 1), (-1, -1), (1, -1), (-1, 1), (1, 0), (-1, 0), (0, 1), (0, -1)];
         var list = new JsonArray();
-        for (int i = 0; i < sets; i++)
+        for (int i = 0; i < farms; i++)
         {
             var (dx, dy) = directions[i % directions.Length];
             int r = dx != 0 && dy != 0 ? ring * 7 / 10 : ring; // na diagonal, o mesmo raio
@@ -106,11 +108,14 @@ public static class DefaultPeriodSeeder
                 ["LocationTypeId"] = 1,
                 ["X"] = c + dx * r,
                 ["Y"] = c + dy * r,
-                ["MaxVacancies"] = 160,
-                ["Treasury"] = 500_000,
+                ["MaxVacancies"] = 160 * sets / farms,
+                ["Treasury"] = 500_000 * sets / farms, // o mesmo caixa de antes, dividido entre as lavouras
                 ["Stock"] = new JsonObject(),
                 ["Prices"] = new JsonObject { ["1"] = 5, ["2"] = 5 },
             });
+        }
+        for (int i = 0; i < sets; i++)
+        {
             list.Add(new JsonObject
             {
                 ["LocationTypeId"] = 2,

@@ -2,7 +2,6 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
@@ -88,10 +87,13 @@ public sealed class WaterFetchTests
         var (world, _) = NewWorld();
         var (home, free, other, _) = Scene(world);
         Drain(world, home);
+        home.Deposit(Water(world), home.Members.Count * 2L); // abaixo de 3 dias, acima de 1: um vai por todos
         Assert.True(WaterFetch.WantsToFetch(world, free, Now(world)));
         free.SetCurrentAction(ActionType.Travel, Now(world));
 
         Assert.False(WaterFetch.WantsToFetch(world, other, Now(world)));
+        Drain(world, home); // abaixo de um dia, vai mais de um
+        Assert.True(WaterFetch.WantsToFetch(world, other, Now(world)));
     }
 
     [Fact]
@@ -101,7 +103,7 @@ public sealed class WaterFetchTests
         var (home, free, other, _) = Scene(world);
         if (other.Employer is null) { var job = world.Workplaces.First(w => !w.Closed); job.Hire(other.Id); other.Hire(job.Id); }
         Drain(world, home);
-        home.Deposit(Water(world), home.Members.Count * 1L); // abaixo de 2 dias, não abaixo de 1
+        home.Deposit(Water(world), home.Members.Count * 1L); // abaixo de 3 dias, não abaixo de 1
 
         Assert.False(WaterFetch.WantsToFetch(world, other, Now(world)));
         Drain(world, home);

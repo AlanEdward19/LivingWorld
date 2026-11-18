@@ -1,11 +1,9 @@
 using LivingWorld.Domain.Behavior;
-using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
-using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Supply;
@@ -61,12 +59,13 @@ public static class WaterFetch
     private static bool CanFetch(WorldState world, Npc npc) =>
         npc.IsAlive && Grown(world, npc) && !LivingWorld.Simulation.Health.SickBehavior.IsBedridden(world, npc.Id);
 
-    /// <summary>A casa tem alguém livre (sem emprego) que pode ir: então quem trabalha não vai (o costume da casa).</summary>
+    /// <summary>A casa tem alguém livre (sem emprego), perto de casa, que pode ir: então quem trabalha não vai (o costume da casa).</summary>
     private static bool FreeMemberCanGo(WorldState world, Household home, Npc except)
     {
         var members = home.Members;
         for (int i = 0; i < members.Count; i++)
-            if (members[i] != except.Id && world.FindNpc(members[i]) is { } m && CanFetch(world, m) && !Employed(world, m)) return true;
+            if (members[i] != except.Id && world.FindNpc(members[i]) is { } m && CanFetch(world, m) && !Employed(world, m)
+                && NearHome(world, m, home)) return true; // livre e por perto: quem está longe não vai
         return false;
     }
 

@@ -342,7 +342,9 @@ public class PersonalCarryTests
     {
         // AD-153: só recipientes (com o veículo de terra a casa pode superar o oco puxando a carga em vez de amarrá-lo ao corpo)
         var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0, ImproveCarrier = improve, LandVehicles = false };
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager);
+        // AD-185: sem a ida à água (o cântaro da casa leva a água; aqui só a compra cortada move o problema de carregar)
+        var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager,
+            naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
         var npc = Adults(world)[0];
         var home = npc.Household!.Value.Value;
         GiveContainer(world, npc, Container(Formable, 4000, strap: false));

@@ -136,7 +136,7 @@ public sealed partial class BehaviorDecisionSystem
         LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc) ? ActionType.Travel
         : routineAction == ActionType.Sleep
             ? CaregiverHearsCry(world, npc, stage) // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
-                // AD-185: sem água em casa e com a fonte ao alcance, levanta e vai buscá-la; senão, ao mercado
+                                                   // AD-185: sem água em casa e com a fonte ao alcance, levanta e vai buscá-la; senão, ao mercado
                 ? LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, world.CurrentDate.TotalHours) ? ActionType.Travel : ActionType.Buy
                 : routineAction
             // AD-185: no tempo livre, com a água da casa baixa, alguém vai buscá-la a pé (antes da compra: a água da fonte é de graça)

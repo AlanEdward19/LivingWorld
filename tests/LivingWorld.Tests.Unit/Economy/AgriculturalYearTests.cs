@@ -95,7 +95,9 @@ public sealed class AgriculturalYearTests
         // AD-176: três seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272)
         long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21 }.Sum(seed =>
         {
-            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
+            // AD-185: sem a ida à água, que muda o dia de todos e embaralha a trajetória (o teste é da parte do ceifeiro)
+            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share },
+                naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
             clock.Run(world, 8L * HoursPerMonth);
             var food = new ResourceType(world.EconomyRules.FoodResourceId);
             return world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
