@@ -29,6 +29,7 @@ public class SeekCompanyTests
         var home = new Household(new HouseholdId(id), at, npc.Id, [npc.Id], city: city.Id);
         world.AddHousehold(home);
         npc.JoinHousehold(home.Id);
+        npc.SetSocial(0, world.CurrentDate.TotalHours); // sente falta de gente
         return npc;
     }
 
@@ -50,6 +51,20 @@ public class SeekCompanyTests
 
         acquaintance.MoveTo(new CellCoord(lonely.CurrentLocation.X + 1, lonely.CurrentLocation.Y), 1);
         Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(world, lonely));
+    }
+
+    [Fact]
+    public void Who_does_not_miss_company_or_is_away_from_home_does_not_go_looking()
+    {
+        var world = World();
+        var city = world.ActiveCities().First().Location;
+        var content = Person(world, 1, new CellCoord(city.X + 6, city.Y));
+        content.SetSocial(100, world.CurrentDate.TotalHours);
+        Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(world, content));
+
+        var away = Person(world, 2, new CellCoord(city.X - 6, city.Y));
+        away.MoveTo(new CellCoord(city.X - 6, city.Y + 4), 1);
+        Assert.Null(BehaviorDecisionSystem.CompanyDestinationOf(world, away));
     }
 
     [Fact]

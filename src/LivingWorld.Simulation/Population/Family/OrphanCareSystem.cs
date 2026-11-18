@@ -46,7 +46,7 @@ public sealed class OrphanCareSystem : ISimulationSystem
         var rules = world.LifeStageRules;
         var now = world.CurrentDate;
         List<Npc>? orphans = null;
-        foreach (var npc in world.Npcs)
+        foreach (var npc in world.AliveNpcIndex.Alive) // vivos em ordem de id (antes: a lista toda, mortos inclusive)
         {
             if (!npc.IsAlive || rules.LifeStageOf(npc.AgeYears(now)) != LifeStage.Child) continue;
             bool covered = npc.Household is { } id && world.FindHousehold(id) is { } home

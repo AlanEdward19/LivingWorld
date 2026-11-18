@@ -68,15 +68,34 @@ public sealed partial class BehaviorDecisionSystem
     }
 
     /// <summary>AD-186: para onde vai quem quer conversar e não tem ninguém perto (<see cref="PsycheRules.SeekCompany"/>): o conhecido
-    /// vivo da mesma cidade de quem mais gosta (afeto acima de zero; empate pelo menor id), onde ele está agora, se lá fica a menos de
-    /// uma hora da casa; sem ninguém, o largo da cidade (o centro), onde a gente passa. Nulo: há alguém por perto, a regra está
+    /// vivo da mesma cidade de quem mais gosta (afeto acima de zero; empate pelo menor id), onde ele está agora, se lá fica a até
+    /// <c>SeekCompanyMaxCells</c> células da casa; sem ninguém, o largo da cidade (o centro), onde a gente passa. Nulo: há alguém por perto, a regra está
     /// desligada, ou não há aonde ir. Só lê; a vizinhança é a mesma janela que a conversa olha (<c>SocializeRadius</c>).</summary>
     internal static CellCoord? CompanyDestinationOf(WorldState world, Npc npc)
     {
         var psyche = world.NeedsRules.Psyche;
         if (!psyche.Enabled || !psyche.SocializeNeedsCompany || !psyche.SeekCompany || world.FamilyRules.Bonds is not { } bonds) return null;
         if (npc.Household is not { } hh || world.FindHousehold(hh) is not { } home) return null;
+        // só quem está em casa e sente falta de gente (convívio abaixo da linha de urgência) sai à procura; o resto conversa onde está
+        long now = world.CurrentDate.TotalHours;
+        if (npc.CurrentLocation != home.Location && npc.TravelPurpose != ActionType.Socialize) return null;
+        if (100 - npc.SocialAt(now) <= world.NeedsRules.UrgencyThreshold) return null;
+        // a mesma pergunta volta no refino, na saída, na chegada agendada e na conclusão do mesmo tick: só memória do tick
+        var last = _company;
+        if (ReferenceEquals(last.World, world) && last.Npc == npc.Id.Value && last.Tick == now && last.From == npc.CurrentLocation)
+            return last.Result;
+        var result = ComputeCompanyDestination(world, npc, home, bonds);
+        _company = (world, npc.Id.Value, now, npc.CurrentLocation, result);
+        return result;
+    }
+
+    [ThreadStatic] private static (WorldState? World, long Npc, long Tick, CellCoord From, CellCoord? Result) _company;
+
+    private static CellCoord? ComputeCompanyDestination(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household home,
+        LivingWorld.Domain.Population.Family.SocialBondRules bonds)
+    {
         var here = npc.CurrentLocation;
+        var psyche = world.NeedsRules.Psyche;
         if (SomeoneWithin(world, npc, here, bonds.SocializeRadius)) return null;
 
         CellCoord? best = null;
@@ -90,7 +109,8 @@ public sealed partial class BehaviorDecisionSystem
             if (affection <= 0 || affection < bestAffection || (affection == bestAffection && targets[i].Value > bestId)) continue;
             if (world.FindNpc(targets[i]) is not { IsAlive: true } friend || friend.City != npc.City) continue;
             var cell = friend.CurrentLocation;
-            if (cell == here || LivingWorld.Simulation.Invention.PersonalCarry.LeavesPantryBehind(world, npc, home, cell)) continue;
+            // perto de casa pela medida barata (células, sem rota): a rota de cada amigo enchia a memória do alcance da despensa
+            if (cell == here || Math.Max(Math.Abs(cell.X - home.Location.X), Math.Abs(cell.Y - home.Location.Y)) > psyche.SeekCompanyMaxCells) continue;
             (best, bestAffection, bestId) = (cell, affection, friend.Id.Value);
         }
         if (best is not null) return best;
