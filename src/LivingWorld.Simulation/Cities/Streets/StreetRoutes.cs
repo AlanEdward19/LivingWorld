@@ -466,11 +466,36 @@ public static class StreetRoutes
         if (!world.StreetsOn || origin == destination) return 1000;
         var route = Get(world, origin, destination);
         if (route.SoftPm >= 0) return route.SoftPm;
-        var cells = PathOf(world, origin, destination);
-        int soft = 0;
-        foreach (var cell in cells)
-            if (world.Ground!.SurfaceAt(cell) is not (GroundSurface.Gravel or GroundSurface.Stone)) soft++;
-        return route.SoftPm = cells.Count == 0 ? 1000 : soft * 1000 / cells.Count;
+        var state = StateOf(world);
+        var ground = world.Ground!;
+        int total = 0, soft = 0;
+        void Count(int c)
+        {
+            total++;
+            if (ground.SurfaceAt(c) is not (GroundSurface.Gravel or GroundSurface.Stone)) soft++;
+        }
+        void Walk(int a, int b) // as células da reta (Bresenham), sem alocar
+        {
+            int ax = a % state.W, ay = a / state.W, bx = b % state.W, by = b / state.W;
+            int dx = Math.Abs(bx - ax), dy = -Math.Abs(by - ay), sx = bx > ax ? 1 : -1, sy = by > ay ? 1 : -1, err = dx + dy;
+            while (true)
+            {
+                Count(ay * state.W + ax);
+                if (ax == bx && ay == by) break;
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; ax += sx; }
+                if (e2 <= dx) { err += dx; ay += sy; }
+            }
+        }
+        if (route.Internal || route.A < 0 || route.B < 0) Walk(Index(state, origin), Index(state, destination));
+        else if (route.E < 0) Walk(route.A, route.B);
+        else
+        {
+            Walk(route.A, route.E);
+            if (route.E != route.X) foreach (int c in Leg(state, route.E, route.X).Path) Count(c);
+            Walk(route.X, route.B);
+        }
+        return route.SoftPm = total == 0 ? 1000 : soft * 1000 / total;
     }
 
     public static IReadOnlyList<CellCoord> PathOf(WorldState world, CellCoord origin, CellCoord destination)
