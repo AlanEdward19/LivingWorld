@@ -160,6 +160,8 @@ static func event(registry, id: int, date_of: Callable) -> Dictionary:
 		lines.append("Crime: o fato, sem cena.")
 	if involved.has("outcome") and not bool(event.record_only):
 		lines.append("Desfecho: %s" % String(involved.outcome))
+	if involved.has("motive") and not bool(event.record_only): # AD-183/186: o porquê que o motor gravou no evento
+		lines.append("Motivo: %s" % Registry.motive_text(String(involved.motive)))
 	if involved.has("amount"):
 		lines.append("Valor: %d" % int(involved.amount))
 	if not bool(event.has_cell):
@@ -183,7 +185,8 @@ const RELATIONS := {"mother": "Mãe", "father": "Pai", "spouse": "Cônjuge", "ch
 	"dwelling": "Moradia", "workplace": "Local de trabalho", "employer": "Trabalho", "employee": "Trabalhador(a)",
 	"worker": "Trabalhador(a)", "owner": "Dono(a)", "owns": "É dono(a) de", "resident": "Morador(a)", "member": "Morador(a)",
 	"head": "Chefe", "building": "Prédio", "city": "Cidade", "farm": "Fazenda", "market": "Mercado", "object": "Objeto",
-	"design": "Design", "holder": "Com", "dead": "De quem era", "fetcher": "Foi buscar", "carrier": "Está levando"}
+	"design": "Design", "holder": "Com", "dead": "De quem era", "fetcher": "Foi buscar", "carrier": "Está levando",
+	"founder": "Fundador(a)", "merged-into": "Juntou-se a"}
 const MAX_SERVER_LINKS := 12 ## a ficha da cidade lista todos os prédios: os primeiros bastam (o resto é clicável no mapa)
 
 
@@ -201,6 +204,16 @@ static func server_links(body: Variant) -> Array:
 		if out.size() >= MAX_SERVER_LINKS:
 			break
 	return out
+
+
+## Fundador da cidade (`/entities/city/{id}` → `state.founderId/founderName`, AD-183): {line, link}; {} na cidade semeada ou
+## fundada pelo pool (o motor manda nulo).
+static func founder(body: Variant) -> Dictionary:
+	var state = body.get("state") if body is Dictionary else null
+	if not state is Dictionary or state.get("founderId") == null:
+		return {}
+	var name := String(state.founderName) if state.get("founderName") != null else "pessoa nº %d" % int(state.founderId)
+	return {"line": "Fundada por %s, que liderou a saída" % name, "link": ["Fundador(a)", Registry.ref(Registry.PERSON, int(state.founderId))]}
 
 
 ## Junta links sem repetir a mesma entidade (a primeira relação vence).
@@ -289,6 +302,14 @@ static func lot(store, id: int) -> Dictionary:
 		if access != "": # AD-176: como se chega à porta; `none` é alerta
 			var look := Style.access_style(access)
 			lines.append(("⚠ " if bool(look.get("alert", false)) else "") + "Como se chega: " + String(look.line))
+			var cells: Array = parcel.get("access_cells", [])
+			if not cells.is_empty(): # AD-185: geometria, vizinho e onde desemboca
+				lines.append("Acesso: %d célula%s da soleira até o caminho" % [cells.size(), "" if cells.size() == 1 else "s"])
+			var state := String(parcel.get("access_state", ""))
+			if Style.ACCESS_STATES.has(state):
+				lines.append("O acesso " + String(Style.ACCESS_STATES[state].line))
+			if int(parcel.get("access_via", -1)) >= 0:
+				links.append(["Passa pelo vizinho", Registry.ref(Registry.BUILDING, int(parcel.access_via))])
 		if street == null:
 			lines.append("Não dá para nenhuma rua")
 		else:

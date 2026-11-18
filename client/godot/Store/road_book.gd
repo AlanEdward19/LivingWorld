@@ -39,8 +39,18 @@ static func apply_delta(roads: Dictionary, upserts: Array, removed: Array) -> Di
 			_note_finished(finished, before, parsed)
 		if before != parsed:
 			roads[parsed.cell] = parsed
-			changed = true
+			changed = changed or not _looks_same(before, parsed)
 	return {"changed": changed, "finished": finished}
+
+
+## Só a umidade (`wetPm`) mudou: o desenho é o mesmo (o chão é o `ground`), então a malha de ruas não é refeita. Com o tempo
+## ligado o motor reenvia a célula a cada tick enquanto o chão seca ou molha (AD-188, medida com o mundo rodando).
+static func _looks_same(before: Variant, after: Dictionary) -> bool:
+	if not before is Dictionary:
+		return false
+	var a: Dictionary = before.duplicate()
+	a.wet_pm = after.get("wet_pm", 0)
+	return a == after
 
 
 static func _note_finished(finished: Dictionary, before: Dictionary, after: Dictionary) -> void:

@@ -20,6 +20,7 @@ signal items_changed() ## espólio no chão e objetos inventados
 signal climate_changed()
 signal roads_changed() ## ruas mudaram (retrato, delta `roadUpserts`/`roadRemoved` ou releitura da camada): só o chão redesenha
 
+const FrameCost := preload("res://Contract/frame_cost.gd")
 const NO_ACTION := -1
 const Parse := preload("res://Store/observable_parse.gd")
 const Ground := preload("res://Store/city_ground.gd")
@@ -49,7 +50,7 @@ var leavings: Dictionary = {} ## id -> espólio no chão
 var objects: Dictionary = {} ## id -> peça inventada
 var climate: Dictionary = {} ## estação e clima do escopo (Parse.climate); vazio = não modelado
 var last_tick := -1 ## tick do último snapshot ou delta aplicado (AD-172: processos rest/food avançam sozinhos)
-var climate_regions: Array = [] ## camada Climate do mundo: [{regionId, center, temperatureC, drought}]
+var climate_regions: Array = [] ## camada Climate do mundo (Parse.climate_regions): [{region, cell, temperature, drought, weather}]
 
 
 static func scope_name(value: Variant) -> String:
@@ -70,6 +71,22 @@ static func id_of(value: Variant) -> Variant:
 
 static func rect_of(value: Dictionary) -> Rect2i:
 	return Rect2i(int(value.x), int(value.y), int(value.width), int(value.height))
+
+
+## Tempo do dia (AD-180) num ponto do mapa: no mapa-múndi, o da região de centro mais perto (camada `Climate`); senão, o do
+## escopo. {} = o motor não mandou tempo.
+func weather_at(cell: Vector2i) -> Dictionary:
+	if kind == "World":
+		var best: Dictionary = {}
+		var best_d := INF
+		for region in climate_regions:
+			var d := Vector2(cell).distance_squared_to(Vector2(region.cell))
+			if not region.weather.is_empty() and d < best_d:
+				best_d = d
+				best = region.weather
+		if not best.is_empty():
+			return best
+	return climate.get("weather", {})
 
 
 func apply_snapshot(envelope: Dictionary) -> void:
@@ -108,8 +125,8 @@ func _load_world(payload: Dictionary) -> void:
 			rivers[cell_of(entry)] = true
 	_load_roads(payload.get("livingState"), payload.get("layers", {}).get("Roads"))
 	var climate_layer = payload.get("layers", {}).get("Climate")
-	climate_regions = climate_layer.payload.get("regions", []) if climate_layer is Dictionary and climate_layer.get("isModeled", false) \
-		and climate_layer.get("payload") is Dictionary else []
+	climate_regions = Parse.climate_regions(climate_layer.payload.get("regions", [])) if climate_layer is Dictionary \
+		and climate_layer.get("isModeled", false) and climate_layer.get("payload") is Dictionary else []
 	var state: Dictionary = payload.get("livingState", {}) if payload.get("livingState") is Dictionary else {}
 	var densities: Dictionary = {}
 	for living_city in _list(state, "cities"):
@@ -239,6 +256,9 @@ func _observe(npc: Dictionary, visual: Dictionary, previous: Variant = null) -> 
 		npc.started = int(visual.actionStartedAtTick) if visual.get("actionStartedAtTick") != null else -1
 	npc.route = Parse.route(visual.get("route")) # AD-176: rota de quem viaja (ausente = não viaja)
 	npc.arrival = int(visual.routeArrivalTick) if visual.get("routeArrivalTick") != null and not npc.route.is_empty() else -1
+	# AD-185: saída explícita da viagem e os índices da rota que passam por cima (escada, laje, telhado)
+	npc.departed = int(visual.routeDepartedTick) if visual.get("routeDepartedTick") != null and not npc.route.is_empty() else -1
+	npc.route_over = Parse.route_over(visual.get("routeOver"), npc.route.size())
 	if npc.obs.has("name") and String(npc.obs.name) != "":
 		names[int(npc.id)] = String(npc.obs.name)
 	return npc.obs != before or npc.target != before_target
@@ -256,7 +276,7 @@ func _load_interior(payload: Dictionary) -> void:
 func _npc(id: int, cell: Vector2i, action: Variant, city_id: String, look: Dictionary = {}, relocation: Variant = null) -> Dictionary:
 	return {"id": id, "cell": cell, "action": NO_ACTION if action == null else int(action), "city": city_id, "look": look,
 		"relocation": cell_of(relocation) if relocation is Dictionary else null, "obs": {}, "target": {}, "intent": -1,
-		"intent_target": "", "started": -1, "route": [], "arrival": -1}
+		"intent_target": "", "started": -1, "route": [], "arrival": -1, "departed": -1, "route_over": []}
 
 
 ## Genes de aparência do motor ({skinTone,...}) no formato do cliente; vazio quando o mundo não os tem.
@@ -289,6 +309,7 @@ func apply_delta(envelope: Dictionary) -> void:
 	var reset := {}
 	for removed in delta.get("npcRemoved", []):
 		reset[id_of(removed)] = true
+	var started := Time.get_ticks_usec()
 	for visual in delta.get("npcUpserts", []):
 		var id: int = id_of(visual.id)
 		var previous_known = null if reset.has(id) else npcs.get(id)
@@ -306,6 +327,7 @@ func apply_delta(envelope: Dictionary) -> void:
 		npc_changed.emit(id, from_cell, cell, action)
 		if observed:
 			npc_observed.emit(id)
+	FrameCost.add("npc_upserts", started)
 	# `moved` é a projeção de compatibilidade (só posição): vale para quem não veio inteiro em npcUpserts
 	for entry in delta.get("moved", []):
 		var id: int = id_of(entry.npcId)
@@ -366,8 +388,12 @@ func apply_delta(envelope: Dictionary) -> void:
 		last_tick = tick_now
 	if processes_touched:
 		processes_changed.emit()
+	started = Time.get_ticks_usec()
 	ScopeDelta.apply_observable(self, delta)
+	FrameCost.add("observable", started)
+	started = Time.get_ticks_usec()
 	ScopeDelta.apply_roads(self, delta)
+	FrameCost.add("roads", started)
 	if kind == "City" and not delta.get("indicators", []).is_empty() and city.has("indicators"):
 		for update in delta.indicators:
 			if update.get("key") != null and update.get("value") != null:

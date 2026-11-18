@@ -3,6 +3,7 @@ extends Node
 ## Único ponto do cliente que conhece URL, sockets e bytes.
 
 const Channel := preload("res://Contract/channel.gd")
+const Cost := preload("res://Contract/frame_cost.gd")
 
 var base_url := OS.get_environment("LW_API_URL") if OS.get_environment("LW_API_URL") != "" else "http://localhost:5214" ## LW_API_URL: medida de FPS numa porta própria
 
@@ -18,7 +19,9 @@ class WsChannel extends "res://Contract/channel.gd":
 		match peer.get_ready_state():
 			WebSocketPeer.STATE_OPEN:
 				while peer.get_available_packet_count() > 0:
+					var started := Time.get_ticks_usec()
 					var parsed = JSON.parse_string(peer.get_packet().get_string_from_utf8())
+					Cost.add("parse", started)
 					if parsed != null:
 						message.emit(parsed)
 			WebSocketPeer.STATE_CLOSED:

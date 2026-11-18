@@ -25,11 +25,16 @@ func _init() -> void:
 	add_child(_texture_rect)
 
 
+const REDRAW_EVERY := 0.25
+var _npcs_dirty := false
+var _redraw_clock := 0.0
+
+
 func bind(p_store) -> void:
 	store = p_store
 	store.reloaded.connect(func(_kind): rebuild())
-	store.npc_changed.connect(func(_a, _b, _c, _d): queue_redraw())
-	store.npc_removed.connect(func(_id): queue_redraw())
+	store.npc_changed.connect(func(_a, _b, _c, _d): _npcs_dirty = true)
+	store.npc_removed.connect(func(_id): _npcs_dirty = true)
 	store.cities_changed.connect(func(): queue_redraw())
 
 
@@ -65,9 +70,21 @@ func to_world(minimap_point: Vector2) -> Vector3:
 	return Vector3(cell.x, 0, cell.y)
 
 
+## Chamado a cada quadro pelo app: só redesenha quando a câmera andou (antes: 500 pontos refeitos todo quadro).
 func set_camera_target(point: Vector3) -> void:
+	if point.is_equal_approx(camera_target):
+		return
 	camera_target = point
 	queue_redraw()
+
+
+## Pessoas que andaram: no máximo REDRAW_EVERY por segundo (com o mundo rodando chegam ~40 deltas/s).
+func _process(delta: float) -> void:
+	_redraw_clock += delta
+	if _npcs_dirty and _redraw_clock >= REDRAW_EVERY:
+		_npcs_dirty = false
+		_redraw_clock = 0.0
+		queue_redraw()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -88,6 +105,6 @@ func _draw() -> void:
 		draw_rect(Rect2(_origin + Vector2(rect.position) * _scale, Vector2(rect.size) * _scale), Color("ffcf4a"), false, 1.5)
 	for id in store.npcs:
 		var cell: Vector2i = store.npcs[id].cell
-		draw_circle(_origin + (Vector2(cell) + Vector2(0.5, 0.5)) * _scale, 1.6, Color("ffffff"))
+		draw_rect(Rect2(_origin + (Vector2(cell) + Vector2(0.5, 0.5)) * _scale - Vector2(1.5, 1.5), Vector2(3, 3)), Color("ffffff"))
 	var marker := to_minimap(camera_target)
 	draw_rect(Rect2(marker - Vector2(9, 9), Vector2(18, 18)), Color("5fd0ff"), false, 2.0)
