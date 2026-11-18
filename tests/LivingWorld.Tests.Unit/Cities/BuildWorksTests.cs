@@ -55,6 +55,7 @@ public class BuildWorksTests
         var parents = world.FindHousehold(head.Household!.Value)!;
         var parentsHouse = parents.Dwelling!.Value;
         int buildingsBefore = world.Buildings.Count;
+        foreach (var spouse in new[] { a, b }) spouse.TryDebitWallet(spouse.Wallet); // sem moeda: só os próprios braços e os da família
         MarriageSystem.Marry(world, Ctx(world, sink), a, b);
         var couple = world.FindHousehold(a.Household!.Value)!;
         Assert.Equal(parentsHouse, couple.Dwelling); // de favor na casa dos pais do chefe
@@ -79,6 +80,7 @@ public class BuildWorksTests
         Assert.Null(canteiro.UnderWork); // pronta: a casa passa a existir
         Assert.Equal(canteiro.Id, couple.Dwelling); // e o casal muda para ela
         Assert.True(work.HoursByHelpers > 0, "a família e os parentes trabalharam nas horas livres");
+        Assert.Equal(0, work.Paid); // a casa sem moeda não contratou ninguém
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.BuildWorkDone && e.Payload.StartsWith($"{work.Id}|", StringComparison.Ordinal)
             && e.CauseEventId == started.EventId);
     }
@@ -149,7 +151,8 @@ public class BuildWorksTests
     [Fact]
     public void Employed_take_the_work_only_above_their_wage_by_the_margin_and_the_unemployed_first()
     {
-        var (world, _, _) = World();
+        var (world, clock, _) = World();
+        clock.Run(world, 24); // o primeiro dia contrata
         var ctx = Ctx(world);
         var city = world.ActiveCities().First();
         var employed = world.Npcs.First(n => n.IsAlive && n.Employer is not null && Adult(world, n)
@@ -157,6 +160,7 @@ public class BuildWorksTests
         var owner = world.Households.First(h => !h.IsEmpty && !h.Members.Contains(employed.Id));
         var work = BuildWorks.Open(world, ctx, city, BuildKind.House, -1, city.Location, 0, 0, owner.Id.Value, owner.Head.Value, 400, 0, "teste");
         var site = new WorkSite(null, null, null, work);
+        employed.MarkJobChange(0); // sem carência de troca recente
         var low = SiteWork.Evaluate(world, employed, site);
         Assert.Equal(0, low.Value);
         Assert.Equal("salario", low.Reason);
@@ -174,7 +178,8 @@ public class BuildWorksTests
     [Fact]
     public void A_farmhand_leaves_for_the_work_more_easily_in_the_slack_season_than_at_harvest()
     {
-        var (world, _, _) = World();
+        var (world, clock, _) = World();
+        clock.Run(world, 24); // o primeiro dia contrata
         var farmhand = world.Npcs.First(n => n.IsAlive && n.Employer is { } e && world.FindCropAt(world.FindWorkplace(e)!.Location) is not null);
         var agri = world.AgricultureRules;
         while (agri.IsSowingMonth(world.CurrentDate.Month) || world.CurrentDate.Month >= agri.EarliestRipeningMonth && world.CurrentDate.Month <= agri.ExpectedHarvestMonth + 1)
@@ -222,7 +227,7 @@ public class BuildWorksTests
         work.Escrow = 500;
         work.Capital = 500;
         work.LocationTypeId = 2;
-        work.Profession = 2;
+        work.TradeProfession = 2;
         work.Prices[4] = 10;
         work.Origin = "poupanca|500|500|0";
         Assert.Equal(shopsBefore, world.Workplaces.Count); // em obra: o negócio ainda não existe

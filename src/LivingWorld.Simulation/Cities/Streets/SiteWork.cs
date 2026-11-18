@@ -183,7 +183,9 @@ public static class SiteWork
             if (gain <= 0) return new(0, offerDay, wageDay, need, share, "salario");
             return new(rules.SiteOfferMax * gain * (0.5 + 0.5 * need) * share, offerDay, wageDay, need, share, "aceita");
         }
-        double pull = rules.WageBidding && dayWage > 0 ? 0.5 * Math.Min(2.0, offerDay / dayWage) : 0;
+        // o jornal atrai quem não tem trabalho, menos quanto mais a casa tem guardado (quem tem muitas reservas não vai à obra)
+        double comfort = reserve <= 0 ? 0 : Math.Clamp((double)means / (reserve * Math.Max(1, rules.SiteComfortReserves)), 0, 1);
+        double pull = rules.WageBidding && dayWage > 0 ? 0.5 * Math.Min(2.0, offerDay / dayWage) * (1 - comfort) : 0;
         double value = rules.SiteOfferMax * Math.Max(need, pull) * share;
         return new(value, offerDay, wageDay, need, share, value > 0 ? "aceita" : "sem-necessidade");
     }

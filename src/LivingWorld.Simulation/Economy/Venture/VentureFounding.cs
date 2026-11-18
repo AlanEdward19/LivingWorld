@@ -112,7 +112,7 @@ internal static class VentureFounding
         work.Reserve = Math.Max(0, needed - spent - buildCost);
         work.Capital = needed;
         work.LocationTypeId = trade.LocationTypeId;
-        work.Profession = trade.Profession.Id;
+        work.TradeProfession = trade.Profession.Id;
         foreach (var (resource, price) in plan.Prices.OrderBy(p => p.Key.Id)) work.Prices[resource.Id] = price;
         foreach (var (npc, amount) in capital.Partners) work.Partners.Add(new LivingWorld.Simulation.Cities.Works.BuildShare { Npc = npc.Id.Value, Amount = amount });
         work.Origin = $"{OriginOf(capital, inherited)}|{needed}|{capital.Own}|{inherited}";
@@ -151,7 +151,7 @@ internal static class VentureFounding
             }
         workplace.CreditTreasury(new Money(work.Escrow));
         work.Escrow = 0;
-        var profession = new ProfessionType(work.Profession);
+        var profession = new ProfessionType(work.TradeProfession);
         if (founder.Employer is { } old) world.FindWorkplace(old)?.Fire(founder.Id);
         founder.Fire();
         workplace.Hire(founder.Id);

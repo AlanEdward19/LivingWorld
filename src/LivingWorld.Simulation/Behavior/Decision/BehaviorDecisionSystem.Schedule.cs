@@ -130,7 +130,7 @@ public sealed partial class BehaviorDecisionSystem
             : routineAction != ActionType.Work && LivingWorld.Simulation.Invention.Leavings.WantsToFetch(world, npc, world.CurrentDate.TotalHours)
                 ? ActionType.Travel
             // AD-184: na hora livre de dia, quem ajuda na obra da casa (ou do parente, do vizinho) vai trabalhar nela
-            : routineAction == ActionType.Idle && LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)
+            : routineAction is ActionType.Idle or ActionType.Socialize && LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)
                 ? ActionType.Work
                 : routineAction;
 

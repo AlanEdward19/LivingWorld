@@ -331,7 +331,7 @@ public static class BuildWorks
             if (!ReferenceEquals(other, work) && npc.Household is { } own && other.Household == own.Value) return;
         var rules = world.StreetRules;
         var from = npc.Household is { } h && world.FindHousehold(h) is { } home ? home.Location : npc.CurrentLocation;
-        double free = Math.Max(1, rules.CrewHoursPerDay / 2.0);
+        double free = Math.Max(1, rules.CrewHoursPerDay); // o dia de mutirão (domingo, dia santo, a entressafra)
         double share = (free - 2 * StreetRoutes.CostOf(world, from, site).Cost) / free;
         if (!(share > 0)) return;
         double need = NeedOf(world, npc);

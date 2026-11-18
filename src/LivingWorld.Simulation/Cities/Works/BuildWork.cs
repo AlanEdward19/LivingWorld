@@ -51,7 +51,7 @@ public sealed class BuildWork
     /// <summary>Moeda guardada para a obra e o giro (paga os diaristas; o resto vira o caixa da oficina).</summary>
     public long Escrow { get; set; }
     public int LocationTypeId { get; set; }
-    public int Profession { get; set; }
+    public int TradeProfession { get; set; }
     public Dictionary<int, long> Prices { get; set; } = [];
     public List<BuildShare> Partners { get; set; } = [];
     /// <summary>Capital total posto (a base das cotas).</summary>

@@ -133,7 +133,7 @@ public sealed record StreetRules(
     public int CroftFeeDaysPerCell { get; init; } = 2;
 
     /// <summary>AD-184: hora do dia até a qual se trabalha na obra nas horas livres (sem luz, ninguém levanta parede).</summary>
-    public int BuildDaylightEndHour { get; init; } = 18;
+    public int BuildDaylightEndHour { get; init; } = 20;
 
     /// <summary>AD-184: ajudantes sem jornal (parentes e vizinhos) numa obra, fora a própria casa.</summary>
     public int HelpersMax { get; init; } = 6;
@@ -152,6 +152,10 @@ public sealed record StreetRules(
 
     /// <summary>AD-184: o empregado só larga o ofício pela obra se o jornal dela vale esta razão do salário (a da troca de emprego).</summary>
     public double QuitMargin { get; init; } = 1.25;
+
+    /// <summary>AD-184: quantas reservas (<see cref="SiteReserveDays"/> dias de jornal) a casa precisa ter guardadas para o jornal da
+    /// obra não atrair mais quem está sem trabalho.</summary>
+    public int SiteComfortReserves { get; init; } = 10;
 
     /// <summary>AD-184: a margem do lavrador na entressafra (fora da semeadura e da ceifa: a ceifa o toma de volta) e no pico.</summary>
     public double QuitMarginSlack { get; init; } = 1.0;
