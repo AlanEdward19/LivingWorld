@@ -281,6 +281,25 @@ public sealed class MutualAidSystem : ISimulationSystem
             Thank(world, ctx, members[0], helper);
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{members[0].Id.Value}|{sent}|water", sourceSystem: SystemName);
         }
+        // sem gota em casa e ninguém dos seus mandou: o vizinho mais perto com água sobrando acode (sem sorteio: ninguém deixa
+        // a criança sozinha ou o doente de cama morrer de sede ao lado)
+        if (need <= 0 || household.Stock.GetValueOrDefault(water) > 0) return;
+        Household? neighbour = null;
+        long bestDistance = long.MaxValue;
+        foreach (var other in world.Households)
+        {
+            if (other.Id == household.Id || other.IsEmpty || other.City != household.City
+                || other.Stock.GetValueOrDefault(water) - Math.Max(1, other.Members.Count) * (long)WaterAidReserveDays <= 0) continue;
+            long d = Math.Abs(other.Location.X - household.Location.X) + Math.Abs(other.Location.Y - household.Location.Y);
+            if (d < bestDistance || (d == bestDistance && neighbour is not null && other.Id.Value < neighbour.Id.Value)) { neighbour = other; bestDistance = d; }
+        }
+        if (neighbour is null) return;
+        long give = Math.Min(Math.Max(1, members.Count) * 2L, neighbour.Stock.GetValueOrDefault(water) - Math.Max(1, neighbour.Members.Count) * (long)WaterAidReserveDays);
+        if (give <= 0 || !neighbour.Withdraw(water, give).IsSuccess) return;
+        household.Deposit(water, give);
+        world.InventionTally.WaterAidGiven++;
+        world.InventionTally.WaterAidUnits += give;
+        ctx.LogEvent(WorldEventKind.AidGiven, $"casa-{neighbour.Id.Value}|{members[0].Id.Value}|{give}|water", sourceSystem: SystemName);
     }
 
     /// <summary>AD-185: dias de água dos próprios moradores que a casa de quem socorre guarda antes de mandar.</summary>

@@ -106,13 +106,29 @@ public static class WaterFetch
     internal static bool ThirstyWithoutWater(WorldState world, Npc npc, long now)
     {
         if (!On(world) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home) return false;
-        if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold || !Grown(world, npc)) return false;
+        if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
+        if (world.Map.TryGetCell(npc.CurrentLocation, out var here) && here.HasWater) { DrinkHere(world, npc, now); return false; }
+        // a sede urgente leva qualquer um que ande (a criança também): o marco de desenvolvimento decide quem não anda
         var water = Water(world);
         var ledger = world.Invention!;
         if (ledger.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
-        if (npc.CurrentLocation == home.Location && home.Stock.GetValueOrDefault(water) > 0) return false;
         int i = ledger.WaterTripIndex(npc.Id.Value);
-        return i < 0 || !Active(world, ledger.WaterTrips![i]);
+        if (i >= 0 && Active(world, ledger.WaterTrips![i])) return false;
+        if (home.Stock.GetValueOrDefault(water) <= 0) return true;
+        // há água em casa: vai à fonte só quem está fora e tem a fonte mais perto que a casa (o resto bebe em casa)
+        if (npc.CurrentLocation == home.Location) return false;
+        var source = NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, world.NaturalWaterRules.Fetch.RadiusCells * 2);
+        return source is { } src && src.Ticks < LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, npc.CurrentLocation, home.Location);
+    }
+
+    /// <summary>A sede urgente fora de casa, com água em casa mais perto que qualquer fonte: a escolha tem de ser voltar para beber
+    /// (a utilidade às vezes ficava à toa e a pessoa morria de sede a uma hora da despensa).</summary>
+    internal static bool ThirstyAwayWithWaterHome(WorldState world, Npc npc, long now)
+    {
+        if (!On(world) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation == home.Location) return false;
+        if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
+        var water = Water(world);
+        return home.Stock.GetValueOrDefault(water) > 0 && world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) <= 0;
     }
 
     /// <summary>Depois de <see cref="ThirstyWithoutWater"/>: a ida à fonte vence o mercado quando a fonte fica mais perto (ou não há
@@ -120,12 +136,26 @@ public static class WaterFetch
     internal static bool ThirstSendsToSource(WorldState world, Npc npc, long now, long marketTicks, bool canPay)
     {
         var rules = world.NaturalWaterRules.Fetch;
-        if (NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, rules.RadiusCells) is not { } source
-            || source.Ticks > rules.MaxWalkHours || source.Cell == npc.CurrentLocation) return false;
-        if (canPay && marketTicks <= source.Ticks) return false;
+        // a sede urgente anda o dobro do que se anda para encher o cântaro: a fonte alcançável mais perto de onde a pessoa está
+        if (NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, rules.RadiusCells * 2) is not { } source
+            || source.Ticks > rules.MaxWalkHours * 2) return false;
+        if (source.Cell == npc.CurrentLocation) { DrinkHere(world, npc, now); return false; }
+        if (canPay && marketTicks < source.Ticks) return false;
         Start(world, npc, npc.Household!.Value.Value, source.Cell, now);
         world.InventionTally.WaterTripsByThirst++;
         return true;
+    }
+
+    /// <summary>Na beira da água: bebe dali (a água entra e sai do mundo no mesmo gole).</summary>
+    internal static void DrinkHere(WorldState world, Npc npc, long now)
+    {
+        var water = Water(world);
+        int level = LivingWorld.Simulation.Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst);
+        if (npc.ThirstAt(now) >= level) return;
+        npc.SetThirst(level, now);
+        world.RecordResourceProduced(water, 1);
+        world.RecordResourceConsumed(water, 1);
+        world.InventionTally.DrankAtSource++;
     }
 
     private static void Start(WorldState world, Npc npc, long household, CellCoord source, long now)
@@ -156,6 +186,15 @@ public static class WaterFetch
         if (trip.Returning)
             return npc.Household is { } h && h.Value == trip.HouseholdId && world.FindHousehold(h) is { } home ? home.Location : null;
         return Active(world, trip) ? new CellCoord(trip.X, trip.Y) : null;
+    }
+
+    /// <summary>Quem está na ida à fonte ou na volta com a água segue andando: a nova escolha da hora não recomeça a viagem (a
+    /// troca de ideia a cada hora fazia a pessoa nunca chegar e morrer de sede a uma hora da fonte).</summary>
+    internal static bool OnTheWay(WorldState world, Npc npc)
+    {
+        if (npc.CurrentAction != ActionType.Travel || world.Invention?.WaterTrips is not { Count: > 0 }) return false;
+        int i = world.Invention.WaterTripIndex(npc.Id.Value);
+        return i >= 0 && Active(world, world.Invention.WaterTrips![i]) && ErrandDestination(world, npc) is { } to && to != npc.CurrentLocation;
     }
 
     /// <summary>Na ida para a fonte não se arruma carga de casa (o cântaro vai vazio).</summary>
@@ -194,14 +233,7 @@ public static class WaterFetch
     {
         var water = Water(world);
         var inv = world.InventionRules!;
-        int level = LivingWorld.Simulation.Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst);
-        if (npc.ThirstAt(now) < level)
-        {
-            npc.SetThirst(level, now);
-            world.RecordResourceProduced(water, 1);
-            world.RecordResourceConsumed(water, 1);
-            world.InventionTally.DrankAtSource++;
-        }
+        DrinkHere(world, npc, now);
         long want = Math.Max(1, home.Members.Count) * (long)world.NaturalWaterRules.DaysOfSupply
             - home.Stock.GetValueOrDefault(water) - world.Invention!.CarriedQuantity(npc.Id.Value, water.Id);
         if (want <= 0) return;

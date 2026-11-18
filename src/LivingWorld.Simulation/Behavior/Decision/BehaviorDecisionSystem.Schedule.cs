@@ -133,7 +133,8 @@ public sealed partial class BehaviorDecisionSystem
     internal static ActionType NonUrgentCandidate(
         WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
         // AD-185: quem encheu o cântaro na fonte volta para casa com a água antes de tudo que não é urgente
-        LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc) ? ActionType.Travel
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc) || LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+            ? ActionType.Travel
         : routineAction == ActionType.Sleep
             ? CaregiverHearsCry(world, npc, stage) // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
                                                    // AD-185: sem água em casa e com a fonte ao alcance, levanta e vai buscá-la; senão, ao mercado

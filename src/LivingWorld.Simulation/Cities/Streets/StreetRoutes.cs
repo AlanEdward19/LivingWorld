@@ -64,6 +64,26 @@ internal sealed class StreetRouteState
     public long RouteVersion;
     /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
     public readonly PriorityQueue<int, (double, int)> Queue = new();
+    /// <summary>AD-185: a rede como lista de vizinhos (CSR): de cada célula andável, os vizinhos andáveis e o custo da passagem, já
+    /// calculados quando a rede ou os obstáculos mudam; e o menor custo por unidade de distância da rede (a heurística do A*).</summary>
+    public int[] AdjStart = [];
+    public int[] AdjCell = [];
+    public double[] AdjCost = [];
+    public double NetRate;
+    /// <summary>AD-185: o heap do A* em vetores (chave = custo estimado, desempate pela célula), reaproveitado.</summary>
+    public double[] HeapKey = new double[64];
+    public int[] HeapCell = new int[64];
+    /// <summary>AD-185: os polos da rede (a célula de caminho onde desemboca a porta de cada oficina e mercado), para onde e de onde
+    /// vai quase toda viagem; de cada polo, um campo de distância por toda a rede (Dijkstra), feito na primeira vez que se pede e
+    /// guardado até a rede mudar. Com ele o trecho casa↔trabalho é só seguir o campo, sem busca.</summary>
+    public HashSet<int> Hubs = [];
+    public readonly Dictionary<int, (double[] Dist, int[] Prev)> Fields = [];
+    /// <summary>Índice compacto de cada célula andável (−1 fora da rede) e quantas há: o campo guarda só as células da rede. Os vetores
+    /// de campos jogados fora voltam para reuso.</summary>
+    public int[] NetId = [];
+    public int NetCount;
+    public readonly Stack<(double[] Dist, int[] Prev)> FieldPool = new();
+    public long HubsStamp = long.MinValue;
 }
 
 /// <summary>Rota real do NPC (AD-176): da soleira de onde está até a soleira de onde vai, ou em linha reta pelo terreno (pagando
@@ -136,7 +156,7 @@ public static class StreetRoutes
             return new StreetRoute { Cost = world.Map.Cost.Base * Math.Sqrt(dx * dx + dy * dy) };
         }
         long key = ((long)o << 32) | (uint)d;
-        if (world.RouteCacheOff) { state.Legs.Clear(); return Compute(state, o, d); }
+        if (world.RouteCacheOff) { ClearLegs(state); return Compute(state, o, d); }
         if (state.Pairs.TryGetValue(key, out var known)) return known;
         var route = Compute(state, o, d);
         if (state.Pairs.Count >= MaxCachedPairs) state.Pairs.Clear();
@@ -191,9 +211,13 @@ public static class StreetRoutes
         bool ford = state.FordPerCell != fordPerCell;
         state.FordPerCell = fordPerCell;
         if (surfaces || obstaclesChanged || fresh)
+        {
             for (int i = 0; i < state.Walk.Length; i++) state.Walk[i] = state.Net[i] && state.Owner[i] == 0;
+            BuildAdjacency(state);
+        }
         if (fresh || surfaces || obstaclesChanged || ford) { state.Pairs.Clear(); state.RouteVersion++; }
-        if (obstaclesChanged && !surfaces) state.Legs.Clear(); // o trecho da rede não entra em célula de prédio
+        if (obstaclesChanged && !surfaces) ClearLegs(state); // o trecho da rede não entra em célula de prédio
+        if (surfaces || obstaclesChanged || fresh || state.HubsStamp != world.Workplaces.Count) BuildHubs(world, state);
         world.RouteState = state;
         return state;
     }
@@ -299,7 +323,7 @@ public static class StreetRoutes
     private static void BuildSurfaces(StreetRouteState state, GroundLedger ground)
     {
         var rules = state.Rules;
-        state.Legs.Clear();
+        ClearLegs(state);
         state.AnyNet = false;
         var surfaces = ground.Surfaces;
         for (int i = 0; i < state.Factor.Length; i++)
@@ -367,11 +391,16 @@ public static class StreetRoutes
         if (state.AnyNet && a != b && state.Entry[a] >= 0 && state.Entry[b] >= 0)
         {
             int e = state.Entry[a], x = state.Entry[b];
-            var leg = e == x ? new NetLeg { Cost = 0, Path = [e] } : Leg(state, e, x);
-            if (!double.IsPositiveInfinity(leg.Cost))
+            var first = Line(state, a, e);
+            var last = Line(state, x, b);
+            // AD-185: o trecho pela rede nem é buscado quando nem o limite inferior dele vence a reta (a escolha seria a mesma)
+            int ddx = Math.Abs(e % state.W - x % state.W), ddy = Math.Abs(e / state.W - x / state.W);
+            double floor = first.Cost + last.Cost + state.NetRate * (Math.Max(ddx, ddy) + 0.41421356237309515 * Math.Min(ddx, ddy))
+                + (first.Water + last.Water) * state.FordPerCell;
+            var leg = floor >= best.Cost + best.Water * state.FordPerCell ? null
+                : e == x ? new NetLeg { Cost = 0, Path = [e] } : Leg(state, e, x);
+            if (leg is not null && !double.IsPositiveInfinity(leg.Cost))
             {
-                var first = Line(state, a, e);
-                var last = Line(state, x, b);
                 double cost = first.Cost + leg.Cost + last.Cost;
                 int water = first.Water + last.Water + WaterOn(state, leg.Path);
                 if (cost + water * state.FordPerCell < best.Cost + best.Water * state.FordPerCell)
@@ -439,12 +468,237 @@ public static class StreetRoutes
         return (cost, water, off);
     }
 
-    /// <summary>Trecho pela rede (A* sobre as células de caminho, 8 vizinhos; empate pelo índice da célula), em cache até a
-    /// próxima revisão da superfície.</summary>
+    private static void ClearLegs(StreetRouteState state)
+    {
+        state.Legs.Clear();
+        foreach (var root in state.Fields.Keys.OrderBy(k => k)) state.FieldPool.Push(state.Fields[root]);
+        state.Fields.Clear();
+    }
+
+    /// <summary>AD-185: os polos — a célula de caminho mais perto da soleira de cada oficina aberta (o que <see cref="Compute"/> usa
+    /// como entrada da rede para ela). Mudou o conjunto, os campos e trechos guardados saem.</summary>
+    private static void BuildHubs(WorldState world, StreetRouteState state)
+    {
+        var hubs = new HashSet<int>();
+        if (state.AnyNet)
+            foreach (var place in world.Workplaces)
+            {
+                if (place.Closed) continue;
+                int i = Index(state, place.Location);
+                if (i < 0) continue;
+                int door = Snap(state, i, out _);
+                if (door >= 0 && state.Entry[door] >= 0) hubs.Add(state.Entry[door]);
+            }
+        state.HubsStamp = world.Workplaces.Count;
+        if (hubs.SetEquals(state.Hubs)) return;
+        state.Hubs = hubs;
+        ClearLegs(state);
+        state.Pairs.Clear();
+        state.RouteVersion++;
+    }
+
+    /// <summary>Campo de distância de um polo por toda a rede (Dijkstra na lista de vizinhos; empate pela célula).</summary>
+    private static (double[] Dist, int[] Prev) FieldOf(StreetRouteState state, int root)
+    {
+        if (state.Fields.TryGetValue(root, out var field)) return field;
+        int n = state.NetCount;
+        double[] dist; int[] prev;
+        if (state.FieldPool.Count > 0 && state.FieldPool.Peek().Dist.Length >= n) (dist, prev) = state.FieldPool.Pop();
+        else { state.FieldPool.Clear(); dist = new double[n]; prev = new int[n]; }
+        Array.Fill(dist, double.PositiveInfinity, 0, n);
+        Array.Fill(prev, -1, 0, n);
+        var id = state.NetId;
+        var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
+        int size = 0;
+        dist[id[root]] = 0;
+        Push(state, ref size, 0, root);
+        while (size > 0)
+        {
+            double f = state.HeapKey[0];
+            int at = Pop(state, ref size);
+            if (f > dist[id[at]]) continue;
+            for (int j = adjStart[at], end = adjStart[at + 1]; j < end; j++)
+            {
+                int m = adjCell[j], mi = id[m];
+                double c = f + adjCost[j];
+                if (c >= dist[mi]) continue;
+                dist[mi] = c; prev[mi] = at;
+                Push(state, ref size, c, m);
+            }
+        }
+        field = (dist, prev);
+        state.Fields[root] = field;
+        return field;
+    }
+
+    /// <summary>AD-185: monta a rede como lista de vizinhos (mesma ordem de passos e mesma conta de custo da busca) e a menor taxa de
+    /// custo por distância (terreno × passo de cada passagem ÷ o comprimento dela), o limite inferior da heurística.</summary>
+    private static void BuildAdjacency(StreetRouteState state)
+    {
+        int n = state.Walk.Length;
+        if (state.AdjStart.Length != n + 1) state.AdjStart = new int[n + 1];
+        if (state.NetId.Length != n) state.NetId = new int[n];
+        int net = 0;
+        for (int i = 0; i < n; i++) state.NetId[i] = state.Walk[i] ? net++ : -1;
+        state.NetCount = net;
+        int count = 0;
+        for (int i = 0; i < n; i++)
+        {
+            state.AdjStart[i] = count;
+            if (!state.Walk[i]) continue;
+            int x = i % state.W, y = i / state.W;
+            foreach (var (dx, dy, _) in Steps)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx >= 0 && ny >= 0 && nx < state.W && ny < state.H && state.Walk[ny * state.W + nx]) count++;
+            }
+        }
+        state.AdjStart[n] = count;
+        if (state.AdjCell.Length < count) { state.AdjCell = new int[count]; state.AdjCost = new double[count]; }
+        double rate = double.PositiveInfinity;
+        int k = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (!state.Walk[i]) continue;
+            int x = i % state.W, y = i / state.W;
+            foreach (var (dx, dy, len) in Steps)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= state.W || ny >= state.H) continue;
+                int m = ny * state.W + nx;
+                if (!state.Walk[m]) continue;
+                double w = state.Base * len * (state.Terrain[i] + state.Terrain[m]) / 2.0 * (state.Factor[i] + state.Factor[m]) / 2.0;
+                state.AdjCell[k] = m;
+                state.AdjCost[k] = w;
+                k++;
+                rate = Math.Min(rate, w / len);
+            }
+        }
+        state.NetRate = double.IsPositiveInfinity(rate) ? 0 : rate * (1 - 1e-12);
+    }
+
+    /// <summary>Trecho pela rede (AD-185): A* sobre a lista de vizinhos, heurística octil × a menor taxa da rede (admissível: nenhum
+    /// trecho custa menos por célula andada), heap em vetores; empate pela célula. Em cache até a próxima revisão da superfície.</summary>
     private static NetLeg Leg(StreetRouteState state, int e, int x)
     {
         long key = ((long)e << 32) | (uint)x;
         if (state.Legs.TryGetValue(key, out var known)) return known;
+        var leg = new NetLeg();
+        // AD-185: trecho para um polo (ou de um polo): segue o campo de distância dele; a passagem custa o mesmo nos dois sentidos
+        bool onNet = state.NetId[e] >= 0 && state.NetId[x] >= 0; // a entrada pode ter ficado sob um prédio novo: aí, a busca
+        bool toHub = onNet && state.Hubs.Contains(x), fromHub = onNet && !toHub && state.Hubs.Contains(e);
+        if (toHub || fromHub)
+        {
+            var (fieldDist, fieldPrev) = FieldOf(state, toHub ? x : e);
+            int from = toHub ? e : x;
+            var nid = state.NetId;
+            if (!double.IsPositiveInfinity(fieldDist[nid[from]]))
+            {
+                int length = 0;
+                for (int c = from; c >= 0; c = fieldPrev[nid[c]]) length++;
+                var path = new int[length];
+                if (toHub) { int j = 0; for (int c = from; c >= 0; c = fieldPrev[nid[c]]) path[j++] = c; }
+                else { int j = length - 1; for (int c = from; c >= 0; c = fieldPrev[nid[c]]) path[j--] = c; }
+                leg.Cost = fieldDist[nid[from]] + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
+                leg.Path = path;
+            }
+            state.Legs[key] = leg;
+            return leg;
+        }
+        int stamp = ++state.Stamp;
+        if (stamp == int.MaxValue) { Array.Clear(state.Seen); state.Stamp = stamp = 1; }
+        double hUnit = state.NetRate;
+        int w = state.W, tx = x % w, ty = x / w;
+        const double Diag = 0.41421356237309515; // √2 − 1
+        var seen = state.Seen; var gs = state.G; var prev = state.Prev;
+        var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
+        int size = 0;
+        seen[e] = stamp; gs[e] = 0; prev[e] = -1;
+        Push(state, ref size, Octile(e) * hUnit, e);
+        while (size > 0)
+        {
+            double f = state.HeapKey[0];
+            int at = Pop(state, ref size);
+            double g = gs[at];
+            if (f > g + Octile(at) * hUnit + 1e-12) continue;
+            if (at == x)
+            {
+                int length = 0;
+                for (int c = x; c >= 0; c = prev[c]) length++;
+                var path = new int[length];
+                for (int c = x, j = length - 1; c >= 0; c = prev[c], j--) path[j] = c;
+                leg.Cost = g + Math.Max(0, state.Alt[x] - state.Alt[e]) * state.AltWeight;
+                leg.Path = path;
+                break;
+            }
+            for (int j = adjStart[at], end = adjStart[at + 1]; j < end; j++)
+            {
+                int m = adjCell[j];
+                double c = g + adjCost[j];
+                if (seen[m] == stamp && c >= gs[m]) continue;
+                seen[m] = stamp; gs[m] = c; prev[m] = at;
+                Push(state, ref size, c + Octile(m) * hUnit, m);
+            }
+        }
+        state.Legs[key] = leg;
+        return leg;
+
+        double Octile(int c)
+        {
+            int ddx = Math.Abs(c % w - tx), ddy = Math.Abs(c / w - ty);
+            return Math.Max(ddx, ddy) + Diag * Math.Min(ddx, ddy);
+        }
+    }
+
+    /// <summary>Custo do trecho pela rede de hoje (para o teste de equivalência de custo).</summary>
+    internal static double LegCost(StreetRouteState state, int e, int x) => Leg(state, e, x).Cost;
+
+    private static bool Before(double ka, int ca, double kb, int cb) => ka < kb || (ka == kb && ca < cb);
+
+    private static void Push(StreetRouteState state, ref int size, double key, int cell)
+    {
+        if (size == state.HeapKey.Length)
+        {
+            Array.Resize(ref state.HeapKey, size * 2);
+            Array.Resize(ref state.HeapCell, size * 2);
+        }
+        int i = size++;
+        var keys = state.HeapKey; var cells = state.HeapCell;
+        while (i > 0)
+        {
+            int parent = (i - 1) >> 1;
+            if (!Before(key, cell, keys[parent], cells[parent])) break;
+            keys[i] = keys[parent]; cells[i] = cells[parent];
+            i = parent;
+        }
+        keys[i] = key; cells[i] = cell;
+    }
+
+    private static int Pop(StreetRouteState state, ref int size)
+    {
+        var keys = state.HeapKey; var cells = state.HeapCell;
+        int top = cells[0];
+        size--;
+        if (size == 0) return top;
+        double key = keys[size]; int cell = cells[size];
+        int i = 0;
+        while (true)
+        {
+            int l = 2 * i + 1;
+            if (l >= size) break;
+            int r = l + 1, child = r < size && Before(keys[r], cells[r], keys[l], cells[l]) ? r : l;
+            if (!Before(keys[child], cells[child], key, cell)) break;
+            keys[i] = keys[child]; cells[i] = cells[child];
+            i = child;
+        }
+        keys[i] = key; cells[i] = cell;
+        return top;
+    }
+
+    /// <summary>A busca de antes (AD-176, A* com a fila genérica e a heurística do passo mais rápido do mapa), sem cache: só para o
+    /// teste de que o trecho de hoje não custa mais que o de antes.</summary>
+    internal static double ReferenceLegCost(StreetRouteState state, int e, int x)
+    {
         var leg = new NetLeg();
         int stamp = ++state.Stamp;
         if (stamp == int.MaxValue) { Array.Clear(state.Seen); state.Stamp = stamp = 1; }
@@ -488,8 +742,7 @@ public static class StreetRoutes
                 queue.Enqueue(n, (c + H(n), n));
             }
         }
-        state.Legs[key] = leg;
-        return leg;
+        return leg.Cost;
     }
 
     /// <summary>AD-176: as células por onde a pessoa anda, em ordem — a célula onde está, a soleira, a reta ou o caminho pela rede,

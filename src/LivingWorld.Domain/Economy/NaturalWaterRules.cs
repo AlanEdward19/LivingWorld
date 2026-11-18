@@ -26,7 +26,7 @@ public sealed record NaturalWaterRules(bool Enabled, long MaxWalkTicks = 1, int 
 /// em sociedades agrárias; ida de até 1–3 h é comum onde não há poço (OMS/UNICEF: mais de 30 min ida e volta já é "acesso
 /// limitado").</summary>
 public sealed record WaterFetchRules(
-    bool Enabled = true, long MaxWalkHours = 3, int RadiusCells = 6, int RefillBelowDays = 3, int EmployedBelowDays = 1,
+    bool Enabled = true, long MaxWalkHours = 3, int RadiusCells = 6, int RefillBelowDays = 4, int EmployedBelowDays = 1,
     int MinAgeYears = 8, int VesselMl = 20000)
 {
     public static WaterFetchRules Default { get; } = new();

@@ -25,6 +25,32 @@ public class RouteDataTests
     }
 
     [Fact]
+    public void The_network_leg_is_never_costlier_than_the_search_of_before()
+    {
+        var (world, clock) = ScenarioRunner.Create(4);
+        clock.Run(world, world.Calendar.HoursPerMonth + 1); // rede da história e prédios já obstáculo
+        var state = StreetRoutes.StateOf(world);
+        var net = Enumerable.Range(0, state.Walk.Length).Where(i => state.Walk[i]).ToList();
+        Assert.True(net.Count > 20);
+        int compared = 0;
+        for (int k = 0; k < 60; k++)
+        {
+            int e = net[(k * 7919) % net.Count], x = net[(k * 104729 + 13) % net.Count];
+            var hubs = state.Hubs.Where(h => state.NetId[h] >= 0).OrderBy(h => h).ToList();
+            if (hubs.Count > 0 && k % 3 == 0) x = hubs[k % hubs.Count]; // para um polo: pelo campo de distância
+            if (hubs.Count > 0 && k % 3 == 1) e = hubs[k % hubs.Count]; // de um polo: o campo ao contrário
+            if (e == x) continue;
+            double before = StreetRoutes.ReferenceLegCost(state, e, x);
+            double now = StreetRoutes.LegCost(state, e, x);
+            if (double.IsPositiveInfinity(before)) { Assert.True(double.IsPositiveInfinity(now)); continue; }
+            Assert.True(now <= before + 1e-9, $"{e}->{x}: {now} > {before}");
+            Assert.True(now >= before - 1e-6, $"{e}->{x}: {now} < {before} (a busca de antes era ótima)");
+            compared++;
+        }
+        Assert.True(compared > 30);
+    }
+
+    [Fact]
     public void Over_indices_mark_only_cells_of_glued_buildings_crossed_on_the_way()
     {
         var world = ScenarioRunner.Create(3, initialPopulation: 300).World;

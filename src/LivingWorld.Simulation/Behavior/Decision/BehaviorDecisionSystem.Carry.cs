@@ -72,7 +72,6 @@ public sealed partial class BehaviorDecisionSystem
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return; // sem despensa em casa, levar não muda nada
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         if (npc.TravelPurpose == ActionType.Eat || PersonalCarry.PantryOutOfReach(world, npc, home)) return; // só sai de casa quem está nela
-        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.Outbound(world, npc)) return; // AD-185: o cântaro sai vazio para a fonte
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation) return;
         // AD-157b: o destino e a ida ficam para a conta da chegada logo a seguir (TravelArrivalTick), que os refazia
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
@@ -91,6 +90,8 @@ public sealed partial class BehaviorDecisionSystem
             if (water) waterHours = 2 * leg + margin;
             if (food) foodHours = 2 * leg + margin;
         }
+        // AD-185: para a fonte o cântaro sai vazio (bebe-se lá); leva só a comida que a ida e a volta pedem
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.Outbound(world, npc)) waterHours = 0;
         PersonalCarry.PackForTrip(world, npc, home, waterHours, foodHours, now);
         // AD-179 (item 175): carregado, a ida demora mais; a chegada agendada usa a ida com a carga
         if (Mobility.LoadFactor(world, npc) != 1.0)

@@ -37,14 +37,15 @@ public sealed partial class BehaviorDecisionSystem
     internal static CellCoord? TravelDestinationFor(WorldState world, Npc npc, MarketIndex marketIndex) => TravelDestinationOf(world, npc, marketIndex);
 
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
-        RelocationDestinationOf(world, npc) is { } relocationDest
+        // AD-185: a ida à fonte (e a volta com a água) vem antes de tudo, até da mudança de cidade: quem tem sede bebe primeiro
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.ErrandDestination(world, npc) is { } water && water != npc.CurrentLocation
+            ? water
+        : RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest
             : PurposeDestinationOf(world, npc, marketIndex) is { } purposeDest
                 ? purposeDest
                 : LivingWorld.Simulation.Invention.Leavings.ErrandDestination(world, npc) is { } errand && errand != npc.CurrentLocation
                     ? errand // AD-168: a ida para buscar o espólio de alguém da casa
-                : LivingWorld.Simulation.Economy.Supply.WaterFetch.ErrandDestination(world, npc) is { } spring && spring != npc.CurrentLocation
-                    ? spring // AD-185: a ida à fonte e a volta para casa com a água
                 : SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
                     ? sleepDest
                     : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
