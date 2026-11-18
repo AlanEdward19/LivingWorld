@@ -203,7 +203,7 @@ public static class BuildWorks
         long fee = 0;
         double best = double.MaxValue;
         for (int level = 0; level <= 1; level++)
-            foreach (var lot in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, typeId, 0, profile, level, rules.LotChoices))
+            foreach (var lot in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, typeId, 0, profile, level, rules.LotChoices, places.Anchors(world)))
             {
                 int area = CroftArea(candidate, lot.Orientation, lot.Croft);
                 long lotFee = rules.CroftFeeDaysPerCell * dayWage * area;
@@ -524,6 +524,15 @@ internal sealed class HomePlaces
         foreach (var npc in members)
             if (npc.Employer is { } e && world.FindWorkplace(e) is { } job) places._work.Add(job.Location);
         return places;
+    }
+
+    /// <summary>Os lugares de onde a casa olha os lotes: o trabalho de cada um e a água (a fonte que vende ou a da natureza).</summary>
+    public IReadOnlyList<CellCoord> Anchors(WorldState world)
+    {
+        var anchors = new List<CellCoord>(_work);
+        if (_water.Count > 0 && !anchors.Contains(_water[0])) anchors.Add(_water[0]);
+        if (_food.Count > 0 && !anchors.Contains(_food[0])) anchors.Add(_food[0]);
+        return anchors;
     }
 
     public double YearlyCost(WorldState world, CellCoord cell)

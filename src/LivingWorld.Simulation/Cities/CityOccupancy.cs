@@ -392,7 +392,7 @@ public static class CityOccupancy
     /// (água, mercado, trabalho, foro). Só lê o chão: não marca o passe, então a busca de sempre não muda.</summary>
     internal static List<(CellCoord Origin, int Croft, int Orientation)> CandidateLots(
         WorldState world, City city, CityBounds bounds, BuildingId id, int buildingTypeId, int orientation, LotProfile profile,
-        int level, int max)
+        int level, int max, IReadOnlyList<CellCoord>? anchors = null)
     {
         var found = new List<(CellCoord Origin, int Croft, int Orientation)>();
         var network = CityStreets.Of(world, city);
@@ -404,11 +404,22 @@ public static class CityOccupancy
         int perStreet = (layout.MaxFrontYardCells() + 1) * options.Length;
         int total = network.Count * perStreet;
         int stride = Math.Max(1, network.Count / Math.Max(1, max)) * perStreet;
-        for (int start = 0; start < total && found.Count < max; )
+        void Sample(int[]? order, int limit)
         {
-            if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at) is not { } lot) break;
-            if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) found.Add(lot);
-            start = Math.Max(at + 1, start + stride);
+            for (int start = 0, taken = 0; start < total && taken < limit; )
+            {
+                if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at, order) is not { } lot) break;
+                if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) { found.Add(lot); taken++; }
+                start = Math.Max(at + 1, start + (order is null ? stride : perStreet));
+            }
+        }
+        Sample(null, max);
+        // perto de cada lugar que pesa para quem constrói (o trabalho, a fonte): os lotes de rua mais perto dele primeiro
+        foreach (var anchor in anchors ?? [])
+        {
+            var near = Enumerable.Range(0, network.Count)
+                .OrderBy(i => Math.Max(Math.Abs(network.Cells[i].X - anchor.X), Math.Abs(network.Cells[i].Y - anchor.Y))).ThenBy(i => i).ToArray();
+            Sample(near, Math.Max(1, max / 2));
         }
         return found;
     }
