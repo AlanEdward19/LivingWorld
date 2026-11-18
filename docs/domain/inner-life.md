@@ -50,8 +50,9 @@ emocional para sempre; casar dá +1 (a personalidade muda devagar com a vida).
   em quem lhe fez mal; evita conversar com essa pessoa; com medo, evita estranhos; enlutado
   procura os seus.
 - **Socialize** só satisfaz a necessidade social com alguém por perto; sozinho, a solidão sobe. AD-186 (`SeekCompany`): quem
-  quer conversar e não tem ninguém na janela da conversa sai, pela rota, até o conhecido de quem mais gosta (a menos de uma
-  hora de casa) ou, sem ninguém, até o largo; o cérebro mostra o motivo `procurar-companhia` no termo `Social`.
+  quer conversar, está em casa sem ninguém na janela da conversa, sente falta de gente (convívio na urgência) e já se sente só
+  (solidão ≥ 0,2, `SeekCompanyLoneliness`) vai, pela rota, à casa do conhecido de quem mais gosta que esteja em casa (até 12
+  células, `SeekCompanyMaxCells`) ou ao largo se há gente lá; cérebro: `procurar-companhia` no termo `Social`.
 - **Acolhimento** (AD-186): a casa que fica só com crianças é vista no dia; os irmãos vão juntos para quem acolhe, escolhido
   por laço (parente 1, quem gosta da criança 0,8 × afeto, quem gostava dos pais 0,6 × afeto, a cidade 0,15) × meios por boca
   × generosidade ÷ casa cheia (`OrphanCareSystem`; `OntogenyRules.OrphanCareLegacy` volta ao mensal). Cérebro: `acolher-crianca`.
