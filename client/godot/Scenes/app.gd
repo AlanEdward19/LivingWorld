@@ -28,6 +28,7 @@ const Parse := preload("res://Store/observable_parse.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 const WeatherLook := preload("res://Scenes/render/weather_look.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 const CityReading := preload("res://Scenes/city_reading.gd")
@@ -251,6 +252,7 @@ func _on_delta(envelope: Dictionary) -> void:
 ## Todo evento entra na linha do tempo e vira aviso; com lugar, também marcador clicável no mapa. Crime só de registro
 ## (`recordOnly`) aparece como registro estruturado (autor, vítima, caso, desfecho), nunca com o texto narrado.
 func _on_events(events: Array) -> void:
+	var started := Time.get_ticks_usec()
 	var ids: Array = []
 	for raw in events:
 		_local_event_id -= 1
@@ -263,6 +265,7 @@ func _on_events(events: Array) -> void:
 	if timeline != null:
 		timeline.refresh()
 	director.on_events(ids)
+	FrameCost.add("events", started) # AD-189: diagnóstico do bench
 
 
 ## Snapshot ou delta fora do contrato congelado (`tests/contracts/shape.*.json`) é descartado pelo stream: em vez de ficar

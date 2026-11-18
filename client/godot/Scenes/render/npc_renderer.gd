@@ -10,6 +10,7 @@ extends Node3D
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const RouteClock := preload("res://Scenes/route_clock.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 
 const OVER_FLOOR := 1.0 ## altura de um andar (a mesma do `building_renderer.gd`): quem passa por cima anda no telhado
 const STEP_SECONDS := 1.0 ## duração visual de um passo; o servidor decide a posição, o cliente só interpola
@@ -379,16 +380,26 @@ func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: b
 			actor.set_detail(detail)
 		# multidão: pose a cada 2 quadros perto do centro da vista e a cada 4 na borda (o tempo pulado se acumula: o passo não
 		# muda, só a frequência com que a pose é refeita); a posição continua todo quadro (AD-188, medida com o mundo rodando).
-		# AD-189: parado (sem passo nem rota), a pose é a respiração lenta: a cada 6 quadros
+		# AD-189: parado (sem passo nem rota em curso; rota que já chegou não conta), a pose é a respiração lenta: a cada 8 quadros
 		var stride := 1
 		if crowded:
-			var moving: bool = actor.walk != null or actor._t < 1.0
-			stride = 2 if id == selected or (moving and distance_sq <= half_sq) else (4 if moving else 6)
-		actor.tick(delta, near, (id + _frame) % stride == 0)
+			var moving: bool = actor._t < 1.0 or (actor.walk != null and not actor.walk.done)
+			# com o mundo rodando a 40 ticks/s quase todo mundo está no passo (cada tick muda a célula): o passo perto do centro
+			# a cada 3 quadros, na borda a cada 6 (o selecionado a cada 2)
+			stride = 2 if id == selected else (3 if moving and distance_sq <= half_sq else (6 if moving else 8))
+		var due: bool = (id + _frame) % stride == 0
+		if due and near:
+			var posed := Time.get_ticks_usec()
+			actor.tick(delta, near, due)
+			FrameCost.add("npc_pose", posed) # AD-189: diagnóstico do bench (pose refeita)
+		else:
+			actor.tick(delta, near, due)
 	_link_clock += delta
 	if _link_clock >= LINK_SECONDS:
 		_link_clock = 0.0
 		if bubble_zoom:
 			_links.visible = false
 		else:
+			var linked := Time.get_ticks_usec()
 			refresh_links()
+			FrameCost.add("npc_links", linked)
