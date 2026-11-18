@@ -777,4 +777,8 @@ public sealed class InventionTally
     public long MarketCarrierHeld, ReturnsForLeft, ReturnsForLeftSkipped, GroundWaterLost;
     // AD-182 (08c item 113): saídas com lanche levando um recipiente, e saídas (com lanche ou à compra) com a peça presa ao corpo (tira)
     public long PackTripsWithCarrier, PackTripsWorn;
+    // AD-186 (só medida): conversas terminadas sem ninguém por perto e com alguém; saídas atrás de companhia
+    public long SocializedAlone, SocializedWithCompany, CompanyTrips;
+    // AD-186 (só medida): por que a conversa sozinha não virou saída — fora de casa, sem falta de gente, ainda sem solidão, sem aonde ir
+    public long AloneAway, AloneContent, AloneNotLonely, AloneNowhere;
 }

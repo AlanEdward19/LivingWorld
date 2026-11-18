@@ -79,7 +79,10 @@ public sealed class SkillTeachingSystem : ISimulationSystem
             if (stage == LifeStage.Child && _rearing.Enabled && Due(day, npc, _rearing.SampleEveryDays))
                 SampleRearing(world, npc);
             else if (stage != LifeStage.Child && npc.Rearing is { } record)
+            {
                 npc.ConcludeRearing(_rearing.Apply(npc.Personality, record, world.FamilyRules.PersonalityHeritability));
+                LivingWorld.Simulation.Population.Naming.Honor.OnChildRaised(world, npc, ctx.CurrentTick); // AD-186: criou um filho
+            }
 
             var vocation = _rules.Vocation;
             if (vocation.Enabled)
@@ -104,7 +107,12 @@ public sealed class SkillTeachingSystem : ISimulationSystem
                 GainFromTutoring(world, npc, aptitude);
             }
             if (stage != LifeStage.Child && Due(day, npc, learning.MaintenanceEveryDays))
+            {
                 Maintain(npc, age, calendar.DaysPerMonth * calendar.MonthsPerYear);
+                // AD-186: quem exerce o ofício e chegou à mestria ganha nome (uma vez)
+                if (npc.Employer is not null && _rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var craft))
+                    LivingWorld.Simulation.Population.Naming.Honor.OnMastery(world, npc, npc.Skills.Get(craft), _rules.Cap, ctx.CurrentTick);
+            }
             npc.GainSkills(_pending, _rules.Cap);
             _pending.Clear();
         }

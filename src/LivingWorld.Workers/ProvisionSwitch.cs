@@ -52,6 +52,12 @@ public static class ProvisionSwitch
     public static NeedsRules? NeedsRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION");
+        // AD-186: LW_CARE=-company volta a conversar sozinho (sem sair atrás de companhia)
+        if ((Environment.GetEnvironmentVariable("LW_CARE") ?? "").Contains("-company", StringComparison.Ordinal))
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Psyche = n.Psyche with { SeekCompany = false } };
+        }
         // AD-165: LW_FEAR_TRAVEL=x troca o peso do medo contra sair (FearTravelPenalty) para testar se ele corta as idas da vítima
         if (double.TryParse(Environment.GetEnvironmentVariable("LW_FEAR_TRAVEL"), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out double fear))

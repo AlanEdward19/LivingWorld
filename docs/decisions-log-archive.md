@@ -1,6 +1,6 @@
 # docs/decisions-log-archive.md — decisões de processo antigas (AD-001 a AD-089)
 
-Arquivo do `decisions-log.md` (teto de 100 linhas). IDs e textos preservados.
+Arquivo do `decisions-log.md` (teto de 100 linhas). IDs e textos preservados. Continua em [decisions-log-archive-2.md](decisions-log-archive-2.md).
 
 | ID | Data | Decisão | Motivo |
 |---|---|---|---|

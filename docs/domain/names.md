@@ -50,6 +50,13 @@ culpado e o crédito leem a má fama vista menos 0,5 × a boa fama vista; o cred
 namoro a preferência é ×(1 + 0,2 × nome) e, com vaga escassa, quem tem nome melhor é contratado antes (nome = boa fama vista
 menos má fama vista, −1..1). Chaves: `-honor`, `-founder`, `-matchrep`, `-hirerep`, `-refuse`.
 
+**Outros feitos (AD-186)**, sem laço novo por NPC: mestria no ofício que exerce (habilidade ≥ 80% do teto, vista na manutenção
+periódica das habilidades, uma vez por registro) +10 (`-mastery`); filho que chega à idade adulta, +3 a cada pai e mãe vivos
+(`-childraised`); lucro retirado do próprio negócio acima de 3 salários mínimos +2 (`ProfitDrawn`, `-prosperity`); atacado que
+sai de pé da luta com o agressor morto +10 (`CombatResolved`, `-courage`; só há luta assim com combate ligado). `-newfeats`
+desliga os quatro; `-honor` desliga toda a honra. **Sócio pelo nome** (`ReputationPartnerOrder`, `-partnerrep`): quem abre
+negócio (`VentureCapital`) chama, entre os amigos que confiam, antes o de nome melhor; os parentes continuam primeiro.
+
 ## Luto mostrado
 
 O `Mourning` da projeção usa o critério do motor (`PsycheMechanic.Mourns`): luto ainda sentido (≥ 2%, o limiar abaixo do
@@ -66,4 +73,5 @@ qual o motor dá a emoção por passada); antes era ≥ 10%, só de tela.
   sem medida.
 - Linhagem 0,3 na ajuda, respingo 0,25 da fama (boa e má), honra que desconta 0,5: **baixa**. A ideia de honra e vergonha de
   família vem de Peristiany (org.) 1965 e Pitt-Rivers 1965; os números são calibração.
-- Pesos dos feitos (2/15/5/30), confiança 20, namoro 0,2, pesos do fundador: **calibração sem fonte**.
+- Pesos dos feitos (2/15/5/30; AD-186: 10/3/2/10, mestria a 80%), confiança 20, namoro 0,2, pesos do fundador: **calibração
+  sem fonte**.
