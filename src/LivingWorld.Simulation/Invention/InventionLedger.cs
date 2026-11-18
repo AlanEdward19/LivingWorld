@@ -133,6 +133,42 @@ public sealed class InventionLedger
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long LastLeavingId { get; set; }
 
+    /// <summary>AD-185: quem saiu para buscar água (ordenado por pessoa): a casa, a fonte, quando saiu e se já volta carregado. Nulo
+    /// enquanto ninguém foi: o snapshot antigo abre igual.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<LivingWorld.Simulation.Economy.Supply.WaterTrip>? WaterTrips { get; set; }
+
+    internal int WaterTripIndex(long npcId)
+    {
+        if (WaterTrips is not { } list) return -1;
+        int lo = 0, hi = list.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1;
+            long at = list[mid].NpcId;
+            if (at == npcId) return mid;
+            if (at < npcId) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
+    }
+
+    internal void PutWaterTrip(LivingWorld.Simulation.Economy.Supply.WaterTrip trip)
+    {
+        WaterTrips ??= [];
+        int i = WaterTripIndex(trip.NpcId);
+        if (i >= 0) WaterTrips[i] = trip; else WaterTrips.Insert(~i, trip);
+        Version++;
+    }
+
+    internal void RemoveWaterTrip(long npcId)
+    {
+        int i = WaterTripIndex(npcId);
+        if (i < 0) return;
+        WaterTrips!.RemoveAt(i);
+        if (WaterTrips.Count == 0) WaterTrips = null;
+        Version++;
+    }
+
     /// <summary>Tudo o que está no chão de um recurso (AD-168): estoque do mundo, entra na conservação.</summary>
     public long GroundTotal(int resourceId)
     {
@@ -781,4 +817,8 @@ public sealed class InventionTally
     public long SocializedAlone, SocializedWithCompany, CompanyTrips;
     // AD-186 (só medida): por que a conversa sozinha não virou saída — fora de casa, sem falta de gente, ainda sem solidão, sem aonde ir
     public long AloneAway, AloneContent, AloneNotLonely, AloneNowhere;
+    // AD-185: buscar água andando (idas, chegadas em casa com água, unidades trazidas, goles na fonte, idas pela sede urgente,
+    // idas de quem tem emprego, socorro de água a casa sem quem busque e unidades dele)
+    public long WaterTrips, WaterTripsHome, WaterUnitsHome, DrankAtSource, WaterTripsByThirst, WaterTripsByEmployed;
+    public long WaterAidGiven, WaterAidUnits;
 }

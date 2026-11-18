@@ -85,7 +85,8 @@ METRICS.append(("aflicao_sede_crit_h_por_pa", lambda r: g(r, "af_sede_crit") * g
 METRICS.append(("trabalho_h_dia_adulto", lambda r: g(r, "af_trab_h_dia") * g(r, "af_pa"), lambda r: g(r, "af_pa"), 1))
 # AD-168: furtos e o espólio no chão de quem morre longe, por mil pessoas-ano da medida da aflição
 for k in ("furtos", "furtos_espolio", "esp_deixados", "esp_em_casa", "esp_idas", "esp_recolhidos", "esp_achados", "esp_furtados",
-          "esp_unid", "esp_unid_recolhidas", "esp_unid_furtadas", "esp_unid_estragadas"):
+          "esp_unid", "esp_unid_recolhidas", "esp_unid_furtadas", "esp_unid_estragadas",
+          "agua_idas", "agua_unid", "agua_sede", "agua_empregado", "agua_socorro"):  # AD-185: buscar água andando
     METRICS.append((f"{k}_por_mil_pa", lambda r, k="af_" + k: g(r, k), lambda r: g(r, "af_pa"), 1000))
 # AD-164: sonda da doméstica (`DomesticHungerProbe`): fome crítica por grupo e o antes/depois da agressão na casa
 for grp in ("vitima", "perda", "separacao", "casa", "casa_antiga", "outro", "sep_todos"):  # sep_todos: AD-165

@@ -233,6 +233,7 @@
           "lodging?": "null",
           "lot?": {
             "access?": "string",
+            "accessCells": "[]",
             "croft": [
               {
                 "x": "number",
@@ -494,7 +495,11 @@
               "y": "number"
             }
           ],
-          "routeArrivalTick?": "number"
+          "routeArrivalTick?": "number",
+          "routeDepartedTick?": "number",
+          "routeOver?": [
+            "number"
+          ]
         }
       ],
       "objects": [

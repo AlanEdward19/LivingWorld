@@ -90,6 +90,13 @@
         },
         "lot?": {
           "access?": "string",
+          "accessCells": [
+            {
+              "x": "number",
+              "y": "number"
+            }
+          ],
+          "accessState?": "string",
           "croft": [
             {
               "x": "number",
@@ -387,7 +394,11 @@
             "y": "number"
           }
         ],
-        "routeArrivalTick?": "number"
+        "routeArrivalTick?": "number",
+        "routeDepartedTick?": "number",
+        "routeOver?": [
+          "number"
+        ]
       }
     ],
     "objectRemoved": [

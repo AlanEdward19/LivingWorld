@@ -237,7 +237,9 @@ public class OntogenyDebtsTests
         Assert.Equal(ActionType.Sleep, BehaviorDecisionSystem.NonUrgentCandidate(world, adult, ActionType.Sleep, LifeStage.Adult, market));
 
         baby.SetCurrentAction(ActionType.Cry, 0);
-        Assert.Equal(ActionType.Buy, BehaviorDecisionSystem.NonUrgentCandidate(world, adult, ActionType.Sleep, LifeStage.Adult, market));
+        // AD-185: sem água em casa e com a fonte ao alcance, levanta para buscá-la a pé (a ida fica marcada); senão, vai comprar
+        var woke = BehaviorDecisionSystem.NonUrgentCandidate(world, adult, ActionType.Sleep, LifeStage.Adult, market);
+        Assert.True(woke == ActionType.Buy || (woke == ActionType.Travel && world.Invention?.WaterTripIndex(adult.Id.Value) >= 0), $"{woke}");
     }
 
     // --- Critério 3: exposição graduada ---
