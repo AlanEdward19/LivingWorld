@@ -312,6 +312,7 @@
             ],
             "subjectId?": "number",
             "victimId?": "number",
+            "workId?": "null",
             "workplaceId?": "number"
           },
           "kind": "number",
