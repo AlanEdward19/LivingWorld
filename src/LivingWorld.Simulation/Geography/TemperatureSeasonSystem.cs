@@ -19,7 +19,8 @@ public sealed class TemperatureSeasonSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (world.BiomeSeasonTemperatureRules.Count == 0)
+        // AD-180: com o tempo diário ligado a estação sai dele (curva suave por dia), não do degrau do trimestre
+        if (world.BiomeSeasonTemperatureRules.Count == 0 || world.WeatherOn)
             return;
 
         bool isMonthStart = world.CurrentDate.Day == 0 && world.CurrentDate.Hour == 0;

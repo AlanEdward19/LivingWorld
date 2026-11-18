@@ -134,6 +134,10 @@ public static class PsycheMechanic
     /// <summary>Emoção abaixo disto (milésimos) já não se sente: a leitura devolve calma.</summary>
     private const int FeltFromPermille = 20;
 
+    /// <summary>AD-183: está de luto quem ainda sente o luto pelo critério do motor — o mesmo limiar abaixo do qual a emoção já
+    /// não se sente (<see cref="FeltFromPermille"/>); acima dele o luto tira do trabalho e do convívio e puxa para casa.</summary>
+    public static bool Mourns(in Affect affect) => affect.Grief * Permille >= FeltFromPermille;
+
     /// <summary>Tick em que a emoção guardada cai abaixo de <see cref="FeltFromPermille"/>: <c>meia-vida × log2(v / limiar)</c>.</summary>
     private static long CalmTick(long tick, int permille, double halfLifeHours) =>
         permille <= FeltFromPermille ? tick

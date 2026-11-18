@@ -12,19 +12,21 @@ public sealed class OntogenyRulesJsonConverter : JsonConverter<OntogenyRules>
         bool Enabled, List<MilestoneDefinition> Milestones, Dictionary<ActionType, MilestoneRequirement> Requirements,
         double LateRecoveryFactor = OntogenyRules.DefaultLateRecovery, double MissedWindowKeep = OntogenyRules.DefaultMissedWindowKeep,
         double RegressionLoss = OntogenyRules.DefaultRegressionLoss, double AttentionPerCaregiver = OntogenyRules.DefaultAttention, bool OrphanCare = true,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool FineMotorScalesWork = false); // AD-163: fora do JSON quando falso
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool FineMotorScalesWork = false, // AD-163: fora do JSON quando falso
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool RegressionByEffectiveAge = false, // AD-182
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool OrphanCareLegacy = false); // AD-186
 
     public override OntogenyRules Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var dto = JsonSerializer.Deserialize<Dto>(ref reader, options)
             ?? throw new JsonException("OntogenyRules: corpo vazio");
         var rules = OntogenyRules.Build(dto.Enabled, dto.Milestones, dto.Requirements, dto.LateRecoveryFactor, dto.MissedWindowKeep, dto.RegressionLoss, dto.AttentionPerCaregiver, dto.OrphanCare);
-        return rules with { FineMotorScalesWork = dto.FineMotorScalesWork };
+        return rules with { FineMotorScalesWork = dto.FineMotorScalesWork, RegressionByEffectiveAge = dto.RegressionByEffectiveAge, OrphanCareLegacy = dto.OrphanCareLegacy };
     }
 
     public override void Write(Utf8JsonWriter writer, OntogenyRules value, JsonSerializerOptions options) =>
         JsonSerializer.Serialize(writer, new Dto(
             value.Enabled, value.Milestones.ToList(),
             value.Requirements.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value),
-            value.LateRecoveryFactor, value.MissedWindowKeep, value.RegressionLoss, value.AttentionPerCaregiver, value.OrphanCare, value.FineMotorScalesWork), options);
+            value.LateRecoveryFactor, value.MissedWindowKeep, value.RegressionLoss, value.AttentionPerCaregiver, value.OrphanCare, value.FineMotorScalesWork, value.RegressionByEffectiveAge, value.OrphanCareLegacy), options);
 }

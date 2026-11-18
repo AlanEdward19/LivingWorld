@@ -21,19 +21,19 @@
 132. ~~**O salário do próprio fundador conta inteiro**~~ (AD-161): sem fonte; escolha de modelo.
 
 ## Da carga pessoal (AD-157, [household-provisioning](../../../docs/domain/household-provisioning.md))
-108. **Medida da aflição** (`aflicao seed=` no `demography-report`): pareie a mesma seed, 40 × 15 (~6 min). Ruído medido com o
-     cérebro ligado (sequestro desligado): fome ±2,2 de 10,3. Falta o ruído em 20 × 100; o limiar "crítico" 80 é escolha.
+108. ~~**Medida da aflição**~~ (AD-182): ruído em 20 × 100 pareado (braços que quase não diferem): fome crítica 3,36 × 2,83 h por
+     pessoa-ano, razão 0,84 (IC90 0,60–1,13), sede 0,989 (0,975–1,003). Diferença de fome abaixo de ±30% em 20 seeds é ruído.
 109. ~~fechado no AD-157b~~ (refeição de rotina; voltas para comer 24,5 → 2,3 por pessoa-ano; fome crítica igual à base).
 110. **Custo da carga ligada (AD-157b)**: decisão +16–26% a 1.000 NPCs (3 pares alternados; ver o log), contra a meta de 2–3%.
      ~1/3 no código da carga (arrumar ao sair 1,6 µs × 37 mil saídas para longe, a pausa, a hora da refeição) e o resto no
      mundo que muda (menos despertares, decisões urgentes mais caras, mais refeições concluídas, relações em casa). Item 141:
      o relógio de parede oscila ±10%; um critério de 2% pede contador de instruções.
-111. **Quem vai ao mercado não marca o recipiente** quando não arruma carga (perto de casa): outro pode sair com ele no meio da compra.
+111. ~~**Quem vai ao mercado não marca o recipiente**~~ (AD-182): leva o da casa mesmo sem lanche (`MarketTripRules.HoldsCarrier`).
 112. ~~**Números sem fonte do AD-157/157b**~~ (AD-166: duas refeições de época conferem o desenho; limiares sem fonte, confiança baixa, [meal-routine](../../../docs/domain/meal-routine.md)): folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida;
      hora da refeição em 65 de déficit, comida antes da hora só contra a crítica (80), apetite 40 de quem só foi beber.
-113. **Não medido no AD-157b**: custo a 5.000 NPCs; quantas saídas levam a peça com tira (só se conta a peça existir); a despensa
-     vazia em casa sobe (20 → 29 h por pessoa-ano em 40 × 15): comer em hora certa gasta mais, e as casas pobres sentem.
-147. **A volta pelo que ficou na banca (08b 77, AD-157b)** é por casa e não guarda quanto ficou: a ida seguinte compra pela meta.
+113. ~~**Não medido no AD-157b**~~ (AD-182): 5.000 NPCs 1,079 → 1,069 µs, 145 B por NPC-tick; 16,8% das saídas com lanche levam
+     peça (740 mil de 4,4 mi); com tira, 50 mil saídas (lanche ou compra; 80 × 15); despensa vazia em casa 24,7 → 20,3 h por pessoa-ano com as correções.
+147. ~~**A volta pelo que ficou não guarda quanto ficou**~~ (AD-182): guarda por recurso; só antecipa a ida com um dia da casa.
 
 ## Do cérebro neural (AD-160, [verdict](../neural-brain/verdict-ad160.md))
 140. **O corpo decide com fome ou sede ≤ 20** (`BrainRules.CriticalNeed`): reaproveita o déficit crítico 80 que já põe o corpo
@@ -55,28 +55,24 @@
 
 
 ## Da junção da carga ligada (AD-157b + AD-165)
-148. ~~**Quebra de colheita pesa mais com a carga**~~ (AD-166): a moeda das casas é a mesma (577 mil nos dois braços no mês 8
-     do ano 3); a carga come 2,7% mais por pessoa (refeição em hora certa: 20,7 contra 20,2 unidades por pessoa-mês) e a banca
-     esvazia um mês antes, com a despensa a 148 contra 317 unidades. A ajuda era cega nos dois braços: 100% das casas carentes
-     tinham os 4 dias de compra pelo preço-piso (8 moedas por pessoa) com o trigo a 20. Feito: moeda só conta com comida à venda
-     ao alcance e comida do excedente (2 dias) de parente ou afeto. Seed 14: furtos 448 → 410 (sem carga 394), banidos 35 → 27
-     (28), vivos 55 → 63 (64). O celeiro tem 15 mil unidades na quebra e a banca fica vazia: a reposição diária racionada é o
-     gargalo (não tocado).
-149. ~~**Mortes de fome por seed 0,80 → 1,38**~~ (AD-166): real. 80 pares × 15 anos: 1,63× (IC90 1,28–2,18), 15+ anos 1,82×;
-     horas de fome crítica iguais (1,01×) e mortalidade igual (1,003×). Quem morre a mais (`starvation-trace`, 88 contra 55):
-     jovem de 15–29 anos (39 contra 22), **morando só** (61 contra 27), empregado (49 contra 23), órfão de mãe, carteira e
-     despensa zeradas, em casa, conversando (39 contra 14), com comida na banca. A caderneta do empregador não é a causa
-     (`LW_AG=freeration`: 0,93×, IC90 0,80–1,08). **Aberto**: seguir pessoa a pessoa o jovem que fica só (salário de 90 por
-     mês e esmola deviam pagar a compra: por que a carteira chega a zero e por que conversar vence comprar).
+148. ~~**Quebra de colheita pesa mais com a carga**~~ (AD-166). Fim (AD-182, [land-and-harvest](../../../docs/domain/land-and-harvest.md)):
+     a quebra da seed 14 não ocorre na base nova; na seed 26 o celeiro racionava certo (acabou 1 mês antes da colheita) e a
+     falha era a venda à primeira casa. Venda repartida (2 dias por morador) e semente guardada: 80 × 15 nas carestias, furtos
+     0,93× (ns), mortes de fome 0,94× (ns). Socorro em grão da cidade tentado e retirado (2,5× as mortes de fome).
+149. ~~**Mortes de fome por seed 0,80 → 1,38**~~ (AD-166; causa e correção no AD-182). Sonda `person-trace`: a carteira não
+     zerava (era a herança repartida antes do registro da morte); dois mecanismos: o jovem só com 85–154 moedas conversava
+     sozinho (solidão no zero, ~190) contra a compra (160) por 25 dias — o teto do lazer agora vale com a compra que serve; e o
+     adolescente lento que regredia na doença abaixo do marco de comprar (0,76 → 0,65) — o marco se consolida pelos anos
+     vividos, e moeda de quem não sabe comprar não tira a casa da ajuda. Com × sem carga: 1,41× (IC90 1,04–1,94) → 1,02×
+     (0,66–1,45); base → final: mortes de fome 0,54× (0,35–0,76), 15+ 0,43×, mortalidade 0,98× (ns), natalidade 1,01× (ns).
 150. **Baseline `population.json` regravado** na junção: média das 20 seeds 89 → 104; só a seed 14 ficava abaixo da faixa.
 
 ## Da fatia AD-166
-151. **A comida do excedente adia filhos**: natalidade 0,979× (IC90 0,966–0,992, 40 × 15; 6 × 50 0,947×). Com reserva de
-     3 dias a natalidade fica igual (0,992×) mas a quebra da seed 14 piora (453 furtos). Investigar se o adiamento do primeiro
-     filho (`FirstBirthMeansWeight`) deve ler a despensa de quem acabou de dar comida.
-152. **O saber e a carga de toda morte** (AD-166) mudam a mortalidade 1,010× em 40 × 15 (IC90 1,002–1,020) e 1,002× em
-     6 × 50: o morto deixava de esquecer designs; os desenhos agora viram lápide mais cedo. Aplicado por correção; medir de novo
-     em 20 × 100.
+151. ~~**A comida do excedente adia filhos**~~ (AD-182): não era `FirstBirthMeansWeight` (segurou zero concepções); era o piso
+     de 5 de comida em casa para conceber (`ConceptionResourceFloor`), que a casa que doava furava. Com o ciclo hormonal o corpo
+     decide (amenorreia): excedente ligado × desligado, natalidade 0,988× (0,978–0,998) → 1,001× (0,991–1,012), 80 × 15.
+152. ~~**O saber e a carga de toda morte**~~ (AD-182, 20 × 100 pareado com `LW_DEATH_FORGETS=old`): mortalidade 0,981× (IC90
+     0,952–1,006), natalidade 0,986×, mortes de fome 0,75×: o +1% dos 40 × 15 não se sustenta. Saber que morre com a pessoa é realista.
 153. ~~**A carga do morto fica onde ele morreu**~~ **Fechado no AD-168** ([leavings](../../../docs/domain/leavings.md)): em
      casa fica com a casa; longe, fica no chão para a casa (ou o herdeiro) buscar numa viagem ou para quem passa furtar.
 
@@ -86,11 +82,9 @@
 ## Da fatia AD-168
 154. **A casa sabe da morte na hora** (o luto já chegava assim): a notícia devia vir de quem estava junto, de quem passa
      pelo lugar ou da vila; hoje a casa sabe do lugar sem ninguém contar (dívida de realismo).
-155. **O espólio quase não acontece** no cenário de referência (quase ninguém morre longe levando carga): os números da
-     regra (`MaxFetchHours` 24, `TheftChancePm` 250, `SeenBarrierPerWitness` 0,15) não têm fonte e não foram exercitados;
-     medir num cenário com viagens longas (mercado a dias) antes de confiar neles.
-156. **No chão estraga igual à despensa** (`GroundSpoilagePm` 1000): ao tempo e aos bichos devia estragar mais; e a água
-     no chão nunca se perde. Achar fonte para o fator.
+155. ~~**O espólio quase não acontece**~~ (AD-182, sonda `leavings-exercise`): todo espólio da vila cai a < 6 h de casa (24 h
+     nunca limita); 35% era furtado por quem passa; com o laço com o morto (`KnownDeadBarrier`), 31%. Longe: issue.
+156. ~~**No chão estraga igual à despensa**~~ (AD-182): 3× a despensa, água 2%/dia, Q10 2 com o calor, só os dias no chão.
 157. **Quem busca leva um recipiente só**: com o seu já em uso, o do morto vai para casa sem servir (o modelo só segura uma
      peça por pessoa); o veículo de terra da casa não entra na busca. O furtador faminto também não procura espólio como alvo
      (só o acha de passagem).

@@ -25,6 +25,18 @@ public static class CityNameGenerator
     public static string Generate(WorldState world, CultureId culture, City? mother = null) =>
         CultureNaming.Of(world, culture).NewPlaceName(world.Rng.Stream("city-naming"), mother?.Name);
 
+    /// <summary>AD-183: nome da cidade-filha pelo costume da cultura — o da mãe, o do fundador (<paramref name="founder"/>, se
+    /// houver) ou novo — e qual costume valeu (<c>mae</c>, <c>fundador</c>, <c>novo</c>).</summary>
+    public static (string Name, string Custom) GenerateDaughter(WorldState world, CultureId culture, City mother, Npc? founder)
+    {
+        var naming = CultureNaming.Of(world, culture);
+        var rng = world.Rng.Stream("city-naming");
+        int cut = founder?.Name.LastIndexOf(' ') ?? -1;
+        if (!naming.DaughterTakesMotherName && naming.DaughterHonorsFounder && cut > 0)
+            return (naming.PlaceNameAfter(founder!.Name[..cut], rng), "fundador");
+        return (naming.NewPlaceName(rng, mother.Name), naming.DaughterTakesMotherName ? "mae" : "novo");
+    }
+
     /// <summary>A cultura de quem sai da cidade-mãe para fundar: a mais comum entre os vivos dela (desempate pelo menor id de
     /// cultura); sem ninguém, a primeira do catálogo.</summary>
     public static CultureId FoundingCulture(WorldState world, City mother)

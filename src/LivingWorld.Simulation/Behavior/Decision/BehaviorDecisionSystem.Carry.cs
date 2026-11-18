@@ -22,8 +22,12 @@ public sealed partial class BehaviorDecisionSystem
         if (!ledger.CarriesOrHolds(npc.Id.Value)) return; // AD-167: uma consulta no lugar de duas buscas (o caso comum: nada)
         bool carries = ledger.Carried.Count > 0 && ledger.CarriesAnything(npc.Id.Value);
         if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
-        if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home))
+        // AD-185: a água da fonte só entra na despensa quando quem a leva chega em casa (perto não basta)
+        if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home)
+            && !LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc))
         {
+            // AD-182 (08c item 111): o recipiente de quem está indo comprar perto de casa fica com ele até a compra acabar
+            if (!carries && PersonalCarry.HoldsForMarket(world, npc, home)) return;
             PersonalCarry.Unpack(world, npc, home); // em casa (a despensa ao alcance da hora)
             return;
         }
@@ -74,6 +78,7 @@ public sealed partial class BehaviorDecisionSystem
         // AD-157b: o destino e a ida ficam para a conta da chegada logo a seguir (TravelArrivalTick), que os refazia
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         _departure = (npc.Id.Value, now, npc.CurrentLocation, npc.TravelPurpose, destination, leg);
+        if (npc.TravelPurpose == ActionType.Buy) PersonalCarry.TakeCarrierToMarket(world, npc, home); // AD-182 (08c item 111)
         if (!PersonalCarry.LeavesPantryBehind(world, npc, home, destination)) return; // AD-151: perto de casa não arruma nada
         long stay = npc.TravelPurpose is { } purpose
             ? Objects.ObjectUse.DurationHours(world, npc, purpose, world.ActionCatalog)
@@ -95,6 +100,8 @@ public sealed partial class BehaviorDecisionSystem
                 foodHours += after;
             }
         }
+        // AD-185: para a fonte o cântaro sai vazio (bebe-se lá); leva só a comida que a ida e a volta pedem
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.Outbound(world, npc)) waterHours = 0;
         PersonalCarry.PackForTrip(world, npc, home, waterHours, foodHours, now);
         // AD-179 (item 175): carregado, a ida demora mais; a chegada agendada usa a ida com a carga
         if (Mobility.LoadFactor(world, npc) != 1.0)
@@ -197,5 +204,20 @@ public sealed partial class BehaviorDecisionSystem
         else if (npc.CurrentAction == ActionType.Travel) t.HomeForMealTravel++;
         if (100 - npc.ThirstAt(world.CurrentDate.TotalHours) > world.NeedsRules.UrgencyThreshold) t.HomeForMealThirsty++;
         PersonalCarry.FeltAway(world, npc, Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0));
+    }
+
+    /// <summary>AD-185: a sede urgente sem água no que leva nem em casa vai à fonte, se a fonte fica mais perto que o mercado mais
+    /// perto com água ou se não há com que pagar a água dele. Marca a ida. Quem podia pagar e tem o mercado mais perto só fica com o
+    /// mercado se a escolha foi comprar: a escolha que não vai ao mercado (à toa em casa) ia à fonte (antes morria de sede com moeda
+    /// no bolso, o mercado mais perto e a escolha parada).</summary>
+    private static bool ThirstGoesToSource(WorldState world, Npc npc, long now, MarketIndex marketIndex, ActionType candidate)
+    {
+        if (!LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyWithoutWater(world, npc, now)) return false;
+        var market = NearestEssentialsMarket(world, npc, marketIndex);
+        long marketTicks = market is null ? long.MaxValue
+            : Mobility.TravelTicks(world, npc, npc.CurrentLocation, market.Location, BodyMechanic.MovementCostMultiplier(world, npc));
+        bool canPay = market is not null && market.Prices.TryGetValue(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId), out var price)
+            && price > 0 && npc.Wallet.Amount >= price && candidate == ActionType.Buy;
+        return LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstSendsToSource(world, npc, now, marketTicks, canPay);
     }
 }

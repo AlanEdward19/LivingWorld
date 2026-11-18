@@ -45,6 +45,16 @@ public sealed record NpcVisual(
     /// <summary>AD-176: tick em que a viagem chega (o motor move o NPC para o destino nele).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public long? RouteArrivalTick { get; init; }
+
+    /// <summary>AD-185: tick em que a viagem saiu (a pessoa fica na origem até <see cref="RouteArrivalTick"/>); vem junto com a rota,
+    /// mesmo quando o grupo da ação é omitido no delta enxuto.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? RouteDepartedTick { get; init; }
+
+    /// <summary>AD-185: índices (em <see cref="Route"/>) das células por onde a pessoa passa "por cima" — escada, laje ou telhado de
+    /// prédio colado; ausente quando a rota toda é pelo chão.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<int>? RouteOver { get; init; }
 }
 public sealed record CityVisual(
     CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,

@@ -28,7 +28,7 @@ static func city(access := "stair") -> Dictionary:
 	var env := O.city()
 	env.payload.livingState["roads"] = [road(1, 4, 1, 40), road(2, 4, 0, 12),
 		road(3, 4, 0, 0, {"planned": true, "wear": 0, "useBand": 0}),
-		road(5, 4, 1, 50, {"work": {"surface": 3, "progressPct": 40, "repair": false, "payer": "frontage"}})]
+		road(5, 4, 1, 50, {"work": {"surface": 3, "progressPct": 40, "repair": false, "payer": "frontage", "workId": 1, "workerIds": [7]}})]
 	env.payload.buildings[0]["lot"] = {"croft": [], "frontPath": [{"x": 1, "y": 3}], "street": {"x": 1, "y": 4}, "access": access}
 	return env
 
@@ -65,7 +65,7 @@ func test_fixtures_follow_the_contract_shapes() -> void:
 	var delta_shape: Dictionary = Validator.load_shape("visual-delta").payload
 	var city_shape: Dictionary = Validator.load_shape("city-subscribe").payload.livingState
 	eq(Validator.validate(city().payload.livingState.roads, city_shape.roads), [], "ruas do retrato")
-	eq(Validator.validate([road(5, 4, 1, 1, {"work": {"surface": 2, "progressPct": 3, "repair": true, "payer": "treasury"}})],
+	eq(Validator.validate([road(5, 4, 1, 1, {"work": {"surface": 2, "progressPct": 3, "repair": true, "payer": "treasury", "workId": 2, "workerIds": []}})],
 		delta_shape.roadUpserts), [], "roadUpserts")
 	eq(Validator.validate([{"x": 1, "y": 2}], delta_shape.roadRemoved), [], "roadRemoved")
 	var walker := walk_payload(7, xy([[3, 3], [2, 3]]), 10, 12)
@@ -136,7 +136,7 @@ func test_street_work_shows_progress_sheet_and_becomes_marker_and_timeline_entry
 	await app.inspect(Registry.ref(Registry.STREET, "5,4"))
 	var text: String = app.inspector.text
 	check("Em obra: obra nova para pedra · 40% feito" in text, text)
-	check("as casas de frente" in text and "o motor ainda não diz" in text, text)
+	check("as casas de frente" in text and "1 pessoa(s)" in text, text)
 	var hover: String = app.selection.describe(Registry.ref(Registry.STREET, "5,4"))
 	check("em obra: pedra · 40%" in hover and "passagens no último mês" in hover, hover)
 	var pile_40 := _pile_height(Style.style_of(app.store.roads[Vector2i(5, 4)]))

@@ -45,11 +45,30 @@ public sealed record PsycheRules
     /// <summary><c>Socialize</c> só satisfaz a necessidade social com alguém por perto.</summary>
     public bool SocializeNeedsCompany { get; init; } = true;
 
+    /// <summary>AD-186: quem quer conversar e não tem ninguém por perto sai para achar alguém — o conhecido de quem mais gosta (parente,
+    /// vizinho, amigo) que está a menos de uma hora de casa, e sem ninguém o largo da cidade — andando pela rota; antes conversava
+    /// sozinho, a solidão subia e Conversar seguia ganhando. Falso = o de antes.</summary>
+    public bool SeekCompany { get; init; } = true;
+
+    /// <summary>AD-186: até quantas células da casa (Chebyshev) quem procura companhia vai atrás de um conhecido: a vizinhança a pé
+    /// (escolha do modelo; a regra da despensa a uma hora vale para o largo).</summary>
+    public int SeekCompanyMaxCells { get; init; } = 12;
+
+    /// <summary>AD-186: solidão (0–1) a partir da qual quem quer conversar sai de casa atrás de alguém (cada conversa sem ninguém soma
+    /// <see cref="LonelinessPerSolitude"/>: umas três noites sozinho). Escolha do modelo.</summary>
+    public double SeekCompanyLoneliness { get; init; } = 0.2;
+
     /// <summary>AD-147 (backlog 08, item 47): com fome ou sede crítica que a despensa serve, Conversar e Ficar à toa param no déficit
     /// crítico e Comer vence. Ligado por padrão desde o AD-148 (com o trabalho e a compra da casa consertados, 6 seeds × 100 anos:
     /// sede 0,2% → 0,0%, fome 3,7% → 3,5%); a causa: sozinho em casa a solidão nunca alivia e o peso de personalidade, até 3×,
     /// punha Conversar acima da sede no zero.</summary>
     public bool CriticalBodyOverridesLeisure { get; init; } = true;
+
+    /// <summary>AD-182 (08c item 149): o teto do lazer vale também quando a compra serve a fome ou a sede crítica (a despensa está
+    /// vazia, mas há moeda e comida à venda e a pessoa sabe comprar). Antes só valia com a despensa servindo: o jovem que ficou só em
+    /// casa, com 85–154 moedas e a despensa vazia, conversava sozinho (a solidão no zero e o peso de personalidade, ~190) contra a
+    /// compra (160) até morrer de fome. Falso = o de antes.</summary>
+    public bool CriticalBodyCountsPurchase { get; init; } = true;
 
     /// <summary>Fome em zero por pelo menos tantas horas vira lembrança de fome.</summary>
     public int FamineMinHours { get; init; } = 24;

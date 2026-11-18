@@ -26,7 +26,12 @@ fome sozinha (a sede já servida), comer só vencia a conversa e o sono na crít
 - Quem só foi beber em casa não come a ração com fome abaixo de `AppetiteDeficit` (40): a comida comida sem fome esvaziava a casa.
 - **Fim do dia em casa** (`OffShiftFarFromPantry`): à toa longe da despensa, volta para casa; o passeio fica ao alcance dela.
 - **Volta pelo que ficou** (08b item 77): a compra cortada pela carga marca a casa (`InventionLedger.LeftAtMarket`) e a ida seguinte
-  sai sem esperar a despensa cair (antes, mediana de 120 h contra 79 h de uma ida normal).
+  sai sem esperar a despensa cair (antes, mediana de 120 h contra 79 h de uma ida normal). AD-182 (08c 147): a marca guarda quanto
+  ficou de cada recurso (`LeftAtMarketQuantities`) e só antecipa a ida se o resto soma um dia de consumo da casa
+  (`MarketTripRules.ReturnMinDays`); com menos, espera a compra de sempre. Na banca compra pela meta (o resto está nela).
+- **O recipiente vai à compra** (AD-182, 08c 111): quem sai para comprar leva o recipiente da casa mesmo sem arrumar lanche
+  (mercado perto) e o segura até a compra acabar; antes outro morador podia sair com ele e a carga caía para os braços.
+  `MarketTripRules.HoldsCarrier`; medir sem as duas: `LW_MARKET_TRIP=off`.
 
 | 40 × 15 (cérebro ligado) | fome crít. | sede crít. | longe | dep. em casa | trabalho h/dia | voltas p/ comer | mortes fome |
 |---|---|---|---|---|---|---|---|

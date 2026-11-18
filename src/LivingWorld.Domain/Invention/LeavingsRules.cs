@@ -21,9 +21,29 @@ public sealed record LeavingsRules
     /// ser visto. Escolha sem fonte.</summary>
     public double SeenBarrierPerWitness { get; init; } = 0.15;
 
-    /// <summary>Quantas vezes (‰) o estrago no chão é o da despensa (<c>SpoilagePerDayByResource</c>): 1000 = igual. Escolha
-    /// conservadora (no chão, ao tempo e aos bichos, deveria ser mais; precisa de conferência).</summary>
-    public int GroundSpoilagePm { get; init; } = 1000;
+    /// <summary>AD-182 (08c item 155): quanto o laço de quem passa com o morto (o maior entre confiança e afeto, 0–1) sobe a barreira de
+    /// levar o que era dele. Medido com mortes provocadas de viajantes (8 seeds × 8 anos): na vila todo espólio cai a menos de 6 h de
+    /// casa e 41% era furtado por vizinhos que conheciam o morto; na aldeia de rosto conhecido o achado de um vizinho morto se
+    /// devolve. 0 = o de antes. Escolha do modelo (precisa de conferência).</summary>
+    public double KnownDeadBarrier { get; init; } = 0.5;
+
+    /// <summary>Quantas vezes (‰) o estrago no chão é o da despensa (<c>SpoilagePerDayByResource</c>), na temperatura de referência.
+    /// AD-182 (08c item 156): 3000 (era 1000, igual à despensa): ao relento a comida pega chuva e orvalho (mofo) e fica ao alcance
+    /// de rato, cão e ave, que na despensa fechada não chegam. Sem fonte numérica firme (precisa de conferência).</summary>
+    public int GroundSpoilagePm { get; init; } = 3000;
+
+    /// <summary>AD-182: água perdida por dia (‰) no recipiente largado no chão: evapora pela boca e pelo couro ou barro poroso e
+    /// vaza (antes a água no chão nunca se perdia). Escolha do modelo, precisa de conferência.</summary>
+    public int GroundWaterLossPerDayPm { get; init; } = 20;
+
+    /// <summary>AD-182: quanto a perda ao relento multiplica a cada 10 °C acima de <see cref="GroundReferenceCelsius"/> (Q10 de
+    /// mofo, bicho e evaporação, regra geral da biologia de ~2–3). 1 desliga o efeito da temperatura.</summary>
+    public double GroundQ10 { get; init; } = 2.0;
+
+    public double GroundReferenceCelsius { get; init; } = 15;
+
+    /// <summary>AD-182: o mês cobra só os dias que o espólio passou no chão (antes, o deixado na véspera perdia o mês inteiro).</summary>
+    public bool CountDaysOnGround { get; init; } = true;
 
     public static LeavingsRules Default { get; } = new();
 

@@ -26,7 +26,8 @@ public sealed class NaturalWaterTests
     [Fact]
     public void A_household_next_to_water_fills_its_pantry_for_free()
     {
-        var (world, water) = Dry();
+        // AD-185: o enchimento sem viagem só vale sem a ida de verdade (WaterFetchTests cobre a ida)
+        var (world, water) = Dry(NaturalWaterRules.Default with { Fetch = WaterFetchRules.Off });
         var rules = world.NaturalWaterRules;
         var near = world.Households.Where(h => NaturalWaterSystem.WalkToWater(world.Map, h.Location, rules.SearchRadiusCells) <= rules.MaxWalkTicks).ToList();
         Assert.NotEmpty(near);

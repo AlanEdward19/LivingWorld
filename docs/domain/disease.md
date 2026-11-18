@@ -40,7 +40,9 @@ visitas). Com o surto conhecido na cidade, o medo corta os encontros fora de cas
 
 De cama não trabalha nem sai (dorme, come, compra se precisa); quem cuida falta ao trabalho em metade dos dias. A saúde
 cai até o teto que a doença tira e volta na convalescença (`PhysiologySystem`); o caso leve trabalha mais fraco
-(`BodyMechanic`). Criança doente pode regredir marco de desenvolvimento.
+(`BodyMechanic`). Criança doente pode regredir marco de desenvolvimento. AD-182 (08c 149): o marco já atingido se consolida
+pelos anos vividos (`OntogenyRules.RegressionByEffectiveAge` falso); antes contava a idade escalada pela taxa, e o adolescente
+que se desenvolve devagar perdia na doença, aos 15–16 anos, o "raciocínio" (0,76 → 0,65) e nunca mais comprava comida.
 
 ## Causa das mortes
 

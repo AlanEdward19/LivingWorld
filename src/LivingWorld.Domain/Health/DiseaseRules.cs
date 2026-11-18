@@ -85,6 +85,14 @@ public sealed record DiseaseProfile(int Id, double ContagionPerContactDay, doubl
 
     /// <summary>Peso do mês (0..11) do ano.</summary>
     public double Season(int month) => SeasonByMonth is { Count: 12 } s ? s[((month % 12) + 12) % 12] : 1.0;
+
+    /// <summary>AD-180: quanto o perfil muda por grau de anomalia do tempo (positivo = pega mais no frio fora de época, negativo =
+    /// no calor); 0 = só o calendário.</summary>
+    public double ColdSensitivityPerC { get; init; }
+
+    /// <summary>Peso do mês e do tempo real: o calendário (média dos anos) vezes o desvio do dia (dia mais frio ou mais quente que o
+    /// normal), nunca abaixo de 0,2.</summary>
+    public double Season(int month, double anomalyC) => Season(month) * Math.Max(0.2, 1 - ColdSensitivityPerC * anomalyC);
 }
 
 /// <summary>Regras de doença do cenário (disease-epidemics, AD-137). <see cref="Disabled"/> não tem doença; o cenário de código usa

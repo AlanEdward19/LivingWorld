@@ -143,7 +143,19 @@ public static class CityStreets
             }
             if (street is null) path.RemoveRange(1, path.Count - 1);
         }
-        return new LotView(croftCells, path, street) { Access = Streets.StreetRoutes.AccessOf(world, building, network.Set) };
+        var access = Streets.StreetRoutes.AccessOf(world, building, network.Set);
+        if (Streets.StreetRoutes.AccessGeometryOf(world, building) is not { } geometry)
+            return new LotView(croftCells, path, street) { Access = access };
+        // AD-185: o acesso desemboca no traçado da cidade ainda sem uso (reserva), no traçado em uso, ou num caminho do pisoteio fora dele
+        string? state = geometry.Outlet is { } outlet ? (network.Contains(outlet) ? "planned" : "trodden")
+            : street is not null ? "reserved" : null; // sem rede de caminho nenhuma: a rua da frente é só reserva
+        return new LotView(croftCells, path, street)
+        {
+            Access = access,
+            AccessCells = geometry.Cells,
+            AccessViaBuildingId = geometry.Via,
+            AccessState = state,
+        };
     }
 }
 
@@ -170,6 +182,38 @@ public sealed record StreetCellView(CityId City, CellCoord Cell, StreetSurface S
     /// <summary>Obra de calçamento em curso nesta célula; nulo sem obra.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StreetWorkView? Work { get; init; }
+
+    /// <summary>AD-180: o chão da célula pelo tempo — <c>dry</c>, <c>wet</c>, <c>mud</c>, <c>heavy-mud</c>, <c>snow</c>, <c>frozen</c>
+    /// (cascalho e pedra só molham: nunca lama); nulo com o tempo desligado.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Ground { get; init; }
+
+    /// <summary>AD-180: neve no chão (cm) e terra molhada (0–1000) da célula; nulos com o tempo desligado.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? SnowCm { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? WetPm { get; init; }
+
+    /// <summary>AD-180: a célula com o tempo do dia (o mesmo que o passo lê: lama na terra, neve em tudo).</summary>
+    public StreetCellView WithWeather(WorldState world)
+    {
+        if (Climate.WeatherNow.RowAt(world, Cell) is not { } row) return this;
+        var rules = world.ClimateRules.Weather!;
+        var ground = Climate.WeatherNow.Ground(rules, row);
+        bool paved = Surface is StreetSurface.Gravel or StreetSurface.Paved;
+        if (paved && ground is Climate.GroundWeather.Mud or Climate.GroundWeather.HeavyMud) ground = Climate.GroundWeather.Wet;
+        string name = ground switch
+        {
+            Climate.GroundWeather.Wet => "wet",
+            Climate.GroundWeather.Mud => "mud",
+            Climate.GroundWeather.HeavyMud => "heavy-mud",
+            Climate.GroundWeather.Snow => "snow",
+            Climate.GroundWeather.Frozen => "frozen",
+            _ => "dry",
+        };
+        return this with { Ground = name, SnowCm = row.SnowMm, WetPm = row.SoilPm };
+    }
 }
 
 /// <summary>Obra de calçamento numa célula (AD-176): o que vira, quanto já foi feito (0–100), se é conserto e quem paga
@@ -191,4 +235,18 @@ public sealed record LotView(IReadOnlyList<CellCoord> Croft, IReadOnlyList<CellC
     /// vizinho), <c>roof</c> (laje ou telhado do vizinho), <c>none</c>; nulo sem a rua de verdade.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? Access { get; init; }
+
+    /// <summary>AD-185: a geometria do acesso — o que se anda da soleira até a primeira célula de caminho, em ordem (soleira primeiro;
+    /// na escada, laje ou telhado a soleira é célula do vizinho). Vazia sem a rua de verdade ou com a porta para fora do mapa.</summary>
+    public IReadOnlyList<CellCoord> AccessCells { get; init; } = [];
+
+    /// <summary>AD-185: o prédio vizinho por onde se chega à porta (escada do sobrado, laje ou telhado); nulo nos outros acessos.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? AccessViaBuildingId { get; init; }
+
+    /// <summary>AD-185: onde o acesso desemboca — <c>reserved</c> (rua do traçado da cidade ainda sem uso: só reserva de espaço),
+    /// <c>planned</c> (rua do traçado já pisada ou calçada), <c>trodden</c> (caminho aberto pelo pisoteio fora do traçado); nulo sem a
+    /// rua de verdade.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? AccessState { get; init; }
 }

@@ -57,7 +57,9 @@ public sealed class ConstructionSystem : ISimulationSystem
                 // AD-184: obra da fila sem nenhuma hora por meses (lote longe demais de quem trabalha, cidade sem braço) é
                 // abandonada: sai da fila e o canteiro desfeito, para a fila não ficar presa nela; a demanda abre outra depois
                 if (crew && ConstructionWorks.Abandoned(world, ctx, city, project)) break;
-                long workSteps = crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
+                // AD-180: com chuva forte, neve ou chão congelado a obra para no dia (a argamassa não pega, o barro não seca)
+                bool workable = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location);
+                long workSteps = !workable ? 0 : crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
                 for (long step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
                     long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;

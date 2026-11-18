@@ -15,9 +15,9 @@
      casal novo não constrói casa (hospeda ou aluga). Terra, cerca e trabalho por célula de quintal ficam para a obra da família.
 163. **Meios iguais na fundação**: o pecúlio inicial é o mesmo para todos, então a faixa de riqueza só separa casas
      construídas depois (oficinas e obras). Época e tecnologia não entram na escolha do lote.
-164. **Fome caiu com a casa mais longe**: pareado 40 seeds × 15 anos, mortes de fome ×0,47 (IC90 0,29–0,64) e natalidade
-     ×1,02 (1,003–1,037), embora a distância casa→trabalho medida suba ~10–20% (17,9 × 15,4 na seed 1). Achar a causa (mais
-     casas com porta livre? aperto?) antes de atribuir ao traçado; sede crítica igual (×0,99, 0,97–1,02).
+164. ~~**Fome caiu com a casa mais longe**~~ (AD-182): não se repete na base do AD-182 (rua de verdade, AD-176): 40 × 15
+     `starvation-trace`, traçado ligado 49 mortes de fome, desligado 51, mesmo perfil (17 contra 22 jovens sós empregados, o
+     morto do 08c 149, corrigido na causa). Sem efeito a explicar, nada a corrigir no traçado.
 165. **Casa solitária de cidade nova**: com água em volta do largo, a primeira casa pode cair a mais de `AbsorptionRingCells`
      dos 3×3 da cidade sem gente e fica fora do limite (não é desenhada). A absorção encadeada só parte do limite existente.
 166. **Ruas sobre outra cidade**: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra
@@ -42,8 +42,7 @@
      (sem quintal, parede-meia, porta na rua), rua até o lado do mapa, ofícios e roças perto das casas.
 
 ## Da rua de verdade (AD-176; itens 158–160 e 167 fechados por ela)
-174. **Lama sem chuva**: o motor não tem chuva nem umidade (o fator de clima é de safra), então a rua de terra não vira lama na
-     estação; ligar quando houver precipitação por região e mês.
+174. ~~Lama sem chuva~~: fechado pela AD-180 (chuva por região e dia; lama na terra, neve em tudo, no passo e na carroça).
 175. ~~**Carga a pé não muda o passo**~~ AD-179: a carga levada alonga o passo (0,5%/kg até 40 kg), o material de obra também.: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
@@ -59,10 +58,21 @@
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
 
 ## Dos nomes (AD-178)
-185. **Costume de nome não é dado de cenário**: linhagem, adoção do nome no casamento e chance de homenagem saem do RNG da
-     cultura (padrão 70% / 50% / 15–50%); o período não declara. Bloco opcional `Naming` por cultura no cenário, com
-     loader e snapshot, se um período quiser fixar o costume.
+185. ~~**Costume de nome não é dado de cenário**~~ — fechado na AD-183: bloco opcional `Naming` por cultura (linhagem,
+     cônjuge adota o nome, chance de homenagem, nome da cidade-filha), validado, no snapshot; ausente = o sorteio da cultura.
 186. ~~**Cidade ainda não fala a língua da cultura**~~ — fechado na AD-178: nome de cidade pela fonologia da cultura que funda.
 187. ~~**Nome sem consequência causal**~~ — fechado na AD-178: xará e linhagem na ajuda, luto, legado, namoro e fama
-     (`NameBondRules`). Aberto dele: honra (feito) não respinga, só vergonha; o nome do fundador na cidade-filha não existe.
+     (`NameBondRules`). ~~Aberto dele: honra não respinga; fundador da cidade-filha não existe~~ — fechado na AD-183 (honra
+     dos feitos que respinga como a vergonha; fundador registrado e homenageado no nome pelo costume).
 188. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
+189. ~~**Honra só de quatro feitos**~~ — fechado na AD-186: mestria no ofício, filho criado, prosperidade e coragem dão fama.
+190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha. Issue #193.
+191. ~~**Nome na sociedade**~~ — fechado na AD-186: o amigo de nome melhor é chamado antes para sócio (parentes primeiro).
+
+## Do tempo de verdade (AD-180; detalhe em docs/domain/climate.md)
+192. **Sem lenha, roupa nem fogo**: a casa é o único abrigo do frio; madeira só existe como insumo de obra. Ligar a casa comprando
+     lenha no inverno (demanda do lenhador) e a roupa como objeto. Issue #189.
+193. **Rotina e sono não seguem a luz**: a rotina é tabela fixa por hora; a luz só encurta a jornada do campo (semear e ceifar). #149.
+194. **Chuva não enche rio nem poço**: não há nível d'água; só a seca reduz a fonte natural. Issue #190.
+195. **Geada sobre a lavoura só no índice do ano** (geada tardia de abril–maio); decisão: não ler dia a dia (contaria duas vezes).
+196. **Viagem muda com o tempo no meio do caminho** (a duração é refeita na chegada com o tempo do dia); conferir o despertar.

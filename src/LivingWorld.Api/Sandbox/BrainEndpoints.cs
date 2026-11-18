@@ -22,12 +22,16 @@ public sealed record BrainValueDto(double Body, double Pantry, double Money, dou
 public sealed record BrainSiteWorkDto(
     long WorkId, string Role, LivingWorld.Domain.Geography.CellCoord Site, bool Joined, double OfferDay, double WageDay, double Need,
     double Share, double Value, double JoinMin, string Reason);
+/// <summary>AD-183: por que um termo da decisão tem o valor que tem, quando o nome pesou: <c>xara</c> = o luto é pelo avô/avó (ou
+/// pai/mãe) de quem a pessoa leva o nome (<see cref="OtherId"/> = o morto). Só termos que somaram algo na leitura.</summary>
+public sealed record BrainMotiveDto(UtilityTerm Term, string Motive, long OtherId);
 
 /// <summary>Resposta de <c>GET /npcs/{id}/brain</c> (AD-160b): a rede da decisão de agora, termo → grupo → ação; a soma das sinapses
-/// de uma ação é exatamente a nota que o motor dá a ela. <see cref="Enabled"/> falso = cérebro desligado no mundo (ganhos zero).</summary>
+/// de uma ação é exatamente a nota que o motor dá a ela. <see cref="Enabled"/> falso = cérebro desligado no mundo (ganhos zero).
+/// <see cref="Motives"/> (AD-183): o nome por trás de um termo (vazio quando o nome não pesou).</summary>
 public sealed record BrainReadingResponse(
     bool Enabled, IReadOnlyList<BrainSynapseDto> Synapses, IReadOnlyList<BrainScoreDto> Scores, BrainValueDto? Value,
-    BrainSiteWorkDto? SiteWork = null);
+    IReadOnlyList<BrainMotiveDto>? Motives = null, BrainSiteWorkDto? SiteWork = null);
 
 /// <summary>"Ler o cérebro" (ADR-0046, opção b): projeção volátil do canônico; nunca escreve no mundo.</summary>
 public static class BrainEndpoints
@@ -49,7 +53,54 @@ public static class BrainEndpoints
             return Results.Ok(new BrainReadingResponse(
                 world.BrainRules is { Enabled: true },
                 reading.Synapses.Select(s => new BrainSynapseDto(s.Action, s.Term, s.Group, s.Value, s.GainMilli)).ToList(),
-                reading.Scores.OrderBy(kv => kv.Key).Select(kv => new BrainScoreDto(kv.Key, kv.Value)).ToList(), value, site));
+                reading.Scores.OrderBy(kv => kv.Key).Select(kv => new BrainScoreDto(kv.Key, kv.Value)).ToList(), value,
+                NameMotives(world, new NpcId(id), reading.Synapses.Any(s => s.Term == UtilityTerm.Grief && s.Value != 0))
+                    .Concat(CareMotives(world, new NpcId(id), reading.Synapses.Any(s => s.Action == ActionType.Socialize && s.Term == UtilityTerm.Social && s.Value != 0)))
+                    .ToList(), site));
         });
+    }
+
+    /// <summary>AD-186: <c>procurar-companhia</c> no termo <c>Social</c> = está só e, se for conversar, sai atrás de alguém
+    /// (<see cref="BrainMotiveDto.OtherId"/> = quem; −1 = o largo); <c>acolher-crianca</c> no termo <c>Provision</c> = a casa dele
+    /// sustenta criança acolhida, sem pai nem mãe na casa (OtherId = a criança mais nova).</summary>
+    public static IReadOnlyList<BrainMotiveDto> CareMotives(LivingWorld.Simulation.Core.WorldState world, NpcId id, bool socialWeighs)
+    {
+        if (world.FindNpc(id) is not { } npc) return [];
+        var motives = new List<BrainMotiveDto>();
+        if (socialWeighs && BehaviorDecisionSystem.CompanySought(world, npc) is { } other)
+            motives.Add(new BrainMotiveDto(UtilityTerm.Social, "procurar-companhia", other));
+        if (npc.Household is { } hh && world.FindHousehold(hh) is { } home)
+        {
+            var now = world.CurrentDate;
+            LivingWorld.Domain.Population.Npc? youngest = null;
+            foreach (var member in home.Members.OrderBy(m => m.Value))
+                if (world.FindNpc(member) is { IsAlive: true } child && child.Id != npc.Id
+                    && world.LifeStageRules.LifeStageOf(child.AgeYears(now)) == LivingWorld.Domain.Population.Body.LifeStage.Child
+                    && (child.MotherId is not { } m || !home.Members.Contains(m)) && (child.FatherId is not { } f || !home.Members.Contains(f))
+                    && (youngest is null || child.BirthDate.TotalHours > youngest.BirthDate.TotalHours))
+                    youngest = child;
+            if (youngest is not null) motives.Add(new BrainMotiveDto(UtilityTerm.Provision, "acolher-crianca", youngest.Id.Value));
+        }
+        return motives;
+    }
+
+    /// <summary>AD-183: o luto que pesa no termo <c>Grief</c> é pelo homenageado (o xará enluta o avô/avó de quem leva o nome)?
+    /// Lê as lembranças de morte ainda vivas e devolve, das que são pelo homenageado, a mais forte.</summary>
+    public static IReadOnlyList<BrainMotiveDto> NameMotives(LivingWorld.Simulation.Core.WorldState world, NpcId id, bool griefWeighs)
+    {
+        if (!griefWeighs || world.FindNpc(id) is not { Psyche: { } psyche } npc) return [];
+        long tick = world.CurrentDate.TotalHours;
+        var rules = world.NeedsRules.Psyche;
+        BrainMotiveDto? best = null;
+        double strongest = 0;
+        foreach (var memory in psyche.Memories)
+        {
+            if (memory.Kind != LivingWorld.Domain.Cognition.LifeEventKind.FriendDied || memory.Other < 0) continue;
+            if (world.FindNpc(new NpcId(memory.Other)) is not { } dead
+                || !LivingWorld.Simulation.Population.Naming.NameBonds.IsNamesake(world, npc, dead)) continue;
+            double strength = LivingWorld.Simulation.Cognition.PsycheMechanic.StrengthOf(rules, memory, tick, world.Calendar.HoursPerDay);
+            if (strength > strongest) (strongest, best) = (strength, new BrainMotiveDto(UtilityTerm.Grief, "xara", memory.Other));
+        }
+        return best is null ? [] : [best];
     }
 }

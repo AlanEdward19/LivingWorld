@@ -51,6 +51,14 @@ if (args.Length == 4 && args[0] == "brain-trace")
 if (args.Length == 4 && args[0] == "provision-trace")
     return ProvisionTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
 
+// Exercício do espólio (AD-182, 08c item 155): `dotnet <dll> leavings-exercise <seed-inicial> <seeds> <anos> <horas>`.
+if (args.Length == 5 && args[0] == "leavings-exercise")
+    return LeavingsExerciseCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Sonda de uma pessoa (AD-182): `dotnet <dll> person-trace <seed> <npc> <anos>`.
+if (args.Length == 4 && args[0] == "person-trace")
+    return PersonTraceCommand.Run(ulong.Parse(args[1]), long.Parse(args[2]), int.Parse(args[3]));
+
 // Sonda da quebra de colheita (AD-166): `dotnet <dll> famine-trace <seed> <anos>`.
 if (args.Length == 3 && args[0] == "famine-trace")
     return FamineTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));
@@ -156,6 +164,11 @@ if (args.Length == 3 && args[0] == "disease-hash")
     Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Infections.Count};{world.Npcs.Count(n => !n.IsAlive)}");
     return 0;
 }
+
+// AD-180: diagnóstico do tempo — `weather-diag calib <anos>` (gerador sozinho, calibração do índice da safra) ou
+// `weather-diag world <seed>` (um ano do mundo de código, por mês, contra a fonte).
+if (args.Length == 3 && args[0] == "weather-diag")
+    return LivingWorld.Workers.WeatherDiagCommand.Run(args[1], args[2]);
 
 // Hash canônico de uma vila com clima ligado (anos de safra por região): o teste de dois processos exige o mesmo hash.
 // `dotnet <dll> climate-hash <seed> <ticks>`.

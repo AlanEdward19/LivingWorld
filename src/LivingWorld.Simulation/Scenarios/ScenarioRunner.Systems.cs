@@ -60,6 +60,7 @@ public static partial class ScenarioRunner
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new ClimateYearSystem(),
+        new WeatherSystem(), // AD-180: o tempo do dia antes de quem o lê
         new NaturalWaterSystem(), // antes da natalidade: a despensa de água já cheia no dia
         new MortalitySystem(),
         new OutbreakSystem(),

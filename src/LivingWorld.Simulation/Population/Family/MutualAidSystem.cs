@@ -60,6 +60,10 @@ public sealed class MutualAidSystem : ISimulationSystem
             bool scarce = household.Stock.GetValueOrDefault(food) < count * NeedyStockDays
                           || household.Stock.GetValueOrDefault(water) < count * NeedyStockDays;
             if (!scarce) continue;
+            // AD-185: a casa sem ninguém que possa buscar água (só crianças pequenas, gente de cama) recebe a água dos seus
+            if (household.Stock.GetValueOrDefault(water) < count * NeedyStockDays && LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
+                && LivingWorld.Simulation.Economy.Supply.WaterFetch.NoFetcher(world, household))
+                RelieveWater(world, ctx, household, members, day, water);
 
             // Quem faz as compras da casa: o chefe se for adulto ou idoso, senão o primeiro adulto ou idoso, senão o chefe.
             var head = members.FirstOrDefault(m => m.Id == household.Head) ?? members[0];
@@ -70,6 +74,9 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
             bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
+            // AD-182 (08c item 149): moeda na mão de quem não sabe comprar não alimenta; a ajuda vai em comida
+            if (moneyBuysFood && world.FamilyRules.Pressure is { AidSeesWhoCanBuy: true } && !SomeoneCanBuy(world, members))
+                moneyBuysFood = false;
             if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
@@ -103,6 +110,14 @@ public sealed class MutualAidSystem : ISimulationSystem
             }
         }
         return best;
+    }
+
+    /// <summary>AD-182: algum morador tem o marco de comprar (o desenvolvimento dele não barra a compra).</summary>
+    private static bool SomeoneCanBuy(WorldState world, List<Npc> members)
+    {
+        foreach (var m in members)
+            if (world.OntogenyRules.IsEligible(m.Development, LivingWorld.Domain.Behavior.ActionType.Buy)) return true;
+        return false;
     }
 
     private static bool IsGrown(WorldState world, Npc npc) =>
@@ -186,8 +201,9 @@ public sealed class MutualAidSystem : ISimulationSystem
                 continue;
 
             double closeness = kin ? 1.0 : ClosenessTo(world, helper, members);
+            string? why = null; // AD-183: o motivo do nome fica no evento
             if (closeness < names.LineageAidCloseness && Naming.NameBonds.LineageOfAny(helper, members))
-                closeness = names.LineageAidCloseness; // AD-178: "é dos nossos"
+                (closeness, why) = (names.LineageAidCloseness, "linhagem"); // AD-178: "é dos nossos"
             if (closeness <= 0) continue;
             considered++;
 
@@ -202,7 +218,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                 * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, members, ctx.CurrentTick);
             // AD-178: o xará socorre a casa do homenageado (e o homenageado a do xará) com mais vontade
             if (names.NamesakeAidGain > 0 && Naming.NameBonds.NamesakeOfAny(world, helper, members))
-                chance *= 1 + names.NamesakeAidGain;
+                (chance, why) = (chance * (1 + names.NamesakeAidGain), "xara");
             // Uma rolagem por (ajudante, dia): o mesmo fluxo atende, em ordem de id, as casas que precisam.
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;
@@ -217,7 +233,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                     foodNeed -= sent;
                     deficit -= sent * unitPrice; // a comida que chegou é a que não precisa ser comprada
                     Thank(world, ctx, recipient, helper);
-                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food", sourceSystem: SystemName);
+                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food{(why is null ? "" : "|" + why)}", sourceSystem: SystemName);
                 }
                 if (deficit <= 0 && (moneyBuysFood || foodNeed <= 0)) break;
             }
@@ -230,7 +246,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             recipient.CreditWallet(new Money(give));
             deficit -= give;
             Thank(world, ctx, recipient, helper);
-            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}{(why is null ? "" : "||" + why)}", sourceSystem: SystemName);
         }
 
         if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
@@ -238,6 +254,68 @@ public sealed class MutualAidSystem : ISimulationSystem
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
     }
+
+    /// <summary>AD-185: parente ou gente de afeto (adulto, como no socorro de comida) manda da despensa dele a água que passa de
+    /// <see cref="WaterAidReserveDays"/> dias dos moradores dele, pela mesma vontade (altruísmo × proximidade) e o mesmo sorteio por
+    /// ajudante e dia, até a semana da casa. Uma remessa por casa de origem por dia.</summary>
+    private static void RelieveWater(WorldState world, TickContext ctx, Household household, List<Npc> members, long day, ResourceType water)
+    {
+        long need = members.Count * (long)RelieveDays - household.Stock.GetValueOrDefault(water);
+        if (need <= 0) return;
+        var memberIds = members.Select(m => m.Id).ToHashSet();
+        var candidates = new SortedSet<NpcId>(Comparer<NpcId>.Create((a, b) => a.Value.CompareTo(b.Value)));
+        foreach (var member in members)
+        {
+            if (member.MotherId is { } mother) candidates.Add(mother);
+            if (member.FatherId is { } father) candidates.Add(father);
+            if (member.Spouse is { } spouse) candidates.Add(spouse);
+            foreach (var contact in world.RelationshipTargetsOf(member.Id)) candidates.Add(contact);
+        }
+        var sentFrom = new HashSet<HouseholdId>();
+        foreach (var helperId in candidates)
+        {
+            if (need <= 0) break;
+            if (memberIds.Contains(helperId) || world.FindNpc(helperId) is not { IsAlive: true } helper || !IsGrown(world, helper)) continue;
+            if (helper.Household is not { } origin || origin == household.Id || !sentFrom.Add(origin)
+                || world.FindHousehold(origin) is not { } from) { continue; }
+            long spare = from.Stock.GetValueOrDefault(water) - Math.Max(1, from.Members.Count) * (long)WaterAidReserveDays;
+            double closeness = IsKinOf(world, helper, members) ? 1.0 : ClosenessTo(world, helper, members);
+            if (spare <= 0 || closeness <= 0) { sentFrom.Remove(origin); continue; }
+            double chance = helper.Personality.Altruism / 100.0 * (0.4 + 0.6 * closeness);
+            var rng = ctx.StreamFor("water-aid", helper.Id.Value * 1_000_003L + day);
+            if (rng.NextDouble() >= chance) { sentFrom.Remove(origin); continue; }
+            long sent = Math.Min(need, spare);
+            if (!from.Withdraw(water, sent).IsSuccess) continue;
+            household.Deposit(water, sent);
+            need -= sent;
+            world.InventionTally.WaterAidGiven++;
+            world.InventionTally.WaterAidUnits += sent;
+            Thank(world, ctx, members[0], helper);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{members[0].Id.Value}|{sent}|water", sourceSystem: SystemName);
+        }
+        // sem gota em casa e ninguém dos seus mandou: o vizinho mais perto com água sobrando acode (sem sorteio: ninguém deixa
+        // a criança sozinha ou o doente de cama morrer de sede ao lado)
+        if (need <= 0 || household.Stock.GetValueOrDefault(water) > 0) return;
+        Household? neighbour = null;
+        long bestDistance = long.MaxValue;
+        foreach (var other in world.Households)
+        {
+            if (other.Id == household.Id || other.IsEmpty || other.City != household.City
+                || other.Stock.GetValueOrDefault(water) - Math.Max(1, other.Members.Count) * (long)WaterAidReserveDays <= 0) continue;
+            long d = Math.Abs(other.Location.X - household.Location.X) + Math.Abs(other.Location.Y - household.Location.Y);
+            if (d < bestDistance || (d == bestDistance && neighbour is not null && other.Id.Value < neighbour.Id.Value)) { neighbour = other; bestDistance = d; }
+        }
+        if (neighbour is null) return;
+        long give = Math.Min(Math.Max(1, members.Count) * 2L, neighbour.Stock.GetValueOrDefault(water) - Math.Max(1, neighbour.Members.Count) * (long)WaterAidReserveDays);
+        if (give <= 0 || !neighbour.Withdraw(water, give).IsSuccess) return;
+        household.Deposit(water, give);
+        world.InventionTally.WaterAidGiven++;
+        world.InventionTally.WaterAidUnits += give;
+        ctx.LogEvent(WorldEventKind.AidGiven, $"casa-{neighbour.Id.Value}|{members[0].Id.Value}|{give}|water", sourceSystem: SystemName);
+    }
+
+    /// <summary>AD-185: dias de água dos próprios moradores que a casa de quem socorre guarda antes de mandar.</summary>
+    private const int WaterAidReserveDays = 3;
 
     private static void Thank(WorldState world, TickContext ctx, Npc recipient, Npc helper)
     {

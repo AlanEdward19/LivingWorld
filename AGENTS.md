@@ -73,8 +73,8 @@
 - **Testes**: comportamento novo tem teste. O agente não se autoavalia — quem decide é o gate.
 - **Simulação**: determinística e reprodutível. Mesma seed + mesmos ticks = mesmo mundo.
 - **Coesão**: todo sistema novo entra **conectado** (consumidor causal real) — ver
-  `rules/living-world-cohesion.md`. Stub presentation-only sem consumidor é dívida explícita,
-  não entrega.
+  `rules/living-world-cohesion.md`. Stub presentation-only sem consumidor é dívida, não entrega.
+- **Não entregue**: item que ajuda o realismo é implementado; grande demais → issue (`prioridade`). Nunca solto.
 - **LLM**: propõe linguagem e intenção; o motor valida e aplica. Nunca o contrário.
 
 ## Harness

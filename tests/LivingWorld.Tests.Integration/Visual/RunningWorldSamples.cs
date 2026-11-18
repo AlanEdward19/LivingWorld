@@ -42,6 +42,7 @@ internal sealed record RunningWorldSamples(
         for (int t = 0; t <= ticks; t++)
         {
             if (t > 0) loop.RunOneCycle();
+            ForceWeather(world, t);
             worldSnapshots.Add(JsonNode.Parse(client.GetStringAsync("/visual/subscribe?scope=World&mode=Spectator").Result)!);
             citySnapshots.Add(JsonNode.Parse(client.GetStringAsync($"/visual/subscribe?scope=City&refId={cityId}&mode=Spectator").Result)!);
             while (worldReader.TryRead(out var envelope)) deltas.Add(JsonNode.Parse(VisualWire.Serialize(envelope))!);
@@ -107,6 +108,29 @@ internal sealed record RunningWorldSamples(
             HoursLeft = 100_000,
         });
         ground.SurfaceVersion++;
+    }
+
+    /// <summary>AD-180: um dia de neve (com neve no chão e geada) e um de temporal (chuva forte, lamaçal, granizo) na amostra, para o
+    /// contrato do tempo ter os dois casos; o resto dos dias é o tempo que o motor gerou.</summary>
+    private static void ForceWeather(LivingWorld.Simulation.Core.WorldState world, int tick)
+    {
+        if (world.Weather is not { } weather || tick % 24 != 1) return;
+        int day = tick / 24;
+        foreach (var row in weather.Regions)
+        {
+            if (day == 2)
+            {
+                row.Kind = LivingWorld.Simulation.Climate.Precipitation.Snow;
+                row.Wet = true; row.PrecipTenths = 60; row.SnowMm = 40; row.Frost = true;
+                row.MeanCenti = -300; row.MinCenti = -800; row.MaxCenti = 100;
+            }
+            else if (day == 5)
+            {
+                row.Kind = LivingWorld.Simulation.Climate.Precipitation.Rain;
+                row.Wet = true; row.PrecipTenths = 220; row.Storm = true; row.Hail = true; row.SoilPm = 900; row.SnowMm = 0;
+                row.WindDecims = 160; row.MeanCenti = 1300;
+            }
+        }
     }
 
     /// <summary>A forma de todas as amostras juntas.</summary>

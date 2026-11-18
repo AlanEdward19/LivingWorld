@@ -52,7 +52,10 @@ public sealed partial class BehaviorDecisionSystem
         if (currentValue > 0 && current!.Owner == npc.Id && world.EconomyRules.Venture is { OwnerKeepsShop: true }) return;
 
         Workplace? best = null;
-        double bestValue = 0;
+        double bestValue = 0, bestCost = double.NaN;
+        // AD-185: no empate de valor (as fazendas iguais do primeiro dia), a oficina mais perto de casa pela rota
+        bool nearest = world.StreetsOn && world.StreetRules.NearestJob;
+        var from = npc.Household is { } hh && world.FindHousehold(hh) is { IsHomeless: false } home ? home.Location : npc.CurrentLocation;
         var candidates = labor.In(npc.City);
         for (int i = 0; i < candidates.Length; i++)
         {
@@ -68,6 +71,13 @@ public sealed partial class BehaviorDecisionSystem
             {
                 best = workplace;
                 bestValue = value;
+                bestCost = double.NaN;
+            }
+            else if (nearest && value == bestValue && best is not null)
+            {
+                if (double.IsNaN(bestCost)) bestCost = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, from, best.Location).Cost;
+                double cost = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, from, workplace.Location).Cost;
+                if (cost < bestCost) { best = workplace; bestCost = cost; }
             }
         }
 

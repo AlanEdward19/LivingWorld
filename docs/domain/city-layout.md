@@ -13,12 +13,12 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
   acumulado perde `WearRetainPm` por mês (o mato volta). Snapshot e hash: linhas esparsas por célula, viagens do mês, obras.
 - A cada `ReviewMonths` a superfície muda: **trilha** a partir de `TrailWear`, **terra batida** a partir de `DirtWear` (some abaixo
   da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo vira obstáculo na virada do mês e apaga o chão debaixo.
-- Lama na chuva: **não entregue**, o motor não tem chuva nem umidade (o fator de clima é de safra). Dívida no 08d.
+- Lama na chuva (AD-180, [climate](climate.md)): o chão de terra (trilha, terra batida, campo) molha com a chuva e seca com o calor;
+  lama alonga a parte da rota sem calçamento, neve a rota toda — o calçamento poupa o tempo que a lama tomaria.
 - **Chão da história** (AD-179, `StreetGroundSystem.SeedHistory`): o mundo começa no meio da história. Na criação, o mês típico
   (cada adulto vai e volta do trabalho do ofício dele, o mais perto, todo dia; cada casa vai `HistoryMarketTripsPerMonth` vezes
   ao mercado mais perto) deposita passagens pelas rotas, e o pisoteio vai ao valor estacionário do processo mensal (passagens ÷
-  (1 − `WearRetainPm`)); a revisão faz trilha e terra batida. `HistoryRounds` = 2 (a 2ª rodada segue a rede da 1ª); 0 = nasce sem
-  caminho. Fecha o 08d item 180.
+  (1 − `WearRetainPm`)); a revisão faz trilha e terra batida. `HistoryRounds` = 2 (a 2ª rodada segue a rede da 1ª); 0 = nasce sem caminho (08d 180).
 
 ## Rota (`Streets/StreetRoutes`)
 - Pontas na **soleira** do prédio onde a pessoa está (por ela se entra e sai). Duas opções, fica a mais rápida: a **reta** pelo
@@ -86,7 +86,15 @@ empreendimento, crédito, tecnologia ligada, célula de 30 min, lado pela regra 
 pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra, zero morte de fome ou sede, zero casa sem rota;
 `cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`.
 `LW_MENU_WORLDS_OUT=arq ... --filter MenuWorldsReport` (diagnóstico) e `MenuWorldsCostReport` (custo).
-
+## Buscar água, emprego perto e dados de rota (AD-185)
+`WaterFetch`: com a água da casa abaixo de 4 dias por morador, quem está em casa ou perto com tempo livre (8+ anos, fora da cama; quem
+tem emprego só abaixo de 1 dia ou sem outro livre perto) vai à água mais perto pela rota (até 3 h, raio 6), bebe, enche o cântaro (20
+L, recipiente ou veículo da casa) e volta carregado; a despensa só recebe o que chegou; a ida segue até o fim (a escolha da hora não a
+recomeça) e vem antes até da mudança de cidade. Sede urgente (qualquer idade que ande) sem água vai à fonte mais perto de onde está (até
+6 h; com moeda e mercado mais perto, salvo se a escolha foi comprar); casa sem apto recebe água dos seus, senão do vizinho. Com a fonte
+não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Rede: A* com marcos (as oito
+pontas, ALT) e campos dos polos. Emprego: a oficina do ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`,
+`routeOver`, `lot.accessCells`, `accessViaBuildingId`, `accessState`. `LW_AD185=off` desliga.
 ## Medir
 `LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
 rua); `LW_STREETS=off` desliga a rua de verdade (relatórios, Workers, fixture de escala); `LW_CITY_LAYOUT=off`, o traçado.

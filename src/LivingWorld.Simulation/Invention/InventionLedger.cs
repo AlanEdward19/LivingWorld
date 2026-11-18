@@ -78,8 +78,40 @@ public sealed class InventionLedger
 
     internal bool IsLeftAtMarket(long householdId) => LeftAtMarket is { Count: > 0 } left && left.BinarySearch(householdId) >= 0;
 
+    /// <summary>AD-182 (08c item 147): quanto ficou na banca, por casa e recurso (ordenado). Nulo enquanto nada: o snapshot antigo
+    /// abre igual, e a marca antiga sem unidades volta como antes (pela meta).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<LeftAtMarketUnits>? LeftAtMarketQuantities { get; set; }
+
+    /// <summary>Unidades de <paramref name="resourceId"/> que a casa deixou na banca na última compra (0 = nada guardado).</summary>
+    internal long LeftUnitsAtMarket(long householdId, int resourceId)
+    {
+        if (LeftAtMarketQuantities is not { Count: > 0 } list) return 0;
+        foreach (var e in list) if (e.HouseholdId == householdId && e.ResourceId == resourceId) return e.Units;
+        return 0;
+    }
+
+    /// <summary>Guarda (ou apaga, com 0) o que a casa deixou de <paramref name="resourceId"/> na banca.</summary>
+    internal void SetLeftUnitsAtMarket(long householdId, int resourceId, long units)
+    {
+        if (units <= 0 && LeftAtMarketQuantities is not { Count: > 0 }) return;
+        LeftAtMarketQuantities ??= [];
+        var list = LeftAtMarketQuantities;
+        int i = 0;
+        while (i < list.Count && (list[i].HouseholdId < householdId || (list[i].HouseholdId == householdId && list[i].ResourceId < resourceId))) i++;
+        bool found = i < list.Count && list[i].HouseholdId == householdId && list[i].ResourceId == resourceId;
+        if (units <= 0) { if (found) list.RemoveAt(i); else { if (list.Count == 0) LeftAtMarketQuantities = null; return; } }
+        else if (found) { if (list[i].Units == units) return; list[i] = new LeftAtMarketUnits(householdId, resourceId, units); }
+        else list.Insert(i, new LeftAtMarketUnits(householdId, resourceId, units));
+        if (list.Count == 0) LeftAtMarketQuantities = null;
+        Version++;
+    }
+
     internal void LeaveAtMarket(long householdId, bool left)
     {
+        if (!left && LeftAtMarketQuantities is { Count: > 0 } quantities)
+            for (int q = quantities.Count - 1; q >= 0; q--)
+                if (quantities[q].HouseholdId == householdId) SetLeftUnitsAtMarket(householdId, quantities[q].ResourceId, 0);
         if (!left && LeftAtMarket is not { Count: > 0 }) return;
         LeftAtMarket ??= [];
         int i = LeftAtMarket.BinarySearch(householdId);
@@ -100,6 +132,42 @@ public sealed class InventionLedger
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long LastLeavingId { get; set; }
+
+    /// <summary>AD-185: quem saiu para buscar água (ordenado por pessoa): a casa, a fonte, quando saiu e se já volta carregado. Nulo
+    /// enquanto ninguém foi: o snapshot antigo abre igual.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<LivingWorld.Simulation.Economy.Supply.WaterTrip>? WaterTrips { get; set; }
+
+    internal int WaterTripIndex(long npcId)
+    {
+        if (WaterTrips is not { } list) return -1;
+        int lo = 0, hi = list.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1;
+            long at = list[mid].NpcId;
+            if (at == npcId) return mid;
+            if (at < npcId) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
+    }
+
+    internal void PutWaterTrip(LivingWorld.Simulation.Economy.Supply.WaterTrip trip)
+    {
+        WaterTrips ??= [];
+        int i = WaterTripIndex(trip.NpcId);
+        if (i >= 0) WaterTrips[i] = trip; else WaterTrips.Insert(~i, trip);
+        Version++;
+    }
+
+    internal void RemoveWaterTrip(long npcId)
+    {
+        int i = WaterTripIndex(npcId);
+        if (i < 0) return;
+        WaterTrips!.RemoveAt(i);
+        if (WaterTrips.Count == 0) WaterTrips = null;
+        Version++;
+    }
 
     /// <summary>Tudo o que está no chão de um recurso (AD-168): estoque do mundo, entra na conservação.</summary>
     public long GroundTotal(int resourceId)
@@ -740,4 +808,17 @@ public sealed class InventionTally
     // dono, furtados; unidades deixadas, recolhidas, furtadas e estragadas)
     public long LeavingsLeft, LeavingsAtHome, LeavingsFetches, LeavingsCollected, LeavingsFound, LeavingsStolen;
     public long LeftUnits, CollectedUnits, StolenUnits, SpoiledUnits;
+    // AD-182: recipiente levado à compra sem lanche (111); voltas pelo resto da banca feitas e dispensadas por ser pouco (147);
+    // água do espólio perdida ao relento (156)
+    public long MarketCarrierHeld, ReturnsForLeft, ReturnsForLeftSkipped, GroundWaterLost;
+    // AD-182 (08c item 113): saídas com lanche levando um recipiente, e saídas (com lanche ou à compra) com a peça presa ao corpo (tira)
+    public long PackTripsWithCarrier, PackTripsWorn;
+    // AD-186 (só medida): conversas terminadas sem ninguém por perto e com alguém; saídas atrás de companhia
+    public long SocializedAlone, SocializedWithCompany, CompanyTrips;
+    // AD-186 (só medida): por que a conversa sozinha não virou saída — fora de casa, sem falta de gente, ainda sem solidão, sem aonde ir
+    public long AloneAway, AloneContent, AloneNotLonely, AloneNowhere;
+    // AD-185: buscar água andando (idas, chegadas em casa com água, unidades trazidas, goles na fonte, idas pela sede urgente,
+    // idas de quem tem emprego, socorro de água a casa sem quem busque e unidades dele)
+    public long WaterTrips, WaterTripsHome, WaterUnitsHome, DrankAtSource, WaterTripsByThirst, WaterTripsByEmployed;
+    public long WaterAidGiven, WaterAidUnits;
 }

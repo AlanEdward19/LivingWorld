@@ -211,10 +211,12 @@ public sealed partial class BehaviorDecisionSystem
         // solidão) conversava de hora em hora até morrer de sede com água na despensa.
         // Só quando a despensa serve a necessidade crítica (Comer passa do déficit crítico): sem o que comer em casa, o teto mudava
         // a escolha de quem não tinha saída e a fome subia (seeds 1–2 × 100 anos: 4,4% → 7,7%). Estendê-lo a Trabalhar e Comprar
-        // (tentativa 3) levou a fome de 6,4% a 11,7% em 20 × 100.
+        // (tentativa 3) levou a fome de 6,4% a 11,7% em 20 × 100. AD-182: a compra que serve a necessidade crítica (moeda, comida à
+        // venda, marco de comprar) também é saída, e o teto vale; o jovem só em casa conversava sozinho até morrer de fome com moeda.
         if (rules.Psyche.CriticalBodyOverridesLeisure && action is ActionType.Socialize or ActionType.Idle
             && knockout != UtilityTerm.BodyOverride && score > CriticalDeficit
-            && EatUtilityOf(ctx, economy) > CriticalDeficit)
+            && (EatUtilityOf(ctx, economy) > CriticalDeficit
+                || (rules.Psyche.CriticalBodyCountsPurchase && eligibility.Allows(ActionType.Buy) && BuyUtilityOf(ctx, economy) > CriticalDeficit)))
         {
             double cut = CriticalDeficit - score;
             score = CriticalDeficit;

@@ -64,7 +64,7 @@ public sealed partial class BehaviorDecisionSystem
         double hoard = -1;
         // AD-157b (backlog 08b item 77): a compra passada ficou pela metade na banca (a carga cortou): volta pelo resto
         bool owed = world.InventionOn && world.Invention!.IsLeftAtMarket(household.Id.Value);
-        if (owed) return ReturnForWhatWasLeft(world, npc, household, marketIndex, duringWork);
+        if (owed && WorthReturningFor(world, household)) return ReturnForWhatWasLeft(world, npc, household, marketIndex, duringWork);
         if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
         {
             if (npc.Psyche is null) return false;
@@ -74,15 +74,32 @@ public sealed partial class BehaviorDecisionSystem
 
         var market = NearestProvisionMarket(world, household, marketIndex);
         if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
+        // AD-185: com a fonte a pé não mais longe que o mercado, a água vem de lá (de graça): o mercado é só pela comida
+        bool waterFetched = WaterFromSource(world, household, market);
+        if (waterFetched)
+        {
+            if (foodBlocked) return false;
+            scarcest = foodStock;
+        }
 
         // AD-138: quem passou fome quer a despensa mais cheia
         if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
         double target = ProvisionTargetAt(world, household, market) * hoard;
-        if ((double)scarcest / members >= target * RestockShortfall) return false;
+        // AD-185: sem a água para puxar a ida, a comida sozinha esperava cair à metade da meta (fome crítica ×1,4): a casa que
+        // busca a água na fonte repõe a comida abaixo da meta
+        double shortfall = waterFetched ? 1.0 : RestockShortfall;
+        if ((double)scarcest / members >= target * shortfall) return false;
         // AD-148: no turno a compra espera o fim dele, a menos que a despensa não dure até lá; e uma pessoa da casa vai por todos
         if (duringWork && provisioning.RestockDuringWorkBelowDays >= 0 && (double)scarcest / members >= provisioning.RestockDuringWorkBelowDays)
         {
             world.PurchaseTally.SkippedDuringWork++;
+            return false;
+        }
+        // AD-180: com tempestade, nevasca ou chuva forte, a ida que pode esperar espera (a despensa dura mais um dia de viagem)
+        if (world.WeatherOn && (double)scarcest / members >= OutingPostponeDays
+            && LivingWorld.Simulation.Climate.WeatherNow.OutingDiscomfort(world, household.Location) >= 0.7)
+        {
+            world.PurchaseTally.SkippedWeather++;
             return false;
         }
         if (provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household))
@@ -93,9 +110,28 @@ public sealed partial class BehaviorDecisionSystem
         if (world.FamilyRules.Pressure?.TopUpPurchases != true && !provisioning.TopUp) return true;
         // AD-145: só vai se pode pagar o que está faltando. A compra completa a meta (não soma por cima), então com a água
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
-        return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
-            || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
+        return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target, shortfall))
+            || (!waterFetched && Affords(npc, market, economy.WaterResourceId, waterStock, members, target, shortfall));
     }
+
+    /// <summary>AD-182 (08c item 147): o resto deixado na banca vale a volta antecipada se soma ao menos
+    /// <see cref="LivingWorld.Domain.Invention.MarketTripRules.ReturnMinDays"/> de consumo da casa num recurso; com menos, a casa
+    /// espera a despensa pedir a compra de sempre (a marca sem unidades, do poço ou de snapshot antigo, também). Regra desligada: volta.</summary>
+    private static bool WorthReturningFor(WorldState world, LivingWorld.Domain.Population.Family.Household household)
+    {
+        var trip = world.InventionRules!.MarketTrip;
+        if (!trip.ReturnByLeftUnits) return true;
+        var ledger = world.Invention!;
+        long food = ledger.LeftUnitsAtMarket(household.Id.Value, world.EconomyRules.FoodResourceId);
+        long water = ledger.LeftUnitsAtMarket(household.Id.Value, world.EconomyRules.WaterResourceId);
+        long day = (long)Math.Max(1, household.Members.Count) * Math.Max(1, trip.ReturnMinDays);
+        bool worth = food >= day || water >= day;
+        if (worth) world.InventionTally.ReturnsForLeft++; else world.InventionTally.ReturnsForLeftSkipped++;
+        return worth;
+    }
+
+    /// <summary>AD-180: dias de despensa por morador acima dos quais a ida ao mercado espera o mau tempo passar.</summary>
+    private const double OutingPostponeDays = 2;
 
     /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a
     /// despensa não dure até o fim dele) e se ninguém da casa já foi.</summary>
@@ -115,16 +151,32 @@ public sealed partial class BehaviorDecisionSystem
         return !(provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household));
     }
 
-    private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target) =>
-        (double)stock / members < target * RestockShortfall
+    /// <summary>AD-185: com a fonte a pé não mais longe que o mercado, a casa traz a água de lá (de graça): o mercado é só pela comida.</summary>
+    internal static bool WaterFromSource(WorldState world, LivingWorld.Domain.Population.Family.Household household, Workplace market) =>
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world)
+        && LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, household.Location) is { } source
+        && source.Ticks <= Mobility.HouseholdTicks(world, household, household.Location, market.Location);
+
+    private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target,
+        double shortfall = RestockShortfall) =>
+        (double)stock / members < target * shortfall
         && market.Prices.TryGetValue(new ResourceType(resourceId), out var price) && price > 0 && npc.Wallet.Amount >= price;
 
     /// <summary>Ação de quem não tem necessidade urgente: a da rotina, ou comprar quando a despensa baixa para a distância do mercado
     /// (à noite dorme) ou quando o choro de uma criança da casa não pode esperar (aí levanta mesmo de madrugada).</summary>
     internal static ActionType NonUrgentCandidate(
         WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
-        routineAction == ActionType.Sleep
-            ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
+        // AD-185: quem encheu o cântaro na fonte volta para casa com a água antes de tudo que não é urgente
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.HeadingHome(world, npc) || LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+            ? ActionType.Travel
+        : routineAction == ActionType.Sleep
+            ? CaregiverHearsCry(world, npc, stage) // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
+                                                   // AD-185: sem água em casa e com a fonte ao alcance, levanta e vai buscá-la; senão, ao mercado
+                ? LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, world.CurrentDate.TotalHours) ? ActionType.Travel : ActionType.Buy
+                : routineAction
+            // AD-185: no tempo livre, com a água da casa baixa, alguém vai buscá-la a pé (antes da compra: a água da fonte é de graça)
+            : routineAction != ActionType.Work && LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, world.CurrentDate.TotalHours)
+                ? ActionType.Travel
             : NeedsRestocking(world, npc, marketIndex, duringWork: routineAction == ActionType.Work) ? ActionType.Buy
             // AD-168: fora do turno, alguém da casa vai buscar o que um morto da casa deixou longe
             : routineAction != ActionType.Work && LivingWorld.Simulation.Invention.Leavings.WantsToFetch(world, npc, world.CurrentDate.TotalHours)

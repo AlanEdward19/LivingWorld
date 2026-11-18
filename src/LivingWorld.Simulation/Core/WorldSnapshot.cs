@@ -344,6 +344,9 @@ public static class WorldSnapshot
                 ? crimeRulesNode.Deserialize<LivingWorld.Domain.Crime.CrimeRules>(JsonOptions) : null,
             node.TryGetPropertyValue("Crime", out var crimeNode) && crimeNode is not null
                 ? crimeNode.Deserialize<LivingWorld.Simulation.Crime.CrimeLedger>(JsonOptions) : null);
+        rehydrated.RestoreHonor( // AD-183: ausente = ninguém fez nada de que se fale
+            node.TryGetPropertyValue("Honor", out var honorNode) && honorNode is not null
+                ? honorNode.Deserialize<LivingWorld.Simulation.Population.Naming.HonorLedger>(JsonOptions) : null);
         rehydrated.RestoreCredit( // AD-155: ausente = nunca houve crédito
             node.TryGetPropertyValue("Credit", out var creditNode) && creditNode is not null
                 ? creditNode.Deserialize<LivingWorld.Simulation.Economy.Credit.CreditLedger>(JsonOptions) : null);
@@ -353,6 +356,9 @@ public static class WorldSnapshot
         rehydrated.UseGround( // AD-176: ausente = mundo antigo (o chão começa sem trilha)
             node.TryGetPropertyValue("Ground", out var groundNode) && groundNode is not null
                 ? groundNode.Deserialize<LivingWorld.Simulation.Cities.Streets.GroundLedger>(JsonOptions) : null);
+        rehydrated.UseWeather( // AD-180: ausente = mundo antigo ou tempo desligado (o tempo nasce no próximo dia)
+            node.TryGetPropertyValue("Weather", out var weatherNode) && weatherNode is not null
+                ? weatherNode.Deserialize<LivingWorld.Simulation.Climate.WeatherLedger>(JsonOptions) : null);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
     }

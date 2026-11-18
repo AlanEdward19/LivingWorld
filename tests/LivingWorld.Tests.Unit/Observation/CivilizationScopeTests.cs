@@ -218,7 +218,7 @@ public class CivilizationScopeTests
         Npc? dead = null;
         int width = 0;
         int Age(Npc n) => n.AgeYears(s.World.CurrentDate);
-        foreach (ulong seed in new ulong[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 })
+        foreach (ulong seed in Enumerable.Range(2, 39).Select(i => (ulong)i)) // AD-186: a busca vai até a seed 40 (nenhuma de 2 a 13 tinha a faixa)
         {
             s = Build(seed: seed);
             width = s.Tally.AgeBandYears;

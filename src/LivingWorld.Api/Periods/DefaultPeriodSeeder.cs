@@ -57,8 +57,9 @@ public static class DefaultPeriodSeeder
                 Save(repository, preset, latest.Version + 1, BuildPayload(preset));
                 continue;
             }
-            if (stored.ContainsKey("Presentation")) continue;
-            stored["Presentation"] = PresentationOf(preset);
+            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate")) continue;
+            if (!stored.ContainsKey("Presentation")) stored["Presentation"] = PresentationOf(preset);
+            if (!stored.ContainsKey("Climate")) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
             Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
     }
@@ -73,6 +74,16 @@ public static class DefaultPeriodSeeder
             Source = preset.Name,
         });
 
+    /// <summary>AD-180: clima ligado com o tempo diário da Inglaterra baixa (o padrão de <c>WeatherRules</c>): estações, temperatura,
+    /// chuva, neve, lama, seca e o ano de safra saindo do tempo.</summary>
+    private static JsonObject ClimateOf() => new()
+    {
+        ["Enabled"] = true,
+        ["MinMilli"] = 500,
+        ["MaxMilli"] = 1500,
+        ["Weather"] = new JsonObject { ["Enabled"] = true },
+    };
+
     private static JsonObject PresentationOf(Preset preset) => new()
     {
         ["Name"] = preset.CardName,
@@ -86,25 +97,36 @@ public static class DefaultPeriodSeeder
     private static int SideOf(Preset preset) =>
         Math.Max(Math.Max(preset.Width, preset.Height), LivingWorld.Simulation.Scenarios.ScenarioRunner.InitialMapSideForPopulation(preset.InitialPopulation));
 
-    /// <summary>AD-179: uma fazenda e uma forja por centena de moradores, com as vagas e o caixa das da vila de código; a posição
-    /// pedida é o centro e o lote sai do traçado (<c>WorkplacePlacer</c>).</summary>
+    /// <summary>AD-179: uma fazenda e uma forja por centena de moradores, com as vagas e o caixa das da vila de código; o lote sai
+    /// do traçado (<c>WorkplacePlacer</c>). AD-185: a forja (ofício) no miolo; com mais de uma fazenda, cada uma na borda da
+    /// cidade, em direções diferentes (a lavoura fica fora do miolo, perto de quem a trabalha); antes todas no centro, e a casa ficava
+    /// a 2,1–2,5 h do trabalho na metrópole.</summary>
     private static JsonArray WorkplacesOf(Preset preset)
     {
         int c = SideOf(preset) / 2;
         int sets = Math.Max(1, (preset.InitialPopulation + 99) / 100);
+        // AD-185: acima da vila pequena, uma fazenda por 50 moradores (lavouras menores, cada uma perto de um bairro), na borda
+        int farms = sets == 1 ? 1 : Math.Max(1, (preset.InitialPopulation + 49) / 50);
+        int ring = sets == 1 ? 0 : SideOf(preset) / 5; // a borda da parte construída (a cidade inicial ocupa ~40% do lado)
+        (int Dx, int Dy)[] directions = [(1, 1), (-1, -1), (1, -1), (-1, 1), (1, 0), (-1, 0), (0, 1), (0, -1)];
         var list = new JsonArray();
-        for (int i = 0; i < sets; i++)
+        for (int i = 0; i < farms; i++)
         {
+            var (dx, dy) = directions[i % directions.Length];
+            int r = dx != 0 && dy != 0 ? ring * 7 / 10 : ring; // na diagonal, o mesmo raio
             list.Add(new JsonObject
             {
                 ["LocationTypeId"] = 1,
-                ["X"] = c,
-                ["Y"] = c,
-                ["MaxVacancies"] = 160,
-                ["Treasury"] = 500_000,
+                ["X"] = c + dx * r,
+                ["Y"] = c + dy * r,
+                ["MaxVacancies"] = 160 * sets / farms,
+                ["Treasury"] = 500_000 * sets / farms, // o mesmo caixa de antes, dividido entre as lavouras
                 ["Stock"] = new JsonObject(),
                 ["Prices"] = new JsonObject { ["1"] = 5, ["2"] = 5 },
             });
+        }
+        for (int i = 0; i < sets; i++)
+        {
             list.Add(new JsonObject
             {
                 ["LocationTypeId"] = 2,
@@ -125,6 +147,7 @@ public static class DefaultPeriodSeeder
         {
             // AD-175: o cartão do menu (só apresentação; nenhum sistema lê)
             ["Presentation"] = PresentationOf(preset),
+            ["Climate"] = ClimateOf(),
             ["Width"] = SideOf(preset),
             ["Height"] = SideOf(preset),
             ["Seed"] = preset.Seed,

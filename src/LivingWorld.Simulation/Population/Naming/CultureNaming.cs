@@ -28,6 +28,9 @@ public sealed record CultureNaming(
     /// <summary>Costume: a cidade-filha leva a primeira sílaba do nome da mãe (senão, nome novo).</summary>
     public bool DaughterTakesMotherName { get; init; }
 
+    /// <summary>AD-183, costume: sem o nome da mãe, a cidade-filha leva o nome próprio de quem a fundou (senão, nome novo).</summary>
+    public bool DaughterHonorsFounder { get; init; }
+
     /// <summary>Quantas sílabas da raiz comum cada cultura usa.</summary>
     public const int SyllablesPerCulture = 9;
 
@@ -40,6 +43,9 @@ public sealed record CultureNaming(
     /// <summary>Parte das culturas em que a cidade-filha herda a primeira sílaba da mãe.</summary>
     public const double DaughterTakesMotherNameShare = 0.4;
 
+    /// <summary>AD-183: parte das culturas (das que não dão o nome da mãe) em que a cidade-filha leva o nome do fundador.</summary>
+    public const double DaughterHonorsFounderShare = 0.35;
+
     /// <summary>Padrão declarado: 70% das culturas são patrilineares; metade casa adotando o nome; a chance de homenagem fica
     /// entre 15% e 50%.</summary>
     public const double PatrilinealShare = 0.7;
@@ -47,8 +53,21 @@ public sealed record CultureNaming(
     public const double MinAncestorNameChance = 0.15;
     public const double MaxAncestorNameChance = 0.5;
 
-    public static CultureNaming Of(WorldState world, CultureId culture) =>
-        Derive(world.Rng.StreamFor("culture-naming", culture.Id));
+    public static CultureNaming Of(WorldState world, CultureId culture)
+    {
+        var derived = Derive(world.Rng.StreamFor("culture-naming", culture.Id));
+        return world.FamilyRules.Names.CustomOf(culture.Id) is { } custom ? derived.With(custom) : derived;
+    }
+
+    /// <summary>AD-183: o costume declarado pelo cenário por cima do sorteado (campo nulo fica o sorteado); a fonologia não muda.</summary>
+    public CultureNaming With(LivingWorld.Domain.Population.Family.NamingCustom custom) => this with
+    {
+        Lineage = custom.Lineage is { } l ? Enum.Parse<Lineage>(l) : Lineage,
+        SpouseTakesName = custom.SpouseTakesName ?? SpouseTakesName,
+        AncestorNameChance = custom.AncestorNameChance ?? AncestorNameChance,
+        DaughterTakesMotherName = custom.DaughterCity is { } d ? d == "Mother" : DaughterTakesMotherName,
+        DaughterHonorsFounder = custom.DaughterCity is { } f ? f == "Founder" : DaughterHonorsFounder,
+    };
 
     public static CultureNaming Derive(WorldRng rng)
     {
@@ -62,10 +81,12 @@ public sealed record CultureNaming(
         // AD-178, lugar: sorteado depois do resto para não mudar o nome das pessoas já sorteado antes
         var place = Pick(PlacePool, 2, rng);
         bool daughter = rng.NextDouble() < DaughterTakesMotherNameShare;
+        bool founder = rng.NextDouble() < DaughterHonorsFounderShare; // AD-183: sorteado por último, não muda o que vem antes
         return new CultureNaming(syllables, female, male, family, lineage, spouseTakes, ancestor)
         {
             PlaceSuffixes = place,
             DaughterTakesMotherName = daughter,
+            DaughterHonorsFounder = !daughter && founder,
         };
     }
 
@@ -89,6 +110,11 @@ public sealed record CultureNaming(
         string stem = head is null ? Stem(count, rng) : head + Stem(count - 1, rng).ToLowerInvariant();
         return Join(stem, PlaceSuffixes[Index(rng, PlaceSuffixes.Count)]);
     }
+
+    /// <summary>AD-183: nome de lugar que homenageia quem fundou: o nome próprio dele e um sufixo de lugar da cultura
+    /// ("o lugar de Galmor").</summary>
+    public string PlaceNameAfter(string givenName, WorldRng rng) =>
+        Join(givenName, PlaceSuffixes[Index(rng, PlaceSuffixes.Count)]);
 
     private static string FirstSyllable(string name)
     {

@@ -56,8 +56,12 @@ public sealed class MenuWorldProbe(WorldState world) : IWorldEventSink
         if (evt.Kind == WorldEventKind.Dehydration) Dehydrated++;
     }
 
+    /// <summary>Horas amostradas (AD-185: as idas de água por casa-mês dividem por elas).</summary>
+    public long HoursSampled;
+
     public void SampleHour()
     {
+        HoursSampled++;
         long now = world.CurrentDate.TotalHours;
         int hour = (int)(now % world.Calendar.HoursPerDay);
         MarketIndex? markets = null;
@@ -148,6 +152,9 @@ public sealed class MenuWorldProbe(WorldState world) : IWorldEventSink
             $"casasComAgua1h={waterNear}/{homes} economia={(world.EconomyRules.Enabled ? 1 : 0)} " +
             $"hCasaTrabalho={(workN == 0 ? 0 : work / workN):F2} casaTrabalhoMesmaCelula={sameCell}/{workN} hCasaAgua={(waterN == 0 ? 0 : water / waterN):F2} " +
             $"hCasaMercado={(marketN == 0 ? 0 : market / marketN):F2} | viagensPorPessoaMes {trips} | horasEmRota={Per(RouteHours)} rotaIda={RouteMorning} rotaVolta={RouteEvening} " +
+            $"| agua idas={world.InventionTally.WaterTrips} chegadas={world.InventionTally.WaterTripsHome} idasCasaMes={(homes == 0 || HoursSampled == 0 ? 0 : world.InventionTally.WaterTripsHome / (double)homes / (HoursSampled / (double)world.Calendar.HoursPerMonth)):F2} " +
+            $"unidCasaMes={(homes == 0 || HoursSampled == 0 ? 0 : world.InventionTally.WaterUnitsHome / (double)homes / (HoursSampled / (double)world.Calendar.HoursPerMonth)):F2} porSede={world.InventionTally.WaterTripsByThirst} " +
+            $"porEmpregado={world.InventionTally.WaterTripsByEmployed} socorro={world.InventionTally.WaterAidGiven} " +
             $"| acoes {acts} | fomeCritH={Per(HungerCrit)} sedeCritH={Per(ThirstCrit)} mortes={Deaths} fome={Starved} sede={Dehydrated} " +
             $"| predios={world.Buildings.Count(b => b.UnderWork is null)} canteiros={world.Buildings.Count(b => b.UnderWork is not null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)} " +
             $"obras[{string.Join(' ', Builds.Select(kv => kv.Key + "=" + kv.Value))}] " +

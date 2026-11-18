@@ -126,10 +126,14 @@ public static class SiteWork
 
     internal static CellCoord SiteOf(WorldState world, PavingWork work) => SiteOf(world, new WorkSite(work, null, null));
 
-    /// <summary>Para onde o diarista vai trabalhar (ou o ajudante, na hora livre); nulo se não trabalha em obra.</summary>
-    internal static CellCoord? DestinationOf(WorldState world, Npc npc) =>
-        WorkOf(world, npc) is { } site ? SiteOf(world, site)
-        : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? new CellCoord(build.X, build.Y) : null;
+    /// <summary>Para onde o diarista vai trabalhar (ou o ajudante, na hora livre); nulo se não trabalha em obra.
+    /// AD-180: com chuva forte, neve ou chão congelado ninguém vai (não trabalha nem recebe no dia).</summary>
+    internal static CellCoord? DestinationOf(WorldState world, Npc npc)
+    {
+        CellCoord? cell = WorkOf(world, npc) is { } site ? SiteOf(world, site)
+            : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? new CellCoord(build.X, build.Y) : null;
+        return cell is { } c && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, c) ? c : null;
+    }
 
     /// <summary>Jornal de uma hora: o jornal do dia (<see cref="PavingDecision.DayWage"/>) pelas horas da jornada.</summary>
     internal static long HourWage(WorldState world) =>
@@ -407,11 +411,13 @@ public static class SiteWork
     {
         if (WorkOf(world, npc) is not { } site)
         {
-            if (HelpOf(world, npc) is { } help && npc.CurrentLocation == new CellCoord(help.X, help.Y))
+            if (HelpOf(world, npc) is { } help && npc.CurrentLocation == new CellCoord(help.X, help.Y)
+                && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) // AD-180: dia perdido
                 BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now);
             return;
         }
         if (npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
+        if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) return; // AD-180: dia perdido
         long hours = Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay);
         if (hours <= 0) return;
         if (world.FindActiveCity(new CityId(site.CityId)) is not { } city) return;

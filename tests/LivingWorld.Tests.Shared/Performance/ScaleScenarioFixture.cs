@@ -107,6 +107,8 @@ public static class ScaleScenarioFixture
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
     ];
 
+    private static bool Ad185Off => Environment.GetEnvironmentVariable("LW_AD185") == "off";
+
     public static (WorldState World, WorldClock Clock) CreateWorld(
         ulong seed, int initialPopulation, HistoryRules? historyRules = null, LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
         LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
@@ -128,10 +130,11 @@ public static class ScaleScenarioFixture
                 // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
                 (false, false) => (Environment.GetEnvironmentVariable("LW_AD179") == "off", Environment.GetEnvironmentVariable("LW_AD184") == "off") switch
                 {
-                    (true, var off184) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = (off184 ? LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() : LivingWorld.Domain.Cities.StreetRules.Default) with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } },
+                    (true, var off184) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = (off184 ? LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() : LivingWorld.Domain.Cities.StreetRules.Default) with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0, NearestJob = !Ad185Off } },
                     // AD-184: LW_AD184=off mede a obra como na AD-179 (casa e oficina sem obra)
-                    (false, true) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() },
-                    _ => null,
+                    (false, true) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() with { NearestJob = !Ad185Off } },
+                    // AD-185: LW_AD185=off tira a ida de verdade à água e o emprego mais perto de casa
+                    _ => Ad185Off ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { NearestJob = false } } : null,
                 },
                 (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
@@ -142,7 +145,8 @@ public static class ScaleScenarioFixture
             animalSpeciesRules: ScaleAnimalSpeciesRules,
             plantSpeciesRules: ScalePlantSpeciesRules,
             objectCatalog: objectCatalog,
-            extraordinary: extraordinary);
+            extraordinary: extraordinary,
+            naturalWaterRules: Ad185Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off } : null);
 
         // PERF-01 mede custo e estabilidade demográfica, não a capacidade de um único mercado
         // central alimentar uma metrópole. Depois que cada household ganhou residência física,

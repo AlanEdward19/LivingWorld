@@ -187,6 +187,33 @@ public class ProvisioningRealismTests
         Assert.Equal(ActionType.Buy, decision.Action);
     }
 
+    /// <summary>AD-182 (08c item 149): o jovem que ficou só em casa, com moeda e a despensa vazia, conversava sozinho (solidão no
+    /// zero, peso de personalidade) contra a compra até morrer de fome; a compra que serve a fome crítica agora também põe o teto.</summary>
+    private static (ActionType Before, ActionType After) StarvingLonerWithMoney()
+    {
+        var (world, _, npc, _) = Build(npcAt: new CellCoord(5, 5), homeAt: new CellCoord(5, 5), wallet: 100, pantry: 0);
+        npc.SetHunger(0, 0);
+        npc.SetThirst(60, 0);
+        npc.SetSocial(0, 0);
+        var sociable = new Personality(100, 100, 50, 50, 100, 50, 50, 100, 50, 50);
+        var context = DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable };
+        var old = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyCountsPurchase = false } };
+        return (BehaviorDecisionSystem.SelectByUtility(context, old, world.EconomyRules, continuityAction: ActionType.Socialize).Action,
+            BehaviorDecisionSystem.SelectByUtility(context, world.NeedsRules, world.EconomyRules, continuityAction: ActionType.Socialize).Action);
+    }
+
+    [Fact]
+    public void A_starving_lonely_person_with_money_and_an_empty_pantry_goes_to_buy_instead_of_talking()
+    {
+        Assert.Equal(ActionType.Buy, StarvingLonerWithMoney().After);
+    }
+
+    [Fact]
+    public void Before_ad182_the_starving_lonely_person_with_money_kept_talking()
+    {
+        Assert.Equal(ActionType.Socialize, StarvingLonerWithMoney().Before);
+    }
+
     /// <summary>AD-147 (backlog 08, item 47): o solteiro sozinho em casa, muito sociável e com a solidão no máximo, conversava de hora
     /// em hora (peso de personalidade até 3× e o vínculo) contra a sede no zero, com água na despensa, até morrer.</summary>
     [Fact]

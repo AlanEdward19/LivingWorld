@@ -70,3 +70,27 @@ boneco anda pela `npc.route` até o `routeArrivalTick`).
 21. **Reserva sem uso**: `planned` marca o traçado mesmo quando usado; "reserva sem uso" é dedução do cliente
     (`planned` sem pisoteio, sem gente, sem obra, sem calçamento). Com a rua desligada (`LW_STREETS=off`) tudo vem `planned`.
 22. **Desempenho a medir com mundo rodando**: o `bench.sh` mede com o mundo pausado (sem rota nem delta de rua).
+
+## Construção por partes, melhoria e prédio que evolui (pedido do dono, 2026-11-17)
+> "A construção das casas está realista? NPC precisa construir parte a parte da casa (inclusive melhoria de
+> prédios), móveis etc. Isso bate com a spec de invenção que está na fila para ser feito. Prédios poderem evoluir,
+> melhorar, nascer novos tipos de estabelecimentos (lojas, hotéis, prédios comerciais, etc) basicamente qualquer
+> tipo de prédio e casa. Tão qual evolução de tudo que já foi inventado como veículos voadores, robôs etc. até mesmo
+> celulares e internet. Obviamente tudo determinístico e procedural nada hardcoded."
+
+Ordem (dono, 2026-11-17): "Coloca isso após fazer a parte do jogador". Itens 23 a 26 entram nesta trilha, depois da fatia do jogador.
+
+23. **Obra por partes** (depois do jogador): fundação, estrutura, paredes, cobertura, aberturas e acabamento
+    como etapas com material, saber e horas próprios; casa meio pronta é habitável com consequência (frio, chuva).
+24. **Melhoria e ampliação**: cômodo, andar, troca de material e reparo são obras decididas pela casa ou pelo dono
+    conforme meios e necessidade; o prédio guarda de que é feito e em que estado está.
+25. **Móvel feito por alguém**: cada peça é fabricada (ou comprada, herdada, furtada), tem material, dono e lugar;
+    casa nova nasce vazia. Liga com a issue #182 (interior como estado).
+26. **Tipo de prédio que nasce do uso** (issue #186) e **evolução em cadeia do inventado** (issue #187): sem lista
+    fixa de tipos nem de tecnologias.
+
+## Motor da AD-185 (rota de verdade)
+**Fechados no contrato**: 18 (`lot.accessCells`, `accessViaBuildingId`), 19 (`npc.routeOver`, índices na rota), 20
+(`npc.routeDepartedTick`), 21 (`lot.accessState`: `reserved`/`planned`/`trodden`). Buscar água virou viagem (`WaterFetch`), emprego
+vai à oficina mais perto de casa, fazendas da metrópole na borda. Em aberto (issues da AD-185): carga e veículo pela superfície,
+poço como obra, água pesando onde a casa nasce, vizinho que leva a água.

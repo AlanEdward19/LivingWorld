@@ -105,6 +105,15 @@ internal sealed record VentureCapital(
             Credit.LoanOffer? found = null;
             for (int t = term; found is null && t <= maxTerm; t += 12)
                 found = Credit.Lending.Find(world, founder, missing, t, collateral: true, capacity, why);
+            // o credor parente que também põe a parte dele (o cônjuge na parte do casal, o sócio) não empresta a mesma moeda duas
+            // vezes: sem carteira para as duas, não há empréstimo (antes a conta passava e o débito da parte falhava na hora)
+            if (found?.Lender is { } lender)
+            {
+                long committed = 0;
+                foreach (var (p, put) in partners) if (p.Id == lender.Id) committed += put;
+                if (spouse is not null && lender.Id == spouse.Id) committed += Math.Max(0, own + kept - founder.Wallet.Amount);
+                if (lender.Wallet.Amount - committed < found.Amount) found = null;
+            }
             if (found is not null) { missing = 0; probe?.Mark("credito_concedido"); }
             else if (why is not null) probe!.Refuse(why.Stage);
             return found;
@@ -177,14 +186,32 @@ internal sealed record VentureCapital(
         var targets = world.RelationshipTargetsOf(founder.Id);
         var relations = world.RelationshipsFrom(founder.Id);
         if (relations is null) yield break;
+        List<Npc>? friends = null;
         for (int i = 0; i < targets.Count; i++)
         {
             if (relations[i].Trust < rules.MinPartnerTrust) continue;
             if (world.FindNpc(targets[i]) is not { IsAlive: true } friend || kin.Contains(friend) || friend.Id == founder.Spouse) continue;
             if (!Grown(world, friend)) continue;
             if (!world.Relationships.TryGetValue(new RelationshipKey(friend.Id, founder.Id), out var back) || back.Trust < rules.MinPartnerTrust) continue;
-            yield return friend;
+            (friends ??= []).Add(friend);
         }
+        if (friends is null) yield break;
+        foreach (var friend in PartnerOrder(world, friends)) yield return friend;
+    }
+
+    /// <summary>AD-186: entre os amigos que confiam, quem abre o negócio chama antes o de nome melhor (boa fama menos má fama vistas,
+    /// com a da linhagem: <c>Honor.RegardOf</c>); empate fica na ordem de antes. Regra desligada
+    /// (<see cref="NameBondRules.ReputationPartnerOrder"/>) ou ninguém com fama: a ordem de antes.</summary>
+    internal static List<Npc> PartnerOrder(WorldState world, List<Npc> friends)
+    {
+        if (!world.FamilyRules.Names.ReputationPartnerOrder || friends.Count < 2 || (world.Honor is null && !world.CrimeOn)) return friends;
+        long now = world.CurrentDate.TotalHours;
+        var regard = new double[friends.Count];
+        bool any = false;
+        for (int i = 0; i < friends.Count; i++)
+            any |= (regard[i] = LivingWorld.Simulation.Population.Naming.Honor.RegardOf(world, friends[i], now)) != 0;
+        if (!any) return friends;
+        return Enumerable.Range(0, friends.Count).OrderByDescending(i => regard[i]).Select(i => friends[i]).ToList();
     }
 
     private static bool Grown(WorldState world, Npc npc) =>

@@ -29,12 +29,35 @@ public static class ProvisionSwitch
         // AD-168: LW_LEAVINGS=off devolve a carga de quem morre longe à despensa na hora (o de antes), para o pareado
         if (Environment.GetEnvironmentVariable("LW_LEAVINGS") == "off")
         { rules = rules with { LeavingsOverride = LivingWorld.Domain.Invention.LeavingsRules.Disabled }; changed = true; }
+        // AD-182: LW_MARKET_TRIP=off devolve a ida ao mercado de antes (recipiente livre sem lanche, volta por qualquer sobra; 08c
+        // 111 e 147); LW_GROUND=old devolve o estrago no chão de antes (taxa da despensa, água sem perda, sem calor; 08c 156)
+        if (Environment.GetEnvironmentVariable("LW_MARKET_TRIP") == "off")
+        { rules = rules with { MarketTripOverride = LivingWorld.Domain.Invention.MarketTripRules.Disabled }; changed = true; }
+        // AD-182 (08c item 152): LW_DEATH_FORGETS=old devolve o de antes do AD-166 (acidente, velhice, homicídio e forca não levam o saber)
+        if (Environment.GetEnvironmentVariable("LW_DEATH_FORGETS") == "old") { rules = rules with { EveryDeathForgets = false }; changed = true; }
+        // AD-182 (08c item 155): LW_LEAVINGS_THEFT=old tira a barreira do laço com o morto
+        if (Environment.GetEnvironmentVariable("LW_LEAVINGS_THEFT") == "old")
+        { rules = rules with { LeavingsOverride = rules.Leavings with { KnownDeadBarrier = 0 } }; changed = true; }
+        if (Environment.GetEnvironmentVariable("LW_GROUND") == "old")
+        {
+            rules = rules with
+            {
+                LeavingsOverride = rules.Leavings with { GroundSpoilagePm = 1000, GroundWaterLossPerDayPm = 0, GroundQ10 = 1, CountDaysOnGround = false },
+            };
+            changed = true;
+        }
         return changed ? rules : null;
     }
 
     public static NeedsRules? NeedsRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION");
+        // AD-186: LW_CARE=-company volta a conversar sozinho (sem sair atrás de companhia)
+        if ((Environment.GetEnvironmentVariable("LW_CARE") ?? "").Contains("-company", StringComparison.Ordinal))
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Psyche = n.Psyche with { SeekCompany = false } };
+        }
         // AD-165: LW_FEAR_TRAVEL=x troca o peso do medo contra sair (FearTravelPenalty) para testar se ele corta as idas da vítima
         if (double.TryParse(Environment.GetEnvironmentVariable("LW_FEAR_TRAVEL"), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out double fear))
@@ -48,6 +71,12 @@ public static class ProvisionSwitch
         {
             var n = ScenarioRunner.DefaultNeedsRules;
             return n with { Psyche = n.Psyche with { MournEveryDeath = grief == "mourn", GriefYieldsToBody = grief == "yield" } };
+        }
+        // AD-182 (08c item 149): LW_BODY_BUY=off volta o teto do lazer a só valer com a despensa servindo
+        if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_BODY_BUY") == "off")
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Psyche = n.Psyche with { CriticalBodyCountsPurchase = false } };
         }
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var keys = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet();

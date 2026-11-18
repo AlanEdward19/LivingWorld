@@ -102,7 +102,11 @@ public class InventionWorldTests
         };
         var run = Run(1, dense);
 
-        Assert.DoesNotContain(run.Designs, d => d.Parts.All(p => p.Material == 1 && p.Coating == 0 && !p.IsHollow));
+        // junção da AD-180: tábuas maciças pequenas (bandeja de carga, de 20 a 40 cm) passaram a ser inventadas para levar coisa;
+        // o que a madeira densa proíbe é a peça maciça que carrega gente sobre a água
+        var solid = run.Designs.Where(d => d.Parts.All(p => p.Material == 1 && p.Coating == 0 && !p.IsHollow)
+            && PhysicsEvaluator.Evaluate(d.Parts, dense, dense.ReferenceRiderKg).Works).ToList();
+        Assert.True(solid.Count == 0, string.Join(" / ", solid.Select(d => $"{d.Id} t{d.Tick} {d.Origin} {d.Parts.Count} partes")));
     }
 
     [Fact]

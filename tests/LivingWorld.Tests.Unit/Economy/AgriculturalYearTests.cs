@@ -92,17 +92,29 @@ public sealed class AgriculturalYearTests
     [Fact]
     public void Reapers_take_part_of_the_harvest_home()
     {
-        // AD-176: três seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272)
-        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21 }.Sum(seed =>
+        // AD-176: seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272);
+        // AD-182: com a venda repartida na carestia, três seeds voltaram a inverter por ruído (806 × 820), então são oito
+        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21, 22, 23, 24, 25, 26 }.Sum(seed =>
         {
-            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
-            clock.Run(world, 8L * HoursPerMonth);
+            // AD-185: sem a ida à água, que muda o dia de todos e embaralha a trajetória (o teste é da parte do ceifeiro)
+            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share },
+                naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
+            // AD-180: a chuva para a ceifa; aos 8 meses (fim de agosto) a ceifa ainda está pela metade em ano chuvoso: conta no fim dela
+            // junção da AD-180: uma foto só no fim (9 meses) invertia por ruído (2252 × 2330); soma-se a despensa das casas dia a
+            // dia durante a ceifa (meses 8 e 9), que é quando a parte em espécie entra
+            clock.Run(world, 7L * HoursPerMonth);
             var food = new ResourceType(world.EconomyRules.FoodResourceId);
-            return world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
+            long total = 0;
+            for (long day = 0; day < 2L * HoursPerMonth / world.Calendar.HoursPerDay; day++)
+            {
+                clock.Run(world, world.Calendar.HoursPerDay);
+                total += world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
+            }
+            return total;
         });
 
         long half = HomeFoodAfterHarvest(0.5), none = HomeFoodAfterHarvest(0);
-        Assert.True(half > none, $"metade {half} nada {none}");
+        Assert.True(half > none * 1.02, $"metade {half} nada {none}");
     }
 
     [Fact]
