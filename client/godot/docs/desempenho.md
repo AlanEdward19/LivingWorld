@@ -76,3 +76,16 @@ chega a cada tick) e a malha de ruas não é refeita quando só a umidade (`wetP
 sobra com o mundo rodando, por quadro (`bench-cost`): aplicar o delta ~2–3,5 ms (NPCs ~1, clima/observável ~0,5), pose e passo dos
 NPCs ~2,6, contrato ~0,9; o resto é o servidor a 40 ticks/s na mesma máquina. Abaixo de 50 numa rodada: issue (09b item 27).
 
+### O motor diz, e o mundo rodando acima do piso (AD-189)
+
+M1 Pro dividida com outros agentes, `bench.sh 3` pela fila pesada, API desta entrega (o clima já não volta a cada tick):
+- `benchrun:500` base `09a321b7` (cópia do cliente): 52,6 / 50,7 / 48,7 FPS, p95 31,32 / 26,21 / 27,66 ms → entrega **63,6 / 63,4 /
+  63,5**, p95 **21,22 / 19,91 / 21,85** (por etapa: contrato amostrado 54,8 / 52,0 / 51,6; + linha do tempo 54,0 / 55,2; + pose 58,1 / 60,7 / 60,7).
+- Pausado, sem regressão (AD-188 → entrega): `stress` 113,2 / 113,5 / 111,5 → 111,0 / 113,2 / 113,7; `bench` 153,5 / 153,5 / 154,1 →
+  156,9 / 157,3 / 157,3; `benchbig` 127,9 / 127,7 / 127,4 → 128,2 / 128,1 / 127,8; `benchrain` 150,1 / 150,8 / 152,9 → 153,5 / 156,5 / 155,4.
+O que saiu do quadro: conferência do contrato só nos 20 primeiros deltas e depois 1 a cada 30 (0,9 → ~0,02 ms/quadro); a linha do
+tempo reaproveita os 10 botões (eram recriados a cada delta com evento); a pose do parado a cada 8 quadros e a do passo a cada 3
+(centro) ou 6 (borda) — com o mundo a 40 ticks/s quase todo boneco está no passo; os setters de LOD só quando mudam; a altura da rota
+só é procurada quando a rota muda; a malha de processos não realoca; a transição das ruas a 20/s. `bench-cost` ganhou `npc_pose`,
+`npc_links`, `events` e `processes`. `client-test.sh` 394 → 399.
+
