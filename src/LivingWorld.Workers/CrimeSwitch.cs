@@ -19,7 +19,6 @@ public static class CrimeSwitch
         // AD-163 (08b item 80): sem o castigo no corpo (açoite) e sem banir o ladrão grave reincidente
         if (keys.Contains("flog")) rules = rules with { Justice = rules.Justice with { CorporalHarm = 0 } };
         if (keys.Contains("banish")) rules = rules with { Justice = rules.Justice with { BanishAfterConvictions = int.MaxValue } };
-        if (keys.Contains("necessity")) rules = rules with { Justice = rules.Justice with { HungerTheftByNecessity = false } }; // AD-190
         // AD-163 (correções #12): fator na chance anual da violência doméstica, `domestic=x`
         if (keys.FirstOrDefault(k => k.StartsWith("domestic=", StringComparison.Ordinal)) is { } dv && rules.Domestic is { } d)
             rules = rules with { Domestic = d with { PerYear = d.PerYear * double.Parse(dv["domestic=".Length..], System.Globalization.CultureInfo.InvariantCulture) } };

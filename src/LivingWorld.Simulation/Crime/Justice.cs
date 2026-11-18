@@ -372,8 +372,7 @@ internal static class Justice
             else if (fine > 0) convict.CreditWallet(new Money(fine));
         }
 
-        bool grave = crime.Kind == CrimeKind.Theft && crime.Value >= rules.GraveTheftValue
-            && !(rules.HungerTheftByNecessity && crime.Motive == Theft.MotiveName(TheftMotive.Hunger) && crime.Good == "comida"); // AD-190
+        bool grave = crime.Kind == CrimeKind.Theft && crime.Value >= rules.GraveTheftValue;
         if (record.Convictions >= rules.BanishAfterConvictions && grave) // só o ladrão grave reincidente; o briguento paga ou apanha
             return ("banimento", paid);
         if (grave || paid < owed)
