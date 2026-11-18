@@ -164,6 +164,17 @@ public static class WaterFetch
         return true;
     }
 
+    /// <summary>Bebe um gole da despensa da casa (em casa, antes de sair).</summary>
+    internal static void DrinkFromPantry(WorldState world, Npc npc, long now)
+    {
+        if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
+        var water = Water(world);
+        int level = LivingWorld.Simulation.Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst);
+        if (npc.ThirstAt(now) >= level || !home.Withdraw(water, 1).IsSuccess) return;
+        npc.SetThirst(level, now);
+        world.RecordResourceConsumed(water, 1);
+    }
+
     /// <summary>Em casa, com sede urgente e água na despensa.</summary>
     internal static bool ThirstyAtHomeWithWater(WorldState world, Npc npc, long now) =>
         On(world) && 100 - npc.ThirstAt(now) > world.NeedsRules.UrgencyThreshold && npc.Household is { } h

@@ -257,7 +257,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 // AD-185: em casa, com sede urgente e água na despensa, bebe antes de sair (a mudança de cidade levava a criança com
                 // sede para uma viagem de um dia, ao lado da água de casa)
                 if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
-                    chosen = ActionType.Eat;
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.DrinkFromPantry(world, npc, now); // só a água: a comida fica
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat
                     ? candidate
                     : null;
