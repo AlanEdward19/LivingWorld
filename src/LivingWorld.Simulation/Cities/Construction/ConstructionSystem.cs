@@ -53,7 +53,9 @@ public sealed class ConstructionSystem : ISimulationSystem
                 // regra, um tick da receita por dia (acelerado pela força de quem trabalha na cidade), como antes
                 bool crew = NeedsCrew(world);
                 if (crew) PrepareSite(world, ctx, city, project, recipe);
-                long workSteps = crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
+                // AD-180: com chuva forte, neve ou chão congelado a obra para no dia (a argamassa não pega, o barro não seca)
+                bool workable = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location);
+                long workSteps = !workable ? 0 : crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
                 for (long step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
                     long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;

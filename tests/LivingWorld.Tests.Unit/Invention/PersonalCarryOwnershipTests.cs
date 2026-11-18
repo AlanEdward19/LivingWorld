@@ -103,8 +103,9 @@ public class PersonalCarryOwnershipTests
         var work = world.FindWorkplace(npc.Employer!.Value)!;
         // a casa a mais de uma hora do trabalho (na seed 1 todos moram perto)
         home.JoinCity(home.City, world.Map.Cells.Where(c => !c.HasWater).Select(c => c.Coord).OrderBy(c => c.Y).ThenBy(c => c.X)
-            .Where(c => Mobility.TravelTicks(world, npc, c, work.Location, 1.0) > 1)
-            .MinBy(c => Mobility.TravelTicks(world, npc, c, work.Location, 1.0)));
+            // AD-180: "longe" é a distância a pé sem o chão do dia (a lama alonga a ida, não muda o que é perto)
+            .Where(c => Mobility.TravelTicks(world, npc, c, work.Location, 1.0, weather: false) > 1)
+            .MinBy(c => Mobility.TravelTicks(world, npc, c, work.Location, 1.0, weather: false)));
         Assert.True(PersonalCarry.LeavesPantryBehind(world, npc, home, work.Location));
         Stock(home, world, 50, 50);
         var food = new ResourceType(world.EconomyRules.FoodResourceId);

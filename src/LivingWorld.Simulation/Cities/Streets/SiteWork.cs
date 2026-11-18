@@ -74,8 +74,11 @@ public static class SiteWork
 
     internal static CellCoord SiteOf(WorldState world, PavingWork work) => SiteOf(world, new WorkSite(work, null, null));
 
-    /// <summary>Para onde o diarista vai trabalhar; nulo se não é diarista.</summary>
-    internal static CellCoord? DestinationOf(WorldState world, Npc npc) => WorkOf(world, npc) is { } site ? SiteOf(world, site) : null;
+    /// <summary>Para onde o diarista vai trabalhar; nulo se não é diarista.
+    /// AD-180: com chuva forte, neve ou chão congelado a turma não vai (não trabalha nem recebe no dia).</summary>
+    internal static CellCoord? DestinationOf(WorldState world, Npc npc) =>
+        WorkOf(world, npc) is { } site && SiteOf(world, site) is var cell && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, cell)
+            ? cell : null;
 
     /// <summary>Jornal de uma hora: o jornal do dia (<see cref="PavingDecision.DayWage"/>) pelas horas da jornada.</summary>
     internal static long HourWage(WorldState world) =>
@@ -169,6 +172,7 @@ public static class SiteWork
     {
         if (WorkOf(world, npc) is not { } site) return;
         if (npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
+        if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) return; // AD-180: dia perdido
         long hours = Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay);
         if (hours <= 0) return;
         if (world.FindActiveCity(new CityId(site.CityId)) is not { } city) return;

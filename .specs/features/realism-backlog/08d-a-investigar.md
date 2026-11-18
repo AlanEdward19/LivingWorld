@@ -42,8 +42,7 @@
      (sem quintal, parede-meia, porta na rua), rua até o lado do mapa, ofícios e roças perto das casas.
 
 ## Da rua de verdade (AD-176; itens 158–160 e 167 fechados por ela)
-174. **Lama sem chuva**: o motor não tem chuva nem umidade (o fator de clima é de safra), então a rua de terra não vira lama na
-     estação; ligar quando houver precipitação por região e mês.
+174. ~~Lama sem chuva~~: fechado pela AD-180 (chuva por região e dia; lama na terra, neve em tudo, no passo e na carroça).
 175. ~~**Carga a pé não muda o passo**~~ AD-179: a carga levada alonga o passo (0,5%/kg até 40 kg), o material de obra também.: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
@@ -70,3 +69,11 @@
      cargo, filhos criados e coragem em luta não viram boa fama (bloco de issue no relatório da AD-183).
 190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha (depende do traçado, `Cities/Layout`).
 191. **Nome na sociedade**: o nome da família pesa na contratação e no crédito, não na escolha de sócio do negócio (`Venture`).
+
+## Do tempo de verdade (AD-180; detalhe em docs/domain/climate.md)
+192. **Sem lenha, roupa nem fogo**: a casa é o único abrigo do frio; madeira só existe como insumo de obra. Ligar a casa comprando
+     lenha no inverno (demanda do lenhador) e a roupa como objeto.
+193. **Rotina e sono não seguem a luz**: a rotina é tabela fixa por hora; a luz só encurta a jornada do campo (semear e ceifar).
+194. **Chuva não enche rio nem poço**: não há nível d'água; só a seca reduz a fonte natural.
+195. **Geada sobre a lavoura só no índice do ano** (geada tardia de abril–maio); o estágio do campo não é lido dia a dia.
+196. **Viagem muda com o tempo no meio do caminho** (a duração é refeita na chegada com o tempo do dia); conferir o despertar.

@@ -186,7 +186,9 @@ public class TechDiscoveryTests
     [Fact]
     public void A_technology_spreads_to_a_city_of_the_same_culture_through_a_strong_tie()
     {
-        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly);
+        // AD-180: os dois sem casa dormiriam ao relento e o inverno mataria quem carrega o vínculo; o teste é da difusão pelo vínculo
+        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default with { Weather = null });
         var home = world.ActiveCities().First();
         var other = new LivingWorld.Domain.Cities.City(
             world.NextCityId(), new CellCoord(8, 8), 0, null, LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);

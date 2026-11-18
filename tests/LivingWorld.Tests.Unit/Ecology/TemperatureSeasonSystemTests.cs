@@ -19,7 +19,9 @@ public sealed class TemperatureSeasonSystemTests
     [Fact]
     public void Cell_under_opposite_seasons_reads_different_temperature_without_power()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 7, initialPopulation: 0);
+        // AD-180: o degrau de trimestre é o braço sem tempo diário (com o tempo ligado a estação vem do dia: WeatherTests)
+        var (world, clock) = ScenarioRunner.Create(seed: 7, initialPopulation: 0,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default with { Weather = null });
         var cell = new CellCoord(0, 0);
         float baseline = world.Map.CellAt(cell).Temperature;
 
