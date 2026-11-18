@@ -58,10 +58,19 @@ public static class NpcWakeScheduler
         var purpose = current == ActionType.Travel ? npc.TravelPurpose : current;
         bool feeding = purpose is ActionType.Eat or ActionType.Buy;
         bool resting = purpose == ActionType.Sleep;
-        Consider(ref next, ref cause, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
+        // AD-187: a caminho da água (ida de água em curso, ida ou volta) e sem nada nas mãos, a decisão da hora só manda seguir, salvo a
+        // fome à beira da morte: a necessidade já urgente não reacorda de hora em hora (despertar sem efeito); acorda na chegada, no
+        // cruzamento que ainda vem e quando a fome chega ao ponto que mudaria a escolha. Quem leva algo acorda como antes (come do que
+        // leva, devolve à despensa perto de casa)
+        bool waterBound = current == ActionType.Travel && LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+            && world.Invention is { } carry && !carry.CarriesOrHolds(npc.Id.Value);
+        Consider(ref next, ref cause, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding || waterBound), WakeCause.NeedCrossing);
+        if (waterBound)
+            Consider(ref next, ref cause, NextThresholdCrossing(npc.HungerNeed, now, LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding || waterBound), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting || waterBound), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, waterBound ? NextNeedWake(npc.SocialNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: true)
+            : NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
 
         // Viagem com chegada conhecida termina na chegada, não na duração máxima de Travel: depois dessa duração o
         // "fim de ação" já vencido acordava o viajante de hora em hora até chegar, sem nada para concluir (#152).
@@ -72,7 +81,8 @@ public static class NpcWakeScheduler
             Consider(ref next, ref cause, actionEnd, WakeCause.ActionEnd);
         }
 
-        Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage), WakeCause.RoutineBoundary);
+        // AD-187: a virada da rotina também não muda a ida de água (vem antes de tudo que não é urgente)
+        if (!waterBound) Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage), WakeCause.RoutineBoundary);
 
         // Quem está a caminho acorda ao chegar, não ao fim da duração máxima da ação: sem isso toda viagem
         // de 1–2 h só terminava às 4 h, e o trajeto comia o dia.

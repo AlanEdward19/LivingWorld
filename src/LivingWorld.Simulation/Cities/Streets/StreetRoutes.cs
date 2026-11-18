@@ -127,6 +127,8 @@ internal sealed class StreetRouteState
     public int Stamp;
     /// <summary>AD-185: quantas vezes as rotas guardadas foram jogadas fora (o carimbo dos caches derivados de rota).</summary>
     public long RouteVersion;
+    /// <summary>AD-187, diagnóstico: rotas calculadas (não achadas no cache) desde que o estado nasceu.</summary>
+    public long Computed;
     /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
     public readonly PriorityQueue<int, (double, int)> Queue = new();
     /// <summary>AD-185: a rede como lista de vizinhos (CSR): de cada célula andável, os vizinhos andáveis e o custo da passagem, já
@@ -498,6 +500,7 @@ public static class StreetRoutes
 
     private static StreetRoute Compute(StreetRouteState state, int o, int d)
     {
+        state.Computed++;
         int ownerO = state.Owner[o], ownerD = state.Owner[d];
         if (ownerO != 0 && ownerO == ownerD)
             return new StreetRoute { Cost = Movement(state, o, d), Internal = true, A = o, B = d };
