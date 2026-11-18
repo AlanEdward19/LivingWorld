@@ -50,18 +50,14 @@ public sealed class NaturalWaterSystem : ISimulationSystem
 
     private static readonly ConditionalWeakTable<WorldState, RoutedWalk> RoutedWalks = new();
 
-    /// <summary>Células entre a célula da casa e a soleira por onde a rota sai (folga do limite inferior da busca).</summary>
-    private const int DoorSlackCells = 4;
 
     /// <summary>AD-176: horas pela rota real (rede de caminhos, prédios no caminho) até a água mais próxima no raio; sem a rua de
     /// verdade, a reta de antes. Memo por casa, refeito quando a rede ou os obstáculos mudam.</summary>
     public static long WalkToWater(WorldState world, CellCoord home, int radius) =>
         !world.StreetsOn ? WalkToWater(world.Map, home, radius) : NearestWater(world, home, radius)?.Ticks ?? long.MaxValue;
 
-    /// <summary>AD-185: a célula d'água mais perto pela rota real no raio e as horas a pé até ela (empate: a de menor linha, depois
-    /// coluna); nulo se não há. As células são vistas da mais perto para a mais longe em linha reta, e a busca para quando nem a
-    /// reta no passo mais rápido do mapa bate a melhor rota achada (o limite inferior). Memo por (célula, raio), refeito quando a
-    /// rede ou os obstáculos mudam: função pura do mundo, o reaberto acha o mesmo.</summary>
+    /// <summary>AD-185: a célula d'água mais perto em linha reta no raio (empate: a de menor linha, depois coluna) e as horas a pé até
+    /// ela pela rota real; nulo se não há. Memo por (célula, raio), refeito quando as rotas mudam: função pura do mundo.</summary>
     public static (CellCoord Cell, long Ticks)? NearestWater(WorldState world, CellCoord home, int radius)
     {
         var map = world.Map;
@@ -90,15 +86,10 @@ public sealed class NaturalWaterSystem : ISimulationSystem
                 if (map.TryGetCell(cell, out var found) && found.HasWater) candidates.Add((dx * dx + dy * dy, cell));
             }
         candidates.Sort((a, b) => a.D2 != b.D2 ? a.D2.CompareTo(b.D2) : (a.Cell.Y, a.Cell.X).CompareTo((b.Cell.Y, b.Cell.X)));
-        double floor = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CheapestCostPerCell(world);
+        // AD-185: a água que se conhece é a mais perto em linha reta (o rio que se vê); a rota até ela dá as horas. Uma rota por casa
+        // em vez de uma por célula d'água do raio (a busca pela rota mais curta entre todas custava metade do roteamento do mundo).
         (CellCoord Cell, long Ticks) best = (home, long.MaxValue);
-        foreach (var (d2, cell) in candidates)
-        {
-            // a rota sai da soleira, que fica a poucas células da célula da casa: a folga mantém o limite abaixo de toda rota
-            if (best.Ticks != long.MaxValue && Math.Ceiling(floor * Math.Max(0, Math.Sqrt(d2) - DoorSlackCells)) > best.Ticks) break;
-            long t = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, home, cell);
-            if (t < best.Ticks) best = (cell, t);
-        }
+        if (candidates.Count > 0) best = (candidates[0].Cell, LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, home, candidates[0].Cell));
         memo.ByHome[(home, radius)] = best;
         return best.Ticks == long.MaxValue ? null : best;
     }

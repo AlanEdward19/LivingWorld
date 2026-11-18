@@ -114,16 +114,6 @@ public static class StreetRoutes
     internal static (long Obstacles, int Surfaces, bool Ford) Stamp(WorldState world) =>
         world.StreetsOn ? (StateOf(world).RouteVersion, world.Ground!.SurfaceVersion, world.InventionOn) : (long.MinValue, int.MinValue, world.InventionOn);
 
-    /// <summary>AD-185: o menor custo possível por célula andada (o terreno mais barato no passo mais rápido): limite inferior de
-    /// qualquer rota, para a busca da fonte parar cedo.</summary>
-    internal static double CheapestCostPerCell(WorldState world)
-    {
-        var state = StateOf(world);
-        var r = state.Rules;
-        double fastest = Math.Min(1000, Math.Min(Math.Min(r.TrailPm, r.DirtPm), Math.Min(r.GravelPm, r.StonePm))) / 1000.0;
-        return state.Base * state.MinTerrain * fastest;
-    }
-
     /// <summary>Custo da rota a pé (unidade de <c>MovementCost</c>) e as células d'água dela.</summary>
     internal static (double Cost, int Water) CostOf(WorldState world, CellCoord origin, CellCoord destination)
     {
