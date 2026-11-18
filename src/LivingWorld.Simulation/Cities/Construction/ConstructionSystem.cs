@@ -117,7 +117,8 @@ public sealed class ConstructionSystem : ISimulationSystem
             if (rules.WageBidding && lot is { } reserved)
             {
                 var canteiro = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick,
-                    reserved.Position, reserved.Orientation, croftCells: reserved.Croft) { UnderWork = project.WorkId };
+                    reserved.Position, reserved.Orientation, croftCells: reserved.Croft)
+                { UnderWork = project.WorkId };
                 world.AddBuilding(canteiro);
                 project.Canteiro = canteiro.Id.Value;
             }

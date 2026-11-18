@@ -14,11 +14,16 @@ public static class CityLayoutSwitch
         bool layoutOff = Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off";
         bool streetsOff = Environment.GetEnvironmentVariable("LW_STREETS") == "off";
         bool ad179Off = Environment.GetEnvironmentVariable("LW_AD179") == "off";
-        bool ad184Off = Environment.GetEnvironmentVariable("LW_AD184") == "off";
-        if (!layoutOff && !streetsOff && !ad179Off && !ad184Off) return null;
+        string? ad184 = Environment.GetEnvironmentVariable("LW_AD184");
+        bool ad184Off = ad184 == "off";
+        bool ad184Part = ad184 is "nohelpers" or "nobid" or "nohouse"; // AD-184: uma regra só desligada, para atribuir o efeito
+        if (!layoutOff && !streetsOff && !ad179Off && !ad184Off && !ad184Part) return null;
         var rules = layoutOff ? CityLayoutRules.Off : CityLayoutRules.Default;
         if (streetsOff) return rules with { Streets = StreetRules.Off };
         if (ad184Off) rules = rules with { Streets = rules.Streets.WithoutAd184() }; // AD-184: obra como na AD-179
+        if (ad184 == "nohelpers") rules = rules with { Streets = rules.Streets with { HelpersBuild = false } };
+        if (ad184 == "nohouse") rules = rules with { Streets = rules.Streets with { HouseIsWork = false } };
+        if (ad184 == "nobid") rules = rules with { Streets = rules.Streets with { QuitMargin = 1e9, QuitMarginSlack = 1e9, QuitMarginPeak = 1e9 } };
         return ad179Off ? rules with { Streets = rules.Streets with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } } : rules;
     }
 }

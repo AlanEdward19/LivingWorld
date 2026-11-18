@@ -108,6 +108,9 @@ public static class SiteWork
         if (HelpOf(world, npc) is not { } work || npc.City.Value != work.City) return false;
         int hpd = world.Calendar.HoursPerDay, hour = world.CurrentDate.Hour;
         if (hour >= world.StreetRules.BuildDaylightEndHour || hour < hpd / 4) return false;
+        // com fome ou sede abaixo do piso a hora livre é de comer e beber em casa, não de levantar parede
+        long now = world.CurrentDate.TotalHours;
+        if (npc.HungerAt(now) < world.StreetRules.HelperNeedFloor || npc.ThirstAt(now) < world.StreetRules.HelperNeedFloor) return false;
         if (npc.Employer is null) return true;
         var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
         var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;
@@ -219,6 +222,9 @@ public static class SiteWork
         var ground = world.Ground!;
         if (ground.Works.Count == 0 && ground.Builds.Count == 0 && !(world.StreetRules.BuildNeedsCrew && world.CityRules.Enabled)) return 0;
         if (WorkOf(world, npc) is { } mine) return OfferValue(world, npc, mine);
+        // AD-184: quem não está na turma não tem para onde ir trabalhar; entrar é a decisão diária da turma (Staff), que já pesa a
+        // oferta de cada obra. Varrer todas as obras a cada decisão custava o triplo do tick com as casas em obra.
+        if (world.StreetRules.WageBidding) return 0;
         double best = 0;
         foreach (var site in Sites(world))
             if (site.Crew.Count < CrewTarget(world, site)) best = Math.Max(best, OfferValue(world, npc, site));
@@ -363,11 +369,13 @@ public static class SiteWork
     }
 
     /// <summary>Sem braço bastante: a oferta sobe <see cref="StreetRules.OfferRaisePm"/> por semana, até o teto e até o que quem
-    /// encomenda pode pagar pelas horas que faltam.</summary>
+    /// encomenda pode pagar pelas horas que faltam. O calçamento não sobe: ele só abriu porque o tempo poupado paga a obra no jornal
+    /// do dia (<see cref="PavingDecision"/>); pagar o triplo tirava o ferreiro da forja para assentar cascalho e a metrópole ficava
+    /// sem ferramenta (medido: seed 7, 20 anos, de 507 para 227 moradores).</summary>
     private static void Raise(WorldState world, TickContext ctx, WorkSite site)
     {
         var rules = world.StreetRules;
-        if (!rules.WageBidding) return;
+        if (!rules.WageBidding || site.Paving is not null) return;
         long now = ctx.CurrentTick, week = 7L * world.Calendar.HoursPerDay;
         long last = site.LastRaiseTick;
         if (last > 0 && now - last < week) return;

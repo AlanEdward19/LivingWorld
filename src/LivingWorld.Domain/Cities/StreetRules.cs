@@ -135,6 +135,9 @@ public sealed record StreetRules(
     /// <summary>AD-184: hora do dia até a qual se trabalha na obra nas horas livres (sem luz, ninguém levanta parede).</summary>
     public int BuildDaylightEndHour { get; init; } = 20;
 
+    /// <summary>AD-184: fome e sede (0–100, cheio = 100) abaixo das quais a hora livre não vai à obra (come e bebe em casa).</summary>
+    public int HelperNeedFloor { get; init; } = 60;
+
     /// <summary>AD-184: ajudantes sem jornal (parentes e vizinhos) numa obra, fora a própria casa.</summary>
     public int HelpersMax { get; init; } = 6;
 
@@ -184,7 +187,12 @@ public sealed record StreetRules(
     /// <summary>AD-184 desligada (<c>LW_AD184=off</c>), para medir pareado: a obra da AD-179 como era.</summary>
     public StreetRules WithoutAd184() => this with
     {
-        BuildNeedsCrew = false, HouseIsWork = false, VentureIsWork = false, HelpersBuild = false, WageBidding = false, PrototypeIsWork = false,
+        BuildNeedsCrew = false,
+        HouseIsWork = false,
+        VentureIsWork = false,
+        HelpersBuild = false,
+        WageBidding = false,
+        PrototypeIsWork = false,
     };
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>

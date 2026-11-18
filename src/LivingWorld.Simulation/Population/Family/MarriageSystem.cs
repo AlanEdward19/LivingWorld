@@ -87,6 +87,7 @@ public static class MarriageSystem
             if (home is { } h && world.FindBuilding(h.Dwelling) is not null)
             {
                 household.MoveIn(h.Dwelling, h.Location); // de favor com a família de onde saiu
+                world.Ground!.Lodgers.Add(household.Id.Value);
                 return;
             }
     }

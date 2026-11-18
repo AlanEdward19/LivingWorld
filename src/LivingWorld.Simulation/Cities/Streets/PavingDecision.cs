@@ -116,8 +116,15 @@ internal static class PavingDecision
         var at = ground.CellOf(cell);
         var work = new PavingWork
         {
-            Id = ground.NextWorkId++, City = city.Id.Value, Surface = GroundSurface.Gravel, Cells = [cell], HoursTotal = hours,
-            HoursLeft = hours, StartTick = ctx.CurrentTick, LastProgressTick = ctx.CurrentTick, Prototype = trial,
+            Id = ground.NextWorkId++,
+            City = city.Id.Value,
+            Surface = GroundSurface.Gravel,
+            Cells = [cell],
+            HoursTotal = hours,
+            HoursLeft = hours,
+            StartTick = ctx.CurrentTick,
+            LastProgressTick = ctx.CurrentTick,
+            Prototype = trial,
         };
         ground.Works.Add(work);
         work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,

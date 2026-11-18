@@ -1,6 +1,5 @@
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
-using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
@@ -62,10 +61,13 @@ public static class BuildWorks
                     WorkEvents.Log(ctx, WorldEventKind.WorkStalled, work.Id, work.City, TypeOf(work), work.X, work.Y,
                         (idle / world.Calendar.HoursPerDay).ToString(System.Globalization.CultureInfo.InvariantCulture), cause: work.StartEventId);
                 }
-                if (rules.HelpersBuild) RefreshHelpers(world, work);
+                if (rules.HelpersBuild && (work.Id + ctx.CurrentTick / world.Calendar.HoursPerDay) % 7 == 0) RefreshHelpers(world, work); // quem ajuda se acerta por semana
                 SiteWork.Staff(world, ctx, new WorkSite(null, null, null, work));
             }
         }
+        // quem saiu do favor (casa própria, mudou, se desfez) deixa a lista
+        ground.Lodgers.RemoveAll(id => world.FindHousehold(new HouseholdId(id)) is not { IsEmpty: false } h
+            || h.Dwelling is not { } d || !SharesDwelling(world, h, d));
         if (rules.HouseIsWork) StartHouses(world, ctx);
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
@@ -130,7 +132,15 @@ public static class BuildWorks
         if (host.GetValueOrDefault(dwelling, household.Id.Value) == household.Id.Value) return false;
         int count = tenants.GetValueOrDefault(dwelling);
         if (count > DwellingCapacity.Of(world, house)) return true;
-        return world.StreetRules.NeolocalCouples && count > 1 && IsCouple(world, household);
+        // o casal que foi morar de favor com a família de onde saiu (não quem já morava no seu andar de uma casa de vários)
+        return world.StreetRules.NeolocalCouples && count > 1 && world.Ground!.Lodgers.Contains(household.Id.Value) && IsCouple(world, household);
+    }
+
+    private static bool SharesDwelling(WorldState world, Household household, BuildingId dwelling)
+    {
+        foreach (var other in world.Households)
+            if (other != household && !other.IsEmpty && other.Dwelling == dwelling) return true;
+        return false;
     }
 
     private static bool IsCouple(WorldState world, Household household) =>
@@ -176,7 +186,7 @@ public static class BuildWorks
         var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, typeId, now);
         var profile = LotProfiles.ForHousehold(world, city.Id, members);
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
-        var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 0, PlacementPolicy.LevelCount - 2, chooseOrientation: true);
+        var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 0, PlacementPolicy.StreetLevels - 1, chooseOrientation: true); // casa com porta para a rua (AD-173); sem lote na rua, segue apertada
         if (lot is not { } chosen) return false;
         long dayWage = PavingDecision.DayWage(world);
         long budget = Math.Max(0, PavingDecision.MeansOf(world, household.Id.Value) - dayWage * rules.SiteReserveDays);
@@ -185,7 +195,7 @@ public static class BuildWorks
         if (fee > budget)
         {
             // a terra do quintal custa o que a casa não tem: o lote sem quintal
-            if (BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 1, PlacementPolicy.LevelCount - 2, chooseOrientation: true)
+            if (BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 1, PlacementPolicy.StreetLevels - 1, chooseOrientation: true)
                 is not { } plain) return false;
             chosen = plain;
             croftArea = CroftArea(candidate, chosen.Orientation, chosen.Croft);
@@ -251,9 +261,20 @@ public static class BuildWorks
         world.AddBuilding(canteiro);
         var work = new BuildWork
         {
-            Id = id, City = city.Id.Value, Kind = kind, Building = canteiro.Id.Value, X = position.X, Y = position.Y, Croft = croft,
-            Household = household, Owner = owner, HoursTotal = Math.Max(1, hours), HoursLeft = Math.Max(1, hours), Spent = spent,
-            StartTick = now, LastProgressTick = now,
+            Id = id,
+            City = city.Id.Value,
+            Kind = kind,
+            Building = canteiro.Id.Value,
+            X = position.X,
+            Y = position.Y,
+            Croft = croft,
+            Household = household,
+            Owner = owner,
+            HoursTotal = Math.Max(1, hours),
+            HoursLeft = Math.Max(1, hours),
+            Spent = spent,
+            StartTick = now,
+            LastProgressTick = now,
         };
         ground.Builds.Add(work);
         work.StartEventId = WorkEvents.Log(ctx, WorldEventKind.BuildWorkStarted, id, work.City, TypeOf(work), work.X, work.Y, payload);
@@ -280,7 +301,7 @@ public static class BuildWorks
                 if (world.FindNpc(id) is { IsAlive: true } npc && npc.City == cityId && IsAdult(world, npc))
                 {
                     adults.Add(npc);
-                    if (Free(world, npc, work)) helpers.Add(npc.Id.Value);
+                    if (Free(world, npc, work) && !Nursing(world, npc)) helpers.Add(npc.Id.Value);
                 }
         if (adults.Count > 0 && rules.HelpersMax > 0)
         {
@@ -325,7 +346,7 @@ public static class BuildWorks
 
     private static void Consider(WorldState world, BuildWork work, Npc npc, double bond, CellCoord site, List<(double, long)> willing)
     {
-        if (!Free(world, npc, work)) return;
+        if (!Free(world, npc, work) || Nursing(world, npc)) return;
         // quem levanta a própria casa (ou oficina) trabalha nela, não na dos outros
         foreach (var other in world.Ground!.Builds)
             if (!ReferenceEquals(other, work) && npc.Household is { } own && other.Household == own.Value) return;
@@ -337,6 +358,15 @@ public static class BuildWorks
         double need = NeedOf(world, npc);
         double value = bond * (0.5 + npc.Personality.Altruism / 200.0) * share - 0.5 * need;
         if (value >= rules.HelpMin) willing.Add((value, npc.Id.Value));
+    }
+
+    /// <summary>Mãe com filho de colo (menos de um ano) na casa: amamenta e cuida, não vai à obra nas horas livres.</summary>
+    private static bool Nursing(WorldState world, Npc npc)
+    {
+        if (npc.Sex != Sex.Female || npc.Household is not { } h || world.FindHousehold(h) is not { } home) return false;
+        foreach (var id in home.Members)
+            if (world.FindNpc(id) is { IsAlive: true } kid && kid.MotherId == npc.Id && kid.AgeYears(world.CurrentDate) < 1) return true;
+        return false;
     }
 
     /// <summary>Necessidade de moeda da casa do NPC (0–1): o que falta para a reserva de jornal.</summary>

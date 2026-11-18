@@ -120,6 +120,9 @@ public sealed class GroundLedger
     /// <see cref="NextWorkId"/> (toda obra tem um id só).</summary>
     public List<LivingWorld.Simulation.Cities.Works.BuildWork> Builds { get; set; } = [];
 
+    /// <summary>AD-184: casas (ids) de casais que foram morar de favor com a família de onde saíram, até terem casa própria.</summary>
+    public List<long> Lodgers { get; set; } = [];
+
     /// <summary>AD-184: obras de prédio prontas e abandonadas desde o começo (relatório).</summary>
     public int BuildsDone { get; set; }
     public int BuildsAbandoned { get; set; }
