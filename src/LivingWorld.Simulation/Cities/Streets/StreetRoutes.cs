@@ -111,6 +111,9 @@ internal sealed class StreetRouteState
     public bool[] Walk = [];
     public bool AnyNet;
     public int[] Owner = [];
+    /// <summary>AD-187: os vetores de dono e tipo da virada anterior, reaproveitados na próxima.</summary>
+    public int[] OwnerSpare = [];
+    public byte[] KindSpare = [];
     public byte[] Kind = [];
     public int[] Door = [];
     public int[] Facing = [];
@@ -127,6 +130,8 @@ internal sealed class StreetRouteState
     public int Stamp;
     /// <summary>AD-185: quantas vezes as rotas guardadas foram jogadas fora (o carimbo dos caches derivados de rota).</summary>
     public long RouteVersion;
+    /// <summary>AD-187, diagnóstico: rotas calculadas (não achadas no cache) desde que o estado nasceu.</summary>
+    public long Computed;
     /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
     public readonly PriorityQueue<int, (double, int)> Queue = new();
     /// <summary>AD-185: a rede como lista de vizinhos (CSR): de cada célula andável, os vizinhos andáveis e o custo da passagem, já
@@ -304,11 +309,18 @@ public static class StreetRoutes
         {
             // AD-185: a virada do mês refaz os obstáculos; se saíram iguais (nenhum prédio novo virou obstáculo), as rotas guardadas
             // continuam valendo e não são recalculadas (antes todo mês esvaziava o cache e cada rota era refeita)
-            var owner = fresh ? null : (int[])state.Owner.Clone();
-            var kind = fresh ? null : (byte[])state.Kind.Clone();
+            // AD-187: o vetor de antes fica para a comparação e volta como o de trás na próxima vez (sem cópia por mês)
+            var owner = fresh ? null : state.Owner;
+            var kind = fresh ? null : state.Kind;
+            if (!fresh)
+            {
+                state.Owner = state.OwnerSpare.Length == owner!.Length ? state.OwnerSpare : new int[owner.Length];
+                state.Kind = state.KindSpare.Length == kind!.Length ? state.KindSpare : new byte[kind.Length];
+            }
             var door = state.Door;
             var doorOver = state.DoorOver;
             BuildObstacles(world, state, ground.ObstacleTick);
+            if (!fresh) { state.OwnerSpare = owner!; state.KindSpare = kind!; }
             obstaclesChanged = owner is null || !owner.AsSpan().SequenceEqual(state.Owner) || !kind.AsSpan().SequenceEqual(state.Kind)
                 || !door.AsSpan().SequenceEqual(state.Door) || !doorOver.AsSpan().SequenceEqual(state.DoorOver);
         }
@@ -498,6 +510,7 @@ public static class StreetRoutes
 
     private static StreetRoute Compute(StreetRouteState state, int o, int d)
     {
+        state.Computed++;
         int ownerO = state.Owner[o], ownerD = state.Owner[d];
         if (ownerO != 0 && ownerO == ownerD)
             return new StreetRoute { Cost = Movement(state, o, d), Internal = true, A = o, B = d };
@@ -896,7 +909,8 @@ public static class StreetRoutes
         int big = -1, bigSize = 0;
         foreach (var (label, size) in sizes.OrderBy(kv => kv.Key)) if (size > bigSize) { big = label; bigSize = size; }
         var fields = new List<double[]>();
-        foreach (int lm in marks) fields.Add(FieldDist(state, lm));
+        var used = new List<int>();
+        foreach (int lm in marks) fields.Add(FieldDist(state, lm, used));
         if (big >= 0 && bigSize >= MinLandmarkComponent)
         {
             var minD = new double[n];
@@ -912,7 +926,7 @@ public static class StreetRoutes
             if (!any)
             {
                 int seed = Array.IndexOf(state.Comp, big);
-                var d = FieldDist(state, seed);
+                var d = FieldDist(state, seed, used);
                 for (int i = 0; i < n; i++) minD[i] = d[i];
             }
             var cells = state.NetCell;
@@ -928,7 +942,7 @@ public static class StreetRoutes
                 if (pick < 0) break;
                 int cell = cells[pick];
                 marks.Add(cell);
-                var d = FieldDist(state, cell);
+                var d = FieldDist(state, cell, used);
                 fields.Add(d);
                 for (int i = 0; i < n; i++) if (d[i] < minD[i]) minD[i] = d[i];
             }
@@ -940,20 +954,20 @@ public static class StreetRoutes
             var d = fields[k];
             for (int i = 0; i < n; i++) table[i * count + k] = d[i];
         }
+        // AD-187: os campos dos marcos voltam ao estoque de vetores (só os dos polos ficam guardados); a tabela já tem o que importa
+        foreach (int root in used)
+            if (!state.Hubs.Contains(root) && state.Fields.Remove(root, out var spent)) state.FieldPool.Push(spent);
         state.LmCells = [.. marks];
         if (state.LmActive.Length < count) { state.LmActive = new int[count]; state.LmToX = new double[count]; }
         return state.LmTable = table;
     }
 
-    /// <summary>Campo de distância de uma célula por toda a rede, sem guardar (os dos polos ficam no cache; este, só na tabela).</summary>
-    private static double[] FieldDist(StreetRouteState state, int root)
+    /// <summary>Campo de distância de uma célula por toda a rede, lido no lugar (sem cópia); <paramref name="used"/> guarda as raízes
+    /// para devolver os vetores ao estoque depois que a tabela é montada.</summary>
+    private static double[] FieldDist(StreetRouteState state, int root, List<int> used)
     {
-        if (state.Fields.TryGetValue(root, out var kept)) return (double[])kept.Dist.Clone();
-        var field = FieldOf(state, root);
-        state.Fields.Remove(root);
-        var copy = (double[])field.Dist.Clone();
-        state.FieldPool.Push(field);
-        return copy;
+        used.Add(root);
+        return FieldOf(state, root).Dist;
     }
 
     /// <summary>AD-187: os marcos que mais apertam o limite inferior na saída (|d(marco, x) − d(marco, e)|, empate: o de menor

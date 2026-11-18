@@ -96,6 +96,87 @@ public sealed class WaterFetchTests
         Assert.Equal(source, BehaviorDecisionSystem.TravelDestinationFor(world, free, MarketIndex.BuildForTick(world)));
     }
 
+    /// <summary>AD-187: a caminho da água, a sede já urgente não acorda a pessoa de hora em hora (a decisão só mandaria seguir): ela
+    /// acorda na chegada. Fora da ida, a mesma sede acorda na hora seguinte, como antes.</summary>
+    [Fact]
+    public void On_the_way_to_water_an_urgent_thirst_wakes_at_arrival_not_every_hour()
+    {
+        var (world, _) = NewWorld();
+        var (home, free, _, _) = Scene(world);
+        Drain(world, home);
+        long now = Now(world);
+        free.SetThirst(5, now);
+        free.SetHunger(100, now);
+        free.SetSleep(100, now);
+        free.SetSocial(100, now);
+        long arrival = now + 3;
+
+        Assert.True(WaterFetch.WantsToFetch(world, free, now));
+        free.SetCurrentAction(ActionType.Travel, now);
+        Assert.True(WaterFetch.OnTheWay(world, free));
+        long onTheWay = LivingWorld.Simulation.Behavior.Needs.NpcWakeScheduler.ComputeNextWakeTick(
+            free, world.NeedsRules, world.ActionCatalog, now, world, travelArrivalTick: arrival);
+
+        WaterFetch.Forget(world, free.Id.Value);
+        long errand = LivingWorld.Simulation.Behavior.Needs.NpcWakeScheduler.ComputeNextWakeTick(
+            free, world.NeedsRules, world.ActionCatalog, now, world, travelArrivalTick: arrival);
+
+        Assert.Equal(arrival, onTheWay);
+        Assert.Equal(now + 1, errand);
+    }
+
+    /// <summary>AD-187: a caminho da água, a fome à beira da morte ainda acorda (é o que faria largar a ida).</summary>
+    [Fact]
+    public void On_the_way_to_water_starving_hunger_still_wakes_before_arrival()
+    {
+        var (world, _) = NewWorld();
+        var (home, free, _, _) = Scene(world);
+        Drain(world, home);
+        long now = Now(world);
+        free.SetThirst(5, now);
+        free.SetHunger(100 - WaterFetch.StarvingDeficit + 1, now); // um ponto antes do limiar que larga a ida
+        Assert.True(WaterFetch.WantsToFetch(world, free, now));
+        free.SetCurrentAction(ActionType.Travel, now);
+
+        long wake = LivingWorld.Simulation.Behavior.Needs.NpcWakeScheduler.ComputeNextWakeTick(
+            free, world.NeedsRules, world.ActionCatalog, now, world, travelArrivalTick: now + 500);
+
+        Assert.True(wake < now + 500, $"acordou só em {wake - now} h");
+        Assert.True(wake > now);
+    }
+
+    /// <summary>AD-187: perto de casa, a sede vai à fonte que a casa conhece (a de sempre), não à mais perto de onde está.</summary>
+    [Fact]
+    public void Thirst_near_home_goes_to_the_households_known_source()
+    {
+        var (world, _) = NewWorld();
+        var (home, free, _, source) = Scene(world);
+        Drain(world, home);
+        long now = Now(world);
+        free.SetThirst(5, now);
+        // perto de casa (a despensa ao alcance), numa célula de onde outra água fica mais perto que a da casa
+        CellCoord? found = null;
+        for (int r = 1; r <= 8 && found is null; r++)
+            for (int dy = -r; dy <= r && found is null; dy++)
+                for (int dx = -r; dx <= r && found is null; dx++)
+                {
+                    var cell = new CellCoord(home.Location.X + dx, home.Location.Y + dy);
+                    if (!world.Map.TryGetCell(cell, out var c) || c.HasWater) continue;
+                    free.MoveTo(cell, now);
+                    if (LivingWorld.Simulation.Invention.PersonalCarry.PantryOutOfReach(world, free, home)) continue;
+                    if (NaturalWaterSystem.NearestWater(world, cell, world.NaturalWaterRules.Fetch.RadiusCells * 2) is { } near && near.Cell != source)
+                        found = cell;
+                }
+        Assert.NotNull(found);
+        free.MoveTo(found!.Value, now);
+
+        bool sent = WaterFetch.ThirstSendsToSource(world, free, now, marketTicks: long.MaxValue, canPay: false);
+
+        Assert.True(sent);
+        int i = world.Invention!.WaterTripIndex(free.Id.Value);
+        Assert.Equal(source, new CellCoord(world.Invention.WaterTrips![i].X, world.Invention.WaterTrips[i].Y));
+    }
+
     [Fact]
     public void A_full_pantry_sends_nobody_to_the_source()
     {

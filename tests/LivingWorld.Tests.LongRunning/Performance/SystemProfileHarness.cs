@@ -33,9 +33,13 @@ public class SystemProfileHarness
         else if (Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") is "0" or "1" && world.InventionRules is { } inv)
             world.UseInvention(inv with { PantryNeedsPresence = Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") == "1" });
 
+        // AD-187: rotas calculadas e idas de água no período medido (o trabalho real do mundo novo, ao lado do custo)
+        var tally0 = (world.InventionTally.WaterTrips, world.InventionTally.WaterTripsByThirst);
+        long computed0 = world.RouteState?.Computed ?? 0;
         var report = SystemProfiler.Measure(world, clock, warmupTicks: ReadInt("LW_PROFILE_WARMUP", 240) is var w && Environment.GetEnvironmentVariable("LW_PROFILE_WARMUP") == "0" ? 0 : w, ticks); // AD-185: LW_PROFILE_WARMUP=0 mede o começo do mundo (o cache de rotas frio)
 
-        string text = $"pop={(villageYears > 0 ? $"vila-padrao-{villageYears}a" : population)}\n{report.Format()}";
+        string text = $"pop={(villageYears > 0 ? $"vila-padrao-{villageYears}a" : population)}\n{report.Format()}"
+            + $"rotas calculadas={(world.RouteState?.Computed ?? 0) - computed0} idas de água={world.InventionTally.WaterTrips - tally0.Item1} por sede={world.InventionTally.WaterTripsByThirst - tally0.Item2}\n";
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_PROFILE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-profile.txt"), text);
         Assert.True(report.Systems.Count > 0);
     }

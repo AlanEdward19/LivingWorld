@@ -54,7 +54,9 @@ public static class DecisionContextBuilder
             FoodUnitPrice: foodUnitPrice,
             ShopperOut: shopperOut,
             FoodStallKnownEmpty: foodStallKnownEmpty,
-            SiteOffer: LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc)); // AD-179: a obra que chama o diarista
+            // AD-179: a obra que chama o diarista. AD-187: em float, que cabe na folga do fim do objeto (o double somava 8 bytes a
+            // cada decisão do mundo, quase sempre para guardar zero)
+            SiteOffer: (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc));
     }
 
     /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>
