@@ -64,7 +64,7 @@ public sealed partial class BehaviorDecisionSystem
         double hoard = -1;
         // AD-157b (backlog 08b item 77): a compra passada ficou pela metade na banca (a carga cortou): volta pelo resto
         bool owed = world.InventionOn && world.Invention!.IsLeftAtMarket(household.Id.Value);
-        if (owed) return ReturnForWhatWasLeft(world, npc, household, marketIndex, duringWork);
+        if (owed && WorthReturningFor(world, household)) return ReturnForWhatWasLeft(world, npc, household, marketIndex, duringWork);
         if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
         {
             if (npc.Psyche is null) return false;
@@ -95,6 +95,22 @@ public sealed partial class BehaviorDecisionSystem
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
         return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
             || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
+    }
+
+    /// <summary>AD-182 (08c item 147): o resto deixado na banca vale a volta antecipada se soma ao menos
+    /// <see cref="LivingWorld.Domain.Invention.MarketTripRules.ReturnMinDays"/> de consumo da casa num recurso; com menos, a casa
+    /// espera a despensa pedir a compra de sempre (a marca sem unidades, do poço ou de snapshot antigo, também). Regra desligada: volta.</summary>
+    private static bool WorthReturningFor(WorldState world, LivingWorld.Domain.Population.Family.Household household)
+    {
+        var trip = world.InventionRules!.MarketTrip;
+        if (!trip.ReturnByLeftUnits) return true;
+        var ledger = world.Invention!;
+        long food = ledger.LeftUnitsAtMarket(household.Id.Value, world.EconomyRules.FoodResourceId);
+        long water = ledger.LeftUnitsAtMarket(household.Id.Value, world.EconomyRules.WaterResourceId);
+        long day = (long)Math.Max(1, household.Members.Count) * Math.Max(1, trip.ReturnMinDays);
+        bool worth = food >= day || water >= day;
+        if (worth) world.InventionTally.ReturnsForLeft++; else world.InventionTally.ReturnsForLeftSkipped++;
+        return worth;
     }
 
     /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a

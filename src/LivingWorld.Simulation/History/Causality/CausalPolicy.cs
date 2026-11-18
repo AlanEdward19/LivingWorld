@@ -72,6 +72,7 @@ public static class CausalPolicy
         WorldEventKind.LeavingsCollected, // AD-168: recolher o espólio é contabilidade, como a venda
         WorldEventKind.LoanGranted,
         WorldEventKind.StreetWorkStarted, // AD-176: decisão de calçar (quem paga decide pelo uso do trecho)
+        WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft, // AD-179: a decisão do diarista (entrar ou sair da obra)
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

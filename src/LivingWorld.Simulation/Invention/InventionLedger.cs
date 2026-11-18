@@ -78,8 +78,40 @@ public sealed class InventionLedger
 
     internal bool IsLeftAtMarket(long householdId) => LeftAtMarket is { Count: > 0 } left && left.BinarySearch(householdId) >= 0;
 
+    /// <summary>AD-182 (08c item 147): quanto ficou na banca, por casa e recurso (ordenado). Nulo enquanto nada: o snapshot antigo
+    /// abre igual, e a marca antiga sem unidades volta como antes (pela meta).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<LeftAtMarketUnits>? LeftAtMarketQuantities { get; set; }
+
+    /// <summary>Unidades de <paramref name="resourceId"/> que a casa deixou na banca na última compra (0 = nada guardado).</summary>
+    internal long LeftUnitsAtMarket(long householdId, int resourceId)
+    {
+        if (LeftAtMarketQuantities is not { Count: > 0 } list) return 0;
+        foreach (var e in list) if (e.HouseholdId == householdId && e.ResourceId == resourceId) return e.Units;
+        return 0;
+    }
+
+    /// <summary>Guarda (ou apaga, com 0) o que a casa deixou de <paramref name="resourceId"/> na banca.</summary>
+    internal void SetLeftUnitsAtMarket(long householdId, int resourceId, long units)
+    {
+        if (units <= 0 && LeftAtMarketQuantities is not { Count: > 0 }) return;
+        LeftAtMarketQuantities ??= [];
+        var list = LeftAtMarketQuantities;
+        int i = 0;
+        while (i < list.Count && (list[i].HouseholdId < householdId || (list[i].HouseholdId == householdId && list[i].ResourceId < resourceId))) i++;
+        bool found = i < list.Count && list[i].HouseholdId == householdId && list[i].ResourceId == resourceId;
+        if (units <= 0) { if (found) list.RemoveAt(i); else { if (list.Count == 0) LeftAtMarketQuantities = null; return; } }
+        else if (found) { if (list[i].Units == units) return; list[i] = new LeftAtMarketUnits(householdId, resourceId, units); }
+        else list.Insert(i, new LeftAtMarketUnits(householdId, resourceId, units));
+        if (list.Count == 0) LeftAtMarketQuantities = null;
+        Version++;
+    }
+
     internal void LeaveAtMarket(long householdId, bool left)
     {
+        if (!left && LeftAtMarketQuantities is { Count: > 0 } quantities)
+            for (int q = quantities.Count - 1; q >= 0; q--)
+                if (quantities[q].HouseholdId == householdId) SetLeftUnitsAtMarket(householdId, quantities[q].ResourceId, 0);
         if (!left && LeftAtMarket is not { Count: > 0 }) return;
         LeftAtMarket ??= [];
         int i = LeftAtMarket.BinarySearch(householdId);
@@ -583,6 +615,18 @@ public sealed class InventionLedger
         return i < Carried.Count && Carried[i].NpcId == npcId;
     }
 
+    /// <summary>AD-179 (item 175): peso, em gramas, do que a pessoa leva (comida e água da viagem, o espólio recolhido).</summary>
+    internal long CarriedGrams(long npcId, LivingWorld.Domain.Invention.InventionRules rules)
+    {
+        if (Carried.Count == 0) return 0;
+        int i = CarriedIndex(npcId, int.MinValue);
+        i = i >= 0 ? i : ~i;
+        long grams = 0;
+        for (; i < Carried.Count && Carried[i].NpcId == npcId; i++)
+            grams += (long)Carried[i].Quantity * rules.UnitGramsOf(Carried[i].ResourceId);
+        return grams;
+    }
+
     /// <summary>Tudo o que as pessoas levam de um recurso (AD-157b): é estoque do mundo, na carga de quem saiu, e entra na conservação.</summary>
     public long CarriedTotal(int resourceId)
     {
@@ -728,4 +772,9 @@ public sealed class InventionTally
     // dono, furtados; unidades deixadas, recolhidas, furtadas e estragadas)
     public long LeavingsLeft, LeavingsAtHome, LeavingsFetches, LeavingsCollected, LeavingsFound, LeavingsStolen;
     public long LeftUnits, CollectedUnits, StolenUnits, SpoiledUnits;
+    // AD-182: recipiente levado à compra sem lanche (111); voltas pelo resto da banca feitas e dispensadas por ser pouco (147);
+    // água do espólio perdida ao relento (156)
+    public long MarketCarrierHeld, ReturnsForLeft, ReturnsForLeftSkipped, GroundWaterLost;
+    // AD-182 (08c item 113): saídas com lanche levando um recipiente, e saídas (com lanche ou à compra) com a peça presa ao corpo (tira)
+    public long PackTripsWithCarrier, PackTripsWorn;
 }

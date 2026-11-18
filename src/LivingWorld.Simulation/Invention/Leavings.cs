@@ -310,7 +310,8 @@ public static class Leavings
         double deterrence = Theft.Deterrence(world, npc, now);
         double need = Theft.NeedOf(theft, npc, now);
         double barrier = (need >= 0 ? theft.NeedBarrier(need, deterrence) : theft.PlannedBarrier(deterrence))
-            + Math.Min(3, witnesses) * rules.SeenBarrierPerWitness;
+            + Math.Min(3, witnesses) * rules.SeenBarrierPerWitness
+            + rules.KnownDeadBarrier * BondWithDead(world, npc, leaving); // AD-182: o que era de um conhecido não se leva
         double inclination = theft.Inclination(PersonalityWeighting.WeightOf(npc.Personality, ActionType.Steal), barrier);
         if (inclination <= 0) return;
         var rng = ctx.OneShot($"leaving-theft-{npc.Id.Value}-{leaving.Id}-{now}");
@@ -325,6 +326,13 @@ public static class Leavings
         var target = new TheftTarget(TheftTargetKind.Ground, victim, house, null, resource, units, 0,
             units * Theft.PriceOf(world, npc.City, resource), cell, leaving.Id);
         Theft.Commit(world, ctx, npc, TheftMotive.Opportunity, target, rng);
+    }
+
+    /// <summary>AD-182 (08c item 155): o laço de quem passa com o morto do espólio, 0–1 (o maior entre confiança e afeto).</summary>
+    private static double BondWithDead(WorldState world, Npc npc, Leaving leaving)
+    {
+        if (!world.Relationships.TryGetValue(new RelationshipKey(npc.Id, new NpcId(leaving.DeadId)), out var rel)) return 0;
+        return Math.Clamp(Math.Max(rel.Get(RelationshipAxis.Trust), rel.Get(RelationshipAxis.Affection)) / 100.0, 0, 1);
     }
 
     /// <summary>O furto executado (<see cref="Theft"/>): leva o que couber e a peça; devolve (unidades, valor).</summary>
@@ -348,24 +356,51 @@ public static class Leavings
         if (l.ItemId == 0 && l.CarrierId < 0 && !ledger.HasLoads(leavingId)) ledger.RemoveLeaving(leavingId);
     }
 
-    /// <summary>O mês: o perecível no chão estraga na taxa da despensa (vezes <see cref="LeavingsRules.GroundSpoilagePm"/>), pelo
-    /// mesmo evento de perda (a conservação o conta).</summary>
+    /// <summary>O mês: o perecível no chão estraga na taxa da despensa vezes <see cref="LeavingsRules.GroundSpoilagePm"/> (ao tempo e
+    /// aos bichos, mais que na despensa), e a água se perde a <see cref="LeavingsRules.GroundWaterLossPerDayPm"/> por dia (evapora e
+    /// vaza do recipiente largado). AD-182 (08c item 156): as duas taxas crescem com o calor do lugar (fator
+    /// <see cref="LeavingsRules.GroundQ10"/> a cada 10 °C acima de <see cref="LeavingsRules.GroundReferenceCelsius"/>) e contam só
+    /// os dias que o espólio passou no chão. Pelo mesmo evento de perda (a conservação o conta).</summary>
     internal static void Spoil(WorldState world, TickContext ctx, EconomyRules economy, int days)
     {
-        if (!On(world) || world.Invention!.LeftLoads is not { Count: > 0 } loads || economy.SpoilagePerDayByResource.Count == 0) return;
-        double factor = world.InventionRules!.Leavings.GroundSpoilagePm / 1000.0;
+        if (!On(world) || world.Invention!.LeftLoads is not { Count: > 0 } loads) return;
+        var rules = world.InventionRules!.Leavings;
+        double factor = rules.GroundSpoilagePm / 1000.0;
+        int hoursPerDay = world.Calendar.HoursPerDay;
+        var leavings = world.Invention.Leavings;
         foreach (var load in loads.ToList())
         {
-            if (!economy.SpoilagePerDayByResource.TryGetValue(load.ResourceId, out var rate) || rate <= 0) continue;
-            double daily = Math.Min(rate * factor, 0.999999);
-            double monthly = 1 - DeterministicMath.Exp(days * DeterministicMath.Log(1 - daily));
-            long spoiled = Math.Min(load.Quantity, Economy.Production.CropSystem.RoundStochastic(load.Quantity * monthly, ctx,
+            double daily;
+            if (economy.SpoilagePerDayByResource.TryGetValue(load.ResourceId, out var rate) && rate > 0) daily = rate * factor;
+            else if (load.ResourceId == economy.WaterResourceId && rules.GroundWaterLossPerDayPm > 0) daily = rules.GroundWaterLossPerDayPm / 1000.0;
+            else continue;
+            int exposed = days;
+            if (leavings is not null && world.Invention.LeavingIndex(load.LeavingId) is var at and >= 0)
+            {
+                var leaving = leavings[at];
+                if (rules.CountDaysOnGround) exposed = (int)Math.Clamp((ctx.CurrentTick - leaving.Tick) / hoursPerDay, 0, days);
+                daily *= HeatFactor(world, rules, new CellCoord(leaving.X, leaving.Y), ctx.CurrentTick);
+            }
+            if (exposed <= 0) continue;
+            daily = Math.Min(daily, 0.999999);
+            double lost = 1 - DeterministicMath.Exp(exposed * DeterministicMath.Log(1 - daily));
+            long spoiled = Math.Min(load.Quantity, Economy.Production.CropSystem.RoundStochastic(load.Quantity * lost, ctx,
                 "leaving-spoilage", load.LeavingId * 64 + load.ResourceId, ctx.CurrentTick));
             if (spoiled <= 0) continue;
             world.Invention.Leave(load.LeavingId, load.ResourceId, -(int)spoiled);
-            world.InventionTally.SpoiledUnits += spoiled;
+            if (load.ResourceId == economy.WaterResourceId) world.InventionTally.GroundWaterLost += spoiled;
+            else world.InventionTally.SpoiledUnits += spoiled;
             ctx.LogEvent(WorldEventKind.ResourceLost, $"espolio-{load.LeavingId}|{load.ResourceId}|{spoiled}", sourceSystem: Source);
             DropIfEmpty(world, load.LeavingId);
         }
+    }
+
+    /// <summary>Quanto o calor do lugar acelera a perda ao relento (Q10): 1 na temperatura de referência, ×Q10 a cada 10 °C a mais,
+    /// ÷Q10 a cada 10 °C a menos (o frio conserva).</summary>
+    internal static double HeatFactor(WorldState world, LeavingsRules rules, CellCoord cell, long tick)
+    {
+        if (rules.GroundQ10 <= 1) return 1;
+        double celsius = LivingWorld.Simulation.Extraordinary.Mechanics.EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, tick);
+        return DeterministicMath.Exp((celsius - rules.GroundReferenceCelsius) / 10.0 * DeterministicMath.Log(rules.GroundQ10));
     }
 }

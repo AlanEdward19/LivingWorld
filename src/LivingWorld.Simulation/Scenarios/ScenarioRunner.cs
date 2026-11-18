@@ -373,6 +373,7 @@ public static partial class ScenarioRunner
         }
 
         LivingWorld.Simulation.Extraordinary.Culture.ExtraordinaryPrevalenceSeeder.Seed(world); // AD-156: no-op com poderes desligados
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
         return (world, new WorldClock(DefaultSystems(extraordinary: extraordinary), maxIterationsPerTick));
     }
 

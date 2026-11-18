@@ -20,6 +20,12 @@ public static class PressureSwitch
         // AD-166: LW_AID_RESERVE=n troca os dias que quem socorre guarda antes de mandar comida
         if (string.IsNullOrWhiteSpace(raw) && int.TryParse(Environment.GetEnvironmentVariable("LW_AID_RESERVE"), out int reserve))
             return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { FoodAidReserveDays = reserve } };
+        // AD-182 (08c item 151): LW_CONCEPTION_PANTRY=old volta o piso de comida em casa para conceber
+        if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_CONCEPTION_PANTRY") == "old")
+            return ScenarioRunner.DefaultFamilyRules with { ConceptionFloorReadsBody = false };
+        // AD-182 (08c item 149): LW_AID_WHO=off volta a contar a moeda de quem não sabe comprar
+        if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_AID_WHO") == "off")
+            return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = false } };
         if (string.IsNullOrWhiteSpace(raw)) return null;
         if (raw == "off") return ScenarioRunner.DefaultFamilyRules with { Pressure = null }; // AD-148: o padrão agora é ligado
         if (raw == "nohouse") return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { Holdings = null } }; // AD-158

@@ -76,8 +76,12 @@ public sealed class NatalitySystem : ISimulationSystem
                     * (1 - ContraceptiveProtection(world, mother));
             // AD-145: o casal sem trabalho e sem despensa adia o primeiro filho, no tanto em que é prudente
             if (chance > 0 && spouse is not null && (mother.Reproduction?.Parity ?? 0) == 0)
-                chance *= HouseholdMeans.FirstBirthReadiness(
+            {
+                double readiness = HouseholdMeans.FirstBirthReadiness(
                     world, mother, spouse, mother.Household is { } home ? world.FindHousehold(home) : null);
+                if (readiness < 1) world.PurchaseTally.FirstBirthHeldBackMilli += (long)(1000 * chance * (1 - readiness)); // AD-182: só medida
+                chance *= readiness;
+            }
             if (chance <= 0) continue;
 
             var rng = ctx.StreamFor("conception", unchecked(mother.Id.Value * 1_000_003L + now));
@@ -477,6 +481,8 @@ public sealed class NatalitySystem : ISimulationSystem
         if (household is null)
             return false;
 
+        // AD-182 (08c item 151): com o ciclo hormonal, o corpo (amenorreia da subnutrição) decide; a despensa do dia não
+        if (familyRules.ConceptionFloorReadsBody && world.PopulationRules.Fertility.Endocrine.Enabled) return true;
         foreach (var (resourceId, floor) in familyRules.ConceptionResourceFloor)
         {
             long stock = household.Stock.GetValueOrDefault(new ResourceType(resourceId));

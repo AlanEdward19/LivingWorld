@@ -113,9 +113,15 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         if (centroid.X < 0 || centroid.Y < 0 || centroid.X >= world.Map.Width || centroid.Y >= world.Map.Height)
             return; // centroide fora do mapa -- dropado silenciosamente, nunca força uma cidade fora do mundo
 
+        // AD-183: quem lidera a saída funda; o costume da cultura decide se a cidade leva o nome dele
+        var founder = world.FamilyRules.Names.FounderHonor
+            ? Population.Naming.Founders.Pick(world, Population.Naming.Founders.Leaving(world, motherCityId, clusterBounds), ctx.CurrentTick) : null;
+        var (cityName, nameCustom) = world.FamilyRules.Names.FounderHonor
+            ? CityNameGenerator.GenerateDaughter(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity, founder)
+            : (CityNameGenerator.Generate(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity), "");
         var newCity = new City(
             world.NextCityId(), centroid, ctx.CurrentTick, motherCityId, AggregatePopulationPool.Empty,
-            name: CityNameGenerator.Generate(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity));
+            name: cityName, founderId: founder?.Id.Value);
         world.AddCity(newCity);
         // Dotação de fundação: a cidade nova recebe metade do caixa da mãe (só muda de dono, nada é cunhado).
         var dotation = new Money(motherCity.Treasury.Amount / 2);
@@ -167,6 +173,7 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                 member.JoinCity(newCity.Id);
             }
         }
+        if (world.FamilyRules.Names.FounderHonor) Population.Naming.Founders.Record(world, ctx, newCity, motherCity, founder, nameCustom);
     }
 
     /// <summary>AD-176: a causa da fundação é o caminho, não a geometria. O aglomerado que nasceu longe por falta de lote perto só

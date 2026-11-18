@@ -56,6 +56,9 @@ public static class ScenarioLoaderV2
         // agora é usado exatamente como veio do JSON; escassez de espaço é responsabilidade do
         // placement (BuildingPlacementResolver/OverflowPlacer), que já resolve isso sem regerar
         // nada (célula livre nos bounds, senão anel de overflow, senão recusa/decline).
+        // AD-183: costume de nome declarado (bloco opcional Naming); ausente = o sorteio por cultura
+        var familyRules = LivingWorld.Simulation.Population.Naming.NamingScenarioBlock.Apply(json, ScenarioRunner.DefaultFamilyRules);
+        if (!familyRules.IsSuccess) return Result<(WorldState, WorldClock)>.Fail(familyRules.Error!);
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, definition.Map.Seed, definition.Map,
             catalog, population.Rules,
@@ -64,7 +67,7 @@ public static class ScenarioLoaderV2
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
             // Mesmos padrões de ScenarioRunner.Create (#112 D): sem eles o mundo carregado por JSON caía em FamilyRules.Disabled
             // (sem risco de parto nem pisos de concepção), PerfRules.Default implícito e ecologia vazia.
-            familyRules: ScenarioRunner.DefaultFamilyRules, perfRules: ScenarioRunner.DefaultPerfRules,
+            familyRules: familyRules.Value!, perfRules: ScenarioRunner.DefaultPerfRules,
             animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
             plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
             biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules,
@@ -230,6 +233,7 @@ public static class ScenarioLoaderV2
         LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, definition.Economy.CraftLocationTypeIds);
 
         ExtraordinaryPrevalenceSeeder.Seed(world);
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios

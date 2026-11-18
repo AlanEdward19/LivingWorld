@@ -128,6 +128,9 @@ public readonly record struct DesignDemand(CityId City, int Households, byte Fun
 /// <summary>O que uma pessoa leva consigo (AD-147): quantas unidades de um recurso, tiradas da despensa ao sair; o que sobra volta.</summary>
 public readonly record struct CarriedLoad(long NpcId, int ResourceId, int Quantity);
 
+/// <summary>O que a carga cortou e ficou na banca (AD-182, 08c item 147): unidades de um recurso que a casa queria e não trouxe.</summary>
+public readonly record struct LeftAtMarketUnits(long HouseholdId, int ResourceId, long Units);
+
 /// <summary>O recipiente que uma pessoa levou de casa (AD-157): sai da casa com ela e volta quando ela volta; enquanto isso, quem
 /// fica não o tem.</summary>
 public readonly record struct HeldItem(long NpcId, long ItemId);

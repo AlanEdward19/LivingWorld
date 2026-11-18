@@ -142,12 +142,12 @@ static func lines_of(road: Dictionary) -> Array[String]:
 			surface_name(int(work.surface)), int(work.progress)])
 		lines.append("Quem paga: %s" % PAYERS.get(String(work.payer), String(work.payer) if String(work.payer) != "" else "não informado"))
 		lines.append("Quem trabalha nela: %s" % ("%d pessoa(s)" % workers_of(road).size() if not workers_of(road).is_empty()
-			else "o motor ainda não diz"))
+			else "ninguém no momento (obra parada)"))
 	lines.append("Célula %d,%d" % [road.cell.x, road.cell.y])
 	return lines
 
 
-## GANCHO: quem trabalha na obra, quando o contrato trouxer (`work.workers` ou `work.workerIds`, ids). Hoje vem vazio.
+## Quem está na obra agora (`work.workerIds`, AD-179); vazio = obra parada por falta de braço.
 static func workers_of(road: Dictionary) -> Array:
 	var extra: Dictionary = work_of(road).get("extra", {})
 	for key in ["workers", "workerIds", "crew"]:

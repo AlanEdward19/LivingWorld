@@ -37,6 +37,9 @@ public enum UtilityTerm : byte
 
     /// <summary>AD-147: fome ou sede crítica tira o lazer da frente (o teto de Conversar e Ficar à toa).</summary>
     BodyOverride,
+
+    /// <summary>AD-179: a oferta de trabalho de diarista numa obra (precisa de dinheiro, não tem emprego, a ida não come o dia).</summary>
+    SiteWork,
 }
 
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
@@ -162,6 +165,13 @@ public sealed partial class BehaviorDecisionSystem
 
         score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout, ref lens);
         score += HormoneTerms(ctx, action, baseValue, sink, knockout, ref lens);
+        if (action == ActionType.Work && ctx.SiteOffer > 0 && knockout != UtilityTerm.SiteWork)
+        {
+            // AD-179: a obra que paga quem precisa puxa para o trabalho, como a necessidade de renda (grupo Pressão)
+            score += ctx.SiteOffer;
+            lens.Credit(UtilityGroup.Pressure, ctx.SiteOffer);
+            Note(sink, action, UtilityTerm.SiteWork, ctx.SiteOffer, ref lens, UtilityGroup.Pressure);
+        }
 
         // AD-139: o jovem no pico do impulso desconta parte das consequências que a antevisão mostra e muda de ideia mais rápido
         var hormones = knockout == UtilityTerm.Adolescence ? default : ctx.Hormones;
@@ -201,10 +211,12 @@ public sealed partial class BehaviorDecisionSystem
         // solidão) conversava de hora em hora até morrer de sede com água na despensa.
         // Só quando a despensa serve a necessidade crítica (Comer passa do déficit crítico): sem o que comer em casa, o teto mudava
         // a escolha de quem não tinha saída e a fome subia (seeds 1–2 × 100 anos: 4,4% → 7,7%). Estendê-lo a Trabalhar e Comprar
-        // (tentativa 3) levou a fome de 6,4% a 11,7% em 20 × 100.
+        // (tentativa 3) levou a fome de 6,4% a 11,7% em 20 × 100. AD-182: a compra que serve a necessidade crítica (moeda, comida à
+        // venda, marco de comprar) também é saída, e o teto vale; o jovem só em casa conversava sozinho até morrer de fome com moeda.
         if (rules.Psyche.CriticalBodyOverridesLeisure && action is ActionType.Socialize or ActionType.Idle
             && knockout != UtilityTerm.BodyOverride && score > CriticalDeficit
-            && EatUtilityOf(ctx, economy) > CriticalDeficit)
+            && (EatUtilityOf(ctx, economy) > CriticalDeficit
+                || (rules.Psyche.CriticalBodyCountsPurchase && eligibility.Allows(ActionType.Buy) && BuyUtilityOf(ctx, economy) > CriticalDeficit)))
         {
             double cut = CriticalDeficit - score;
             score = CriticalDeficit;

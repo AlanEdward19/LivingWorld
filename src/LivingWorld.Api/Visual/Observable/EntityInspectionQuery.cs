@@ -36,10 +36,12 @@ public sealed record WorkplaceEntityState(
     long Id, int LocationTypeId, string? LocationTypeName, string CityId, CellCoord Location, long? BuildingId, long? OwnerId,
     IReadOnlyList<long> EmployeeIds, IReadOnlyList<StockLine> Stock, long TreasuryCents, bool Closed);
 
-/// <summary>Resumo leve de cidade (sem camadas, portais nem moradores): o que a ficha mostra.</summary>
+/// <summary>Resumo leve de cidade (sem camadas, portais nem moradores): o que a ficha mostra. AD-183: <see cref="FounderId"/> e
+/// <see cref="FounderName"/> = quem liderou a saída e fundou a cidade-filha (nulos na cidade semeada ou fundada pelo pool).</summary>
 public sealed record CityEntityState(
     string Id, string Name, CellCoord Location, long Population, long PooledResidents, long FoundedAtTick, string? FoundedFromCityId,
-    string? MergedIntoCityId, CityIndicators Indicators, int Households, int Buildings, int Workplaces, ScopeClimateVisual Climate);
+    string? MergedIntoCityId, CityIndicators Indicators, int Households, int Buildings, int Workplaces, ScopeClimateVisual Climate,
+    long? FounderId = null, string? FounderName = null);
 
 /// <summary>Rota genérica de inspeção (AD-170, <c>GET /entities/{kind}/{id}</c>). Leitura pura do estado do motor: reaproveita
 /// <see cref="NpcInspectionQuery"/> para pessoa e os registros do escopo para o resto.</summary>
@@ -304,7 +306,7 @@ public static class EntityInspectionQuery
         {
             if (world.FindCity(id) is not { } city) return null;
             var links = Links(city.FoundedFromCityId is { } from ? CityLink("founded-from", from) : null,
-                city.MergedIntoCityId is { } into ? CityLink("merged-into", into) : null);
+                city.MergedIntoCityId is { } into ? CityLink("merged-into", into) : null, Person("founder", city.FounderId));
             foreach (var b in world.Buildings.Where(b => b.City == id).OrderBy(b => b.Id.Value)) links.Add(BuildingLink("building", b.Id.Value));
             var indicators = new CityIndicators(
                 CityPopulationQuery.Population(world, id), CityPopulationQuery.Wealth(world, id), CityPopulationQuery.Health(world, id),
@@ -314,7 +316,8 @@ public static class EntityInspectionQuery
                 new CityEntityState(key, city.Name, city.Location, indicators.Population, city.PoolNpcIds.Count, city.FoundedAtTick,
                     city.FoundedFromCityId?.ToString(), city.MergedIntoCityId?.ToString(), indicators,
                     world.Households.Count(h => h.City == id && !h.IsEmpty), world.Buildings.Count(b => b.City == id),
-                    world.Workplaces.Count(w => w.City == id), ObservableProjector.Climate(world, city.Location)),
+                    world.Workplaces.Count(w => w.City == id), ObservableProjector.Climate(world, city.Location),
+                    city.FounderId, city.FounderId is { } founder ? NpcName(founder) : null),
                 links, Events(e => e.CityId == key));
         }
     }

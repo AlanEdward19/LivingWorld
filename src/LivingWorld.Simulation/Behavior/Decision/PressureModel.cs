@@ -20,7 +20,7 @@ public static class PressureModel
             or UtilityTerm.FamineMemory or UtilityTerm.ScarcityBelief or UtilityTerm.Cry => AcquireFood,
         UtilityTerm.Sleep => SeekRest,
         UtilityTerm.Social or UtilityTerm.StrongBond => SeekSocial,
-        UtilityTerm.IncomeNeed => EarnIncome,
+        UtilityTerm.IncomeNeed or UtilityTerm.SiteWork => EarnIncome,
         _ => term.ToString(),
     };
 

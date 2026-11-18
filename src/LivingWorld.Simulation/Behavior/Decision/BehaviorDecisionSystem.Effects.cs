@@ -303,6 +303,7 @@ public sealed partial class BehaviorDecisionSystem
         // atravessar olha o que está exposto
         long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location, npc);
         long cargoStart = cargo, cut = 0;
+        long leftFood = 0, leftWater = 0; // AD-182 (08c item 147): o que a carga deixou na banca, por recurso
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
@@ -340,6 +341,12 @@ public sealed partial class BehaviorDecisionSystem
             if (provisioning.TopUp || world.FamilyRules.Pressure?.TopUpPurchases == true) quantity -= household.Stock.GetValueOrDefault(resource);
             if (quantity <= 0) { if (isFood) tally.FoodTargetMet++; continue; }
             if (isFood) tally.FoodWantedUnits += quantity;
+            // AD-182 (08c item 148): na carestia o vendedor reparte: cada compra leva no máximo a ração de poucos dias da casa
+            if (isFood && market.RationedSale && world.AgricultureRules.DearthSaleDays > 0)
+            {
+                long cap = (long)Math.Max(1, household.Members.Count) * world.AgricultureRules.DearthSaleDays;
+                if (quantity > cap) { quantity = cap; tally.FoodDearthCapped++; }
+            }
             long wanted = quantity;
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             if (isFood && quantity < wanted) tally.FoodWalletCapped++;
@@ -357,6 +364,7 @@ public sealed partial class BehaviorDecisionSystem
             long beforeFit = quantity;
             quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo, ref cut);
             if (isFood && quantity < beforeFit) tally.FoodCargoCut++;
+            if (isFood) leftFood = beforeFit - quantity; else leftWater = beforeFit - quantity;
             if (quantity <= 0) continue;
             var tx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
@@ -389,6 +397,11 @@ public sealed partial class BehaviorDecisionSystem
         {
             if (cut > 0) LivingWorld.Simulation.Invention.PersonalCarry.FeltCargoCut(world, npc, household, market.Location, cut, cargoStart - cargo);
             LivingWorld.Simulation.Invention.InventionMarket.NoteTrip(world, household, market.Location, cargoStart, cargo, cut); // AD-153
+            if (cut > 0 && world.InventionRules!.MarketTrip.ReturnByLeftUnits)
+            {
+                world.Invention!.SetLeftUnitsAtMarket(household.Id.Value, econ.FoodResourceId, leftFood);
+                world.Invention.SetLeftUnitsAtMarket(household.Id.Value, econ.WaterResourceId, leftWater);
+            }
             // o veículo de terra (AD-153) chama mais a atenção que o recipiente
             if (world.Invention!.CarryMinds.Count > 0
                 && (world.Invention.BestHauler(household.Id.Value, world.InventionRules!) is { Exists: true } hauler ? hauler.DesignId

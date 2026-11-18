@@ -125,7 +125,10 @@ public static class ScaleScenarioFixture
             // AD-176: LW_STREETS=off mede sem a rua de verdade (linha reta, sem pisoteio)
             cityLayout: (Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
             {
-                (false, false) => null,
+                // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
+                (false, false) => Environment.GetEnvironmentVariable("LW_AD179") == "off"
+                    ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } }
+                    : null,
                 (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
                     with

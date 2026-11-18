@@ -45,19 +45,31 @@ internal static class Justice
     }
 
     /// <summary>AD-178: a fama como os outros a veem — a própria e, atenuada, a do pior da mesma linhagem (mesmo nome de família)
-    /// na mesma cidade. Lida pela suspeita, pela troca de culpado na memória e pelo crédito; a própria fama é que se grava.</summary>
+    /// na mesma cidade. Lida pela suspeita, pela troca de culpado na memória e pelo crédito; a própria fama é que se grava.
+    /// AD-183: a boa fama vista (a própria e a da linhagem) desconta, na fração <c>HonorOffsetsInfamy</c>.</summary>
     public static double ReputationOf(WorldState world, long npc, long now)
     {
         double own = InfamyOf(world, npc, now).All;
-        double spill = world.FamilyRules.Names.LineageInfamySpill;
-        if (spill <= 0 || !world.CrimeOn || world.FindNpc(new NpcId(npc)) is not { } who) return own;
-        double worst = 0;
-        foreach (var record in world.Crime!.Records)
-            if (record.Npc != npc && world.FindNpc(new NpcId(record.Npc)) is { IsAlive: true } other && other.City == who.City
-                && LivingWorld.Simulation.Population.Naming.NameBonds.SameLineage(other, who))
-                worst = Math.Max(worst, InfamyOf(world, record.Npc, now).All);
-        return Math.Min(100, own + spill * worst);
+        if (!world.CrimeOn || world.FindNpc(new NpcId(npc)) is not { } who) return own;
+        var names = world.FamilyRules.Names;
+        double seen = own;
+        if (names.LineageInfamySpill > 0)
+        {
+            double worst = 0;
+            foreach (var record in world.Crime!.Records)
+                if (record.Npc != npc && world.FindNpc(new NpcId(record.Npc)) is { IsAlive: true } other && other.City == who.City
+                    && LivingWorld.Simulation.Population.Naming.NameBonds.SameLineage(other, who))
+                    worst = Math.Max(worst, InfamyOf(world, record.Npc, now).All);
+            seen = Math.Min(100, own + names.LineageInfamySpill * worst);
+        }
+        if (names.HonorOffsetsInfamy > 0 && seen > 0)
+            seen = Math.Max(0, seen - names.HonorOffsetsInfamy * LivingWorld.Simulation.Population.Naming.Honor.StandingOf(world, who, now));
+        return seen;
     }
+
+    /// <summary>AD-183: a fama do pior da linhagem pesou na suspeita (a dele sozinha não passava do que a linhagem somou).</summary>
+    internal static bool LineageWeighed(WorldState world, long npc, long now) =>
+        world.FamilyRules.Names.LineageInfamySpill > 0 && ReputationOf(world, npc, now) > InfamyOf(world, npc, now).All;
 
     private static void AddInfamy(WorldState world, long npc, int amount, bool violent, long now)
     {
@@ -109,10 +121,12 @@ internal static class Justice
 
         // sem testemunha: a vítima (ou, na morte, a família) desconfia de quem tem má fama
         var suspector = victim is { IsAlive: true } ? victim : kind == CrimeKind.Homicide && victim is not null ? Violence.KinOf(world, victim).FirstOrDefault() : null;
+        string? why = null;
         if (accused < 0 && suspector is not null && Suspect(world, suspector, offender, now) is { } suspect
             && rng.NextDouble() < rules.SuspicionPerInfamy * ReputationOf(world, suspect, now))
         {
             accused = suspect;
+            if (LineageWeighed(world, suspect, now)) why = "fama-da-linhagem"; // AD-183: o motivo da suspeita fica no caso
             knowers.Add(new CaseKnower { Npc = suspector.Id.Value, Accused = suspect, Value = value });
         }
 
@@ -132,6 +146,7 @@ internal static class Justice
             Value = value,
             Good = good,
             Motive = motive,
+            Why = why,
             Accused = accused,
             Witnesses = confirm,
             Caught = caught,
@@ -275,7 +290,8 @@ internal static class Justice
         crime.ReportedBy = who.Id.Value;
         if (IsPersonal(crime.Kind)) AddInfamy(world, accused.Id.Value, rules.InfamyPerCrime, true, now);
         ctx.LogEvent(WorldEventKind.CrimeReported,
-            $"{who.Id.Value}|{accused.Id.Value}|{crime.Id}|{KindName(crime.Kind)}|{(accused.Id.Value == crime.Offender ? 1 : 0)}",
+            $"{who.Id.Value}|{accused.Id.Value}|{crime.Id}|{KindName(crime.Kind)}|{(accused.Id.Value == crime.Offender ? 1 : 0)}"
+                + (crime.Why is { } why ? $"|{why}" : ""),
             Theft.SourceName);
         if (crime.Kind == CrimeKind.Homicide && rng.NextDouble() < rules.HomicideFleeChance)
         {

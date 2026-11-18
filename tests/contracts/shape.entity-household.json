@@ -22,6 +22,7 @@
         "designId": "number",
         "householdId": "number",
         "leavingId": "number",
+        "motive": "null",
         "otherId": "number",
         "outcome": "string",
         "recordOnly": "boolean",

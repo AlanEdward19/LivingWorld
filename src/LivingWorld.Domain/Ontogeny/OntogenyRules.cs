@@ -36,6 +36,12 @@ public sealed record OntogenyRules
     /// limitado a esse intervalo. Falso = o motor fino só barra o trabalho abaixo do marco.</summary>
     public bool FineMotorScalesWork { get; init; }
 
+    /// <summary>AD-182 (08c item 149): verdadeiro = o de antes, o piso da regressão por doença (marco consolidado) contava a idade
+    /// escalada pela taxa do NPC; quem se desenvolve devagar perdia na doença, aos 15–16 anos, o "raciocínio" já atingido (0,76 →
+    /// 0,65) e nunca mais podia comprar: só em casa, morria de fome com moeda e comida à venda. Falso (padrão) = o marco atingido
+    /// se consolida pelos anos vividos: passada a janela dele na idade de calendário, a doença não o tira.</summary>
+    public bool RegressionByEffectiveAge { get; init; }
+
     /// <summary>Fator do motor fino no trabalho de quem tem <paramref name="state"/> (nulo = desenvolvimento completo).</summary>
     public double FineMotorWorkFactor(DevelopmentState? state)
     {

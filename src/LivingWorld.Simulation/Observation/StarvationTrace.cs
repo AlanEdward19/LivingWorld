@@ -9,8 +9,13 @@ namespace LivingWorld.Simulation.Observation;
 /// <summary>Uma linha por morte de fome com a situação do morto e da casa no instante da morte (AD-140). Só lê o mundo.</summary>
 public sealed class StarvationTrace(WorldState world, ulong seed, List<string> lines) : IWorldEventSink
 {
+    /// <summary>AD-182: a herança é repartida antes do evento da morte; a carteira do morto já está zerada quando a linha é escrita
+    /// (o "carteira zerada" do 08c item 149 era isso). Guarda a moeda que a herança levou.</summary>
+    private readonly Dictionary<string, string> _estate = [];
+
     public void Record(WorldEvent evt)
     {
+        if (evt.Kind == WorldEventKind.EstateSettled && evt.Payload.Split('|') is { Length: >= 3 } parts) { _estate[parts[0]] = parts[2]; return; }
         if (evt.Kind is not (WorldEventKind.Starvation or WorldEventKind.Dehydration) || evt.SourceSystem != "NpcDeath") return;
         var npc = world.FindNpc(new NpcId(long.Parse(evt.Payload, CultureInfo.InvariantCulture)));
         if (npc is null) return;
@@ -38,8 +43,8 @@ public sealed class StarvationTrace(WorldState world, ulong seed, List<string> l
         bool sick = LivingWorld.Simulation.Health.SickBehavior.IsBedridden(world, npc.Id);
         lock (lines)
             lines.Add(string.Create(CultureInfo.InvariantCulture,
-                $"{seed} {evt.Kind.ToString()[..5]} {now / world.Calendar.HoursPerYear} {world.CurrentDate.Month} age={age:F1} sex={npc.Sex} emp={(npc.Employer is null ? 0 : 1)} " +
+                $"{seed} {evt.Kind.ToString()[..5]} {now / world.Calendar.HoursPerYear} {world.CurrentDate.Month} id={npc.Id.Value} age={age:F1} sex={npc.Sex} emp={(npc.Employer is null ? 0 : 1)} " +
                 $"hh={(npc.Household is null ? "none" : size.ToString(CultureInfo.InvariantCulture))} grown={grown} hhEmp={employed} stock={stock} wallets={wallets} " +
-                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} for={now - npc.ActionStartedAtTick} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"} wallet={npc.Wallet.Amount} atHome={(npc.Household is { } h2 && world.FindHousehold(h2) is { } hh2 ? (hh2.Location == npc.CurrentLocation ? 1 : 0) : -1)} dev={npc.Development?.ToString() ?? "-"}"));
+                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} for={now - npc.ActionStartedAtTick} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"} wallet={npc.Wallet.Amount} heranca={_estate.GetValueOrDefault(evt.Payload, "-")} atHome={(npc.Household is { } h2 && world.FindHousehold(h2) is { } hh2 ? (hh2.Location == npc.CurrentLocation ? 1 : 0) : -1)} dev={npc.Development?.ToString() ?? "-"}"));
     }
 }

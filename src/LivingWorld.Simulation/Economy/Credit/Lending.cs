@@ -48,6 +48,9 @@ internal static class Lending
         bool badDebtor = book?.DefaultedSince(borrower.Id.Value, memory) == true;
         bool infamous = LivingWorld.Simulation.Crime.Justice.ReputationOf(world, borrower.Id.Value, now) > rules.MaxInfamy; // AD-178: a linhagem pesa
         double maxInstallment = rules.MaxInstallmentShare * monthlyCapacity;
+        // AD-183: a boa fama vista (a própria e a da linhagem) dá confiança a quem não é parente
+        double honorTrust = world.FamilyRules.Names.HonorCreditTrust is > 0 and var gain && world.Honor is not null
+            ? gain * LivingWorld.Simulation.Population.Naming.Honor.StandingOf(world, borrower, now) / 100.0 : 0;
 
         LoanOffer? From(Npc lender, bool kin, string kind)
         {
@@ -56,7 +59,7 @@ internal static class Lending
             long free = lender.Wallet.Amount - VentureCapital.ReserveOf(world, venture, lender);
             if (free < amount) { why?.Reach(LendRefusal.NoMoney); return null; }
             if (Math.Floor(free * (1 - lender.Personality.RiskAversion / 100.0)) < amount) { why?.Reach(LendRefusal.Aversion); return null; }
-            double trust = (kin ? rules.KinTrust : 0) + (collateral ? rules.CollateralTrust : 0);
+            double trust = (kin ? rules.KinTrust : honorTrust) + (collateral ? rules.CollateralTrust : 0);
             if (world.Relationships.TryGetValue(new RelationshipKey(lender.Id, borrower.Id), out var bond)) trust += bond.Trust + bond.Debt;
             if (trust < rules.MinLenderTrust) { why?.Reach(LendRefusal.Distrust); return null; }
             var offer = Offer(rules, lender, null, amount, kin ? rules.KinAnnualCharge : rules.AnnualCharge, termMonths) with { Kind = kind };

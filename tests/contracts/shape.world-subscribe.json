@@ -126,7 +126,9 @@
               "payer": "string",
               "progressPct": "number",
               "repair": "boolean",
-              "surface": "number"
+              "surface": "number",
+              "workId": "number",
+              "workerIds": "[]"
             }
           }
         ]
@@ -302,6 +304,7 @@
             "designId?": "number",
             "householdId?": "number",
             "leavingId?": "number",
+            "motive?": "null",
             "otherId?": "number",
             "outcome?": "string",
             "recordOnly": "boolean",
@@ -510,7 +513,9 @@
             "payer": "string",
             "progressPct": "number",
             "repair": "boolean",
-            "surface": "number"
+            "surface": "number",
+            "workId": "number",
+            "workerIds": "[]"
           }
         }
       ]

@@ -15,9 +15,9 @@
      casal novo não constrói casa (hospeda ou aluga). Terra, cerca e trabalho por célula de quintal ficam para a obra da família.
 163. **Meios iguais na fundação**: o pecúlio inicial é o mesmo para todos, então a faixa de riqueza só separa casas
      construídas depois (oficinas e obras). Época e tecnologia não entram na escolha do lote.
-164. **Fome caiu com a casa mais longe**: pareado 40 seeds × 15 anos, mortes de fome ×0,47 (IC90 0,29–0,64) e natalidade
-     ×1,02 (1,003–1,037), embora a distância casa→trabalho medida suba ~10–20% (17,9 × 15,4 na seed 1). Achar a causa (mais
-     casas com porta livre? aperto?) antes de atribuir ao traçado; sede crítica igual (×0,99, 0,97–1,02).
+164. ~~**Fome caiu com a casa mais longe**~~ (AD-182): não se repete na base do AD-182 (rua de verdade, AD-176): 40 × 15
+     `starvation-trace`, traçado ligado 49 mortes de fome, desligado 51, mesmo perfil (17 contra 22 jovens sós empregados, o
+     morto do 08c 149, corrigido na causa). Sem efeito a explicar, nada a corrigir no traçado.
 165. **Casa solitária de cidade nova**: com água em volta do largo, a primeira casa pode cair a mais de `AbsorptionRingCells`
      dos 3×3 da cidade sem gente e fica fora do limite (não é desenhada). A absorção encadeada só parte do limite existente.
 166. **Ruas sobre outra cidade**: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra
@@ -44,25 +44,29 @@
 ## Da rua de verdade (AD-176; itens 158–160 e 167 fechados por ela)
 174. **Lama sem chuva**: o motor não tem chuva nem umidade (o fator de clima é de safra), então a rua de terra não vira lama na
      estação; ligar quando houver precipitação por região e mês.
-175. **Carga a pé não muda o passo**: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
+175. ~~**Carga a pé não muda o passo**~~ AD-179: a carga levada alonga o passo (0,5%/kg até 40 kg), o material de obra também.: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
 177. **Entrada e saída da rede pela célula de caminho mais perto** de cada ponta, não a melhor combinação; rota boa, não ótima.
-178. **Diarista da obra recebe o jornal sem ir à obra**: a agenda dele não muda (não anda até o trecho nem deixa de ficar à toa).
+178. ~~**Diarista da obra recebe o jornal sem ir à obra**~~ AD-179: aceita pela utilidade, vai pela rota, conta e recebe por hora no trecho.: a agenda dele não muda (não anda até o trecho nem deixa de ficar à toa).
 179. **Cascalho não é mercadoria**: sai do leito do rio pela rota; a pedra é comprada quando o mundo tem o recurso (pedreira).
-180. **Mundo novo sem trilha**: a vila semeada nasce sem caminho até a primeira revisão (3 meses); pisar o chão dos anos de antes
+180. ~~**Mundo novo sem trilha**~~ AD-179: nasce com o chão estacionário do mês típico da história.: a vila semeada nasce sem caminho até a primeira revisão (3 meses); pisar o chão dos anos de antes
      da fundação daria rua no ano 0.
-181. **`cidade-media` quase não pisa o chão**: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
+181. ~~**`cidade-media` quase não pisa o chão**~~ AD-179: era fixture sem economia; agora ~55 viagens/pessoa-mês.: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
      aperto do item 172); sem trilha nenhuma em 20 anos. Ver junto com o 172.
 182. **Prédio vira obstáculo só na virada do mês** (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
 183. **Técnica de calçar sem protótipo pago**: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
 
 ## Dos nomes (AD-178)
-185. **Costume de nome não é dado de cenário**: linhagem, adoção do nome no casamento e chance de homenagem saem do RNG da
-     cultura (padrão 70% / 50% / 15–50%); o período não declara. Bloco opcional `Naming` por cultura no cenário, com
-     loader e snapshot, se um período quiser fixar o costume.
+185. ~~**Costume de nome não é dado de cenário**~~ — fechado na AD-183: bloco opcional `Naming` por cultura (linhagem,
+     cônjuge adota o nome, chance de homenagem, nome da cidade-filha), validado, no snapshot; ausente = o sorteio da cultura.
 186. ~~**Cidade ainda não fala a língua da cultura**~~ — fechado na AD-178: nome de cidade pela fonologia da cultura que funda.
 187. ~~**Nome sem consequência causal**~~ — fechado na AD-178: xará e linhagem na ajuda, luto, legado, namoro e fama
-     (`NameBondRules`). Aberto dele: honra (feito) não respinga, só vergonha; o nome do fundador na cidade-filha não existe.
+     (`NameBondRules`). ~~Aberto dele: honra não respinga; fundador da cidade-filha não existe~~ — fechado na AD-183 (honra
+     dos feitos que respinga como a vergonha; fundador registrado e homenageado no nome pelo costume).
 188. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
+189. **Honra só de quatro feitos** (AD-183): socorro, invenção, negócio aberto, cidade fundada. Mestria no ofício, riqueza,
+     cargo, filhos criados e coragem em luta não viram boa fama (bloco de issue no relatório da AD-183).
+190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha (depende do traçado, `Cities/Layout`).
+191. **Nome na sociedade**: o nome da família pesa na contratação e no crédito, não na escolha de sócio do negócio (`Venture`).

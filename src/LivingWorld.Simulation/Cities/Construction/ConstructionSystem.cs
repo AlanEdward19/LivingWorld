@@ -49,8 +49,12 @@ public sealed class ConstructionSystem : ISimulationSystem
                     continue;
                 }
 
-                int workSteps = ConstructionWorkSteps(world, city);
-                for (int step = 0; step < workSteps && project.TicksRemaining > 0; step++)
+                // AD-179: com turma, a obra só anda pelas horas de quem trabalhou no lote (pagas por hora, SiteWork.Clock); sem a
+                // regra, um tick da receita por dia (acelerado pela força de quem trabalha na cidade), como antes
+                bool crew = NeedsCrew(world);
+                if (crew) PrepareSite(world, ctx, city, project, recipe);
+                long workSteps = crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
+                for (long step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
                     long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
                     var due = DueThisTick(recipe, project, tickIndex);
@@ -70,6 +74,8 @@ public sealed class ConstructionSystem : ISimulationSystem
                     }
 
                     project.Advance();
+                    if (crew) project.HoursBanked--;
+                    if (project.TicksRemaining == 0) project.Crew.Clear(); // pronta: a turma se desfaz (o prédio sobe ao achar terra)
                     if (project.TicksRemaining == 0 && CompleteProject(world, city, project, ctx))
                     {
                         city.RemoveConstructionProject(project);
@@ -82,6 +88,42 @@ public sealed class ConstructionSystem : ISimulationSystem
                 break;
             }
         }
+    }
+
+    /// <summary>AD-179: a fila só anda com turma quando a rua de verdade está ligada e a regra pede.</summary>
+    internal static bool NeedsCrew(WorldState world) => world.StreetsOn && world.StreetRules.BuildNeedsCrew;
+
+    /// <summary>AD-179: a obra da vez escolhe o lote (onde a turma trabalha), conta as viagens de material do estoque da cidade (o
+    /// largo) até lá — ida carregada, volta vazia, pela rota — e refaz a turma do dia.</summary>
+    private static void PrepareSite(WorldState world, TickContext ctx, City city, ConstructionProject project, BuildingRecipe recipe)
+    {
+        if (project.SiteX < 0)
+        {
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
+            var site = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) is { } lot ? lot.Position : city.Location;
+            project.SiteX = site.X;
+            project.SiteY = site.Y;
+            var rules = world.StreetRules;
+            long units = recipe.Inputs.Values.Sum();
+            long loads = (units + Math.Max(1, rules.BuildUnitsPerLoad) - 1) / Math.Max(1, rules.BuildUnitsPerLoad);
+            double trip = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost
+                * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg)
+                + LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, site, city.Location).Cost;
+            project.HaulHoursLeft = site == city.Location ? 0 : (long)Math.Ceiling(loads * trip);
+        }
+        LivingWorld.Simulation.Cities.Streets.SiteWork.Staff(world, ctx,
+            new LivingWorld.Simulation.Cities.Streets.WorkSite(null, city, project));
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
+    }
+
+    /// <summary>AD-179: as horas da turma vão primeiro ao transporte do material; o que sobra vira passos da receita.</summary>
+    private static long SpendHaul(ConstructionProject project)
+    {
+        long haul = Math.Min(project.HaulHoursLeft, project.HoursBanked);
+        project.HaulHoursLeft -= haul;
+        project.HoursBanked -= haul;
+        return project.HoursBanked;
     }
 
     /// <returns>false somente quando um workplace-recipe não conseguiu resolver posição agora

@@ -42,11 +42,29 @@ public static class Mobility
     /// escalado pelo corpo/poder, encurtado pela tecnologia que a cidade do NPC adotou. Local distinto custa ao menos 1 tick.</summary>
     public static long TravelTicks(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier)
     {
+        bodyMultiplier *= LoadFactor(world, npc); // AD-179 (item 175): andar carregado é mais lento
         long ticks = world.StreetsOn ? Routed(world, npc.Household, origin, destination, bodyMultiplier)
             : WaterAware(world, npc.Household, origin, destination, bodyMultiplier)
             ?? TravelResolution.TicksBetween(world.Map, origin, destination, bodyMultiplier);
         return ticks == 0 ? 0 : Math.Max(1, Apply(ticks, BonusPct(world, npc.City)));
     }
+
+    /// <summary>AD-179 (item 175): quanto a carga a pé alonga o passo, com a rua de verdade ligada: 1 + quilos levados ×
+    /// <see cref="LivingWorld.Domain.Cities.StreetRules.CarryPmPerKg"/> milésimos, até <see cref="LivingWorld.Domain.Cities.StreetRules.CarryMaxKg"/>
+    /// quilos. A carga é a que a pessoa leva (<c>InventionLedger.Carried</c>: comida e água da viagem, espólio) mais o recurso nas
+    /// mãos (<see cref="Npc.CarriedQuantity"/>). Sem carga, 1 (o caminho comum, sem custo).</summary>
+    public static double LoadFactor(WorldState world, Npc npc)
+    {
+        if (!world.StreetsOn || world.InventionRules is not { } rules) return 1.0;
+        long grams = world.Invention?.CarriedGrams(npc.Id.Value, rules) ?? 0;
+        if (npc.CarriedQuantity > 0) grams += npc.CarriedQuantity * rules.UnitGramsOf(npc.CarriedResourceId);
+        if (grams <= 0) return 1.0;
+        return LoadFactorOfKg(world.StreetRules, grams / 1000.0);
+    }
+
+    /// <summary>O fator de passo de uma carga em quilos (o material de obra usa o mesmo).</summary>
+    public static double LoadFactorOfKg(LivingWorld.Domain.Cities.StreetRules rules, double kg) =>
+        1.0 + Math.Min(Math.Max(0, kg), rules.CarryMaxKg) * rules.CarryPmPerKg / 1000.0;
 
     /// <summary>Trajeto de compra do domicílio (casa ↔ mercado): o mesmo custo de mapa da memória de trajetos, com a água do
     /// caminho e a embarcação da casa quando a invenção está ligada (AD-141), encurtado pela tecnologia da cidade.</summary>

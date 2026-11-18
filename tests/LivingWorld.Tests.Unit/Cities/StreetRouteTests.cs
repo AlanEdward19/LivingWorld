@@ -138,32 +138,32 @@ public class StreetRouteTests
         }
     }
 
+    /// <summary>AD-179 (reescrito): antes o sistema diário pagava diaristas sem eles irem à obra e o trecho virava cascalho sozinho.
+    /// Agora a obra abre paga pelo tesouro e não anda sem gente no trecho; o andamento pelas horas de quem está lá é
+    /// <c>SiteWorkTests</c>.</summary>
     [Fact]
-    public void Paving_work_with_the_technique_is_paid_by_the_treasury_and_turns_dirt_into_gravel()
+    public void Paving_work_with_the_technique_opens_paid_by_the_treasury_and_does_not_advance_by_itself()
     {
-        var (world, clock) = ScenarioRunner.Create(5);
+        var (world, _) = ScenarioRunner.Create(5);
         var city = world.ActiveCities().First();
         var ground = world.Ground!;
         var culture = world.Npcs.First().Culture;
         world.AddTechnology(new Technology(culture, PavingTechnique.Category, new TechnologyVector([3, 0, 3]), 0, city.Id, null, [city.Id]));
-        // uma rua de terra batida muito passada, longe de casa (paga o tesouro), perto da água (cascalho do leito)
-        var water = world.Map.Cells.First(c => c.HasWater && Math.Abs(c.Coord.X - city.Location.X) < 15 && Math.Abs(c.Coord.Y - city.Location.Y) < 15).Coord;
         var cell = new CellCoord(city.Location.X, city.Location.Y);
         int index = ground.IndexOf(cell);
         ground.SetSurface(index, GroundSurface.Dirt);
         ground.AddPasses(index, 5000);
         city.CreditTreasury(new Money(1_000_000));
-        long before = city.Treasury.Amount + world.Npcs.Sum(n => n.Wallet.Amount);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         PavingDecision.Monthly(world, ctx);
-        Assert.Single(ground.Works);
-        _ = water;
+        var work = Assert.Single(ground.Works);
+        Assert.Empty(work.Payers); // longe de casa: o tesouro paga
+        long left = work.HoursLeft;
+        Assert.True(left > 0);
         var works = new PavingWorksSystem();
-        for (int day = 0; day < 120 && ground.Works.Count > 0; day++) works.Tick(world, ctx);
-        Assert.Empty(ground.Works);
-        Assert.Equal(GroundSurface.Gravel, ground.PavingAt(index));
-        Assert.Equal(before, city.Treasury.Amount + world.Npcs.Sum(n => n.Wallet.Amount));
-        _ = clock;
+        for (int day = 0; day < 120; day++) works.Tick(world, ctx); // só o sistema, sem ninguém andar até o trecho
+        Assert.Equal(left, Assert.Single(ground.Works).HoursLeft);
+        Assert.Equal(GroundSurface.None, ground.PavingAt(index));
     }
 
     [Fact]

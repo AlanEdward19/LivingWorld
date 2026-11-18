@@ -51,6 +51,12 @@ public sealed record PsycheRules
     /// punha Conversar acima da sede no zero.</summary>
     public bool CriticalBodyOverridesLeisure { get; init; } = true;
 
+    /// <summary>AD-182 (08c item 149): o teto do lazer vale também quando a compra serve a fome ou a sede crítica (a despensa está
+    /// vazia, mas há moeda e comida à venda e a pessoa sabe comprar). Antes só valia com a despensa servindo: o jovem que ficou só em
+    /// casa, com 85–154 moedas e a despensa vazia, conversava sozinho (a solidão no zero e o peso de personalidade, ~190) contra a
+    /// compra (160) até morrer de fome. Falso = o de antes.</summary>
+    public bool CriticalBodyCountsPurchase { get; init; } = true;
+
     /// <summary>Fome em zero por pelo menos tantas horas vira lembrança de fome.</summary>
     public int FamineMinHours { get; init; } = 24;
 

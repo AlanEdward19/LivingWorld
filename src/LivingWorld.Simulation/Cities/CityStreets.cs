@@ -174,7 +174,14 @@ public sealed record StreetCellView(CityId City, CellCoord Cell, StreetSurface S
 
 /// <summary>Obra de calçamento numa célula (AD-176): o que vira, quanto já foi feito (0–100), se é conserto e quem paga
 /// (<c>treasury</c> = tesouro da cidade, <c>frontage</c> = as casas de frente).</summary>
-public sealed record StreetWorkView(StreetSurface Surface, int ProgressPct, bool Repair, string Payer);
+public sealed record StreetWorkView(StreetSurface Surface, int ProgressPct, bool Repair, string Payer)
+{
+    /// <summary>AD-179: id da obra (o mesmo do payload dos eventos de obra).</summary>
+    public long WorkId { get; init; }
+
+    /// <summary>AD-179: diaristas da turma da obra (ids de NPC); muda no máximo uma vez por dia.</summary>
+    public IReadOnlyList<long> WorkerIds { get; init; } = [];
+}
 
 /// <summary>Lote de um prédio: células do quintal de trás (cercado), passagem da porta à rua e a rua da frente (nula se não dá
 /// para rua: prédio de degrau sem rua).</summary>

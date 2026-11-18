@@ -70,6 +70,9 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
             bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
+            // AD-182 (08c item 149): moeda na mão de quem não sabe comprar não alimenta; a ajuda vai em comida
+            if (moneyBuysFood && world.FamilyRules.Pressure is { AidSeesWhoCanBuy: true } && !SomeoneCanBuy(world, members))
+                moneyBuysFood = false;
             if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
@@ -103,6 +106,14 @@ public sealed class MutualAidSystem : ISimulationSystem
             }
         }
         return best;
+    }
+
+    /// <summary>AD-182: algum morador tem o marco de comprar (o desenvolvimento dele não barra a compra).</summary>
+    private static bool SomeoneCanBuy(WorldState world, List<Npc> members)
+    {
+        foreach (var m in members)
+            if (world.OntogenyRules.IsEligible(m.Development, LivingWorld.Domain.Behavior.ActionType.Buy)) return true;
+        return false;
     }
 
     private static bool IsGrown(WorldState world, Npc npc) =>
@@ -186,8 +197,9 @@ public sealed class MutualAidSystem : ISimulationSystem
                 continue;
 
             double closeness = kin ? 1.0 : ClosenessTo(world, helper, members);
+            string? why = null; // AD-183: o motivo do nome fica no evento
             if (closeness < names.LineageAidCloseness && Naming.NameBonds.LineageOfAny(helper, members))
-                closeness = names.LineageAidCloseness; // AD-178: "é dos nossos"
+                (closeness, why) = (names.LineageAidCloseness, "linhagem"); // AD-178: "é dos nossos"
             if (closeness <= 0) continue;
             considered++;
 
@@ -202,7 +214,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                 * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, members, ctx.CurrentTick);
             // AD-178: o xará socorre a casa do homenageado (e o homenageado a do xará) com mais vontade
             if (names.NamesakeAidGain > 0 && Naming.NameBonds.NamesakeOfAny(world, helper, members))
-                chance *= 1 + names.NamesakeAidGain;
+                (chance, why) = (chance * (1 + names.NamesakeAidGain), "xara");
             // Uma rolagem por (ajudante, dia): o mesmo fluxo atende, em ordem de id, as casas que precisam.
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;
@@ -217,7 +229,7 @@ public sealed class MutualAidSystem : ISimulationSystem
                     foodNeed -= sent;
                     deficit -= sent * unitPrice; // a comida que chegou é a que não precisa ser comprada
                     Thank(world, ctx, recipient, helper);
-                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food", sourceSystem: SystemName);
+                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food{(why is null ? "" : "|" + why)}", sourceSystem: SystemName);
                 }
                 if (deficit <= 0 && (moneyBuysFood || foodNeed <= 0)) break;
             }
@@ -230,7 +242,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             recipient.CreditWallet(new Money(give));
             deficit -= give;
             Thank(world, ctx, recipient, helper);
-            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}{(why is null ? "" : "||" + why)}", sourceSystem: SystemName);
         }
 
         if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
