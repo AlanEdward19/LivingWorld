@@ -185,7 +185,10 @@ func test_season_recolors_ground_snow_falls_and_hud_shows_temperature() -> void:
 	check(not Season.snowing({"season_key": "winter", "temperature": -4.0}), "sem o tempo do motor, nada de neve inventada")
 	check(Season.ground(Color("6aa84f"), winter).v > Color("6aa84f").v + 0.2, "neve clareia o chão")
 	check(Season.ground(Color("6aa84f"), {"season_key": "summer", "temperature": 30.0, "drought": true}).r > 0.5, "seca amarela")
-	check(Season.crown(Color("4a8a3a"), {"season_key": "autumn", "temperature": 10.0}, 0.1).r > 0.5, "outono alaranja as copas")
+	check(Season.crown(Color("4a8a3a"), {"season_key": "autumn", "temperature": 10.0, "weather": {"foliage": {"fraction": 1.0,
+		"phase": "full", "turning": 1.0}}}, 0.1).r > 0.5, "a copa que o motor diz virada fica alaranjada")
+	eq(Season.crown(Color("4a8a3a"), {"season_key": "autumn", "temperature": 10.0}, 0.1), Color("4a8a3a"),
+		"sem folhagem do motor, a estação não inventa cor")
 	check("Inverno · -4 °C" in Season.hud_text(winter), Season.hud_text(winter))
 	var app = await T.make_app(tree, O.transport())
 	await app.enter_scope("City", "city-a")

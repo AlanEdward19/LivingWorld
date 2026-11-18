@@ -97,4 +97,4 @@ poço como obra, água pesando onde a casa nasce, vizinho que leva a água.
 
 ## Cliente da AD-188 (o que o motor já mandava)
 **Fechados no cliente**: 17 (`work.workerIds`), 18 (`accessCells`, vizinho), 19 (`routeOver`), 20 (`routeDepartedTick`), 21 (acesso
-pelo `accessState`), 22 (`bench.sh`: `benchrun` mundo rodando, `benchrain`), tempo da AD-180 na tela. Issue: 27 piso com o mundo rodando, 28 vento sem direção/folha sem queda (`client/godot/docs/`).
+pelo `accessState`), 22 (`bench.sh`: `benchrun` mundo rodando, `benchrain`), tempo da AD-180 na tela. 27 e 28 fechados na AD-189 (vento com direção, folhagem, `intentTarget`, `lit`, clima por hora; `benchrun` 63 FPS, p95 ≤ 22 ms).

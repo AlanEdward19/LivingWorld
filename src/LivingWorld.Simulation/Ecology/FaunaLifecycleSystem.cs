@@ -91,8 +91,10 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
             }
 
             long eaten = Math.Min(bestForage, cost);
+            // AD-189: com a vegetação nua (inverno: erva parada, broto seco) a mesma bocada sustenta menos
+            double nourishment = LivingWorld.Simulation.Climate.WeatherNow.ForageShare(world, animal.Position);
             world.ReplaceAnimal((world.FindAnimal(animal.Id) ?? animal) is var current
-                ? current with { Energy = current.Energy.WithValue(current.Energy.ValueAt(tick) + rules.MealEnergy * eaten / (double)cost, tick) }
+                ? current with { Energy = current.Energy.WithValue(current.Energy.ValueAt(tick) + rules.MealEnergy * eaten / (double)cost * nourishment, tick) }
                 : animal);
             // a planta oferece no máximo o pasto de uma planta madura: estágio acumulado além disso não é comida
             world.ReplacePlant(best with { GrowthStage = (int)(Math.Min(best.GrowthStage, MaturityOf(best, plantRules)) - eaten) });

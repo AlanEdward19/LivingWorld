@@ -6,6 +6,8 @@ const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
 
 var _crown_colors: Array = [] ## cor de verão de cada copa (a estação recolore a partir dela)
+var _crown_transforms: Array = [] ## AD-189: a copa cheia de cada árvore (a folhagem do motor encolhe a partir dela)
+var crown_scale := 1.0 ## testável: tamanho da copa agora (folhagem do motor)
 
 const WATER_SHADER := """
 shader_type spatial;
@@ -64,18 +66,26 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 			rocks.append(Transform3D(Basis().scaled(Vector3.ONE * (0.6 + cell_hash(cell, 6))), Grid.to_world(cell, 0.04) + jitter))
 	_multi("Trunks", _cylinder(0.07, 0.5), Color("5b3d27"), trunks.map(func(t): return t), [], 0.25)
 	_crown_colors = crowns.map(func(c): return c[1])
+	_crown_transforms = crowns.map(func(c): return c[0])
 	_multi("Crowns", _cone(0.34, 0.9), Color.WHITE, crowns.map(func(c): return c[0]), _crown_colors, 0.0)
+	crown_scale = 1.0 # a malha nova nasce cheia
 	_multi("Rocks", _rock(), Color("8d9199"), rocks, [], 0.0)
 	_water(water)
 
 
-## Copas pela estação (outono alaranjado por árvore, inverno sem folha ou com neve, seca amarelada).
+## Copas pela folhagem do motor (AD-189: cor do outono pelo quanto virou, copa rala e nua pela fração; neve; seca amarelada).
 func apply_season(climate: Dictionary) -> void:
 	var node := get_node_or_null("Crowns") as MultiMeshInstance3D
 	if node == null:
 		return
+	var scale := Season.crown_scale(climate)
+	var resize := not is_equal_approx(scale, crown_scale)
+	crown_scale = scale
 	for i in _crown_colors.size():
 		node.multimesh.set_instance_color(i, Season.crown(_crown_colors[i], climate, fmod(float(i) * 0.618, 1.0)))
+		if resize and i < _crown_transforms.size():
+			var full: Transform3D = _crown_transforms[i]
+			node.multimesh.set_instance_transform(i, Transform3D(full.basis.scaled(Vector3.ONE * scale), full.origin))
 
 
 func _cylinder(radius: float, height: float) -> Mesh:

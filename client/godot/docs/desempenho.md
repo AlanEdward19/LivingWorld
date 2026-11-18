@@ -4,25 +4,7 @@
 
 `-- --steps "wait:2;stress:500;quit"` põe 500 NPCs andando e imprime os quadros por segundo. Medido num M1 Pro: ~77 FPS com a câmera longe (NPCs simplificados) e ~52 FPS perto. Acima de 150 NPCs e zoom longe, o NPC vira tronco e cabeça; fora da vista só interpola a posição.
 
-Zoom LOD (2026-10-13, M1 Pro, `stress:500`, câmera padrão): antes 78,1 / 77,8 / 78,6 FPS; depois 78,4 / 78,9 / 76,9 (teto de 79 pelo vsync, ruído de ±1). No mapa-múndi afastado os NPCs viram bolhas (acima de 60% do zoom máximo).
-Arte e áudio (2026-10-14, M1 Pro, `stress:500`, câmera padrão, API local): 75,8 / 77,2 / 75,3 FPS (teto de 77-79 pelo vsync), contra 76,9-78,9 antes do catálogo: dentro de ±3 e bem acima dos 50 FPS exigidos.
-Painel Cérebro (2026-10-14, M1 Pro, `stress:500`, API local): sem painel 79,4 / 80,0 / 77,7 FPS; com o painel aberto num NPC 77,2 / 77,5 / 76,4 (média 77,0 contra 79,0: dentro de ±3; antes da mudança 77,3 / 78,3 / 75,6). O painel só busca `/npcs/{id}` quando a hora do mundo muda e fechado não faz requisição.
-
-O rastro de cognição só é gravado para NPC em escopo observado: `Contract/scope_observer.gd` publica o escopo da câmera (`POST /observation/scope`, batimento de 10 s, `null` ao voltar ao menu).
-Janela de conversa (2026-10-14, M1 Pro, `stress:500`, API local): sem janela 79,4 / 78,2 / 78,8 FPS; com a janela aberta 78,2 / 77,7 / 77,8 (dentro de ±3).
-Painel "E se…?" (2026-10-14, M1 Pro, `stress:500`): sem painel 77,6 / 78,3 / 78,6 FPS; com o painel simulando 74,4 / 76,2 / 76,2 (média -2,6, dentro de ±3).
-Narrativas (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem janela 75,0 / 72,4 / 71,8 FPS; com a biografia aberta 73,4 / 72,6 / 73,1 (sem diferença).
-HUD do jogador (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem HUD 74,7 / 73,7 / 72,7 FPS; com o HUD ativo 73,1 / 73,6 / 72,6 (sem diferença).
-Console de admin (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem console 71,0 / 70,7 / 76,8 FPS; com a busca aberta 72,6 / 73,0 / 72,7 (sem diferença).
-Economia (2026-10-14, M1 Pro, `stress:500`): sem janela 74,0 / 75,0 / 76,2 FPS; com as vendas abertas 77,7 / 76,9 / 78,1 (sem regressão).
-Tecnologias (2026-10-14, M1 Pro, `stress:500`): sem janela 75,5 / 75,0 / 74,9 FPS; com a janela aberta 77,0 / 75,8 / 74,5 (sem regressão).
-Consolidado (2026-10-15, M1 Pro, máquina ociosa, `stress:500`, API local, 3 rodadas): base 75,9 / 77,2 / 77,0 (e 77,1 / 75,8 / 75,7 no fim); cérebro 73,6 / 74,9 / 75,8; "E se…?" 74,3 / 75,5 / 73,0; conversa 75,9 / 76,4 / 75,4; narrativa 75,9 / 75,6 / 76,1; vendas 75,8 / 75,0 / 77,7; tecnologias 76,5 / 75,7 / 76,6; console 74,7 / 75,6 / 75,1; jogador 76,0 / 76,1 / 75,4; ficha com botão de materializar 75,9 / 75,8 / 76,1. Pior caso ("E se…?") 2,1 FPS abaixo da base: dentro de ±3.
-Aparência herdada (2026-10-15, M1 Pro, `stress:500`, API local, 3 rodadas): sorteio local de sempre 76,6 / 74,0 / 77,4 FPS; com genes do motor em todos os NPCs (`stress_look`) 75,0 / 75,6 / 75,2 (média -0,7, dentro de ±3; materiais compartilhados por combinação, no máximo 21 de pele e 21 de cabelo).
-
-Mundos salvos e leitos (2026-10-15, M1 Pro, `stress:500`, API local): base 74,4 / 77,6 / 75,4 FPS; entrega 77,3 / 76,2 / 75,0. Medianas 75,4 → 76,2; sem regressão. Repetir com `bash scripts/client-stress.sh`.
-Catálogo de objetos (2026-10-15, #47 fatia 1, M1 Pro, `stress:500`, 3 rodadas): antes 66,8 (1ª execução do worktree, importação) / 76,7 / 76,0; depois 75,9 / 76,2 / 76,7 (sem regressão; a mobília só é instanciada ao abrir um interior, com mesh e material compartilhados por id e variação).
-Uso de objeto (2026-10-16, #47 fatia 2, M1 Pro com carga 8–11, `stress:500`, 3 rodadas): 77,8 / 72,9 / 74,9 FPS (a posição e a pose de uso só são resolvidas ao abrir ou atualizar um interior; nada novo por quadro na cidade).
-Indicadores da cidade (2026-11-09, #112 fatia E, M1 Pro com a máquina dividida com outros agentes, `stress:500`, API local, 3 rodadas): antes 76,1 / 73,6 / 74,6 FPS; depois 72,3 / 71,9 / 73,6 (mediana 74,6 → 72,3; -2,3, dentro de ±3 e do ruído da máquina compartilhada). A mudança só toca a ficha da cidade (`show_city`, 1 linha a mais), que o `stress` nunca abre; nada novo por quadro. `client-test.sh`: 288 passaram, 0 falharam.
+Medidas de 2026-10-13 a 2026-11-09 (`stress:500`, uma linha por fatia): [desempenho-historico.md](desempenho-historico.md).
 
 ### Medida recalibrada (ADR-0047, AD-169)
 
@@ -93,4 +75,17 @@ passo é o mesmo; a posição continua todo quadro). O tempo só reconfigura as 
 chega a cada tick) e a malha de ruas não é refeita quando só a umidade (`wetPm`) da célula mudou (vinha a cada tick). Custo que
 sobra com o mundo rodando, por quadro (`bench-cost`): aplicar o delta ~2–3,5 ms (NPCs ~1, clima/observável ~0,5), pose e passo dos
 NPCs ~2,6, contrato ~0,9; o resto é o servidor a 40 ticks/s na mesma máquina. Abaixo de 50 numa rodada: issue (09b item 27).
+
+### O motor diz, e o mundo rodando acima do piso (AD-189)
+
+M1 Pro dividida com outros agentes, `bench.sh 3` pela fila pesada, API desta entrega (o clima já não volta a cada tick):
+- `benchrun:500` base `09a321b7` (cópia do cliente): 52,6 / 50,7 / 48,7 FPS, p95 31,32 / 26,21 / 27,66 ms → entrega **63,6 / 63,4 /
+  63,5**, p95 **21,22 / 19,91 / 21,85** (por etapa: contrato amostrado 54,8 / 52,0 / 51,6; + linha do tempo 54,0 / 55,2; + pose 58,1 / 60,7 / 60,7).
+- Pausado, sem regressão (AD-188 → entrega): `stress` 113,2 / 113,5 / 111,5 → 111,0 / 113,2 / 113,7; `bench` 153,5 / 153,5 / 154,1 →
+  156,9 / 157,3 / 157,3; `benchbig` 127,9 / 127,7 / 127,4 → 128,2 / 128,1 / 127,8; `benchrain` 150,1 / 150,8 / 152,9 → 153,5 / 156,5 / 155,4.
+O que saiu do quadro: conferência do contrato só nos 20 primeiros deltas e depois 1 a cada 30 (0,9 → ~0,02 ms/quadro); a linha do
+tempo reaproveita os 10 botões (eram recriados a cada delta com evento); a pose do parado a cada 8 quadros e a do passo a cada 3
+(centro) ou 6 (borda) — com o mundo a 40 ticks/s quase todo boneco está no passo; os setters de LOD só quando mudam; a altura da rota
+só é procurada quando a rota muda; a malha de processos não realoca; a transição das ruas a 20/s. `bench-cost` ganhou `npc_pose`,
+`npc_links`, `events` e `processes`. `client-test.sh` 394 → 399.
 

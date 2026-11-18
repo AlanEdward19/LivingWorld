@@ -1,5 +1,8 @@
 namespace LivingWorld.Simulation.Climate;
 
+/// <summary>AD-189: fase da folhagem das decíduas e do pasto.</summary>
+public enum LeafPhase : byte { Bare = 0, Budding = 1, Full = 2, Falling = 3 }
+
 /// <summary>Tipo de precipitação do dia.</summary>
 public enum Precipitation : byte { None = 0, Rain = 1, Snow = 2 }
 
@@ -27,6 +30,18 @@ public sealed class WeatherRegionRow
     public bool Hail { get; set; }
     public bool Frost { get; set; }
     public int WindDecims { get; set; }
+
+    /// <summary>AD-189: de onde o vento vem (graus a partir do norte; 225 = sudoeste) e o quanto o ar que ele traz mexe na média do dia
+    /// (advecção, °C × 100; já somada em <see cref="MeanCenti"/>).</summary>
+    public int WindFromDeg { get; set; }
+    public int AdvectionCenti { get; set; }
+
+    /// <summary>AD-189: folhagem (0–1000), a fase, e as somas que a movem: grau-dia de calor desde o meio do inverno e de frio desde que
+    /// a luz encurtou (décimos de °C·dia).</summary>
+    public int LeafPm { get; set; }
+    public LeafPhase LeafPhase { get; set; }
+    public int LeafGddTenths { get; set; }
+    public int LeafColdTenths { get; set; }
 
     /// <summary>Neve no chão em mm de água (≈ cm de neve fofa).</summary>
     public int SnowMm { get; set; }

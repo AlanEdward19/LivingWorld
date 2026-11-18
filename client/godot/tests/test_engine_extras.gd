@@ -106,19 +106,23 @@ func test_selected_person_gets_a_dashed_line_to_the_engine_target() -> void:
 	app.queue_free()
 
 
-func test_building_body_follows_function_and_windows_follow_people() -> void:
+func test_building_body_follows_function_and_windows_follow_the_engine_light() -> void:
 	var smithy := Dress.body_of({"function": "workplace", "location_type_name": "Ferraria", "workers": [1]})
 	var temple := Dress.body_of({"function": "workplace", "location_type_name": "Templo", "workers": []})
 	check(float(temple.pitch) > float(smithy.pitch), "templo de telhado mais alto que a ferraria")
 	eq(smithy.people, 1)
-	eq(Dress.lit_windows(smithy, 6, false), 2, "duas janelas por pessoa")
-	eq(Dress.lit_windows(Dress.body_of({"function": "dwelling", "residents": []}), 6, false), 0, "casa vazia: escura")
-	eq(Dress.lit_windows(Dress.body_of({}), 6, false), 6, "sem estado: todas, como antes")
+	# AD-189: a luz é o `lit` do motor (gente acordada dentro depois do pôr do sol), não uma conta de janelas por pessoa
+	eq(Dress.lit_windows({"function": "workplace", "workers": [1, 2, 3], "lit": true}, 6), 6, "o motor diz aceso: todas")
+	eq(Dress.lit_windows({"function": "dwelling", "residents": [1, 2, 3], "lit": false}, 6), 0, "todos dormindo: escura")
+	eq(Dress.lit_windows({}, 6), 0, "sem estado do motor: escura")
 	var app = await S.city_app(tree)
 	var node: Node3D = app.world_view.building_nodes[4]
-	var dark := node.find_children("WindowDark*", "", true, false).size()
-	var lit := node.find_children("Window*", "", true, false).size() - dark
-	check(lit <= 2, "padaria com 1 trabalhador: no máximo 2 acesas (%d acesas, %d escuras)" % [lit, dark])
+	eq(app.world_view.buildings.lit_count(4), 0, "o fixture não diz aceso")
+	app.stream.delta_applied.emit(O.delta({"buildingStateUpserts": [O.building_state_lit(4, true)]}))
+	check(app.world_view.buildings.lit_count(4) > 0, "o motor acendeu: as janelas acendem")
+	check(is_instance_valid(node) and app.world_view.building_nodes[4] == node, "acender não redesenha o prédio")
+	app.stream.delta_applied.emit(O.delta({"buildingStateUpserts": [O.building_state_lit(4, false)]}))
+	eq(app.world_view.buildings.lit_count(4), 0, "foram dormir: apaga")
 	app.queue_free()
 
 

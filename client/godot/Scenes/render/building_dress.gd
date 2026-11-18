@@ -64,11 +64,10 @@ static func body_of(state: Dictionary) -> Dictionary:
 	return body
 
 
-## Janelas acesas de noite: duas por pessoa que o motor põe no prédio (fechado: nenhuma); todas sem estado.
-static func lit_windows(body: Dictionary, windows: int, closed: bool) -> int:
-	if closed:
-		return 0
-	return windows if int(body.people) < 0 else mini(windows, int(body.people) * 2)
+## AD-189: janelas acesas só quando o motor diz que o prédio está iluminado (`lit`: gente acordada dentro depois do pôr do
+## sol); casa com todos dormindo, vazia ou sem estado fica escura. Nenhuma conta de janela por pessoa.
+static func lit_windows(state: Dictionary, windows: int) -> int:
+	return windows if bool(state.get("lit", false)) else 0
 
 
 ## Texto da placa: nome do tipo de local (oficina) ou do tipo de prédio; "Fechado" quando fechado.

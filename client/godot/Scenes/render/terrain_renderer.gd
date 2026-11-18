@@ -83,8 +83,10 @@ static func season_signature(climate: Dictionary) -> String:
 	if climate.is_empty():
 		return ""
 	var weather := Season.weather_of(climate)
-	return "%s|%.2f|%s|%s|%s" % [Season.season_key(climate), Season.snow_cover(climate), Season.drought(climate),
-		String(weather.get("ground", "")), bool(weather.get("frost", false))]
+	var leaves := Season.foliage_of(climate) # AD-189: a copa muda com a folhagem do motor (uma vez por dia, no máximo)
+	return "%s|%.2f|%s|%s|%s|%.2f|%.2f|%s" % [Season.season_key(climate), Season.snow_cover(climate), Season.drought(climate),
+		String(weather.get("ground", "")), bool(weather.get("frost", false)), float(leaves.get("fraction", -1.0)),
+		float(leaves.get("turning", -1.0)), String(leaves.get("phase", ""))]
 
 
 ## Paleta da estação e do chão do tempo (neve, lama, congelado, geada) no terreno e nas copas: só recolore as instâncias

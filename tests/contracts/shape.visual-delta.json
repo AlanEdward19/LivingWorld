@@ -38,6 +38,7 @@
         "householdIds": [
           "number"
         ],
+        "lit": "boolean",
         "locationTypeId?": "number",
         "locationTypeName?": "string",
         "ownerId?": "number",
@@ -169,11 +170,22 @@
         "daylightHours": "number",
         "drought": "boolean",
         "feelsLikeC": "number",
+        "foliage": {
+          "fraction": "number",
+          "phase": "string",
+          "turning": "number"
+        },
         "frost": "boolean",
         "ground": "string",
         "groundWetPm": "number",
         "hail": "boolean",
         "heatWave": "boolean",
+        "hourlyC": [
+          "number"
+        ],
+        "hourlyFeelsLikeC": [
+          "number"
+        ],
         "intensity": "string",
         "maxC": "number",
         "minC": "number",
@@ -185,6 +197,7 @@
         "sunriseHour": "number",
         "sunsetHour": "number",
         "temperatureNowC": "number",
+        "windFromDeg": "number",
         "windMs": "number"
       }
     },

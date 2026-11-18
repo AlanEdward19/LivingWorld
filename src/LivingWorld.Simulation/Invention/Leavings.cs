@@ -178,6 +178,15 @@ public static class Leavings
         return null;
     }
 
+    /// <summary>AD-189: o espólio que a pessoa saiu para buscar (o mesmo de <see cref="ErrandDestination"/>); nulo fora de uma ida.</summary>
+    internal static long? ErrandLeavingId(WorldState world, Npc npc)
+    {
+        if (world.Invention?.Leavings is not { Count: > 0 } list) return null;
+        foreach (var l in list)
+            if (l.FetcherId == npc.Id.Value && FetchActive(world, l)) return l.Id;
+        return null;
+    }
+
     /// <summary>Em casa, o que voltou com a pessoa: o recipiente que ela trouxe sem poder usar fica com a casa.</summary>
     internal static void OnUnpack(WorldState world, Npc npc)
     {
