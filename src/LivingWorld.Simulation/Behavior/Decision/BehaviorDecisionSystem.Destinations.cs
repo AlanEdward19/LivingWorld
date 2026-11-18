@@ -76,15 +76,12 @@ public sealed partial class BehaviorDecisionSystem
         var psyche = world.NeedsRules.Psyche;
         if (!psyche.Enabled || !psyche.SocializeNeedsCompany || !psyche.SeekCompany || world.FamilyRules.Bonds is not { } bonds) return null;
         if (npc.Household is not { } hh || world.FindHousehold(hh) is not { } home) return null;
+        // a ida em curso vai ao destino escolhido na saída, guardado no intento (o motivo da viagem fica no NPC depois de chegar:
+        // só vale enquanto ainda viaja); não se escolhe de novo a cada despertar
+        if (npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize) return CompanyTargetOf(npc);
         // só quem está em casa e sente falta de gente (convívio abaixo da linha de urgência) sai à procura; o resto conversa onde está
         long now = world.CurrentDate.TotalHours;
-        // a ida em curso atrás de companhia (o motivo da viagem fica no NPC depois de chegar: só vale enquanto ainda viaja)
-        bool going = npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize;
-        if (npc.CurrentLocation != home.Location && !going) return null;
-        if (100 - npc.SocialAt(now) <= world.NeedsRules.UrgencyThreshold) return null;
-        // e só quem já se sente só (a solidão das conversas sem ninguém): uma noite sozinho em casa não tira ninguém de casa
-        if (!going
-            && LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness < psyche.SeekCompanyLoneliness) return null;
+        if (WhyNotSeeking(world, npc, home, now) != SeekGate.Open) return null;
         // a mesma pergunta volta no refino, na saída, na chegada agendada e na conclusão do mesmo tick: só memória do tick
         var last = _company;
         if (ReferenceEquals(last.World, world) && last.Npc == npc.Id.Value && last.Tick == now && last.From == npc.CurrentLocation)
@@ -95,6 +92,41 @@ public sealed partial class BehaviorDecisionSystem
     }
 
     [ThreadStatic] private static (WorldState? World, long Npc, long Tick, CellCoord From, CellCoord? Result) _company;
+
+    /// <summary>Por que quem conversa sozinho não sai atrás de alguém (AD-186; só a medida conta): fora de casa, sem falta de gente,
+    /// ainda sem solidão, ou passa nas três (e então faltou aonde ir).</summary>
+    internal enum SeekGate : byte { Open, Away, Content, NotLonely }
+
+    internal static SeekGate WhyNotSeeking(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household home, long now)
+    {
+        if (npc.CurrentLocation != home.Location) return SeekGate.Away;
+        if (100 - npc.SocialAt(now) <= world.NeedsRules.UrgencyThreshold) return SeekGate.Content;
+        // e só quem já se sente só (a solidão das conversas sem ninguém): uma noite sozinho em casa não tira ninguém de casa
+        if (LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness < world.NeedsRules.Psyche.SeekCompanyLoneliness)
+            return SeekGate.NotLonely;
+        return SeekGate.Open;
+    }
+
+    /// <summary>O destino da ida atrás de companhia, escolhido na saída e guardado no intento <c>Socialize</c> ("x,y").</summary>
+    internal static CellCoord? CompanyTargetOf(Npc npc)
+    {
+        if (npc.CurrentIntent != ActionType.Socialize || npc.IntentStatus != IntentStatus.Active || npc.IntentTarget is not { } t) return null;
+        int comma = t.IndexOf(',');
+        return comma > 0 && int.TryParse(t.AsSpan(0, comma), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int x)
+            && int.TryParse(t.AsSpan(comma + 1), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int y)
+            ? new CellCoord(x, y) : null;
+    }
+
+    /// <summary>Na saída atrás de companhia (AD-186): guarda no intento o destino que a escolha deste tick deu, para a viagem inteira.
+    /// Não apaga um plano de comida em curso (aí a ida não tem destino e se desfaz).</summary>
+    internal static void PinCompanyTarget(WorldState world, Npc npc, long now)
+    {
+        var last = _company;
+        if (!ReferenceEquals(last.World, world) || last.Npc != npc.Id.Value || last.Tick != now || last.Result is not { } cell) return;
+        if (npc.IntentStatus == IntentStatus.Active && npc.CurrentIntent is ActionType.Buy or ActionType.Eat) return;
+        npc.SetIntent(ActionType.Socialize, now,
+            cell.X.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," + cell.Y.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
 
     private static CellCoord? ComputeCompanyDestination(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household home,
         LivingWorld.Domain.Population.Family.SocialBondRules bonds)

@@ -263,6 +263,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
+            if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
             if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
             NpcWakeScheduler.RescheduleAfterHour(
