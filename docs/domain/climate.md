@@ -12,8 +12,8 @@ lama, seca ou luz lê esse estado (`Climate/WeatherNow`); nada é só visual.
 
 ## O tempo do dia (por região; `WeatherLedger` no snapshot e no hash)
 - **Estação suave**: média, amplitude, dias de chuva, chuva e vento do mês interpolados entre os meios dos meses. Hemisfério sul
-  (latitude < 0) desloca seis meses. Bioma e altitude seguem mudando o nível pela base da célula (`ReferenceBaseC` = a célula
-  em que a climatologia vale).
+  (latitude < 0) desloca seis meses. A climatologia vale na célula da primeira cidade; as outras ficam acima ou abaixo pela
+  diferença de base (bioma/altitude) × 0,325 (`CellOffsetScale`: 6,5 °C/km com a unidade de altitude tomada como 50 m).
 - **Temperatura**: anomalia AR(1) diária (persistência 0,8; DP do mês) com parte comum às regiões (85%); mínima e máxima pela
   amplitude (menor em dia de chuva); curva do dia com mínima às 5 h e máxima às 15 h (`TemperatureAt`); sensação com vento e chuva.
 - **Chuva em frentes**: cadeia de Markov (P(chuva|chuva) 0,65), intensidade exponencial com a média do mês; **neve** com média ≤ 1 °C;
@@ -22,7 +22,8 @@ lama, seca ou luz lê esse estado (`Climate/WeatherNow`); nada é só visual.
   neve não seca. Faixas: molhado ≥150, lama ≥400, lamaçal ≥750. **Seca**: média móvel de 60 dias da chuva < 50% da normal.
 - **Regime do ano**: em janeiro um AR(1) anual (persistência 0,7; parte comum do clima) muda a frequência de chuva (±15%/DP) e a
   temperatura (−0,4 °C/DP): anos chuvosos e frios em série. **Fator de safra** (1º de julho) = índice da estação jan–jun (primavera
-  chuvosa ou muito seca, primavera fria, geada tardia, inverno que congela a semente sem neve), padronizado para média 1000 e DP 200.
+  chuvosa ou muito seca, primavera fria, geada tardia, inverno que congela a semente sem neve), padronizado para média 1000 e DP 200,
+  cauda de baixo encolhida pela metade (o pior ano tira 40–50%, não 75%): medido 1001 ± 196, autocorrelação 0,23, 2,1% < 600.
 - **Luz**: horas de sol pela latitude e o dia do ano (declinação; Oxford: 7,6 h em dezembro, 16,4 h em junho).
 
 ## Consequências (sistema que lê → teste em `WeatherTests`)
@@ -54,7 +55,7 @@ tempo. Células de rua (`roads`): `ground` (cascalho e pedra nunca ficam em lama
 - Persistência da chuva (0,65) e da temperatura (0,8): ordem de grandeza de geradores de tempo (Richardson 1981), média.
 - Neve ≤ 1 °C, degelo 4 mm/°C-dia (Hock 2003: 3–6), média. Jornada da luz: do nascer ao pôr (Statute of Artificers 1563), alta.
 - Safra ruim com primavera/verão chuvosos (Hoskins 1964; 1315–17), média. Diarreia +7%/°C (Carlton et al. 2016), média.
-- **Escolhidos** (sem fonte firme): faixas e passo da lama (1,1 / 1,35 / 1,6), secagem do chão, catarro +5%/°C, risco do frio
+- **Escolhidos** (sem fonte firme): faixas e passo da lama (1,05 / 1,2 / 1,35), secagem do chão, unidade de altitude = 50 m, catarro +5%/°C, risco do frio
   (3%/°C para velhos e bebês, 1% outros), do calor (3%/°C acima de 24 °C), do relento (0,1%/°C-noite, ×3 vulneráveis),
   sensação, pasto sob neve, adiamento da compra, regime do ano.
 
