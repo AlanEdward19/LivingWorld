@@ -123,12 +123,14 @@ internal sealed record RunningWorldSamples(
                 row.Kind = LivingWorld.Simulation.Climate.Precipitation.Snow;
                 row.Wet = true; row.PrecipTenths = 60; row.SnowMm = 40; row.Frost = true;
                 row.MeanCenti = -300; row.MinCenti = -800; row.MaxCenti = 100;
+                row.LeafPm = 0; row.LeafPhase = LivingWorld.Simulation.Climate.LeafPhase.Bare; // AD-189
             }
             else if (day == 5)
             {
                 row.Kind = LivingWorld.Simulation.Climate.Precipitation.Rain;
                 row.Wet = true; row.PrecipTenths = 220; row.Storm = true; row.Hail = true; row.SoilPm = 900; row.SnowMm = 0;
                 row.WindDecims = 160; row.MeanCenti = 1300;
+                row.WindFromDeg = 250; row.LeafPm = 400; row.LeafPhase = LivingWorld.Simulation.Climate.LeafPhase.Falling; // AD-189
             }
         }
     }

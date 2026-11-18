@@ -217,7 +217,8 @@ public static class LivingDeltaReducer
             FaunaGroups = Merge(state.FaunaGroups, delta.FaunaGroupUpserts, delta.FaunaGroupRemoved, ScopeDeltaBuilder.FaunaKey),
             Leavings = Merge(state.Leavings, delta.LeavingUpserts, delta.LeavingRemoved, item => item.Id),
             Objects = Merge(state.Objects, delta.ObjectUpserts, delta.ObjectRemoved, item => item.Id),
-            Climate = delta.Climate ?? state.Climate?.AtTick(delta.Tick), // AD-189: a hora sai da curva do dia
+            // AD-189: sem clima no delta, a hora sai da curva do dia (o tick do delta à frente do estado)
+            Climate = delta.Climate ?? (delta.Tick > state.Tick ? state.Climate?.AtTick(delta.Tick) : state.Climate),
             Roads = Merge(state.Roads, delta.RoadUpserts, delta.RoadRemoved, item => item.Cell, item => (item.Cell.Y, item.Cell.X)),
             Tick = delta.Tick,
         };

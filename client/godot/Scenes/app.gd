@@ -142,6 +142,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	add_child(observer)
 	stream = CursorStream.new(transport, get_tree())
 	stream.validate_shapes = validate_shapes
+	stream.delta_check_every = 30 if validate_shapes else 1 # AD-189: no jogo, amostra (os testes conferem tudo)
 	if sleeper.is_valid():
 		stream.sleeper = sleeper
 	stream.snapshot_received.connect(_on_snapshot)
