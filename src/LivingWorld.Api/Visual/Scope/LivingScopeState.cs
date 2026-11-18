@@ -37,6 +37,11 @@ public sealed record NpcVisual(
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? IntentTarget { get; init; }
 
+    /// <summary>AD-189: o texto interno do intento no motor (ex.: a célula pinada da visita), só para a projeção saber quando refazer o
+    /// alvo; nunca vai ao fio.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? IntentKey { get; init; }
+
     /// <summary>AD-176: células da rota real de quem viaja (onde está, soleira, caminho, soleira do destino, chegada), em ordem;
     /// ausente = não está viajando. O cliente anda o boneco por elas até <see cref="RouteArrivalTick"/>.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

@@ -117,7 +117,7 @@ public static class WeatherNow
 
     /// <summary>Anomalia de temperatura do dia (°C, com o regime do ano) na célula; 0 sem tempo.</summary>
     public static double AnomalyC(WorldState world, CellCoord cell) =>
-        RowAt(world, cell) is { } row ? row.AnomalyCenti / 100.0 + row.RegimeMilli / 1000.0 * world.ClimateRules.Weather!.RegimeTempC : 0;
+        RowAt(world, cell) is { } row ? (row.AnomalyCenti + row.AdvectionCenti) / 100.0 + row.RegimeMilli / 1000.0 * world.ClimateRules.Weather!.RegimeTempC : 0;
 
     /// <summary>Mau tempo para sair sem precisar: tempestade, chuva forte, nevasca ou frio de geada de dia. 0 bom, até 1.</summary>
     public static double OutingDiscomfort(WorldState world, CellCoord cell)
@@ -137,6 +137,17 @@ public static class WeatherNow
         if (RowAt(world, cell) is not { } row) return 1;
         var r = world.ClimateRules.Weather!;
         return row.SnowMm >= r.GrazeQuarterSnowCm ? 0.25 : row.SnowMm >= r.GrazeHalfSnowCm ? 0.5 : 1;
+    }
+
+    /// <summary>AD-189: parte do pasto que a vegetação dá hoje pela folhagem (erva e broto): cheia 1, nua
+    /// <see cref="WeatherRules.BareForageShare"/>. 1 com o tempo ou a folhagem desligados.</summary>
+    public static double ForageShare(WorldState world, CellCoord cell)
+    {
+        if (RowAt(world, cell) is not { } row) return 1;
+        var r = world.ClimateRules.Weather!;
+        if (!r.FoliageEnabled) return 1;
+        double bare = Math.Clamp(r.BareForageShare, 0, 1);
+        return bare + (1 - bare) * Math.Clamp(row.LeafPm / 1000.0, 0, 1);
     }
 
     /// <summary>Carroça passa: sem neve funda e sem lamaçal na saída.</summary>

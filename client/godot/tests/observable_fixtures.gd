@@ -79,3 +79,10 @@ static func transport() -> Object:
 
 static func delta(payload: Dictionary) -> Dictionary:
 	return Fx.delta(0, 1, payload)
+
+
+## AD-189: o estado do prédio 4 do fixture com a luz que o motor diz.
+static func building_state_lit(id: int, lit: bool) -> Dictionary:
+	return {"buildingId": id, "buildingTypeId": 3, "typeName": "Padaria", "function": "workplace", "workplaceId": 4,
+		"locationTypeId": 7, "locationTypeName": "Padaria", "ownerId": 8, "householdIds": [], "residentIds": [], "workerIds": [7],
+		"stock": [{"resourceId": 2, "quantity": 30, "resourceName": "Trigo"}], "pantryUnits": 0, "closed": false, "lit": lit}

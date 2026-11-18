@@ -213,6 +213,15 @@ func target_point(npc: Dictionary) -> Vector3:
 			for state in store.building_states.values():
 				if int(target.id) in state.households:
 					return building_point.call(int(state.building_id))
+		"leaving": # AD-189: o espólio que foi buscar
+			var leaving = store.leavings.get(int(target.id))
+			return Grid.to_world(leaving.cell) if leaving != null else Vector3.INF
+		"city": # AD-189: o largo (a cidade da mudança ou a praça da visita)
+			var city: Dictionary = store.city if String(store.city.get("id", "")) == String(target.id) else store.cities.get(String(target.id), {})
+			return Grid.to_world(city.location) if city.get("location") is Vector2i else Vector3.INF
+		"water", "site": # AD-189: a fonte e a obra, por célula "x,y"
+			var parts := String(target.id).split(",")
+			return Grid.to_world(Vector2i(int(parts[0]), int(parts[1]))) if parts.size() == 2 else Vector3.INF
 	return Vector3.INF
 
 

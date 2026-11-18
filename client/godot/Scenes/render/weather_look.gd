@@ -24,6 +24,18 @@ static func falling(weather: Dictionary) -> Dictionary:
 		"hail": bool(weather.get("hail", false))}
 
 
+## AD-189: para onde o vento empurra o que cai, no plano do chão (x, z), com o tamanho pela força (0..1, 20 m/s = 1). O motor diz
+## de onde o vento vem (`windFromDeg`, graus do norte, norte = −y do mapa = −z); ele sopra para o lado oposto. Sem direção do
+## motor, nada inclina (zero): nenhum lado inventado.
+static func wind_push(weather: Dictionary) -> Vector2:
+	var from := float(weather.get("wind_from", -1.0))
+	if from < 0.0:
+		return Vector2.ZERO
+	var strength := clampf(float(weather.get("wind", 0.0)) / 20.0, 0.0, 1.0)
+	var rad := deg_to_rad(from)
+	return Vector2(-sin(rad), cos(rad)) * strength
+
+
 ## Fração das partículas pelo nível de detalhe: mapa-múndi afastado não chove na tela; câmera longe, metade.
 static func lod_ratio(lod: String, far: bool, bubble: bool) -> float:
 	if bubble or (lod == "world" and far):

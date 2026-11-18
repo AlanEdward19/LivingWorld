@@ -29,13 +29,33 @@ func rebuild(store) -> void:
 ## Desenha (ou redesenha) um prédio. Sem planta (veio por delta e o snapshot ainda não chegou), usa um canteiro
 ## de obra 2x2 de madeira no lugar certo até a planta chegar.
 static func signature(state: Dictionary) -> String:
-	return "%s|%s|%s|%d" % [Dress.style_of(state), Dress.sign_text(state), bool(state.get("closed", false)), int(Dress.body_of(state).people)]
+	return "%s|%s|%s" % [Dress.style_of(state), Dress.sign_text(state), bool(state.get("closed", false))]
 
 
-## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma).
+## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma);
+## a luz (AD-189, `lit` do motor) só troca o material das janelas.
 func restyle(info: Dictionary, state: Dictionary) -> void:
 	if String(dressed.get(int(info.id), "")) != signature(state):
 		upsert(info, state)
+	else:
+		set_lit(int(info.id), bool(state.get("lit", false)))
+
+
+## AD-189: acende ou apaga as janelas do prédio pelo dado do motor, sem redesenhar.
+func set_lit(id: int, lit: bool) -> void:
+	var node: Node3D = nodes.get(id)
+	if node == null or bool(node.get_meta("lit", false)) == lit:
+		return
+	node.set_meta("lit", lit)
+	for window in node.get_meta("windows", []):
+		window.material_override = window_material if lit else dark_window_material
+		window.name = "Window" if lit else "WindowDark"
+
+
+## Quantas janelas acesas o prédio tem agora (testável).
+func lit_count(id: int) -> int:
+	var node: Node3D = nodes.get(id)
+	return 0 if node == null else (node.get_meta("windows", []) as Array).filter(func(w): return w.material_override == window_material).size()
 
 
 func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
@@ -182,7 +202,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var cells := {}
 	for entry in info.footprint:
 		cells[info.cell + entry.cell] = entry.material
-	var form := Dress.body_of(state) # AD-188: corpo pela função e quantas janelas acendem pelas pessoas que o motor põe ali
+	var form := Dress.body_of(state) # AD-188: corpo pela função; AD-189: a luz das janelas é o `lit` do motor
 	var roof_color: Color = ROOF_COLORS[info.type % ROOF_COLORS.size()] if info.type >= 0 else ROOF_COLORS[0]
 	if form.roof != null:
 		roof_color = Color(form.roof)
@@ -232,10 +252,14 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)
 			_:
 				pass
-	var lit := Dress.lit_windows(form, windows.size(), bool(state.get("closed", false)))
+	var lit := Dress.lit_windows(state, windows.size())
 	for i in range(lit, windows.size()):
 		windows[i].material_override = dark_window_material
 		windows[i].name = "WindowDark"
+	for i in range(0, lit):
+		windows[i].material_override = window_material
+	root.set_meta("windows", windows)
+	root.set_meta("lit", lit > 0)
 	var span := max_cell - min_cell + Vector2i.ONE
 	var rectangular: bool = cells.size() == span.x * span.y
 	var roof := _flat_material(roof_color)

@@ -41,7 +41,8 @@ public static class ScopeDeltaBuilder
             LeavingRemoved = Removed(before.Leavings, after.Leavings, item => item.Id),
             ObjectUpserts = Changed(before.Objects, after.Objects, item => item.Id),
             ObjectRemoved = Removed(before.Objects, after.Objects, item => item.Id),
-            Climate = Equals(before.Climate, after.Climate) ? null : after.Climate,
+            // AD-189: o clima só volta quando muda de verdade (dia do tempo, estado); a hora o cliente lê de hourlyC
+            Climate = after.Climate is { } climate && climate.SameDayAs(before.Climate) ? null : after.Climate,
             RoadUpserts = ReferenceEquals(before.Roads, after.Roads) ? [] : Changed(before.Roads, after.Roads, item => item.Cell),
             RoadRemoved = ReferenceEquals(before.Roads, after.Roads) ? [] : Removed(before.Roads, after.Roads, item => item.Cell),
         };
@@ -216,7 +217,7 @@ public static class LivingDeltaReducer
             FaunaGroups = Merge(state.FaunaGroups, delta.FaunaGroupUpserts, delta.FaunaGroupRemoved, ScopeDeltaBuilder.FaunaKey),
             Leavings = Merge(state.Leavings, delta.LeavingUpserts, delta.LeavingRemoved, item => item.Id),
             Objects = Merge(state.Objects, delta.ObjectUpserts, delta.ObjectRemoved, item => item.Id),
-            Climate = delta.Climate ?? state.Climate,
+            Climate = delta.Climate ?? state.Climate?.AtTick(delta.Tick), // AD-189: a hora sai da curva do dia
             Roads = Merge(state.Roads, delta.RoadUpserts, delta.RoadRemoved, item => item.Cell, item => (item.Cell.Y, item.Cell.X)),
             Tick = delta.Tick,
         };

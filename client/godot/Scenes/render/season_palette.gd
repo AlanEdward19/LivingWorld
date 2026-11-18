@@ -57,22 +57,38 @@ static func _season(base: Color, climate: Dictionary) -> Color:
 	return base.lerp(DRY, 0.4) if dry else base
 
 
-## Copa das árvores: folhas de outono variam por árvore (`roll` estável 0..1), inverno sem folha, neve só com neve no chão,
-## seca amarela. Queda de folhas não é desenhada: o motor não diz quando a folha cai.
+## AD-189: folhagem que o motor diz ({fraction, phase, turning}); {} = o motor não mandou (tempo desligado, servidor antigo).
+static func foliage_of(climate: Dictionary) -> Dictionary:
+	var f = weather_of(climate).get("foliage")
+	return f if f is Dictionary and not f.is_empty() else {}
+
+
+## Copa das árvores pela folhagem do motor (AD-189): a cor do outono (por árvore, `roll` estável 0..1) entra com o quanto a copa
+## já virou (`turning`), a copa nua fica cinza de galho, neve só com neve no chão, seca amarela. Sem folhagem do motor, a cor de
+## verão: nada de estação inventada.
 static func crown(base: Color, climate: Dictionary, roll: float) -> Color:
 	if climate.is_empty():
 		return base
 	var cover := snow_cover(climate)
 	if cover > 0.0:
 		return base.lerp(SNOW, 0.6 * cover)
-	match season_key(climate):
-		"autumn":
-			return base.lerp(AUTUMN_LEAVES[int(roll * AUTUMN_LEAVES.size()) % AUTUMN_LEAVES.size()], 0.7)
-		"winter":
-			return base.lerp(Color("5a5a4a"), 0.45)
-		"spring":
-			return base.lerp(Color("8fd060"), 0.25)
-	return base.lerp(DRY, 0.35) if drought(climate) else base
+	var leaves := foliage_of(climate)
+	if leaves.is_empty():
+		return base.lerp(DRY, 0.35) if drought(climate) else base
+	var color := base.lerp(DRY, 0.35) if drought(climate) else base
+	var turning := clampf(float(leaves.get("turning", 0.0)), 0.0, 1.0)
+	color = color.lerp(AUTUMN_LEAVES[int(roll * AUTUMN_LEAVES.size()) % AUTUMN_LEAVES.size()], 0.75 * turning)
+	if String(leaves.get("phase", "")) == "budding":
+		color = color.lerp(Color("8fd060"), 0.3)
+	return color.lerp(Color("5a5a4a"), 1.0 - clampf(float(leaves.get("fraction", 1.0)), 0.0, 1.0)) # rala: aparece o galho
+
+
+## AD-189: tamanho da copa pela folhagem do motor: cheia 1, nua só os galhos (0,3); sem dado do motor, 1.
+static func crown_scale(climate: Dictionary) -> float:
+	var leaves := foliage_of(climate)
+	if leaves.is_empty():
+		return 1.0
+	return lerpf(0.3, 1.0, clampf(float(leaves.get("fraction", 1.0)), 0.0, 1.0))
 
 
 ## Texto do relógio do topo: "Verão · 24 °C · seca" (temperatura da hora quando o motor manda o tempo do dia).

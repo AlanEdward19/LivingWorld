@@ -60,6 +60,44 @@ public sealed record WeatherRules
     public IReadOnlyList<double> WindMs { get; init; } = [5.5, 5.3, 5.2, 4.6, 4.2, 3.9, 3.8, 3.8, 4.1, 4.6, 5.0, 5.3];
     public double StormWindMs { get; init; } = 14;
 
+    /// <summary>AD-189: rosa dos ventos do lugar, frequência de onde o vento vem em 8 setores a partir do norte (N, NE, E, SE, S, SW,
+    /// W, NW). Padrão: Inglaterra baixa, vento dominante de sudoeste e oeste (Met Office, rosa anual do sul da Inglaterra; números
+    /// de memória, conferir). Hemisfério sul ou outro lugar: o cenário troca a lista.</summary>
+    public IReadOnlyList<double> WindRoseFrom { get; init; } = [7, 9, 8, 7, 12, 24, 19, 14];
+
+    /// <summary>AD-189: chance de a direção de ontem continuar hoje (o sistema de pressão dura dias; escolhido, ordem de grandeza da
+    /// persistência dos tipos de tempo de Lamb, 2–4 dias); quando continua, gira até <see cref="WindVeerDeg"/> para um lado ou outro.</summary>
+    public double WindDirectionPersistence { get; init; } = 0.65;
+    public double WindVeerDeg { get; init; } = 30;
+
+    /// <summary>AD-189: advecção — o ar chega com a temperatura de onde veio. Por mês, quanto (°C) o vento da direção quente
+    /// (<see cref="WarmWindFromDeg"/>) esquenta e o da oposta esfria, em relação à média da rosa (a média do mês não muda). No inverno
+    /// o vento de sudoeste (Atlântico) é ameno e o de leste/nordeste (continente) gelado; no verão o de sudeste traz calor. Forma: tipos
+    /// de tempo de Lamb (1972) e a CET, média; amplitudes escolhidas. A variância do dia fica a da fonte: o ruído AR(1) perde a parte
+    /// que a advecção explica.</summary>
+    public IReadOnlyList<double> WindAdvectionC { get; init; } = [2.4, 2.2, 1.4, 0.8, 0.6, 0.8, 1.0, 1.0, 0.8, 1.0, 1.6, 2.2];
+    public IReadOnlyList<double> WarmWindFromDeg { get; init; } = [225, 225, 225, 200, 160, 135, 135, 135, 160, 200, 225, 225];
+
+    /// <summary>AD-189: folhagem das árvores e do pasto (decíduas da Inglaterra baixa: carvalho, freixo, faia). Brota com o calor acumulado
+    /// (grau-dia acima de <see cref="LeafBaseC"/> desde janeiro): começa em <see cref="BudburstDegreeDays"/> e fica cheia
+    /// <see cref="LeafOutDegreeDays"/> depois (meados de abril a fim de maio em Oxford). Cai quando a luz do dia já encurtou abaixo de
+    /// <see cref="SenescenceDaylightHours"/> e o frio acumula (grau-dia abaixo de <see cref="SenescenceBaseC"/>) até
+    /// <see cref="LeafFallColdDegreeDays"/>; despenca em <see cref="LeafFallDays"/> dias (outubro e novembro). Forma: modelos de
+    /// grau-dia de brotação (Cannell &amp; Smith 1983) e de senescência por fotoperíodo e frio (Delpierre et al. 2009), média; números
+    /// escolhidos para as datas do carvalho na Inglaterra (Sparks &amp; Carey 1995, de memória, conferir).</summary>
+    public bool FoliageEnabled { get; init; } = true;
+    public double LeafBaseC { get; init; } = 5;
+    public double BudburstDegreeDays { get; init; } = 120;
+    public double LeafOutDegreeDays { get; init; } = 220;
+    public double SenescenceDaylightHours { get; init; } = 12.5;
+    public double SenescenceBaseC { get; init; } = 14;
+    public double LeafFallColdDegreeDays { get; init; } = 110;
+    public int LeafFallDays { get; init; } = 30;
+
+    /// <summary>AD-189: pasto que o herbívoro acha com a vegetação nua (fração do de folha cheia): no inverno a erva para de crescer e
+    /// o broto da moita some (escolhido; o coelho perde peso no inverno, média).</summary>
+    public double BareForageShare { get; init; } = 0.5;
+
     // chão de terra (trilha, terra batida, campo): quanto molha por mm, quanto seca por dia (mais no calor), e as faixas
     public int SoilWetPmPerMm { get; init; } = 60;
     public int SoilDryBasePm { get; init; } = 40;
@@ -103,7 +141,7 @@ public sealed record WeatherRules
     public double CropWarmthWeight { get; init; } = 0.3;
     public double CropLateFrostWeight { get; init; } = 0.04;
     public double CropWinterKillWeight { get; init; } = 0.04;
-    public double CropIndexMean { get; init; } = -0.2495;
+    public double CropIndexMean { get; init; } = -0.2640; // AD-189: recalibrado com a advecção do vento (3.000 anos de weather-diag calib)
     public double CropIndexSd { get; init; } = 0.36;
     public int CropFactorMonth { get; init; } = 6;
     public double CropLowTailShrink { get; init; } = 0.5;
