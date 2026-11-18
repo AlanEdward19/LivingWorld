@@ -197,9 +197,9 @@ public sealed partial class BehaviorDecisionSystem
     }
 
     /// <summary>AD-185: a sede urgente sem água no que leva nem em casa vai à fonte, se a fonte fica mais perto que o mercado mais
-    /// perto com água ou se não há com que pagar a água dele. Marca a ida. Quem podia pagar e tem o mercado mais perto só fica com o
-    /// mercado se a escolha foi comprar: a escolha que não vai ao mercado (à toa em casa) ia à fonte (antes morria de sede com moeda
-    /// no bolso, o mercado mais perto e a escolha parada).</summary>
+    /// perto com água ou se não há com que pagar a água dele. Marca a ida. Quem podia pagar e tem o mercado mais perto fica com o
+    /// mercado, salvo se a escolha ficou parada (à toa, conversa, sono): aí vai à fonte (antes morria de sede com moeda no bolso,
+    /// o mercado mais perto e a escolha parada).</summary>
     private static bool ThirstGoesToSource(WorldState world, Npc npc, long now, MarketIndex marketIndex, ActionType candidate)
     {
         if (!LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyWithoutWater(world, npc, now)) return false;
@@ -207,7 +207,7 @@ public sealed partial class BehaviorDecisionSystem
         long marketTicks = market is null ? long.MaxValue
             : Mobility.TravelTicks(world, npc, npc.CurrentLocation, market.Location, BodyMechanic.MovementCostMultiplier(world, npc));
         bool canPay = market is not null && market.Prices.TryGetValue(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId), out var price)
-            && price > 0 && npc.Wallet.Amount >= price && candidate == ActionType.Buy;
+            && price > 0 && npc.Wallet.Amount >= price && candidate is not (ActionType.Idle or ActionType.Socialize or ActionType.Sleep);
         return LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstSendsToSource(world, npc, now, marketTicks, canPay);
     }
 }
