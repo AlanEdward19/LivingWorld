@@ -15,7 +15,7 @@ public static class StarvationTraceCommand
         Parallel.For(0, seeds, i =>
         {
             ulong seed = firstSeed + (ulong)i;
-            var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules()); // AD-166: carga ligada ou não
+            var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(), cityLayout: CityLayoutSwitch.Rules()); // AD-166: carga ligada ou não; AD-184: LW_AD184
             var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new StarvationTrace(world, seed, lines));
             for (int y = 0; y < years && world.AliveNpcIndex.Alive.Count > 0; y++)
             {

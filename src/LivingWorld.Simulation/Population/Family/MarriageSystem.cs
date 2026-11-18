@@ -77,19 +77,33 @@ public static class MarriageSystem
         (HouseholdId? Id, (BuildingId Dwelling, CellCoord Location)? Home) first, (HouseholdId? Id, (BuildingId Dwelling, CellCoord Location)? Home) second)
     {
         if (!world.StreetsOn || !world.StreetRules.HouseIsWork) return;
-        foreach (var (id, home) in new[] { first, second })
-            if (home is { } h && (id is not { } left || world.FindHousehold(left) is null or { IsEmpty: true }) && world.FindBuilding(h.Dwelling) is not null)
+        // das casas possíveis, a mais conveniente para o casal (água, mercado, o trabalho de cada um), não a primeira
+        var members = household.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList();
+        var places = LivingWorld.Simulation.Cities.Works.HomePlaces.Of(world, household.City, members);
+        (BuildingId Dwelling, CellCoord Location)? Best(bool vacated)
+        {
+            (BuildingId, CellCoord)? best = null;
+            double bestCost = double.MaxValue;
+            foreach (var (id, home) in new[] { first, second })
             {
-                household.MoveIn(h.Dwelling, h.Location); // a casa ficou vazia: é deles
-                return;
+                if (home is not { } h || world.FindBuilding(h.Dwelling) is null) continue;
+                bool empty = id is not { } left || world.FindHousehold(left) is null or { IsEmpty: true };
+                if (vacated && !empty) continue;
+                double cost = places.YearlyCost(world, h.Location);
+                if (cost < bestCost) { best = h; bestCost = cost; }
             }
-        foreach (var (_, home) in new[] { first, second })
-            if (home is { } h && world.FindBuilding(h.Dwelling) is not null)
-            {
-                household.MoveIn(h.Dwelling, h.Location); // de favor com a família de onde saiu
-                world.Ground!.Lodgers.Add(household.Id.Value);
-                return;
-            }
+            return best;
+        }
+        if (Best(vacated: true) is { } own)
+        {
+            household.MoveIn(own.Dwelling, own.Location); // a casa ficou vazia: é deles
+            return;
+        }
+        if (Best(vacated: false) is { } favor)
+        {
+            household.MoveIn(favor.Dwelling, favor.Location); // de favor com a família de onde saiu
+            world.Ground!.Lodgers.Add(household.Id.Value);
+        }
     }
 
     /// <summary>Início da união no estado conjugal da pessoa (AD-136): sem mágoa, sem caso, uma união a mais.</summary>

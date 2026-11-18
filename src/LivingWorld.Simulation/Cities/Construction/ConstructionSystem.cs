@@ -105,15 +105,32 @@ public sealed class ConstructionSystem : ISimulationSystem
     /// largo) até lá — ida carregada, volta vazia, pela rota — e refaz a turma do dia.</summary>
     private static void PrepareSite(WorldState world, TickContext ctx, City city, ConstructionProject project, BuildingRecipe recipe)
     {
+        // AD-184: sem lote ao alcance, a cidade procura de novo uma vez por semana (não a cada turno)
+        if (project.SiteX < 0 && project.LastProgressTick is not null && (ctx.CurrentTick / world.Calendar.HoursPerDay) % 7 != 0) return;
         if (project.SiteX < 0)
         {
             var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
             var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true);
+            var rules = world.StreetRules;
+            // AD-184: a cidade não abre obra num lote a que ninguém chega a tempo de trabalhar (a turma não aceitaria): o primeiro
+            // lote de rua ao alcance do largo; sem nenhum, a obra espera (e é abandonada se passar meses assim)
+            if (rules.WageBidding && lot is { } far && !InReach(world, city, far.Position))
+            {
+                lot = null;
+                foreach (var option in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, project.BuildingTypeId, 0,
+                             CityOccupancy.DerivedProfile(world, project.BuildingTypeId), 0, rules.LotChoices))
+                    if (InReach(world, city, option.Origin)) { lot = (option.Origin, option.Orientation, true, option.Croft); break; }
+                if (lot is null)
+                {
+                    project.LastProgressTick ??= ctx.CurrentTick;
+                    world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
+                    return;
+                }
+            }
             var site = lot is { } found ? found.Position : city.Location;
             project.SiteX = site.X;
             project.SiteY = site.Y;
-            var rules = world.StreetRules;
             // AD-184: o canteiro ocupa o lote desde já (o prédio sobe ali quando a obra acabar), com id de obra e evento com lugar
             project.WorkId = world.Ground!.NextWorkId++;
             project.LastProgressTick = ctx.CurrentTick;
@@ -139,6 +156,10 @@ public sealed class ConstructionSystem : ISimulationSystem
             new LivingWorld.Simulation.Cities.Streets.WorkSite(null, city, project));
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
     }
+
+    /// <summary>AD-184: do largo ao lote em até um quarto da jornada (ida e volta deixam a maior parte do dia na obra).</summary>
+    private static bool InReach(WorldState world, City city, CellCoord site) =>
+        LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost <= world.StreetRules.CrewHoursPerDay / 4.0;
 
     /// <summary>AD-179: as horas da turma vão primeiro ao transporte do material; o que sobra vira passos da receita.</summary>
     private static long SpendHaul(ConstructionProject project)

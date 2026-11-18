@@ -119,7 +119,7 @@ public static class BuildWorks
                     adult |= IsAdult(world, npc);
                 }
             if (!adult) continue;
-            if (TakeVacant(world, city, household, tenants)) continue;
+            if (TakeVacant(world, city, household, tenants, members)) continue;
             if (StartHouse(world, ctx, city, household, members)) building.Add(household.Id.Value);
         }
     }
@@ -147,14 +147,21 @@ public static class BuildWorks
         world.FindNpc(household.Head) is { IsAlive: true, Spouse: { } spouse } && household.Members.Contains(spouse);
 
     /// <summary>Uma casa pronta e vazia da cidade (a do falecido, a que alguém deixou): a família muda para ela sem obra.</summary>
-    private static bool TakeVacant(WorldState world, City city, Household household, Dictionary<BuildingId, int> tenants)
+    private static bool TakeVacant(WorldState world, City city, Household household, Dictionary<BuildingId, int> tenants, List<Npc> members)
     {
+        // a mais conveniente das vazias para quem vai morar (água, mercado, trabalho de cada um), não a primeira
         Building? best = null;
-        foreach (var b in world.Buildings)
+        double bestCost = double.MaxValue;
+        HomePlaces? places = null;
+        foreach (var b in world.Buildings.OrderBy(b => b.Id.Value))
         {
             if (b.City != city.Id || b.UnderWork is not null || b.Position is null || !IsHouseType(world, b.BuildingTypeId)) continue;
-            if (tenants.GetValueOrDefault(b.Id) > 0 || (best is not null && b.Id.Value >= best.Id.Value)) continue;
+            if (tenants.GetValueOrDefault(b.Id) > 0) continue;
+            places ??= HomePlaces.Of(world, city.Id, members);
+            double cost = places.YearlyCost(world, b.Position.Value);
+            if (cost >= bestCost) continue;
             best = b;
+            bestCost = cost;
         }
         if (best is null) return false;
         if (household.Dwelling is { } old) tenants[old] = Math.Max(0, tenants.GetValueOrDefault(old) - 1);
@@ -186,31 +193,39 @@ public static class BuildWorks
         var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, typeId, now);
         var profile = LotProfiles.ForHousehold(world, city.Id, members);
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
-        var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 0, PlacementPolicy.StreetLevels - 1, chooseOrientation: true); // casa com porta para a rua (AD-173); sem lote na rua, segue apertada
-        if (lot is not { } chosen) return false;
         long dayWage = PavingDecision.DayWage(world);
         long budget = Math.Max(0, PavingDecision.MeansOf(world, household.Id.Value) - dayWage * rules.SiteReserveDays);
-        int croftArea = CroftArea(candidate, chosen.Orientation, chosen.Croft);
-        long fee = rules.CroftFeeDaysPerCell * dayWage * croftArea;
-        if (fee > budget)
-        {
-            // a terra do quintal custa o que a casa não tem: o lote sem quintal
-            if (BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, profile, 1, PlacementPolicy.StreetLevels - 1, chooseOrientation: true)
-                is not { } plain) return false;
-            chosen = plain;
-            croftArea = CroftArea(candidate, chosen.Orientation, chosen.Croft);
-            fee = rules.CroftFeeDaysPerCell * dayWage * croftArea;
-            if (fee > budget) { croftArea = 0; fee = 0; chosen = chosen with { Croft = 0 }; }
-        }
+        // a família escolhe o lote entre os possíveis pelo que ele custa a ela: as idas de cada dia (água, mercado, o trabalho de
+        // cada um) pelo valor da hora nos anos da casa, mais o foro do quintal; o quintal que ela não pode pagar fica de fora
+        var places = HomePlaces.Of(world, city.Id, members);
+        (CellCoord Position, int Orientation, int Croft)? chosen = null;
+        int croftArea = 0;
+        long fee = 0;
+        double best = double.MaxValue;
+        for (int level = 0; level <= 1; level++)
+            foreach (var lot in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, typeId, 0, profile, level, rules.LotChoices))
+            {
+                int area = CroftArea(candidate, lot.Orientation, lot.Croft);
+                long lotFee = rules.CroftFeeDaysPerCell * dayWage * area;
+                if (lotFee > budget) continue;
+                double cost = places.YearlyCost(world, lot.Origin) * rules.PaybackYears + lotFee;
+                if (cost >= best) continue;
+                best = cost;
+                chosen = (lot.Origin, lot.Orientation, lot.Croft);
+                croftArea = area;
+                fee = lotFee;
+            }
+        if (chosen is null) return false; // sem lote de rua que a casa possa ter: segue apertada
         if (fee > 0 && PavingDecision.PayFrom(world, ctx, city, [household.Id.Value], fee))
         {
             city.CreditTreasury(new Money(fee));
             world.RecordTreasury(city.Id, now, revenue: fee, spending: 0);
         }
         else fee = 0;
-        var (materialHours, spent) = Material(world, ctx, city, household, chosen.Position, budget - fee);
+        var site = chosen.Value;
+        var (materialHours, spent) = Material(world, ctx, city, household, site.Position, budget - fee);
         long hours = rules.HouseHours + (long)croftArea * rules.CroftHoursPerCell + materialHours;
-        Open(world, ctx, city, BuildKind.House, typeId, chosen.Position, chosen.Orientation, chosen.Croft, household.Id.Value,
+        Open(world, ctx, city, BuildKind.House, typeId, site.Position, site.Orientation, site.Croft, household.Id.Value,
             household.Head.Value, hours, spent + fee, $"{household.Id.Value}|{hours}|{croftArea}|{spent + fee}");
         return true;
     }
@@ -482,5 +497,50 @@ public static class BuildWorks
         foreach (var w in ground.Builds)
             if (w.Kind == BuildKind.Workshop && w.Owner == npc.Id.Value) return true;
         return false;
+    }
+}
+
+/// <summary>AD-184: os lugares de todo dia de uma casa — a água (natural ou à venda), o mercado de comida e o trabalho de cada um —
+/// e quanto custa, por ano, morar numa célula: as idas de cada dia (`WaterTripsPerMemberDay`, `MarketTripsPerMemberDay` por
+/// morador, ida e volta ao trabalho de cada empregado) pela rota, pelo valor da hora (o jornal ÷ a jornada). O peso sai da casa:
+/// quantos são, quem trabalha e onde.</summary>
+internal sealed class HomePlaces
+{
+    private readonly List<CellCoord> _water = [], _food = [], _work = [];
+    private int _members;
+
+    public static HomePlaces Of(WorldState world, CityId city, IReadOnlyList<Npc> members)
+    {
+        var places = new HomePlaces { _members = Math.Max(1, members.Count) };
+        var economy = world.EconomyRules;
+        var water = new ResourceType(economy.WaterResourceId);
+        var food = new ResourceType(economy.FoodResourceId);
+        foreach (var w in world.Workplaces.OrderBy(w => w.Id.Value))
+        {
+            if (w.City != city || w.Closed || !world.EconomyCatalog.MarketLocationTypeIds.Contains(w.LocationType.Id)) continue;
+            if (w.Prices.ContainsKey(water)) places._water.Add(w.Location);
+            if (w.Prices.ContainsKey(food)) places._food.Add(w.Location);
+        }
+        foreach (var npc in members)
+            if (npc.Employer is { } e && world.FindWorkplace(e) is { } job) places._work.Add(job.Location);
+        return places;
+    }
+
+    public double YearlyCost(WorldState world, CellCoord cell)
+    {
+        var rules = world.StreetRules;
+        double Nearest(List<CellCoord> targets)
+        {
+            double best = double.MaxValue;
+            foreach (var t in targets) best = Math.Min(best, Streets.StreetRoutes.CostOf(world, cell, t).Cost);
+            return best == double.MaxValue ? 0 : best;
+        }
+        double water = Nearest(_water);
+        long natural = LivingWorld.Simulation.Economy.Supply.NaturalWaterSystem.WalkToWater(world, cell, 30);
+        if (natural != long.MaxValue && (natural < water || _water.Count == 0)) water = natural;
+        double hours = 2 * (_members * rules.WaterTripsPerMemberDay * water + _members * rules.MarketTripsPerMemberDay * Nearest(_food));
+        foreach (var job in _work) hours += 2 * Streets.StreetRoutes.CostOf(world, cell, job).Cost;
+        double hourValue = PavingDecision.DayWage(world) / (double)Math.Max(1, rules.CrewHoursPerDay);
+        return hours * hourValue * world.Calendar.DaysPerMonth * world.Calendar.MonthsPerYear;
     }
 }

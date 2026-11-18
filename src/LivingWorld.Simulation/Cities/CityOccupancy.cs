@@ -387,6 +387,32 @@ public static class CityOccupancy
             writeScanMarks: false, chooseOrientation);
     }
 
+    /// <summary>AD-184: até <paramref name="max"/> lotes de rua possíveis no degrau <paramref name="level"/>, do mais perto do largo
+    /// para fora (a mesma ordem de <see cref="FindPlacement"/>), para quem constrói escolher entre eles pelo que pesa para ela
+    /// (água, mercado, trabalho, foro). Só lê o chão: não marca o passe, então a busca de sempre não muda.</summary>
+    internal static List<(CellCoord Origin, int Croft, int Orientation)> CandidateLots(
+        WorldState world, City city, CityBounds bounds, BuildingId id, int buildingTypeId, int orientation, LotProfile profile,
+        int level, int max)
+    {
+        var found = new List<(CellCoord Origin, int Croft, int Orientation)>();
+        var network = CityStreets.Of(world, city);
+        if (network.Count == 0 || level >= PlacementPolicy.StreetLevels) return found;
+        var ground = GroundOfCity(world, city, bounds, id);
+        var options = OptionsOf(id, buildingTypeId, orientation, choose: true);
+        var layout = world.CityRules.EffectiveLayout();
+        // um candidato por trecho da rede, espalhados do largo para fora (o primeiro é o lote de sempre)
+        int perStreet = (layout.MaxFrontYardCells() + 1) * options.Length;
+        int total = network.Count * perStreet;
+        int stride = Math.Max(1, network.Count / Math.Max(1, max)) * perStreet;
+        for (int start = 0; start < total && found.Count < max; )
+        {
+            if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at) is not { } lot) break;
+            if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) found.Add(lot);
+            start = Math.Max(at + 1, start + stride);
+        }
+        return found;
+    }
+
     /// <summary>As plantas que quem constrói pode escolher: a da identidade primeiro, depois as outras três rotações em
     /// ordem; só a da identidade quando a orientação não será gravada (prédio derivado).</summary>
     private static LotPlanner.Option[] OptionsOf(BuildingId id, int buildingTypeId, int orientation, bool choose)

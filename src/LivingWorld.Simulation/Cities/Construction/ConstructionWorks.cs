@@ -26,7 +26,8 @@ internal static class ConstructionWorks
 
     internal static bool Abandoned(WorldState world, TickContext ctx, City city, ConstructionProject project)
     {
-        if (project.WorkId is not { } id || project.LastProgressTick is not { } last) return false;
+        if (project.LastProgressTick is not { } last) return false;
+        long id = project.WorkId ?? -1;
         long idle = ctx.CurrentTick - last;
         if (idle <= world.StreetRules.SiteStaleMonths * world.Calendar.HoursPerMonth) return false;
         if (project.Canteiro is { } b && world.FindBuilding(new BuildingId(b)) is { UnderWork: not null } canteiro) world.RemoveBuilding(canteiro);

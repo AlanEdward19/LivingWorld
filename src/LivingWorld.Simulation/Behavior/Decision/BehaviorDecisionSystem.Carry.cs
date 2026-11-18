@@ -87,6 +87,13 @@ public sealed partial class BehaviorDecisionSystem
             var (water, food) = WorkFeeds(world, npc, work);
             if (water) waterHours = 2 * leg + margin;
             if (food) foodHours = 2 * leg + margin;
+            // AD-184: quem ajuda numa obra depois do turno leva água e lanche para as horas de lá (o patrão não dá na obra)
+            if (LivingWorld.Simulation.Cities.Streets.SiteWork.HelpOf(world, npc) is not null)
+            {
+                long after = Math.Max(0, world.StreetRules.BuildDaylightEndHour - world.Calendar.HoursPerDay * 2 / 3);
+                waterHours += after;
+                foodHours += after;
+            }
         }
         PersonalCarry.PackForTrip(world, npc, home, waterHours, foodHours, now);
         // AD-179 (item 175): carregado, a ida demora mais; a chegada agendada usa a ida com a carga

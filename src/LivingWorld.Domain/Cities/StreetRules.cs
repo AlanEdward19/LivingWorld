@@ -126,6 +126,13 @@ public sealed record StreetRules(
     public int HouseMaterialResourceId { get; init; } = 3;
     public int HouseMaterialUnits { get; init; } = 20;
 
+    /// <summary>AD-184: lotes de rua que a família compara ao escolher onde levantar a casa (o de sempre é o primeiro).</summary>
+    public int LotChoices { get; init; } = 8;
+
+    /// <summary>AD-184: idas por morador por dia à água e ao mercado de comida, o peso de cada lugar na escolha da casa.</summary>
+    public double WaterTripsPerMemberDay { get; init; } = 0.25;
+    public double MarketTripsPerMemberDay { get; init; } = 0.15;
+
     /// <summary>AD-184: horas de cercar, valar e limpar cada célula de quintal.</summary>
     public int CroftHoursPerCell { get; init; } = 6;
 
