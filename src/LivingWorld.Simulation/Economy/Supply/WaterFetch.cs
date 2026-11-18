@@ -108,7 +108,8 @@ public static class WaterFetch
         if (!On(world) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home) return false;
         if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
         if (world.Map.TryGetCell(npc.CurrentLocation, out var here) && here.HasWater) { DrinkHere(world, npc, now); return false; }
-        // a sede urgente leva qualquer um que ande (a criança também): o marco de desenvolvimento decide quem não anda
+        // a criança pequena não sai sozinha à fonte (a ida virava ida e volta de escolha a cada hora): o vizinho acode
+        if (!Grown(world, npc)) return false;
         var water = Water(world);
         var ledger = world.Invention!;
         if (ledger.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
@@ -119,6 +120,33 @@ public static class WaterFetch
         if (npc.CurrentLocation == home.Location) return false;
         var source = NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, world.NaturalWaterRules.Fetch.RadiusCells * 2);
         return source is { } src && src.Ticks < LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, npc.CurrentLocation, home.Location);
+    }
+
+    /// <summary>A criança pequena com sede urgente, sem água em casa nem no que leva: a casa mais perto da mesma cidade com água
+    /// sobrando acode na hora com um dia da casa (como a ajuda mútua de água, mas quando o choro aperta, sem esperar o dia).
+    /// Devolve verdadeiro se a água chegou.</summary>
+    internal static bool NeighbourWatersChild(WorldState world, Npc npc, long now)
+    {
+        if (!On(world) || Grown(world, npc) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home) return false;
+        if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
+        var water = Water(world);
+        if (home.Stock.GetValueOrDefault(water) > 0 || world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
+        Household? neighbour = null;
+        long bestDistance = long.MaxValue;
+        foreach (var other in world.Households)
+        {
+            if (other.Id == home.Id || other.IsEmpty || other.City != home.City
+                || other.Stock.GetValueOrDefault(water) <= Math.Max(1, other.Members.Count)) continue;
+            long d = Math.Abs(other.Location.X - home.Location.X) + Math.Abs(other.Location.Y - home.Location.Y);
+            if (d < bestDistance || (d == bestDistance && neighbour is not null && other.Id.Value < neighbour.Id.Value)) { neighbour = other; bestDistance = d; }
+        }
+        if (neighbour is null) return false;
+        long give = Math.Min(Math.Max(1, home.Members.Count), neighbour.Stock.GetValueOrDefault(water) - Math.Max(1, neighbour.Members.Count));
+        if (give <= 0 || !neighbour.Withdraw(water, give).IsSuccess) return false;
+        home.Deposit(water, give);
+        world.InventionTally.WaterAidGiven++;
+        world.InventionTally.WaterAidUnits += give;
+        return true;
     }
 
     /// <summary>A sede urgente fora de casa, com água em casa mais perto que qualquer fonte: a escolha tem de ser voltar para beber

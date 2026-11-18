@@ -189,6 +189,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         candidate = ActionType.Travel;
                     else if (ThirstGoesToSource(world, npc, now, marketIndex))
                         candidate = ActionType.Travel;
+                    else if (LivingWorld.Simulation.Economy.Supply.WaterFetch.NeighbourWatersChild(world, npc, now))
+                        candidate = ActionType.Eat; // o vizinho trouxe água: a criança bebe
                     else if (candidate is not (ActionType.Eat or ActionType.Buy or ActionType.Travel)
                              && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAwayWithWaterHome(world, npc, now))
                         candidate = ActionType.Eat; // volta para beber da despensa
