@@ -6,7 +6,6 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Layout;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Cities.Streets;
@@ -78,7 +77,7 @@ public static class BuildWorks
     private static void ReturnFromLeave(WorldState world, TickContext ctx)
     {
         var leave = world.Ground!.OnLeave;
-        for (int i = 0; i < leave.Count; )
+        for (int i = 0; i < leave.Count;)
         {
             var npc = world.FindNpc(new NpcId(leave[i][0]));
             if (npc is { IsAlive: true, Employer: null } && SiteWork.WorkOf(world, npc) is not null) { i++; continue; } // ainda na obra

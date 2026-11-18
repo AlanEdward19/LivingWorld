@@ -406,7 +406,7 @@ public static class CityOccupancy
         int stride = Math.Max(1, network.Count / Math.Max(1, max)) * perStreet;
         void Sample(int[]? order, int limit)
         {
-            for (int start = 0, taken = 0; start < total && taken < limit; )
+            for (int start = 0, taken = 0; start < total && taken < limit;)
             {
                 if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at, order) is not { } lot) break;
                 if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) { found.Add(lot); taken++; }
