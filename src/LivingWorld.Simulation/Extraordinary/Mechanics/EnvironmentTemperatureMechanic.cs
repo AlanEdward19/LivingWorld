@@ -88,7 +88,7 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
             // AD-180: o tempo do dia de cada região (a média do dia na célula de referência menos a base dela) entra antes dos
             // ajustes, na ordem das regiões; refeito quando o dia muda (a versão sobe)
             _scaled = false;
-            if (world.WeatherOn && world.Weather is { } weather)
+            if (world.WeatherOn && world.Weather is { Day: >= 0 } weather)
             {
                 float reference = weather.ReferenceCenti != int.MinValue ? weather.ReferenceCenti / 100f : (float)world.ClimateRules.Weather!.ReferenceBaseC;
                 foreach (var row in weather.Regions)
