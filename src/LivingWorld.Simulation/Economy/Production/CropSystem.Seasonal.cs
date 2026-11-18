@@ -165,8 +165,10 @@ public sealed partial class CropSystem
             if (seed >= wanted) break;
             if (other.Id == farm.Id || other.City != farm.City) continue;
             long spare = Math.Max(0, otherField.SeedReserve - Math.Max(0, SeedTarget(ag, other, otherField, residents, farmsPerCity) - otherField.LastSeedSown));
-            seed += otherField.TakeSeed(Math.Min(spare, wanted - seed));
-            seed += otherField.TakeBarn(wanted - seed);
+            long fromOther = otherField.TakeSeed(Math.Min(spare, wanted - seed));
+            fromOther += otherField.TakeBarn(wanted - seed - fromOther);
+            PayForGrain(world, farm, other, fromOther); // AD-190: a semente da outra fazenda é comprada dela
+            seed += fromOther;
         }
 
         if (seed <= 0) return;
@@ -272,7 +274,9 @@ public sealed partial class CropSystem
         {
             if (taken >= missing) break;
             if (other.Id == farm.Id || other.City != farm.City) continue;
-            taken += otherField.TakeBarn(missing - taken);
+            long fromOther = otherField.TakeBarn(missing - taken);
+            PayForGrain(world, farm, other, fromOther); // AD-190: o grão da outra fazenda é comprado dela
+            taken += fromOther;
         }
 
         // celeiro vazio: a fome come a semente do ano que vem (o que só acontece entre a colheita e a semeadura)
@@ -281,6 +285,20 @@ public sealed partial class CropSystem
 
         if (taken > 0)
             farm.Deposit(food, taken, econ);
+    }
+
+    /// <summary>AD-190: a venda (ou a semeadura) que tira grão do celeiro de outra fazenda da cidade paga a ela o preço de hoje da
+    /// própria venda, até o caixa que tem. Antes o grão passava de graça e o dinheiro da venda ficava só com a fazenda perto das
+    /// casas: a da borda (AD-185) produzia para o celeiro comum, não vendia, deixava de pagar a folha (WageUnpaid de 57 a 1.103
+    /// por ano na metrópole, seed 2), perdia as mãos, semeava menos e a cidade passava fome com terra parada.</summary>
+    private static void PayForGrain(WorldState world, Workplace buyer, Workplace seller, long units)
+    {
+        if (units <= 0 || !world.AgricultureRules.PayForCityGrain) return;
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        long price = Math.Max(1, buyer.Prices.GetValueOrDefault(food, world.EconomyRules.PriceFloor.GetValueOrDefault(food.Id, 1)));
+        long pay = Math.Min(buyer.Treasury.Amount, units * price);
+        if (pay <= 0 || !buyer.TryDebitTreasury(new Money(pay)).IsSuccess) return;
+        seller.CreditTreasury(new Money(pay));
     }
 
     /// <summary>Dias até a próxima colheita esperada: o meio do mês esperado da colheita; com a lavoura madura, ou ainda em pé

@@ -44,7 +44,7 @@ public class MenuWorldsYearsReport
         var inv = CultureInfo.InvariantCulture;
         var (world, baseClock) = Load(period, seed, patch);
         var tally = new FoodTally(world);
-        var deaths = new DeathCount();
+        var deaths = new DeathCount { CountKinds = Environment.GetEnvironmentVariable("LW_MENU_EVENTS") == "1" };
         var traced = new List<string>();
         IWorldEventSink[] sinks = Environment.GetEnvironmentVariable("LW_MENU_TRACE") == "1"
             ? [tally, deaths, new StarvationTrace(world, seed, traced)] : [tally, deaths];
@@ -126,6 +126,7 @@ public class MenuWorldsYearsReport
                     $"madura mes={fy.RipeMonth} dias={fy.MatureDays} presenteCeifa={fy.MaturePresent / (double)Math.Max(1, fy.MatureDays):F1} emPe={fy.Standing0} devAbr={fy.DevApr:F0} devJul={fy.DevJul:F0} " +
                     $"temp=[{string.Join(',', fy.TempSum.Select(t => (t / world.Calendar.DaysPerMonth).ToString("F1", inv)))}]"));
             }
+            if (deaths.CountKinds) { lines.Add($"EVENTOS {period} seed={seed} ano={yr} " + string.Join(' ', deaths.Kinds.Select(kv => kv.Key + "=" + kv.Value))); deaths.Kinds.Clear(); }
             deaths.Deaths = 0; deaths.Emigrated = 0;
             lock (traced) { foreach (var t in traced) lines.Add($"MORTE {period} {t}"); traced.Clear(); }
             if (alive == 0) break;
@@ -167,9 +168,12 @@ public class MenuWorldsYearsReport
     private sealed class DeathCount : IWorldEventSink
     {
         public long Deaths, Emigrated;
+        public readonly SortedDictionary<string, long> Kinds = new(StringComparer.Ordinal);
+        public bool CountKinds;
 
         public void Record(WorldEvent evt)
         {
+            if (CountKinds) { string k = evt.Kind + "@" + evt.SourceSystem; Kinds[k] = Kinds.GetValueOrDefault(k) + 1; }
             if (evt.Kind == WorldEventKind.Emigrated) Emigrated++;
             if (evt.SourceSystem != YearEventTally.DeathSource) return;
             if (evt.Kind is WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion

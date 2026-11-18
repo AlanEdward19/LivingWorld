@@ -37,8 +37,11 @@ public sealed record AgricultureRules(
     double SeedPerHectare = 220,
     double HandIntensityGain = 0.25,
     long HandKeepPerYear = 320,
-    bool WholeVillageReaps = true)
+    bool WholeVillageReaps = true,
+    bool PayForCityGrain = true)
 {
+    // AD-190: PayForCityGrain — o grão (venda ou semente) que uma fazenda tira do celeiro de outra da cidade é pago a ela ao preço
+    // de hoje (falso = o de antes, de graça).
     // AD-149, ceifa (backlog 08 item 41): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho na cidade
     // (WholeVillageReaps), cada um ceifa ReapPerWorkerDay por dia de foice; passada a ceifa, solta quem a terra não paga.
 
