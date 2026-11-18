@@ -26,6 +26,16 @@ public static class PressureSwitch
         // AD-182 (08c item 149): LW_AID_WHO=off volta a contar a moeda de quem não sabe comprar
         if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_AID_WHO") == "off")
             return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = false } };
+        // AD-190: LW_AID190=off volta a ajuda ao preço do piso e sem vizinho; price = só o preço de hoje; neighbour = só o vizinho
+        if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_AID190") is { Length: > 0 } a190)
+            return ScenarioRunner.DefaultFamilyRules with
+            {
+                Pressure = PopulationPressureRules.Measured with
+                {
+                    AidAtMarketPrice = a190 == "price",
+                    NeighbourAidHouses = a190 == "neighbour" ? PopulationPressureRules.Measured.NeighbourAidHouses : 0,
+                },
+            };
         if (string.IsNullOrWhiteSpace(raw)) return null;
         if (raw == "off") return ScenarioRunner.DefaultFamilyRules with { Pressure = null }; // AD-148: o padrão agora é ligado
         if (raw == "nohouse") return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { Holdings = null } }; // AD-158

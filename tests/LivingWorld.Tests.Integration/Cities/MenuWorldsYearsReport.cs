@@ -115,7 +115,7 @@ public class MenuWorldsYearsReport
             string crops = string.Join(' ', world.CropBatches.OrderBy(c => c.Id.Value)
                 .Select(c => string.Create(inv, $"{c.Plot.X}:{c.Plot.Y}={c.LastHarvest}/{c.CropSeed}/{c.Development:F0}{(c.Status.ToString()[0])}")));
             lines.Add(string.Create(inv,
-                $"{period} seed={seed} ano={yr} pop={alive} mortes={deaths.Deaths} fome={starv} sede={thirst} colheita={tally.HarvestByYear[^1]} " +
+                $"{period} seed={seed} ano={yr} pop={alive} pool={world.ActiveCities().Sum(c => c.AggregatePool.Count)} cidades={world.ActiveCities().Count()} emigr={deaths.Emigrated} mortes={deaths.Deaths} fome={starv} sede={thirst} colheita={tally.HarvestByYear[^1]} " +
                 $"semeado={tally.SeedSownByYear[^1]} celeiro={barn} casas={homes} estoque={tally.StockByMonth[^1]} preco={price:F1} " +
                 $"lavradores={workers} fazendas={farms.Count} clima={tally.ClimateByYear[^1]} | {crops}"));
             foreach (var (id, fy) in farmDiag)
@@ -126,7 +126,7 @@ public class MenuWorldsYearsReport
                     $"madura mes={fy.RipeMonth} dias={fy.MatureDays} presenteCeifa={fy.MaturePresent / (double)Math.Max(1, fy.MatureDays):F1} emPe={fy.Standing0} devAbr={fy.DevApr:F0} devJul={fy.DevJul:F0} " +
                     $"temp=[{string.Join(',', fy.TempSum.Select(t => (t / world.Calendar.DaysPerMonth).ToString("F1", inv)))}]"));
             }
-            deaths.Deaths = 0;
+            deaths.Deaths = 0; deaths.Emigrated = 0;
             lock (traced) { foreach (var t in traced) lines.Add($"MORTE {period} {t}"); traced.Clear(); }
             if (alive == 0) break;
         }
@@ -166,10 +166,11 @@ public class MenuWorldsYearsReport
 
     private sealed class DeathCount : IWorldEventSink
     {
-        public long Deaths;
+        public long Deaths, Emigrated;
 
         public void Record(WorldEvent evt)
         {
+            if (evt.Kind == WorldEventKind.Emigrated) Emigrated++;
             if (evt.SourceSystem != YearEventTally.DeathSource) return;
             if (evt.Kind is WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion
                 or WorldEventKind.Disease or WorldEventKind.MaternalDeath or WorldEventKind.Accident or WorldEventKind.OldAge
