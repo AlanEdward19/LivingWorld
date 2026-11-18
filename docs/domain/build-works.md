@@ -41,15 +41,18 @@ ter a oficina como garantia. Atraso é custo real: as parcelas correm com a car�
   troca de emprego), `QuitMarginSlack` (1,0) para o lavrador na entressafra, `QuitMarginPeak` (2,0) na semeadura e na ceifa —, mais
   forte com a necessidade. O dono da oficina e quem trocou de emprego há menos de 30 dias não largam. Tudo × a parte da jornada
   que a ida pela rota deixa. Primeiro quem mais quer (desempregado, jovem sem reserva, lavrador na entressafra, quem ganha pouco).
-- Quem aceita com emprego **larga o ofício** (`Fired`, causa = a obra; 30 dias de carência de troca); depois a alocação de
-  trabalho e a ceifa (`WholeVillageReaps`) podem tomá-lo de volta, e ele sai da turma por "emprego".
+- Quem aceita com emprego **larga o ofício** (`Fired`, causa = a obra; 30 dias de carência de troca; `GroundLedger.OnLeave`):
+  quando sai da turma (a obra acabou, foi desfeita), volta ao lugar de antes se ainda há vaga; antes disso a alocação de trabalho
+  e a ceifa (`WholeVillageReaps`) podem tomá-lo, e ele sai da turma por "emprego". O ajudante leva água e lanche para as horas da
+  obra depois do turno e, com a água da casa baixa (AD-185), vai primeiro à fonte.
 - Painel do cérebro (`GET /npcs/{id}/brain`, `siteWork`): a obra dele (diarista, família, parente, mutirão) ou a melhor que
   contrata, com jornal, salário por dia, necessidade, parte do dia, valor, mínimo e o motivo de aceitar ou recusar.
 
 ## Obra sem gente
 Sem nenhuma hora por `StallDays` (7): parada (`WorkStalled`); a turma voltando: retomada (`WorkResumed`); sem hora por
 `SiteStaleMonths` (6): abandonada (`WorkAbandoned`), o canteiro sai e o lote volta a ser livre (o fundador recebe de volta o que
-guardou). Consequência do atraso: o casal mora apertado mais tempo, a oficina abre mais tarde.
+guardou). Consequência do atraso: o casal mora apertado mais tempo, a oficina abre mais tarde. A fila da cidade só abre obra num lote
+a menos de meia jornada de alguma casa da cidade (lote que ninguém alcança não recebe turma) e abandona a que fica meses sem hora.
 
 ## Eventos com lugar (contrato por acréscimo)
 `BuildWorkStarted`, `BuildWorkDone`, `WorkStalled`, `WorkResumed`, `WorkAbandoned`: `obraId|cidadeId|tipo|x|y|...` (tipo casa,
