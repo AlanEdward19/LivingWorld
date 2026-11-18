@@ -89,11 +89,36 @@ public sealed class EmploymentSystem : ISimulationSystem
     internal static Workplace? WorkplaceThatHires(WorldState world, VacancyIndex vacancyIndex, LivingWorld.Domain.Population.Npc npc, CityId? city = null)
     {
         if (!world.EconomyCatalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out var locationTypeId)) return null;
+        if (world.StreetsOn && world.StreetRules.NearestJob) return NearestThatHires(world, npc, locationTypeId, city ?? npc.City);
         var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId, city ?? npc.City);
         if (workplace is null || !Payroll.CanPay(world, workplace, npc.Profession)) return null;
         if (!LivingWorld.Simulation.Economy.Production.ToolMechanic.NeedsHands(world, workplace)) return null;
         if (!LivingWorld.Simulation.Economy.Production.CropSystem.LandNeedsHands(world, workplace)) return null;
         return workplace;
+    }
+
+    /// <summary>AD-185: entre as oficinas do ofício na cidade com vaga hoje, que pagam e precisam da mão, a mais perto da casa de
+    /// quem procura pela rota (empate: a de menor id). Sem casa, de onde a pessoa está.</summary>
+    private static Workplace? NearestThatHires(WorldState world, LivingWorld.Domain.Population.Npc npc, int locationTypeId, CityId city)
+    {
+        var from = npc.Household is { } h && world.FindHousehold(h) is { IsHomeless: false } home ? home.Location : npc.CurrentLocation;
+        Workplace? best = null;
+        double bestCost = double.MaxValue;
+        foreach (var workplace in world.Workplaces) // em ordem de id (a lista do mundo cresce por id)
+        {
+            if (workplace.Closed || workplace.LocationType.Id != locationTypeId || workplace.City != city
+                || workplace.Employees.Count >= workplace.MaxVacancies) continue;
+            if (!Payroll.CanPay(world, workplace, npc.Profession)
+                || !LivingWorld.Simulation.Economy.Production.ToolMechanic.NeedsHands(world, workplace)
+                || !LivingWorld.Simulation.Economy.Production.CropSystem.LandNeedsHands(world, workplace)) continue;
+            double cost = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, from, workplace.Location).Cost;
+            if (cost < bestCost || (cost == bestCost && best is not null && workplace.Id.Value < best.Id.Value))
+            {
+                best = workplace;
+                bestCost = cost;
+            }
+        }
+        return best;
     }
 
     /// <summary>Quem morreu deixa a vaga (AD-128). O laço acima só percorre os vivos, então o morto ficava na folha da oficina

@@ -305,6 +305,10 @@ public sealed partial class BehaviorDecisionSystem
         long cargoStart = cargo, cut = 0;
         long leftFood = 0, leftWater = 0; // AD-182 (08c item 147): o que a carga deixou na banca, por recurso
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
+        // AD-185: a casa que traz a água da fonte (não mais longe que o mercado) só compra a água que ainda cabe na carga depois da
+        // comida, e o que não coube não fica devendo na banca (antes a água da meta passava da carga, a ida contava como cortada
+        // ×8 e a casa voltava ao mercado pelo resto)
+        bool waterFromSource = WaterFromSource(world, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
@@ -360,6 +364,9 @@ public sealed partial class BehaviorDecisionSystem
             // AD-148: banca de comida vazia para quem podia pagar: a casa não volta de hora em hora
             if (isFood && market.Stock.GetValueOrDefault(resource) <= 0 && npc.Wallet.Amount >= unitPrice && provisioning.FoodStallRetryHours > 0)
                 household.FoundFoodStallEmpty(world.CurrentDate.TotalHours, provisioning.FoodStallRetryHours, provisioning.FoodStallMaxRetryHours);
+            if (quantity <= 0) continue;
+            if (waterFromSource && !isFood && cargo != long.MaxValue)
+                quantity = Math.Min(quantity, cargo / world.InventionRules!.UnitGramsOf(resourceId));
             if (quantity <= 0) continue;
             long beforeFit = quantity;
             quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo, ref cut);

@@ -156,12 +156,14 @@ public static class LivingScopeProjector
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
             && previous.Intent == npc.CurrentIntent && previous.IntentTarget == npc.IntentTarget)
             return previous; // AD-172: nada visível mudou desde o tick anterior
-        var (route, arrival) = RouteOf(frame, npc, previous);
+        var (route, arrival, over) = RouteOf(frame, npc, previous);
         return new NpcVisual(
             npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
         {
             Route = route,
             RouteArrivalTick = arrival,
+            RouteDepartedTick = route is null ? null : npc.ActionStartedAtTick, // AD-185: a saída da viagem, explícita
+            RouteOver = over,
             Observable = observable,
             ActionStartedAtTick = npc.ActionStartedAtTick,
             ActionTarget = target,
@@ -172,19 +174,21 @@ public static class LivingScopeProjector
 
     /// <summary>AD-176: a rota real de quem viaja, da célula onde está até a chegada, e o tick da chegada; o mesmo registro da
     /// viagem do tick anterior se ela não mudou (mesma ação, mesmo início, mesmo lugar).</summary>
-    private static (IReadOnlyList<CellCoord>? Route, long? Arrival) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
+    private static (IReadOnlyList<CellCoord>? Route, long? Arrival, IReadOnlyList<int>? Over) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
     {
-        if (npc.CurrentAction != ActionType.Travel) return (null, null);
+        if (npc.CurrentAction != ActionType.Travel) return (null, null, null);
         if (previous is { Route: not null } && frame.WeatherAsBefore && previous.CurrentAction == ActionType.Travel
             && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation)
-            return (previous.Route, previous.RouteArrivalTick);
+            return (previous.Route, previous.RouteArrivalTick, previous.RouteOver);
         var world = frame.World;
         if (LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelDestinationFor(world, npc, frame.Markets) is not { } to
             || to == npc.CurrentLocation)
-            return (null, null);
+            return (null, null, null);
         var cells = LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(world, npc.CurrentLocation, to);
         long? arrival = LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelArrivalTick(world, npc, frame.Markets);
-        return (ValueList<CellCoord>.Of(cells), arrival);
+        // AD-185: as células "por cima" (escada, laje, telhado de casa colada), por índice na rota; nulo quando nenhuma
+        var over = LivingWorld.Simulation.Cities.Streets.StreetRoutes.OverIndicesOf(world, cells);
+        return (ValueList<CellCoord>.Of(cells), arrival, over.Count == 0 ? null : ValueList<int>.Of(over));
     }
 
     /// <summary>AD-176: as ruas do escopo, em ordem de célula (linha, coluna).</summary>
@@ -327,6 +331,6 @@ public static class LivingScopeProjector
     /// <summary>AD-173: o lote com listas de igualdade por conteúdo, para o diff de escopo não reenviar o prédio a cada tick.</summary>
     private static LotView? LotOf(WorldState world, LivingWorld.Domain.Cities.City city, Building building, CellCoord position, int croft) =>
         CityStreets.LotOf(world, city, building, position, croft) is { } lot
-            ? lot with { Croft = ValueList<CellCoord>.Of(lot.Croft), FrontPath = ValueList<CellCoord>.Of(lot.FrontPath) }
+            ? lot with { Croft = ValueList<CellCoord>.Of(lot.Croft), FrontPath = ValueList<CellCoord>.Of(lot.FrontPath), AccessCells = ValueList<CellCoord>.Of(lot.AccessCells) }
             : null;
 }

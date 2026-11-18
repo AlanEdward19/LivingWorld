@@ -277,7 +277,9 @@ public class PsycheTests
     [Fact]
     public void Needs_restocking_uses_the_famine_memory()
     {
-        var (world, _) = ScenarioRunner.Create(3);
+        // a água comprada no mercado (sem a ida à fonte da AD-185): o limiar é o da metade da meta para a mais escassa
+        var (world, _) = ScenarioRunner.Create(3,
+            naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
         var economy = world.EconomyRules;
         var market = MarketIndex.BuildForTick(world);
         Npc? probe = null;

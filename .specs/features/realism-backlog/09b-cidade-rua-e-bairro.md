@@ -88,3 +88,9 @@ Ordem (dono, 2026-11-17): "Coloca isso após fazer a parte do jogador". Itens 23
     casa nova nasce vazia. Liga com a issue #182 (interior como estado).
 26. **Tipo de prédio que nasce do uso** (issue #186) e **evolução em cadeia do inventado** (issue #187): sem lista
     fixa de tipos nem de tecnologias.
+
+## Motor da AD-185 (rota de verdade)
+**Fechados no contrato**: 18 (`lot.accessCells`, `accessViaBuildingId`), 19 (`npc.routeOver`, índices na rota), 20
+(`npc.routeDepartedTick`), 21 (`lot.accessState`: `reserved`/`planned`/`trodden`). Buscar água virou viagem (`WaterFetch`), emprego
+vai à oficina mais perto de casa, fazendas da metrópole na borda. Em aberto (issues da AD-185): carga e veículo pela superfície,
+poço como obra, água pesando onde a casa nasce, vizinho que leva a água.

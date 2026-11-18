@@ -37,7 +37,10 @@ public sealed partial class BehaviorDecisionSystem
     internal static CellCoord? TravelDestinationFor(WorldState world, Npc npc, MarketIndex marketIndex) => TravelDestinationOf(world, npc, marketIndex);
 
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
-        RelocationDestinationOf(world, npc) is { } relocationDest
+        // AD-185: a ida à fonte (e a volta com a água) vem antes de tudo, até da mudança de cidade: quem tem sede bebe primeiro
+        LivingWorld.Simulation.Economy.Supply.WaterFetch.ErrandDestination(world, npc) is { } water && water != npc.CurrentLocation
+            ? water
+        : RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest
             // AD-186: quem saiu atrás de companhia e a achou no caminho (ou perdeu o rumo) fica onde está, não segue à cama nem à banca
             : npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc)

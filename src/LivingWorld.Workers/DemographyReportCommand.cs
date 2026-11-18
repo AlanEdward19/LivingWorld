@@ -28,6 +28,7 @@ public static class DemographyReportCommand
             swapSystem: ExperimentSwitch.SwapSystem(), ontogenyRules: ExperimentSwitch.OntogenyRules(), // AD-163
             agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules(), crimeRules: CrimeSwitch.CrimeRules(),
             extraordinary: powers?.Invoke(), cityLayout: CityLayoutSwitch.Rules(), climateRules: WeatherSwitch.ClimateRules(), // AD-173, AD-180
+            naturalWaterRules: CityLayoutSwitch.NaturalWaterRules(), // AD-185
             observe: powers is null ? null : world => { powerTallies[i] = new PowerGeneticsReport.Tally(world); return null; },
             afterMonth: powers is null ? null : (_, m) => powerTallies[i]!.SampleMonth(m)));
         Console.Write(DemographyReport.Summarize(runs, years, warmupYears, ScenarioRunner.DefaultCalendar.HoursPerYear));
