@@ -35,6 +35,7 @@ public sealed partial class CropSystem
         var residents = ResidentsByCity(world);
         var farmsPerCity = new Dictionary<CityId, int>();
         foreach (var (farm, _) in farms) farmsPerCity[farm.City] = farmsPerCity.GetValueOrDefault(farm.City) + 1;
+        var dearthBoost = DearthSowBoost(ag, farms, residents);
 
         foreach (var (farm, field) in farms)
         {
@@ -53,7 +54,7 @@ public sealed partial class CropSystem
             if (field.Status == CropStatus.Growing)
             {
                 if (ag.IsSowingMonth(month) && canWorkField && workers.Count > 0)
-                    Sow(world, ag, farm, field, farms, workers, skills, residents, farmsPerCity);
+                    Sow(world, ag, farm, field, farms, workers, skills, residents, farmsPerCity, dearthBoost);
                 else if (!ag.IsSowingMonth(month) && field.LastSeedSown == 0)
                     field.LayFallow(); // sem semente nenhuma o campo fica em pousio até o próximo outono
 
@@ -106,12 +107,35 @@ public sealed partial class CropSystem
 
     /// <summary>Semente que o campo quer: o bastante para as bocas do mundo repartidas entre as fazendas (povoado sem fazenda
     /// compra da vila), até a terra que os empregados da fazenda dão conta de lavrar e até a terra que o campo tem (AD-149).</summary>
-    internal static long SeedTarget(AgricultureRules ag, Workplace farm, CropBatch field, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity)
+    internal static long SeedTarget(AgricultureRules ag, Workplace farm, CropBatch field, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity,
+        Dictionary<CityId, double>? dearthBoost = null)
     {
+        double boost = dearthBoost is not null && dearthBoost.TryGetValue(farm.City, out var b) ? b : 1.0;
         long target = Math.Min(
-            residents.Values.Sum() / Math.Max(1, farmsPerCity.Values.Sum()) * ag.SeedPerResident,
+            (long)(residents.Values.Sum() / Math.Max(1, farmsPerCity.Values.Sum()) * ag.SeedPerResident * boost),
             Math.Max(1, farm.Employees.Count) * ag.MaxSeedPerWorker);
         return field.ArableSeed > 0 ? Math.Min(target, field.ArableSeed) : target;
+    }
+
+    /// <summary>AD-190: depois da carestia a cidade semeia mais. Por cidade, o que falta no celeiro e na semente das fazendas dela
+    /// para <see cref="AgricultureRules.InitialProvisionPerPerson"/> por morador (o bastante para chegar à colheita) aumenta a
+    /// semente desejada em até <see cref="AgricultureRules.DearthSowBoost"/> (1 = o dobro com o celeiro vazio), ainda presa às
+    /// mãos e à terra. Antes a semeadura era só a das bocas (150 por morador, "sem margem para ano ruim"): uma quebra no
+    /// primeiro ano deixava a cidade média sem reserva e ela semeava o mesmo, ano após ano, com a fome por perto.</summary>
+    private static Dictionary<CityId, double> DearthSowBoost(AgricultureRules ag, List<(Workplace Farm, CropBatch Field)> farms, Dictionary<CityId, long> residents)
+    {
+        var boost = new Dictionary<CityId, double>();
+        if (ag.DearthSowBoost <= 0 || ag.InitialProvisionPerPerson <= 0) return boost;
+        var stores = new Dictionary<CityId, long>();
+        foreach (var (farm, field) in farms) stores[farm.City] = stores.GetValueOrDefault(farm.City) + field.Barn + field.SeedReserve;
+        foreach (var (city, store) in stores)
+        {
+            long mouths = residents.GetValueOrDefault(city);
+            if (mouths <= 0) continue;
+            double shortfall = Math.Clamp(1.0 - store / (double)(mouths * ag.InitialProvisionPerPerson), 0, 1);
+            boost[city] = 1.0 + ag.DearthSowBoost * shortfall;
+        }
+        return boost;
     }
 
     /// <summary>A fazenda toma mais uma mão só se a terra dela ainda paga o que essa mão come (AD-149): com a terra toda
@@ -149,12 +173,13 @@ public sealed partial class CropSystem
 
     private static void Sow(
         WorldState world, AgricultureRules ag, Workplace farm, CropBatch field, List<(Workplace Farm, CropBatch Field)> farms,
-        IReadOnlyList<Npc> workers, SkillsRules? skills, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity)
+        IReadOnlyList<Npc> workers, SkillsRules? skills, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity,
+        Dictionary<CityId, double> dearthBoost)
     {
         // sem relha de ferro o arado de pau lavra menos terra por dia (AD-144)
         long sowCapacity = (long)Math.Floor(workers.Count * ag.SowPerWorkerDay * ToolMechanic.OutputFactor(world, farm, workers.Count)
             * Climate.WeatherNow.DaylightFactor(world)); // AD-180: no dia curto o arado anda menos horas
-        long wanted = Math.Min(SeedTarget(ag, farm, field, residents, farmsPerCity) - field.LastSeedSown, sowCapacity);
+        long wanted = Math.Min(SeedTarget(ag, farm, field, residents, farmsPerCity, dearthBoost) - field.LastSeedSown, sowCapacity);
         if (wanted <= 0) return;
 
         // semente guardada primeiro, depois o grão do próprio celeiro, depois o que sobra nas outras fazendas da cidade
@@ -164,7 +189,7 @@ public sealed partial class CropSystem
         {
             if (seed >= wanted) break;
             if (other.Id == farm.Id || other.City != farm.City) continue;
-            long spare = Math.Max(0, otherField.SeedReserve - Math.Max(0, SeedTarget(ag, other, otherField, residents, farmsPerCity) - otherField.LastSeedSown));
+            long spare = Math.Max(0, otherField.SeedReserve - Math.Max(0, SeedTarget(ag, other, otherField, residents, farmsPerCity, dearthBoost) - otherField.LastSeedSown));
             long fromOther = otherField.TakeSeed(Math.Min(spare, wanted - seed));
             fromOther += otherField.TakeBarn(wanted - seed - fromOther);
             PayForGrain(world, farm, other, fromOther); // AD-190: a semente da outra fazenda é comprada dela

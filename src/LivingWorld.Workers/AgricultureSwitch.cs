@@ -33,6 +33,7 @@ public static class AgricultureSwitch
         if (keys.Contains("olddearth")) ag = ag with { DearthSaleDays = 0, SeedKeptFromSale = false };
         if (Number("dearth") is { } dearth) ag = ag with { DearthSaleDays = (int)dearth };
         if (keys.Contains("seedsale")) ag = ag with { SeedKeptFromSale = false };
+        if (keys.Contains("nodearthsow")) ag = ag with { DearthSowBoost = 0 }; // AD-190
         if (keys.Contains("freegrain")) ag = ag with { PayForCityGrain = false }; // AD-190: o grão da outra fazenda volta a ser de graça
         return ag;
     }

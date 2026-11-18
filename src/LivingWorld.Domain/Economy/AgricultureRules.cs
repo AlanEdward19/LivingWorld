@@ -38,8 +38,10 @@ public sealed record AgricultureRules(
     double HandIntensityGain = 0.25,
     long HandKeepPerYear = 320,
     bool WholeVillageReaps = true,
-    bool PayForCityGrain = true)
+    bool PayForCityGrain = true,
+    double DearthSowBoost = 1.0)
 {
+    // AD-190: DearthSowBoost — com o celeiro da cidade abaixo do que leva à colheita, a semente desejada cresce até (1 + isto)x.
     // AD-190: PayForCityGrain — o grão (venda ou semente) que uma fazenda tira do celeiro de outra da cidade é pago a ela ao preço
     // de hoje (falso = o de antes, de graça).
     // AD-149, ceifa (backlog 08 item 41): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho na cidade
