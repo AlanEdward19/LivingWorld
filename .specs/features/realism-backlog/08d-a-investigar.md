@@ -65,10 +65,9 @@
      (`NameBondRules`). ~~Aberto dele: honra não respinga; fundador da cidade-filha não existe~~ — fechado na AD-183 (honra
      dos feitos que respinga como a vergonha; fundador registrado e homenageado no nome pelo costume).
 188. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
-189. **Honra só de quatro feitos** (AD-183): socorro, invenção, negócio aberto, cidade fundada. Mestria no ofício, riqueza,
-     cargo, filhos criados e coragem em luta não viram boa fama (bloco de issue no relatório da AD-183).
-190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha (depende do traçado, `Cities/Layout`).
-191. **Nome na sociedade**: o nome da família pesa na contratação e no crédito, não na escolha de sócio do negócio (`Venture`).
+189. ~~**Honra só de quatro feitos**~~ — fechado na AD-186: mestria no ofício, filho criado, prosperidade e coragem dão fama.
+190. **Casa do fundador no largo**: o fundador não ganha lote no largo da cidade-filha. Issue #193.
+191. ~~**Nome na sociedade**~~ — fechado na AD-186: o amigo de nome melhor é chamado antes para sócio (parentes primeiro).
 
 ## Do tempo de verdade (AD-180; detalhe em docs/domain/climate.md)
 192. **Sem lenha, roupa nem fogo**: a casa é o único abrigo do frio; madeira só existe como insumo de obra. Ligar a casa comprando

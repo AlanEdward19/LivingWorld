@@ -42,6 +42,12 @@ public sealed record OntogenyRules
     /// se consolida pelos anos vividos: passada a janela dele na idade de calendário, a doença não o tira.</summary>
     public bool RegressionByEffectiveAge { get; init; }
 
+    /// <summary>AD-186: verdadeiro = o acolhimento de antes (varredura mensal, o primeiro parente achado leva a criança, irmãos um a
+    /// um). Falso (padrão) = a casa que ficou só com crianças é vista no dia, os irmãos vão juntos, e quem acolhe é escolhido pelo
+    /// laço (parente, quem gosta da criança, quem gostava dos pais), pelos meios da casa (comida e moeda por boca, com o que as
+    /// crianças trazem) e pela generosidade, com a casa menos cheia; a cidade (o adulto mais generoso com casa e meios) por último.</summary>
+    public bool OrphanCareLegacy { get; init; }
+
     /// <summary>Fator do motor fino no trabalho de quem tem <paramref name="state"/> (nulo = desenvolvimento completo).</summary>
     public double FineMotorWorkFactor(DevelopmentState? state)
     {

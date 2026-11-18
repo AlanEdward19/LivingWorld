@@ -446,6 +446,9 @@ public sealed partial class BehaviorDecisionSystem
     {
         var psyche = world.NeedsRules.Psyche;
         bool? company = SocializeWithSomeoneNearby(world, npc, tick, ctx);
+        if (company == true) world.InventionTally.SocializedWithCompany++;
+        else if (company == false) CountAlone(world, npc, tick);
+        if (npc.CurrentIntent == ActionType.Socialize) npc.CompleteIntent(); // AD-186: a ida atrás de companhia acabou
         if (company != false || !psyche.SocializeNeedsCompany)
             npc.SetSocial(100, tick);
         if (!psyche.Enabled || company is null) return;
@@ -456,6 +459,21 @@ public sealed partial class BehaviorDecisionSystem
         }
         else
             LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(world, npc, tick, default, loneliness: psyche.LonelinessPerSolitude);
+    }
+
+    /// <summary>AD-186 (só medida): a conversa sem ninguém e o porquê de a pessoa não ter saído atrás de alguém.</summary>
+    private static void CountAlone(WorldState world, Npc npc, long tick)
+    {
+        var t = world.InventionTally;
+        t.SocializedAlone++;
+        if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) { t.AloneAway++; return; }
+        switch (WhyNotSeeking(world, npc, home, tick))
+        {
+            case SeekGate.Away: t.AloneAway++; break;
+            case SeekGate.Content: t.AloneContent++; break;
+            case SeekGate.NotLonely: t.AloneNotLonely++; break;
+            default: t.AloneNowhere++; break;
+        }
     }
 
     /// <summary>Quem socializa conversa com alguém que está por perto (AD-128): entre os vizinhos, o de quem mais gosta ou com
@@ -549,6 +567,16 @@ public sealed partial class BehaviorDecisionSystem
                 Consider(friend, owned![i].Affection);
 
         if (best is null) return false;
+        // AD-186: quem recebeu visita em casa (o visitante está fora da casa dele, o anfitrião na dele) conversou também: a falta de
+        // gente dele passa e ele não sai atrás de outro
+        if (world.NeedsRules.Psyche.SeekCompany && npc.Household is { } vh && world.FindHousehold(vh) is { } visitorHome
+            && npc.CurrentLocation != visitorHome.Location && best.Household is { } bh && world.FindHousehold(bh) is { } hostHome
+            && best.CurrentLocation == hostHome.Location)
+        {
+            best.SetSocial(100, tick);
+            if (world.NeedsRules.Psyche.Enabled && best.Psyche is { Loneliness: > 0 } bp && tick < bp.CalmFromTick)
+                LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(world, best, tick, default, loneliness: -world.NeedsRules.Psyche.LonelinessReliefPerContact);
+        }
         var type = LivingWorld.Domain.Population.Family.RelationshipEventType.Conversation;
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, npc, best, sameHousehold: false, type);
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, best, npc, sameHousehold: false, type);
@@ -586,6 +614,8 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Eat when EatDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel, // AD-147
         // AD-157b: fora do turno, quem está longe da despensa volta para casa (o fim do dia é em casa, não à toa perto da lavoura)
         ActionType.Idle or ActionType.Socialize when OffShiftFarFromPantry(world, npc) => ActionType.Travel,
+        // AD-186: quem quer conversar e não tem ninguém por perto vai aonde há alguém
+        ActionType.Socialize when CompanyDestinationOf(world, npc) is { } company && company != npc.CurrentLocation => ActionType.Travel,
         _ when RelocationDestinationOf(world, npc) is { } relocation && relocation != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };

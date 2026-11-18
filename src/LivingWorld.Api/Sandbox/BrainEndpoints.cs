@@ -41,8 +41,34 @@ public static class BrainEndpoints
                 world.BrainRules is { Enabled: true },
                 reading.Synapses.Select(s => new BrainSynapseDto(s.Action, s.Term, s.Group, s.Value, s.GainMilli)).ToList(),
                 reading.Scores.OrderBy(kv => kv.Key).Select(kv => new BrainScoreDto(kv.Key, kv.Value)).ToList(), value,
-                NameMotives(world, new NpcId(id), reading.Synapses.Any(s => s.Term == UtilityTerm.Grief && s.Value != 0))));
+                NameMotives(world, new NpcId(id), reading.Synapses.Any(s => s.Term == UtilityTerm.Grief && s.Value != 0))
+                    .Concat(CareMotives(world, new NpcId(id), reading.Synapses.Any(s => s.Action == ActionType.Socialize && s.Term == UtilityTerm.Social && s.Value != 0)))
+                    .ToList()));
         });
+    }
+
+    /// <summary>AD-186: <c>procurar-companhia</c> no termo <c>Social</c> = está só e, se for conversar, sai atrás de alguém
+    /// (<see cref="BrainMotiveDto.OtherId"/> = quem; −1 = o largo); <c>acolher-crianca</c> no termo <c>Provision</c> = a casa dele
+    /// sustenta criança acolhida, sem pai nem mãe na casa (OtherId = a criança mais nova).</summary>
+    public static IReadOnlyList<BrainMotiveDto> CareMotives(LivingWorld.Simulation.Core.WorldState world, NpcId id, bool socialWeighs)
+    {
+        if (world.FindNpc(id) is not { } npc) return [];
+        var motives = new List<BrainMotiveDto>();
+        if (socialWeighs && BehaviorDecisionSystem.CompanySought(world, npc) is { } other)
+            motives.Add(new BrainMotiveDto(UtilityTerm.Social, "procurar-companhia", other));
+        if (npc.Household is { } hh && world.FindHousehold(hh) is { } home)
+        {
+            var now = world.CurrentDate;
+            LivingWorld.Domain.Population.Npc? youngest = null;
+            foreach (var member in home.Members.OrderBy(m => m.Value))
+                if (world.FindNpc(member) is { IsAlive: true } child && child.Id != npc.Id
+                    && world.LifeStageRules.LifeStageOf(child.AgeYears(now)) == LivingWorld.Domain.Population.Body.LifeStage.Child
+                    && (child.MotherId is not { } m || !home.Members.Contains(m)) && (child.FatherId is not { } f || !home.Members.Contains(f))
+                    && (youngest is null || child.BirthDate.TotalHours > youngest.BirthDate.TotalHours))
+                    youngest = child;
+            if (youngest is not null) motives.Add(new BrainMotiveDto(UtilityTerm.Provision, "acolher-crianca", youngest.Id.Value));
+        }
+        return motives;
     }
 
     /// <summary>AD-183: o luto que pesa no termo <c>Grief</c> é pelo homenageado (o xará enluta o avô/avó de quem leva o nome)?

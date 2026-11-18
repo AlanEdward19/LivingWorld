@@ -29,7 +29,9 @@ public static class ExperimentSwitch
     /// desliga só os efeitos listados (xará na ajuda, luto do xará, legado ao xará, linhagem na ajuda, nome no namoro, fama
     /// da linhagem). AD-183: <c>-honor</c> (boa fama dos feitos e o que ela faz), <c>-founder</c> (fundador e nome da cidade-filha),
     /// <c>-matchrep</c> (nome da família no namoro), <c>-hirerep</c> (nome na contratação), <c>-refuse</c> (mesmo nome pesado também
-    /// por quem é pedido). Vazio = padrão (todos ligados).</summary>
+    /// por quem é pedido). AD-186: <c>-partnerrep</c> (sócio de nome melhor), <c>-mastery</c>, <c>-childraised</c>, <c>-prosperity</c>,
+    /// <c>-courage</c> (os feitos novos da honra; <c>-newfeats</c> os quatro); <c>-honoroffset</c>, <c>-honorcredit</c>, <c>-honorspill</c>
+    /// (só um consumidor da honra: o desconto na suspeita, a confiança do credor, o respingo da linhagem). Vazio = padrão (todos ligados).</summary>
     public static NameBondRules? Names(NameBondRules baseRules)
     {
         var raw = Environment.GetEnvironmentVariable("LW_NAMES");
@@ -52,12 +54,25 @@ public static class ExperimentSwitch
                     HonorPerInvention = 0,
                     HonorPerVenture = 0,
                     HonorForFounding = 0,
+                    HonorPerMastery = 0,
+                    HonorPerChildRaised = 0,
+                    HonorPerProsperity = 0,
+                    HonorPerCourage = 0,
                     HonorOffsetsInfamy = 0,
                     HonorCreditTrust = 0,
                 },
                 "-founder" => r with { FounderHonor = false },
                 "-matchrep" => r with { ReputationCourtshipGain = 0 },
                 "-hirerep" => r with { ReputationHiringOrder = false },
+                "-partnerrep" => r with { ReputationPartnerOrder = false }, // AD-186
+                "-honoroffset" => r with { HonorOffsetsInfamy = 0 },
+                "-honorcredit" => r with { HonorCreditTrust = 0 },
+                "-honorspill" => r with { LineageHonorSpill = 0 },
+                "-mastery" => r with { HonorPerMastery = 0 },
+                "-childraised" => r with { HonorPerChildRaised = 0 },
+                "-prosperity" => r with { HonorPerProsperity = 0 },
+                "-courage" => r with { HonorPerCourage = 0 },
+                "-newfeats" => r with { HonorPerMastery = 0, HonorPerChildRaised = 0, HonorPerProsperity = 0, HonorPerCourage = 0 },
                 "-refuse" => r with { NameSignalOnAcceptance = false },
                 _ => throw new ArgumentException($"LW_NAMES: chave desconhecida '{key}'"),
             };
@@ -81,6 +96,9 @@ public static class ExperimentSwitch
         };
         if (Environment.GetEnvironmentVariable("LW_REGRESSION") == "old")
             rules = (rules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human) with { RegressionByEffectiveAge = true };
+        // AD-186: LW_CARE=-orphan volta o acolhimento de antes (mensal, primeiro parente, irmão por irmão)
+        if ((Environment.GetEnvironmentVariable("LW_CARE") ?? "").Contains("-orphan", StringComparison.Ordinal))
+            rules = (rules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human) with { OrphanCareLegacy = true };
         return rules;
     }
 

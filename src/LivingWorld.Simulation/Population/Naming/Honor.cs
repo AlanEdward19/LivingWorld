@@ -14,6 +14,10 @@ public sealed class HonorRecord
     public Guid City { get; set; }
     public int Honor { get; set; }
     public long Tick { get; set; }
+
+    /// <summary>AD-186: feitos de uma vez só já reconhecidos (bit 1 = mestria), para a cidade não comentar a mesma mestria todo mês.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Feats { get; set; }
 }
 
 /// <summary>O que o mundo guarda de feito honroso (AD-183), em ordem de pessoa. Canônico; nulo enquanto vazio.</summary>
@@ -48,7 +52,8 @@ public sealed class HonorLedger
 
 /// <summary>Honra (AD-183): o feito que a cidade comenta vira boa fama de quem o fez e, atenuada, da linhagem dele na cidade —
 /// simétrica à má fama (<c>Justice.ReputationOf</c>). Consumidor do log de eventos (chamado por <c>TickContext.LogEvent</c>):
-/// socorro dado a outra casa, coisa nova que funcionou, negócio aberto, cidade-filha fundada. Quem a lê: a suspeita e a troca
+/// socorro dado a outra casa, coisa nova que funcionou, negócio aberto, cidade-filha fundada; AD-186: lucro que se vê, luta de que
+/// o atacado sai de pé (e, chamados pelas habilidades, mestria no ofício e filho criado até adulto). Quem a lê: a suspeita e a troca
 /// de culpado (a honra desconta a má fama vista), o crédito (confiança do credor), o namoro e a contratação (o nome da pessoa).</summary>
 public static class Honor
 {
@@ -69,8 +74,48 @@ public static class Honor
             case WorldEventKind.VentureFounded:
                 Credit(world, SecondId(payload), rules.HonorPerVenture, tick);
                 return;
+            case WorldEventKind.ProfitDrawn when rules.HonorPerProsperity > 0: // AD-186: o lucro que se vê
+                {
+                    long minWage = world.EconomyRules.WageByProfession.Count == 0 ? 0 : world.EconomyRules.WageByProfession.Values.Min();
+                    long drawn = IdAt(payload, 2);
+                    if (minWage > 0 && drawn >= rules.ProsperityWageMonths * minWage)
+                        Credit(world, SecondId(payload), rules.HonorPerProsperity, tick);
+                    return;
+                }
+            case WorldEventKind.CombatResolved when rules.HonorPerCourage > 0 && payload.Contains("|Resolved|", StringComparison.Ordinal):
+                {
+                    // AD-186: atacado, saiu de pé e o agressor não
+                    long attacker = FirstId(payload), defender = SecondId(payload);
+                    if (attacker >= 0 && world.FindNpc(new NpcId(attacker)) is { IsAlive: false }
+                        && defender >= 0 && world.FindNpc(new NpcId(defender)) is { IsAlive: true })
+                        Credit(world, defender, rules.HonorPerCourage, tick);
+                    return;
+                }
         }
     }
+
+    /// <summary>AD-186: quem exerce o ofício e chegou à mestria (habilidade ≥ <c>MasteryShareOfCap</c> do teto) ganha a boa fama da
+    /// mestria uma vez (enquanto o registro dura). Chamado pela manutenção periódica das habilidades, não por tick.</summary>
+    public static void OnMastery(WorldState world, Npc npc, double skill, double cap, long now)
+    {
+        var rules = world.FamilyRules.Names;
+        if (rules.HonorPerMastery <= 0 || cap <= 0 || skill < rules.MasteryShareOfCap * cap) return;
+        if (world.Honor?.RecordOf(npc.Id.Value) is { } known && (known.Feats & MasteryFeat) != 0) return;
+        Credit(world, npc.Id.Value, rules.HonorPerMastery, now);
+        if (world.Honor?.RecordOf(npc.Id.Value) is { } record) record.Feats |= MasteryFeat;
+    }
+
+    /// <summary>AD-186: o filho chegou à idade adulta: cada pai e mãe vivos ganham a boa fama de quem criou um filho.</summary>
+    public static void OnChildRaised(WorldState world, Npc grown, long now)
+    {
+        double amount = world.FamilyRules.Names.HonorPerChildRaised;
+        if (amount <= 0) return;
+        foreach (var parentId in new[] { grown.MotherId, grown.FatherId })
+            if (parentId is { } id && world.FindNpc(id) is { IsAlive: true })
+                Credit(world, id.Value, amount, now);
+    }
+
+    private const int MasteryFeat = 1;
 
     /// <summary>Soma <paramref name="amount"/> à boa fama de <paramref name="npcId"/> (teto 100).</summary>
     public static void Credit(WorldState world, long npcId, double amount, long now)

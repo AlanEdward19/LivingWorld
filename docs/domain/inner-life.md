@@ -49,7 +49,14 @@ emocional para sempre; casar dá +1 (a personalidade muda devagar com a vida).
 - **Vínculos**: quem foi traído, roubado ou abandonado confia menos em todos e menos ainda
   em quem lhe fez mal; evita conversar com essa pessoa; com medo, evita estranhos; enlutado
   procura os seus.
-- **Socialize** só satisfaz a necessidade social com alguém por perto; sozinho, a solidão sobe.
+- **Socialize** só satisfaz a necessidade social com alguém por perto; sozinho, a solidão sobe. AD-186 (`SeekCompany`): quem
+  quer conversar, está em casa sem ninguém na janela da conversa, sente falta de gente (convívio na urgência) e já se sente só
+  (solidão ≥ 0,2, `SeekCompanyLoneliness`) vai, pela rota, à casa do conhecido de quem mais gosta que esteja em casa (até 12
+  células, `SeekCompanyMaxCells`) ou ao largo se há gente lá; o destino escolhido na saída fica no intento `Socialize` e vale a
+  ida toda; o anfitrião que recebe a visita em casa também conversa (a falta de gente dele passa); cérebro: `procurar-companhia`.
+- **Acolhimento** (AD-186): a casa que fica só com crianças é vista no dia; os irmãos vão juntos para quem acolhe, escolhido
+  por laço (parente 1, quem gosta da criança 0,8 × afeto, quem gostava dos pais 0,6 × afeto, a cidade 0,15) × meios por boca
+  × generosidade ÷ casa cheia (`OrphanCareSystem`; `OntogenyRules.OrphanCareLegacy` volta ao mensal). Cérebro: `acolher-crianca`.
 
 ## Pensamento = motivo
 O rastro cognitivo é feito dos termos da utilidade da ação vencedora (`UtilityTerm`), com o
