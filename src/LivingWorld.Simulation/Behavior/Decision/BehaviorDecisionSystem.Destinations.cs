@@ -55,6 +55,76 @@ public sealed partial class BehaviorDecisionSystem
                         ? workDest
                         : BuyDestinationOf(world, npc, marketIndex);
 
+    /// <summary>AD-189: o alvo da viagem em curso, "tipo:id", pela mesma ordem de <see cref="TravelDestinationOf"/> (espelho; o teste
+    /// confere que a célula do alvo é o destino da rota): a fonte (<c>water:x,y</c>) ou a casa na volta, a cidade da mudança
+    /// (<c>city:guid</c>), a casa do conhecido que vai visitar ou o largo (<c>household:id</c>, <c>city:guid</c>), o mercado e a oficina
+    /// (<c>workplace:id</c>), a obra (<c>site:x,y</c>), a cama (<c>household:id</c> ou o quarto da estalagem, <c>building:id</c>), o espólio
+    /// (<c>leaving:id</c>). Nulo fora de viagem ou sem destino. Só lê; a projeção chama para quem está no escopo, quando a rota é refeita.</summary>
+    internal static string? TravelIntentTargetFor(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        if (npc.CurrentAction != ActionType.Travel) return null;
+        var here = npc.CurrentLocation;
+        if (LivingWorld.Simulation.Economy.Supply.WaterFetch.ErrandDestination(world, npc) is { } water && water != here)
+            return HomeOf(world, npc) is { } home && home.Location == water ? Key("household", home.Id.Value) : CellKey("water", water);
+        if (RelocationDestinationOf(world, npc) is not null)
+            return world.FindHousehold(npc.Household!.Value)?.PendingRelocationCity is { } city ? "city:" + city.Value.ToString() : null;
+        if (npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc))
+            return CompanyDestinationOf(world, npc) is { } visit && visit != here ? CompanyKey(world, npc, visit) : null;
+        string? purpose = npc.TravelPurpose switch
+        {
+            ActionType.Buy => BuyKey(world, npc, marketIndex),
+            ActionType.Work => WorkKey(world, npc),
+            ActionType.Sleep => SleepKey(world, npc),
+            ActionType.Eat => EatDestinationOf(world, npc) is { } eat && eat != here && HomeOf(world, npc) is { } h ? Key("household", h.Id.Value) : null,
+            _ => null,
+        };
+        if (purpose is not null) return purpose;
+        if (LivingWorld.Simulation.Invention.Leavings.ErrandDestination(world, npc) is { } errand && errand != here)
+            return LivingWorld.Simulation.Invention.Leavings.ErrandLeavingId(world, npc) is { } leaving ? Key("leaving", leaving) : null;
+        return SleepKey(world, npc) ?? WorkKey(world, npc) ?? BuyKey(world, npc, marketIndex);
+    }
+
+    private static LivingWorld.Domain.Population.Family.Household? HomeOf(WorldState world, Npc npc) =>
+        npc.Household is { } h ? world.FindHousehold(h) : null;
+
+    private static string Key(string kind, long id) => kind + ":" + id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string CellKey(string kind, CellCoord cell) =>
+        kind + ":" + cell.X.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," + cell.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string? BuyKey(WorldState world, Npc npc, MarketIndex marketIndex) =>
+        NearestEssentialsMarket(world, npc, marketIndex) is { } market && market.Location != npc.CurrentLocation ? Key("workplace", market.Id.Value) : null;
+
+    private static string? WorkKey(WorldState world, Npc npc)
+    {
+        if (npc.Employer is { } employer)
+            return world.FindWorkplace(employer) is { } work && work.Location != npc.CurrentLocation ? Key("workplace", employer.Value) : null;
+        return LivingWorld.Simulation.Cities.Streets.SiteWork.DestinationOf(world, npc) is { } site && site != npc.CurrentLocation ? CellKey("site", site) : null;
+    }
+
+    private static string? SleepKey(WorldState world, Npc npc)
+    {
+        if (SleepDestinationOf(world, npc) is not { } bed || bed == npc.CurrentLocation) return null;
+        var rest = RestPlaceResolver.Resolve(world, npc);
+        return rest.Kind == RestPlaceKind.Lodging ? Key("building", rest.TargetId)
+            : npc.Household is { } h ? Key("household", h.Value) : null;
+    }
+
+    /// <summary>A visita: a casa do conhecido que está lá (o de mais afeto, como na escolha), ou o largo da cidade.</summary>
+    private static string? CompanyKey(WorldState world, Npc npc, CellCoord visit)
+    {
+        var targets = world.RelationshipTargetsOf(npc.Id);
+        var owned = world.RelationshipsFrom(npc.Id);
+        long? best = null;
+        double bestAffection = 0;
+        for (int i = 0; i < targets.Count; i++)
+            if (owned![i].Affection > bestAffection && world.FindNpc(targets[i]) is { IsAlive: true, Household: { } fh }
+                && world.FindHousehold(fh) is { IsHomeless: false } friendHome && friendHome.Location == visit)
+                (best, bestAffection) = (fh.Value, owned[i].Affection);
+        if (best is { } household) return Key("household", household);
+        return world.FindCity(npc.City) is { } city && city.Location == visit ? "city:" + city.Id.Value.ToString() : CellKey("site", visit);
+    }
+
     /// <summary>Destino do motivo da viagem (ir comprar, trabalhar ou dormir); nulo se o motivo é outro ou o
     /// NPC já está lá — e então vale a ordem de antes.</summary>
     private static CellCoord? PurposeDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex)

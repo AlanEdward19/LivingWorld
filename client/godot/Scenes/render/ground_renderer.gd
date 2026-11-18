@@ -110,9 +110,20 @@ func _start_transitions(before: Dictionary) -> void:
 
 
 ## Um quadro da transição: só quando há rua mudando a malha de ruas é refeita.
+const ANIM_REDRAW := 0.05
+var _anim_clock := 0.0
+
+
 func step(delta: float) -> void:
 	if anims.is_empty():
+		_anim_clock = 0.0
 		return
+	# AD-189: a transição redesenha a malha das ruas inteira; a 20 por segundo basta (antes, todo quadro: picos com o mundo rodando)
+	_anim_clock += delta
+	if _anim_clock < ANIM_REDRAW:
+		return
+	delta = _anim_clock
+	_anim_clock = 0.0
 	for cell in anims.keys():
 		anims[cell].t += delta / TRANSITION
 		if float(anims[cell].t) >= 1.0:

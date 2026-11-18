@@ -225,6 +225,7 @@ public static class ObservableProjector
 
         var recipes = world.CityCatalog.BuildingRecipes;
         var result = new BuildingStateVisual[visible.Count];
+        bool night = IsNight(world);
         var householdIds = new List<long>();
         var residents = new List<long>();
         var workers = new List<long>();
@@ -274,21 +275,45 @@ public static class ObservableProjector
             string? typeName = ctx.Names.BuildingType(building.BuildingTypeId);
             string? locationName = workplace is null ? null : ctx.Names.LocationType(workplace.LocationType.Id);
             bool closed = workplace?.Closed ?? false;
+            bool lit = night && SomeoneAwakeInside(world, homes, homeCount, workplace);
             result[index] = previous is not null && ReferenceEquals(previous.HouseholdIds, households)
                 && ReferenceEquals(previous.ResidentIds, people) && ReferenceEquals(previous.WorkerIds, staff)
                 && ReferenceEquals(previous.Stock, lines) && previous.BuildingId == building.Id.Value
                 && previous.BuildingTypeId == building.BuildingTypeId && previous.TypeName == typeName && previous.Function == function
                 && previous.WorkplaceId == workplace?.Id.Value && previous.LocationTypeId == workplace?.LocationType.Id
                 && previous.LocationTypeName == locationName && previous.OwnerId == workplace?.Owner?.Value
-                && previous.PantryUnits == pantry && previous.Closed == closed
+                && previous.PantryUnits == pantry && previous.Closed == closed && previous.Lit == lit
                 ? previous
                 : new BuildingStateVisual(
                     building.Id.Value, building.BuildingTypeId, typeName, function,
                     workplace?.Id.Value, workplace?.LocationType.Id, locationName, workplace?.Owner?.Value,
-                    households, people, staff, lines, pantry, closed);
+                    households, people, staff, lines, pantry, closed, lit);
         }
 
         return result;
+    }
+
+    /// <summary>AD-189: depois do pôr e antes do nascer do sol do dia (hora solar, a luz do tempo do motor); sem o tempo, nunca.</summary>
+    public static bool IsNight(WorldState world)
+    {
+        if (world.Weather is not { Day: >= 0 } ledger) return false;
+        double hour = world.CurrentDate.TotalHours % world.Calendar.HoursPerDay * 24.0 / world.Calendar.HoursPerDay;
+        double half = ledger.DaylightMinutes / 120.0;
+        return hour < 12 - half || hour >= 12 + half;
+    }
+
+    /// <summary>AD-189: alguém acordado dentro: morador vivo na célula da casa sem estar dormindo, ou trabalhador na oficina.</summary>
+    private static bool SomeoneAwakeInside(WorldState world, List<Household>? homes, int homeCount, Workplace? workplace)
+    {
+        for (int i = 0; i < homeCount; i++)
+            foreach (var member in homes![i].Members)
+                if (world.FindNpc(member) is { IsAlive: true } npc && npc.CurrentLocation == homes[i].Location && npc.CurrentAction != ActionType.Sleep)
+                    return true;
+        if (workplace is not null)
+            foreach (var employee in workplace.Employees)
+                if (world.FindNpc(employee) is { IsAlive: true } npc && npc.CurrentLocation == workplace.Location && npc.CurrentAction != ActionType.Sleep)
+                    return true;
+        return false;
     }
 
     /// <summary>A lista anterior quando tem o mesmo conteúdo; senão uma nova (vazia compartilhada).</summary>
@@ -485,13 +510,59 @@ public static class ObservableProjector
             LivingWorld.Simulation.Climate.GroundWeather.Frozen => "frozen",
             _ => "dry",
         };
-        double cellShift = EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours) - row.MeanCenti / 100.0;
+        double daily = EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours);
+        double cellShift = daily - row.MeanCenti / 100.0;
+        var (hourly, hourlyFeels) = Hourly(world, row, daily);
+        int hour = (int)(world.CurrentDate.TotalHours % world.Calendar.HoursPerDay);
+        if (hour < hourly.Count) now = hourly[hour]; // a hora vem da mesma curva que o cliente lê
         return new WeatherVisual(
             precipitation, intensity, Tenth(mm), row.Storm, row.Hail, row.Frost,
             LivingWorld.Simulation.Climate.WeatherNow.InDrought(rules, row), row.HotDays >= rules.WaveDays, row.ColdDays >= rules.WaveDays,
-            Tenth(row.WindDecims / 10.0), Half(now), Half(LivingWorld.Simulation.Climate.WeatherNow.ApparentC(now, row)),
+            Tenth(row.WindDecims / 10.0), Half(now), hour < hourlyFeels.Count ? hourlyFeels[hour] : Half(LivingWorld.Simulation.Climate.WeatherNow.ApparentC(now, row)),
             Half(row.MinCenti / 100.0 + cellShift), Half(row.MaxCenti / 100.0 + cellShift),
-            Tenth(daylight), Tenth(12 - daylight / 2), Tenth(12 + daylight / 2), ground, row.SnowMm, row.SoilPm, row.OutdoorLostDays);
+            Tenth(daylight), Tenth(12 - daylight / 2), Tenth(12 + daylight / 2), ground, row.SnowMm, row.SoilPm, row.OutdoorLostDays,
+            row.WindFromDeg, rules.FoliageEnabled ? FoliageOf(rules, row) : null, hourly, hourlyFeels);
+    }
+
+    /// <summary>AD-189: a folhagem da região (fração, fase e a cor do outono: o frio acumulado sobre o limiar da queda).</summary>
+    private static FoliageVisual FoliageOf(LivingWorld.Domain.Climate.WeatherRules rules, LivingWorld.Simulation.Climate.WeatherRegionRow row)
+    {
+        string phase = row.LeafPhase switch
+        {
+            LivingWorld.Simulation.Climate.LeafPhase.Budding => "budding",
+            LivingWorld.Simulation.Climate.LeafPhase.Full => "full",
+            LivingWorld.Simulation.Climate.LeafPhase.Falling => "falling",
+            _ => "bare",
+        };
+        double turning = row.LeafPhase == LivingWorld.Simulation.Climate.LeafPhase.Falling ? 1
+            : Math.Clamp(row.LeafColdTenths / Math.Max(1, rules.LeafFallColdDegreeDays * 10), 0, 1);
+        return new FoliageVisual(Math.Round(row.LeafPm / 1000.0, 2), phase, Math.Round(turning, 2));
+    }
+
+    [ThreadStatic]
+    private static (WorldState? World, LivingWorld.Simulation.Climate.WeatherRegionRow? Row, long Version, double Daily,
+        ValueList<double>? Hourly, ValueList<double>? Feels) _hourly;
+
+    /// <summary>AD-189: a temperatura e a sensação de cada hora do dia (meio grau), pela mesma curva do motor
+    /// (<c>WeatherNow.TemperatureAt</c>: mínima às 5 h, máxima às 15 h). Uma vez por dia e lugar; o resto do dia é o mesmo registro.</summary>
+    private static (ValueList<double> Hourly, ValueList<double> Feels) Hourly(WorldState world, LivingWorld.Simulation.Climate.WeatherRegionRow row, double daily)
+    {
+        var known = _hourly;
+        long version = world.Weather?.Version ?? -1;
+        if (ReferenceEquals(known.World, world) && ReferenceEquals(known.Row, row) && known.Version == version && known.Daily == daily)
+            return (known.Hourly!, known.Feels!);
+        int hours = world.Calendar.HoursPerDay;
+        var temps = new double[hours];
+        var feels = new double[hours];
+        for (int h = 0; h < hours; h++)
+        {
+            double t = daily + LivingWorld.Simulation.Climate.WeatherNow.DiurnalShape(h, hours) * (row.MaxCenti - row.MinCenti) / 200.0;
+            temps[h] = Half(t);
+            feels[h] = Half(LivingWorld.Simulation.Climate.WeatherNow.ApparentC(t, row));
+        }
+        var result = (new ValueList<double>(temps), new ValueList<double>(feels));
+        _hourly = (world, row, version, daily, result.Item1, result.Item2);
+        return result;
     }
 
     /// <summary>Camada de clima do mundo: estação e uma linha por região (célula representativa = a menor em X, depois Y, a mesma

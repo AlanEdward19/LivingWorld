@@ -2,7 +2,8 @@ extends Node3D
 ## O que cai do céu, pelo tempo do dia do motor (AD-180): chuva (gotas esticadas), neve (flocos) e granizo (pedrinhas rápidas),
 ## com a quantidade pela intensidade e um teto fixo (`Look.RAIN_CAP`/`SNOW_CAP`). Duas GPUParticles3D com malha e material
 ## próprios, sem sombra, presas ao ponto de vista; LOD por `amount_ratio` (não reinicia as partículas): mapa-múndi afastado
-## nada, câmera longe metade. O vento do motor inclina a queda (a direção não vem no contrato: inclina sempre para o mesmo lado).
+## nada, câmera longe metade. AD-189: o vento do motor (força e de onde vem, `windFromDeg`) inclina a queda para onde ele sopra;
+## sem direção do motor, a queda é reta.
 
 const Look := preload("res://Scenes/render/weather_look.gd")
 
@@ -10,6 +11,7 @@ var rain: GPUParticles3D
 var snow: GPUParticles3D
 var weather: Dictionary = {}
 var ratio := 0.0 ## testável: fração das partículas ligadas agora (intensidade × LOD)
+var tilt := Vector3.ZERO ## testável (AD-189): para onde o vento do motor empurra a queda (x, z); zero = reta
 var _lod := 1.0
 var _extent := 22.0
 var _key := "-"
@@ -27,18 +29,20 @@ func apply(p_weather: Dictionary) -> void:
 	weather = p_weather
 	var fall := Look.falling(weather)
 	# o clima chega a cada tick (a temperatura da hora muda): só reconfigura quando o que cai ou o vento mudou
-	var key := "%s|%s|%s|%d" % [fall.kind, fall.ratio, fall.hail, roundi(float(weather.get("wind", 0.0)))]
+	var push := Look.wind_push(weather)
+	var key := "%s|%s|%s|%d|%d|%d" % [fall.kind, fall.ratio, fall.hail, roundi(float(weather.get("wind", 0.0))),
+		roundi(push.x * 20.0), roundi(push.y * 20.0)]
 	if key == _key:
 		return
 	_key = key
-	var wind := clampf(float(weather.get("wind", 0.0)) / 20.0, 0.0, 1.0)
-	_configure(rain.process_material, Vector3(wind * 0.6, -1, 0), 14.0, 18.0, 0.0)
+	tilt = Vector3(push.x, 0, push.y)
+	_configure(rain.process_material, Vector3(push.x * 0.6, -1, push.y * 0.6), 14.0, 18.0, 0.0)
 	if bool(fall.hail):
-		_configure(snow.process_material, Vector3(wind * 0.3, -1, 0), 9.0, 12.0, 0.0)
+		_configure(snow.process_material, Vector3(push.x * 0.3, -1, push.y * 0.3), 9.0, 12.0, 0.0)
 		snow.draw_pass_1.radius = 0.05
 		snow.draw_pass_1.height = 0.1
 	else:
-		_configure(snow.process_material, Vector3(0.1 + wind * 0.9, -1, 0), 1.6, 2.4, 0.4)
+		_configure(snow.process_material, Vector3(push.x * 0.9, -1, push.y * 0.9), 1.6, 2.4, 0.4)
 		snow.draw_pass_1.radius = 0.04
 		snow.draw_pass_1.height = 0.08
 	_refresh()

@@ -10,6 +10,7 @@ extends Node3D
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const RouteClock := preload("res://Scenes/route_clock.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 
 const OVER_FLOOR := 1.0 ## altura de um andar (a mesma do `building_renderer.gd`): quem passa por cima anda no telhado
 const STEP_SECONDS := 1.0 ## duração visual de um passo; o servidor decide a posição, o cliente só interpola
@@ -213,6 +214,15 @@ func target_point(npc: Dictionary) -> Vector3:
 			for state in store.building_states.values():
 				if int(target.id) in state.households:
 					return building_point.call(int(state.building_id))
+		"leaving": # AD-189: o espólio que foi buscar
+			var leaving = store.leavings.get(int(target.id))
+			return Grid.to_world(leaving.cell) if leaving != null else Vector3.INF
+		"city": # AD-189: o largo (a cidade da mudança ou a praça da visita)
+			var city: Dictionary = store.city if String(store.city.get("id", "")) == String(target.id) else store.cities.get(String(target.id), {})
+			return Grid.to_world(city.location) if city.get("location") is Vector2i else Vector3.INF
+		"water", "site": # AD-189: a fonte e a obra, por célula "x,y"
+			var parts := String(target.id).split(",")
+			return Grid.to_world(Vector2i(int(parts[0]), int(parts[1]))) if parts.size() == 2 else Vector3.INF
 	return Vector3.INF
 
 
@@ -255,6 +265,8 @@ func _apply_route(actor, info: Dictionary) -> bool:
 		start = float(info.get("started", -1))
 	if start < 0.0 or start >= float(arrival):
 		start = actor.walk.start_tick if actor.walk != null and actor.walk.end_tick == float(arrival) else minf(clock.tick, float(arrival) - 1.0)
+	if actor.walk != null and actor.walk.same(cells, start, float(arrival)):
+		return true # AD-189: a mesma rota em curso: nem procura as alturas de novo (varria todos os prédios)
 	return actor.set_route(cells, start, float(arrival), over_heights(cells, info.get("route_over", [])))
 
 
@@ -351,21 +363,43 @@ func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: b
 	var crowded := nodes.size() > 150
 	var far_now := far_zoom and crowded
 	var detail_radius := 6.0
+	var radius_sq := view_radius * view_radius
+	var half_sq := radius_sq * 0.25
+	var detail_sq := detail_radius * detail_radius
 	for id in nodes:
 		var actor = nodes[id]
-		actor.set_far(far_now)
-		actor.set_bubble(bubble_zoom)
-		var distance: float = actor.position.distance_to(view_center)
-		var near: bool = not bubble_zoom and distance <= view_radius
-		actor.set_detail(detail_zoom and distance <= detail_radius)
+		# AD-189: os setters só quando o estado muda (500 chamadas a menos de cada por quadro)
+		if actor.far_lod != far_now:
+			actor.set_far(far_now)
+		if actor.bubble != bubble_zoom:
+			actor.set_bubble(bubble_zoom)
+		var distance_sq: float = actor.position.distance_squared_to(view_center)
+		var near: bool = not bubble_zoom and distance_sq <= radius_sq
+		var detail: bool = detail_zoom and distance_sq <= detail_sq
+		if actor.near_detail != detail:
+			actor.set_detail(detail)
 		# multidão: pose a cada 2 quadros perto do centro da vista e a cada 4 na borda (o tempo pulado se acumula: o passo não
-		# muda, só a frequência com que a pose é refeita); a posição continua todo quadro (AD-188, medida com o mundo rodando)
-		var stride := 1 if not crowded else (2 if distance <= view_radius * 0.5 or id == selected else 4)
-		actor.tick(delta, near, (id + _frame) % stride == 0)
+		# muda, só a frequência com que a pose é refeita); a posição continua todo quadro (AD-188, medida com o mundo rodando).
+		# AD-189: parado (sem passo nem rota em curso; rota que já chegou não conta), a pose é a respiração lenta: a cada 8 quadros
+		var stride := 1
+		if crowded:
+			var moving: bool = actor._t < 1.0 or (actor.walk != null and not actor.walk.done)
+			# com o mundo rodando a 40 ticks/s quase todo mundo está no passo (cada tick muda a célula): o passo perto do centro
+			# a cada 3 quadros, na borda a cada 6 (o selecionado a cada 2)
+			stride = 2 if id == selected else (3 if moving and distance_sq <= half_sq else (6 if moving else 8))
+		var due: bool = (id + _frame) % stride == 0
+		if due and near:
+			var posed := Time.get_ticks_usec()
+			actor.tick(delta, near, due)
+			FrameCost.add("npc_pose", posed) # AD-189: diagnóstico do bench (pose refeita)
+		else:
+			actor.tick(delta, near, due)
 	_link_clock += delta
 	if _link_clock >= LINK_SECONDS:
 		_link_clock = 0.0
 		if bubble_zoom:
 			_links.visible = false
 		else:
+			var linked := Time.get_ticks_usec()
 			refresh_links()
+			FrameCost.add("npc_links", linked)

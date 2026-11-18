@@ -73,6 +73,7 @@ var _held: MeshInstance3D
 var _face: Node3D
 var _face_expression := "-"
 var _sickbed: Node3D
+var _bubble_dots := 0
 var walk = null ## RouteWalk: anda pela rota do motor até a chegada (AD-181); null = movimento de sempre
 var spread := Vector3.ZERO ## lugar dentro da célula quando ela é dividida (só apresentação; a célula é a do servidor)
 const VEER := 0.16 ## desvio lateral no meio do passo: quem se cruza passa pela direita, não por dentro do outro
@@ -716,7 +717,9 @@ func _animate() -> void:
 			_arms[1].rotation.x = -0.7 + cos(phase * 0.8) * 0.5
 			_body.position.y = absf(sin(phase * 0.9)) * 0.02
 			var dots := 1 + int(_clock * 2.0) % 3
-			_get_bubble().text = ".".repeat(dots)
+			if _bubble_dots != dots: # AD-189: o texto só muda quando o número de pontos muda (refazer o texto custa)
+				_bubble_dots = dots
+				_get_bubble().text = ".".repeat(dots)
 		"buy":
 			_arms[1].rotation.x = -1.3
 			_arms[0].rotation.x = -1.3

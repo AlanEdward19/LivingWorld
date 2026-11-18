@@ -237,8 +237,10 @@ func _rebuild_npcs() -> void:
 
 
 func _rebuild_processes() -> void:
+	var started := Time.get_ticks_usec()
 	processes.bounds_filter = store.city.get("bounds", Rect2i()) if store.kind == "City" else Rect2i()
 	processes.rebuild()
+	FrameCost.add("processes", started) # AD-189: diagnóstico do bench
 
 
 func _on_buildings_changed(ids: Array) -> void:

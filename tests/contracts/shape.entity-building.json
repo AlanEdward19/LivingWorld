@@ -57,6 +57,7 @@
       "householdIds": [
         "number"
       ],
+      "lit": "boolean",
       "locationTypeId?": "number",
       "locationTypeName?": "string",
       "ownerId?": "number",
