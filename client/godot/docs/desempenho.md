@@ -71,3 +71,21 @@ Medianas pareadas 88,4 → 87,8; 70,4 → 70,0; 60,6 → 60,4 (ruído; acima de 
 (sem rota nem delta de rua); quem anda custa O(1) amortizado por boneco (cursor que só avança). `client-test.sh` 369 → 381.
 Mundo rodando (40 ticks/s, `cidade-media` seed 2): Mundo 2.041 deltas e Cidade 2.020, 0 divergência de contrato, 0 erro de
 script; na Cidade 30 células de trilha nasceram por delta (0 → 30) e 14–31 pessoas andavam pela rota ao mesmo tempo.
+
+### Mundo rodando, tempo do dia e o que o motor já mandava (AD-188)
+
+`bench.sh` ganhou `benchrain` (o `bench:500` com chuva forte sintética no cliente, mundo pausado) e `benchrun` (depois de
+`/simulation/resume` a 40 ticks/s: rota, delta de rua, tempo e clima chegando; `LW_BENCH_TPS`, `LW_BENCH_ONLY=run` e
+`LW_BENCH_RUN_STEPS` para diagnóstico); cada `bench` imprime também `bench-cost:` (ms somados em 6 s de ler o JSON, conferir o
+contrato, aplicar o delta, NPCs e chão; draw calls). Pareado, M1 Pro dividida com outros agentes, base `b0439b99` → entrega:
+- `stress:500`: 70,9 / 72,0 / 72,3 → 115,5 / 115,2 / 116,4 FPS.
+- `bench:500`: 71,0 / 71,4 / 71,0 (p95 14,96 / 15,04 / 15,16 ms) → 161,0 / 158,6 / 159,4 (p95 7,06 / 7,97 / 8,02).
+- `benchbig:500`: 60,8 / 60,8 / 60,8 (p95 18,23 / 17,54 / 18,02) → 130,6 / 130,9 / 130,5 (p95 8,76 / 8,57 / 8,74).
+- `benchrain:500` (só a entrega): 159,0 / 159,5 / 159,5 (p95 7,36 / 7,14 / 7,21): a chuva forte não custa nada medível.
+- `benchrun:500` (mundo rodando): **24,1 / 25,5 / 24,7** (p95 54,07 / 50,10 / 53,73) → RUN_LINE.
+O mundo pausado escondia duas coisas: o **minimapa refazia os 500 pontos a cada quadro** (a câmera "mudava" todo quadro; agora
+só redesenha quando a câmera anda e os pontos no máximo 4×/s) e, com o mundo rodando, a **pose de 500 bonecos** (pausado, os
+bonecos ficam congelados). A multidão agora refaz a pose a cada 2 quadros perto do centro da vista e a cada 4 na borda (o
+passo é o mesmo; a posição continua todo quadro). O tempo só reconfigura as partículas quando o que cai ou o vento muda (o clima
+chega a cada tick). Custo que sobra com o mundo rodando, por quadro: aplicar o delta ~2–3,5 ms, NPCs ~2,6, contrato ~0,9.
+

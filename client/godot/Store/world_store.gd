@@ -20,6 +20,7 @@ signal items_changed() ## espólio no chão e objetos inventados
 signal climate_changed()
 signal roads_changed() ## ruas mudaram (retrato, delta `roadUpserts`/`roadRemoved` ou releitura da camada): só o chão redesenha
 
+const FrameCost := preload("res://Contract/frame_cost.gd")
 const NO_ACTION := -1
 const Parse := preload("res://Store/observable_parse.gd")
 const Ground := preload("res://Store/city_ground.gd")
@@ -308,6 +309,7 @@ func apply_delta(envelope: Dictionary) -> void:
 	var reset := {}
 	for removed in delta.get("npcRemoved", []):
 		reset[id_of(removed)] = true
+	var started := Time.get_ticks_usec()
 	for visual in delta.get("npcUpserts", []):
 		var id: int = id_of(visual.id)
 		var previous_known = null if reset.has(id) else npcs.get(id)
@@ -325,6 +327,7 @@ func apply_delta(envelope: Dictionary) -> void:
 		npc_changed.emit(id, from_cell, cell, action)
 		if observed:
 			npc_observed.emit(id)
+	FrameCost.add("npc_upserts", started)
 	# `moved` é a projeção de compatibilidade (só posição): vale para quem não veio inteiro em npcUpserts
 	for entry in delta.get("moved", []):
 		var id: int = id_of(entry.npcId)
@@ -385,8 +388,12 @@ func apply_delta(envelope: Dictionary) -> void:
 		last_tick = tick_now
 	if processes_touched:
 		processes_changed.emit()
+	started = Time.get_ticks_usec()
 	ScopeDelta.apply_observable(self, delta)
+	FrameCost.add("observable", started)
+	started = Time.get_ticks_usec()
 	ScopeDelta.apply_roads(self, delta)
+	FrameCost.add("roads", started)
 	if kind == "City" and not delta.get("indicators", []).is_empty() and city.has("indicators"):
 		for update in delta.indicators:
 			if update.get("key") != null and update.get("value") != null:

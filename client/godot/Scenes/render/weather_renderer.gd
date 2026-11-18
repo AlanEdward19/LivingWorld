@@ -12,6 +12,7 @@ var weather: Dictionary = {}
 var ratio := 0.0 ## testável: fração das partículas ligadas agora (intensidade × LOD)
 var _lod := 1.0
 var _extent := 22.0
+var _key := "-"
 
 
 func _init() -> void:
@@ -25,6 +26,11 @@ func _init() -> void:
 func apply(p_weather: Dictionary) -> void:
 	weather = p_weather
 	var fall := Look.falling(weather)
+	# o clima chega a cada tick (a temperatura da hora muda): só reconfigura quando o que cai ou o vento mudou
+	var key := "%s|%s|%s|%d" % [fall.kind, fall.ratio, fall.hail, roundi(float(weather.get("wind", 0.0)))]
+	if key == _key:
+		return
+	_key = key
 	var wind := clampf(float(weather.get("wind", 0.0)) / 20.0, 0.0, 1.0)
 	_configure(rain.process_material, Vector3(wind * 0.6, -1, 0), 14.0, 18.0, 0.0)
 	if bool(fall.hail):

@@ -97,6 +97,13 @@ func test_road_cell_ground_tints_and_puddles_come_from_each_cell() -> void:
 	app.store.roads[Vector2i(1, 4)].ground = "dry"
 	ground.rebuild()
 	eq(muddy - ground.road_pieces, 2, "lamaçal tem duas poças")
+	var Roads := preload("res://Store/road_book.gd")
+	var same := S.road(2, 4, 0, 12, {"ground": "dry", "wetPm": 999})
+	var result: Dictionary = Roads.apply_delta(app.store.roads, [same], [])
+	check(not result.changed, "só a umidade mudou: a malha de ruas não é refeita")
+	eq(app.store.roads[Vector2i(2, 4)].wet_pm, 999, "mas o valor fica guardado")
+	result = Roads.apply_delta(app.store.roads, [S.road(2, 4, 0, 12, {"ground": "mud", "wetPm": 999})], [])
+	check(result.changed, "chão virou lama: redesenha")
 	app.queue_free()
 
 
