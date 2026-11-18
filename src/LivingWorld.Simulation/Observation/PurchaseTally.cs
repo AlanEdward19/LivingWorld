@@ -18,7 +18,7 @@ public sealed class PurchaseTally
     public long WaterFromWell, WaterBought, WaterUnits, WaterStockShort;
 
     // AD-148: idas de reposição que a casa não fez (outra pessoa da casa já foi; no turno, com despensa para ele)
-    public long SkippedHouseholdCovered, SkippedDuringWork;
+    public long SkippedHouseholdCovered, SkippedDuringWork, SkippedWeather; // SkippedWeather: AD-180, a ida adiada pelo mau tempo
 
     // AD-149: comida e água tiradas do estoque da oficina como ração (o lavrador come da venda da fazenda), longe de casa ou não
     public long FoodRations, WaterRations, FoodRationsAway;

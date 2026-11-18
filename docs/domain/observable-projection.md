@@ -21,13 +21,13 @@ novo, sem mudar ordem de nada. Sem assinante o laço não projeta (`TickLoopServ
 | `faunaGroups[]` (Mundo) | `species`, `regionId`, `count`, `center` | fauna agregada |
 | `leavings[]` | `location`, `deadId`, `householdId`, `heirHouseholdId`, `units`, `itemId`, `designId`, `fetcherId`, `carrierId` | espólio no chão |
 | `objects[]` (Cidade) | `designId`, `householdId`, `holderId`, `location`, `forSale`, `marketId`, `rootShape`, `rootMaterial`, `qualityFraction` | peça inventada; partes em `/designs/{id}` |
-| `climate` | `month`, `seasonIndex`, `seasonKey`, `temperatureC`, `regionId`, `cropYearFactorMilli`, `drought` | estação e clima do escopo |
+| `climate` | `month`, `seasonIndex`, `seasonKey`, `temperatureC`, `regionId`, `cropYearFactorMilli`, `drought`, `weather{…}` (AD-180, [climate](climate.md)) | estação, clima e tempo do dia |
 | `processes[]` | `resourceId`, `resourceName` | recurso do processo de material |
 | `events[]` | `eventId`, `involved{subjectId,otherId,authorId,victimId,relatedIds,householdId,buildingId,workplaceId,caseId,leavingId,designId,cityId,amount,outcome,recordOnly}` | envolvidos lidos do payload |
 
 Delta: `buildingStateUpserts/Removed`, `cropUpserts/Removed`, `animalUpserts/Removed`, `faunaGroupUpserts/Removed` (chave
 `espécie:região`), `leavingUpserts/Removed`, `objectUpserts/Removed`, `climate` (nulo = não mudou). Camada `layers.Climate` passa a
-`isModeled: true` com `{month, seasonIndex, seasonKey, regions[]{regionId, center, temperatureC, cropYearFactorMilli, drought}}`.
+`isModeled: true` com `{month, seasonIndex, seasonKey, regions[]{regionId, center, temperatureC, cropYearFactorMilli, drought, weather}}`.
 
 ## Delta enxuto (AD-172): regra de leitura do cliente
 Nenhum campo saiu do contrato. O **snapshot** escreve os nulos (`campo: null`). O **delta de escopo** (WS, SSE e

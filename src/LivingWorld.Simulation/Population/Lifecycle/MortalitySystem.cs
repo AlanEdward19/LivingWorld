@@ -47,7 +47,9 @@ public sealed class MortalitySystem : ISimulationSystem
             "O" => WorldEventKind.OldAge,
             _ => WorldEventKind.Death,
         };
-        NpcDeath.Apply(world, ctx, npc, kind, kind == WorldEventKind.Death ? ResidualLabel(world, npc, ctx.CurrentTick) : "");
+        // AD-180: a parte do risco que o frio ou o calor do mês acrescentaram leva o nome dele
+        string label = bar < 0 ? "" : rest[(bar + 1)..] switch { "F" => "frio", "Q" => "calor", _ => "" };
+        NpcDeath.Apply(world, ctx, npc, kind, kind != WorldEventKind.Death ? "" : label.Length > 0 ? label : ResidualLabel(world, npc, ctx.CurrentTick));
     }
 
     /// <summary>Nome da sobra da tábua pela idade na hora da morte (AD-164). Só rotula.</summary>
@@ -94,6 +96,14 @@ public sealed class MortalitySystem : ISimulationSystem
     {
         var causes = world.NeedsRules.Physiology.DeathCauses;
         double age = Math.Max(0, startTick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        // AD-180: a parte do risco que o tempo do mês acrescentou (m − 1)/m é do frio ou do calor; o resto segue a partilha antiga
+        var (weather, heatShare) = LivingWorld.Simulation.Climate.WeatherNow.Hazard(world, ShelterOf(world, npc), age);
+        if (weather > 1)
+        {
+            double share = (weather - 1) / weather;
+            if (roll < share) return roll < share * heatShare ? "|Q" : "|F";
+            roll = (roll - share) / (1 - share);
+        }
         double residual = world.PopulationRules.LifeTable.BaseAnnualMortality((int)age) * (1 - world.DiseaseRules.BaselineShare(age));
         double accident = causes.AccidentShare(age, npc.Sex == Sex.Male, residual);
         if (roll < accident) return "|A";
@@ -145,6 +155,7 @@ public sealed class MortalitySystem : ISimulationSystem
         multiplier *= physiology.MalnutritionMultiplier(ageYears, npc.Undernutrition);
         multiplier *= LivingWorld.Simulation.Population.Body.Genome.HazardMultiplier(world, npc, ageYears); // AD-139
         multiplier *= LivingWorld.Simulation.Extraordinary.Inheritance.PowerGeneticsMechanic.HazardMultiplier(world, npc); // AD-156
+        multiplier *= LivingWorld.Simulation.Climate.WeatherNow.Hazard(world, ShelterOf(world, npc), ageYears).Multiplier; // AD-180
         var lactation = physiology.Lactation;
         double ageDays = Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerDay;
         // quem já existia quando o mundo começou (sem gestação registrada) não teve a amamentação simulada
@@ -153,6 +164,10 @@ public sealed class MortalitySystem : ISimulationSystem
             multiplier *= lactation.UnnursedHazardByAgeMonths.At(ageYears * world.Calendar.MonthsPerYear);
         return multiplier;
     }
+
+    /// <summary>AD-180: onde o tempo do mês pegou o NPC — a casa dele, ou onde está quem não tem casa.</summary>
+    private static LivingWorld.Domain.Geography.CellCoord ShelterOf(WorldState world, Npc npc) =>
+        npc.Household is { } h && world.FindHousehold(h) is { } home ? home.Location : npc.CurrentLocation;
 
     private static void ScheduleDeath(TickContext ctx, Npc npc, long tick, string cause) =>
         ctx.ScheduleEvent(tick, SystemName, DeathPayloadPrefix + npc.Id.Value + cause);

@@ -150,7 +150,7 @@ public static class LivingScopeProjector
         var observable = ObservableProjector.Npc(frame.Observable, npc, previous?.Observable);
         var target = previous is not null && SameTarget(previous.ActionTarget, npc) ? previous.ActionTarget : NpcInspectionQuery.TargetOf(npc);
         var extraordinary = ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id);
-        if (previous is not null && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
+        if (previous is not null && frame.WeatherAsBefore && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
             && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
             && previous.RelocationDestination == scoped.Relocation && Equals(previous.Extraordinary, extraordinary)
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
@@ -175,7 +175,7 @@ public static class LivingScopeProjector
     private static (IReadOnlyList<CellCoord>? Route, long? Arrival) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
     {
         if (npc.CurrentAction != ActionType.Travel) return (null, null);
-        if (previous is { Route: not null } && previous.CurrentAction == ActionType.Travel
+        if (previous is { Route: not null } && frame.WeatherAsBefore && previous.CurrentAction == ActionType.Travel
             && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation)
             return (previous.Route, previous.RouteArrivalTick);
         var world = frame.World;
@@ -190,9 +190,18 @@ public static class LivingScopeProjector
     /// <summary>AD-176: as ruas do escopo, em ordem de célula (linha, coluna).</summary>
     private static IReadOnlyList<StreetCellView> RoadsOf(WorldState world, CityId? focusedCity, bool isWorld)
     {
-        if (focusedCity is { } id) return world.FindActiveCity(id) is { } city ? CityStreets.RoadsOf(world, city) : [];
+        if (focusedCity is { } id) return world.FindActiveCity(id) is { } city ? Weathered(world, CityStreets.RoadsOf(world, city)) : [];
         if (!isWorld) return [];
-        return world.ActiveCities().SelectMany(c => CityStreets.RoadsOf(world, c)).OrderBy(r => r.Cell.Y).ThenBy(r => r.Cell.X).ToList();
+        return Weathered(world, world.ActiveCities().SelectMany(c => CityStreets.RoadsOf(world, c)).OrderBy(r => r.Cell.Y).ThenBy(r => r.Cell.X).ToList());
+    }
+
+    /// <summary>AD-180: cada célula de rua com o chão do dia (molhado, lama, neve); sem o tempo, a lista como está.</summary>
+    private static IReadOnlyList<StreetCellView> Weathered(WorldState world, IReadOnlyList<StreetCellView> roads)
+    {
+        if (world.Weather is null || roads.Count == 0) return roads;
+        var result = new List<StreetCellView>(roads.Count);
+        foreach (var road in roads) result.Add(road.WithWeather(world));
+        return result;
     }
 
     /// <summary>O alvo do tick anterior ainda vale (mesmo tipo e id), sem montar o texto do id de novo. Espelha

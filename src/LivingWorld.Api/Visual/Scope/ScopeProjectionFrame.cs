@@ -44,11 +44,19 @@ public sealed class ScopeProjectionFrame
 
     /// <param name="previous">A leitura do tick anterior (AD-172): o NPC que não mudou nada visível reaproveita o registro de lá,
     /// sem alocar, e o diff o reconhece por referência. Só a API guarda isso; o mundo não sabe.</param>
+    /// <summary>AD-180: o dia do tempo da leitura; com o tempo mudado, a chegada de quem viaja (lama, neve) é refeita.</summary>
+    public long WeatherDay { get; }
+
+    /// <summary>AD-180: o tempo é o mesmo da leitura anterior (a chegada guardada ainda vale).</summary>
+    public bool WeatherAsBefore { get; }
+
     public ScopeProjectionFrame(WorldState world, PresentationNames? names = null, ScopeProjectionFrame? previous = null)
     {
         _previousVisuals = previous?._npcVisuals;
         _previousBuildingStates = previous?._buildingStates;
         World = world;
+        WeatherDay = world.Weather?.Day ?? -1;
+        WeatherAsBefore = previous is null || previous.WeatherDay == WeatherDay;
         Tick = world.CurrentDate.TotalHours;
         Observable = new ObservableContext(world, names);
         // ResolveGrownBounds alimenta os boxes de overflow das próprias buildings da cidade de volta pra Resolve.

@@ -57,8 +57,9 @@ public static class DefaultPeriodSeeder
                 Save(repository, preset, latest.Version + 1, BuildPayload(preset));
                 continue;
             }
-            if (stored.ContainsKey("Presentation")) continue;
-            stored["Presentation"] = PresentationOf(preset);
+            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate")) continue;
+            if (!stored.ContainsKey("Presentation")) stored["Presentation"] = PresentationOf(preset);
+            if (!stored.ContainsKey("Climate")) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
             Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
     }
@@ -72,6 +73,16 @@ public static class DefaultPeriodSeeder
             CreatedAtUtc = DateTime.UtcNow,
             Source = preset.Name,
         });
+
+    /// <summary>AD-180: clima ligado com o tempo diário da Inglaterra baixa (o padrão de <c>WeatherRules</c>): estações, temperatura,
+    /// chuva, neve, lama, seca e o ano de safra saindo do tempo.</summary>
+    private static JsonObject ClimateOf() => new()
+    {
+        ["Enabled"] = true,
+        ["MinMilli"] = 500,
+        ["MaxMilli"] = 1500,
+        ["Weather"] = new JsonObject { ["Enabled"] = true },
+    };
 
     private static JsonObject PresentationOf(Preset preset) => new()
     {
@@ -125,6 +136,7 @@ public static class DefaultPeriodSeeder
         {
             // AD-175: o cartão do menu (só apresentação; nenhum sistema lê)
             ["Presentation"] = PresentationOf(preset),
+            ["Climate"] = ClimateOf(),
             ["Width"] = SideOf(preset),
             ["Height"] = SideOf(preset),
             ["Seed"] = preset.Seed,

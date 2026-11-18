@@ -62,7 +62,29 @@ public static class WorldRulesScenarioLoader
             return Result<ClimateRules>.Fail("Climate: campo numérico inválido");
         if (min < 0) return Result<ClimateRules>.Fail("Climate.MinMilli: não pode ser negativo");
         if (max < min) return Result<ClimateRules>.Fail("Climate.MaxMilli: menor que MinMilli");
-        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max));
+        // AD-180: o tempo diário vem ligado com o clima; o sub-bloco Weather muda a climatologia do lugar ou o desliga
+        var weather = LoadWeather(block, out var weatherError);
+        if (weatherError is not null) return Result<ClimateRules>.Fail(weatherError);
+        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max, Weather: enabled ? weather : null));
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions WeatherJson = new() { PropertyNameCaseInsensitive = true };
+
+    private static WeatherRules LoadWeather(JsonObject climate, out string? error)
+    {
+        error = null;
+        if (climate["Weather"] is null) return WeatherRules.Default;
+        if (climate["Weather"] is not JsonObject block) { error = "Climate.Weather: bloco inválido"; return WeatherRules.Default; }
+        WeatherRules? rules;
+        try { rules = System.Text.Json.JsonSerializer.Deserialize<WeatherRules>(block.ToJsonString(), WeatherJson); }
+        catch (System.Text.Json.JsonException e) { error = $"Climate.Weather: {e.Message}"; return WeatherRules.Default; }
+        if (rules is null) { error = "Climate.Weather: bloco inválido"; return WeatherRules.Default; }
+        foreach (var (name, list) in new[] { ("MeanTempC", rules.MeanTempC), ("DiurnalRangeC", rules.DiurnalRangeC),
+            ("WetDaysPerMonth", rules.WetDaysPerMonth), ("RainMmPerMonth", rules.RainMmPerMonth), ("AnomalySdC", rules.AnomalySdC), ("WindMs", rules.WindMs) })
+            if (list.Count != 12 || list.Any(v => !double.IsFinite(v))) { error = $"Climate.Weather.{name}: precisa de 12 valores"; return WeatherRules.Default; }
+        if (rules.LatitudeDeg is < -90 or > 90) { error = "Climate.Weather.LatitudeDeg: fora de [-90,90]"; return WeatherRules.Default; }
+        if (rules.WetDaysPerMonth.Any(v => v < 0) || rules.RainMmPerMonth.Any(v => v < 0)) { error = "Climate.Weather: chuva negativa"; return WeatherRules.Default; }
+        return rules;
     }
 
     public static Result<TheftRules> LoadTheft(string json)

@@ -455,9 +455,43 @@ public static class ObservableProjector
         double temperature = world.Map.TryGetCell(cell, out _)
             ? Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, date.TotalHours))
             : 0;
+        var weather = world.Map.TryGetCell(cell, out _) ? Weather(world, cell) : null;
         return new ScopeClimateVisual(
             date.Month, season, season < SeasonKeys.Length ? SeasonKeys[season] : $"season-{season}", temperature, region, factor,
-            world.ClimateRules.Enabled && factor < ClimateRules.DroughtBelowMilli);
+            weather?.Drought ?? (world.ClimateRules.Enabled && factor < ClimateRules.DroughtBelowMilli), weather);
+    }
+
+    /// <summary>AD-180: o tempo do dia na célula, lido do estado do motor (nada inventado aqui); nulo com o tempo desligado.</summary>
+    public static WeatherVisual? Weather(WorldState world, CellCoord cell)
+    {
+        if (LivingWorld.Simulation.Climate.WeatherNow.RowAt(world, cell) is not { } row || world.Weather is not { } ledger) return null;
+        var rules = world.ClimateRules.Weather!;
+        double mm = row.PrecipTenths / 10.0;
+        string precipitation = row.Kind switch
+        {
+            LivingWorld.Simulation.Climate.Precipitation.Rain => "rain",
+            LivingWorld.Simulation.Climate.Precipitation.Snow => "snow",
+            _ => "none",
+        };
+        string intensity = row.Kind == LivingWorld.Simulation.Climate.Precipitation.None ? "none" : mm < 2 ? "light" : mm < rules.HeavyRainMm ? "moderate" : "heavy";
+        double now = LivingWorld.Simulation.Climate.WeatherNow.TemperatureAt(world, cell, world.CurrentDate.TotalHours);
+        double daylight = ledger.DaylightMinutes / 60.0;
+        string ground = LivingWorld.Simulation.Climate.WeatherNow.Ground(rules, row) switch
+        {
+            LivingWorld.Simulation.Climate.GroundWeather.Wet => "wet",
+            LivingWorld.Simulation.Climate.GroundWeather.Mud => "mud",
+            LivingWorld.Simulation.Climate.GroundWeather.HeavyMud => "heavy-mud",
+            LivingWorld.Simulation.Climate.GroundWeather.Snow => "snow",
+            LivingWorld.Simulation.Climate.GroundWeather.Frozen => "frozen",
+            _ => "dry",
+        };
+        double cellShift = EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours) - row.MeanCenti / 100.0;
+        return new WeatherVisual(
+            precipitation, intensity, Tenth(mm), row.Storm, row.Hail, row.Frost,
+            LivingWorld.Simulation.Climate.WeatherNow.InDrought(rules, row), row.HotDays >= rules.WaveDays, row.ColdDays >= rules.WaveDays,
+            Tenth(row.WindDecims / 10.0), Half(now), Half(LivingWorld.Simulation.Climate.WeatherNow.ApparentC(now, row)),
+            Half(row.MinCenti / 100.0 + cellShift), Half(row.MaxCenti / 100.0 + cellShift),
+            Tenth(daylight), Tenth(12 - daylight / 2), Tenth(12 + daylight / 2), ground, row.SnowMm, row.SoilPm, row.OutdoorLostDays);
     }
 
     /// <summary>Camada de clima do mundo: estação e uma linha por região (célula representativa = a menor em X, depois Y, a mesma
@@ -471,9 +505,10 @@ public static class ObservableProjector
         {
             var center = region.Cells.OrderBy(c => c.X).ThenBy(c => c.Y).First();
             int factor = world.ClimateYears.LastOrDefault(y => y.Region == region.Id && y.Year == year)?.FactorMilli ?? 1000;
+            var weather = Weather(world, center);
             return new RegionClimateVisual(region.Id.Value, center,
                 Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, center, tick)), factor,
-                world.ClimateRules.Enabled && factor < ClimateRules.DroughtBelowMilli);
+                weather?.Drought ?? (world.ClimateRules.Enabled && factor < ClimateRules.DroughtBelowMilli), weather);
         }).ToArray();
         return new ClimateLayerPayload(global.Month, global.SeasonIndex, global.SeasonKey, new ValueList<RegionClimateVisual>(regions));
     }

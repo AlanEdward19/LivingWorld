@@ -111,7 +111,8 @@ public sealed partial class BehaviorDecisionSystem
             if (action == ActionType.Idle && routine != ActionType.Idle && !rules.LeisureMayIdle) continue;
             double baseValue = action switch
             {
-                ActionType.Socialize => Deficit(npc.SocialAt(now)),
+                // AD-180: sair para conversar pesa o tempo lá fora (chuva, neve, tempestade, geada de dia)
+                ActionType.Socialize => Deficit(npc.SocialAt(now)) * (1 - OutingWeather(world, npc)),
                 ActionType.Sleep => SurvivalDeficit(npc.SleepAt(now)),
                 _ => NonNeedBaselineUtility,
             };
@@ -142,6 +143,10 @@ public sealed partial class BehaviorDecisionSystem
         }
         return best;
     }
+
+    /// <summary>AD-180: quanto o tempo do lugar tira da vontade de sair para conversar (0 com o tempo desligado ou bom).</summary>
+    private static double OutingWeather(WorldState world, Npc npc) =>
+        world.WeatherOn ? world.ClimateRules.Weather!.OutingWeatherPenalty * LivingWorld.Simulation.Climate.WeatherNow.OutingDiscomfort(world, npc.CurrentLocation) : 0;
 
     /// <summary>Quantas horas antes da hora de dormir da rotina o NPC pode escolher deitar (AD-160b).</summary>
     private const int EarlyBedHours = 2;

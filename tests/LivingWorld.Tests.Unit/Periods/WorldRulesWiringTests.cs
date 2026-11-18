@@ -87,7 +87,8 @@ public class WorldRulesWiringTests
         Assert.Equal(20, world.DiseaseRules.OutbreakPopulationThreshold);
         Assert.Equal(0.02, world.DiseaseRules.OutbreakDailyChance);
         Assert.Equal(new DiseaseProfile(3, 0.08, 0.15, 6, 180), Assert.Single(world.DiseaseRules.Diseases));
-        Assert.Equal(new ClimateRules(true, 300, 1500), world.ClimateRules);
+        // AD-180: o clima ligado traz o tempo diário padrão (o sub-bloco Weather é opcional)
+        Assert.Equal(new ClimateRules(true, 300, 1500, Weather: WeatherRules.Default), world.ClimateRules);
         Assert.True(world.TheftRules.Enabled);
         Assert.Equal(90, world.TheftRules.DesperateBelow);
         Assert.Equal(0.7, world.TheftRules.BaseSuccess);
@@ -96,7 +97,20 @@ public class WorldRulesWiringTests
         Assert.Equal(TheftRules.Default.DiscoveryChance, world.TheftRules.DiscoveryChance); // campo ausente usa o padrão
     }
 
+    [Fact]
+    public void Climate_weather_block_sets_the_place_and_can_turn_the_daily_weather_off()
+    {
+        var root = Default();
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":300,"MaxMilli":1500,"Weather":{"LatitudeDeg":-33.9}}""");
+        Assert.Equal(-33.9, Load(root).ClimateRules.Weather!.LatitudeDeg);
+
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":300,"MaxMilli":1500,"Weather":{"Enabled":false}}""");
+        Assert.False(Load(root).ClimateRules.WeatherOn());
+    }
+
     [Theory]
+    [InlineData("Climate", """{"Enabled":true,"Weather":{"MeanTempC":[1,2,3]}}""", "MeanTempC")]
+    [InlineData("Climate", """{"Enabled":true,"Weather":{"LatitudeDeg":120}}""", "LatitudeDeg")]
     [InlineData("Disease", """{"Diseases":[]}""", "Disease.Enabled")]
     [InlineData("Disease", """{"Enabled":true,"Diseases":[]}""", "ao menos uma doença")]
     [InlineData("Disease", """{"Enabled":false,"OutbreakDailyChance":2}""", "OutbreakDailyChance")]

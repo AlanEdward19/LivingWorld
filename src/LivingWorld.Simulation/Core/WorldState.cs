@@ -566,6 +566,8 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        // AD-180: o tempo nasce vazio com o mundo (o primeiro dia é gerado no primeiro tick); o snapshot restaura em UseWeather
+        Weather = ClimateRules.WeatherOn() ? new LivingWorld.Simulation.Climate.WeatherLedger() : null;
         AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
         NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
@@ -785,6 +787,8 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        // AD-180: o tempo nasce vazio com o mundo (o primeiro dia é gerado no primeiro tick); o snapshot restaura em UseWeather
+        Weather = ClimateRules.WeatherOn() ? new LivingWorld.Simulation.Climate.WeatherLedger() : null;
         AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
         NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;

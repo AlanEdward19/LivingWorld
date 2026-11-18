@@ -66,6 +66,9 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
         private long _validFrom = long.MaxValue;
         private long _validUntil = long.MinValue;
         private readonly Dictionary<RegionId, float> _deltas = new();
+        private bool _scaled;
+        private float _reference;
+        private float _offsetScale = 1;
 
         /// <summary>Primeiro tick em que a tabela atual deixa de valer (vencimento de um ajuste ativo).</summary>
         internal long ValidUntil => _validUntil;
@@ -82,6 +85,18 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
             _version = world.TemperatureAdjustmentsVersion;
             _validFrom = currentTick;
             _validUntil = long.MaxValue;
+            // AD-180: o tempo do dia de cada região (a média do dia na célula de referência menos a base dela) entra antes dos
+            // ajustes, na ordem das regiões; refeito quando o dia muda (a versão sobe)
+            _scaled = false;
+            if (world.WeatherOn && world.Weather is { Day: >= 0 } weather)
+            {
+                float reference = weather.ReferenceCenti != int.MinValue ? weather.ReferenceCenti / 100f : (float)world.ClimateRules.Weather!.ReferenceBaseC;
+                foreach (var row in weather.Regions)
+                    _deltas[new RegionId(row.Region)] = row.MeanCenti / 100f - reference;
+                _scaled = true;
+                _reference = reference;
+                _offsetScale = (float)world.ClimateRules.Weather!.CellOffsetScale;
+            }
             // Uma passada, na ordem da lista: a soma por região é a mesma de varrer a lista inteira
             // para cada região (float idêntico), mas custa O(ajustes) em vez de O(regiões × ajustes).
             foreach (var adjustment in world.EnvironmentTemperatureAdjustments)
@@ -98,6 +113,8 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
         {
             if (!world.Map.TryGetBaseClimate(coord, out float baseTemperature, out var region))
                 return 0;
+            // AD-180: com o tempo diário a diferença da célula para o lugar da climatologia segue o gradiente real (6,5 °C/km)
+            if (_scaled) baseTemperature = _reference + (baseTemperature - _reference) * _offsetScale;
 
             return baseTemperature + _deltas.GetValueOrDefault(region);
         }

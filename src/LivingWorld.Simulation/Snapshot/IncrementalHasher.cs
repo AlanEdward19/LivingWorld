@@ -43,6 +43,7 @@ public static class IncrementalHasher
         nameof(WorldState.Invention),
         nameof(WorldState.Crime),
         nameof(WorldState.Ground),
+        nameof(WorldState.Weather),
         nameof(WorldState.Credit),
         nameof(WorldState.Honor),
         nameof(WorldState.Facts),

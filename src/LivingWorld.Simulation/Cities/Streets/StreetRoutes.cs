@@ -18,6 +18,9 @@ internal sealed class StreetRoute
     public int A = -1, B = -1;
     public int E = -1, X = -1;
     public bool Internal;
+
+    /// <summary>AD-180: parte (‰) das células da rota sem calçamento (onde a chuva faz lama); −1 = ainda não contada.</summary>
+    public int SoftPm = -1;
 }
 
 /// <summary>Trecho pela rede de caminhos entre duas células dela: custo e as células, em ordem.</summary>
@@ -455,6 +458,46 @@ public static class StreetRoutes
 
     /// <summary>AD-176: as células por onde a pessoa anda, em ordem — a célula onde está, a soleira, a reta ou o caminho pela rede,
     /// a soleira do destino e a célula de chegada (água e prédio atravessado inclusive). Sem a rua de verdade, a reta de antes.</summary>
+    /// <summary>AD-180 (ponto único do tempo na rota): parte (‰) das células da rota que não são cascalho nem pedra — o chão que
+    /// vira lama com a chuva. Contada uma vez por rota em cache (a rota é refeita quando o chão muda); sem a rua de verdade, tudo é
+    /// terra (1000).</summary>
+    internal static int SoftPm(WorldState world, CellCoord origin, CellCoord destination)
+    {
+        if (!world.StreetsOn || origin == destination) return 1000;
+        var route = Get(world, origin, destination);
+        if (route.SoftPm >= 0) return route.SoftPm;
+        var state = StateOf(world);
+        var ground = world.Ground!;
+        int total = 0, soft = 0;
+        void Count(int c)
+        {
+            total++;
+            if (ground.SurfaceAt(c) is not (GroundSurface.Gravel or GroundSurface.Stone)) soft++;
+        }
+        void Walk(int a, int b) // as células da reta (Bresenham), sem alocar
+        {
+            int ax = a % state.W, ay = a / state.W, bx = b % state.W, by = b / state.W;
+            int dx = Math.Abs(bx - ax), dy = -Math.Abs(by - ay), sx = bx > ax ? 1 : -1, sy = by > ay ? 1 : -1, err = dx + dy;
+            while (true)
+            {
+                Count(ay * state.W + ax);
+                if (ax == bx && ay == by) break;
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; ax += sx; }
+                if (e2 <= dx) { err += dx; ay += sy; }
+            }
+        }
+        if (route.Internal || route.A < 0 || route.B < 0) Walk(Index(state, origin), Index(state, destination));
+        else if (route.E < 0) Walk(route.A, route.B);
+        else
+        {
+            Walk(route.A, route.E);
+            if (route.E != route.X) foreach (int c in Leg(state, route.E, route.X).Path) Count(c);
+            Walk(route.X, route.B);
+        }
+        return route.SoftPm = total == 0 ? 1000 : soft * 1000 / total;
+    }
+
     public static IReadOnlyList<CellCoord> PathOf(WorldState world, CellCoord origin, CellCoord destination)
     {
         var cells = new List<int>();

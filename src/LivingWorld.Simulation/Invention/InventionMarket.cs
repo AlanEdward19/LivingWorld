@@ -44,7 +44,8 @@ public static class InventionMarket
         // AD-176: o veículo de terra pede caminho que o comporte; com mais terreno sem caminho na rota, a carga volta aos braços
         if (rules.LandVehicles && world.Invention.BestHauler(household.Id.Value, rules) is { Exists: true } hauler && hauler.CapacityG > foot)
         {
-            if (LivingWorld.Simulation.Cities.Streets.StreetRoutes.CartFits(world, household.Location, market)) foot = hauler.CapacityG;
+            if (LivingWorld.Simulation.Cities.Streets.StreetRoutes.CartFits(world, household.Location, market)
+                && LivingWorld.Simulation.Climate.WeatherNow.CartPasses(world, household.Location)) foot = hauler.CapacityG; // AD-180: atola na neve funda e no lamaçal
             else world.InventionTally.HaulerRouteBlocked++;
         }
         if (water == 0) return foot;

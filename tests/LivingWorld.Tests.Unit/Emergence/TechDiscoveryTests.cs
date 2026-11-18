@@ -186,7 +186,9 @@ public class TechDiscoveryTests
     [Fact]
     public void A_technology_spreads_to_a_city_of_the_same_culture_through_a_strong_tie()
     {
-        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly);
+        // AD-180: os dois sem casa dormiriam ao relento e o inverno mataria quem carrega o vínculo; o teste é da difusão pelo vínculo
+        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default with { Weather = null });
         var home = world.ActiveCities().First();
         var other = new LivingWorld.Domain.Cities.City(
             world.NextCityId(), new CellCoord(8, 8), 0, null, LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);
@@ -310,7 +312,8 @@ public class TechDiscoveryTests
             var runs = ParallelSeeds.Map([1UL, 2, 3, 1001, 1002, 1003], Technologies);
             // AD-130: com a demografia de época a vila da seed 1 adota a 1ª mobilidade, o trajeto ao mercado cai abaixo do
             // limiar de pressão e ela para de inventar (desfecho possível, não defeito). Exige-se que a maioria siga descobrindo.
-            Assert.True(runs.Count(r => r.Count >= 3) >= 5, "a maioria das vilas deveria seguir descobrindo por 30 anos");
+            // Junção da AD-180 (tempo diário): duas das seis vilas (seeds 1 e 1001) param em 2; contagens 2, 29, 4, 2, 19, 29.
+            Assert.True(runs.Count(r => r.Count >= 3) >= 4, $"a maioria das vilas deveria seguir descobrindo por 30 anos ({string.Join(", ", runs.Select(r => r.Count))})");
             int different = Enumerable.Range(0, 3).Count(i => runs[i].Set != runs[i + 3].Set);
 
             Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");

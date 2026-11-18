@@ -97,9 +97,18 @@ public sealed class AgriculturalYearTests
         long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21, 22, 23, 24, 25, 26 }.Sum(seed =>
         {
             var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share });
-            clock.Run(world, 8L * HoursPerMonth);
+            // AD-180: a chuva para a ceifa; aos 8 meses (fim de agosto) a ceifa ainda está pela metade em ano chuvoso: conta no fim dela
+            // junção da AD-180: uma foto só no fim (9 meses) invertia por ruído (2252 × 2330); soma-se a despensa das casas dia a
+            // dia durante a ceifa (meses 8 e 9), que é quando a parte em espécie entra
+            clock.Run(world, 7L * HoursPerMonth);
             var food = new ResourceType(world.EconomyRules.FoodResourceId);
-            return world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
+            long total = 0;
+            for (long day = 0; day < 2L * HoursPerMonth / world.Calendar.HoursPerDay; day++)
+            {
+                clock.Run(world, world.Calendar.HoursPerDay);
+                total += world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
+            }
+            return total;
         });
 
         long half = HomeFoodAfterHarvest(0.5), none = HomeFoodAfterHarvest(0);
