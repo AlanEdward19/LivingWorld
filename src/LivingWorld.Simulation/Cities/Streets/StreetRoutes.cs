@@ -60,6 +60,10 @@ internal sealed class StreetRouteState
     public int[] Prev = [];
     public int[] Seen = [];
     public int Stamp;
+    /// <summary>AD-185: o limite inferior de cada célula na busca em curso (carimbo <see cref="HStamp"/>): a heurística dos marcos
+    /// é contada uma vez por célula, não a cada vez que a célula entra ou sai da fila.</summary>
+    public double[] HVal = [];
+    public int[] HStamp = [];
     /// <summary>AD-185: quantas vezes as rotas guardadas foram jogadas fora (o carimbo dos caches derivados de rota).</summary>
     public long RouteVersion;
     /// <summary>AD-185: a fila do A* e do Dijkstra da rede, reaproveitada (esvaziada a cada uso): a busca não aloca.</summary>
@@ -624,7 +628,7 @@ public static class StreetRoutes
             return leg;
         }
         int stamp = ++state.Stamp;
-        if (stamp == int.MaxValue) { Array.Clear(state.Seen); state.Stamp = stamp = 1; }
+        if (stamp == int.MaxValue) { Array.Clear(state.Seen); Array.Clear(state.HStamp); state.Stamp = stamp = 1; }
         double hUnit = state.NetRate;
         int w = state.W, tx = x % w, ty = x / w;
         const double Diag = 0.41421356237309515; // √2 − 1
@@ -641,6 +645,8 @@ public static class StreetRoutes
                 lmDist[lmCount] = d; lmToX[lmCount] = dx; lmCount++;
             }
         var seen = state.Seen; var gs = state.G; var prev = state.Prev;
+        if (state.HVal.Length != seen.Length) { state.HVal = new double[seen.Length]; state.HStamp = new int[seen.Length]; }
+        var hVal = state.HVal; var hStamp = state.HStamp;
         var adjStart = state.AdjStart; var adjCell = state.AdjCell; var adjCost = state.AdjCost;
         int size = 0;
         seen[e] = stamp; gs[e] = 0; prev[e] = -1;
@@ -675,6 +681,13 @@ public static class StreetRoutes
 
         // limite inferior do custo de c até x: a reta no passo mais barato da rede, ou o dos marcos (o maior dos dois)
         double Octile(int c)
+        {
+            if (hStamp[c] == stamp) return hVal[c];
+            hStamp[c] = stamp;
+            return hVal[c] = Bound(c);
+        }
+
+        double Bound(int c)
         {
             int ddx = Math.Abs(c % w - tx), ddy = Math.Abs(c / w - ty);
             double h = (Math.Max(ddx, ddy) + Diag * Math.Min(ddx, ddy)) * hUnit;
@@ -742,7 +755,7 @@ public static class StreetRoutes
     {
         var leg = new NetLeg();
         int stamp = ++state.Stamp;
-        if (stamp == int.MaxValue) { Array.Clear(state.Seen); state.Stamp = stamp = 1; }
+        if (stamp == int.MaxValue) { Array.Clear(state.Seen); Array.Clear(state.HStamp); state.Stamp = stamp = 1; }
         var r = state.Rules;
         double hUnit = state.Base * state.MinTerrain * Math.Min(1000, Math.Min(Math.Min(r.TrailPm, r.DirtPm), Math.Min(r.GravelPm, r.StonePm))) / 1000.0;
         int tx = x % state.W, ty = x / state.W;
