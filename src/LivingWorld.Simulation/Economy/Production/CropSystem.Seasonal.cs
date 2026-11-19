@@ -383,6 +383,10 @@ public sealed partial class CropSystem
             ctx.LogEvent(WorldEventKind.ResourceLost, $"{farm.Id.Value}|{food.Id}|{lost}", sourceSystem: SystemName);
     }
 
+    /// <summary>AD-191: reserva de fundação por morador (<see cref="AgricultureRules.BarnReserveYears"/> × o que se come num ano).</summary>
+    internal static long FoundingReservePerPerson(AgricultureRules ag) =>
+        ag.BarnReserveYears > 0 ? (long)Math.Round(ag.BarnReserveYears * ag.HandKeepPerYear) : 0;
+
     /// <summary>Estado inicial declarado do mundo novo (AD-135), como a despensa inicial: o trigo foi semeado no outono anterior
     /// pelos lavradores que a vila tem, e o celeiro guarda o bastante para chegar à colheita. Fazenda construída depois nasce em
     /// pousio e semeia com semente das outras fazendas da cidade.</summary>
@@ -406,7 +410,9 @@ public sealed partial class CropSystem
                 field.StartSeason();
                 field.Sow(seed, seed * 1000);
                 field.Develop(ag.InitialDevelopment);
-                field.StoreBarn(residents / count * ag.InitialProvisionPerPerson);
+                // AD-191: a vila fundada guarda, além do que leva à colheita, a reserva que a venda espera ver no celeiro
+                // (BarnReserveYears do que se come num ano): sem ela a primeira safra ruim era carestia, furto em massa e banimento
+                field.StoreBarn(residents / count * (ag.InitialProvisionPerPerson + FoundingReservePerPerson(ag)));
             }
         }
     }

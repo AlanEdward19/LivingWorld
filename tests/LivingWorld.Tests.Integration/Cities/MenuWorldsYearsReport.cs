@@ -160,6 +160,17 @@ public class MenuWorldsYearsReport
     {
         var off = (Environment.GetEnvironmentVariable("LW_MENU_OFF") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var ag = world.AgricultureRules;
+        if (off.Contains("barnprice"))
+        {
+            // a reserva de fundação (AD-191) sai do celeiro como se o mundo tivesse sido semeado sem ela
+            long reserve = LivingWorld.Simulation.Economy.Production.CropSystem.FoundingReservePerPerson(ag);
+            foreach (var group in world.Workplaces.Where(w => w.LocationType.Id == 1).GroupBy(w => w.City))
+            {
+                long residents = world.Npcs.Count(n => n.IsAlive && n.City == group.Key);
+                foreach (var farm in group)
+                    world.FindCropAt(farm.Location)?.TakeBarn(residents / group.Count() * reserve);
+            }
+        }
         foreach (var key in off)
             ag = key switch
             {
