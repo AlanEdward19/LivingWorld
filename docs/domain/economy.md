@@ -72,7 +72,7 @@ por grau-dia da célula (inverno quase parado), colheita à mão numa janela cur
 A colheita repõe primeiro a semente do ano seguinte; o resto vai ao celeiro do campo, que perde ~15%/ano e abastece a
 venda da fazenda até a próxima safra. Rendimento = semente × grãos por semente × habilidade de quem semeou × ano de
 clima (AR(1) regional, `ClimateRules.Default`). Fome sazonal e de quebra de safra saem disso, não de regra escrita.
-Água de rio, lago ou fonte: alguém da casa vai buscá-la a pé e a traz (AD-185, `WaterFetch`, [city-layout](city-layout.md)).
+Água de rio, lago ou fonte: alguém da casa vai buscá-la a pé e a traz (AD-185, `WaterFetch`, [city-layout](city-layout.md)); AD-191: já na fonte enche ali, e o pote pesado demais fica (leva o cântaro simples): `NoEmptyTrips`.
 O celeiro solta por dia o que dura até a colheita esperada; a lavoura ainda em pé antes do mês esperado conta até ele.
 
 ## Dono, lucro e ferramenta (AD-144)

@@ -11,7 +11,9 @@ namespace LivingWorld.Tests.LongRunning.Cities;
 /// até <see cref="StarvationCeilingPerThousand"/> por mil pessoas-ano e nenhuma morte de sede. A junção que quebrou foi a AD-180 (o
 /// ano de safra do menu com a faixa uniforme 500–1500). Medido com a AD-190: 38/40, 190/150, 471/400, 0 de fome e de sede. A cidade
 /// média seed 1 e a metrópole seed 2 ainda passam fome em 20 anos (bloco de issue no decisions-log); o relatório de 20 anos × 3
-/// seeds é <c>MenuWorldsYearsReport</c>.</summary>
+/// seeds é <c>MenuWorldsYearsReport</c>. AD-191: de volta às seeds que colapsavam (cidade média seed 1, metrópole seed 2): a lavoura
+/// que vale o grão, a ida de água que não volta vazia, a bolsa da casa a quem compra, o preço que olha o celeiro e a reserva de
+/// fundação. E a cidade média atravessa uma quebra de safra de 1 em 50 anos sem perder mais de 10%.</summary>
 [Trait("Category", "Scenario")]
 public class MenuWorldsSustainTests
 {
@@ -21,8 +23,8 @@ public class MenuWorldsSustainTests
 
     [Theory]
     [InlineData("vila-pequena", 7UL)]
-    [InlineData("cidade-media", 2UL)]
-    [InlineData("grande-metropole", 7UL)]
+    [InlineData("cidade-media", 1UL)]
+    [InlineData("grande-metropole", 2UL)]
     public void Menu_world_feeds_itself_for_a_decade(string period, ulong seed)
     {
         var (world, baseClock) = MenuWorlds.Load(period, seed);
@@ -41,6 +43,22 @@ public class MenuWorldsSustainTests
         Assert.True(pop >= pop0 * PopulationFloor, $"{period} seed {seed}: {pop0} → {pop} em {Years} anos ({deaths.Starved} de fome, {deaths.Dehydrated} de sede)");
         Assert.True(starvation <= StarvationCeilingPerThousand, $"{period} seed {seed}: {starvation:F2} mortes de fome por mil pessoas-ano");
         Assert.Equal(0, deaths.Dehydrated);
+    }
+
+    /// <summary>AD-191: fator de safra de 1 em 50 anos (2% dos anos do menu ficam abaixo de 600).</summary>
+    public const int OneInFiftyHarvest = 590;
+
+    [Fact]
+    public void The_middle_city_crosses_a_one_in_fifty_crop_failure_losing_at_most_a_tenth()
+    {
+        var (world, clock) = MenuWorlds.Load("cidade-media", 2UL);
+        const long failYear = 4; // o quinto ano
+        clock.Run(world, failYear * world.Calendar.HoursPerYear - 1);
+        foreach (var region in world.Map.Regions) world.SetClimateYear(region.Id, failYear, OneInFiftyHarvest);
+        int before = world.AliveNpcIndex.Alive.Count;
+        clock.Run(world, 2 * world.Calendar.HoursPerYear + 1); // a colheita quebrada e o ano até a seguinte
+        int after = world.AliveNpcIndex.Alive.Count;
+        Assert.True(after >= before * 0.9, $"quebra de safra: {before} → {after}");
     }
 
     private sealed class Deaths : IWorldEventSink

@@ -181,6 +181,8 @@ public class MenuWorldsYearsReport
         world.AgricultureRules = ag;
         if (off.Contains("water"))
             world.NaturalWaterRules = world.NaturalWaterRules with { Fetch = world.NaturalWaterRules.Fetch with { NoEmptyTrips = false } };
+        if (off.Contains("customary") && world.CrimeRules is { } crime)
+            world.CrimeRules = crime with { Justice = crime.Justice with { CustomaryValue = false } };
         if (off.Contains("purse") && world.FamilyRules.Pressure is { } p)
             world.FamilyRules = world.FamilyRules with { Pressure = p with { PurseToShopper = false } };
     }

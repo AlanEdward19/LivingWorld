@@ -63,6 +63,9 @@ socorrida, em comida. A comida vem de parente **ou gente de afeto**, acima de 2 
 (0,966–0,992: quem dá fica com a despensa curta, que adia o primeiro filho). Só a moeda que vê a banca, sem a comida
 do excedente, sobe a fome (1,03×; cortar também a moeda e a esmola nesse caso dava 1,10×, revertido). AD-182: moeda na mão de
 quem não sabe comprar (o marco de comprar do desenvolvimento) também não alimenta (`AidSeesWhoCanBuy`): a casa é socorrida em comida.
+AD-191 (`PurseToShopper`): a bolsa da casa vai a quem compra (o neto que ganha e não tem o marco entrega ao avô) e a ajuda só
+conta a moeda de quem compra; antes o avô sem moeda morria de fome ao lado da banca (seed 22). Furto de comida e água vai à
+justiça pelo preço de costume, não pelo da carestia (`JusticeRules.CustomaryValue`).
 
 ## Esmola racionada
 O tesouro só enche na virada do mês (imposto do salário e dízimo, AD-140). A esmola do dia é repartida entre todos os
