@@ -52,7 +52,8 @@ trabalho), que tirava filhos da casa que mandava comida a parente.
 ## A família de origem antes da esmola
 `MutualAidSystem`: a casa sem comida e sem dinheiro recebe primeiro dos seus. Pais, **avós** (também idosos) e irmãos
 mandam **comida da própria despensa** e moeda da carteira; só o que faltar vai pedir à cidade. Evento `AidGiven` com
-`|food` no fim quando é comida. Nada é criado: comida e moeda só mudam de casa.
+`|food` no fim quando é comida. Nada é criado: comida e moeda só mudam de casa. AD-190: sem os seus, as 6 casas mais perto na
+cidade (`NeighbourAidHouses`) decidem pelo altruísmo (× 0,4, sem laço) mandar comida acima da reserva (`|food|vizinho`).
 AD-166 (quebra de colheita, 08c item 148): a moeda só tira a casa da ajuda se compra comida (`AidSeesFoodForSale`: um
 mercado a até 4 h com comida à venda e a casa não acabou de achar a banca vazia); sem isso a casa com moeda também é
 socorrida, em comida. A comida vem de parente **ou gente de afeto**, acima de 2 dias por morador da casa de quem dá
@@ -72,7 +73,7 @@ e o tesouro secava no meio do mês, que é quando o recém-nascido de casal sem 
 `EmigrationSystem` (mensal): o adulto de 16 a 35 anos, solteiro, sem filho, sem gravidez, sem trabalho e **sem vaga que o
 contrataria na cidade** (ofício dele, folha paga, encomenda ou terra pedindo a mão; AD-149) decide partir com a chance de `EmigrationRules.DecisionPerYear` (`Pressure.Emigration`), vezes o temperamento (abertura e ambição
 empurram, aversão a risco segura) e menos os laços (pais vivos na cidade, o maior afeto por alguém dela).
-- Com cidades ligadas e outra cidade com vaga paga, vai para lá (viagem da migração, `RelocationArrivalSystem`).
+- Com cidades ligadas e outra cidade com vaga paga, vai para lá (viagem da migração, `RelocationArrivalSystem`; AD-190: a mudança se completa quando o chefe chega, e quem vem atrás segue para a casa nova).
 - Sem nenhuma, **sai do mundo simulado**: deixa o dinheiro com um adulto da casa (ou o herdeiro), a casa perde o morador,
   `Npc.Emigrated` = verdadeiro e `DeathDate` marca a partida. Não é morte: o relatório conta à parte (`emigrantes`).
 - Desenho honesto com o motor: a migração de casa inteira (`MigrationSystem`) exige duas cidades e só move a casa pelo

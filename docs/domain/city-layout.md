@@ -83,7 +83,7 @@ para 40/150/400 pessoas): ~1 viagem por pessoa-mês, chão nenhum, e a metrópol
 Agora são a vila de código em três tamanhos (`DefaultPeriodSeeder`: economia, fazenda com poço e forja por centena, presença,
 empreendimento, crédito, tecnologia ligada, célula de 30 min, lado pela regra da vila). Seeds 1/2/7, mês 12: 49–75 viagens por
 pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra, zero morte de fome ou sede, zero casa sem rota;
-`cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`.
+`cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`; 10 anos sem fome nem sede: `MenuWorldsSustainTests` (AD-190; 20 anos: `MenuWorldsYearsReport`).
 `LW_MENU_WORLDS_OUT=arq ... --filter MenuWorldsReport` (diagnóstico) e `MenuWorldsCostReport` (custo).
 ## Buscar água, emprego perto e dados de rota (AD-185)
 `WaterFetch`: com a água da casa abaixo de 4 dias por morador, quem está em casa ou perto com tempo livre (8+ anos, fora da cama; quem

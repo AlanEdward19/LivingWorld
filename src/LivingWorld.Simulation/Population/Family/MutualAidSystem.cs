@@ -249,10 +249,56 @@ public sealed class MutualAidSystem : ISimulationSystem
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}{(why is null ? "" : "||" + why)}", sourceSystem: SystemName);
         }
 
+        if (foodNeed > 0 && (!moneyBuysFood || deficit > 0) && world.FamilyRules.Pressure is { NeighbourAidHouses: > 0 } neighbourRules)
+            (foodNeed, deficit) = NeighboursFeed(world, ctx, household, memberIds, recipient, foodNeed, deficit, unitPrice, day, food,
+                fedFrom, reserveDays, neighbourRules.NeighbourAidHouses);
+
         if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
         if (AlmsGiver(world, household) is not { } city) return;
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
+    }
+
+    /// <summary>AD-190: as <paramref name="houses"/> casas mais perto da necessitada na mesma cidade (distância de quadra, empate
+    /// pelo id), que ainda não mandaram hoje, decidem pelo altruísmo de quem cuida delas (o primeiro adulto ou idoso, pelo id)
+    /// com a chance da ajuda sem laço (altruísmo × 0,4, mais a gratidão) e mandam da despensa o que passa da reserva. Devolve a
+    /// comida e a moeda que ainda faltam.</summary>
+    private static (long FoodNeed, long Deficit) NeighboursFeed(
+        WorldState world, TickContext ctx, Household household, HashSet<NpcId> memberIds, Npc recipient, long foodNeed, long deficit,
+        long unitPrice, long day, ResourceType food, HashSet<HouseholdId> fedFrom, int reserveDays, int houses)
+    {
+        var near = new List<(long Distance, long Id, Household House)>();
+        foreach (var other in world.Households)
+        {
+            if (other.Id == household.Id || other.IsEmpty || other.City != household.City || fedFrom.Contains(other.Id)
+                || other.Stock.GetValueOrDefault(food) <= Math.Max(1, other.Members.Count) * (long)reserveDays) continue;
+            long d = Math.Abs(other.Location.X - household.Location.X) + Math.Abs(other.Location.Y - household.Location.Y);
+            near.Add((d, other.Id.Value, other));
+        }
+        near.Sort((a, b) => a.Distance != b.Distance ? a.Distance.CompareTo(b.Distance) : a.Id.CompareTo(b.Id));
+        for (int i = 0; i < near.Count && i < houses && foodNeed > 0; i++)
+        {
+            var house = near[i].House;
+            Npc? helper = null;
+            foreach (var id in house.Members.OrderBy(m => m.Value))
+                if (!memberIds.Contains(id) && world.FindNpc(id) is { IsAlive: true } m && IsGrown(world, m)) { helper = m; break; }
+            if (helper is null) continue;
+            long spare = house.Stock.GetValueOrDefault(food) - Math.Max(1, house.Members.Count) * (long)reserveDays;
+            if (spare <= 0) continue;
+            double altruism = helper.Personality.Altruism / 100.0;
+            double chance = altruism * 0.4 * (1 + world.NeedsRules.Psyche.ReciprocityGain
+                * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, [recipient], ctx.CurrentTick));
+            if (ctx.StreamFor("neighbour-aid", helper.Id.Value * 1_000_003L + day).NextDouble() >= chance) continue;
+            long sent = Math.Min(foodNeed, (long)Math.Ceiling(spare * (0.3 + 0.5 * altruism)));
+            if (sent <= 0 || !house.Withdraw(food, sent).IsSuccess) continue;
+            household.Deposit(food, sent);
+            fedFrom.Add(house.Id);
+            foodNeed -= sent;
+            deficit -= sent * unitPrice;
+            Thank(world, ctx, recipient, helper);
+            ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food|vizinho", sourceSystem: SystemName);
+        }
+        return (foodNeed, deficit);
     }
 
     /// <summary>AD-185: parente ou gente de afeto (adulto, como no socorro de comida) manda da despensa dele a água que passa de
