@@ -48,7 +48,7 @@ public sealed class LaborValueIndex
     /// cai com a terra cheia) dividido pelos dias do ano. Antes a comida da lavoura não contava (só a água do poço, quase sempre
     /// encalhada) e a fazenda valia o mínimo: qualquer encomenda da forja ou fazenda que pagasse um pouco mais tirava o lavrador da
     /// terra, e as fazendas da borda da metrópole chegavam à ceifa com um quarto das mãos.</summary>
-    private static (double Stay, double Join)? FieldLaborValue(WorldState world, Workplace farm, double foodPrice)
+    internal static (double Stay, double Join)? FieldLaborValue(WorldState world, Workplace farm, double foodPrice)
     {
         var ag = world.AgricultureRules;
         if (!ag.Enabled || !ag.FieldLaborValue || farm.LocationType.Id != LivingWorld.Simulation.Economy.Production.CropSystem.DefaultFarmLocationTypeId) return null;

@@ -19,7 +19,7 @@ public static class AgricultureSwitch
     public static AgricultureRules? AgricultureRules()
     {
         var keys = Keys();
-        if (Ad191.Off) keys.Add("nofieldvalue"); // AD-191: LW_AD191=off tira tudo o que a fatia ligou
+        if (Ad191.Off) { keys.Add("nofieldvalue"); keys.Add("nobarnprice"); } // AD-191: LW_AD191=off tira tudo o que a fatia ligou
         if (keys.Count == 0) return null;
         var ag = Domain.Economy.AgricultureRules.Default;
         if (keys.Contains("noland")) ag = ag with { SownHectaresPerFounder = 0 };
@@ -36,7 +36,8 @@ public static class AgricultureSwitch
         if (keys.Contains("seedsale")) ag = ag with { SeedKeptFromSale = false };
         if (keys.Contains("nodearthsow")) ag = ag with { DearthSowBoost = 0 }; // AD-190
         if (keys.Contains("freegrain")) ag = ag with { PayForCityGrain = false }; // AD-190: o grão da outra fazenda volta a ser de graça
-        if (keys.Contains("nofieldvalue")) ag = ag with { FieldLaborValue = false }; // AD-191: a lavoura volta a valer o mínimo na escolha de emprego
+        if (keys.Contains("nofieldvalue")) ag = ag with { FieldLaborValue = false };
+        if (keys.Contains("nobarnprice")) ag = ag with { BarnReserveYears = 0 }; // AD-191: o preço volta a olhar só a banca // AD-191: a lavoura volta a valer o mínimo na escolha de emprego
         return ag;
     }
 

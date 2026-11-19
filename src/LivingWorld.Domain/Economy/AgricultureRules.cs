@@ -89,6 +89,15 @@ public sealed record AgricultureRules(
     /// dia) ao preço da comida. Falso = o de antes (a lavoura valia o mínimo e perdia as mãos para qualquer outra oficina).</summary>
     public bool FieldLaborValue { get; init; } = true;
 
+    /// <summary>AD-191: o preço do grão na venda da fazenda olha o celeiro, não só a banca. A banca é reposta do celeiro todo dia, então
+    /// só ficava vazia (e o preço só subia) quando o celeiro já tinha acabado: duas safras perdidas não mexiam no preço até a fome.
+    /// Agora, com o celeiro da cidade abaixo do que se come até a próxima colheita mais <see cref="BarnReserveYears"/> de reserva, o
+    /// preço vai ao piso × (cobertura)^−<see cref="BarnPriceExponent"/> (lei de Gregory King: 10% a menos, +30%; 30%, +160%; 50%,
+    /// +450%; precisa de conferência). 0 desliga.</summary>
+    public double BarnReserveYears { get; init; } = 0.5;
+
+    public double BarnPriceExponent { get; init; } = 2.5;
+
     /// <summary>Lote diário antigo (trigo em 24 h): padrão de mundo construído à mão e de snapshot antigo.</summary>
     public static AgricultureRules Disabled { get; } = new(false);
 

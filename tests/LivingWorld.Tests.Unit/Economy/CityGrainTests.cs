@@ -53,3 +53,41 @@ public sealed class CityGrainTests
         Assert.Equal(1.0, CropSystem.DearthSowBoost(ag, [(farm, field)], residents)[farm.City], 9);
     }
 }
+
+/// <summary>AD-191: o preço do grão da fazenda olha o celeiro da cidade (lei de King), não só a banca reposta todo dia.</summary>
+public sealed class BarnPriceTests
+{
+    private static (LivingWorld.Simulation.Core.WorldState World, Workplace Farm, CropBatch Field, double Need) Village(AgricultureRules? ag = null)
+    {
+        var (world, _) = ScenarioRunner.Create(7, agricultureRules: ag);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == CropSystem.DefaultFarmLocationTypeId);
+        var field = world.FindCropAt(farm.Location)!;
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        farm.Withdraw(food, farm.Stock.GetValueOrDefault(food));
+        field.TakeBarn(field.Barn);
+        long residents = world.Households.Where(h => h.City == farm.City).Sum(h => h.Members.Count);
+        var rules = world.AgricultureRules;
+        double need = residents * rules.HandKeepPerYear / 360.0 * (CropSystem.DaysToNextHarvest(world, rules, field) + rules.BarnReserveYears * 360);
+        return (world, farm, field, need);
+    }
+
+    [Fact]
+    public void A_barn_that_covers_the_year_leaves_the_price_alone_and_half_of_it_multiplies_the_floor_by_kings_law()
+    {
+        var (world, farm, field, need) = Village();
+        field.StoreBarn((long)need + 10);
+        Assert.Null(LivingWorld.Simulation.Economy.Market.MarketPricingSystem.BarnScarcityPrice(world, farm, 1));
+
+        field.TakeBarn(field.Barn);
+        field.StoreBarn((long)(need / 2));
+        long price = LivingWorld.Simulation.Economy.Market.MarketPricingSystem.BarnScarcityPrice(world, farm, 1)!.Value;
+        Assert.InRange(price, 5, 7); // 2^2,5 ≈ 5,7: metade da cobertura, quase seis vezes o piso
+    }
+
+    [Fact]
+    public void Without_the_rule_the_barn_does_not_price()
+    {
+        var (world, farm, _, _) = Village(AgricultureRules.Default with { BarnReserveYears = 0 });
+        Assert.Null(LivingWorld.Simulation.Economy.Market.MarketPricingSystem.BarnScarcityPrice(world, farm, 1));
+    }
+}
