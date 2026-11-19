@@ -108,7 +108,28 @@ public class WorldRulesWiringTests
         Assert.False(Load(root).ClimateRules.WeatherOn());
     }
 
+    /// <summary>AD-190: o ano de safra do cenário JSON lê média, desvio, persistência e parte comum (antes só a faixa, lida como
+    /// uniforme), e os mundos do menu declaram os da vila de código.</summary>
+    [Fact]
+    public void Climate_block_reads_the_crop_year_distribution_and_the_menu_uses_the_code_village_one()
+    {
+        var root = Default();
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":250,"MaxMilli":1500,"MeanMilli":1000,"StdDevMilli":200,"Persistence":0.3,"SharedShare":0.7}""");
+        var rules = Load(root).ClimateRules;
+        Assert.Equal((1000, 200, 0.3, 0.7), (rules.MeanMilli, rules.StdDevMilli, rules.Persistence, rules.SharedShare));
+
+        var d = ClimateRules.Default;
+        foreach (var period in LivingWorld.Api.Periods.DefaultPeriodSeeder.PresetIds)
+        {
+            var menu = ScenarioLoaderV2.LoadWorld(LivingWorld.Api.Periods.DefaultPeriodSeeder.PayloadFor(period)).Value.World.ClimateRules;
+            Assert.Equal((d.MinMilli, d.MaxMilli, d.MeanMilli, d.StdDevMilli, d.Persistence, d.SharedShare),
+                (menu.MinMilli, menu.MaxMilli, menu.MeanMilli, menu.StdDevMilli, menu.Persistence, menu.SharedShare));
+        }
+    }
+
     [Theory]
+    [InlineData("Climate", """{"Enabled":true,"StdDevMilli":-1}""", "StdDevMilli")]
+    [InlineData("Climate", """{"Enabled":true,"Persistence":1.0}""", "Persistence")]
     [InlineData("Climate", """{"Enabled":true,"Weather":{"MeanTempC":[1,2,3]}}""", "MeanTempC")]
     [InlineData("Climate", """{"Enabled":true,"Weather":{"LatitudeDeg":120}}""", "LatitudeDeg")]
     [InlineData("Disease", """{"Diseases":[]}""", "Disease.Enabled")]
