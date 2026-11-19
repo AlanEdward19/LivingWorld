@@ -85,6 +85,10 @@ public sealed record AgricultureRules(
     /// a venda comia a semente). Falso = o de antes.</summary>
     public bool SeedKeptFromSale { get; init; } = true;
 
+    /// <summary>AD-191: o trabalho na lavoura vale, na escolha de emprego, o grão que a mão acrescenta (na ceifa, o que ela corta por
+    /// dia) ao preço da comida. Falso = o de antes (a lavoura valia o mínimo e perdia as mãos para qualquer outra oficina).</summary>
+    public bool FieldLaborValue { get; init; } = true;
+
     /// <summary>Lote diário antigo (trigo em 24 h): padrão de mundo construído à mão e de snapshot antigo.</summary>
     public static AgricultureRules Disabled { get; } = new(false);
 

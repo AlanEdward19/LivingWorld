@@ -56,6 +56,12 @@ public sealed record PopulationPressureRules
     /// sem saber comprar, morriam com a vizinhança de despensa cheia. 0 desliga.</summary>
     public int NeighbourAidHouses { get; init; } = 6;
 
+    /// <summary>AD-191: a bolsa da casa vai a quem sabe comprar. O jovem que ganha e ainda não tem o marco de comprar (ou o chefe
+    /// nessa situação) entrega a moeda ao morador que compra, e a ajuda de fora só vê a moeda que está na mão de quem compra. Antes a
+    /// casa do avô sem moeda com o neto de 15 anos e 178 moedas que não sabia comprar não era socorrida ("tem moeda") e o avô morria
+    /// de fome (seed 22). Falso = o de antes.</summary>
+    public bool PurseToShopper { get; init; } = true;
+
     /// <summary>A compra completa a meta da despensa em vez de somar a meta por cima, e só se vai ao mercado pelo que se paga.</summary>
     public bool TopUpPurchases { get; init; } = true;
 

@@ -44,7 +44,7 @@ public class MenuWorldsYearsReport
         var inv = CultureInfo.InvariantCulture;
         var (world, baseClock) = Load(period, seed, patch);
         var tally = new FoodTally(world);
-        var deaths = new DeathCount { CountKinds = Environment.GetEnvironmentVariable("LW_MENU_EVENTS") == "1" };
+        var deaths = new DeathCount { World = world, CountKinds = Environment.GetEnvironmentVariable("LW_MENU_EVENTS") == "1" };
         var traced = new List<string>();
         IWorldEventSink[] sinks = Environment.GetEnvironmentVariable("LW_MENU_TRACE") == "1"
             ? [tally, deaths, new StarvationTrace(world, seed, traced)] : [tally, deaths];
@@ -71,8 +71,13 @@ public class MenuWorldsYearsReport
                         {
                             var fy = farmDiag.TryGetValue(f.Id.Value, out var x) ? x : farmDiag[f.Id.Value] = new FarmYear();
                             int present = 0;
+                            bool ripe = world.FindCropAt(f.Location) is { Status: LivingWorld.Domain.Economy.CropStatus.Mature };
                             foreach (var e in f.Employees)
-                                if (world.FindNpc(e) is { IsAlive: true } n && n.CurrentLocation == f.Location) present++;
+                                if (world.FindNpc(e) is { IsAlive: true } n)
+                                {
+                                    if (n.CurrentLocation == f.Location) present++;
+                                    else if (ripe) { string k = $"{n.CurrentAction}/{n.TravelPurpose?.ToString() ?? "-"}"; fy.Absent[k] = fy.Absent.GetValueOrDefault(k) + 1; }
+                                }
                             fy.EmpSum += f.Employees.Count; fy.PresentSum += present; fy.Days++;
                             fy.TempSum[m] += LivingWorld.Simulation.Economy.Production.CropSystem.ReadCellTemperature(world, f.Location, world.CurrentDate.TotalHours);
                             if (world.FindCropAt(f.Location) is { } c)
@@ -122,9 +127,10 @@ public class MenuWorldsYearsReport
             {
                 var f = world.Workplaces.First(w => w.Id.Value == id);
                 lines.Add(string.Create(inv,
-                    $"FAZENDA {period} seed={seed} ano={yr} {f.Location.X}:{f.Location.Y} emp={fy.EmpSum / (double)Math.Max(1, fy.Days):F1} presente10h={fy.PresentSum / (double)Math.Max(1, fy.Days):F1} " +
+                    $"FAZENDA {period} seed={seed} ano={yr} {f.Location.X}:{f.Location.Y} caixa={f.Treasury.Amount} empFim={f.Employees.Count} emp={fy.EmpSum / (double)Math.Max(1, fy.Days):F1} presente10h={fy.PresentSum / (double)Math.Max(1, fy.Days):F1} " +
                     $"madura mes={fy.RipeMonth} dias={fy.MatureDays} presenteCeifa={fy.MaturePresent / (double)Math.Max(1, fy.MatureDays):F1} emPe={fy.Standing0} devAbr={fy.DevApr:F0} devJul={fy.DevJul:F0} " +
-                    $"temp=[{string.Join(',', fy.TempSum.Select(t => (t / world.Calendar.DaysPerMonth).ToString("F1", inv)))}]"));
+                    $"temp=[{string.Join(',', fy.TempSum.Select(t => (t / world.Calendar.DaysPerMonth).ToString("F1", inv)))}] " +
+                    $"ausentesCeifa={string.Join(',', fy.Absent.OrderByDescending(a => a.Value).Take(6).Select(a => a.Key + "=" + a.Value))}"));
             }
             if (deaths.CountKinds) { lines.Add($"EVENTOS {period} seed={seed} ano={yr} " + string.Join(' ', deaths.Kinds.Select(kv => kv.Key + "=" + kv.Value))); deaths.Kinds.Clear(); }
             deaths.Deaths = 0; deaths.Emigrated = 0;
@@ -145,7 +151,22 @@ public class MenuWorldsYearsReport
         if (!string.IsNullOrEmpty(patch)) Merge(root, JsonNode.Parse(patch)!.AsObject());
         var loaded = LivingWorld.Simulation.Scenarios.ScenarioLoaderV2.LoadWorld(root.ToJsonString());
         if (!loaded.IsSuccess) throw new InvalidOperationException($"{period}: {loaded.Error}");
+        Ablate(loaded.Value.Item1);
         return loaded.Value;
+    }
+
+    /// <summary>AD-191: <c>LW_MENU_OFF</c> (vírgulas) desliga as regras novas para medir antes × depois no mesmo binário.</summary>
+    private static void Ablate(WorldState world)
+    {
+        var off = (Environment.GetEnvironmentVariable("LW_MENU_OFF") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var ag = world.AgricultureRules;
+        foreach (var key in off)
+            ag = key switch
+            {
+                "fieldvalue" => ag with { FieldLaborValue = false },
+                _ => ag,
+            };
+        world.AgricultureRules = ag;
     }
 
     private static void Merge(JsonObject into, JsonObject from)
@@ -163,6 +184,7 @@ public class MenuWorldsYearsReport
         public int RipeMonth = -1;
         public double DevApr, DevJul;
         public double[] TempSum = new double[12];
+        public readonly SortedDictionary<string, long> Absent = new(StringComparer.Ordinal);
     }
 
     private sealed class DeathCount : IWorldEventSink
@@ -170,10 +192,22 @@ public class MenuWorldsYearsReport
         public long Deaths, Emigrated;
         public readonly SortedDictionary<string, long> Kinds = new(StringComparer.Ordinal);
         public bool CountKinds;
+        public WorldState? World;
 
         public void Record(WorldEvent evt)
         {
-            if (CountKinds) { string k = evt.Kind + "@" + evt.SourceSystem; Kinds[k] = Kinds.GetValueOrDefault(k) + 1; }
+            if (CountKinds)
+            {
+                string k = evt.Kind + "@" + evt.SourceSystem;
+                Kinds[k] = Kinds.GetValueOrDefault(k) + 1;
+                // AD-191: para que tipo de oficina vai quem a alocação de trabalho muda
+                if (evt.Kind == WorldEventKind.Hired && World is not null && evt.Payload.Split('|') is [_, var to] && long.TryParse(to, out long wid)
+                    && World.Workplaces.FirstOrDefault(w => w.Id.Value == wid) is { } dest)
+                {
+                    string kt = k + ":tipo" + dest.LocationType.Id;
+                    Kinds[kt] = Kinds.GetValueOrDefault(kt) + 1;
+                }
+            }
             if (evt.Kind == WorldEventKind.Emigrated) Emigrated++;
             if (evt.SourceSystem != YearEventTally.DeathSource) return;
             if (evt.Kind is WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion

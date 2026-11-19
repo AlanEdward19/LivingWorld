@@ -243,7 +243,7 @@ public sealed partial class WorldState
     [Canonical] public ClimateRules ClimateRules { get; }
 
     /// <summary>Ano agrícola (AD-135); desligado por padrão em mundo montado à mão (lote diário antigo).</summary>
-    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; }
+    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; internal set; } // AD-191: o relatório do menu troca para ablação
 
     /// <summary>Água de rio, lago ou fonte perto de casa (AD-135); desligado por padrão em mundo montado à mão.</summary>
     [Canonical] public LivingWorld.Domain.Economy.NaturalWaterRules NaturalWaterRules { get; }

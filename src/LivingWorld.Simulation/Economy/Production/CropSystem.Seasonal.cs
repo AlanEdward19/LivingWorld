@@ -122,7 +122,7 @@ public sealed partial class CropSystem
     /// de reserva) aumenta a semente desejada em até metade de <see cref="AgricultureRules.DearthSowBoost"/>, ainda presa às mãos e à
     /// terra; abaixo do que chega à colheita, não (a semente a mais seria o pão de agora). Antes a semeadura era só a das bocas (150 por morador, "sem margem para ano ruim"): uma quebra no
     /// primeiro ano deixava a cidade média sem reserva e ela semeava o mesmo, ano após ano, com a fome por perto.</summary>
-    private static Dictionary<CityId, double> DearthSowBoost(AgricultureRules ag, List<(Workplace Farm, CropBatch Field)> farms, Dictionary<CityId, long> residents)
+    internal static Dictionary<CityId, double> DearthSowBoost(AgricultureRules ag, List<(Workplace Farm, CropBatch Field)> farms, Dictionary<CityId, long> residents)
     {
         var boost = new Dictionary<CityId, double>();
         if (ag.DearthSowBoost <= 0 || ag.InitialProvisionPerPerson <= 0) return boost;
@@ -319,7 +319,7 @@ public sealed partial class CropSystem
     /// própria venda, até o caixa que tem. Antes o grão passava de graça e o dinheiro da venda ficava só com a fazenda perto das
     /// casas: a da borda (AD-185) produzia para o celeiro comum, não vendia, deixava de pagar a folha (WageUnpaid de 57 a 1.103
     /// por ano na metrópole, seed 2), perdia as mãos, semeava menos e a cidade passava fome com terra parada.</summary>
-    private static void PayForGrain(WorldState world, Workplace buyer, Workplace seller, long units)
+    internal static void PayForGrain(WorldState world, Workplace buyer, Workplace seller, long units)
     {
         if (units <= 0 || !world.AgricultureRules.PayForCityGrain) return;
         var food = new ResourceType(world.EconomyRules.FoodResourceId);

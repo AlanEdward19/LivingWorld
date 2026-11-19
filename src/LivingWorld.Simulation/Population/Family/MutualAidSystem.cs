@@ -68,9 +68,15 @@ public sealed class MutualAidSystem : ISimulationSystem
             // Quem faz as compras da casa: o chefe se for adulto ou idoso, senão o primeiro adulto ou idoso, senão o chefe.
             var head = members.FirstOrDefault(m => m.Id == household.Head) ?? members[0];
             var recipient = IsGrown(world, head) ? head : members.FirstOrDefault(m => IsGrown(world, m)) ?? head;
-            ShareWithinHousehold(world, members, recipient, count * dailyCostPerPerson * RelieveDays, dailyCostPerPerson);
+            // AD-191: quem compra pela casa é quem tem o marco de comprar (o chefe primeiro); a moeda de quem não compra vai a ele
+            bool purse = world.FamilyRules.Pressure is { PurseToShopper: true };
+            if (purse && !CanBuy(world, recipient) && members.Where(m => IsGrown(world, m)).FirstOrDefault(m => CanBuy(world, m)) is { } shopper)
+                recipient = shopper;
+            ShareWithinHousehold(world, members, recipient, count * dailyCostPerPerson * RelieveDays, dailyCostPerPerson,
+                keepNothingIfCannotBuy: purse);
 
-            long wallets = members.Sum(m => m.Wallet.Amount);
+            // AD-191: só conta a moeda de quem sabe comprar
+            long wallets = purse ? members.Where(m => CanBuy(world, m)).Sum(m => m.Wallet.Amount) : members.Sum(m => m.Wallet.Amount);
             // AD-166: moeda sem comida à venda ao alcance não alimenta; a casa conta como sem recurso e a ajuda vai em comida
             bool moneyBuysFood = world.FamilyRules.Pressure is not { AidSeesFoodForSale: true } pressure
                                  || FoodForSaleWithin(world, household, food, pressure.AidMarketReachHours);
@@ -112,6 +118,9 @@ public sealed class MutualAidSystem : ISimulationSystem
         return best;
     }
 
+    private static bool CanBuy(WorldState world, Npc npc) =>
+        !world.OntogenyRules.Enabled || world.OntogenyRules.IsEligible(npc.Development, LivingWorld.Domain.Behavior.ActionType.Buy);
+
     /// <summary>AD-182: algum morador tem o marco de comprar (o desenvolvimento dele não barra a compra).</summary>
     private static bool SomeoneCanBuy(WorldState world, List<Npc> members)
     {
@@ -127,7 +136,7 @@ public sealed class MutualAidSystem : ISimulationSystem
     /// própria reserva de poucos dias (a criança passa tudo) até cobrir a semana da casa. Antes cada carteira era só de
     /// quem a tinha, e um adulto morria de fome ao lado de um filho com moedas que não sabia gastar.</summary>
     private static void ShareWithinHousehold(
-        WorldState world, List<Npc> members, Npc recipient, long target, long dailyCostPerPerson)
+        WorldState world, List<Npc> members, Npc recipient, long target, long dailyCostPerPerson, bool keepNothingIfCannotBuy = false)
     {
         foreach (var donor in members.OrderBy(m => m.Id.Value))
         {
@@ -135,7 +144,8 @@ public sealed class MutualAidSystem : ISimulationSystem
             if (missing <= 0) return;
             if (donor.Id == recipient.Id) continue;
 
-            long keep = IsGrown(world, donor) ? dailyCostPerPerson * NeedyWalletDays : 0;
+            // quem não sabe comprar não guarda reserva para si (AD-191): a moeda só alimenta na mão de quem compra
+            long keep = IsGrown(world, donor) && !(keepNothingIfCannotBuy && !CanBuy(world, donor)) ? dailyCostPerPerson * NeedyWalletDays : 0;
             long give = Math.Min(missing, donor.Wallet.Amount - keep);
             if (give <= 0 || !donor.TryDebitWallet(new Money(give)).IsSuccess) continue;
             recipient.CreditWallet(new Money(give));

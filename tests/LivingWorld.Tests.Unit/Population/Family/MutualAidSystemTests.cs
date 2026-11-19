@@ -42,13 +42,13 @@ public class MutualAidSystemTests
     /// <summary>Casa necessitada: mãe adulta (recipient) e filho, sem comida e sem dinheiro. Ajudante: a avó,
     /// adulta, com casa própria e <paramref name="helperWallet"/> na carteira.</summary>
     private static Scene Build(int helperAltruism, long helperWallet, bool helperIsKin = true, double? affection = null,
-        long foodForSale = 1000)
+        long foodForSale = 1000, int? neighbourHouses = null)
     {
         var world = new WorldState(
             Calendar, 7, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Rules,
-            familyRules: ScenarioRunner.DefaultFamilyRules,
+            familyRules: neighbourHouses is { } nh ? ScenarioRunner.DefaultFamilyRules with { Pressure = ScenarioRunner.DefaultFamilyRules.Pressure! with { NeighbourAidHouses = nh } } : ScenarioRunner.DefaultFamilyRules,
             economyCatalog: new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [1], new Dictionary<int, int>()));
         // AD-166: o mercado da vila, ao lado da casa; a moeda só conta para a ajuda se ele tem comida à venda
         world.AddWorkplace(new Workplace(
@@ -214,6 +214,25 @@ public class MutualAidSystemTests
         scene.World.FindHousehold(scene.Helper.Household!.Value)!.Deposit(food, 20);
 
         Assert.Contains(RunDays(scene, days: 10), e => e.Kind == WorldEventKind.AidGiven && e.Payload.EndsWith("|food", StringComparison.Ordinal));
+    }
+
+    /// <summary>AD-190 (teste da AD-191): sem parente nem afeto, a casa vizinha com comida acima da reserva decide pelo altruísmo
+    /// mandar comida (<c>|food|vizinho</c>); sem a regra (0 casas), ninguém de fora manda nada. Só muda de casa.</summary>
+    [Fact]
+    public void A_neighbour_without_ties_sends_food_beyond_her_reserve_and_without_the_rule_nobody_does()
+    {
+        var food = new ResourceType(1);
+        var scene = Build(helperAltruism: 100, helperWallet: 0, helperIsKin: false, foodForSale: 0, neighbourHouses: 6);
+        var helperHome = scene.World.FindHousehold(scene.Helper.Household!.Value)!;
+        helperHome.Deposit(food, 20);
+        long before = helperHome.Stock.GetValueOrDefault(food) + scene.NeedyHouse.Stock.GetValueOrDefault(food);
+        var events = RunDays(scene, days: 10);
+        Assert.Contains(events, e => e.Kind == WorldEventKind.AidGiven && e.Payload.Contains("|food|vizinho", StringComparison.Ordinal));
+        Assert.Equal(before, helperHome.Stock.GetValueOrDefault(food) + scene.NeedyHouse.Stock.GetValueOrDefault(food));
+
+        var off = Build(helperAltruism: 100, helperWallet: 0, helperIsKin: false, foodForSale: 0, neighbourHouses: 0);
+        off.World.FindHousehold(off.Helper.Household!.Value)!.Deposit(food, 20);
+        Assert.DoesNotContain(RunDays(off, days: 10), e => e.Kind == WorldEventKind.AidGiven);
     }
 
     private sealed class RecordingSink : IWorldEventSink

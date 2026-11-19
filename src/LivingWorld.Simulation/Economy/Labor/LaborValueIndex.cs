@@ -33,10 +33,37 @@ public sealed class LaborValueIndex
         if (_toolOutputs is not null && _toolOutputs.TryGetValue(workplace.Id, out var outputs))
             foreach (var (resourceId, perWorker, price) in outputs)
                 value += perWorker * price * MarginalOrderedShare(_world, workplace, resourceId, perWorker, self);
+        // AD-191: a lavoura vale o grão que a mão acrescenta (quem já está lá: a parte dele; quem chega: a mão a mais)
+        if (_fieldValue is not null && _fieldValue.TryGetValue(workplace.Id, out var field))
+            value += self is not null && workplace.Employees.Contains(self.Id) ? field.Stay : field.Join;
         return value;
     }
 
     private Dictionary<WorkplaceId, List<(int ResourceId, long PerWorker, double Price)>>? _toolOutputs;
+    private Dictionary<WorkplaceId, (double Stay, double Join)>? _fieldValue;
+
+    /// <summary>AD-191 (<see cref="AgricultureRules.FieldLaborValue"/>): o valor de um dia de mão na lavoura, ao preço da comida da
+    /// venda da fazenda. Na ceifa, o grão em pé que cada mão corta num dia (até <see cref="AgricultureRules.ReapPerWorkerDay"/>);
+    /// fora dela, o que a mão acrescenta à colheita do ano (o produto marginal de <see cref="AgricultureRules.ExpectedHarvest"/>, que
+    /// cai com a terra cheia) dividido pelos dias do ano. Antes a comida da lavoura não contava (só a água do poço, quase sempre
+    /// encalhada) e a fazenda valia o mínimo: qualquer encomenda da forja ou fazenda que pagasse um pouco mais tirava o lavrador da
+    /// terra, e as fazendas da borda da metrópole chegavam à ceifa com um quarto das mãos.</summary>
+    private static (double Stay, double Join)? FieldLaborValue(WorldState world, Workplace farm, double foodPrice)
+    {
+        var ag = world.AgricultureRules;
+        if (!ag.Enabled || !ag.FieldLaborValue || farm.LocationType.Id != LivingWorld.Simulation.Economy.Production.CropSystem.DefaultFarmLocationTypeId) return null;
+        if (world.FindCropAt(farm.Location) is not { } field) return null;
+        int hands = LivingWorld.Simulation.Economy.Production.ToolMechanic.WorkingHands(world, farm);
+        if (field.Status == CropStatus.Mature)
+        {
+            double Reap(int h) => Math.Min(ag.ReapPerWorkerDay, field.Standing / (double)Math.Max(1, h)) * foodPrice;
+            return (Reap(hands), Reap(hands + 1));
+        }
+        long arable = field.ArableSeed > 0 ? field.ArableSeed : long.MaxValue / 4;
+        double days = world.Calendar.DaysPerMonth * world.Calendar.MonthsPerYear;
+        double Marginal(int h) => (ag.ExpectedHarvest(arable, h + 1) - ag.ExpectedHarvest(arable, h)) / days * foodPrice;
+        return (Marginal(Math.Max(0, hands - 1)), Marginal(hands));
+    }
 
     /// <summary>Oficinas da cidade em ordem de id (a ordem decide empates); a vaga é conferida por quem usa,
     /// ao vivo, porque o preenchimento muda dentro do tick.</summary>
@@ -114,6 +141,8 @@ public sealed class LaborValueIndex
                 value = _toolOutputs?.ContainsKey(workplace.Id) == true ? Math.Max(0, produced - inputs) : Math.Max(MinimumValue, produced - inputs);
             }
 
+            if (plantsFeedFood && FieldLaborValue(world, workplace, PriceOf(rules, workplace, rules.FoodResourceId)) is { } field)
+                (_fieldValue ??= [])[workplace.Id] = field;
             values[workplace.Id] = value;
             if (!byCityLists.TryGetValue(workplace.City, out var list))
                 byCityLists[workplace.City] = list = [];
