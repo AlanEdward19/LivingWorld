@@ -6,163 +6,163 @@
   "Samples": [
     {
       "Seed": 1,
-      "VitalityDifference": 0.004715323358217338,
-      "OpennessDifference": -0.0016936837705309182,
-      "MinimumVitalityCv": 0.2983724761023566,
-      "MinimumAlive": 96,
-      "FinalAlive": 181
+      "VitalityDifference": -0.0023974584487860273,
+      "OpennessDifference": 0.010105012316845019,
+      "MinimumVitalityCv": 0.3001509019138134,
+      "MinimumAlive": 91,
+      "FinalAlive": 211
     },
     {
       "Seed": 2,
-      "VitalityDifference": 0.011238226607121482,
-      "OpennessDifference": 0.0032015657302636447,
-      "MinimumVitalityCv": 0.3229321660404663,
+      "VitalityDifference": -0.010958112629374683,
+      "OpennessDifference": -0.04076763901394681,
+      "MinimumVitalityCv": 0.3157337978179837,
       "MinimumAlive": 97,
-      "FinalAlive": 198
+      "FinalAlive": 187
     },
     {
       "Seed": 3,
-      "VitalityDifference": -0.024264872341248134,
-      "OpennessDifference": -0.008575124709986226,
-      "MinimumVitalityCv": 0.28867016937667356,
+      "VitalityDifference": -0.008399269188774261,
+      "OpennessDifference": 0.028911158577486495,
+      "MinimumVitalityCv": 0.2825535046806102,
       "MinimumAlive": 91,
-      "FinalAlive": 189
+      "FinalAlive": 196
     },
     {
       "Seed": 4,
-      "VitalityDifference": 0.0033295612773627248,
-      "OpennessDifference": 0.036528023315668734,
-      "MinimumVitalityCv": 0.3205750012987827,
+      "VitalityDifference": -0.008070268666407365,
+      "OpennessDifference": 0.0071447888597108156,
+      "MinimumVitalityCv": 0.25895683831468014,
       "MinimumAlive": 90,
-      "FinalAlive": 181
+      "FinalAlive": 196
     },
     {
       "Seed": 5,
-      "VitalityDifference": 0.009800377281721007,
-      "OpennessDifference": 0.017890147935649248,
-      "MinimumVitalityCv": 0.3289229436795159,
+      "VitalityDifference": -0.011479926576393906,
+      "OpennessDifference": -0.0010305426464274348,
+      "MinimumVitalityCv": 0.2928483267836533,
       "MinimumAlive": 96,
-      "FinalAlive": 175
+      "FinalAlive": 193
     },
     {
       "Seed": 6,
-      "VitalityDifference": -0.0031236904922504194,
-      "OpennessDifference": 0.008850353784131793,
-      "MinimumVitalityCv": 0.27647386929258644,
+      "VitalityDifference": 0.012326588839418617,
+      "OpennessDifference": 0.028137219838708316,
+      "MinimumVitalityCv": 0.31175101089532053,
       "MinimumAlive": 98,
-      "FinalAlive": 180
-    },
-    {
-      "Seed": 7,
-      "VitalityDifference": -0.005746351156241725,
-      "OpennessDifference": 0.00796293815063498,
-      "MinimumVitalityCv": 0.27129346879105726,
-      "MinimumAlive": 89,
-      "FinalAlive": 186
-    },
-    {
-      "Seed": 8,
-      "VitalityDifference": -0.021512182830630777,
-      "OpennessDifference": -0.01081360709042567,
-      "MinimumVitalityCv": 0.283349622681255,
-      "MinimumAlive": 95,
-      "FinalAlive": 185
-    },
-    {
-      "Seed": 9,
-      "VitalityDifference": 0.002283011611026675,
-      "OpennessDifference": 0.012366447003128278,
-      "MinimumVitalityCv": 0.33494059277958993,
-      "MinimumAlive": 95,
       "FinalAlive": 188
     },
     {
-      "Seed": 10,
-      "VitalityDifference": -0.0067265411566793665,
-      "OpennessDifference": -0.0471949594068769,
-      "MinimumVitalityCv": 0.2962150042323877,
+      "Seed": 7,
+      "VitalityDifference": 0.0072561586774896325,
+      "OpennessDifference": 0.01712103298862533,
+      "MinimumVitalityCv": 0.2662082912872877,
+      "MinimumAlive": 91,
+      "FinalAlive": 211
+    },
+    {
+      "Seed": 8,
+      "VitalityDifference": -0.007641754791532007,
+      "OpennessDifference": 0.015769559439538172,
+      "MinimumVitalityCv": 0.31841634886476194,
       "MinimumAlive": 95,
-      "FinalAlive": 193
+      "FinalAlive": 187
+    },
+    {
+      "Seed": 9,
+      "VitalityDifference": 0.001929405391792427,
+      "OpennessDifference": 0.005901817938153919,
+      "MinimumVitalityCv": 0.2763880283245945,
+      "MinimumAlive": 94,
+      "FinalAlive": 207
+    },
+    {
+      "Seed": 10,
+      "VitalityDifference": -0.005908194880877404,
+      "OpennessDifference": -0.006704273864142796,
+      "MinimumVitalityCv": 0.24167193317549174,
+      "MinimumAlive": 95,
+      "FinalAlive": 216
     },
     {
       "Seed": 11,
-      "VitalityDifference": 0.008094949304491894,
-      "OpennessDifference": -0.031880448824340935,
+      "VitalityDifference": 0.018463984296924363,
+      "OpennessDifference": 0.015950618933631366,
       "MinimumVitalityCv": 0.34564639595341246,
       "MinimumAlive": 96,
-      "FinalAlive": 193
-    },
-    {
-      "Seed": 12,
-      "VitalityDifference": -0.004867875594781634,
-      "OpennessDifference": -0.01816945835446515,
-      "MinimumVitalityCv": 0.28374563563517397,
-      "MinimumAlive": 91,
-      "FinalAlive": 107
-    },
-    {
-      "Seed": 13,
-      "VitalityDifference": -0.01828605687199958,
-      "OpennessDifference": 0.006059558259224551,
-      "MinimumVitalityCv": 0.3241690005218021,
-      "MinimumAlive": 98,
-      "FinalAlive": 199
-    },
-    {
-      "Seed": 14,
-      "VitalityDifference": -0.02364949942037059,
-      "OpennessDifference": -0.01802445809445863,
-      "MinimumVitalityCv": 0.3064655752172094,
-      "MinimumAlive": 92,
-      "FinalAlive": 193
-    },
-    {
-      "Seed": 15,
-      "VitalityDifference": 0.002180956852661897,
-      "OpennessDifference": 0.0017967672920095046,
-      "MinimumVitalityCv": 0.30874396725100994,
-      "MinimumAlive": 97,
-      "FinalAlive": 174
-    },
-    {
-      "Seed": 16,
-      "VitalityDifference": -0.03802085219162832,
-      "OpennessDifference": -0.05149433763691491,
-      "MinimumVitalityCv": 0.278543607202454,
-      "MinimumAlive": 91,
       "FinalAlive": 185
     },
     {
+      "Seed": 12,
+      "VitalityDifference": 0.005101824687799017,
+      "OpennessDifference": 0.006401427348838307,
+      "MinimumVitalityCv": 0.3295316260034061,
+      "MinimumAlive": 99,
+      "FinalAlive": 202
+    },
+    {
+      "Seed": 13,
+      "VitalityDifference": 0.030474815531601362,
+      "OpennessDifference": 0.02092568295971886,
+      "MinimumVitalityCv": 0.33910738761824255,
+      "MinimumAlive": 99,
+      "FinalAlive": 203
+    },
+    {
+      "Seed": 14,
+      "VitalityDifference": 0.0001120939184498515,
+      "OpennessDifference": -0.03427171461394818,
+      "MinimumVitalityCv": 0.3040976908775239,
+      "MinimumAlive": 92,
+      "FinalAlive": 200
+    },
+    {
+      "Seed": 15,
+      "VitalityDifference": 0.035389189204216576,
+      "OpennessDifference": -0.03647991913185655,
+      "MinimumVitalityCv": 0.27786770255183607,
+      "MinimumAlive": 96,
+      "FinalAlive": 169
+    },
+    {
+      "Seed": 16,
+      "VitalityDifference": 0.007179111578169972,
+      "OpennessDifference": -0.04715570175569961,
+      "MinimumVitalityCv": 0.3036338196728151,
+      "MinimumAlive": 91,
+      "FinalAlive": 191
+    },
+    {
       "Seed": 17,
-      "VitalityDifference": 0.02736999498332182,
-      "OpennessDifference": -0.019612751921442906,
-      "MinimumVitalityCv": 0.33162597840970526,
-      "MinimumAlive": 95,
-      "FinalAlive": 206
+      "VitalityDifference": 0.013076796371856991,
+      "OpennessDifference": 0.03448589951504122,
+      "MinimumVitalityCv": 0.3297578507740263,
+      "MinimumAlive": 96,
+      "FinalAlive": 186
     },
     {
       "Seed": 18,
-      "VitalityDifference": -0.007001541329362371,
-      "OpennessDifference": -0.02299827740749083,
-      "MinimumVitalityCv": 0.2998756494214052,
+      "VitalityDifference": -0.004914658677574513,
+      "OpennessDifference": 0.018419992714725164,
+      "MinimumVitalityCv": 0.28249112604939053,
       "MinimumAlive": 96,
-      "FinalAlive": 201
+      "FinalAlive": 180
     },
     {
       "Seed": 19,
-      "VitalityDifference": 0.012198015711166299,
-      "OpennessDifference": -0.0145504950805746,
-      "MinimumVitalityCv": 0.29456822841224595,
+      "VitalityDifference": 0.0127006105550313,
+      "OpennessDifference": 0.012750159007431483,
+      "MinimumVitalityCv": 0.24397394280236714,
       "MinimumAlive": 92,
-      "FinalAlive": 215
+      "FinalAlive": 169
     },
     {
       "Seed": 20,
-      "VitalityDifference": 0.0018582651263649996,
-      "OpennessDifference": 0.028449101278165134,
-      "MinimumVitalityCv": 0.2863586719930108,
-      "MinimumAlive": 96,
-      "FinalAlive": 130
+      "VitalityDifference": 0.009370127465389844,
+      "OpennessDifference": 0.026530188576752267,
+      "MinimumVitalityCv": 0.24994948097439973,
+      "MinimumAlive": 93,
+      "FinalAlive": 174
     }
   ]
 }

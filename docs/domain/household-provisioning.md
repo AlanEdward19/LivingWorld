@@ -79,3 +79,14 @@ unidades em 90 anos (~0,1% da comida comida); e o recipiente inventado leva o re
 ## Ver também
 - [behavior.md](behavior.md) — a decisão que leva ao mercado
 - [economy.md](economy.md) — preço, venda da fazenda e celeiro
+
+## Banca com comida e trabalho que rende (AD-191, 2ª rodada)
+- **A banca que tem comida** (`ProvisioningRules.FoodFromAnyStall`): com a comida da casa abaixo da meta, a compra vai à banca mais
+  perto que tem comida, não à mais perto que vende comida ou água; e a banca vazia achada antes não segura a casa se outra tem.
+  Metrópole seed 2, ano 12: a fazenda do bairro só vendia água, a casa ia lá, esperava a volta, e seis crianças morreram com as
+  outras bancas cheias (20 anos: fome 6 → 1, sede 1 → 0, furtos 1.483 → 586).
+- **Ganhar o pão pede onde ganhar** (`PsycheRules.IncomeNeedNeedsWork`): a vontade de renda (`IncomeNeed`) só soma ao trabalho de
+  quem tem emprego ou obra. A órfã de 9 anos sem emprego "trabalhava" parada em casa (Work 170 contra beber 160) e morreu de sede
+  com 13 de água na despensa (vila de código, seed 39).
+- Tentado e retirado: a necessidade da casa pelo preço de hoje (moeda a mais esvazia o celeiro: cidade média seed 7 caiu a 64)
+  e o preço do celeiro com margem de 25% em vez de meio ano (o preço deixa de racionar; metrópole seed 7 se extingue).

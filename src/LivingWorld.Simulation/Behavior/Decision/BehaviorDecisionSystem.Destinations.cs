@@ -33,9 +33,23 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Mercado mais próximo com comida ou água em estoque — quem vai comprar não vai à
     /// ferraria só porque ela fica mais perto.</summary>
     private static Workplace? NearestEssentialsMarket(WorldState world, Npc npc, MarketIndex marketIndex) =>
-        marketIndex.NearestSelling(
-            npc.CurrentLocation,
-            new ResourceType(world.EconomyRules.FoodResourceId), new ResourceType(world.EconomyRules.WaterResourceId));
+        EssentialsMarket(world, npc.Household is { } h ? world.FindHousehold(h) : null, npc.CurrentLocation, marketIndex);
+
+    /// <summary>A banca de comida e água mais perto de <paramref name="from"/>; AD-191: com a comida da casa abaixo da meta, a mais perto
+    /// que tem comida (<see cref="LivingWorld.Domain.Behavior.ProvisioningRules.FoodFromAnyStall"/>), se alguma tem.</summary>
+    internal static Workplace? EssentialsMarket(WorldState world, LivingWorld.Domain.Population.Family.Household? household, CellCoord from,
+        MarketIndex marketIndex)
+    {
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var water = new ResourceType(world.EconomyRules.WaterResourceId);
+        var nearest = marketIndex.NearestSelling(from, food, water);
+        if (!world.NeedsRules.Provisioning.FoodFromAnyStall || household is null || nearest is null
+            || nearest.Stock.GetValueOrDefault(food) > 0
+            || household.Stock.GetValueOrDefault(food) >= (long)Math.Max(1, household.Members.Count) * ProvisionTargetDays)
+            return nearest;
+        var withFood = marketIndex.NearestSelling(from, food);
+        return withFood is not null && withFood.Stock.GetValueOrDefault(food) > 0 ? withFood : nearest;
+    }
 
     /// <summary>AD-176: para onde a viagem em curso vai (a projeção desenha a rota até lá).</summary>
     internal static CellCoord? TravelDestinationFor(WorldState world, Npc npc, MarketIndex marketIndex) => TravelDestinationOf(world, npc, marketIndex);

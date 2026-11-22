@@ -31,6 +31,11 @@ public sealed record ProvisioningRules
 
     public int FoodStallMaxRetryHours { get; init; } = 48;
 
+    /// <summary>AD-191 (2ª rodada): a casa com a comida abaixo da meta vai à banca mais perto que tem comida, não à mais perto que
+    /// vende comida ou água. Na metrópole a fazenda mais perto ficava sem comida (o poço ainda vendia água), a casa ia lá, achava a
+    /// banca vazia, esperava a volta e as crianças morriam com as outras bancas cheias (seed 2, ano 12). Falso = o de antes.</summary>
+    public bool FoodFromAnyStall { get; init; } = true;
+
     public static ProvisioningRules Default { get; } = new();
 
     public static ProvisioningRules Legacy { get; } = new()

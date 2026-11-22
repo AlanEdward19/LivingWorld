@@ -267,6 +267,38 @@ public sealed class WaterFetchTests
         }
     }
 
+    /// <summary>AD-191: o recipiente da casa que, cheio, passa do peso a pé (aqui um pote malfeito, de capacidade abaixo de uma unidade
+    /// de água) fica em casa e a pessoa leva o cântaro simples. Antes saía com ele, voltava sem nada e ia de novo a cada hora.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_household_pot_too_heavy_to_carry_full_stays_home_and_the_jug_goes(bool noEmptyTrips)
+    {
+        var (world, ctx) = NewWorld(NaturalWaterRules.Default with { Fetch = WaterFetchRules.Default with { NoEmptyTrips = noEmptyTrips } });
+        var (home, free, _, source) = Scene(world);
+        var rules = world.InventionRules!;
+        var ledger = world.Invention!;
+        var m = rules.Materials.First(x => x.Formable && !x.CoatingOnly);
+        var design = LivingWorld.Domain.Invention.Design.Create([LivingWorld.Simulation.Invention.CarryInvention.NeedSized(m, 8000)!.Value],
+            free.Id.Value, 1, 0, 0, LivingWorld.Domain.Invention.DesignOrigin.Invented);
+        ledger.AddDesign(design);
+        ledger.MarkCarryDesign(design.Id);
+        ledger.Items.Add(new LivingWorld.Domain.Invention.CraftedItem(ledger.NextItemId++, design.Id, home.Id.Value, free.City, 1, long.MaxValue, 10));
+        ledger.Touch();
+        var room = LivingWorld.Simulation.Invention.PersonalCarry.RoomOf(world, free);
+        Assert.True(room.ItemId != 0 && room.WeightG < rules.UnitGramsOf(Water(world).Id), $"pote {room}");
+        Drain(world, home);
+        Assert.True(WaterFetch.WantsToFetch(world, free, Now(world)));
+        free.SetCurrentAction(ActionType.Travel, Now(world));
+        free.MoveTo(source, Now(world));
+
+        WaterFetch.OnArrived(world, ctx, free, source);
+
+        int carried = ledger.CarriedQuantity(free.Id.Value, Water(world).Id);
+        if (noEmptyTrips) Assert.True(carried > 0, "com o cântaro simples a água vem");
+        else Assert.Equal(0, carried); // o de antes: o pote não leva uma unidade e a volta é de mãos vazias
+    }
+
     [Fact]
     public void The_water_reaches_the_pantry_only_when_the_fetcher_gets_home()
     {

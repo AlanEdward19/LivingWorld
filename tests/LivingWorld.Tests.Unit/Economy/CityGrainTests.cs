@@ -67,7 +67,7 @@ public sealed class BarnPriceTests
         field.TakeBarn(field.Barn);
         long residents = world.Households.Where(h => h.City == farm.City).Sum(h => h.Members.Count);
         var rules = world.AgricultureRules;
-        double need = residents * rules.HandKeepPerYear / 360.0 * (CropSystem.DaysToNextHarvest(world, rules, field) + rules.BarnReserveYears * 360);
+        double need = residents * rules.HandKeepPerYear / 360.0 * (CropSystem.DaysToNextHarvest(world, rules, field) * (1 + rules.BarnPriceMargin) + rules.BarnReserveYears * 360);
         return (world, farm, field, need);
     }
 
