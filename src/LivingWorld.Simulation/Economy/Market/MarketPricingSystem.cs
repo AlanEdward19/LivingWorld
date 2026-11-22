@@ -73,7 +73,8 @@ public sealed class MarketPricingSystem : ISimulationSystem
         if (residents <= 0) return null;
         var cal = world.CurrentDate.Calendar;
         double perDay = ag.HandKeepPerYear / (double)(cal.DaysPerMonth * cal.MonthsPerYear);
-        double need = residents * perDay * CropSystem.DaysToNextHarvest(world, ag, field) * (1 + ag.BarnPriceMargin);
+        double need = residents * perDay * (CropSystem.DaysToNextHarvest(world, ag, field) * (1 + ag.BarnPriceMargin)
+            + ag.BarnReserveYears * cal.DaysPerMonth * cal.MonthsPerYear);
         double cover = stores / need;
         if (cover >= 1) return null;
         double factor = DeterministicMath.Exp(ag.BarnPriceExponent * DeterministicMath.Log(1.0 / Math.Max(0.05, cover)));

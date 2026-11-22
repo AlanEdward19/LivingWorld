@@ -28,7 +28,7 @@ public static class PressureSwitch
             return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = false } };
         // AD-191: LW_AD191=off tira a bolsa da casa para quem compra
         if (string.IsNullOrWhiteSpace(raw) && Ad191.Off)
-            return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { PurseToShopper = false } };
+            return ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured with { PurseToShopper = false, NeedAtTodaysPrice = false } };
         // AD-190: LW_AID190=off tira o socorro do vizinho
         if (string.IsNullOrWhiteSpace(raw) && Environment.GetEnvironmentVariable("LW_AID190") is { Length: > 0 } a190)
             return ScenarioRunner.DefaultFamilyRules with

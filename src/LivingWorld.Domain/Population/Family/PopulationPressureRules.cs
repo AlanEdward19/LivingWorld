@@ -62,6 +62,10 @@ public sealed record PopulationPressureRules
     /// de fome (seed 22). Falso = o de antes.</summary>
     public bool PurseToShopper { get; init; } = true;
 
+    /// <summary>AD-191 (2ª rodada): a casa é vista como carente pelo preço de hoje da comida no mercado mais perto (não pelo piso);
+    /// a reserva de quem socorre continua pelo piso. Falso = o de antes.</summary>
+    public bool NeedAtTodaysPrice { get; init; } = true;
+
     /// <summary>A compra completa a meta da despensa em vez de somar a meta por cima, e só se vai ao mercado pelo que se paga.</summary>
     public bool TopUpPurchases { get; init; } = true;
 
