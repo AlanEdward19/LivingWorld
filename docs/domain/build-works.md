@@ -13,9 +13,9 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
   De favor e quem acolhe dividem o pote de água (`LodgersSharePot`): quem vai à fonte enche para os dois, a água que chega fica
   no pote de todos na proporção de cada casa e quem tem sede bebe do pote (a mesma casa, sem viagem entre despensas). E a mesa
   (`LodgersShareTable`): sem comida na sua despensa, come da de quem divide o teto. Criança com fome urgente em casa sem comida
-  manda o crescido que pode pagar comprar, por cima do trabalho (`ProvisioningRules.ChildHungerSendsShopper`).
+  manda o crescido que pode pagar comprar numa banca com comida, por cima do trabalho (`ProvisioningRules.ChildHungerSendsShopper`).
 - **A hora de beber** (`WaterFetchRules.DrinkAtMealLine`, vale com e sem obra): em casa e acordado (ou indo deitar), com água no
-  pote, bebe um copo na linha da refeição, não só na urgência, e come se a fome já tem apetite; criança com menos de
+  pote, bebe um copo na linha da refeição, não só na urgência, e come se a fome está na hora da refeição; criança com menos de
   `SelfDrinkAgeYears` só com um crescido em casa e acordado. `ThirstFirstWhenBothStarving`: fome no fim e sede urgente, a ida à
   água segue (antes a fome largava a ida a cada hora na banca sem comida, e a pessoa morria de sede com água em casa).
 - **Conveniência** (`HomePlaces`): o custo por ano de morar numa célula = as idas de cada dia pela rota — água (a fonte da

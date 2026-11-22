@@ -202,7 +202,8 @@ public sealed partial class BehaviorDecisionSystem
             hungryChild = world.FindNpc(members[i]) is { IsAlive: true } m && m.Id != npc.Id && m.CurrentLocation == home.Location
                 && stages.LifeStageOf(m.AgeYears(world.CurrentDate)) is LivingWorld.Domain.Population.Body.LifeStage.Child
                 && 100 - m.HungerAt(now) > world.NeedsRules.UrgencyThreshold;
-        return hungryChild && !HouseholdShopperOut(world, npc, home);
+        // só se há banca com comida que a carteira paga (sem ela, largar o trabalho não traz pão e a cidade parava de colher)
+        return hungryChild && !HouseholdShopperOut(world, npc, home) && LivingWorld.Simulation.Crime.Theft.CanBuy(world, npc, world.EconomyRules.FoodResourceId);
     }
 
     /// <summary>Alguém da casa (fora o próprio) está no mercado ou a caminho dele para comprar (AD-148).</summary>

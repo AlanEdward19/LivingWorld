@@ -271,8 +271,8 @@ public static class WaterFetch
         if (npc.AgeYears(world.CurrentDate) < world.NaturalWaterRules.Fetch.SelfDrinkAgeYears && !CarerHome(world, home, npc)) return false;
         DrinkFromPantry(world, npc, now);
         if (npc.ThirstAt(now) <= thirst) return false;
-        // com o copo, a fome com apetite come da despensa (antes era a sede que levava à refeição: sem ela, a fome ficava para a crítica)
-        if (100 - npc.HungerAt(now) >= LivingWorld.Simulation.Invention.PersonalCarry.AppetiteDeficit)
+        // com o copo, a fome já na hora da refeição come da despensa (com apetite só, comia antes da hora e a cidade comia o celeiro) (antes era a sede que levava à refeição: sem ela, a fome ficava para a crítica)
+        if (100 - npc.HungerAt(now) >= LivingWorld.Simulation.Invention.PersonalCarry.MealTimeDeficit)
         {
             var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
             if (meal.Id > 0 && home.Withdraw(meal, 1).IsSuccess)
