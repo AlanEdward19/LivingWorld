@@ -10,6 +10,10 @@ namespace LivingWorld.Simulation.Observation;
 /// linha por hora. Só lê o mundo; mesmas chaves de ambiente dos relatórios (<c>LW_PROVISION</c>, <c>LW_PRESSURE</c>).</summary>
 public static class PersonTrace
 {
+    /// <summary>AD-191: idade a partir da qual a sonda escreve (<c>LW_TRACE_MIN_AGE</c>, padrão 13; a criança que morre de sede pede 0).</summary>
+    private static double MinAge => double.TryParse(Environment.GetEnvironmentVariable("LW_TRACE_MIN_AGE"), System.Globalization.NumberStyles.Float,
+        System.Globalization.CultureInfo.InvariantCulture, out double a) ? a : 13;
+
     private sealed class Sink(string id, List<string> lines, Func<string> stamp) : IWorldEventSink
     {
         public void Record(WorldEvent evt)
@@ -37,7 +41,7 @@ public static class PersonTrace
             if (npc is null) continue;
             long now = world.CurrentDate.TotalHours;
             double age = (now - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
-            if (age < 13) continue;
+            if (age < MinAge) continue;
             var home = npc.Household is { } hid ? world.FindHousehold(hid) : null;
             int alive = home?.Members.Count(m => world.FindNpc(m) is { IsAlive: true }) ?? 0;
             // AD-191: quem mais mora na casa (id:idade:carteira:ação:fome)

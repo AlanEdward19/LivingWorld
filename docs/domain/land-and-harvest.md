@@ -69,7 +69,7 @@ não comprava: a primeira casa a chegar levava a semana inteira do pouco que sa�
   num dia (até `ReapPerWorkerDay`). Antes a comida da lavoura não contava e a fazenda valia só a água do poço: o lavrador saía por
   qualquer oficina que pagasse 1,25 vez isso. Quem já trabalha a terra vê a própria parte (marginal sem ele), quem chega, a mão a mais.
 - **O preço do grão olha o celeiro** (`BarnReserveYears` 0,5, `BarnPriceExponent` 2,5; `MarketPricingSystem.BarnScarcityPrice`): com o
-  celeiro e a banca das fazendas da cidade abaixo do que se come até a colheita mais meio ano, o preço da fazenda vai ao piso ×
+  celeiro e a banca das fazendas da cidade abaixo do que se come até a colheita mais meio ano (o meio ano é o que raciona: com 25% a metrópole seed 7 se extingue), o preço da fazenda vai ao piso ×
   cobertura^−2,5 (lei de Gregory King, precisa de conferência). A banca é reposta todo dia, então antes só ficava vazia (e o preço só
   subia) quando o celeiro acabava: duas secas na vila de código não mexiam no preço.
 - **Reserva de fundação**: a vila nasce com o que leva à colheita (`InitialProvisionPerPerson`) mais essa meia-reserva (160 por

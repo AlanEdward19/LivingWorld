@@ -314,7 +314,10 @@ internal static class Theft
             // AD-191: comida e água vão à justiça pelo preço de costume (o piso), não pelo da carestia
             long judged = value;
             var economy = world.EconomyRules;
-            if (world.CrimeRules.Justice.CustomaryValue && (target.ResourceId == economy.FoodResourceId || target.ResourceId == economy.WaterResourceId)
+            // 2ª rodada: a clemência acaba no reincidente — a partir de CustomaryMercyConvictions condenações, o valor do dia
+            int convictions = world.Crime?.RecordOf(thief.Id.Value)?.Convictions ?? 0;
+            if (world.CrimeRules.Justice.CustomaryValue && convictions < world.CrimeRules.Justice.CustomaryMercyConvictions
+                && (target.ResourceId == economy.FoodResourceId || target.ResourceId == economy.WaterResourceId)
                 && target.Kind != TheftTargetKind.Person && target.Coin == 0)
                 judged = Math.Min(value, (took ? qty : target.Units) * Math.Max(1, economy.PriceFloor.GetValueOrDefault(target.ResourceId, 1)));
             var outcome = Justice.OnCrime(world, ctx, CrimeKind.Theft, thief, victim, target.VictimId, target.Where, judged, good,
