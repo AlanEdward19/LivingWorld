@@ -12,6 +12,10 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
   na casa de um dos pais, a mais conveniente para os dois. Casa vazia na cidade (do falecido): a mais conveniente, sem obra.
   De favor e quem acolhe dividem o pote de água (`LodgersSharePot`): quem vai à fonte enche para os dois, a água que chega fica
   no pote de todos na proporção de cada casa e quem tem sede bebe do pote (a mesma casa, sem viagem entre despensas).
+- **A hora de beber** (`WaterFetchRules.DrinkAtMealLine`, vale com e sem obra): em casa e acordado (ou indo deitar), com água no
+  pote, bebe um copo na linha da refeição, não só na urgência, e come se a fome já tem apetite; criança com menos de
+  `SelfDrinkAgeYears` só com um crescido em casa e acordado. `ThirstFirstWhenBothStarving`: fome no fim e sede urgente, a ida à
+  água segue (antes a fome largava a ida a cada hora na banca sem comida, e a pessoa morria de sede com água em casa).
 - **Conveniência** (`HomePlaces`): o custo por ano de morar numa célula = as idas de cada dia pela rota — água (a fonte da
   AD-185, `WaterFetchFor`) e mercado de comida por morador (`WaterTripsPerMemberDay`, `MarketTripsPerMemberDay`), ida e volta ao
   trabalho de cada empregado — pelo valor da hora. O peso sai da casa: quantos são, quem trabalha e onde.

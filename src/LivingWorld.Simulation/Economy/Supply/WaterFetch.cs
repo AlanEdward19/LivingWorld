@@ -166,6 +166,10 @@ public static class WaterFetch
     private static bool NearHome(WorldState world, Npc npc, Household home) =>
         npc.CurrentLocation == home.Location || !LivingWorld.Simulation.Invention.PersonalCarry.PantryOutOfReach(world, npc, home);
 
+    /// <summary>AD-184: a fome à beira da morte e a sede urgente: a sede vem antes (mata primeiro), a ida à água segue.</summary>
+    internal static bool ThirstFirst(WorldState world, Npc npc, long now) =>
+        world.NaturalWaterRules.Fetch.ThirstFirstWhenBothStarving && 100 - npc.ThirstAt(now) > world.NeedsRules.UrgencyThreshold;
+
     /// <summary>A sede urgente sem água no que leva nem em casa (a despensa ao alcance), sem ida de água em curso: o caso em que a
     /// fonte pode valer mais que o mercado. Só leitura.</summary>
     internal static bool ThirstyWithoutWater(WorldState world, Npc npc, long now)
@@ -238,6 +242,46 @@ public static class WaterFetch
         if (npc.ThirstAt(now) >= level || (!home.Withdraw(water, 1).IsSuccess && !DrawFromPot(world, home, water))) return;
         npc.SetThirst(level, now);
         world.RecordResourceConsumed(water, 1);
+    }
+
+    /// <summary>AD-184: a hora de beber. Em casa e acordado (ou indo deitar), com água no pote: bebe um copo quando a sede passou da
+    /// linha da refeição, ou quando a noite a levaria até lá. A criança pequena só bebe com um crescido da casa ali, acordado (quem cuida
+    /// dá a água). Devolve verdadeiro se bebeu.</summary>
+    internal static bool SipAtHome(WorldState world, Npc npc, ActionType chosen, long nightHours, long now)
+    {
+        if (!world.NaturalWaterRules.Fetch.DrinkAtMealLine || !On(world)) return false;
+        if (npc.CurrentAction == ActionType.Sleep && chosen == ActionType.Sleep) return false; // dormindo não bebe
+        int line = 100 - LivingWorld.Simulation.Invention.PersonalCarry.MealTimeDeficit;
+        int thirst = npc.ThirstAt(now);
+        bool due = thirst <= line || (chosen == ActionType.Sleep && thirst - world.NeedsRules.ThirstDecayPerHour * nightHours <= line);
+        if (!due || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location
+            || PotWater(world, home) <= 0) return false;
+        if (npc.AgeYears(world.CurrentDate) < world.NaturalWaterRules.Fetch.SelfDrinkAgeYears && !CarerHome(world, home, npc)) return false;
+        DrinkFromPantry(world, npc, now);
+        if (npc.ThirstAt(now) <= thirst) return false;
+        // com o copo, a fome com apetite come da despensa (antes era a sede que levava à refeição: sem ela, a fome ficava para a crítica)
+        if (100 - npc.HungerAt(now) >= LivingWorld.Simulation.Invention.PersonalCarry.AppetiteDeficit)
+        {
+            var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
+            if (meal.Id > 0 && home.Withdraw(meal, 1).IsSuccess)
+            {
+                npc.SetHunger(Math.Max(npc.HungerAt(now), LivingWorld.Simulation.Objects.ObjectUse.ConsumeLevel(world, meal, LivingWorld.Domain.Objects.ObjectEffectTargets.Hunger)), now);
+                world.RecordResourceConsumed(meal, 1);
+            }
+        }
+        world.InventionTally.DrankBeforeSleep += chosen == ActionType.Sleep ? 1 : 0;
+        return true;
+    }
+
+    /// <summary>Um crescido da casa (ou de quem divide o pote) em casa e acordado.</summary>
+    private static bool CarerHome(WorldState world, Household home, Npc child)
+    {
+        var partner = PotPartner(world, home);
+        foreach (var hh in partner is null ? new[] { home } : new[] { home, partner })
+            foreach (var id in hh.Members)
+                if (id != child.Id && world.FindNpc(id) is { IsAlive: true } m && Grown(world, m) && m.CurrentLocation == home.Location
+                    && m.CurrentAction != ActionType.Sleep) return true;
+        return false;
     }
 
     /// <summary>Em casa, com sede urgente e água na despensa.</summary>

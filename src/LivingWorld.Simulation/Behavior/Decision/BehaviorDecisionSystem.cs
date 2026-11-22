@@ -186,7 +186,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SickGetsWaterBrought(world, npc, now);
                     if (LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
-                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel)) // a caminho da água: segue, salvo fome à beira da morte
+                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel
+                            || LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstFirst(world, npc, now))) // a caminho da água: segue, salvo fome à beira da morte (com a sede também, segue)
                         candidate = ActionType.Travel;
                     else if (ThirstGoesToSource(world, npc, now, marketIndex, candidate))
                         candidate = ActionType.Travel;
@@ -254,6 +255,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
+                if (chosen is not (ActionType.Eat or ActionType.Travel))
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
+                        chosen == ActionType.Sleep ? Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog) : 0, now);
                 // AD-185: em casa, com sede urgente e água na despensa, bebe antes de sair (a mudança de cidade levava a criança com
                 // sede para uma viagem de um dia, ao lado da água de casa)
                 if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))

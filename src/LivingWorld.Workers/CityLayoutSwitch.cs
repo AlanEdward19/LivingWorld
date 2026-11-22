@@ -37,5 +37,9 @@ public static class CityLayoutSwitch
     public static LivingWorld.Domain.Economy.NaturalWaterRules? NaturalWaterRules() =>
         Ad185Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off }
         : Ad191.Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Default with { NoEmptyTrips = false } }
+        : DrinkOff ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Default with { DrinkAtMealLine = false } }
         : null;
+
+    /// <summary>AD-184: sem a hora de beber (<c>LW_DRINK=off</c>): só a urgência e a ceia.</summary>
+    private static bool DrinkOff => Environment.GetEnvironmentVariable("LW_DRINK") == "off";
 }
