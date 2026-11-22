@@ -99,7 +99,7 @@ public static class MarriageSystem
             household.MoveIn(own.Dwelling, own.Location); // a casa ficou vazia: é deles
             return;
         }
-        if (Best(vacated: false) is { } favor)
+        if (world.StreetRules.LodgeWithParents && Best(vacated: false) is { } favor)
         {
             household.MoveIn(favor.Dwelling, favor.Location); // de favor com a família de onde saiu
             world.Ground!.Lodgers.Add(household.Id.Value);

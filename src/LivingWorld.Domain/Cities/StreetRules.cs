@@ -183,6 +183,10 @@ public sealed record StreetRules(
     public bool PrototypeIsWork { get; init; } = true;
     public int PrototypeHours { get; init; } = 120;
 
+    /// <summary>AD-184: enquanto a casa não fica pronta, o casal mora de favor na casa de um dos pais (desligado: fica onde estava,
+    /// como antes da AD-184; só para medir).</summary>
+    public bool LodgeWithParents { get; init; } = true;
+
     /// <summary>AD-184: o casal mora sozinho (casa própria) e não com os pais: costume do noroeste europeu (neolocal).</summary>
     public bool NeolocalCouples { get; init; } = true;
 
