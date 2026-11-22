@@ -34,5 +34,7 @@ public static class CityLayoutSwitch
 
     /// <summary>AD-185: a água da natureza sem a ida de verdade (<c>LW_AD185=off</c>); nulo = padrão do cenário.</summary>
     public static LivingWorld.Domain.Economy.NaturalWaterRules? NaturalWaterRules() =>
-        Ad185Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off } : null;
+        Ad185Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off }
+        : Ad191.Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Default with { NoEmptyTrips = false } }
+        : null;
 }

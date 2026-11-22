@@ -46,8 +46,9 @@ public static class WeatherDiagCommand
                         factors.Add(WeatherGenerator.CropFactor(climate, rules, index));
                     }
                     ulong s1 = rng.DeriveState(1_000_000L + y * 1000L + d), s2 = rng.DeriveState(9_000_000L + y * 1000L + d);
+                    ulong w1 = rng.DeriveState(17_000_000L + y * 1000L + d), w2 = rng.DeriveState(25_000_000L + y * 1000L + d);
                     WeatherGenerator.Step(rules, row, WeatherGenerator.Read(ref s1), WeatherGenerator.Read(ref s2), d + 0.5,
-                        cal.DaysPerMonth, cal.MonthsPerYear, y == 0 && d == 0);
+                        cal.DaysPerMonth, cal.MonthsPerYear, y == 0 && d == 0, WeatherGenerator.ReadWind(ref w1), WeatherGenerator.ReadWind(ref w2));
                     if (row.Kind == Precipitation.Rain) rainDays[m]++;
                     if (row.Kind == Precipitation.Snow) snowDays[m]++;
                 }

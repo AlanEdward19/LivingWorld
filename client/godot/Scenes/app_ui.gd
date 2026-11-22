@@ -78,6 +78,12 @@ static func _top_bar(app, ui: Control) -> void:
 	app.time_label.add_theme_font_size_override("font_size", 19)
 	app.time_label.add_theme_color_override("font_color", Color("ffe9a6"))
 	bar.add_child(app.time_label)
+	app.weather_label = Label.new() # AD-180: tempo do dia (estado, sensação, vento, chão, seca/ondas); detalhes na dica
+	app.weather_label.add_theme_font_size_override("font_size", 15)
+	app.weather_label.add_theme_color_override("font_color", Color("cfe3f0"))
+	app.weather_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	app.weather_label.visible = false
+	bar.add_child(app.weather_label)
 	var right_spacer := Control.new()
 	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(right_spacer)
@@ -198,6 +204,7 @@ static func _windows(app, ui: Control) -> void:
 	app.brain_panel.api = app.api
 	app.brain_panel.labels = app.labels
 	app.brain_panel.date_of = app._date_text
+	app.brain_panel.name_of = func(id: int) -> String: return String(app.store.names.get(id, "pessoa nº %d" % id))
 	app.narrative = NarrativeWindow.new()
 	app.narrative.api = app.api
 	app.narrative.calendar_of = func() -> Dictionary: return _calendar(app)
@@ -344,3 +351,4 @@ static func build_scene(app) -> void:
 	app.day_cycle = DayCycle.new()
 	app.add_child(app.day_cycle)
 	app.day_cycle.bind(app._sun, app._environment, app.world_view.window_material, app.world_view.lamp_material)
+	app.world_view.weather_changed.connect(app._on_weather) # AD-180: sol do motor e indicador do tempo

@@ -436,6 +436,34 @@ public class MigrationSystemTests
         Assert.Null(household.PendingRelocationCity);
     }
 
+    /// <summary>AD-190: a mudança se completa quando o chefe chega, mesmo com um morador ainda longe (antes esperava todos no destino
+    /// ao mesmo tempo, e quem chegava com fome voltava à despensa velha: a família ficava no vai e vem e as crianças morriam de sede no
+    /// caminho). Quem ficou para trás passa à cidade nova e a casa dele já é a do destino.</summary>
+    [Fact]
+    public void Relocation_completes_when_the_head_arrives_and_the_straggler_follows_to_the_new_home()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var head = MakeNpc(world, 1, origin.Id);
+        var child = MakeNpc(world, 2, origin.Id);
+        world.AddNpc(head);
+        world.AddNpc(child);
+        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id, child.Id], city: origin.Id);
+        head.JoinHousehold(household.Id);
+        child.JoinHousehold(household.Id);
+        world.AddHousehold(household);
+        household.BeginRelocation(destination.Id);
+
+        head.MoveTo(destination.Location, 0);
+        child.MoveTo(origin.Location, 0); // ainda na casa velha
+        new RelocationArrivalSystem().Tick(world, MakeCtx(world));
+
+        Assert.Null(household.PendingRelocationCity);
+        Assert.Equal(destination.Location, household.Location);
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Id, child.City);
+    }
+
     [Fact]
     public void Arrival_updates_residence_and_preserves_employment_in_another_city()
     {

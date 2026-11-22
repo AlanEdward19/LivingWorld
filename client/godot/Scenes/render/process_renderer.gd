@@ -69,7 +69,8 @@ func rebuild() -> void:
 	var count := 0
 	for process in shown:
 		count += 1 if process.kind == "crop" and not crop_cells.has(process.cell) else 2
-	_multi.instance_count = count
+	if _multi.instance_count != count: # AD-189: realocar a cada delta custava (o número quase nunca muda)
+		_multi.instance_count = count
 	var index := 0
 	for process in shown:
 		var at := Grid.to_world(process.cell)

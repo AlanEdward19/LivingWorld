@@ -37,8 +37,13 @@ public sealed record AgricultureRules(
     double SeedPerHectare = 220,
     double HandIntensityGain = 0.25,
     long HandKeepPerYear = 320,
-    bool WholeVillageReaps = true)
+    bool WholeVillageReaps = true,
+    bool PayForCityGrain = true,
+    double DearthSowBoost = 1.0)
 {
+    // AD-190: DearthSowBoost — com o celeiro da cidade abaixo do que leva à colheita, a semente desejada cresce até (1 + isto)x.
+    // AD-190: PayForCityGrain — o grão (venda ou semente) que uma fazenda tira do celeiro de outra da cidade é pago a ela ao preço
+    // de hoje (falso = o de antes, de graça).
     // AD-149, ceifa (backlog 08 item 41): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho na cidade
     // (WholeVillageReaps), cada um ceifa ReapPerWorkerDay por dia de foice; passada a ceifa, solta quem a terra não paga.
 
@@ -79,6 +84,19 @@ public sealed record AgricultureRules(
     /// <summary>AD-182: a semente do ano seguinte não vai à venda; o dono do celeiro a guarda mesmo na fome (antes, celeiro vazio,
     /// a venda comia a semente). Falso = o de antes.</summary>
     public bool SeedKeptFromSale { get; init; } = true;
+
+    /// <summary>AD-191: o trabalho na lavoura vale, na escolha de emprego, o grão que a mão acrescenta (na ceifa, o que ela corta por
+    /// dia) ao preço da comida. Falso = o de antes (a lavoura valia o mínimo e perdia as mãos para qualquer outra oficina).</summary>
+    public bool FieldLaborValue { get; init; } = true;
+
+    /// <summary>AD-191: o preço do grão na venda da fazenda olha o celeiro, não só a banca. A banca é reposta do celeiro todo dia, então
+    /// só ficava vazia (e o preço só subia) quando o celeiro já tinha acabado: duas safras perdidas não mexiam no preço até a fome.
+    /// Agora, com o celeiro da cidade abaixo do que se come até a próxima colheita mais <see cref="BarnReserveYears"/> de reserva, o
+    /// preço vai ao piso × (cobertura)^−<see cref="BarnPriceExponent"/> (lei de Gregory King: 10% a menos, +30%; 30%, +160%; 50%,
+    /// +450%; precisa de conferência). 0 desliga.</summary>
+    public double BarnReserveYears { get; init; } = 0.5;
+
+    public double BarnPriceExponent { get; init; } = 2.5;
 
     /// <summary>Lote diário antigo (trigo em 24 h): padrão de mundo construído à mão e de snapshot antigo.</summary>
     public static AgricultureRules Disabled { get; } = new(false);

@@ -4,8 +4,10 @@ extends RefCounted
 ## da porta, célula de rua da frente). Só lê: nada aqui inventa rua ou quintal. Campo desconhecido não quebra: vai para
 ## `extra` (quem desenha decide em `street_style.gd`). AD-181: pisoteio (`wear`), faixa de uso (`useBand`), reserva do
 ## traçado (`planned`), condição do calçamento (`condition`, 0–1000) e obra (`work`); `lot.access` (como se chega à porta).
+## AD-180: chão da célula pelo tempo (`ground`, `snowCm`, `wetPm`). AD-185: geometria e estado do acesso do lote.
 
-const KNOWN_ROAD_KEYS := ["city", "cell", "surface", "users", "main", "square", "wear", "useBand", "planned", "condition", "work"]
+const KNOWN_ROAD_KEYS := ["city", "cell", "surface", "users", "main", "square", "wear", "useBand", "planned", "condition", "work",
+	"ground", "snowCm", "wetPm"]
 const KNOWN_WORK_KEYS := ["surface", "progressPct", "repair", "payer"]
 
 
@@ -39,6 +41,9 @@ static func road(entry: Variant) -> Variant:
 		"planned": bool(entry.get("planned")) if entry.get("planned") != null else false,
 		"condition": _int(entry.get("condition"), -1), ## -1 = sem calçamento (trilha, terra) ou não veio
 		"work": work(entry.get("work")),
+		"ground": String(entry.get("ground")) if entry.get("ground") != null else "", ## AD-180: "" = sem tempo do motor
+		"snow_cm": float(entry.get("snowCm")) if entry.get("snowCm") != null else 0.0,
+		"wet_pm": _int(entry.get("wetPm"), 0),
 		"extra": extra,
 	}
 
@@ -85,7 +90,10 @@ static func lot(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return {}
 	return {"croft": _cells(raw.get("croft")), "front_path": _cells(raw.get("frontPath")), "street": _cell(raw.get("street")),
-		"access": String(raw.get("access")) if raw.get("access") != null else ""} ## "" = servidor sem a rua de verdade
+		"access": String(raw.get("access")) if raw.get("access") != null else "", ## "" = servidor sem a rua de verdade
+		# AD-185: geometria do acesso (soleira primeiro), o vizinho por onde se chega e onde desemboca (reserved/planned/trodden)
+		"access_cells": _cells(raw.get("accessCells")), "access_via": _int(raw.get("accessViaBuildingId"), -1),
+		"access_state": String(raw.get("accessState")) if raw.get("accessState") != null else ""}
 
 
 static func _cells(list: Variant) -> Array:

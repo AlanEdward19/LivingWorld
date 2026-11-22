@@ -73,6 +73,7 @@ var _held: MeshInstance3D
 var _face: Node3D
 var _face_expression := "-"
 var _sickbed: Node3D
+var _bubble_dots := 0
 var walk = null ## RouteWalk: anda pela rota do motor até a chegada (AD-181); null = movimento de sempre
 var spread := Vector3.ZERO ## lugar dentro da célula quando ela é dividida (só apresentação; a célula é a do servidor)
 const VEER := 0.16 ## desvio lateral no meio do passo: quem se cruza passa pela direita, não por dentro do outro
@@ -561,11 +562,11 @@ func is_moving() -> bool:
 
 
 ## Rota do motor (células, início da viagem, chegada em ticks). A mesma rota já em curso não recomeça. False se não dá.
-func set_route(cells: Array, start: float, arrival: float) -> bool:
+func set_route(cells: Array, start: float, arrival: float, heights: Dictionary = {}) -> bool:
 	if walk != null and walk.same(cells, start, arrival):
 		return true
 	var next = RouteWalk.new()
-	if not next.setup(cells, start, arrival, position):
+	if not next.setup(cells, start, arrival, position, heights):
 		walk = null
 		return false
 	walk = next
@@ -669,7 +670,8 @@ func _reset_pose() -> void:
 	for i in _legs.size():
 		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
 	_torso.scale = Vector3.ONE
-	_shirt.emission = Color.BLACK
+	if _shirt.emission != Color.BLACK: # só o poder acende a roupa: não reenvia o material de 500 NPCs a cada quadro
+		_shirt.emission = Color.BLACK
 
 
 func _animate() -> void:
@@ -715,7 +717,9 @@ func _animate() -> void:
 			_arms[1].rotation.x = -0.7 + cos(phase * 0.8) * 0.5
 			_body.position.y = absf(sin(phase * 0.9)) * 0.02
 			var dots := 1 + int(_clock * 2.0) % 3
-			_get_bubble().text = ".".repeat(dots)
+			if _bubble_dots != dots: # AD-189: o texto só muda quando o número de pontos muda (refazer o texto custa)
+				_bubble_dots = dots
+				_get_bubble().text = ".".repeat(dots)
 		"buy":
 			_arms[1].rotation.x = -1.3
 			_arms[0].rotation.x = -1.3

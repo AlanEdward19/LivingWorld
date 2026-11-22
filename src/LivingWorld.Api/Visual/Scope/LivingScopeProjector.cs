@@ -158,9 +158,9 @@ public static class LivingScopeProjector
             && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
             && previous.RelocationDestination == scoped.Relocation && Equals(previous.Extraordinary, extraordinary)
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
-            && previous.Intent == npc.CurrentIntent && previous.IntentTarget == npc.IntentTarget)
+            && previous.Intent == npc.CurrentIntent && previous.IntentKey == npc.IntentTarget)
             return previous; // AD-172: nada visível mudou desde o tick anterior
-        var (route, arrival, over) = RouteOf(frame, npc, previous);
+        var (route, arrival, over, intentTarget) = RouteOf(frame, npc, previous);
         return new NpcVisual(
             npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
         {
@@ -172,27 +172,32 @@ public static class LivingScopeProjector
             ActionStartedAtTick = npc.ActionStartedAtTick,
             ActionTarget = target,
             Intent = npc.CurrentIntent,
-            IntentTarget = npc.IntentTarget,
+            IntentTarget = intentTarget,
+            IntentKey = npc.IntentTarget,
         };
     }
 
     /// <summary>AD-176: a rota real de quem viaja, da célula onde está até a chegada, e o tick da chegada; o mesmo registro da
-    /// viagem do tick anterior se ela não mudou (mesma ação, mesmo início, mesmo lugar).</summary>
-    private static (IReadOnlyList<CellCoord>? Route, long? Arrival, IReadOnlyList<int>? Over) RouteOf(ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
+    /// viagem do tick anterior se ela não mudou (mesma ação, mesmo início, mesmo lugar).
+    /// AD-189: e o alvo da viagem ("tipo:id", a mesma decisão do destino), calculado junto e guardado com a rota.</summary>
+    private static (IReadOnlyList<CellCoord>? Route, long? Arrival, IReadOnlyList<int>? Over, string? IntentTarget) RouteOf(
+        ScopeProjectionFrame frame, Npc npc, NpcVisual? previous)
     {
-        if (npc.CurrentAction != ActionType.Travel) return (null, null, null);
+        if (npc.CurrentAction != ActionType.Travel) return (null, null, null, null);
         if (previous is { Route: not null } && frame.WeatherAsBefore && previous.CurrentAction == ActionType.Travel
-            && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation)
-            return (previous.Route, previous.RouteArrivalTick, previous.RouteOver);
+            && previous.ActionStartedAtTick == npc.ActionStartedAtTick && previous.Location == npc.CurrentLocation
+            && previous.IntentKey == npc.IntentTarget)
+            return (previous.Route, previous.RouteArrivalTick, previous.RouteOver, previous.IntentTarget);
         var world = frame.World;
         if (LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelDestinationFor(world, npc, frame.Markets) is not { } to
             || to == npc.CurrentLocation)
-            return (null, null, null);
+            return (null, null, null, null);
+        string? intentTarget = LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelIntentTargetFor(world, npc, frame.Markets);
         var cells = LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(world, npc.CurrentLocation, to);
         long? arrival = LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.TravelArrivalTick(world, npc, frame.Markets);
         // AD-185: as células "por cima" (escada, laje, telhado de casa colada), por índice na rota; nulo quando nenhuma
         var over = LivingWorld.Simulation.Cities.Streets.StreetRoutes.OverIndicesOf(world, cells);
-        return (ValueList<CellCoord>.Of(cells), arrival, over.Count == 0 ? null : ValueList<int>.Of(over));
+        return (ValueList<CellCoord>.Of(cells), arrival, over.Count == 0 ? null : ValueList<int>.Of(over), intentTarget);
     }
 
     /// <summary>AD-176: as ruas do escopo, em ordem de célula (linha, coluna).</summary>

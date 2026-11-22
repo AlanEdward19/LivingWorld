@@ -6,7 +6,7 @@ namespace LivingWorld.Workers;
 
 /// <summary>Medição da lavoura (AD-149), só para os relatórios: <c>LW_AG</c> com vírgulas. <c>noland</c> = terra sem limite;
 /// <c>noreap</c> = sem a ceifa da vila toda; <c>presence</c> liga <c>EconomyRules.PresenceNeedsWork</c> (E1), <c>nopresence</c>
-/// desliga; <c>freeration</c> volta à ração da oficina de graça e <c>nomeal</c> tira a refeição do empregador (AD-151); <c>land=x</c>, <c>gain=x</c>, <c>reap=n</c>, <c>keep=n</c>, <c>seed=n</c>, <c>yield=x</c>, <c>dearth=n</c> trocam o número; <c>olddearth</c> volta a venda da carestia de antes (AD-182).</summary>
+/// desliga; <c>freeration</c> volta à ração da oficina de graça e <c>nomeal</c> tira a refeição do empregador (AD-151); <c>land=x</c>, <c>gain=x</c>, <c>reap=n</c>, <c>keep=n</c>, <c>seed=n</c>, <c>yield=x</c>, <c>dearth=n</c> trocam o número; <c>olddearth</c> volta a venda da carestia de antes (AD-182); <c>freegrain</c> volta o grão entre fazendas de graça (AD-190).</summary>
 public static class AgricultureSwitch
 {
     private static HashSet<string> Keys() =>
@@ -19,6 +19,7 @@ public static class AgricultureSwitch
     public static AgricultureRules? AgricultureRules()
     {
         var keys = Keys();
+        if (Ad191.Off) { keys.Add("nofieldvalue"); keys.Add("nobarnprice"); } // AD-191: LW_AD191=off tira tudo o que a fatia ligou
         if (keys.Count == 0) return null;
         var ag = Domain.Economy.AgricultureRules.Default;
         if (keys.Contains("noland")) ag = ag with { SownHectaresPerFounder = 0 };
@@ -33,6 +34,10 @@ public static class AgricultureSwitch
         if (keys.Contains("olddearth")) ag = ag with { DearthSaleDays = 0, SeedKeptFromSale = false };
         if (Number("dearth") is { } dearth) ag = ag with { DearthSaleDays = (int)dearth };
         if (keys.Contains("seedsale")) ag = ag with { SeedKeptFromSale = false };
+        if (keys.Contains("nodearthsow")) ag = ag with { DearthSowBoost = 0 }; // AD-190
+        if (keys.Contains("freegrain")) ag = ag with { PayForCityGrain = false }; // AD-190: o grão da outra fazenda volta a ser de graça
+        if (keys.Contains("nofieldvalue")) ag = ag with { FieldLaborValue = false };
+        if (keys.Contains("nobarnprice")) ag = ag with { BarnReserveYears = 0 }; // AD-191: o preço volta a olhar só a banca // AD-191: a lavoura volta a valer o mínimo na escolha de emprego
         return ag;
     }
 

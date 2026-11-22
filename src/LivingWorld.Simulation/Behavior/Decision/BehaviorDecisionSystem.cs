@@ -186,7 +186,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SickGetsWaterBrought(world, npc, now);
                     if (LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
-                        && (100 - npc.HungerAt(now) < 95 || candidate == ActionType.Travel)) // a caminho da água: segue, salvo fome à beira da morte
+                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel)) // a caminho da água: segue, salvo fome à beira da morte
                         candidate = ActionType.Travel;
                     else if (ThirstGoesToSource(world, npc, now, marketIndex, candidate))
                         candidate = ActionType.Travel;

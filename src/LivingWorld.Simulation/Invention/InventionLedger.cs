@@ -141,11 +141,13 @@ public sealed class InventionLedger
     internal int WaterTripIndex(long npcId)
     {
         if (WaterTrips is not { } list) return -1;
-        int lo = 0, hi = list.Count - 1;
+        // AD-187: leitura no lugar (o indexador da lista copiava a ida inteira a cada passo da busca; é perguntado a cada decisão)
+        var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list);
+        int lo = 0, hi = span.Length - 1;
         while (lo <= hi)
         {
             int mid = (lo + hi) >> 1;
-            long at = list[mid].NpcId;
+            long at = span[mid].NpcId;
             if (at == npcId) return mid;
             if (at < npcId) lo = mid + 1; else hi = mid - 1;
         }
@@ -624,11 +626,12 @@ public sealed class InventionLedger
 
     internal int CarriedIndex(long npcId, int resourceId)
     {
-        int lo = 0, hi = Carried.Count - 1;
+        var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(Carried); // AD-187: sem cópia por passo
+        int lo = 0, hi = span.Length - 1;
         while (lo <= hi)
         {
             int mid = (lo + hi) >> 1;
-            var c = Carried[mid];
+            ref readonly var c = ref span[mid];
             int cmp = c.NpcId != npcId ? c.NpcId.CompareTo(npcId) : c.ResourceId.CompareTo(resourceId);
             if (cmp == 0) return mid;
             if (cmp < 0) lo = mid + 1; else hi = mid - 1;
@@ -658,8 +661,9 @@ public sealed class InventionLedger
         int i = CarriedIndex(npcId, int.MinValue);
         i = i >= 0 ? i : ~i;
         long grams = 0;
-        for (; i < Carried.Count && Carried[i].NpcId == npcId; i++)
-            grams += (long)Carried[i].Quantity * rules.UnitGramsOf(Carried[i].ResourceId);
+        var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(Carried);
+        for (; i < span.Length && span[i].NpcId == npcId; i++)
+            grams += (long)span[i].Quantity * rules.UnitGramsOf(span[i].ResourceId);
         return grams;
     }
 

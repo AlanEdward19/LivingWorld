@@ -3,6 +3,9 @@ extends Node3D
 ## espécie, um pouco magro quando a energia é baixa; no mapa-múndi, cada bando agregado vira um grupinho de animais no
 ## centro com o número. Um MultiMesh por forma (malha única feita de caixas), refeito só quando a fauna muda.
 ## `positions` (animal) e `group_positions` (bando) servem à seleção. O motor não dá idade, porte nem atividade (lacuna).
+## AD-188: entre um delta e o outro o animal desliza da célula de antes para a nova em GLIDE segundos (virado para onde
+## anda), em vez de saltar; salto longo (mais de JUMP células: entrou no escopo, nasceu) vai direto. Só as instâncias de
+## quem se move são reescritas por quadro.
 
 const Grid := preload("res://Scenes/grid.gd")
 
@@ -24,12 +27,18 @@ const SPECIES := {
 }
 const FORMS := ["quad", "small", "bird"]
 const GROUP_SHOWN := 5
+const GLIDE := 0.9 ## segundos do deslize entre a célula de antes e a nova
+const JUMP := 3.0 ## acima disso (em células) não desliza: aparece no lugar
 
 var store
 var bounds_filter := Rect2i()
 var positions: Dictionary = {} ## id do animal -> Vector3
 var group_positions: Dictionary = {} ## "espécie:região" -> Vector3
 var _multis: Dictionary = {} ## forma -> MultiMeshInstance3D
+var drawn: Dictionary = {} ## id do animal -> posição desenhada agora (testável)
+var moving: Dictionary = {} ## id -> {from, to, t}: quem está deslizando
+var _slots: Dictionary = {} ## id -> [forma, índice na MultiMesh, Basis]
+var _yaw: Dictionary = {} ## id -> rumo do último deslize (o animal fica virado para onde andou)
 var _labels: Node3D
 
 
@@ -107,10 +116,19 @@ func _instances() -> Array:
 		var jitter := Vector3(fmod(float(id) * 0.37, 1.0) - 0.5, 0, fmod(float(id) * 0.61, 1.0) - 0.5) * 0.5
 		var at := Grid.to_world(animal.cell) + jitter
 		var lean: float = 0.85 if int(animal.energy) < 30 else 1.0
-		var basis := Basis(Vector3.UP, float(id % 8) * PI / 4.0) * Basis.from_scale(Vector3(lean, 1, 1) * float(look[2]))
+		var yaw: float = _yaw.get(int(id), float(id % 8) * PI / 4.0)
+		var from: Vector3 = drawn.get(int(id), at)
+		if from.distance_to(at) > 0.01 and from.distance_to(at) <= JUMP: # andou uma ou poucas células: desliza até lá
+			moving[int(id)] = {"from": from, "to": at, "t": 0.0}
+			yaw = atan2(at.x - from.x, at.z - from.z)
+			_yaw[int(id)] = yaw
+		else:
+			moving.erase(int(id))
+			drawn[int(id)] = at
+		var basis := Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(lean, 1, 1) * float(look[2]))
 		var color: Color = look[1].darkened(0.25) if bool(animal.disease) else look[1]
-		out.append({"form": look[0], "transform": Transform3D(basis, at), "color": color})
-		positions[int(id)] = at + Vector3(0, 0.3, 0)
+		out.append({"form": look[0], "transform": Transform3D(basis, drawn[int(id)]), "color": color, "id": int(id)})
+		positions[int(id)] = drawn[int(id)] + Vector3(0, 0.3, 0)
 	for key in store.fauna_groups:
 		var group: Dictionary = store.fauna_groups[key]
 		var look := look_of(String(group.species))
@@ -125,6 +143,12 @@ func _instances() -> Array:
 
 
 func rebuild() -> void:
+	_slots.clear()
+	for id in drawn.keys():
+		if not store.animals.has(id):
+			drawn.erase(id)
+			moving.erase(id)
+			_yaw.erase(id)
 	var instances := _instances()
 	var by_form: Dictionary = {}
 	for form in FORMS:
@@ -138,6 +162,8 @@ func rebuild() -> void:
 		for i in list.size():
 			multi.set_instance_transform(i, list[i].transform)
 			multi.set_instance_color(i, list[i].color)
+			if list[i].has("id"):
+				_slots[list[i].id] = [form, i, list[i].transform.basis]
 		_multis[form].visible = not list.is_empty()
 	for child in _labels.get_children():
 		if child.is_inside_tree():
@@ -160,3 +186,20 @@ func instance_count() -> int:
 	for form in FORMS:
 		total += _multis[form].multimesh.instance_count
 	return total
+
+
+## Um quadro do deslize: só quem está andando entre duas células.
+func step(delta: float) -> void:
+	if moving.is_empty():
+		return
+	for id in moving.keys():
+		var glide: Dictionary = moving[id]
+		glide.t = minf(1.0, float(glide.t) + delta / GLIDE)
+		var at: Vector3 = Vector3(glide.from).lerp(glide.to, smoothstep(0.0, 1.0, float(glide.t)))
+		drawn[id] = at
+		positions[id] = at + Vector3(0, 0.3, 0)
+		var slot = _slots.get(id)
+		if slot != null:
+			_multis[slot[0]].multimesh.set_instance_transform(slot[1], Transform3D(slot[2], at))
+		if float(glide.t) >= 1.0:
+			moving.erase(id)

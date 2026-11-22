@@ -32,10 +32,30 @@ static func signature(state: Dictionary) -> String:
 	return "%s|%s|%s" % [Dress.style_of(state), Dress.sign_text(state), bool(state.get("closed", false))]
 
 
-## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma).
+## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma);
+## a luz (AD-189, `lit` do motor) só troca o material das janelas.
 func restyle(info: Dictionary, state: Dictionary) -> void:
 	if String(dressed.get(int(info.id), "")) != signature(state):
 		upsert(info, state)
+	else:
+		set_lit(int(info.id), bool(state.get("lit", false)))
+
+
+## AD-189: acende ou apaga as janelas do prédio pelo dado do motor, sem redesenhar.
+func set_lit(id: int, lit: bool) -> void:
+	var node: Node3D = nodes.get(id)
+	if node == null or bool(node.get_meta("lit", false)) == lit:
+		return
+	node.set_meta("lit", lit)
+	for window in node.get_meta("windows", []):
+		window.material_override = window_material if lit else dark_window_material
+		window.name = "Window" if lit else "WindowDark"
+
+
+## Quantas janelas acesas o prédio tem agora (testável).
+func lit_count(id: int) -> int:
+	var node: Node3D = nodes.get(id)
+	return 0 if node == null else (node.get_meta("windows", []) as Array).filter(func(w): return w.material_override == window_material).size()
 
 
 func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
@@ -149,6 +169,7 @@ const ROOF_COLORS: Array[Color] = [Color("a14f3d"), Color("6b5b73"), Color("7d6a
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var window_material: StandardMaterial3D = _make_window_material()
+var dark_window_material: StandardMaterial3D = _flat_material(Color("2b3a4a")) ## janela sem ninguém dentro (AD-188)
 var lamp_material: StandardMaterial3D = _make_lamp_material()
 
 
@@ -181,11 +202,17 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var cells := {}
 	for entry in info.footprint:
 		cells[info.cell + entry.cell] = entry.material
+	var form := Dress.body_of(state) # AD-188: corpo pela função; AD-189: a luz das janelas é o `lit` do motor
 	var roof_color: Color = ROOF_COLORS[info.type % ROOF_COLORS.size()] if info.type >= 0 else ROOF_COLORS[0]
+	if form.roof != null:
+		roof_color = Color(form.roof)
 	var trim := _flat_material(Color("5d4a3a"))
 	var door := _flat_material(Color("3b2a20"))
 	var step := _flat_material(Color("8d8579"))
-	var wall_materials := {0: _flat_material(WALL_COLORS[0]), 1: _flat_material(WALL_COLORS[1])}
+	var wall_materials := {}
+	for key in WALL_COLORS:
+		wall_materials[key] = _flat_material(WALL_COLORS[key] if form.wall == null else Color(WALL_COLORS[key]).lerp(Color(form.wall), 0.55))
+	var windows: Array = []
 	var min_cell := Vector2i(1 << 20, 1 << 20)
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
 	var door_at := Vector3.INF
@@ -209,6 +236,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 							var window := _box(root, Vector3(0.36 if dir.x == 0 else 0.04, 0.36, 0.36 if dir.y == 0 else 0.04),
 								Grid.to_world(cell, level * FLOOR_HEIGHT + 0.58) + outward, window_material)
 							window.name = "Window"
+							windows.append(window)
 			MATERIAL_DOOR:
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[0])
 				for dir in DIRS:
@@ -224,18 +252,26 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)
 			_:
 				pass
+	var lit := Dress.lit_windows(state, windows.size())
+	for i in range(lit, windows.size()):
+		windows[i].material_override = dark_window_material
+		windows[i].name = "WindowDark"
+	for i in range(0, lit):
+		windows[i].material_override = window_material
+	root.set_meta("windows", windows)
+	root.set_meta("lit", lit > 0)
 	var span := max_cell - min_cell + Vector2i.ONE
 	var rectangular: bool = cells.size() == span.x * span.y
 	var roof := _flat_material(roof_color)
 	if rectangular:
 		var prism := PrismMesh.new()
 		var along_x := span.x >= span.y
-		prism.size = Vector3((span.x if along_x else span.y) + 0.4, 0.75, (span.y if along_x else span.x) + 0.4)
+		prism.size = Vector3((span.x if along_x else span.y) + 0.4, float(form.pitch), (span.y if along_x else span.x) + 0.4)
 		var ridge := MeshInstance3D.new()
 		ridge.mesh = prism
 		ridge.material_override = roof
 		ridge.name = "Roof"
-		ridge.position = Vector3(min_cell.x + span.x / 2.0, height + 0.375, min_cell.y + span.y / 2.0)
+		ridge.position = Vector3(min_cell.x + span.x / 2.0, height + float(form.pitch) / 2.0, min_cell.y + span.y / 2.0)
 		if not along_x:
 			ridge.rotation.y = PI / 2.0
 		root.add_child(ridge)

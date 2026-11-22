@@ -69,9 +69,10 @@ public static class PersonalCarry
         if (keyed && memo.TryGetValue(key, out var known) && known.Home == home.Location && known.City == npc.City
             && known.Touches == touches && known.Bonus == bonus)
             return known.Out;
-        bool far = (outbound
-            ? Mobility.TravelTicks(world, npc, home.Location, cell, 1.0, weather: false) // AD-180: "longe" é distância, não o chão do dia
-            : Mobility.TravelTicks(world, npc, cell, home.Location, 1.0, weather: false)) > 1;
+        // AD-180: "longe" é distância, não o chão do dia; AD-187: sem buscar a rota quando o piso dela já passa de uma hora
+        bool far = outbound
+            ? Mobility.FartherThan(world, npc, home.Location, cell, 1.0, 1)
+            : Mobility.FartherThan(world, npc, cell, home.Location, 1.0, 1);
         if (!keyed) return far;
         if (memo.Count >= 8192) memo.Clear();
         memo[key] = new ReachKnown(home.Location, npc.City, touches, bonus, far);

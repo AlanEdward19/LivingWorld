@@ -73,10 +73,9 @@ O aglomerado que nasceu longe por falta de lote perto só funda cidade se, pela 
 - Escolhidos (sem fonte): horas por célula (40/120), viagens de material (4), equipe (6×8 h), retorno (10 anos), desgaste.
 - Fundação: 2 h de caminho, na ordem do orçamento diário de deslocamento (Marchetti, 1994, ~1 h/dia) — baixa.
 
-## Medido (AD-176)
-Vila de código, seeds 1/2/7, anos 1/10/20: chão trilha/terra 190/47 → 30/116 (seed 1; a rede se concentra), traçado usado 9–20%,
-trilhas fora do traçado 113–182, h casa→trabalho 1,46 → 1,16, casas sem rota 0. Com a tecnologia ligada, 1–3 obras de pedra em
-20 anos (8–23 células) e casa→trabalho 1,25 → 0,84 h. `cidade-media` (antes da AD-179): ~1 viagem/pessoa-mês, nenhuma trilha.
+**Medido (AD-176)**: Vila de código, seeds 1/2/7, anos 1/10/20: chão trilha/terra 190/47 → 30/116 (seed 1), traçado usado 9–20%, trilhas
+fora do traçado 113–182, h casa→trabalho 1,46 → 1,16, casas sem rota 0. Com a tecnologia ligada, 1–3 obras de pedra em 20 anos (8–23
+células) e casa→trabalho 1,25 → 0,84 h. `cidade-media` (antes da AD-179): ~1 viagem/pessoa-mês, nenhuma trilha.
 
 ## Mundos do menu (AD-179)
 Os três períodos do menu eram fixture (economia desligada, sem oficina, mercado nem água da natureza, célula de 1 h, mapa 10/20/32
@@ -84,17 +83,18 @@ para 40/150/400 pessoas): ~1 viagem por pessoa-mês, chão nenhum, e a metrópol
 Agora são a vila de código em três tamanhos (`DefaultPeriodSeeder`: economia, fazenda com poço e forja por centena, presença,
 empreendimento, crédito, tecnologia ligada, célula de 30 min, lado pela regra da vila). Seeds 1/2/7, mês 12: 49–75 viagens por
 pessoa-mês, casa→trabalho 0,7–2,3 h, 60–1.400 células de trilha e terra, zero morte de fome ou sede, zero casa sem rota;
-`cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`.
+`cidade-media` seed 2 em 20 anos: 17 obras de calçamento, 56 células de pedra, 65 entradas de diarista. Aceite: `MenuWorldsLiveTests`; 10 anos sem fome nem sede: `MenuWorldsSustainTests` (AD-190; 20 anos: `MenuWorldsYearsReport`).
 `LW_MENU_WORLDS_OUT=arq ... --filter MenuWorldsReport` (diagnóstico) e `MenuWorldsCostReport` (custo).
 ## Buscar água, emprego perto e dados de rota (AD-185)
 `WaterFetch`: com a água da casa abaixo de 4 dias por morador, quem está em casa ou perto com tempo livre (8+ anos, fora da cama; quem
 tem emprego só abaixo de 1 dia ou sem outro livre perto) vai à água mais perto pela rota (até 3 h, raio 6), bebe, enche o cântaro (20
 L, recipiente ou veículo da casa) e volta carregado; a despensa só recebe o que chegou; a ida segue até o fim (a escolha da hora não a
 recomeça) e vem antes até da mudança de cidade. Sede urgente (qualquer idade que ande) sem água vai à fonte mais perto de onde está (até
-6 h; com moeda e mercado mais perto, salvo se a escolha foi comprar); casa sem apto recebe água dos seus, senão do vizinho. Com a fonte
-não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Rede: A* com marcos (as oito
-pontas, ALT) e campos dos polos. Emprego: a oficina do ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`,
-`routeOver`, `lot.accessCells`, `accessViaBuildingId`, `accessState`. `LW_AD185=off` desliga.
-## Medir
-`LW_CITY_LAYOUT_OUT=arq bash scripts/test.sh --project integration --filter CityLayoutReport` (diagnóstico, com a linha da
-rua); `LW_STREETS=off` desliga a rua de verdade (relatórios, Workers, fixture de escala); `LW_CITY_LAYOUT=off`, o traçado.
+6 h; perto de casa, à fonte da casa (AD-187); com moeda e mercado mais perto, salvo se a escolha foi comprar); casa sem apto recebe água
+dos seus, senão do vizinho. A caminho da água ninguém reacorda de hora em hora (só na chegada ou com a fome à beira da morte). Com a fonte
+não mais longe que o mercado, a comida é reposta abaixo da meta e a água só compra o que cabe depois dela. Emprego: a oficina do
+ofício mais perto de casa (`NearestJob`). Contrato: `routeDepartedTick`, `routeOver`, `lot.accessCells`, `accessViaBuildingId`,
+`accessState`. `LW_AD185=off` desliga. **Busca na rede (AD-187, só custo)**: A* no índice compacto da rede, campos dos polos, até 16
+marcos (as pontas e os mais afastados pela rede, 6 por busca), empate da estimativa a 1e-10 h pelo mais fundo (muda só o desempate
+entre caminhos de custo igual); a volta é a ida ao contrário; pedaços sem ligação nem buscam; "é longe de casa?" pelo piso do custo.
+**Medir**: `... --filter CityLayoutReport` (`LW_CITY_LAYOUT_OUT=arq`); `LW_STREETS=off` desliga a rua de verdade.

@@ -36,7 +36,10 @@ static func apply_observable(store, delta: Dictionary) -> void:
 		store.items_changed.emit()
 	if delta.get("climate") is Dictionary:
 		store.climate = Parse.climate(delta.climate)
+		Parse.at_hour(store.climate.get("weather", {}), int(delta.get("tick", -1)))
 		store.climate_changed.emit()
+	elif store.climate.get("weather") is Dictionary and Parse.at_hour(store.climate.weather, int(delta.get("tick", -1))):
+		store.climate_changed.emit() # AD-189: a hora nova da curva do dia (o servidor não reenvia o clima por isso)
 
 
 ## Ruas por delta: troca/apaga as células e guarda onde a última obra acabou (lugar do evento `StreetWorkDone`).

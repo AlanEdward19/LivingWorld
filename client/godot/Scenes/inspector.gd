@@ -194,6 +194,10 @@ func refresh(auto: bool = false) -> void:
 			if ticket != _request:
 				return
 			text = ""
+			var founder := Describe.founder(body) # AD-183: quem liderou a saída e fundou a cidade-filha
+			if not founder.is_empty():
+				extra.append(String(founder.line))
+				links.append(founder.link)
 		_:
 			var built: Dictionary = await describe(current)
 			if ticket != _request:

@@ -10,6 +10,12 @@ public static class WeatherGenerator
     /// <summary>Sorteios do dia: os comuns a todas as regiões e os locais. Normais de média 0 e variância 1.</summary>
     public readonly record struct Draws(double Pick, double RainU, double AmountU, double WindU, double TempNormal);
 
+    /// <summary>AD-189: sorteios do vento do dia (continua ou muda, setor da rosa, ponto no setor, giro).</summary>
+    public readonly record struct WindDraws(double Keep, double Sector, double Within, double Veer);
+
+    public static WindDraws ReadWind(ref ulong state) =>
+        new(WorldRng.NextDouble(ref state), WorldRng.NextDouble(ref state), WorldRng.NextDouble(ref state), WorldRng.NextDouble(ref state));
+
     public static Draws Read(ref ulong state)
     {
         double pick = WorldRng.NextDouble(ref state), rain = WorldRng.NextDouble(ref state);
@@ -23,7 +29,8 @@ public static class WeatherGenerator
     public static double NormalRainMm(WeatherRules r, double dayOfYear, int daysPerMonth, int monthsPerYear) =>
         r.Interpolate(r.RainMmPerMonth, dayOfYear, daysPerMonth, monthsPerYear) * monthsPerYear / 365.0;
 
-    private readonly record struct Climatology(double Sd, double Clim, double Freq, double NormalMm, double Range, double Wind);
+    private readonly record struct Climatology(double Sd, double Clim, double Freq, double NormalMm, double Range, double Wind,
+        double Advection, double WarmFromDeg, double MeanCos, double VarCos);
 
     [ThreadStatic] private static (WeatherRules? Rules, double Day, int Dpm, int Mpy, Climatology Value) _day;
 
@@ -38,32 +45,111 @@ public static class WeatherGenerator
             Math.Clamp(r.Interpolate(r.WetDaysPerMonth, dayOfYear, daysPerMonth, monthsPerYear) / (365.0 / monthsPerYear), 0.02, 0.95),
             NormalRainMm(r, dayOfYear, daysPerMonth, monthsPerYear),
             r.Interpolate(r.DiurnalRangeC, dayOfYear, daysPerMonth, monthsPerYear),
-            r.Interpolate(r.WindMs, dayOfYear, daysPerMonth, monthsPerYear));
+            r.Interpolate(r.WindMs, dayOfYear, daysPerMonth, monthsPerYear),
+            0, 0, 0, 0);
+        if (r.WindAdvectionC.Count > 0 && r.WarmWindFromDeg.Count > 0)
+        {
+            double warm = r.Interpolate(r.WarmWindFromDeg, dayOfYear, daysPerMonth, monthsPerYear);
+            var (meanCos, varCos) = RoseMoments(r, warm);
+            value = value with
+            {
+                Advection = r.Interpolate(r.WindAdvectionC, dayOfYear, daysPerMonth, monthsPerYear),
+                WarmFromDeg = warm,
+                MeanCos = meanCos,
+                VarCos = varCos,
+            };
+        }
         _day = (r, dayOfYear, daysPerMonth, monthsPerYear, value);
         return value;
+    }
+
+    /// <summary>Média e variância de cos(direção − quente) sob a rosa (setor uniforme de 45°): a advecção sai centrada (a média do
+    /// mês não muda) e o ruído do dia perde a variância que ela explica.</summary>
+    private static (double Mean, double Var) RoseMoments(WeatherRules r, double warmFromDeg)
+    {
+        var rose = r.WindRoseFrom;
+        double total = 0, m1 = 0, m2 = 0;
+        for (int k = 0; k < rose.Count; k++) total += Math.Max(0, rose[k]);
+        if (total <= 0) return (0, 0);
+        double width = 360.0 / rose.Count;
+        for (int k = 0; k < rose.Count; k++)
+        {
+            double p = Math.Max(0, rose[k]) / total, turns = (k * width - warmFromDeg) / 360.0;
+            // média de cos e de cos² num setor uniforme: o centro × sinc da meia largura (π/8 → 0,9745; π/4 → 0,9003 para 8 setores)
+            double half = width / 360.0 / 2.0;
+            m1 += p * DeterministicMath.CosTurns(turns) * Sinc(half);
+            m2 += p * (0.5 + 0.5 * DeterministicMath.CosTurns(2 * turns) * Sinc(2 * half));
+        }
+        return (m1, Math.Max(0, m2 - m1 * m1));
+    }
+
+    /// <summary>sen(2π·t)/(2π·t), com t em voltas.</summary>
+    private static double Sinc(double turns) => turns == 0 ? 1 : DeterministicMath.SinTurns(turns) / (2 * Math.PI * turns);
+
+    /// <summary>AD-189: de onde o vento vem hoje (graus a partir do norte): o de ontem com um giro, se o sistema de pressão continua;
+    /// senão um novo, sorteado da rosa do lugar.</summary>
+    public static int WindFrom(WeatherRules r, int yesterdayDeg, WindDraws d, bool first)
+    {
+        double deg;
+        if (!first && d.Keep < Math.Clamp(r.WindDirectionPersistence, 0, 1))
+            deg = yesterdayDeg + (d.Veer * 2 - 1) * r.WindVeerDeg;
+        else
+        {
+            var rose = r.WindRoseFrom;
+            double total = 0;
+            for (int k = 0; k < rose.Count; k++) total += Math.Max(0, rose[k]);
+            if (rose.Count == 0 || total <= 0) return yesterdayDeg;
+            double u = d.Sector * total, acc = 0;
+            int sector = rose.Count - 1;
+            for (int k = 0; k < rose.Count; k++)
+            {
+                acc += Math.Max(0, rose[k]);
+                if (u < acc) { sector = k; break; }
+            }
+            double width = 360.0 / rose.Count;
+            deg = sector * width + (d.Within - 0.5) * width;
+        }
+        int rounded = (int)Math.Round(deg) % 360;
+        return rounded < 0 ? rounded + 360 : rounded;
     }
 
     /// <summary>Avança a linha um dia. <paramref name="first"/> = o primeiro dia do mundo (chuva média e chão meio molhado).</summary>
     public static void Step(
         WeatherRules r, WeatherRegionRow row, Draws shared, Draws local, double dayOfYear, int daysPerMonth, int monthsPerYear,
-        bool first)
+        bool first, WindDraws? sharedWind = null, WindDraws? localWind = null)
     {
         var c = DayClimate(r, dayOfYear, daysPerMonth, monthsPerYear);
         double w = Math.Clamp(r.SharedShare, 0, 1);
         double z = row.RegimeMilli / 1000.0;
         double rho = Math.Clamp(r.AnomalyPersistence, 0, 0.99);
         double sd = c.Sd;
+        bool shareDraw = local.Pick < w;
+
+        // AD-189: de onde o vento vem (a frente é comum às regiões como a chuva) e o ar que ele traz: a advecção centrada na rosa, e o
+        // ruído do dia sem a parte que ela explica (a variância do dia continua a da fonte)
+        double advection = 0;
+        if (sharedWind is { } sw && localWind is { } lw)
+        {
+            row.WindFromDeg = WindFrom(r, row.WindFromDeg, shareDraw ? sw : lw, first);
+            if (c.Advection != 0)
+            {
+                advection = c.Advection * (DeterministicMath.CosTurns((row.WindFromDeg - c.WarmFromDeg) / 360.0) - c.MeanCos);
+                double explained = c.Advection * c.Advection * c.VarCos;
+                sd = Math.Sqrt(Math.Max(0.25 * sd * sd, sd * sd - explained));
+            }
+        }
+        row.AdvectionCenti = (int)Math.Round(advection * 100);
+
         double shock = Math.Sqrt(w) * shared.TempNormal + Math.Sqrt(1 - w) * local.TempNormal;
         double anomaly = (first ? 0 : rho * row.AnomalyCenti / 100.0) + sd * Math.Sqrt(1 - rho * rho) * shock;
         double clim = c.Clim;
-        double mean = clim + anomaly + z * r.RegimeTempC;
+        double mean = clim + anomaly + advection + z * r.RegimeTempC;
 
         // chuva: cadeia de Markov de dois estados; a frequência do mês, mudada pelo regime do ano
         double normalFreq = c.Freq;
         double freq = Math.Clamp(normalFreq * (1 + z * r.RegimeRainShare), 0.02, 0.95);
         double p11 = Math.Max(Math.Clamp(r.WetAfterWet, 0, 0.99), freq + 0.01);
         double p01 = freq * (1 - p11) / (1 - freq);
-        bool shareDraw = local.Pick < w;
         double u = shareDraw ? shared.RainU : local.RainU;
         bool wet = u < (row.Wet && !first ? p11 : p01);
         double normalMm = c.NormalMm;
@@ -136,6 +222,79 @@ public static class WeatherGenerator
             if (month is 3 or 4 && min < -1) row.LateFrostNights++;
             if (month is 0 or 1 && mean <= -4 && snow < 5) row.WinterKillDays++;
         }
+    }
+
+    /// <summary>AD-189: a folhagem do dia na região. <paramref name="seasonalDay"/> é o dia do ano contado do meio do inverno (janeiro no
+    /// norte, julho no sul); <paramref name="daylightHours"/> a luz do dia. Na primeira metade do ano o calor acumula (grau-dia acima da
+    /// base) e a folha brota e enche; na segunda, com a luz já curta, o frio acumula (grau-dia abaixo da base da senescência), a copa
+    /// muda de cor e, passado o limiar, a folha cai em <see cref="WeatherRules.LeafFallDays"/> dias. No primeiro dia do mundo as somas
+    /// partem da climatologia (o valor esperado do dia, pela média e pelo desvio), não de zero.</summary>
+    public static void Foliage(WeatherRules r, WeatherRegionRow row, double seasonalDay, int daysPerMonth, int monthsPerYear,
+        double daylightHours, bool first)
+    {
+        if (!r.FoliageEnabled) return;
+        int daysInYear = daysPerMonth * monthsPerYear;
+        if (first) SeedFoliage(r, row, seasonalDay, daysPerMonth, monthsPerYear);
+        else if ((int)seasonalDay == 0)
+        {
+            row.LeafGddTenths = row.LeafColdTenths = 0;
+            if (row.LeafPm > 0) row.LeafPhase = LeafPhase.Falling; // outono quente: o que sobrou cai no inverno
+        }
+        double mean = row.MeanCenti / 100.0;
+        bool autumn = seasonalDay >= daysInYear / 2.0;
+        if (!autumn) row.LeafGddTenths += (int)Math.Round(Math.Max(0, mean - r.LeafBaseC) * 10);
+        else if (daylightHours < r.SenescenceDaylightHours) row.LeafColdTenths += (int)Math.Round(Math.Max(0, r.SenescenceBaseC - mean) * 10);
+        AdvanceLeaves(r, row, autumn);
+    }
+
+    private static void AdvanceLeaves(WeatherRules r, WeatherRegionRow row, bool autumn)
+    {
+        int step = (int)Math.Ceiling(1000.0 / Math.Max(1, r.LeafFallDays));
+        if (row.LeafPhase == LeafPhase.Falling || (autumn && row.LeafPm > 0 && row.LeafColdTenths >= r.LeafFallColdDegreeDays * 10))
+        {
+            row.LeafPm = Math.Max(0, row.LeafPm - step);
+            row.LeafPhase = row.LeafPm > 0 ? LeafPhase.Falling : LeafPhase.Bare;
+            return;
+        }
+        if (autumn && row.LeafPhase == LeafPhase.Bare) return; // caiu: não brota de novo até a primavera
+        double grown = (row.LeafGddTenths / 10.0 - r.BudburstDegreeDays) / Math.Max(1, r.LeafOutDegreeDays);
+        int target = (int)Math.Round(Math.Clamp(grown, 0, 1) * 1000);
+        if (!autumn) row.LeafPm = Math.Max(row.LeafPm, target);
+        row.LeafPhase = row.LeafPm <= 0 ? LeafPhase.Bare : row.LeafPm < 1000 && !autumn ? LeafPhase.Budding : LeafPhase.Full;
+    }
+
+    /// <summary>As somas da folhagem no primeiro dia do mundo, pelo valor esperado de cada dia desde o meio do inverno (média do
+    /// clima e desvio do dia, normal), e a folha que isso dá.</summary>
+    private static void SeedFoliage(WeatherRules r, WeatherRegionRow row, double seasonalDay, int daysPerMonth, int monthsPerYear)
+    {
+        int daysInYear = daysPerMonth * monthsPerYear;
+        double shift = r.LatitudeDeg < 0 ? daysInYear / 2.0 : 0; // o dia do ano do calendário que corresponde ao dia sazonal
+        double gdd = 0, cold = 0;
+        row.LeafPm = 0;
+        row.LeafPhase = LeafPhase.Bare;
+        row.LeafGddTenths = row.LeafColdTenths = 0;
+        for (int d = 0; d < (int)seasonalDay; d++)
+        {
+            double doy = (d + shift + 0.5) % daysInYear;
+            double mu = r.Interpolate(r.MeanTempC, doy, daysPerMonth, monthsPerYear);
+            double sd = r.Interpolate(r.AnomalySdC, doy, daysPerMonth, monthsPerYear);
+            bool autumn = d >= daysInYear / 2.0;
+            if (!autumn) gdd += ExpectedExcess(mu - r.LeafBaseC, sd);
+            else if (r.DaylightHours(doy, daysInYear) < r.SenescenceDaylightHours) cold += ExpectedExcess(r.SenescenceBaseC - mu, sd);
+            row.LeafGddTenths = (int)Math.Round(gdd * 10);
+            row.LeafColdTenths = (int)Math.Round(cold * 10);
+            AdvanceLeaves(r, row, autumn);
+        }
+    }
+
+    /// <summary>E[max(0, X)] de uma normal de média <paramref name="mu"/> e desvio <paramref name="sd"/> (Φ pela logística 1,702).</summary>
+    private static double ExpectedExcess(double mu, double sd)
+    {
+        if (sd <= 0) return Math.Max(0, mu);
+        double z = mu / sd;
+        double pdf = DeterministicMath.Exp(-0.5 * z * z) / 2.5066282746310002;
+        double cdf = 1 / (1 + DeterministicMath.Exp(-1.702 * z));
+        return Math.Max(0, mu * cdf + sd * pdf);
     }
 
     /// <summary>Índice cru de estresse da safra da estação (janeiro até o mês do fator): chuva da primavera fora da faixa boa,

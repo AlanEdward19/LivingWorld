@@ -100,6 +100,13 @@ func test_minimap_maps_cells_and_requests_pan() -> void:
 	map._gui_input(click)
 	eq(requested.size(), 1, "clicar pede a navegação")
 	check(requested[0].distance_to(Vector3(5, 0, 7)) < 0.01, "para a célula clicada")
+	# AD-188: com o mundo rodando chegam ~40 deltas/s; os pontos das pessoas são refeitos no máximo 4×/s
+	store.npc_changed.emit(1, Vector2i.ZERO, Vector2i.ONE, 0)
+	check(map._npcs_dirty, "gente andou: pendente")
+	map._process(0.1)
+	check(map._npcs_dirty, "antes de 0,25 s não redesenha")
+	map._process(0.2)
+	check(not map._npcs_dirty, "depois redesenha uma vez")
 	map.free()
 
 

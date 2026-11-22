@@ -27,6 +27,8 @@ const FollowDirector := preload("res://Scenes/follow_director.gd")
 const Parse := preload("res://Store/observable_parse.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
+const WeatherLook := preload("res://Scenes/render/weather_look.gd")
+const FrameCost := preload("res://Contract/frame_cost.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const MenuSteps := preload("res://Scenes/menu/menu_steps.gd")
 const CityReading := preload("res://Scenes/city_reading.gd")
@@ -77,6 +79,7 @@ var banner: Label
 var breadcrumb: Label
 var follow_label: Label
 var time_label: Label
+var weather_label: Label ## AD-180: indicador do tempo do dia
 var loading: Control
 var tooltip: PanelContainer
 var tooltip_label: Label
@@ -140,6 +143,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	add_child(observer)
 	stream = CursorStream.new(transport, get_tree())
 	stream.validate_shapes = validate_shapes
+	stream.delta_check_every = 30 if validate_shapes else 1 # AD-189: no jogo, amostra (os testes conferem tudo)
 	if sleeper.is_valid():
 		stream.sleeper = sleeper
 	stream.snapshot_received.connect(_on_snapshot)
@@ -198,6 +202,18 @@ func _update_time_label(status: Dictionary = {}) -> void:
 		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]
 
 
+## Tempo sob a câmera (AD-180): sol pelo nascer e pôr do motor, céu encoberto e o indicador do topo.
+func _on_weather(weather: Dictionary) -> void:
+	day_cycle.set_weather(weather)
+	var text := WeatherLook.hud(weather)
+	weather_label.visible = text != ""
+	weather_label.text = text
+	weather_label.tooltip_text = WeatherLook.tooltip(weather)
+	var alert := bool(weather.get("storm", false)) or bool(weather.get("heat_wave", false)) or bool(weather.get("cold_wave", false)) \
+		or bool(weather.get("drought", false))
+	weather_label.add_theme_color_override("font_color", Color("ffb070") if alert else Color("cfe3f0"))
+
+
 func _exit_tree() -> void:
 	NpcActor.frozen = false # o estado pausado é do servidor, não deve vazar para o próximo mundo
 
@@ -236,6 +252,7 @@ func _on_delta(envelope: Dictionary) -> void:
 ## Todo evento entra na linha do tempo e vira aviso; com lugar, também marcador clicável no mapa. Crime só de registro
 ## (`recordOnly`) aparece como registro estruturado (autor, vítima, caso, desfecho), nunca com o texto narrado.
 func _on_events(events: Array) -> void:
+	var started := Time.get_ticks_usec()
 	var ids: Array = []
 	for raw in events:
 		_local_event_id -= 1
@@ -248,6 +265,7 @@ func _on_events(events: Array) -> void:
 	if timeline != null:
 		timeline.refresh()
 	director.on_events(ids)
+	FrameCost.add("events", started) # AD-189: diagnóstico do bench
 
 
 ## Snapshot ou delta fora do contrato congelado (`tests/contracts/shape.*.json`) é descartado pelo stream: em vez de ficar

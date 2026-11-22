@@ -57,20 +57,31 @@ func refresh() -> void:
 	var wanted: Array = []
 	for i in range(order.size() - 1, maxi(order.size() - 1 - SHOWN, -1), -1):
 		wanted.append(int(order[i]))
+	if wanted == rows and _list.get_child_count() == wanted.size():
+		visible = not wanted.is_empty() or watch_button.button_pressed
+		return
 	rows = wanted
-	for child in _list.get_children():
-		_list.remove_child(child)
-		child.queue_free()
-	for id in wanted:
-		var event: Dictionary = registry.events.get(id, {})
+	# AD-189: com o mundo rodando chega evento a quase todo delta; as linhas são reaproveitadas (só o texto muda) em vez de
+	# 10 botões novos por delta
+	while _list.get_child_count() > wanted.size():
+		var extra := _list.get_child(_list.get_child_count() - 1)
+		_list.remove_child(extra)
+		extra.queue_free()
+	while _list.get_child_count() < wanted.size():
+		var index := _list.get_child_count()
 		var button := Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.clip_text = true
 		button.custom_minimum_size.x = 340
-		button.text = "%s · %s%s" % [date_of.call(int(event.get("tick", 0))), registry.event_title(event),
-			"" if bool(event.get("has_cell", false)) else " (sem lugar)"]
-		button.pressed.connect(func(): event_chosen.emit(id))
+		button.pressed.connect(func(): if index < rows.size(): event_chosen.emit(int(rows[index])))
 		_list.add_child(button)
+	for i in wanted.size():
+		var event: Dictionary = registry.events.get(wanted[i], {})
+		var text := "%s · %s%s" % [date_of.call(int(event.get("tick", 0))), registry.event_title(event),
+			"" if bool(event.get("has_cell", false)) else " (sem lugar)"]
+		var button := _list.get_child(i) as Button
+		if button.text != text:
+			button.text = text
 	visible = not wanted.is_empty() or watch_button.button_pressed
 
 

@@ -28,6 +28,9 @@ public static class WaterFetch
 
     private static ResourceType Water(WorldState world) => new(world.EconomyRules.WaterResourceId);
 
+    /// <summary>A fome (déficit) a partir da qual quem está a caminho da água larga a ida (à beira da morte).</summary>
+    internal const int StarvingDeficit = 95;
+
     /// <summary>A fonte mais perto da casa pela rota (célula e horas a pé), ou nulo se nenhuma no alcance da regra.</summary>
     public static (CellCoord Cell, long Ticks)? SourceFor(WorldState world, CellCoord home)
     {
@@ -92,6 +95,14 @@ public static class WaterFetch
         if ((!Below(world, home, rules.EmployedBelowDays) && FetcherOut(world, h.Value, npc.Id.Value))
             || SourceFor(world, home.Location) is not { } source) return false;
         if (source.Cell == home.Location) { Fill(world, npc, home, now); Unload(world, npc, home); return false; }
+        if (rules.NoEmptyTrips && source.Cell == npc.CurrentLocation)
+        {
+            // AD-191: já na fonte, enche aqui e a ida vira a volta para casa
+            Fill(world, npc, home, now);
+            world.Invention!.PutWaterTrip(new WaterTrip(npc.Id.Value, h.Value, source.Cell.X, source.Cell.Y, now, Returning: true));
+            world.InventionTally.WaterTrips++;
+            return true;
+        }
         Start(world, npc, h.Value, source.Cell, now);
         if (employed) world.InventionTally.WaterTripsByEmployed++;
         return true;
@@ -201,14 +212,27 @@ public static class WaterFetch
     internal static bool ThirstSendsToSource(WorldState world, Npc npc, long now, long marketTicks, bool canPay)
     {
         var rules = world.NaturalWaterRules.Fetch;
-        // a sede urgente anda o dobro do que se anda para encher o cântaro: a fonte alcançável mais perto de onde a pessoa está
-        if (NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, rules.RadiusCells * 2) is not { } source
-            || source.Ticks > rules.MaxWalkHours * 2) return false;
+        // a sede urgente anda o dobro do que se anda para encher o cântaro. AD-187: perto de casa, vai à fonte que a casa conhece (a de
+        // sempre, a rota já sabida); longe, à alcançável mais perto de onde a pessoa está
+        if (ThirstSource(world, npc) is not { } source || source.Ticks > rules.MaxWalkHours * 2) return false;
         if (source.Cell == npc.CurrentLocation) { DrinkHere(world, npc, now); return false; }
         if (canPay && marketTicks < source.Ticks) return false;
         Start(world, npc, npc.Household!.Value.Value, source.Cell, now);
         world.InventionTally.WaterTripsByThirst++;
         return true;
+    }
+
+    private static (CellCoord Cell, long Ticks)? ThirstSource(WorldState world, Npc npc)
+    {
+        var rules = world.NaturalWaterRules.Fetch;
+        if (npc.Household is { } h && world.FindHousehold(h) is { IsHomeless: false } home && NearHome(world, npc, home)
+            && SourceFor(world, home.Location) is { } known)
+        {
+            if (npc.CurrentLocation == home.Location || known.Cell == npc.CurrentLocation) return known.Cell == npc.CurrentLocation ? (known.Cell, 0) : known;
+            return (known.Cell, world.StreetsOn ? LivingWorld.Simulation.Cities.Streets.StreetRoutes.Ticks(world, npc.CurrentLocation, known.Cell)
+                : LivingWorld.Simulation.Economy.Market.TravelTicksCache.Between(world.Map, npc.CurrentLocation, known.Cell));
+        }
+        return NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, rules.RadiusCells * 2);
     }
 
     /// <summary>Na beira da água: bebe dali (a água entra e sai do mundo no mesmo gole).</summary>
@@ -313,15 +337,24 @@ public static class WaterFetch
             volume = Math.Max(volume, hauler.CapacityG * 1000L / Math.Max(1, inv.WaterDensityKgM3));
         }
         int carried = 0;
+        long loadedG = 0;
         int ci = world.Invention.CarriedIndex(npc.Id.Value, int.MinValue);
         for (ci = ci >= 0 ? ci : ~ci; ci < world.Invention.Carried.Count && world.Invention.Carried[ci].NpcId == npc.Id.Value; ci++)
         {
             var load = world.Invention.Carried[ci];
-            weight -= (long)load.Quantity * inv.UnitGramsOf(load.ResourceId);
+            loadedG += (long)load.Quantity * inv.UnitGramsOf(load.ResourceId);
             if (load.ResourceId == water.Id) carried += load.Quantity;
         }
+        weight -= loadedG;
         volume -= (long)carried * inv.UnitMlOf(water.Id);
         long n = Math.Min(want, Math.Min(Math.Max(0, volume) / inv.UnitMlOf(water.Id), Math.Max(0, weight) / inv.UnitGramsOf(water.Id)));
+        if (world.NaturalWaterRules.Fetch.NoEmptyTrips)
+        {
+            // AD-191: o recipiente da casa pesado demais (cheio passa do peso a pé) fica em casa: leva o cântaro simples, no peso do corpo
+            long bareWeight = inv.FootCarryKg * 1000L - loadedG;
+            long bareVolume = world.NaturalWaterRules.Fetch.VesselMl - (long)carried * inv.UnitMlOf(water.Id);
+            n = Math.Max(n, Math.Min(want, Math.Min(Math.Max(0, bareVolume) / inv.UnitMlOf(water.Id), Math.Max(0, bareWeight) / inv.UnitGramsOf(water.Id))));
+        }
         if (n <= 0) return;
         world.Invention.Carry(npc.Id.Value, water.Id, (int)n);
         world.RecordResourceProduced(water, n);

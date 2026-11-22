@@ -50,7 +50,9 @@ public sealed record CityDensityVisual(int Inside, long Pooled, IReadOnlyList<Ac
 
 public sealed record ActionCount(ActionType? Action, int Count);
 
-/// <summary>Função legível e ocupação de um prédio (só o que muda; planta e andares ficam em <c>BuildingVisual</c>).</summary>
+/// <summary>Função legível e ocupação de um prédio (só o que muda; planta e andares ficam em <c>BuildingVisual</c>). AD-189:
+/// <see cref="Lit"/> = há gente acordada dentro depois do pôr do sol (morador em casa, trabalhador na oficina); casa com todos dormindo
+/// fica escura.</summary>
 public sealed record BuildingStateVisual(
     long BuildingId,
     int BuildingTypeId,
@@ -65,7 +67,8 @@ public sealed record BuildingStateVisual(
     IReadOnlyList<long> WorkerIds,
     IReadOnlyList<StockLine> Stock,
     long PantryUnits,
-    bool Closed);
+    bool Closed,
+    bool Lit = false);
 
 /// <summary>Uma linha de estoque resumido: até 10 unidades exato, acima disso dois algarismos significativos.</summary>
 public sealed record StockLine(int ResourceId, long Quantity, string? ResourceName = null);
@@ -99,7 +102,22 @@ public sealed record ObjectVisual(
 public sealed record ScopeClimateVisual(
     int Month, int SeasonIndex, string SeasonKey, double TemperatureC, int RegionId, int CropYearFactorMilli, bool Drought,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    WeatherVisual? Weather = null);
+    WeatherVisual? Weather = null)
+{
+    /// <summary>AD-189: o mesmo clima a menos da hora (a temperatura de agora sai da curva do dia que vem junto).</summary>
+    public bool SameDayAs(ScopeClimateVisual? other) =>
+        other is not null && (Equals(this, other) || (Weather is { } w && w.SameDayAs(other.Weather)
+            && Equals(this with { Weather = other.Weather }, other)));
+
+    /// <summary>AD-189: o clima guardado lido na hora do tick: a temperatura e a sensação de agora da curva do dia (o que o cliente faz
+    /// quando o delta não traz clima).</summary>
+    public ScopeClimateVisual AtTick(long tick) =>
+        Weather is { HourlyC: { Count: > 0 } hourly, HourlyFeelsLikeC: { } feels } w && hourly.Count == feels.Count
+            && hourly[(int)(tick % hourly.Count)] is var now && feels[(int)(tick % hourly.Count)] is var feel
+            && (now != w.TemperatureNowC || feel != w.FeelsLikeC)
+            ? this with { Weather = w with { TemperatureNowC = now, FeelsLikeC = feel } }
+            : this;
+}
 
 /// <summary>AD-180: o tempo do dia no lugar (ausente com o tempo desligado). <c>precipitation</c>: none, rain, snow;
 /// <c>intensity</c>: none, light (&lt;2 mm), moderate (&lt;8 mm), heavy; <c>ground</c> (chão de terra): dry, wet, mud, heavy-mud, snow,
@@ -107,7 +125,19 @@ public sealed record ScopeClimateVisual(
 public sealed record WeatherVisual(
     string Precipitation, string Intensity, double PrecipitationMm, bool Storm, bool Hail, bool Frost, bool Drought,
     bool HeatWave, bool ColdWave, double WindMs, double TemperatureNowC, double FeelsLikeC, double MinC, double MaxC,
-    double DaylightHours, double SunriseHour, double SunsetHour, string Ground, int SnowCm, int GroundWetPm, int OutdoorLostDays);
+    double DaylightHours, double SunriseHour, double SunsetHour, string Ground, int SnowCm, int GroundWetPm, int OutdoorLostDays,
+    int? WindFromDeg = null, FoliageVisual? Foliage = null,
+    IReadOnlyList<double>? HourlyC = null, IReadOnlyList<double>? HourlyFeelsLikeC = null)
+{
+    /// <summary>AD-189: o mesmo tempo, sem a hora (a temperatura e a sensação de agora saem de <see cref="HourlyC"/>): o delta só
+    /// reenvia o clima quando isto muda.</summary>
+    public bool SameDayAs(WeatherVisual? other) =>
+        other is not null && Equals(this with { TemperatureNowC = other.TemperatureNowC, FeelsLikeC = other.FeelsLikeC }, other);
+}
+
+/// <summary>AD-189: folhagem das decíduas e do pasto na região: quanto da copa está com folha (0..1), a fase (<c>bare</c>, <c>budding</c>,
+/// <c>full</c>, <c>falling</c>) e quanto da copa já mudou de cor no outono (0..1).</summary>
+public sealed record FoliageVisual(double Fraction, string Phase, double Turning);
 
 /// <summary>Envolvidos de um evento, lidos do payload do motor. Crime traz autor, vítima, caso e desfecho, sem descrição; violência
 /// sexual, doméstica e contra criança vêm com <see cref="RecordOnly"/> (só registro, sem cena). <see cref="Motive"/> (AD-183): o

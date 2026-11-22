@@ -201,6 +201,9 @@ func _access_mark(info: Dictionary) -> void:
 	var door := Marks.door_of(info)
 	var cell: Vector2i = door.cell if not door.is_empty() else info.cell
 	var look := Style.access_style(access)
+	var lot: Dictionary = info.get("lot", {})
+	for along in lot.get("access_cells", []): # AD-185: o caminho do acesso, na cor de onde desemboca
+		draw_rect(cell_rect(along, 0.36), Style.access_state_color(String(lot.get("access_state", ""))))
 	var inset := 0.18 if bool(look.get("alert", false)) else 0.3
 	draw_rect(cell_rect(cell, inset), Color(look.plan))
 	if not door.is_empty():

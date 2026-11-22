@@ -4,6 +4,8 @@ extends RefCounted
 ## relógio do mundo (`route_clock.gd`), ao longo do comprimento real da rota (diagonal mais longa que reta). Pausa congela
 ## porque o relógio para; 200× só chega mais rápido. Só visual (autorizado): o boneco anda pela DIREITA da rua (quem vem
 ## de frente passa ao lado, não por dentro) e sai do lugar em que estava desenhado sem salto. Sem alocação por quadro.
+## AD-185: a saída é a `routeDepartedTick` do motor; as células de `routeOver` ficam na altura de quem passa por cima (escada,
+## laje, telhado): o trecho entre o chão e a célula alta é a subida.
 
 const Grid := preload("res://Scenes/grid.gd")
 
@@ -24,7 +26,7 @@ var done := false
 
 
 ## Monta a caminhada; false se não dá para andar (menos de duas células ou chegada antes da saída).
-func setup(route_cells: Array, start: float, arrival: float, from: Vector3) -> bool:
+func setup(route_cells: Array, start: float, arrival: float, from: Vector3, heights: Dictionary = {}) -> bool:
 	if route_cells.size() < 2 or arrival <= start:
 		return false
 	cells = route_cells
@@ -33,7 +35,7 @@ func setup(route_cells: Array, start: float, arrival: float, from: Vector3) -> b
 	points.resize(route_cells.size())
 	along.resize(route_cells.size())
 	for i in route_cells.size():
-		points[i] = Grid.to_world(route_cells[i])
+		points[i] = Grid.to_world(route_cells[i], float(heights.get(i, 0.0)))
 		along[i] = 0.0 if i == 0 else along[i - 1] + points[i].distance_to(points[i - 1])
 	total = along[route_cells.size() - 1]
 	var offset: Vector3 = from - points[0]

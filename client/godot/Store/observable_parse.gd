@@ -41,6 +41,15 @@ static func route(list: Variant) -> Array:
 	return out if out.size() >= 2 else []
 
 
+## `npc.routeOver` (AD-185): índices de `route` que passam por cima (escada, laje, telhado); fora da rota é descartado.
+static func route_over(list: Variant, size: int) -> Array:
+	var out: Array = []
+	for value in list if list is Array else []:
+		if value != null and int(value) >= 0 and int(value) < size:
+			out.append(int(value))
+	return out
+
+
 static func _ids(list: Variant) -> Array:
 	var out: Array = []
 	for value in list if list is Array else []:
@@ -112,6 +121,7 @@ static func building_state(raw: Dictionary) -> Dictionary:
 		"owner_id": _int_or(raw.get("ownerId")), "households": _ids(raw.get("householdIds")),
 		"residents": _ids(raw.get("residentIds")), "workers": _ids(raw.get("workerIds")), "stock": stock,
 		"pantry": _i(raw, "pantryUnits", 0), "closed": _b(raw, "closed", false),
+		"lit": _b(raw, "lit", false), # AD-189: gente acordada dentro depois do pôr do sol (o motor diz)
 	}
 
 
@@ -167,7 +177,67 @@ static func climate(raw: Variant) -> Dictionary:
 	return {"month": _i(raw, "month", 0), "season": _i(raw, "seasonIndex", 0),
 		"season_key": _s(raw, "seasonKey", ""), "temperature": _f(raw, "temperatureC", 0.0),
 		"region": _i(raw, "regionId", -1), "crop_factor": _i(raw, "cropYearFactorMilli", 1000),
-		"drought": _b(raw, "drought", false)}
+		"drought": _b(raw, "drought", false), "weather": weather(raw.get("weather"))}
+
+
+## `climate.weather` (AD-180): o tempo do dia que o motor gerou para a região; {} = tempo desligado ou servidor antigo (o
+## cliente então não desenha chuva, neve nem chão molhado: nada inventado).
+static func weather(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	return {"precipitation": _s(raw, "precipitation", "none"), "intensity": _s(raw, "intensity", "none"),
+		"mm": _f(raw, "precipitationMm", 0.0), "storm": _b(raw, "storm", false), "hail": _b(raw, "hail", false),
+		"frost": _b(raw, "frost", false), "drought": _b(raw, "drought", false), "heat_wave": _b(raw, "heatWave", false),
+		"cold_wave": _b(raw, "coldWave", false), "wind": _f(raw, "windMs", 0.0), "now_c": _f(raw, "temperatureNowC", 0.0),
+		"feels_c": _f(raw, "feelsLikeC", 0.0), "min_c": _f(raw, "minC", 0.0), "max_c": _f(raw, "maxC", 0.0),
+		"daylight": _f(raw, "daylightHours", 0.0), "sunrise": _f(raw, "sunriseHour", -1.0), "sunset": _f(raw, "sunsetHour", -1.0),
+		"ground": _s(raw, "ground", "dry"), "snow_cm": _f(raw, "snowCm", 0.0), "wet_pm": _i(raw, "groundWetPm", 0),
+		"lost_days": _i(raw, "outdoorLostDays", 0),
+		# AD-189: de onde o vento vem (graus do norte = −y do mapa; -1 = o motor não disse), a folhagem e a curva do dia por hora
+		"wind_from": _f(raw, "windFromDeg", -1.0) if raw.get("windFromDeg") != null else -1.0,
+		"foliage": foliage(raw.get("foliage")), "hourly": _floats(raw.get("hourlyC")),
+		"hourly_feels": _floats(raw.get("hourlyFeelsLikeC"))}
+
+
+## AD-189: folhagem da região {fraction 0..1, phase bare|budding|full|falling, turning 0..1}; {} = o motor não mandou.
+static func foliage(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	return {"fraction": _f(raw, "fraction", 0.0), "phase": _s(raw, "phase", "bare"), "turning": _f(raw, "turning", 0.0)}
+
+
+static func _floats(raw: Variant) -> Array:
+	var out: Array = []
+	for value in raw if raw is Array else []:
+		out.append(float(value))
+	return out
+
+
+## AD-189: a hora do tick na curva do dia que o motor mandou (o clima não é reenviado só porque a hora mudou). Devolve true se
+## a temperatura ou a sensação de agora mudaram.
+static func at_hour(weather: Dictionary, tick: int) -> bool:
+	var hourly: Array = weather.get("hourly", [])
+	var feels: Array = weather.get("hourly_feels", [])
+	if hourly.is_empty() or feels.size() != hourly.size() or tick < 0:
+		return false
+	var index := tick % hourly.size()
+	var now := float(hourly[index])
+	var feel := float(feels[index])
+	if is_equal_approx(now, float(weather.get("now_c", INF))) and is_equal_approx(feel, float(weather.get("feels_c", INF))):
+		return false
+	weather.now_c = now
+	weather.feels_c = feel
+	return true
+
+
+## Camada `Climate` do mundo: [{region, cell (centro), temperature, drought, weather}] (o tempo de cada região).
+static func climate_regions(list: Variant) -> Array:
+	var out: Array = []
+	for raw in list if list is Array else []:
+		if raw is Dictionary:
+			out.append({"region": _i(raw, "regionId", -1), "cell": cell_of(raw.get("center")),
+				"temperature": _f(raw, "temperatureC", 0.0), "drought": _b(raw, "drought", false), "weather": weather(raw.get("weather"))})
+	return out
 
 
 ## Evento do delta: id do servidor, rótulo, tipo, hora, lugar e envolvidos (crime: autor, vítima, caso, desfecho; `record_only`
@@ -185,6 +255,8 @@ static func event(raw: Dictionary, fallback_id: int) -> Dictionary:
 			involved.cityId = String(raw_involved.cityId)
 		if raw_involved.get("outcome") != null:
 			involved.outcome = String(raw_involved.outcome)
+		if raw_involved.get("motive") != null and String(raw_involved.motive) != "":
+			involved.motive = String(raw_involved.motive)
 		if raw_involved.get("relatedIds") is Array:
 			involved.relatedIds = _ids(raw_involved.relatedIds)
 	return {"id": int(raw.eventId) if raw.get("eventId") != null else fallback_id, "label": _s(raw, "label", ""),

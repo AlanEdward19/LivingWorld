@@ -49,6 +49,7 @@ var _sandbox_column: ScrollContainer
 var _sandbox_note: Label
 var _title: Label
 var _brain_label: Label ## AD-160b: o valor do estado e o que o NPC aprendeu a valorizar (GET /npcs/{id}/brain)
+var name_of: Callable = func(id: int) -> String: return "pessoa nº %d" % id ## o app liga aos nomes do escopo
 var _empty: Label
 var _flow_root: Control
 var _columns: HBoxContainer
@@ -193,7 +194,30 @@ func brain_summary(body: Dictionary) -> String:
 		learned.append("%s · %s %+d%%" % [labels.label_for(g[2]) if labels != null else str(g[2]), group, int(round(g[1] / 10.0))])
 	if not learned.is_empty():
 		text += ("\n" if text != "" else "") + "Aprendeu a pesar: " + ", ".join(learned)
+	var why := motives_text(body.get("motives", []))
+	if why != "":
+		text += ("\n" if text != "" else "") + "Por quê: " + why
 	return text
+
+
+## AD-183/186: o nome por trás de um termo (`motives[]{term, motive, otherId}`): luto pelo xará, quem ele procura para
+## conversar (−1 = vai ao largo) e a criança acolhida. Motivo que o cliente não conhece vai como veio.
+func motives_text(motives: Variant) -> String:
+	var parts: PackedStringArray = []
+	for entry in motives if motives is Array else []:
+		if not entry is Dictionary:
+			continue
+		var other := int(entry.get("otherId", -1)) if entry.get("otherId") != null else -1
+		match String(entry.get("motive", "")):
+			"xara":
+				parts.append("luto por %s, de quem leva o nome" % name_of.call(other))
+			"procurar-companhia":
+				parts.append("está só e sai atrás de companhia: %s" % ("vai ao largo" if other < 0 else name_of.call(other)))
+			"acolher-crianca":
+				parts.append("a casa sustenta criança acolhida (%s)" % name_of.call(other))
+			var other_motive:
+				parts.append(other_motive.replace("-", " ") + ((" (%s)" % name_of.call(other)) if other >= 0 else ""))
+	return "; ".join(parts)
 
 
 func close() -> void:

@@ -13,6 +13,7 @@ namespace LivingWorld.Simulation.Climate;
 /// ao relento numa noite de geada arrisca morrer de frio. Sem tempo ligado, não faz nada.</summary>
 [LivingCapability("WEATHER", Consumers = ["climate.temperature", "economy.crop", "streets.travel",
     "health.outbreak", "population.mortality", "cities.construction", "ecology.fauna", "economy.natural-water", "inspector.climate"])]
+// AD-189: o vento tem direção (a advecção entra na temperatura do dia) e a folhagem sai do calor e da luz (o pasto da fauna lê)
 public sealed class WeatherSystem : ISimulationSystem
 {
     public const string SystemName = "weather";
@@ -76,15 +77,24 @@ public sealed class WeatherSystem : ISimulationSystem
 
         ulong sharedState = world.Rng.StreamStateFor("weather-shared", day);
         var shared = WeatherGenerator.Read(ref sharedState);
+        // AD-189: o vento tem streams próprios (o resto do tempo do dia continua a sair dos mesmos sorteios)
+        ulong sharedWindState = world.Rng.StreamStateFor("weather-wind-shared", day);
+        var sharedWind = WeatherGenerator.ReadWind(ref sharedWindState);
+        int daysInYear = cal.DaysPerMonth * cal.MonthsPerYear;
+        double daylight = rules.DaylightHours(doy, daysInYear);
+        double seasonalDay = rules.LatitudeDeg < 0 ? (doy + daysInYear / 2.0) % daysInYear : doy;
         foreach (var row in ledger.Regions)
         {
             ulong localState = world.Rng.StreamStateFor("weather", unchecked(day * 1_000_003L + row.Region));
-            WeatherGenerator.Step(rules, row, shared, WeatherGenerator.Read(ref localState), doy, cal.DaysPerMonth, cal.MonthsPerYear, first);
+            ulong localWindState = world.Rng.StreamStateFor("weather-wind", unchecked(day * 1_000_003L + row.Region));
+            WeatherGenerator.Step(rules, row, shared, WeatherGenerator.Read(ref localState), doy, cal.DaysPerMonth, cal.MonthsPerYear, first,
+                sharedWind, WeatherGenerator.ReadWind(ref localWindState));
+            WeatherGenerator.Foliage(rules, row, seasonalDay, cal.DaysPerMonth, cal.MonthsPerYear, daylight, first);
             if (!WeatherNow.OutdoorWorkable(rules, row)) row.OutdoorLostDays++;
         }
 
         ledger.Day = day;
-        ledger.DaylightMinutes = (int)Math.Round(rules.DaylightHours(doy, cal.DaysPerMonth * cal.MonthsPerYear) * 60);
+        ledger.DaylightMinutes = (int)Math.Round(daylight * 60);
         world.TouchWeather();
         Exposure(world, ctx, rules, ledger, day);
     }
