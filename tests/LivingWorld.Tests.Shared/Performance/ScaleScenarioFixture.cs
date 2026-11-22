@@ -128,11 +128,14 @@ public static class ScaleScenarioFixture
             cityLayout: (Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
             {
                 // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
-                (false, false) => Environment.GetEnvironmentVariable("LW_AD179") == "off"
-                    ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0, NearestJob = !Ad185Off } }
+                (false, false) => (Environment.GetEnvironmentVariable("LW_AD179") == "off", Environment.GetEnvironmentVariable("LW_AD184") == "off") switch
+                {
+                    (true, var off184) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = (off184 ? LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() : LivingWorld.Domain.Cities.StreetRules.Default) with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0, NearestJob = !Ad185Off } },
+                    // AD-184: LW_AD184=off mede a obra como na AD-179 (casa e oficina sem obra)
+                    (false, true) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() with { NearestJob = !Ad185Off } },
                     // AD-185: LW_AD185=off tira a ida de verdade à água e o emprego mais perto de casa
-                    : Ad185Off ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { NearestJob = false } }
-                    : null,
+                    _ => Ad185Off ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { NearestJob = false } } : null,
+                },
                 (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
                     with

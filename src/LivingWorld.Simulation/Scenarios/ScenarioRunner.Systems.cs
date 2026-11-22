@@ -101,6 +101,7 @@ public static partial class ScenarioRunner
         new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio
         new LivingWorld.Simulation.Cities.Streets.StreetGroundSystem(), // AD-176: pisoteio, superfície e decisão de calçar
         new LivingWorld.Simulation.Cities.Streets.PavingWorksSystem(), // AD-176: a obra de calçamento
+        new LivingWorld.Simulation.Cities.Works.BuildWorksSystem(), // AD-184: casa e oficina são obra
         new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),

@@ -17,7 +17,8 @@ public class MoneyConservationTests
 
     private static long TotalMoney(WorldState world) =>
         world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount)
-        + world.Cities.Sum(c => c.Treasury.Amount);
+        + world.Cities.Sum(c => c.Treasury.Amount)
+        + (world.Ground?.Builds.Sum(b => b.Escrow) ?? 0); // AD-184: o capital que o fundador guardou na obra da oficina
 
     [Fact]
     public void Total_money_is_conserved_every_sample_over_1_month()

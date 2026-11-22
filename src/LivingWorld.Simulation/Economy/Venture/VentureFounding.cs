@@ -53,14 +53,21 @@ internal static class VentureFounding
         long inherited = capital.Take(world, ctx);
         city.CreditTreasury(new Money(plotFee + importCost));
         world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: plotFee + importCost, spending: 0);
-        PayBuilders(builders, buildCost);
-        long spent = plotFee + importCost + buildCost;
+        // AD-184: com obra de verdade, a oficina não nasce no mês: o fundador guarda o resto do capital e a obra começa no lote
+        bool asWork = world.StreetsOn && world.StreetRules.VentureIsWork;
+        if (!asWork) PayBuilders(builders, buildCost);
+        long spent = plotFee + importCost + (asWork ? 0 : buildCost);
         foreach (var (seller, resource, units, price) in equipment)
         {
             if (!seller.Withdraw(resource, units).IsSuccess) continue; // o que não veio fica no caixa da oficina
             seller.CreditTreasury(new Money(units * price));
             world.RecordResourceConsumed(resource, units); // vira bigorna e ferramenta da oficina: sai do que se vende
             spent += units * price;
+        }
+        if (asWork)
+        {
+            StartWorkshop(world, ctx, city, rules, trade, plan, founder, buildingType, site, capital, needed, spent, buildCost, inherited);
+            return null;
         }
 
         var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingType, ctx.CurrentTick, site.Position, site.Orientation);
@@ -87,6 +94,75 @@ internal static class VentureFounding
         ctx.LogEvent(WorldEventKind.VentureFounded,
             $"{workplace.Id.Value}|{founder.Id.Value}|{origin}|{needed}|{capital.Own}|{inherited}|{partners}", sourceSystem: VentureSystem.SystemName);
         return workplace;
+    }
+
+    /// <summary>AD-184: a oficina vira obra. O foro e o equipamento já foram pagos; o resto do capital fica guardado na obra (paga os
+    /// diaristas; o insumo inicial e o giro ficam de reserva) e o canteiro ocupa o lote. O empréstimo é assinado agora (as parcelas
+    /// correm com a carência de sempre, mesmo sem a oficina abrir). A oficina abre em <see cref="OpenBuilt"/>.</summary>
+    private static void StartWorkshop(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, VentureRules rules, VentureTrade trade,
+        VenturePlan plan, Npc founder, int buildingType, (CellCoord Position, int Orientation) site, VentureCapital capital, long needed,
+        long spent, long buildCost, long inherited)
+    {
+        long hours = (long)rules.BuildPersonDays * world.StreetRules.CrewHoursPerDay;
+        string partners = capital.Partners.Count == 0 ? "-" : string.Join(',', capital.Partners.Select(p => $"{p.Npc.Id.Value}:{p.Amount}"));
+        var work = LivingWorld.Simulation.Cities.Works.BuildWorks.Open(world, ctx, city, LivingWorld.Simulation.Cities.Works.BuildKind.Workshop,
+            buildingType, site.Position, site.Orientation, 0, founder.Household?.Value ?? -1, founder.Id.Value, hours, spent,
+            $"{founder.Id.Value}|{hours}|0|{spent}");
+        work.Escrow = needed - spent;
+        work.Reserve = Math.Max(0, needed - spent - buildCost);
+        work.Capital = needed;
+        work.LocationTypeId = trade.LocationTypeId;
+        work.TradeProfession = trade.Profession.Id;
+        foreach (var (resource, price) in plan.Prices.OrderBy(p => p.Key.Id)) work.Prices[resource.Id] = price;
+        foreach (var (npc, amount) in capital.Partners) work.Partners.Add(new LivingWorld.Simulation.Cities.Works.BuildShare { Npc = npc.Id.Value, Amount = amount });
+        work.Origin = $"{OriginOf(capital, inherited)}|{needed}|{capital.Own}|{inherited}";
+        work.PartnersText = partners;
+        if (capital.Granted is { } loan)
+        {
+            work.Loan = loan.Id;
+            Credit.Lending.LogGrant(ctx, loan, capital.Loan!.TermMonths, capital.Loan.Kind);
+        }
+    }
+
+    /// <summary>AD-184: a obra da oficina acabou. Ela abre no prédio pronto com o dono, os sócios com cota, o preço da conta, o insumo
+    /// inicial comprado agora com o que ficou guardado e o resto como caixa; o fundador larga o que fazia e trabalha nela; o
+    /// empréstimo fica com ela como garantia.</summary>
+    internal static void OpenBuilt(WorldState world, TickContext ctx, LivingWorld.Simulation.Cities.Works.BuildWork work, Building building)
+    {
+        if (world.EconomyRules.Venture is not { } rules || world.FindNpc(new NpcId(work.Owner)) is not { IsAlive: true } founder
+            || world.FindCity(building.City) is not { } city || !world.EconomyCatalog.Recipes.TryGetValue(work.LocationTypeId, out var recipe))
+            return;
+        var stakes = work.Partners.Select(p => new WorkplaceStake(new NpcId(p.Npc), (int)(p.Amount * (long)WorkplaceStake.Whole / Math.Max(1, work.Capital)))).ToList();
+        var prices = work.Prices.OrderBy(p => p.Key).ToDictionary(p => new ResourceType(p.Key), p => p.Value);
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(work.LocationTypeId), building.Position!.Value, rules.MaxVacancies,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: prices,
+            city: city.Id, building: building.Id, owner: founder.Id, partners: stakes);
+        world.AddWorkplace(workplace);
+        var sellers = world.Workplaces.Where(w => w.City == city.Id && w != workplace).OrderBy(w => w.Id.Value).ToList();
+        foreach (var (resourceId, perWorker) in recipe.Inputs.OrderBy(i => i.Key))
+            foreach (var (seller, resource, units, price) in Quote(world, sellers, resourceId, perWorker * Math.Max(1, rules.StartCrew) * InputSupplySystem.TargetDays))
+            {
+                long take = Math.Min(units, work.Escrow / Math.Max(1, price));
+                if (take <= 0 || !seller.Withdraw(resource, take).IsSuccess) continue;
+                seller.CreditTreasury(new Money(take * price));
+                workplace.Deposit(resource, take, world.EconomyRules);
+                work.Escrow -= take * price;
+            }
+        workplace.CreditTreasury(new Money(work.Escrow));
+        work.Escrow = 0;
+        var profession = new ProfessionType(work.TradeProfession);
+        if (founder.Employer is { } old) world.FindWorkplace(old)?.Fire(founder.Id);
+        founder.Fire();
+        workplace.Hire(founder.Id);
+        founder.Hire(workplace.Id);
+        if (founder.Profession != profession) founder.SwitchProfession(profession);
+        founder.MarkJobChange(ctx.CurrentTick);
+        ctx.LogEvent(WorldEventKind.Hired, $"{founder.Id.Value}|{workplace.Id.Value}", sourceSystem: VentureSystem.SystemName);
+        if (work.Loan > 0 && world.CreditOn && world.CreditBook.Loans.FirstOrDefault(l => l.Id == work.Loan) is { } loan) loan.Workplace = workplace.Id.Value;
+        var origin = (work.Origin ?? "poupanca|0|0|0").Split('|');
+        ctx.LogEvent(WorldEventKind.VentureFounded,
+            $"{workplace.Id.Value}|{founder.Id.Value}|{origin[0]}|{origin[1]}|{origin[2]}|{origin[3]}|{work.PartnersText ?? "-"}", sourceSystem: VentureSystem.SystemName);
     }
 
     /// <summary>O dono de uma oficina parada (a folha não fechou, ou ninguém trabalha nela) reabre a dele: põe o capital de giro

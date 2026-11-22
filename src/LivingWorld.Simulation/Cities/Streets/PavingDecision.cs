@@ -109,6 +109,29 @@ internal static class PavingDecision
         Open(world, ctx, city, surface, chosen.Select(c => c.Index).ToList(), hours, repair: false, material.Value);
     }
 
+    /// <summary>AD-184: abre o trecho de teste da técnica de calçar numa célula (cascalho, o tesouro paga a turma).</summary>
+    internal static void OpenPrototype(WorldState world, TickContext ctx, City city, int cell, long hours, string trial)
+    {
+        var ground = world.Ground!;
+        var at = ground.CellOf(cell);
+        var work = new PavingWork
+        {
+            Id = ground.NextWorkId++,
+            City = city.Id.Value,
+            Surface = GroundSurface.Gravel,
+            Cells = [cell],
+            HoursTotal = hours,
+            HoursLeft = hours,
+            StartTick = ctx.CurrentTick,
+            LastProgressTick = ctx.CurrentTick,
+            Prototype = trial,
+        };
+        ground.Works.Add(work);
+        work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,
+            $"{work.Id}|{city.Id.Value}|{work.Surface}|0|1|{hours}|tesouro|{at.X}|{at.Y}|prototipo", sourceSystem: StreetGroundSystem.SystemName);
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
     internal static long CostOf(long hours, long dayWage, StreetRules rules) =>
         (hours + rules.CrewHoursPerDay - 1) / Math.Max(1, rules.CrewHoursPerDay) * dayWage;
 
@@ -211,7 +234,7 @@ internal static class PavingDecision
         };
         ground.Works.Add(work);
         work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,
-            $"{work.Id}|{city.Id.Value}|{surface}|{(repair ? 1 : 0)}|{cells.Count}|{hours}|{(payers.Count == 0 ? "tesouro" : "frente")}",
+            $"{work.Id}|{city.Id.Value}|{surface}|{(repair ? 1 : 0)}|{cells.Count}|{hours}|{(payers.Count == 0 ? "tesouro" : "frente")}|{ground.CellOf(cells[0]).X}|{ground.CellOf(cells[0]).Y}",
             sourceSystem: StreetGroundSystem.SystemName);
     }
 

@@ -38,4 +38,17 @@ public sealed record WaterFetchRules(
     /// pote que, cheio, passava do peso a pé, voltava sem nada e ia de novo a cada hora: o velho da seed 22 morreu de fome nesse laço,
     /// sem dormir nem comprar). Falso = o de antes.</summary>
     public bool NoEmptyTrips { get; init; } = true;
+
+    /// <summary>AD-184: a hora de beber. Em casa e acordado, com água no pote, bebe quando a sede passa da linha da refeição (não só na
+    /// urgência); antes de deitar, se a noite a levaria até lá. A criança menor que <see cref="SelfDrinkAgeYears"/> só bebe com quem cuida
+    /// dela em casa e acordado. Falso = o de antes (só a urgência e a ceia).</summary>
+    public bool DrinkAtMealLine { get; init; } = true;
+
+    /// <summary>AD-184: a caminho da água, a fome à beira da morte só larga a ida se a sede não está urgente (a sede
+    /// mata antes; antes as duas no fim faziam a pessoa trocar a ida pela comida que não tinha a cada hora, parada na banca, até morrer
+    /// de sede). Falso = o de antes.</summary>
+    public bool ThirstFirstWhenBothStarving { get; init; } = true;
+
+    /// <summary>A idade a partir da qual a criança bebe sozinha do pote da casa.</summary>
+    public int SelfDrinkAgeYears { get; init; } = 3;
 }

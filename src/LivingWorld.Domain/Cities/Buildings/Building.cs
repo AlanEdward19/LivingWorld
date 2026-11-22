@@ -28,7 +28,24 @@ public sealed class Building(
     public BuildingId Id { get; } = id;
     public CityId City { get; private set; } = city;
     public int BuildingTypeId { get; } = buildingTypeId;
-    public long CompletedAtTick { get; } = TouchLayout(completedAtTick);
+    public long CompletedAtTick { get; private set; } = TouchLayout(completedAtTick);
+
+    /// <summary>AD-184: obra em curso neste lote (o canteiro: estacas, material e paredes subindo); nulo = prédio pronto. Enquanto
+    /// não fica pronto, ninguém mora nem trabalha nele, mas o lote é dele. <see cref="CompletedAtTick"/> é o início da obra até
+    /// <see cref="Complete"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? UnderWork { get; set; }
+
+    /// <summary>O canteiro foi desfeito (obra abandonada): o lote volta a ser livre (os caches de layout se invalidam).</summary>
+    public static void TouchLayoutVersion() => Interlocked.Increment(ref s_layoutVersion);
+
+    /// <summary>A obra terminou: o prédio passa a existir de verdade neste tick.</summary>
+    public void Complete(long tick)
+    {
+        UnderWork = null;
+        CompletedAtTick = tick;
+        Interlocked.Increment(ref s_layoutVersion);
+    }
     public CellCoord? Position { get; } = position;
     public int? Orientation { get; } = orientation;
 

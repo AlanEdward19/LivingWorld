@@ -100,7 +100,7 @@ public static class CityPopulationQuery
     /// <see cref="BuildingRecipe.HousingCapacityProvided"/> dos <see cref="Building"/> concluídos
     /// da cidade (mesmo cálculo já usado internamente por <see cref="CityGrowthSystem"/>).</summary>
     public static long Housing(WorldState world, CityId city) =>
-        world.Buildings.Where(b => b.City == city)
+        world.Buildings.Where(b => b.City == city && b.UnderWork is null) // AD-184: canteiro ainda não abriga ninguém
             .Sum(b => world.CityCatalog.BuildingRecipes.TryGetValue(b.BuildingTypeId, out var recipe) ? recipe.HousingCapacityProvided : 0);
 
     // Segurança, Educação e Infraestrutura NÃO têm fonte: a contagem de prédios que ocupava o lugar

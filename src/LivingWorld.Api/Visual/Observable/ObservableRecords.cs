@@ -159,7 +159,8 @@ public sealed record EventInvolved(
     long? Amount = null,
     string? Outcome = null,
     bool RecordOnly = false,
-    string? Motive = null);
+    string? Motive = null,
+    long? WorkId = null);
 
 /// <summary>Planta e andares de um prédio (pura do id, tipo e orientação): guardada por chave para não regerar todo tick.</summary>
 public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint);

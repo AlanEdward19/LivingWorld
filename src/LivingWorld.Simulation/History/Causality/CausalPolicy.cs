@@ -45,6 +45,7 @@ public static class CausalPolicy
         WorldEventKind.OutbreakEnded,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
         WorldEventKind.StreetWorkDone, // AD-176: causa = a obra aberta
+        WorldEventKind.BuildWorkDone, WorldEventKind.WorkStalled, WorldEventKind.WorkResumed, WorldEventKind.WorkAbandoned, // AD-184: causa = a obra aberta
         WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
         // AD-168: o espólio no chão vem da morte de quem o levava
         WorldEventKind.LeavingsLeft,
@@ -73,6 +74,7 @@ public static class CausalPolicy
         WorldEventKind.LoanGranted,
         WorldEventKind.StreetWorkStarted, // AD-176: decisão de calçar (quem paga decide pelo uso do trecho)
         WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft, // AD-179: a decisão do diarista (entrar ou sair da obra)
+        WorldEventKind.BuildWorkStarted, // AD-184: a decisão de quem encomenda (casa, oficina, a cidade)
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

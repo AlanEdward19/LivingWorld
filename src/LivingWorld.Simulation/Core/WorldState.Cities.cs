@@ -36,6 +36,14 @@ public sealed partial class WorldState
         _buildingById[building.Id] = building;
     }
 
+    /// <summary>AD-184: o canteiro de uma obra abandonada sai do mundo (o lote volta a ser livre).</summary>
+    internal void RemoveBuilding(Building building)
+    {
+        if (!_buildings.Remove(building)) return;
+        _buildingById.Remove(building.Id);
+        Building.TouchLayoutVersion();
+    }
+
     public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
     public City? FindActiveCity(CityId id)
     {
@@ -68,6 +76,12 @@ public sealed partial class WorldState
             daughter.RemoveConstructionProject(project);
             project.JoinCity(mother.Id);
             mother.EnqueueConstruction(project);
+        }
+        if (Ground is { } ground)
+        {
+            foreach (var work in ground.Builds) // AD-184: a obra encomendada segue a cidade
+                if (work.City == daughter.Id.Value) work.City = mother.Id.Value;
+            ground.SiteIndex = null;
         }
 
         var daughterTreasury = daughter.Treasury;

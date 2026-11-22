@@ -57,8 +57,17 @@ public sealed class VentureTests
         return npc;
     }
 
-    private static Workplace? Found(Village v, Npc founder) =>
-        VentureFounding.TryFound(v.World, v.Ctx, v.Rules, v.Trade, VenturePlan.For(v.World, v.Rules, v.Trade, founder.City), founder);
+    /// <summary>Abre o negócio. AD-184: a oficina é obra — o mês da decisão abre o canteiro e guarda o capital; aqui a obra é levada
+    /// até o fim (horas de quem a levanta) e devolve a oficina que abriu no prédio pronto.</summary>
+    private static Workplace? Found(Village v, Npc founder)
+    {
+        var opened = VentureFounding.TryFound(v.World, v.Ctx, v.Rules, v.Trade, VenturePlan.For(v.World, v.Rules, v.Trade, founder.City), founder);
+        if (opened is not null) return opened;
+        var work = v.World.Ground?.Builds.FirstOrDefault(w => w.Kind == LivingWorld.Simulation.Cities.Works.BuildKind.Workshop && w.Owner == founder.Id.Value);
+        if (work is null) return null;
+        LivingWorld.Simulation.Cities.Works.BuildWorks.Progress(v.World, v.Ctx, work, founder, work.HoursLeft, paid: 0, v.World.CurrentDate.TotalHours);
+        return v.World.Workplaces.LastOrDefault(w => w.Owner == founder.Id);
+    }
 
     [Fact]
     public void A_smith_with_savings_opens_a_forge_he_owns_and_works_in()
@@ -83,7 +92,8 @@ public sealed class VentureTests
 
         var shop = Found(v, founder)!;
 
-        Assert.Equal((long)Math.Ceiling(v.Rules.WorkingCapitalMonths * payroll), shop.Treasury.Amount);
+        // AD-184: o jornal guardado para a obra que ninguém precisou receber (aqui o fundador a levantou) fica no caixa
+        Assert.True(shop.Treasury.Amount >= (long)Math.Ceiling(v.Rules.WorkingCapitalMonths * payroll), $"caixa {shop.Treasury.Amount}");
     }
 
     [Fact]

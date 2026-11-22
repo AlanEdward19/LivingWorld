@@ -181,7 +181,30 @@ public sealed partial class BehaviorDecisionSystem
             // AD-168: fora do turno, alguém da casa vai buscar o que um morto da casa deixou longe
             : routineAction != ActionType.Work && LivingWorld.Simulation.Invention.Leavings.WantsToFetch(world, npc, world.CurrentDate.TotalHours)
                 ? ActionType.Travel
+            // AD-184: na hora livre de dia, quem ajuda na obra da casa (ou do parente, do vizinho) vai trabalhar nela
+            : routineAction is ActionType.Idle or ActionType.Socialize && LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)
+                ? ActionType.Work
                 : routineAction;
+
+    /// <summary>AD-184: crescido que pode pagar uma unidade de comida, a casa sem comida e uma criança dela com fome urgente em casa,
+    /// sem ninguém já indo comprar: a compra passa à frente do trabalho, do ócio e da conversa. Só leitura.</summary>
+    internal static bool ChildHungerSendsShopper(WorldState world, Npc npc, ActionType candidate, long now)
+    {
+        if (candidate is not (ActionType.Work or ActionType.Idle or ActionType.Socialize) || !world.EconomyRules.Enabled
+            || !world.NeedsRules.Provisioning.ChildHungerSendsShopper || npc.Wallet.Amount < 1
+            || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home
+            || home.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)) >= 1) return false;
+        var stages = world.LifeStageRules;
+        if (stages.LifeStageOf(npc.AgeYears(world.CurrentDate)) is LivingWorld.Domain.Population.Body.LifeStage.Child) return false;
+        bool hungryChild = false;
+        var members = home.Members;
+        for (int i = 0; i < members.Count && !hungryChild; i++)
+            hungryChild = world.FindNpc(members[i]) is { IsAlive: true } m && m.Id != npc.Id && m.CurrentLocation == home.Location
+                && stages.LifeStageOf(m.AgeYears(world.CurrentDate)) is LivingWorld.Domain.Population.Body.LifeStage.Child
+                && 100 - m.HungerAt(now) > world.NeedsRules.UrgencyThreshold;
+        // só se há banca com comida que a carteira paga (sem ela, largar o trabalho não traz pão e a cidade parava de colher)
+        return hungryChild && !HouseholdShopperOut(world, npc, home) && LivingWorld.Simulation.Crime.Theft.CanBuy(world, npc, world.EconomyRules.FoodResourceId);
+    }
 
     /// <summary>Alguém da casa (fora o próprio) está no mercado ou a caminho dele para comprar (AD-148).</summary>
     internal static bool HouseholdShopperOut(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household household)

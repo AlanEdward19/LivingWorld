@@ -71,8 +71,17 @@ public sealed class CreditTests
 
     private static VenturePlan Plan(Village v, Npc npc) => VenturePlan.For(v.World, v.Rules, v.Trade, npc.City);
 
-    private static Workplace? Found(Village v, Npc founder) =>
-        VentureFounding.TryFound(v.World, v.Ctx, v.Rules, v.Trade, Plan(v, founder), founder);
+    /// <summary>Abre o negócio. AD-184: a oficina é obra — o mês da decisão abre o canteiro, assina o empréstimo e guarda o capital;
+    /// aqui a obra é levada até o fim e devolve a oficina que abriu no prédio pronto (com o empréstimo como garantia).</summary>
+    private static Workplace? Found(Village v, Npc founder)
+    {
+        var opened = VentureFounding.TryFound(v.World, v.Ctx, v.Rules, v.Trade, Plan(v, founder), founder);
+        if (opened is not null) return opened;
+        var work = v.World.Ground?.Builds.FirstOrDefault(w => w.Kind == LivingWorld.Simulation.Cities.Works.BuildKind.Workshop && w.Owner == founder.Id.Value);
+        if (work is null) return null;
+        LivingWorld.Simulation.Cities.Works.BuildWorks.Progress(v.World, v.Ctx, work, founder, work.HoursLeft, paid: 0, v.World.CurrentDate.TotalHours);
+        return v.World.Workplaces.LastOrDefault(w => w.Owner == founder.Id);
+    }
 
     /// <summary>O capital da abertura no mundo da semente (lido de uma abertura com dinheiro de sobra num mundo igual).</summary>
     private static long Needed(ulong seed = 7)

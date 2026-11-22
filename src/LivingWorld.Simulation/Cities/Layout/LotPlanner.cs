@@ -95,11 +95,11 @@ internal static class LotPlanner
 
     public static (CellCoord Origin, int Croft, int Orientation)? Find(
         CityGround ground, StreetNetwork network, WorldMap map, CityLayoutRules rules, IReadOnlyList<Option> options,
-        LotProfile profile, int level, int start, out int found)
+        LotProfile profile, int level, int start, out int found, int[]? order = null)
     {
         int perCell = rules.MaxFrontYardCells() + 1;
         int perStreet = perCell * options.Count;
-        var order = profile.Dwelling ? network.Nearest : network.MainFirst;
+        order ??= profile.Dwelling ? network.Nearest : network.MainFirst; // AD-184: quem escolhe pode olhar a partir de outro lugar
         int total = network.Count * perStreet;
         var central = LotTerms.Choose(rules, profile, central: true).AtLevel(level);
         var outer = LotTerms.Choose(rules, profile, central: false).AtLevel(level);

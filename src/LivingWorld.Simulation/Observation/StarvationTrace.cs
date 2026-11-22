@@ -41,10 +41,25 @@ public sealed class StarvationTrace(WorldState world, ulong seed, List<string> l
             if (w.Prices.Count > 0 && w.City == npc.City) market += w.Stock.GetValueOrDefault(food);
         long treasury = world.FindCity(npc.City)?.Treasury.Amount ?? -1;
         bool sick = LivingWorld.Simulation.Health.SickBehavior.IsBedridden(world, npc.Id);
+        // AD-184: onde a casa mora e quanto custa chegar à água e ao mercado; se ela está em obra ou de favor; se largou o ofício
+        string place = "-";
+        if (npc.Household is { } ph && world.FindHousehold(ph) is { } ph2)
+        {
+            var ground = world.Ground;
+            bool favor = ground?.Lodgers.Contains(ph2.Id.Value) == true, building = ground?.Builds.Any(b => b.Household == ph2.Id.Value) == true;
+            long water = LivingWorld.Simulation.Economy.Supply.NaturalWaterSystem.WalkToWater(world, ph2.Location, 30);
+            double market2 = double.MaxValue;
+            foreach (var w in world.Workplaces)
+                if (w.City == npc.City && world.EconomyCatalog.MarketLocationTypeIds.Contains(w.LocationType.Id))
+                    market2 = Math.Min(market2, world.StreetsOn ? LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, ph2.Location, w.Location).Cost
+                        : LivingWorld.Domain.Behavior.TravelResolution.TicksBetween(world.Map, ph2.Location, w.Location));
+            place = string.Create(CultureInfo.InvariantCulture,
+                $"dw={(ph2.Dwelling is null ? "none" : favor ? "favor" : "own")} build={(building ? 1 : 0)} hWater={water} hMarket={(market2 == double.MaxValue ? -1 : market2):F1} quit={(npc.LastJobChangeTick > 0 && npc.Employer is null ? (now - npc.LastJobChangeTick) / 24 : -1)} crew={(LivingWorld.Simulation.Cities.Streets.SiteWork.WorkOf(world, npc) is null ? 0 : 1)} help={(LivingWorld.Simulation.Cities.Streets.SiteWork.IsHelper(world, npc) ? 1 : 0)}");
+        }
         lock (lines)
             lines.Add(string.Create(CultureInfo.InvariantCulture,
                 $"{seed} {evt.Kind.ToString()[..5]} {now / world.Calendar.HoursPerYear} {world.CurrentDate.Month} id={npc.Id.Value} casa={npc.Household?.Value.ToString(CultureInfo.InvariantCulture) ?? "-"} age={age:F1} sex={npc.Sex} emp={(npc.Employer is null ? 0 : 1)} " +
                 $"hh={(npc.Household is null ? "none" : size.ToString(CultureInfo.InvariantCulture))} grown={grown} hhEmp={employed} stock={stock} wallets={wallets} " +
-                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} for={now - npc.ActionStartedAtTick} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"} wallet={npc.Wallet.Amount} heranca={_estate.GetValueOrDefault(evt.Payload, "-")} atHome={(npc.Household is { } h2 && world.FindHousehold(h2) is { } hh2 ? (hh2.Location == npc.CurrentLocation ? 1 : 0) : -1)} dev={npc.Development?.ToString() ?? "-"}"));
+                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} for={now - npc.ActionStartedAtTick} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"} wallet={npc.Wallet.Amount} heranca={_estate.GetValueOrDefault(evt.Payload, "-")} atHome={(npc.Household is { } h2 && world.FindHousehold(h2) is { } hh2 ? (hh2.Location == npc.CurrentLocation ? 1 : 0) : -1)} dev={npc.Development?.ToString() ?? "-"} {place}"));
     }
 }

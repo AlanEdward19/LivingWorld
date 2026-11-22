@@ -8,7 +8,7 @@ public static class PersonTraceCommand
 {
     public static int Run(ulong seed, long npcId, int years)
     {
-        var (world, clock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(), agricultureRules: AgricultureSwitch.AgricultureRules(), ontogenyRules: ExperimentSwitch.OntogenyRules(), cityLayout: CityLayoutSwitch.Rules());
+        var (world, clock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(), agricultureRules: AgricultureSwitch.AgricultureRules(), ontogenyRules: ExperimentSwitch.OntogenyRules(), cityLayout: CityLayoutSwitch.Rules(), naturalWaterRules: CityLayoutSwitch.NaturalWaterRules());
         return PersonTrace.Run(world, clock, npcId, years);
     }
 }
