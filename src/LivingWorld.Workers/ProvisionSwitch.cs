@@ -56,7 +56,7 @@ public static class ProvisionSwitch
         if (Ad191.Off)
         {
             var n = ScenarioRunner.DefaultNeedsRules;
-            return n with { Provisioning = n.Provisioning with { FoodFromAnyStall = false } };
+            return n with { Provisioning = n.Provisioning with { FoodFromAnyStall = false }, Psyche = n.Psyche with { IncomeNeedNeedsWork = false } };
         }
         // AD-186: LW_CARE=-company volta a conversar sozinho (sem sair atrás de companhia)
         if ((Environment.GetEnvironmentVariable("LW_CARE") ?? "").Contains("-company", StringComparison.Ordinal))
