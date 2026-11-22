@@ -198,8 +198,6 @@ public class MenuWorldsYearsReport
             world.NaturalWaterRules = world.NaturalWaterRules with { Fetch = world.NaturalWaterRules.Fetch with { NoEmptyTrips = false } };
         if (off.Contains("customary") && world.CrimeRules is { } crime)
             world.CrimeRules = crime with { Justice = crime.Justice with { CustomaryValue = false } };
-        if (off.Contains("todaysprice") && world.FamilyRules.Pressure is { } tp)
-            world.FamilyRules = world.FamilyRules with { Pressure = tp with { NeedAtTodaysPrice = false } };
         if (off.Contains("purse") && world.FamilyRules.Pressure is { } p)
             world.FamilyRules = world.FamilyRules with { Pressure = p with { PurseToShopper = false } };
     }

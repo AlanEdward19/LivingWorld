@@ -57,8 +57,6 @@ public sealed class MutualAidSystem : ISimulationSystem
             if (members.Count == 0) continue;
 
             long count = members.Count;
-            // AD-191 (2ª rodada): a necessidade da casa (não a reserva de quem ajuda) se mede pelo preço de hoje no mercado mais perto
-            var (needUnit, needDaily) = NeedPrices(world, household, unitPrice, dailyCostPerPerson, food, water);
             bool scarce = household.Stock.GetValueOrDefault(food) < count * NeedyStockDays
                           || household.Stock.GetValueOrDefault(water) < count * NeedyStockDays;
             if (!scarce) continue;
@@ -74,7 +72,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             bool purse = world.FamilyRules.Pressure is { PurseToShopper: true };
             if (purse && !CanBuy(world, recipient) && members.Where(m => IsGrown(world, m)).FirstOrDefault(m => CanBuy(world, m)) is { } shopper)
                 recipient = shopper;
-            ShareWithinHousehold(world, members, recipient, count * needDaily * RelieveDays, dailyCostPerPerson,
+            ShareWithinHousehold(world, members, recipient, count * dailyCostPerPerson * RelieveDays, dailyCostPerPerson,
                 keepNothingIfCannotBuy: purse);
 
             // AD-191: só conta a moeda de quem sabe comprar
@@ -85,11 +83,11 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-182 (08c item 149): moeda na mão de quem não sabe comprar não alimenta; a ajuda vai em comida
             if (moneyBuysFood && world.FamilyRules.Pressure is { AidSeesWhoCanBuy: true } && !SomeoneCanBuy(world, members))
                 moneyBuysFood = false;
-            if (moneyBuysFood && wallets >= count * needDaily * NeedyWalletDays) continue;
+            if (moneyBuysFood && wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             // a moeda que falta para a semana (≤ 0 na casa com moeda e sem comida à venda: aí só a comida é socorro)
-            long deficit = count * needDaily * RelieveDays - wallets;
-            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, needUnit, day, food, moneyBuysFood, needDaily);
+            long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
+            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food, moneyBuysFood);
         }
 
         GiveRationedAlms(world, ctx);
@@ -118,19 +116,6 @@ public sealed class MutualAidSystem : ISimulationSystem
             }
         }
         return best;
-    }
-
-    /// <summary>AD-191 (2ª rodada, <see cref="PopulationPressureRules.NeedAtTodaysPrice"/>): o preço de uma unidade de comida e o custo
-    /// de um dia (comida e água) para a casa, pelo mercado mais perto que vende comida; sem a regra ou sem mercado, o piso. A AD-190
-    /// mediu tudo pelo preço de hoje (também a reserva de quem ajuda) e piorou a carestia; aqui só a necessidade da casa muda: com
-    /// o pão a 20, a casa de 22 moedas tinha "onze dias" pelo piso e não era socorrida, e as crianças morriam (metrópole seed 2).</summary>
-    private static (long Unit, long Daily) NeedPrices(WorldState world, Household household, long floorUnit, long floorDaily,
-        ResourceType food, ResourceType water)
-    {
-        if (world.FamilyRules.Pressure is not { NeedAtTodaysPrice: true }) return (floorUnit, floorDaily);
-        var market = LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(world).NearestSelling(household.Location, food, water);
-        if (market is null || !market.Prices.TryGetValue(food, out var price) || price <= floorUnit) return (floorUnit, floorDaily);
-        return (price, floorDaily - floorUnit + price);
     }
 
     private static bool CanBuy(WorldState world, Npc npc) =>
@@ -186,9 +171,8 @@ public sealed class MutualAidSystem : ISimulationSystem
 
     private void RelieveHousehold(
         WorldState world, TickContext ctx, Household household, List<Npc> members, Npc recipient,
-        long deficit, long dailyCostPerPerson, long unitPrice, long day, ResourceType food, bool moneyBuysFood, long needDaily = 0)
+        long deficit, long dailyCostPerPerson, long unitPrice, long day, ResourceType food, bool moneyBuysFood)
     {
-        if (needDaily <= 0) needDaily = dailyCostPerPerson;
         bool kinAid = world.FamilyRules.Pressure?.KinFoodAid == true;
         // AD-166: quem socorre manda comida da despensa acima da reserva dela (parente ou gente de afeto)
         bool surplusFood = world.FamilyRules.Pressure is { FoodAidFromSurplus: true };
@@ -279,7 +263,7 @@ public sealed class MutualAidSystem : ISimulationSystem
             (foodNeed, deficit) = NeighboursFeed(world, ctx, household, memberIds, recipient, foodNeed, deficit, unitPrice, day, food,
                 fedFrom, reserveDays, neighbourRules.NeighbourAidHouses);
 
-        if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * needDaily) return;
+        if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
         if (AlmsGiver(world, household) is not { } city) return;
         if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
         else GiveAlms(world, ctx, city, recipient, deficit);
