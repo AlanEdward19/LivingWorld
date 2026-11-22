@@ -52,6 +52,12 @@ public static class ProvisionSwitch
     public static NeedsRules? NeedsRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION");
+        // AD-191: LW_AD191=off volta à banca mais perto que vende comida ou água
+        if (Ad191.Off)
+        {
+            var n = ScenarioRunner.DefaultNeedsRules;
+            return n with { Provisioning = n.Provisioning with { FoodFromAnyStall = false } };
+        }
         // AD-186: LW_CARE=-company volta a conversar sozinho (sem sair atrás de companhia)
         if ((Environment.GetEnvironmentVariable("LW_CARE") ?? "").Contains("-company", StringComparison.Ordinal))
         {
