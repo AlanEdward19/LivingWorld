@@ -56,7 +56,7 @@ public sealed class MarketPricingSystem : ISimulationSystem
     }
 
     /// <summary>AD-191 (<see cref="AgricultureRules.BarnReserveYears"/>): o preço que o celeiro curto pede na venda da fazenda — o piso
-    /// vezes a cobertura (celeiro e banca das fazendas da cidade ÷ o que os moradores comem até a próxima colheita mais a reserva)
+    /// vezes a cobertura (celeiro e banca das fazendas da cidade ÷ o que os moradores comem até a próxima colheita, mais a margem)
     /// elevada a −<see cref="AgricultureRules.BarnPriceExponent"/>; nulo com o celeiro cobrindo, fora da fazenda ou com a regra desligada.</summary>
     internal static long? BarnScarcityPrice(WorldState world, Workplace farm, long floor)
     {
@@ -73,7 +73,7 @@ public sealed class MarketPricingSystem : ISimulationSystem
         if (residents <= 0) return null;
         var cal = world.CurrentDate.Calendar;
         double perDay = ag.HandKeepPerYear / (double)(cal.DaysPerMonth * cal.MonthsPerYear);
-        double need = residents * perDay * (CropSystem.DaysToNextHarvest(world, ag, field) + ag.BarnReserveYears * cal.DaysPerMonth * cal.MonthsPerYear);
+        double need = residents * perDay * CropSystem.DaysToNextHarvest(world, ag, field) * (1 + ag.BarnPriceMargin);
         double cover = stores / need;
         if (cover >= 1) return null;
         double factor = DeterministicMath.Exp(ag.BarnPriceExponent * DeterministicMath.Log(1.0 / Math.Max(0.05, cover)));

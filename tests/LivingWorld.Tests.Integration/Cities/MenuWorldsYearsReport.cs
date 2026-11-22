@@ -55,6 +55,11 @@ public class MenuWorldsYearsReport
         long personYears = 0, starvTotal = 0, thirstTotal = 0;
         bool monthly = Environment.GetEnvironmentVariable("LW_MENU_MONTHLY") == "1";
         bool farmsOn = Environment.GetEnvironmentVariable("LW_MENU_FARMS") == "1";
+        // AD-191: LW_MENU_PROBE="ano:mes0-mes1:cada_h:casa,casa,..." liga a sonda de casa (anos de 1 em diante, meses de 0)
+        (int Year, int M0, int M1, int Every, long[] Houses)? probe = null;
+        if (Environment.GetEnvironmentVariable("LW_MENU_PROBE") is { Length: > 0 } pspec && pspec.Split(':') is [var py, var pm, var pe, var ph])
+            probe = (int.Parse(py, inv), int.Parse(pm.Split('-')[0], inv), int.Parse(pm.Split('-')[^1], inv), int.Parse(pe, inv),
+                ph.Split(',').Select(x => long.Parse(x, inv)).ToArray());
         for (int yr = 1; yr <= years; yr++)
         {
             int alive0 = world.AliveNpcIndex.Alive.Count;
@@ -92,6 +97,16 @@ public class MenuWorldsYearsReport
                             }
                         }
                         clock.Run(world, world.Calendar.HoursPerDay - 10);
+                    }
+                }
+                else if (probe is { } pr && pr.Year == yr && m >= pr.M0 && m <= pr.M1)
+                {
+                    // AD-191: a sonda de casa, de hora em hora, a cada pr.Every horas
+                    for (int h = 0; h < world.Calendar.HoursPerMonth; h++)
+                    {
+                        clock.Run(world, 1);
+                        if (world.CurrentDate.TotalHours % pr.Every == 0)
+                            lines.AddRange(LivingWorld.Simulation.Observation.HouseProbe.Lines(world, pr.Houses, explain: true).Select(l => $"SONDA {period} seed={seed} {l}"));
                     }
                 }
                 else clock.Run(world, world.Calendar.HoursPerMonth);

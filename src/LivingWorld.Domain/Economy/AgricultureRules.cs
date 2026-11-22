@@ -91,10 +91,14 @@ public sealed record AgricultureRules(
 
     /// <summary>AD-191: o preço do grão na venda da fazenda olha o celeiro, não só a banca. A banca é reposta do celeiro todo dia, então
     /// só ficava vazia (e o preço só subia) quando o celeiro já tinha acabado: duas safras perdidas não mexiam no preço até a fome.
-    /// Agora, com o celeiro da cidade abaixo do que se come até a próxima colheita mais <see cref="BarnReserveYears"/> de reserva, o
-    /// preço vai ao piso × (cobertura)^−<see cref="BarnPriceExponent"/> (lei de Gregory King: 10% a menos, +30%; 30%, +160%; 50%,
-    /// +450%; precisa de conferência). 0 desliga.</summary>
+    /// Agora, com o celeiro da cidade abaixo do que se come até a próxima colheita mais <see cref="BarnPriceMargin"/> disso, o preço vai
+    /// ao piso × (cobertura)^−<see cref="BarnPriceExponent"/> (lei de Gregory King: 10% a menos, +30%; 30%, +160%; 50%, +450%; precisa de
+    /// conferência). <see cref="BarnReserveYears"/> é a reserva com que a vila é fundada (anos do que se come); 0 desliga as duas.
+    /// 2ª rodada: a meta do preço era "até a colheita + meio ano": a metrópole que vive com pouca sobra ficava no teto (20) todo
+    /// fim de primavera, com a banca cheia, e as casas de salário curto deixavam as crianças sem comer (seed 2, ano 12).</summary>
     public double BarnReserveYears { get; init; } = 0.5;
+
+    public double BarnPriceMargin { get; init; } = 0.25;
 
     public double BarnPriceExponent { get; init; } = 2.5;
 
