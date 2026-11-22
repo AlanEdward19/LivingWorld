@@ -53,6 +53,7 @@ public class MenuWorldsYearsReport
         int pop0 = world.AliveNpcIndex.Alive.Count;
         var lines = new List<string>();
         long personYears = 0, starvTotal = 0, thirstTotal = 0;
+        int built1 = 0; // AD-184: prédios prontos no fim do ano 1 (para prédios por ano) e casas sem moradia no fim
         bool monthly = Environment.GetEnvironmentVariable("LW_MENU_MONTHLY") == "1";
         bool farmsOn = Environment.GetEnvironmentVariable("LW_MENU_FARMS") == "1";
         // AD-191: LW_MENU_PROBE="ano:mes0-mes1:cada_h:casa,casa,..." liga a sonda de casa (anos de 1 em diante, meses de 0)
@@ -150,12 +151,14 @@ public class MenuWorldsYearsReport
             if (deaths.CountKinds) { lines.Add($"EVENTOS {period} seed={seed} ano={yr} " + string.Join(' ', deaths.Kinds.Select(kv => kv.Key + "=" + kv.Value))); deaths.Kinds.Clear(); }
             deaths.Deaths = 0; deaths.Emigrated = 0;
             lock (traced) { foreach (var t in traced) lines.Add($"MORTE {period} {t}"); traced.Clear(); }
+            if (yr == 1) built1 = world.Buildings.Count(b => b.UnderWork is null);
             if (alive == 0) break;
         }
         int popEnd = world.AliveNpcIndex.Alive.Count;
         lines.Add(string.Create(inv,
             $"RESUMO {period} seed={seed} anos={years} pop0={pop0} popFim={popEnd} razao={popEnd / (double)Math.Max(1, pop0):F2} " +
-            $"fome={starvTotal} sede={thirstTotal} fomePorMilPessoaAno={starvTotal * 1000.0 / Math.Max(1, personYears):F2}"));
+            $"fome={starvTotal} sede={thirstTotal} fomePorMilPessoaAno={starvTotal * 1000.0 / Math.Max(1, personYears):F2} " +
+            $"predios1={built1} prediosFim={world.Buildings.Count(b => b.UnderWork is null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)}"));
         return lines;
     }
 

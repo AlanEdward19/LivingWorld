@@ -3,6 +3,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
@@ -53,6 +54,9 @@ public sealed class ConstructionSystem : ISimulationSystem
                 // regra, um tick da receita por dia (acelerado pela força de quem trabalha na cidade), como antes
                 bool crew = NeedsCrew(world);
                 if (crew) PrepareSite(world, ctx, city, project, recipe);
+                // AD-184: obra da fila sem nenhuma hora por meses (lote longe demais de quem trabalha, cidade sem braço) é
+                // abandonada: sai da fila e o canteiro desfeito, para a fila não ficar presa nela; a demanda abre outra depois
+                if (crew && ConstructionWorks.Abandoned(world, ctx, city, project)) break;
                 // AD-180: com chuva forte, neve ou chão congelado a obra para no dia (a argamassa não pega, o barro não seca)
                 bool workable = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location);
                 long workSteps = !workable ? 0 : crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
@@ -77,7 +81,11 @@ public sealed class ConstructionSystem : ISimulationSystem
 
                     project.Advance();
                     if (crew) project.HoursBanked--;
-                    if (project.TicksRemaining == 0) project.Crew.Clear(); // pronta: a turma se desfaz (o prédio sobe ao achar terra)
+                    if (project.TicksRemaining == 0)
+                    {
+                        project.Crew.Clear(); // pronta: a turma se desfaz (o prédio sobe ao achar terra)
+                        LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
+                    }
                     if (project.TicksRemaining == 0 && CompleteProject(world, city, project, ctx))
                     {
                         city.RemoveConstructionProject(project);
@@ -99,24 +107,67 @@ public sealed class ConstructionSystem : ISimulationSystem
     /// largo) até lá — ida carregada, volta vazia, pela rota — e refaz a turma do dia.</summary>
     private static void PrepareSite(WorldState world, TickContext ctx, City city, ConstructionProject project, BuildingRecipe recipe)
     {
+        // AD-184: sem lote ao alcance, a cidade procura de novo uma vez por semana (não a cada turno)
+        if (project.SiteX < 0 && project.LastProgressTick is not null && (ctx.CurrentTick / world.Calendar.HoursPerDay) % 7 != 0) return;
         if (project.SiteX < 0)
         {
             var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
-            var site = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) is { } lot ? lot.Position : city.Location;
+            var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true);
+            var rules = world.StreetRules;
+            // AD-184: a cidade não abre obra num lote a que ninguém chega a tempo de trabalhar (a turma não aceitaria): o primeiro
+            // lote de rua ao alcance do largo; sem nenhum, a obra espera (e é abandonada se passar meses assim)
+            if (rules.WageBidding && lot is { } far && !InReach(world, city, far.Position))
+            {
+                lot = null;
+                foreach (var option in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, project.BuildingTypeId, 0,
+                             CityOccupancy.DerivedProfile(world, project.BuildingTypeId), 0, rules.LotChoices))
+                    if (InReach(world, city, option.Origin)) { lot = (option.Origin, option.Orientation, true, option.Croft); break; }
+                if (lot is null)
+                {
+                    project.LastProgressTick ??= ctx.CurrentTick;
+                    world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
+                    return;
+                }
+            }
+            var site = lot is { } found ? found.Position : city.Location;
             project.SiteX = site.X;
             project.SiteY = site.Y;
-            var rules = world.StreetRules;
+            // AD-184: o canteiro ocupa o lote desde já (o prédio sobe ali quando a obra acabar), com id de obra e evento com lugar
+            project.WorkId = world.Ground!.NextWorkId++;
+            project.LastProgressTick = ctx.CurrentTick;
+            if (rules.WageBidding && lot is { } reserved)
+            {
+                var canteiro = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick,
+                    reserved.Position, reserved.Orientation, croftCells: reserved.Croft)
+                { UnderWork = project.WorkId };
+                world.AddBuilding(canteiro);
+                project.Canteiro = canteiro.Id.Value;
+            }
             long units = recipe.Inputs.Values.Sum();
             long loads = (units + Math.Max(1, rules.BuildUnitsPerLoad) - 1) / Math.Max(1, rules.BuildUnitsPerLoad);
             double trip = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost
                 * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg)
                 + LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, site, city.Location).Cost;
             project.HaulHoursLeft = site == city.Location ? 0 : (long)Math.Ceiling(loads * trip);
+            project.StartEventId = LivingWorld.Simulation.Cities.Works.WorkEvents.Log(ctx, WorldEventKind.BuildWorkStarted, project.WorkId.Value, city.Id.Value,
+                $"predio-{project.BuildingTypeId}", site.X, site.Y, $"cidade|{recipe.TicksToBuild + project.HaulHoursLeft}|{project.Canteiro ?? -1}|0");
         }
+        else ConstructionWorks.CheckStall(world, ctx, city, project);
         LivingWorld.Simulation.Cities.Streets.SiteWork.Staff(world, ctx,
             new LivingWorld.Simulation.Cities.Streets.WorkSite(null, city, project));
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
+    }
+
+    /// <summary>AD-184: alguém da cidade mora a menos de meia jornada do lote (a ida e a volta ainda deixam horas de obra no dia);
+    /// lote que ninguém alcança não recebe turma.</summary>
+    private static bool InReach(WorldState world, City city, CellCoord site)
+    {
+        double limit = world.StreetRules.CrewHoursPerDay / 2.0;
+        foreach (var home in world.Households)
+            if (home.City == city.Id && !home.IsEmpty
+                && LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, home.Location, site).Cost < limit) return true;
+        return false;
     }
 
     /// <summary>AD-179: as horas da turma vão primeiro ao transporte do material; o que sobra vira passos da receita.</summary>
@@ -133,6 +184,19 @@ public sealed class ConstructionSystem : ISimulationSystem
     private static bool CompleteProject(WorldState world, City city, ConstructionProject project, TickContext ctx)
     {
         if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return true;
+        // AD-184: a obra com canteiro termina no lote dela: o prédio passa a existir ali
+        if (project.Canteiro is { } canteiroId && world.FindBuilding(new BuildingId(canteiroId)) is { UnderWork: not null, Position: { } at } built)
+        {
+            built.Complete(ctx.CurrentTick);
+            if (recipe.Workplace is { } provision)
+                world.AddWorkplace(new Workplace(
+                    world.NextWorkplaceIdAndAdvance(), new LocationType(provision.LocationTypeId), at,
+                    provision.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
+                    treasury: Money.Zero, prices: CopyPricesFromExisting(world, provision.LocationTypeId),
+                    city: city.Id, building: built.Id));
+            ConstructionWorks.Done(world, ctx, city, project, built);
+            return true;
+        }
 
         if (recipe.Workplace is { } workplaceRecipe)
         {

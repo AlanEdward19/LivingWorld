@@ -226,7 +226,13 @@ public sealed partial class BehaviorDecisionSystem
         // que vem a cada dia, levava uma ração a cada vez e a despensa das casas pobres esvaziava (fome nas seeds pobres)
         bool appetite = !(world.InventionOn && world.InventionRules!.PantryNeedsPresence)
             || 100 - npc.HungerAt(tick) >= LivingWorld.Simulation.Invention.PersonalCarry.AppetiteDeficit;
-        if (appetite && meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
+        bool ownMeal = appetite && meal.Id > 0 && household?.Withdraw(meal, 1).IsSuccess == true;
+        if (appetite && !ownMeal && LivingWorld.Simulation.Economy.Supply.WaterFetch.DrawMealFromTable(world, household) is { } shared)
+        {
+            meal = shared; // AD-184: a mesa de quem divide o teto
+            ownMeal = true;
+        }
+        if (appetite && meal.Id > 0 && (ownMeal || TryRation(world, npc, meal)))
         {
             npc.SetHunger(Math.Max(npc.HungerAt(tick), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), tick);
             world.RecordResourceConsumed(meal, 1);
@@ -234,7 +240,8 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         var water = new ResourceType(econ.WaterResourceId);
-        if (household?.Withdraw(water, 1).IsSuccess == true || TryRation(world, npc, water))
+        if (household?.Withdraw(water, 1).IsSuccess == true || LivingWorld.Simulation.Economy.Supply.WaterFetch.DrawFromPot(world, household, water)
+            || TryRation(world, npc, water))
         {
             npc.SetThirst(Math.Max(npc.ThirstAt(tick), ObjectUse.ConsumeLevel(world, water, ObjectEffectTargets.Thirst)), tick);
             world.RecordResourceConsumed(water, 1);

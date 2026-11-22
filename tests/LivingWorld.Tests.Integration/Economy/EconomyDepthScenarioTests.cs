@@ -25,11 +25,15 @@ public class EconomyDepthScenarioTests
         public void Record(WorldEvent evt) => Events.Add(evt);
     }
 
-    private static (WorldState World, WorldClock Clock) Load(int seed, bool woodScarcity = false, int population = 40, IWorldEventSink? sink = null)
+    private static (WorldState World, WorldClock Clock) Load(int seed, bool woodScarcity = false, int population = 40, IWorldEventSink? sink = null,
+        bool cityBuildsOnly = false)
     {
         var node = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json")))!.AsObject();
         node["Seed"] = seed;
         node["InitialPopulation"] = population;
+        // AD-184: a casa da família é obra com material buscado na natureza sem madeira à venda; a escassez de madeira da serraria
+        // mede a receita da fila da cidade (a madeira do estoque), um tick por dia como antes; a turma é medida em SiteWorkTests
+        if (cityBuildsOnly) node["CityLayout"] = new JsonObject { ["Streets"] = new JsonObject { ["HouseIsWork"] = false, ["BuildNeedsCrew"] = false } };
         if (woodScarcity)
         {
             node["Workplaces"]!.AsArray()[1]!["Stock"] = new JsonObject();
@@ -42,7 +46,7 @@ public class EconomyDepthScenarioTests
         return (world, sink is null ? clock : new WorldClock(clock.Systems, sink: sink));
     }
 
-    private static int HousesBuilt(WorldState world) => world.Buildings.Count(b => b.BuildingTypeId >= 10);
+    private static int HousesBuilt(WorldState world) => world.Buildings.Count(b => b.BuildingTypeId >= 10 && b.UnderWork is null); // AD-184: canteiro não é prédio
 
     [Fact]
     public void Sawmill_and_quarry_hire_workers()
@@ -84,7 +88,8 @@ public class EconomyDepthScenarioTests
     [Fact]
     public void House_build_consumes_exactly_the_recipe_from_city_stock()
     {
-        var (world, _) = Load(seed: 1);
+        // AD-184: só o sistema da fila roda (ninguém trabalha): a receita anda um tick por dia, sem a turma ligada por padrão
+        var (world, _) = LoadWith(1, 40, root => root["CityLayout"] = new JsonObject { ["Streets"] = new JsonObject { ["BuildNeedsCrew"] = false } });
         var city = world.ActiveCities().Single();
         var recipe = world.CityCatalog.BuildingRecipes[10];
         Assert.Equal(20, recipe.Inputs[Wood]);
@@ -106,8 +111,8 @@ public class EconomyDepthScenarioTests
         int cheaper = 0, fewer = 0;
         for (int seed = 1; seed <= 20; seed++)
         {
-            var (control, controlClock) = Load(seed);
-            var (treated, treatedClock) = Load(seed, woodScarcity: true);
+            var (control, controlClock) = Load(seed, cityBuildsOnly: true);
+            var (treated, treatedClock) = Load(seed, woodScarcity: true, cityBuildsOnly: true);
             controlClock.Run(control, 360 * 24);
             treatedClock.Run(treated, 360 * 24);
 

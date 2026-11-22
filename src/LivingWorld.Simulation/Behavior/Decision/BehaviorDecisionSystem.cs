@@ -186,7 +186,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SickGetsWaterBrought(world, npc, now);
                     if (LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
-                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel)) // a caminho da água: segue, salvo fome à beira da morte
+                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel
+                            || LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstFirst(world, npc, now))) // a caminho da água: segue, salvo fome à beira da morte (com a sede também, segue)
                         candidate = ActionType.Travel;
                     else if (ThirstGoesToSource(world, npc, now, marketIndex, candidate))
                         candidate = ActionType.Travel;
@@ -232,6 +233,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
 
                 if (MealTimeAtHome(world, npc, candidate, now)) candidate = ActionType.Eat; // AD-157b
+                if (npc.ControlledAction is null && ChildHungerSendsShopper(world, npc, candidate, now)) candidate = ActionType.Buy; // AD-184
                 var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;
@@ -254,6 +256,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
+                if (chosen is not (ActionType.Eat or ActionType.Travel))
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
+                        chosen == ActionType.Sleep ? Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog) : 0, now);
                 // AD-185: em casa, com sede urgente e água na despensa, bebe antes de sair (a mudança de cidade levava a criança com
                 // sede para uma viagem de um dia, ao lado da água de casa)
                 if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
@@ -268,7 +274,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
                     if (departing && candidate == ActionType.Socialize && travelPurpose == ActionType.Socialize) world.InventionTally.CompanyTrips++;
                     // AD-179: o diarista que larga a jornada no meio (fome, sede, fim da rotina) conta as horas que fez no trecho
-                    if (!justCompleted && npc.CurrentAction == ActionType.Work && npc.Employer is null)
+                    if (!justCompleted && npc.CurrentAction == ActionType.Work
+                        && (npc.Employer is null || LivingWorld.Simulation.Cities.Streets.SiteWork.IsHelper(world, npc)))
                         LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, npc.ActionStartedAtTick, now);
                     if (candidate == ActionType.Buy && (departing || npc.CurrentAction != ActionType.Travel))
                     {
@@ -349,7 +356,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
-        if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
+        if (action is ActionType.Idle or ActionType.Socialize
+            || (action == ActionType.Work && npc.Employer is not null && !LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
         // AD-142: a ação que a utilidade escolheu e o cérebro guardou ensina pelo alívio que deu
@@ -357,7 +365,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var felt = learn && !world.BrainRules!.ValuesSustenance ? FeltNow(world, npc, now) : default; // AD-160b: mede só no fim
         long startedAt = npc.ActionStartedAtTick;
         ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
-        if (action == ActionType.Work && npc.Employer is null) LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, startedAt, now); // AD-179
+        if (action == ActionType.Work && (npc.Employer is null || LivingWorld.Simulation.Cities.Streets.SiteWork.IsHelper(world, npc)))
+            LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, startedAt, now); // AD-179, AD-184 (ajudante)
         if (learn) BrainLearnOnCompletion(world, npc, action, felt, startedAt, now, ctx);
         return true;
     }

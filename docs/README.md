@@ -22,6 +22,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Recursos, produção, empregos, salários, preços, comércio | [economy.md](domain/economy.md) |
 | Cidades, edifícios, crescimento, migração, fundação de assentamentos | [cities.md](domain/cities.md) |
 | Ruas, lotes, quintal, caminho e superfície de rua (AD-173) | [city-layout.md](domain/city-layout.md) |
+| Toda construção é obra: casa, oficina, jornal que disputa a mão (AD-184) | [build-works.md](domain/build-works.md) |
 | Mapa, regiões, biomas, terreno, camadas de visualização | [world-map.md](domain/world-map.md) |
 | Estações, temperatura, tempo do dia (chuva, neve, lama, seca, luz) e o que ele muda | [climate.md](domain/climate.md) |
 | Event log, linha do tempo, dinastias, crônicas | [history.md](domain/history.md) |

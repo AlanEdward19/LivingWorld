@@ -79,6 +79,9 @@ public sealed record BuildingVisual(
     public LodgingMarker? Lodging { get; init; }
     /// <summary>AD-173: o lote de verdade (quintal de trás, passagem da porta à rua, rua da frente). O cliente desenha só isto.</summary>
     public LivingWorld.Simulation.Cities.LotView? Lot { get; init; }
+    /// <summary>AD-184: obra em curso neste lote (canteiro): o prédio ainda não existe, ninguém mora nem trabalha nele. Nulo = pronto.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Simulation.Cities.Works.WorkView? Work { get; init; }
 }
 public sealed record ProcessVisual(
     long Id, string Kind, long TargetId, double Progress, string DescriptorKey,

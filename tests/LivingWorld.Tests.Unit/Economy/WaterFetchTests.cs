@@ -417,4 +417,61 @@ public sealed class WaterFetchTests
             if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.Dehydration) Dehydrated++;
         }
     }
+    /// <summary>AD-184: a hora de beber. Em casa e acordado, com a sede na linha da refeição (antes da urgência) e água no pote, bebe
+    /// um copo; a criança pequena só com um crescido da casa ali acordado. Sem a regra, espera a urgência.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void At_home_and_awake_a_thirst_at_the_meal_line_is_quenched_from_the_pot(bool rule)
+    {
+        var (world, _) = NewWorld(NaturalWaterRules.Default with { Fetch = WaterFetchRules.Default with { DrinkAtMealLine = rule } });
+        var (home, free, other, _) = Scene(world);
+        long now = Now(world);
+        home.Deposit(Water(world), 10);
+        free.SetCurrentAction(ActionType.Idle, now);
+        free.SetThirst(30, now); // abaixo da linha da refeição, acima da urgência
+        Assert.Equal(rule, WaterFetch.SipAtHome(world, free, ActionType.Idle, 0, now));
+        Assert.Equal(rule, free.ThirstAt(now) > 30);
+        free.SetThirst(90, now);
+        Assert.False(WaterFetch.SipAtHome(world, free, ActionType.Idle, 0, now)); // sem sede, não bebe
+        // indo deitar: a noite levaria a sede à linha, bebe antes
+        free.SetThirst(50, now);
+        Assert.Equal(rule, WaterFetch.SipAtHome(world, free, ActionType.Sleep, 10, now));
+    }
+
+    [Fact]
+    public void A_small_child_at_home_drinks_from_the_pot_only_with_a_grown_carer_there_awake()
+    {
+        var (world, _) = NewWorld();
+        long now = Now(world);
+        var child = world.Npcs.Where(n => n.IsAlive && n.AgeYears(world.CurrentDate) < world.NaturalWaterRules.Fetch.SelfDrinkAgeYears
+            && n.Household is { } h && world.FindHousehold(h) is { IsHomeless: false }).OrderBy(n => n.Id.Value).First();
+        var home = world.FindHousehold(child.Household!.Value)!;
+        home.Deposit(Water(world), 10);
+        child.MoveTo(home.Location, now);
+        child.SetCurrentAction(ActionType.Idle, now);
+        var grown = home.Members.Select(m => world.FindNpc(m)!).Where(n => n.IsAlive && n.AgeYears(world.CurrentDate) >= 8).ToList();
+        foreach (var g in grown) g.MoveTo(new CellCoord(home.Location.X == 0 ? 1 : 0, home.Location.Y), now); // todos fora
+        child.SetThirst(30, now);
+        Assert.False(WaterFetch.SipAtHome(world, child, ActionType.Idle, 0, now));
+        grown[0].MoveTo(home.Location, now);
+        grown[0].SetCurrentAction(ActionType.Idle, now);
+        Assert.True(WaterFetch.SipAtHome(world, child, ActionType.Idle, 0, now));
+    }
+    /// <summary>AD-184 (seed 8, pessoa 49): com fome à beira da morte e sede urgente, a ida à água segue (a sede mata antes). Antes a
+    /// fome largava a ida a cada hora pela comida que não havia na banca, e a pessoa morria de sede parada, com água em casa.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void With_both_hunger_and_thirst_dire_the_water_trip_goes_on(bool rule)
+    {
+        var (world, _) = NewWorld(NaturalWaterRules.Default with { Fetch = WaterFetchRules.Default with { ThirstFirstWhenBothStarving = rule } });
+        var (_, free, _, _) = Scene(world);
+        long now = Now(world);
+        free.SetHunger(0, now);
+        free.SetThirst(10, now);
+        Assert.Equal(rule, WaterFetch.ThirstFirst(world, free, now));
+        free.SetThirst(90, now);
+        Assert.False(WaterFetch.ThirstFirst(world, free, now)); // sem sede, a fome manda
+    }
 }

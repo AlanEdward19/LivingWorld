@@ -36,6 +36,11 @@ public sealed record ProvisioningRules
     /// banca vazia, esperava a volta e as crianças morriam com as outras bancas cheias (seed 2, ano 12). Falso = o de antes.</summary>
     public bool FoodFromAnyStall { get; init; } = true;
 
+    /// <summary>AD-184 (metrópole seed 2, ano 10): a casa sem comida com uma criança com fome urgente em casa manda um crescido que pode
+    /// pagar comprar, por cima do trabalho, do ócio ou da conversa (quem come no trabalho não sentia a fome e a meta de compra perdia
+    /// para o ofício; as crianças morriam em casa com a carteira do avô cheia). Falso = o de antes.</summary>
+    public bool ChildHungerSendsShopper { get; init; } = true;
+
     public static ProvisioningRules Default { get; } = new();
 
     public static ProvisioningRules Legacy { get; } = new()

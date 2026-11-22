@@ -72,7 +72,10 @@ public class SiteWorkTests
         Assert.Empty(world.Ground!.Works);
         Assert.Equal(GroundSurface.Gravel, world.Ground.PavingAt(index));
         Assert.True(work.HoursWorked >= total, $"horas feitas {work.HoursWorked} de {total}");
-        Assert.Equal(work.HoursWorked * SiteWork.HourWage(world), work.Paid); // cascalho: sem pedra comprada, tudo é jornal
+        // cascalho: sem pedra comprada, tudo é jornal. AD-184: cada jornada paga o jornal do dia pela oferta da semana (que sobe sem
+        // braço) e pelas horas, arredondado: entre metade do jornal base e o teto da oferta, com 1 de arredondamento por jornada
+        double hourBase = PavingDecision.DayWage(world) / (double)world.StreetRules.CrewHoursPerDay;
+        Assert.InRange(work.Paid, (long)(work.HoursWorked * hourBase / 2), (long)(work.HoursWorked * hourBase * world.StreetRules.OfferMaxPm / 1000) + work.HoursWorked);
         Assert.NotEmpty(seenOnSite);
         Assert.NotEmpty(seenOnRoute); // foram a pé, pela rota, nas horas de trabalho
         Assert.True(work.Crew.Count <= world.StreetRules.CrewMax);
@@ -213,12 +216,14 @@ public class SiteWorkTests
         city.DepositStock(new ResourceType(3), 20);
         city.DepositStock(new ResourceType(5), 10);
         city.CreditTreasury(new Money(1_000_000));
-        int before = world.Buildings.Count(b => b.BuildingTypeId == 10);
+        // AD-184: o canteiro ocupa o lote desde a escolha; conta só a casa pronta
+        int Ready() => world.Buildings.Count(b => b.BuildingTypeId == 10 && b.UnderWork is null);
+        int before = Ready();
         Assert.True(LivingWorld.Simulation.Cities.Construction.ConstructionSystem.StartConstruction(world, city.Id, 10).IsSuccess);
         var project = city.ConstructionQueue[0];
         long ticks = project.TicksRemaining;
         bool sawOnLot = false;
-        for (int h = 0; h < 24 * 30 && world.Buildings.Count(b => b.BuildingTypeId == 10) == before; h++)
+        for (int h = 0; h < 24 * 30 && Ready() == before; h++)
         {
             clock.Run(world, 1);
             if (project.SiteX >= 0 && project.Crew.Any(id => world.FindNpc(new NpcId(id))!.CurrentLocation == new CellCoord(project.SiteX, project.SiteY)))
@@ -227,9 +232,10 @@ public class SiteWorkTests
             Assert.True(ticks - project.TicksRemaining <= project.HoursWorked * 2, $"passos {ticks - project.TicksRemaining}, horas {project.HoursWorked}");
         }
         Assert.True(sawOnLot);
-        Assert.Equal(before + 1, world.Buildings.Count(b => b.BuildingTypeId == 10));
+        Assert.Equal(before + 1, Ready());
         Assert.True(project.HoursWorked >= ticks, $"{project.HoursWorked} horas para {ticks} passos");
-        Assert.Equal(project.HoursWorked * SiteWork.HourWage(world), project.Paid);
+        double hourBase = PavingDecision.DayWage(world) / (double)world.StreetRules.CrewHoursPerDay; // AD-184: jornal pela oferta
+        Assert.InRange(project.Paid, (long)(project.HoursWorked * hourBase / 2), (long)(project.HoursWorked * hourBase * world.StreetRules.OfferMaxPm / 1000) + project.HoursWorked);
     }
 
     private static string FindRepoRoot()

@@ -64,6 +64,12 @@ public static class EventInvolvementReader
             WorldEventKind.OutbreakStarted => new(SubjectId: L(1), CityId: S(2)),
             WorldEventKind.ProfitDrawn or WorldEventKind.WorkplaceBankrupt => new(WorkplaceId: L(0), SubjectId: L(1), Amount: L(2)),
             WorldEventKind.VentureFounded => new(WorkplaceId: L(0), SubjectId: L(1)),
+            // AD-184: eventos de obra com o id da obra, a cidade e o que ela levanta (a célula vai na posição do evento)
+            WorldEventKind.BuildWorkStarted or WorldEventKind.WorkStalled or WorldEventKind.WorkResumed or WorldEventKind.WorkAbandoned
+                => new(WorkId: L(0), CityId: S(1), Outcome: S(2)),
+            WorldEventKind.BuildWorkDone => new(WorkId: L(0), CityId: S(1), Outcome: S(2), BuildingId: L(5)),
+            WorldEventKind.StreetWorkStarted or WorldEventKind.StreetWorkDone => new(WorkId: L(0), CityId: S(1), Outcome: "calcamento"),
+            WorldEventKind.SiteWorkJoined or WorldEventKind.SiteWorkLeft => new(SubjectId: L(0), WorkId: L(1), Outcome: S(2)),
             _ => new(SubjectId: L(0)),
         };
     }
@@ -78,11 +84,27 @@ public static class EventInvolvementReader
         return null;
     }
 
+    /// <summary>AD-184: célula da obra a partir do evento de obra (o payload traz x e y).</summary>
+    public static CellCoord? WorkCell(WorldEvent evt)
+    {
+        var f = evt.Payload.Split('|');
+        (int ix, int iy) = evt.Kind switch
+        {
+            WorldEventKind.BuildWorkStarted or WorldEventKind.BuildWorkDone or WorldEventKind.WorkStalled or WorldEventKind.WorkResumed
+                or WorldEventKind.WorkAbandoned => (3, 4),
+            WorldEventKind.StreetWorkStarted => (7, 8),
+            WorldEventKind.StreetWorkDone => (6, 7),
+            _ => (-1, -1),
+        };
+        return ix >= 0 && f.Length > iy && int.TryParse(f[ix], out int x) && int.TryParse(f[iy], out int y) ? new CellCoord(x, y) : null;
+    }
+
     /// <summary>Onde o evento aconteceu, pelos envolvidos (AD-170): célula do espólio; senão a pessoa principal (sujeito, autor, vítima,
     /// outro) viva; senão a casa; senão o prédio; senão a oficina. Nulo quando nada disso existe mais.</summary>
     public static CellCoord? LocationOf(WorldState world, WorldEvent evt, EventInvolved involved)
     {
         if (LeavingCell(world, evt) is { } cell) return cell;
+        if (WorkCell(evt) is { } site) return site; // AD-184: a obra
         // a pessoa do primeiro campo (critério antigo) continua mandando quando ela é um dos envolvidos
         if (long.TryParse(evt.Payload.Split('|')[0], out long first) && People(involved).Contains(first)
             && world.FindNpc(new NpcId(first)) is { } firstNpc)

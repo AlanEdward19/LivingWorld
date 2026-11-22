@@ -387,6 +387,51 @@ public static class CityOccupancy
             writeScanMarks: false, chooseOrientation);
     }
 
+    /// <summary>AD-184: até <paramref name="max"/> lotes de rua possíveis no degrau <paramref name="level"/>, do mais perto do largo
+    /// para fora (a mesma ordem de <see cref="FindPlacement"/>), para quem constrói escolher entre eles pelo que pesa para ela
+    /// (água, mercado, trabalho, foro). Só lê o chão: não marca o passe, então a busca de sempre não muda.</summary>
+    internal static List<(CellCoord Origin, int Croft, int Orientation)> CandidateLots(
+        WorldState world, City city, CityBounds bounds, BuildingId id, int buildingTypeId, int orientation, LotProfile profile,
+        int level, int max, IReadOnlyList<CellCoord>? anchors = null)
+    {
+        var found = new List<(CellCoord Origin, int Croft, int Orientation)>();
+        var network = CityStreets.Of(world, city);
+        if (network.Count == 0 || level >= PlacementPolicy.StreetLevels) return found;
+        var ground = GroundOfCity(world, city, bounds, id);
+        var options = OptionsOf(id, buildingTypeId, orientation, choose: true);
+        var layout = world.CityRules.EffectiveLayout();
+        // um candidato por trecho da rede, espalhados do largo para fora (o primeiro é o lote de sempre)
+        int perStreet = (layout.MaxFrontYardCells() + 1) * options.Length;
+        int total = network.Count * perStreet;
+        int stride = Math.Max(1, network.Count / Math.Max(1, max)) * perStreet;
+        int ring = world.CityRules.AbsorptionRingCells; // a borda que a cidade absorve ao crescer (não vira aglomerado à parte)
+        bool founds = world.CityRules.Enabled; // só onde aglomerado de fora funda cidade-filha
+        void Sample(int[]? order, int limit)
+        {
+            for (int start = 0, taken = 0; start < total && taken < limit;)
+            {
+                if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at, order) is not { } lot) break;
+                // só dentro da cidade de agora (e da borda que ela absorve): lote além vira aglomerado e funda cidade-filha
+                if (founds && !NearBounds(bounds, lot.Origin, ring)) { start = Math.Max(at + 1, start + (order is null ? stride : perStreet)); continue; }
+                if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) { found.Add(lot); taken++; }
+                start = Math.Max(at + 1, start + (order is null ? stride : perStreet));
+            }
+        }
+        Sample(null, max);
+        // perto de cada lugar que pesa para quem constrói (o trabalho, a fonte): os lotes de rua mais perto dele primeiro
+        foreach (var anchor in anchors ?? [])
+        {
+            var near = Enumerable.Range(0, network.Count)
+                .OrderBy(i => Math.Max(Math.Abs(network.Cells[i].X - anchor.X), Math.Abs(network.Cells[i].Y - anchor.Y))).ThenBy(i => i).ToArray();
+            Sample(near, Math.Max(1, max / 2));
+        }
+        return found;
+    }
+
+    private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>
+        cell.X >= bounds.Origin.X - ring && cell.Y >= bounds.Origin.Y - ring
+        && cell.X < bounds.Origin.X + bounds.Width + ring && cell.Y < bounds.Origin.Y + bounds.Height + ring;
+
     /// <summary>As plantas que quem constrói pode escolher: a da identidade primeiro, depois as outras três rotações em
     /// ordem; só a da identidade quando a orientação não será gravada (prédio derivado).</summary>
     private static LotPlanner.Option[] OptionsOf(BuildingId id, int buildingTypeId, int orientation, bool choose)

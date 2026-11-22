@@ -92,4 +92,22 @@ public class EventInvolvementTests
 
         Assert.Equal(home.Location, EventInvolvementReader.LocationOf(World, evt, EventInvolvementReader.Read(World, evt)));
     }
+
+    /// <summary>AD-184: todo evento de obra leva o id da obra e a célula (o cliente marca no mapa), mesmo sem ninguém envolvido.</summary>
+    [Theory]
+    [InlineData(WorldEventKind.BuildWorkStarted, "12|00000000-0000-0000-0000-000000000001|casa|4|9|3|640|6|0", 12L, 4, 9)]
+    [InlineData(WorldEventKind.BuildWorkDone, "12|00000000-0000-0000-0000-000000000001|oficina|4|9|77|100|50|300|60", 12L, 4, 9)]
+    [InlineData(WorldEventKind.WorkStalled, "13|00000000-0000-0000-0000-000000000001|predio-10|5|6|8", 13L, 5, 6)]
+    [InlineData(WorldEventKind.WorkResumed, "13|00000000-0000-0000-0000-000000000001|calcamento|5|6|3", 13L, 5, 6)]
+    [InlineData(WorldEventKind.WorkAbandoned, "13|00000000-0000-0000-0000-000000000001|casa|5|6|sem-mao|250", 13L, 5, 6)]
+    [InlineData(WorldEventKind.StreetWorkStarted, "14|00000000-0000-0000-0000-000000000001|Gravel|0|2|80|tesouro|7|8", 14L, 7, 8)]
+    [InlineData(WorldEventKind.StreetWorkDone, "14|00000000-0000-0000-0000-000000000001|Gravel|0|2|240|7|8", 14L, 7, 8)]
+    public void Work_events_carry_the_work_id_and_where_it_is(WorldEventKind kind, string payload, long work, int x, int y)
+    {
+        var evt = new WorldEvent(10, kind, payload);
+        var involved = EventInvolvementReader.Read(World, evt);
+
+        Assert.Equal(work, involved.WorkId);
+        Assert.Equal(new CellCoord(x, y), EventInvolvementReader.LocationOf(World, evt, involved));
+    }
 }

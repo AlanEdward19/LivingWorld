@@ -18,8 +18,12 @@ public class EconomyDepthConservationTests
     {
         public Dictionary<int, long> Lost { get; } = [];
 
+        /// <summary>AD-184: obras de prédio da cidade abertas (a fila andou, mesmo que ninguém aceite o lote).</summary>
+        public int CityWorks { get; private set; }
+
         public void Record(WorldEvent evt)
         {
+            if (evt.Kind == WorldEventKind.BuildWorkStarted && evt.Payload.Split('|')[2].StartsWith("predio", StringComparison.Ordinal)) CityWorks++;
             if (evt.Kind != WorldEventKind.ResourceLost) return;
             var parts = evt.Payload.Split('|');
             Lost[int.Parse(parts[1])] = Lost.GetValueOrDefault(int.Parse(parts[1])) + long.Parse(parts[2]);
@@ -40,7 +44,8 @@ public class EconomyDepthConservationTests
     private static long TotalMoney(WorldState world) =>
         world.Npcs.Sum(n => n.Wallet.Amount)
         + world.Workplaces.Sum(w => w.Treasury.Amount)
-        + world.Cities.Sum(c => c.Treasury.Amount);
+        + world.Cities.Sum(c => c.Treasury.Amount)
+        + (world.Ground?.Builds.Sum(b => b.Escrow) ?? 0); // AD-184: o capital que o fundador guardou na obra da oficina
 
     private static long Stocked(WorldState world, ResourceType resource) =>
         world.Workplaces.Sum(w => w.Stock.GetValueOrDefault(resource))
@@ -84,8 +89,10 @@ public class EconomyDepthConservationTests
         // A conservacao nao vale se os caminhos estiverem parados: producao, compra da cidade e obra se mexeram.
         Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca produzida");
         Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca produzida");
-        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca consumida em obra");
-        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca consumida em obra");
+        // AD-184: a obra da fila precisa de turma no lote; numa seed o lote fica a 4,5 h de qualquer casa e ninguém aceita (a obra
+        // é abandonada e reaberta): aí a fila andou (obra aberta com lugar), mas nenhuma madeira chegou a ser gasta
+        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(3)) > 0 || sink.CityWorks > 0, "madeira nunca consumida em obra");
+        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(5)) > 0 || sink.CityWorks > 0, "pedra nunca consumida em obra");
         // (a cidade passou a receber o espólio de quem morre sem herdeiro, então o tesouro final não prova mais a compra:
         // a madeira e a pedra consumidas em obra acima já provam)
     }

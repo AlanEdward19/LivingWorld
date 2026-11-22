@@ -52,6 +52,21 @@ public sealed class PavingWork
 
     /// <summary>AD-179: tick da última hora de turma (ou da abertura); sem hora por <c>SiteStaleMonths</c>, a obra é desfeita.</summary>
     public long LastProgressTick { get; set; }
+
+    /// <summary>AD-184: oferta de jornal em milésimos do jornal do dia (nulo = o jornal) e o tick em que ela subiu pela última vez.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? OfferPm { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastRaiseTick { get; set; }
+
+    /// <summary>AD-184: trecho de teste da técnica de calçar (<c>cultura|eixos</c>); pronto, a cidade descobre como calçar.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Prototype { get; set; }
+
+    /// <summary>AD-184: parada (sem hora de turma há <c>StallDays</c>) até a turma voltar.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Stalled { get; set; }
 }
 
 /// <summary>Estado do chão das cidades (AD-176), canônico: pisoteio por célula, superfície em vigor, calçamento e obras. Grade
@@ -100,6 +115,33 @@ public sealed class GroundLedger
     public int WorksAbandoned { get; set; }
 
     public List<PavingWork> Works { get; set; } = [];
+
+    /// <summary>AD-184: obras de prédio encomendadas (casa de família, oficina de quem empreende), por id; mesmo contador de
+    /// <see cref="NextWorkId"/> (toda obra tem um id só).</summary>
+    public List<LivingWorld.Simulation.Cities.Works.BuildWork> Builds { get; set; } = [];
+
+    /// <summary>AD-184: quem largou o ofício pela obra e de onde (pares npc, oficina): quando sai da turma, volta para lá se há vaga.</summary>
+    public List<long[]> OnLeave { get; set; } = [];
+
+    /// <summary>AD-184: casas (ids) de casais que foram morar de favor com a família de onde saíram, até terem casa própria.</summary>
+    public List<long> Lodgers { get; set; } = [];
+
+    /// <summary>AD-184: obras de prédio prontas e abandonadas desde o começo (relatório).</summary>
+    public int BuildsDone { get; set; }
+    public int BuildsAbandoned { get; set; }
+
+    /// <summary>AD-184: quem trabalha em que obra (diarista ou ajudante) — índice volátil, refeito do canônico quando alguém entra
+    /// ou sai de uma turma (<see cref="LivingWorld.Simulation.Cities.Streets.SiteWork.Touch"/>).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal Dictionary<long, object>? SiteIndex { get; set; }
+
+    /// <summary>AD-184: quem divide o pote com quem (de favor ↔ quem acolhe, nos dois sentidos) — índice volátil do dia, refeito do
+    /// canônico (<see cref="Lodgers"/> e a casa de cada um); quem usa confere se ainda moram juntos.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal Dictionary<long, long>? PotIndex { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal long PotIndexDay { get; set; } = -1;
 
     public List<GroundCellRow> Cells
     {

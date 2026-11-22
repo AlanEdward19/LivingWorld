@@ -25,8 +25,21 @@ public sealed class MenuWorldProbe(WorldState world) : IWorldEventSink
     /// <summary>Eventos da obra e da técnica (AD-179): entrou na turma, saiu, obra aberta, obra pronta, tecnologia descoberta.</summary>
     public SortedDictionary<string, long> Works { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>AD-184: obras de prédio por tipo (iniciadas, prontas, paradas, retomadas, abandonadas) e a soma dos dias das prontas.</summary>
+    public SortedDictionary<string, long> Builds { get; } = new(StringComparer.Ordinal);
+
     public void Record(WorldEvent evt)
     {
+        if (evt.Kind is WorldEventKind.BuildWorkStarted or WorldEventKind.BuildWorkDone or WorldEventKind.WorkStalled
+            or WorldEventKind.WorkResumed or WorldEventKind.WorkAbandoned)
+        {
+            var f = evt.Payload.Split('|');
+            string type = f.Length > 2 ? (f[2].StartsWith("predio", StringComparison.Ordinal) ? "predio" : f[2]) : "?";
+            string key = $"{evt.Kind switch { WorldEventKind.BuildWorkStarted => "ini", WorldEventKind.BuildWorkDone => "fim", WorldEventKind.WorkStalled => "parada", WorldEventKind.WorkResumed => "retomada", _ => "abandono" }}:{type}";
+            Builds[key] = Builds.GetValueOrDefault(key) + 1;
+            if (evt.Kind == WorldEventKind.BuildWorkDone && f.Length > 9 && long.TryParse(f[9], out long days))
+                Builds["dias:" + type] = Builds.GetValueOrDefault("dias:" + type) + days;
+        }
         if (evt.Kind is WorldEventKind.SiteWorkJoined or WorldEventKind.SiteWorkLeft or WorldEventKind.StreetWorkStarted
             or WorldEventKind.StreetWorkDone or WorldEventKind.TechnologyDiscovered)
         {
@@ -143,6 +156,8 @@ public sealed class MenuWorldProbe(WorldState world) : IWorldEventSink
             $"unidCasaMes={(homes == 0 || HoursSampled == 0 ? 0 : world.InventionTally.WaterUnitsHome / (double)homes / (HoursSampled / (double)world.Calendar.HoursPerMonth)):F2} porSede={world.InventionTally.WaterTripsByThirst} " +
             $"porEmpregado={world.InventionTally.WaterTripsByEmployed} socorro={world.InventionTally.WaterAidGiven} " +
             $"| acoes {acts} | fomeCritH={Per(HungerCrit)} sedeCritH={Per(ThirstCrit)} mortes={Deaths} fome={Starved} sede={Dehydrated} " +
+            $"| predios={world.Buildings.Count(b => b.UnderWork is null)} canteiros={world.Buildings.Count(b => b.UnderWork is not null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)} " +
+            $"obras[{string.Join(' ', Builds.Select(kv => kv.Key + "=" + kv.Value))}] " +
             $"| obra[{string.Join(' ', Works.Select(kv => kv.Key + "=" + kv.Value))}] tecs={world.Technologies.Count} abertas[{string.Join(' ', (world.Ground?.Works ?? []).Select(w => $"{w.Id}:falta{w.HoursLeft}h/feito{w.HoursWorked}h/turma{w.Crew.Count}/pagam{w.Payers.Count}"))}] | {StreetDiagnostics.Line(world)}");
     }
 }
