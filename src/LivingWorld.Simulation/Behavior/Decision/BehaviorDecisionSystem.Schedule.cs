@@ -58,7 +58,7 @@ public sealed partial class BehaviorDecisionSystem
         long foodStock = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
         long waterStock = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
         // AD-148: com a banca de comida vazia há pouco, só a água pode levar ao mercado até a hora de voltar
-        bool foodBlocked = FoodStallKnownEmpty(world, household);
+        bool foodBlocked = FoodStallKnownEmpty(world, household, marketIndex);
         long scarcest = foodBlocked ? waterStock : Math.Min(foodStock, waterStock);
         int members = Math.Max(1, household.Members.Count);
         double hoard = -1;
@@ -205,10 +205,18 @@ public sealed partial class BehaviorDecisionSystem
         long price = provisioning.OnlyIfCanPay && market is not null
             && market.Prices.TryGetValue(new ResourceType(world.EconomyRules.FoodResourceId), out var p) ? p : 0;
         bool shopperOut = provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household);
-        return (ProvisionTargetAt(world, household, market), price, shopperOut, FoodStallKnownEmpty(world, household));
+        return (ProvisionTargetAt(world, household, market), price, shopperOut, FoodStallKnownEmpty(world, household, marketIndex));
     }
 
     /// <summary>A casa achou a banca de comida vazia há pouco e ainda espera para voltar (AD-148).</summary>
+    /// <summary>AD-191: com outra banca de comida abastecida (a que <see cref="EssentialsMarket"/> escolhe), a banca vazia não segura a
+    /// casa: ela vai à outra.</summary>
+    private static bool FoodStallKnownEmpty(WorldState world, LivingWorld.Domain.Population.Family.Household household, MarketIndex marketIndex) =>
+        FoodStallKnownEmpty(world, household)
+        && !(world.NeedsRules.Provisioning.FoodFromAnyStall
+             && EssentialsMarket(world, household, household.Location, marketIndex) is { } m
+             && m.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)) > 0);
+
     private static bool FoodStallKnownEmpty(WorldState world, LivingWorld.Domain.Population.Family.Household household) =>
         world.NeedsRules.Provisioning.FoodStallRetryHours > 0 && world.CurrentDate.TotalHours < household.FoodStallRetryTick;
 
@@ -281,8 +289,7 @@ public sealed partial class BehaviorDecisionSystem
 
     private static Workplace? NearestProvisionMarket(
         WorldState world, LivingWorld.Domain.Population.Family.Household household, MarketIndex marketIndex) =>
-        marketIndex.NearestSelling(
-            household.Location, new ResourceType(world.EconomyRules.FoodResourceId), new ResourceType(world.EconomyRules.WaterResourceId));
+        EssentialsMarket(world, household, household.Location, marketIndex); // AD-191: com a comida curta, a banca que tem comida
 
     private static double ProvisionTargetAt(
         WorldState world, LivingWorld.Domain.Population.Family.Household household, Workplace? market)

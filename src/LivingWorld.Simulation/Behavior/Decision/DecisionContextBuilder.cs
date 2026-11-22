@@ -56,8 +56,17 @@ public static class DecisionContextBuilder
             FoodStallKnownEmpty: foodStallKnownEmpty,
             // AD-179: a obra que chama o diarista. AD-187: em float, que cabe na folga do fim do objeto (o double somava 8 bytes a
             // cada decisão do mundo, quase sempre para guardar zero)
-            SiteOffer: (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc));
+            SiteOffer: (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc),
+            CanEarn: npc.Wallet.Amount >= 1 || CanEarn(world, npc)); // só pesa sem moeda (IncomeNeed): o caminho comum não procura obra
     }
+
+    /// <summary>AD-191 (2ª rodada): o trabalho pode render algo a quem decide — emprego, a obra em que é diarista ou a obra que o chama.
+    /// Sem isso a vontade de ganhar o pão (<c>IncomeNeed</c>) puxava a criança órfã sem emprego para "trabalhar" parada em casa, acima
+    /// da sede crítica com água na despensa (seed 39 da vila: morte de sede aos 9 anos).</summary>
+    private static bool CanEarn(WorldState world, Npc npc) =>
+        !world.NeedsRules.Psyche.IncomeNeedNeedsWork || npc.Employer is not null
+        || LivingWorld.Simulation.Cities.Streets.SiteWork.DestinationOf(world, npc) is not null
+        || LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc) > 0;
 
     /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>
     internal static InnerLifeSnapshot? BuildInnerLife(WorldState world, Npc npc, long tick)

@@ -15,6 +15,8 @@ public static class CrimeSwitch
         if (keys.Count == 0) return null;
         var rules = Domain.Crime.CrimeRules.Default;
         if (keys.Contains("domestic")) rules = rules with { Domestic = null };
+        if (keys.FirstOrDefault(k => k.StartsWith("mercy=", StringComparison.Ordinal)) is { } mercy) // AD-191: clemência até n condenações
+            rules = rules with { Justice = rules.Justice with { CustomaryMercyConvictions = int.Parse(mercy["mercy=".Length..], System.Globalization.CultureInfo.InvariantCulture) } };
         if (keys.Contains("customary")) rules = rules with { Justice = rules.Justice with { CustomaryValue = false } }; // AD-191
         if (keys.Contains("kidnap")) rules = rules with { Kidnapping = null };
         if (keys.Contains("sexual")) rules = rules with { SexualViolence = null };

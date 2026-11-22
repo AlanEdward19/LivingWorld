@@ -82,7 +82,7 @@ public sealed partial class WorldState
     /// <summary>Parâmetros cenário-driven do utility AI/necessidades —
     /// decaimento, limiar de urgência, histerese. Entra no hash canônico: desligar/mudar o
     /// utility AI muda o mundo.</summary>
-    [Canonical] public NeedsRules NeedsRules { get; }
+    [Canonical] public NeedsRules NeedsRules { get; internal set; } // AD-191: ablação no relatório do menu
 
     /// <summary>Eficiência de recuperação por tipo de lugar de descanso.
     /// <see cref="RestPlaceCatalog.GroundEfficiency"/> é o destino in-place de

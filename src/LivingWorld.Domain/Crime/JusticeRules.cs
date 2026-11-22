@@ -68,6 +68,12 @@ public sealed record JusticeRules
     /// Falso = o de antes (o valor do dia).</summary>
     public bool CustomaryValue { get; init; } = true;
 
+    /// <summary>AD-191 (2ª rodada): a clemência do preço de costume vale até tantas condenações; o reincidente volta a ser julgado
+    /// pelo valor do dia (e, grave, pode ser banido). Medido com 2 (menu, 20 anos, metrópole 1/2/7): furtos 1.305/586/317 →
+    /// 1.027/383/366, mas os banidos voltam de 2/2/2 a 51/18/14 (sem a regra do costume: 1.193/328/294 furtos, 60/18/10 banidos).
+    /// Fica desligado (int.MaxValue = clemência sempre) até a escolha do dono; ver o bloco de issue da AD-191.</summary>
+    public int CustomaryMercyConvictions { get; init; } = int.MaxValue;
+
     /// <summary>Dano do castigo no corpo (pelourinho, açoite), em pontos de saúde.</summary>
     public int CorporalHarm { get; init; } = 12;
 

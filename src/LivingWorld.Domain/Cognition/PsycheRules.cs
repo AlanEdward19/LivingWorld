@@ -129,6 +129,9 @@ public sealed record PsycheRules
     /// <summary>Quem não tem moeda e vê a despensa abaixo da meta pesa ganhar o pão: até este valor a mais em <c>Work</c>.</summary>
     public double IncomeNeedMax { get; init; } = 30;
 
+    /// <summary>AD-191 (2ª rodada): a vontade de ganhar o pão só puxa ao trabalho quem tem onde ganhar (emprego ou obra). Falso = o de antes.</summary>
+    public bool IncomeNeedNeedsWork { get; init; } = true;
+
     /// <summary>Lembrança de fome a mais em <c>Buy</c> (força 100) quando a despensa está abaixo da meta.</summary>
     public double FamineProvisionBonus { get; init; } = 20;
 

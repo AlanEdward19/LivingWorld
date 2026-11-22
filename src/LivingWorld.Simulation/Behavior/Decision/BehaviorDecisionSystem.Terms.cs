@@ -366,7 +366,7 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Sem moeda nenhuma e com a despensa da casa abaixo da meta, trabalhar é o caminho para comer: até
     /// <see cref="PsycheRules.IncomeNeedMax"/>, proporcional ao que falta.</summary>
     private static double IncomeNeedOf(DecisionContext ctx, EconomyRules economy, PsycheRules psyche) =>
-        ctx.WalletAmount >= 1 ? 0 : psyche.IncomeNeedMax * PantryShortfall(ctx, economy);
+        ctx.WalletAmount >= 1 || !ctx.CanEarn ? 0 : psyche.IncomeNeedMax * PantryShortfall(ctx, economy); // AD-191: só quem tem onde ganhar
 
     /// <summary>Quanto falta (0..1) para a despensa da casa chegar à meta de dias por morador.</summary>
     private static double PantryShortfall(DecisionContext ctx, EconomyRules economy)
