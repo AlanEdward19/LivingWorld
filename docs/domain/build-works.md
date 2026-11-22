@@ -38,7 +38,7 @@ ter a oficina como garantia. Atraso é custo real: as parcelas correm com a car�
   semana, até `OfferMaxPm` e até o que pode pagar pelas horas que faltam (tesouro, casas de frente, a família, o fundador).
 - **Aceitar é decisão**: sem emprego, o maior entre a necessidade (moeda e despensa) e o atrativo do jornal, que cai com o que a
   casa tem guardado (`SiteComfortReserves`); com emprego, só se o jornal passa o salário pela margem — `QuitMargin` (1,25, a da
-  troca de emprego), `QuitMarginSlack` (1,0) para o lavrador na entressafra, `QuitMarginPeak` (2,0) na semeadura e na ceifa —, mais
+  troca de emprego), `QuitMarginSlack` (1,1) para o lavrador na entressafra, `QuitMarginPeak` (nunca) na semeadura e na ceifa —, mais
   forte com a necessidade. O dono da oficina e quem trocou de emprego há menos de 30 dias não largam. Tudo × a parte da jornada
   que a ida pela rota deixa. Primeiro quem mais quer (desempregado, jovem sem reserva, lavrador na entressafra, quem ganha pouco).
 - Quem aceita com emprego **larga o ofício** (`Fired`, causa = a obra; 30 dias de carência de troca; `GroundLedger.OnLeave`):

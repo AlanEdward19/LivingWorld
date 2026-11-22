@@ -171,9 +171,11 @@ public sealed record StreetRules(
     /// obra não atrair mais quem está sem trabalho.</summary>
     public int SiteComfortReserves { get; init; } = 10;
 
-    /// <summary>AD-184: a margem do lavrador na entressafra (fora da semeadura e da ceifa: a ceifa o toma de volta) e no pico.</summary>
+    /// <summary>AD-184: a margem do lavrador na entressafra (fora da semeadura e da ceifa: a ceifa o toma de volta) e no pico (na
+    /// semeadura e na ceifa ninguém larga a lavoura por obra nenhuma: com 2,0, a oficina em obra tirava os ceifeiros e a fazenda
+    /// quebrava, cidade média seed 2 de 221 para 124 moradores).</summary>
     public double QuitMarginSlack { get; init; } = 1.1;
-    public double QuitMarginPeak { get; init; } = 2.0;
+    public double QuitMarginPeak { get; init; } = 1e9;
 
     /// <summary>AD-184: dias sem hora de obra depois dos quais ela conta como parada (evento); volta a contar ao retomar.</summary>
     public int StallDays { get; init; } = 7;
