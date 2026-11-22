@@ -135,6 +135,14 @@ public sealed class GroundLedger
     [System.Text.Json.Serialization.JsonIgnore]
     internal Dictionary<long, object>? SiteIndex { get; set; }
 
+    /// <summary>AD-184: quem divide o pote com quem (de favor ↔ quem acolhe, nos dois sentidos) — índice volátil do dia, refeito do
+    /// canônico (<see cref="Lodgers"/> e a casa de cada um); quem usa confere se ainda moram juntos.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal Dictionary<long, long>? PotIndex { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal long PotIndexDay { get; set; } = -1;
+
     public List<GroundCellRow> Cells
     {
         get

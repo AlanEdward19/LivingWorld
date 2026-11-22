@@ -10,6 +10,8 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
   semana (pelo id e pelo dia, sem sorteio). Só lote com porta para a rua (degraus de rua da AD-173): sem ele, segue apertada.
 - **Onde mora enquanto isso** (`MarriageSystem`): a casa que um dos noivos deixou vazia fica com o casal; senão eles moram de favor
   na casa de um dos pais, a mais conveniente para os dois. Casa vazia na cidade (do falecido): a mais conveniente, sem obra.
+  De favor e quem acolhe dividem o pote de água (`LodgersSharePot`): quem vai à fonte enche para os dois, a água que chega fica
+  no pote de todos na proporção de cada casa e quem tem sede bebe do pote (a mesma casa, sem viagem entre despensas).
 - **Conveniência** (`HomePlaces`): o custo por ano de morar numa célula = as idas de cada dia pela rota — água (a fonte da
   AD-185, `WaterFetchFor`) e mercado de comida por morador (`WaterTripsPerMemberDay`, `MarketTripsPerMemberDay`), ida e volta ao
   trabalho de cada empregado — pelo valor da hora. O peso sai da casa: quantos são, quem trabalha e onde.

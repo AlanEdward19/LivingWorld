@@ -73,8 +73,56 @@ public static class WaterFetch
     }
 
     /// <summary>Unidades de água da casa por morador abaixo de <paramref name="days"/> dias.</summary>
-    private static bool Below(WorldState world, Household home, int days) =>
-        home.Stock.GetValueOrDefault(Water(world)) < Math.Max(1, home.Members.Count) * (long)days;
+    private static bool Below(WorldState world, Household home, int days)
+    {
+        var partner = PotPartner(world, home);
+        long members = Math.Max(1, home.Members.Count + (partner?.Members.Count ?? 0));
+        return PotWater(world, home, partner) < members * days;
+    }
+
+    /// <summary>AD-184: a casa que divide o pote com esta (de favor ↔ quem acolhe, morando juntos), ou nulo.</summary>
+    internal static Household? PotPartner(WorldState world, Household home)
+    {
+        if (!world.StreetRules.LodgersSharePot || world.Ground is not { Lodgers.Count: > 0 } ground || home.Dwelling is not { } dwelling) return null;
+        long day = world.CurrentDate.TotalHours / Math.Max(1, world.Calendar.HoursPerDay);
+        if (ground.PotIndex is null || ground.PotIndexDay != day) { ground.PotIndex = BuildPotIndex(world, ground); ground.PotIndexDay = day; }
+        if (!ground.PotIndex.TryGetValue(home.Id.Value, out var other)) return null;
+        return world.FindHousehold(new HouseholdId(other)) is { IsEmpty: false, IsHomeless: false } p && p.Dwelling == dwelling ? p : null;
+    }
+
+    private static Dictionary<long, long> BuildPotIndex(WorldState world, LivingWorld.Simulation.Cities.Streets.GroundLedger ground)
+    {
+        var index = new Dictionary<long, long>();
+        foreach (var lodgerId in ground.Lodgers)
+        {
+            if (index.ContainsKey(lodgerId) || world.FindHousehold(new HouseholdId(lodgerId)) is not { IsEmpty: false, Dwelling: { } dwelling } lodger) continue;
+            Household? host = null;
+            foreach (var other in world.Households) // quem acolhe: a casa mais antiga (menor id) que mora ali e não é de favor
+                if (other != lodger && !other.IsEmpty && other.Dwelling == dwelling && !ground.Lodgers.Contains(other.Id.Value)
+                    && (host is null || other.Id.Value < host.Id.Value)) host = other;
+            if (host is null || index.ContainsKey(host.Id.Value)) continue;
+            index[lodgerId] = host.Id.Value;
+            index[host.Id.Value] = lodgerId;
+        }
+        return index;
+    }
+
+    /// <summary>A água no pote: a da casa mais a de quem divide o pote com ela.</summary>
+    private static long PotWater(WorldState world, Household home, Household? partner)
+    {
+        var water = Water(world);
+        return home.Stock.GetValueOrDefault(water) + (partner?.Stock.GetValueOrDefault(water) ?? 0);
+    }
+
+    /// <summary>A água do pote para quem está em casa (a da própria casa ou a de quem divide o pote).</summary>
+    internal static long PotWater(WorldState world, Household home) => PotWater(world, home, PotPartner(world, home));
+
+    /// <summary>AD-184: sem água na própria parte, um gole do pote de quem divide a casa (verdadeiro se tirou).</summary>
+    internal static bool DrawFromPot(WorldState world, Household? home, ResourceType water)
+    {
+        if (home is null || water.Id != world.EconomyRules.WaterResourceId || PotPartner(world, home) is not { } partner) return false;
+        return partner.Withdraw(water, 1).IsSuccess;
+    }
 
     /// <summary>AD-184: a água da casa baixou ao ponto de alguém ir buscá-la (a hora livre é da fonte, não da obra).</summary>
     internal static bool HomeNeedsWater(WorldState world, Npc npc) =>
@@ -92,7 +140,8 @@ public static class WaterFetch
         bool employed = Employed(world, npc);
         if (employed && !Below(world, home, rules.EmployedBelowDays) && FreeMemberCanGo(world, home, npc)) return false;
         // um vai por todos; com a água abaixo de um dia, vai mais de um (a sede não espera a volta do primeiro)
-        if ((!Below(world, home, rules.EmployedBelowDays) && FetcherOut(world, h.Value, npc.Id.Value))
+        if ((!Below(world, home, rules.EmployedBelowDays) && (FetcherOut(world, h.Value, npc.Id.Value)
+                || (PotPartner(world, home) is { } partner && FetcherOut(world, partner.Id.Value, npc.Id.Value))))
             || SourceFor(world, home.Location) is not { } source) return false;
         if (source.Cell == home.Location) { Fill(world, npc, home, now); Unload(world, npc, home); return false; }
         if (rules.NoEmptyTrips && source.Cell == npc.CurrentLocation)
@@ -111,7 +160,7 @@ public static class WaterFetch
     /// <summary>Em casa, sem uma gota de água na despensa: quem decide por urgência (sono, choro, conversa) larga e vai buscar.</summary>
     internal static bool HomeDry(WorldState world, Npc npc) =>
         On(world) && npc.Household is { } h && world.FindHousehold(h) is { IsHomeless: false } home
-        && home.Stock.GetValueOrDefault(Water(world)) <= 0 && NearHome(world, npc, home);
+        && PotWater(world, home) <= 0 && NearHome(world, npc, home);
 
     /// <summary>Em casa ou no passeio perto dela (a despensa ao alcance da hora): de onde se sai para a fonte com o cântaro da casa.</summary>
     private static bool NearHome(WorldState world, Npc npc, Household home) =>
@@ -131,7 +180,7 @@ public static class WaterFetch
         if (ledger.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
         int i = ledger.WaterTripIndex(npc.Id.Value);
         if (i >= 0 && Active(world, ledger.WaterTrips![i])) return false;
-        if (home.Stock.GetValueOrDefault(water) <= 0) return true;
+        if (PotWater(world, home) <= 0) return true;
         // há água em casa: vai à fonte só quem está fora e tem a fonte mais perto que a casa (o resto bebe em casa)
         if (npc.CurrentLocation == home.Location) return false;
         var source = NaturalWaterSystem.NearestWater(world, npc.CurrentLocation, world.NaturalWaterRules.Fetch.RadiusCells * 2);
@@ -146,7 +195,7 @@ public static class WaterFetch
         if (!On(world) || Grown(world, npc) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home) return false;
         if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
         var water = Water(world);
-        if (home.Stock.GetValueOrDefault(water) > 0 || world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
+        if (PotWater(world, home) > 0 || world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) > 0) return false;
         Household? neighbour = null;
         long bestDistance = long.MaxValue;
         foreach (var other in world.Households)
@@ -186,7 +235,7 @@ public static class WaterFetch
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         var water = Water(world);
         int level = LivingWorld.Simulation.Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst);
-        if (npc.ThirstAt(now) >= level || !home.Withdraw(water, 1).IsSuccess) return;
+        if (npc.ThirstAt(now) >= level || (!home.Withdraw(water, 1).IsSuccess && !DrawFromPot(world, home, water))) return;
         npc.SetThirst(level, now);
         world.RecordResourceConsumed(water, 1);
     }
@@ -195,7 +244,7 @@ public static class WaterFetch
     internal static bool ThirstyAtHomeWithWater(WorldState world, Npc npc, long now) =>
         On(world) && 100 - npc.ThirstAt(now) > world.NeedsRules.UrgencyThreshold && npc.Household is { } h
         && world.FindHousehold(h) is { IsHomeless: false } home && npc.CurrentLocation == home.Location
-        && home.Stock.GetValueOrDefault(Water(world)) > 0;
+        && PotWater(world, home) > 0;
 
     /// <summary>A sede urgente fora de casa, com água em casa mais perto que qualquer fonte: a escolha tem de ser voltar para beber
     /// (a utilidade às vezes ficava à toa e a pessoa morria de sede a uma hora da despensa).</summary>
@@ -204,7 +253,7 @@ public static class WaterFetch
         if (!On(world) || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation == home.Location) return false;
         if (100 - npc.ThirstAt(now) <= world.NeedsRules.UrgencyThreshold) return false;
         var water = Water(world);
-        return home.Stock.GetValueOrDefault(water) > 0 && world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) <= 0;
+        return PotWater(world, home) > 0 && world.Invention!.CarriedQuantity(npc.Id.Value, water.Id) <= 0;
     }
 
     /// <summary>Depois de <see cref="ThirstyWithoutWater"/>: a ida à fonte vence o mercado quando a fonte fica mais perto (ou não há
@@ -323,8 +372,9 @@ public static class WaterFetch
         var water = Water(world);
         var inv = world.InventionRules!;
         DrinkHere(world, npc, now);
-        long want = Math.Max(1, home.Members.Count) * (long)world.NaturalWaterRules.DaysOfSupply
-            - home.Stock.GetValueOrDefault(water) - world.Invention!.CarriedQuantity(npc.Id.Value, water.Id);
+        var partner = PotPartner(world, home); // AD-184: quem divide o pote enche para as duas casas
+        long want = Math.Max(1, home.Members.Count + (partner?.Members.Count ?? 0)) * (long)world.NaturalWaterRules.DaysOfSupply
+            - PotWater(world, home, partner) - world.Invention!.CarriedQuantity(npc.Id.Value, water.Id);
         if (want <= 0) return;
         var room = LivingWorld.Simulation.Invention.PersonalCarry.RoomOf(world, npc);
         long weight = room.WeightG;
@@ -368,6 +418,13 @@ public static class WaterFetch
         long brought = home.Stock.GetValueOrDefault(Water(world)) - before;
         world.InventionTally.WaterTripsHome++;
         world.InventionTally.WaterUnitsHome += Math.Max(0, brought);
+        // AD-184: no mesmo pote, a água que chegou fica para as duas casas na proporção de quem mora em cada uma
+        if (PotPartner(world, home) is not { } partner) return;
+        var water = Water(world);
+        long mine = home.Stock.GetValueOrDefault(water), theirs = partner.Stock.GetValueOrDefault(water);
+        long share = (mine + theirs) * partner.Members.Count / Math.Max(1, home.Members.Count + partner.Members.Count);
+        long give = Math.Min(mine, share - theirs);
+        if (give > 0 && home.Withdraw(water, give).IsSuccess) partner.Deposit(water, give);
     }
 
     /// <summary>Quem morreu ou saiu da casa: a ida acaba (a água que levava segue o caminho do espólio, <see cref="LivingWorld.Simulation.Invention.Leavings"/>).</summary>

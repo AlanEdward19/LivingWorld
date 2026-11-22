@@ -189,6 +189,10 @@ public sealed record StreetRules(
     /// como antes da AD-184; só para medir).</summary>
     public bool LodgeWithParents { get; init; } = true;
 
+    /// <summary>AD-184: quem mora de favor e quem o acolhe dividem o pote de água da casa: quem vai à fonte enche para os dois, e a
+    /// água que chega fica no pote de todos (a mesma casa, sem viagem entre despensas). Desligado: cada casa enche o seu.</summary>
+    public bool LodgersSharePot { get; init; } = true;
+
     /// <summary>AD-184: o casal mora sozinho (casa própria) e não com os pais: costume do noroeste europeu (neolocal).</summary>
     public bool NeolocalCouples { get; init; } = true;
 

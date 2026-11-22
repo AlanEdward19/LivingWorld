@@ -234,7 +234,8 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         var water = new ResourceType(econ.WaterResourceId);
-        if (household?.Withdraw(water, 1).IsSuccess == true || TryRation(world, npc, water))
+        if (household?.Withdraw(water, 1).IsSuccess == true || LivingWorld.Simulation.Economy.Supply.WaterFetch.DrawFromPot(world, household, water)
+            || TryRation(world, npc, water))
         {
             npc.SetThirst(Math.Max(npc.ThirstAt(tick), ObjectUse.ConsumeLevel(world, water, ObjectEffectTargets.Thirst)), tick);
             world.RecordResourceConsumed(water, 1);

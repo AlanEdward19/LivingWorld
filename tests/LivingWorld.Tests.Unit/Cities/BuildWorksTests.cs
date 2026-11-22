@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
@@ -325,5 +326,43 @@ public class BuildWorksTests
         clock.Run(world, 24 * 20);
         copyClock.Run(copy, 24 * 20);
         Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(copy));
+    }
+    /// <summary>O casal de favor e a casa que o acolhe dividem o pote de água: sem água na parte do casal, há a da casa (não está
+    /// seco); quem do casal vai à fonte enche para as duas casas e, em casa, a água chega ao pote de todos. Sem a regra, cada casa
+    /// enche o seu e o casal fica seco com a água dos pais ao lado.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_lodging_couple_and_the_hosts_share_the_water_pot(bool share)
+    {
+        var (world, _, _) = World(streets: StreetRules.Default with { LodgersSharePot = share });
+        Assert.True(LivingWorld.Simulation.Economy.Supply.WaterFetch.On(world));
+        var water = new ResourceType(world.EconomyRules.WaterResourceId);
+        var (a, b) = Singles(world);
+        MarriageSystem.Marry(world, Ctx(world), a, b);
+        var couple = world.FindHousehold(a.Household!.Value)!;
+        var host = world.Households.Single(h => h != couple && !h.IsEmpty && h.Dwelling == couple.Dwelling);
+        long now = world.CurrentDate.TotalHours;
+        foreach (var h in new[] { couple, host }) h.Withdraw(water, h.Stock.GetValueOrDefault(water));
+        host.Deposit(water, 4);
+        foreach (var n in new[] { a, b }) n.MoveTo(couple.Location, now);
+        Assert.Equal(!share, LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeDry(world, a)); // com o pote, a água dos pais é da casa
+
+        host.Withdraw(water, 4);
+        var source = LivingWorld.Simulation.Economy.Supply.WaterFetch.SourceFor(world, couple.Location);
+        Assert.NotNull(source);
+        if (a.Employer is { } e) { world.FindWorkplace(e)?.Fire(a.Id); a.Fire(); }
+        Assert.True(LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, a, now));
+        if (source!.Value.Cell != couple.Location)
+        {
+            a.SetCurrentAction(LivingWorld.Domain.Behavior.ActionType.Travel, now);
+            a.MoveTo(source.Value.Cell, now);
+            LivingWorld.Simulation.Economy.Supply.WaterFetch.OnArrived(world, Ctx(world), a, source.Value.Cell);
+            a.MoveTo(couple.Location, now);
+            LivingWorld.Simulation.Economy.Supply.WaterFetch.OnArrived(world, Ctx(world), a, couple.Location);
+        }
+        Assert.True(couple.Stock.GetValueOrDefault(water) > 0);
+        if (share) Assert.True(host.Stock.GetValueOrDefault(water) > 0, "a água que chegou ficou no pote das duas casas");
+        else Assert.Equal(0, host.Stock.GetValueOrDefault(water));
     }
 }

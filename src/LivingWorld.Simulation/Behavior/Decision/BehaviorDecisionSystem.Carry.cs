@@ -161,7 +161,7 @@ public sealed partial class BehaviorDecisionSystem
         bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < 100 - PersonalCarry.MealAheadDeficit
-            && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
+            && LivingWorld.Simulation.Economy.Supply.WaterFetch.PotWater(world, home) > 0; // AD-184: o pote de quem divide a casa
         if (!hungry && !thirsty) return false;
         world.InventionTally.SupperBeforeSleep++;
         return true; // a ceia: comer e beber antes de deitar (beber sozinho deixava a fome sozinha, que perde para o resto até a crítica)
