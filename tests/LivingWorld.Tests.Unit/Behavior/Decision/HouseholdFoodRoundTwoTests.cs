@@ -78,7 +78,9 @@ public sealed class HouseholdFoodRoundTwoTests
         home.Withdraw(food, home.Stock.GetValueOrDefault(food));
         child.MoveTo(home.Location, now);
         child.SetHunger(5, now);
-        grown.CreditWallet(new Money(50));
+        grown.CreditWallet(new Money(500));
+        world.Workplaces.First(w => w.City == grown.City).Deposit(food, 50, world.EconomyRules); // uma banca com comida
+        Assert.True(LivingWorld.Simulation.Crime.Theft.CanBuy(world, grown, food.Id));
         Assert.Equal(rule, BehaviorDecisionSystem.ChildHungerSendsShopper(world, grown, LivingWorld.Domain.Behavior.ActionType.Work, now));
         home.Deposit(food, 3);
         Assert.False(BehaviorDecisionSystem.ChildHungerSendsShopper(world, grown, LivingWorld.Domain.Behavior.ActionType.Work, now));
