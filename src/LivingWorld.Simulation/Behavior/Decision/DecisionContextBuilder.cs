@@ -57,7 +57,7 @@ public static class DecisionContextBuilder
             // AD-179: a obra que chama o diarista. AD-187: em float, que cabe na folga do fim do objeto (o double somava 8 bytes a
             // cada decisão do mundo, quase sempre para guardar zero)
             SiteOffer: (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc),
-            CanEarn: CanEarn(world, npc));
+            CanEarn: npc.Wallet.Amount >= 1 || CanEarn(world, npc)); // só pesa sem moeda (IncomeNeed): o caminho comum não procura obra
     }
 
     /// <summary>AD-191 (2ª rodada): o trabalho pode render algo a quem decide — emprego, a obra em que é diarista ou a obra que o chama.

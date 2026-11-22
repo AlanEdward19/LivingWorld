@@ -53,6 +53,7 @@ public sealed class HouseholdFoodRoundTwoTests
         clock.Run(world, 3 * 24);
         long now = world.CurrentDate.TotalHours;
         var child = world.Npcs.First(n => n.IsAlive && n.Employer is null && n.AgeYears(world.CurrentDate) is >= 8 and < 14);
+        if (child.Wallet.Amount > 0) child.TryDebitWallet(new Money(child.Wallet.Amount)); // a vontade de renda só pesa sem moeda
         var worker = world.Npcs.First(n => n.IsAlive && n.Employer is not null);
         Assert.Equal(!rule, DecisionContextBuilder.Build(world, child, now).CanEarn);
         Assert.True(DecisionContextBuilder.Build(world, worker, now).CanEarn);
