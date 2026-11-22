@@ -176,7 +176,8 @@ public static class BuildWorks
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
         foreach (var b in world.Buildings.OrderBy(b => b.Id.Value))
         {
-            if (b.City != city.Id || b.UnderWork is not null || b.Position is not { } at || !bounds.Contains(at) || !IsHouseType(world, b.BuildingTypeId)) continue;
+            if (b.City != city.Id || b.UnderWork is not null || b.Position is not { } at || (world.CityRules.Enabled && !bounds.Contains(at))
+                || !IsHouseType(world, b.BuildingTypeId)) continue;
             if (tenants.GetValueOrDefault(b.Id) > 0) continue;
             places ??= HomePlaces.Of(world, city.Id, members);
             double cost = places.YearlyCost(world, b.Position.Value);

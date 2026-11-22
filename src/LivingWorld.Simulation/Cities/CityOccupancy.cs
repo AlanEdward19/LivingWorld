@@ -404,13 +404,15 @@ public static class CityOccupancy
         int perStreet = (layout.MaxFrontYardCells() + 1) * options.Length;
         int total = network.Count * perStreet;
         int stride = Math.Max(1, network.Count / Math.Max(1, max)) * perStreet;
+        int ring = world.CityRules.AbsorptionRingCells; // a borda que a cidade absorve ao crescer (não vira aglomerado à parte)
+        bool founds = world.CityRules.Enabled; // só onde aglomerado de fora funda cidade-filha
         void Sample(int[]? order, int limit)
         {
             for (int start = 0, taken = 0; start < total && taken < limit;)
             {
                 if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at, order) is not { } lot) break;
-                // só dentro da cidade de agora: lote fora dos limites vira aglomerado e funda cidade-filha longe do trabalho
-                if (!bounds.Contains(lot.Origin)) { start = Math.Max(at + 1, start + (order is null ? stride : perStreet)); continue; }
+                // só dentro da cidade de agora (e da borda que ela absorve): lote além vira aglomerado e funda cidade-filha
+                if (founds && !NearBounds(bounds, lot.Origin, ring)) { start = Math.Max(at + 1, start + (order is null ? stride : perStreet)); continue; }
                 if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) { found.Add(lot); taken++; }
                 start = Math.Max(at + 1, start + (order is null ? stride : perStreet));
             }
@@ -425,6 +427,10 @@ public static class CityOccupancy
         }
         return found;
     }
+
+    private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>
+        cell.X >= bounds.Origin.X - ring && cell.Y >= bounds.Origin.Y - ring
+        && cell.X < bounds.Origin.X + bounds.Width + ring && cell.Y < bounds.Origin.Y + bounds.Height + ring;
 
     /// <summary>As plantas que quem constrói pode escolher: a da identidade primeiro, depois as outras três rotações em
     /// ordem; só a da identidade quando a orientação não será gravada (prédio derivado).</summary>
