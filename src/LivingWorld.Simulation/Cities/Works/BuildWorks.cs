@@ -172,9 +172,11 @@ public static class BuildWorks
         Building? best = null;
         double bestCost = double.MaxValue;
         HomePlaces? places = null;
+        // só as de dentro da cidade de agora: morar na casa largada fora dela vira aglomerado e funda cidade-filha longe do trabalho
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
         foreach (var b in world.Buildings.OrderBy(b => b.Id.Value))
         {
-            if (b.City != city.Id || b.UnderWork is not null || b.Position is null || !IsHouseType(world, b.BuildingTypeId)) continue;
+            if (b.City != city.Id || b.UnderWork is not null || b.Position is not { } at || !bounds.Contains(at) || !IsHouseType(world, b.BuildingTypeId)) continue;
             if (tenants.GetValueOrDefault(b.Id) > 0) continue;
             places ??= HomePlaces.Of(world, city.Id, members);
             double cost = places.YearlyCost(world, b.Position.Value);

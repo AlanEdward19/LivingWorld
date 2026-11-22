@@ -409,6 +409,8 @@ public static class CityOccupancy
             for (int start = 0, taken = 0; start < total && taken < limit;)
             {
                 if (LotPlanner.Find(ground, network, world.Map, layout, options, profile, level, start, out int at, order) is not { } lot) break;
+                // só dentro da cidade de agora: lote fora dos limites vira aglomerado e funda cidade-filha longe do trabalho
+                if (!bounds.Contains(lot.Origin)) { start = Math.Max(at + 1, start + (order is null ? stride : perStreet)); continue; }
                 if (!found.Exists(l => Math.Max(Math.Abs(l.Origin.X - lot.Origin.X), Math.Abs(l.Origin.Y - lot.Origin.Y)) < 3)) { found.Add(lot); taken++; }
                 start = Math.Max(at + 1, start + (order is null ? stride : perStreet));
             }
