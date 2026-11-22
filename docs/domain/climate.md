@@ -73,6 +73,10 @@ phase, turning}`, `hourlyC[]`/`hourlyFeelsLikeC[]` (a hora do dia pela curva do 
   (3%/°C para velhos e bebês, 1% outros), do calor (3%/°C acima de 24 °C), do relento (0,1%/°C-noite, ×3 vulneráveis),
   sensação, pasto sob neve, adiamento da compra, regime do ano.
 
+**Cenário JSON (AD-190)**: o bloco `Climate` lê também `MeanMilli`, `StdDevMilli`, `Persistence` e `SharedShare` (ausentes = faixa uniforme
+antiga). Os mundos do menu declaram os da vila de código (1000 ± 200, persistência 0,3, parte comum 0,7); antes a faixa 500–1500 virava
+DP 289 sem persistência (5,6% dos anos < 600 e 3,3% no piso, contra 2,1%) e a cidade média e a vila pequena morriam na quebra.
+
 ## Interruptor e diagnóstico
 `LW_WEATHER=off` (relatórios pareados) volta ao sorteio anual e ao degrau de trimestre. `weather-diag calib <anos>` e
 `weather-diag world <seed>` (Workers) imprimem índice da safra e o ano por mês contra a fonte.

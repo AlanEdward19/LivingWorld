@@ -240,6 +240,33 @@ public sealed class WaterFetchTests
         Assert.True(LivingWorld.Simulation.Emergence.Mobility.LoadFactor(world, free) > 1.0); // a volta carregada é mais lenta
     }
 
+    /// <summary>AD-191 (seed 22, pessoa 47): quem decide buscar água já na fonte enche ali e volta para casa carregado. Antes marcava
+    /// uma ida à própria célula, voltava para casa vazio e ia de novo a cada hora, sem dormir nem comprar, até morrer de fome.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Deciding_to_fetch_while_at_the_source_fills_there_and_heads_home(bool noEmptyTrips)
+    {
+        var (world, _) = NewWorld(NaturalWaterRules.Default with { Fetch = WaterFetchRules.Default with { NoEmptyTrips = noEmptyTrips } });
+        var (home, free, _, source) = Scene(world);
+        Drain(world, home);
+        free.MoveTo(source, Now(world));
+
+        Assert.True(WaterFetch.WantsToFetch(world, free, Now(world)));
+
+        int carried = world.Invention!.CarriedQuantity(free.Id.Value, Water(world).Id);
+        if (noEmptyTrips)
+        {
+            Assert.True(carried > 0);
+            Assert.True(WaterFetch.HeadingHome(world, free));
+        }
+        else
+        {
+            Assert.Equal(0, carried); // o de antes: a ida marcada para a própria célula, de mãos vazias
+            Assert.False(WaterFetch.HeadingHome(world, free));
+        }
+    }
+
     [Fact]
     public void The_water_reaches_the_pantry_only_when_the_fetcher_gets_home()
     {

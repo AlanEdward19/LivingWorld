@@ -62,10 +62,18 @@ public static class WorldRulesScenarioLoader
             return Result<ClimateRules>.Fail("Climate: campo numérico inválido");
         if (min < 0) return Result<ClimateRules>.Fail("Climate.MinMilli: não pode ser negativo");
         if (max < min) return Result<ClimateRules>.Fail("Climate.MaxMilli: menor que MinMilli");
+        // AD-190: média, desvio, persistência e parte comum do ano de safra (AD-135) também são dado do cenário; ausentes = o
+        // sorteio uniforme antigo entre MinMilli e MaxMilli (o JSON sem os campos não muda)
+        if (!Int(block, "MeanMilli", d.MeanMilli, out int mean) || !Int(block, "StdDevMilli", d.StdDevMilli, out int sd)
+            || !Dbl(block, "Persistence", d.Persistence, out double persistence) || !Dbl(block, "SharedShare", d.SharedShare, out double shared))
+            return Result<ClimateRules>.Fail("Climate: campo numérico inválido");
+        if (sd < 0) return Result<ClimateRules>.Fail("Climate.StdDevMilli: não pode ser negativo");
+        if (persistence is < 0 or >= 1) return Result<ClimateRules>.Fail("Climate.Persistence: fora de [0,1)");
+        if (shared is < 0 or > 1) return Result<ClimateRules>.Fail("Climate.SharedShare: fora de [0,1]");
         // AD-180: o tempo diário vem ligado com o clima; o sub-bloco Weather muda a climatologia do lugar ou o desliga
         var weather = LoadWeather(block, out var weatherError);
         if (weatherError is not null) return Result<ClimateRules>.Fail(weatherError);
-        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max, Weather: enabled ? weather : null));
+        return Result<ClimateRules>.Ok(new ClimateRules(enabled, min, max, mean, sd, persistence, shared, Weather: enabled ? weather : null));
     }
 
     private static readonly System.Text.Json.JsonSerializerOptions WeatherJson = new() { PropertyNameCaseInsensitive = true };

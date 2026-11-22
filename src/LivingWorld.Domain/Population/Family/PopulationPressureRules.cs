@@ -50,6 +50,18 @@ public sealed record PopulationPressureRules
     /// casa (2 dias, `ProvisionTargetDays`). Medido na seed 14: 3 dias deixava 433 furtos na quebra, 2 dias 352 (sem a carga, 394).</summary>
     public int FoodAidReserveDays { get; init; } = 2;
 
+    /// <summary>AD-190: a casa sem comida que os seus não socorreram é vista pelos vizinhos: os <see cref="NeighbourAidHouses"/>
+    /// mais perto na cidade decidem, cada um pelo altruísmo (o mesmo sorteio da ajuda, sem o peso do laço), mandar comida da
+    /// despensa acima da reserva. Antes só parente, gente de afeto e linhagem eram chamados: o órfão e o velho sós, sem moeda ou
+    /// sem saber comprar, morriam com a vizinhança de despensa cheia. 0 desliga.</summary>
+    public int NeighbourAidHouses { get; init; } = 6;
+
+    /// <summary>AD-191: a bolsa da casa vai a quem sabe comprar. O jovem que ganha e ainda não tem o marco de comprar (ou o chefe
+    /// nessa situação) entrega a moeda ao morador que compra, e a ajuda de fora só vê a moeda que está na mão de quem compra. Antes a
+    /// casa do avô sem moeda com o neto de 15 anos e 178 moedas que não sabia comprar não era socorrida ("tem moeda") e o avô morria
+    /// de fome (seed 22). Falso = o de antes.</summary>
+    public bool PurseToShopper { get; init; } = true;
+
     /// <summary>A compra completa a meta da despensa em vez de somar a meta por cima, e só se vai ao mercado pelo que se paga.</summary>
     public bool TopUpPurchases { get; init; } = true;
 
@@ -66,7 +78,7 @@ public sealed record PopulationPressureRules
     {
         if (MarriageMeansWeight is < 0 or > 1 || FirstBirthMeansWeight is < 0 or > 1) return "Pressure: peso dos meios fora de [0,1]";
         if (MarriageSavingsMonths <= 0 || MarriageEarnerShare is < 0 or > 1) return "Pressure: economias devem ser > 0 e trabalho em [0,1]";
-        if (AidMarketReachHours < 0 || FoodAidReserveDays < 0) return "Pressure: alcance do mercado e reserva da ajuda devem ser >= 0";
+        if (AidMarketReachHours < 0 || FoodAidReserveDays < 0 || NeighbourAidHouses < 0) return "Pressure: alcance do mercado e reserva da ajuda devem ser >= 0";
         return Holdings?.Validate() ?? Emigration.Validate();
     }
 }

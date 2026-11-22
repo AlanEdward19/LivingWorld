@@ -32,4 +32,10 @@ public sealed record WaterFetchRules(
     public static WaterFetchRules Default { get; } = new();
 
     public static WaterFetchRules Off { get; } = new(Enabled: false);
+
+    /// <summary>AD-191: quem decide buscar água já estando na fonte enche ali e volta (antes marcava uma ida à própria célula e voltava
+    /// para casa vazio); e quem tem só um recipiente pesado demais para levar uma unidade cheia leva o cântaro simples (antes saía com o
+    /// pote que, cheio, passava do peso a pé, voltava sem nada e ia de novo a cada hora: o velho da seed 22 morreu de fome nesse laço,
+    /// sem dormir nem comprar). Falso = o de antes.</summary>
+    public bool NoEmptyTrips { get; init; } = true;
 }
