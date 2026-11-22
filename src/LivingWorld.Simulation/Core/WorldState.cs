@@ -108,7 +108,7 @@ public sealed partial class WorldState
     /// <summary>Todo peso/limiar/duração/flag de relações e famílias — mesmo grupo de
     /// <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: cenário-driven, entra no hash canônico
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
-    [Canonical] public FamilyRules FamilyRules { get; }
+    [Canonical] public FamilyRules FamilyRules { get; internal set; } // AD-191: o relatório do menu troca para ablação
 
     /// <summary>Parâmetros cenário-driven do corpo mínimo causal —
     /// distribuição de Height/Weight/MuscleMass. <see cref="BodyRules.Enabled"/> falso
@@ -243,10 +243,10 @@ public sealed partial class WorldState
     [Canonical] public ClimateRules ClimateRules { get; }
 
     /// <summary>Ano agrícola (AD-135); desligado por padrão em mundo montado à mão (lote diário antigo).</summary>
-    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; }
+    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; internal set; } // AD-191: o relatório do menu troca para ablação
 
     /// <summary>Água de rio, lago ou fonte perto de casa (AD-135); desligado por padrão em mundo montado à mão.</summary>
-    [Canonical] public LivingWorld.Domain.Economy.NaturalWaterRules NaturalWaterRules { get; }
+    [Canonical] public LivingWorld.Domain.Economy.NaturalWaterRules NaturalWaterRules { get; internal set; } // AD-191: ablação no relatório do menu
 
     /// <summary>Anos de safra recentes por região, ordenados por região e ano (os antigos saem sozinhos).</summary>
     [Canonical] public IReadOnlyList<ClimateYear> ClimateYears => _climateYears;

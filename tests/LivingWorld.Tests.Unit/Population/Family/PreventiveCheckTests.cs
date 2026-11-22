@@ -162,7 +162,7 @@ public class PreventiveCheckTests
     /// banca ao lado; a moeda dele não alimenta, então a avó manda comida. Devolve a comida que chegou em 10 dias.</summary>
     private static long FoodSentToLoneTeenWhoCannotBuy(bool seesWhoCanBuy)
     {
-        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = seesWhoCanBuy } },
+        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { AidSeesWhoCanBuy = seesWhoCanBuy, PurseToShopper = seesWhoCanBuy } }, // AD-191: o braço de antes também sem a bolsa a quem compra
             ontogeny: LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
         var shop = new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 5, employees: [],
             stock: new Dictionary<ResourceType, long> { [Food] = 500 }, treasury: Money.Zero,
@@ -202,6 +202,35 @@ public class PreventiveCheckTests
     public void Before_ad182_the_coins_of_a_teen_who_cannot_buy_kept_kin_food_away()
     {
         Assert.Equal(0, FoodSentToLoneTeenWhoCannotBuy(seesWhoCanBuy: false));
+    }
+
+    /// <summary>AD-191 (seed 22, pessoa 47): o neto de 15 anos chefia a casa, ganha e não tem o marco de comprar; o avô sabe comprar e
+    /// não tem moeda. Com a regra, a moeda do neto vai ao avô (a bolsa da casa a quem compra); antes ia ao chefe (o próprio neto) e a
+    /// ajuda via "moeda na casa": o avô morria de fome com a banca ao lado. Devolve a carteira do avô depois de um dia.</summary>
+    private static long GrandpaPurseAfterADay(bool purseToShopper)
+    {
+        var world = World(Measured with { Pressure = PopulationPressureRules.Measured with { PurseToShopper = purseToShopper } },
+            ontogeny: LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
+        world.AddWorkplace(new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 5, employees: [],
+            stock: new Dictionary<ResourceType, long> { [Food] = 500 }, treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long> { [Food] = 1 }));
+        var teen = Person(world, Sex.Male, 15, Prudent, wallet: 300);
+        teen.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn with
+        {
+            GrossMotor = 1, FineMotor = 1, Language = 1, SelfCare = 1, SocialCognition = 1, Abstraction = 0.6,
+        });
+        var grandpa = Person(world, Sex.Male, 74, Prudent);
+        House(world, teen, grandpa); // o neto é o chefe
+        new MutualAidSystem().Tick(world, Ctx(world, new Sink()));
+        Assert.Equal(300, teen.Wallet.Amount + grandpa.Wallet.Amount); // a moeda só muda de mão
+        return grandpa.Wallet.Amount;
+    }
+
+    [Fact]
+    public void The_coins_of_a_teen_who_cannot_buy_go_to_the_grandfather_who_shops()
+    {
+        Assert.True(GrandpaPurseAfterADay(purseToShopper: true) > 0);
+        Assert.Equal(0, GrandpaPurseAfterADay(purseToShopper: false));
     }
 
     [Fact]

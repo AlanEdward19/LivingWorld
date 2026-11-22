@@ -11,7 +11,7 @@ public sealed partial class WorldState
     /// <summary>Violência, justiça e herança do cenário. Nulo = mundo antigo (snapshot anterior ao AD-150): omitido do
     /// snapshot e do hash, sem briga nem corte, herança toda ao cônjuge.</summary>
     [Canonical, JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public CrimeRules? CrimeRules { get; private set; }
+    public CrimeRules? CrimeRules { get; internal set; }
 
     /// <summary>Mágoas, casos, fichas e medo por cidade. Nulo com o crime desligado.</summary>
     [Canonical, JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

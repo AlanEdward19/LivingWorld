@@ -11,9 +11,11 @@ public static class CrimeSwitch
     {
         var keys = (Environment.GetEnvironmentVariable("LW_CRIME_OFF") ?? "")
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        if (Ad191.Off) keys.Add("customary"); // AD-191
         if (keys.Count == 0) return null;
         var rules = Domain.Crime.CrimeRules.Default;
         if (keys.Contains("domestic")) rules = rules with { Domestic = null };
+        if (keys.Contains("customary")) rules = rules with { Justice = rules.Justice with { CustomaryValue = false } }; // AD-191
         if (keys.Contains("kidnap")) rules = rules with { Kidnapping = null };
         if (keys.Contains("sexual")) rules = rules with { SexualViolence = null };
         // AD-163 (08b item 80): sem o castigo no corpo (açoite) e sem banir o ladrão grave reincidente

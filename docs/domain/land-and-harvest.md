@@ -62,3 +62,16 @@ não comprava: a primeira casa a chegar levava a semana inteira do pouco que sa�
 - **Tentado e retirado**: socorro em grão da cidade (o tesouro comprava do celeiro e entregava às casas cuja moeda não compra).
   Por cima da ração do dia, adiantava o consumo e matava no fim da carestia (4,6× as mortes de fome); de dentro da ração, 2,5×
   as mortes de fome e +38% de furtos (80 × 15). A causa não foi isolada (pedido de issue no AD-182).
+
+## Grão que move braços, preço e reserva (AD-191)
+- **A lavoura vale o grão na escolha de emprego** (`AgricultureRules.FieldLaborValue`, `LaborValueIndex`): fora da ceifa, o que a mão
+  acrescenta à colheita do ano (produto marginal de `ExpectedHarvest`) ÷ 360 × preço da comida; na ceifa, o grão em pé que ela corta
+  num dia (até `ReapPerWorkerDay`). Antes a comida da lavoura não contava e a fazenda valia só a água do poço: o lavrador saía por
+  qualquer oficina que pagasse 1,25 vez isso. Quem já trabalha a terra vê a própria parte (marginal sem ele), quem chega, a mão a mais.
+- **O preço do grão olha o celeiro** (`BarnReserveYears` 0,5, `BarnPriceExponent` 2,5; `MarketPricingSystem.BarnScarcityPrice`): com o
+  celeiro e a banca das fazendas da cidade abaixo do que se come até a colheita mais meio ano, o preço da fazenda vai ao piso ×
+  cobertura^−2,5 (lei de Gregory King, precisa de conferência). A banca é reposta todo dia, então antes só ficava vazia (e o preço só
+  subia) quando o celeiro acabava: duas secas na vila de código não mexiam no preço.
+- **Reserva de fundação**: a vila nasce com o que leva à colheita (`InitialProvisionPerPerson`) mais essa meia-reserva (160 por
+  morador). Sem ela uma primeira safra ruim (clima 577 na cidade média seed 1) virava carestia, 900 furtos e 35 banidos num ano.
+Medir sem: `LW_AG=nofieldvalue,nobarnprice` (Workers), `LW_MENU_OFF=fieldvalue,barnprice` (relatório do menu); tudo da fatia: `LW_AD191=off`.

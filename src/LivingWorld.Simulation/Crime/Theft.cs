@@ -311,7 +311,13 @@ internal static class Theft
         long accused = -1;
         if (world.CrimeOn && world.CrimeRules!.Justice.Enabled)
         {
-            var outcome = Justice.OnCrime(world, ctx, CrimeKind.Theft, thief, victim, target.VictimId, target.Where, value, good,
+            // AD-191: comida e água vão à justiça pelo preço de costume (o piso), não pelo da carestia
+            long judged = value;
+            var economy = world.EconomyRules;
+            if (world.CrimeRules.Justice.CustomaryValue && (target.ResourceId == economy.FoodResourceId || target.ResourceId == economy.WaterResourceId)
+                && target.Kind != TheftTargetKind.Person && target.Coin == 0)
+                judged = Math.Min(value, (took ? qty : target.Units) * Math.Max(1, economy.PriceFloor.GetValueOrDefault(target.ResourceId, 1)));
+            var outcome = Justice.OnCrime(world, ctx, CrimeKind.Theft, thief, victim, target.VictimId, target.Where, judged, good,
                 MotiveName(motive), caught: !took, rng);
             caseId = outcome.CaseId; seers = outcome.Seers; accused = outcome.Accused;
         }

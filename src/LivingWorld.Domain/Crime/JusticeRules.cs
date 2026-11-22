@@ -62,6 +62,12 @@ public sealed record JusticeRules
     public long GraveTheftValue { get; init; } = 100;
     public int BanishAfterConvictions { get; init; } = 4;
 
+    /// <summary>AD-191: o pão e a água furtados são julgados (e restituídos) pelo preço de costume (o piso), não pelo da carestia.
+    /// Com o preço a 20 na fome, oito rações viravam "furto grave" e o faminto reincidente era banido: a cidade média baniu 35 de
+    /// 150 num ano. A pena segue o que foi levado, não a alta do preço (a avaliação pelo justo preço; precisa de conferência).
+    /// Falso = o de antes (o valor do dia).</summary>
+    public bool CustomaryValue { get; init; } = true;
+
     /// <summary>Dano do castigo no corpo (pelourinho, açoite), em pontos de saúde.</summary>
     public int CorporalHarm { get; init; } = 12;
 

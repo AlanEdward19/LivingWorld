@@ -40,10 +40,13 @@ public static class PersonTrace
             if (age < 13) continue;
             var home = npc.Household is { } hid ? world.FindHousehold(hid) : null;
             int alive = home?.Members.Count(m => world.FindNpc(m) is { IsAlive: true }) ?? 0;
+            // AD-191: quem mais mora na casa (id:idade:carteira:ação:fome)
+            string mates = home is null ? "" : string.Join(",", home.Members.Where(m => m != id).Select(world.FindNpc).Where(m => m is { IsAlive: true })
+                .Select(m => string.Create(inv, $"{m!.Id.Value}:{(now - m.BirthDate.TotalHours) / world.Calendar.HoursPerYear}:{m.Wallet.Amount}:{m.CurrentAction}:{m.HungerAt(now)}")));
             string line = string.Create(inv,
                 $"{Stamp()} age={age:F1} wal={npc.Wallet.Amount} emp={npc.Employer?.Value.ToString(inv) ?? "-"} hh={npc.Household?.Value.ToString(inv) ?? "-"}/{alive} " +
-                $"stock={home?.Stock.GetValueOrDefault(food) ?? -1} carry={world.Invention?.Carried.Where(c => c.NpcId == npcId && c.ResourceId == food.Id).Sum(c => c.Quantity) ?? 0} hun={npc.HungerAt(now)} thi={npc.ThirstAt(now)} " +
-                $"act={npc.CurrentAction} home={(home is not null && home.Location == npc.CurrentLocation ? 1 : 0)} at={npc.CurrentLocation} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"}");
+                $"stock={home?.Stock.GetValueOrDefault(food) ?? -1} water={home?.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.WaterResourceId)) ?? -1} wcarry={world.Invention?.Carried.Where(c => c.NpcId == npcId && c.ResourceId == world.EconomyRules.WaterResourceId).Sum(c => c.Quantity) ?? 0} slp={npc.SleepAt(now)} carry={world.Invention?.Carried.Where(c => c.NpcId == npcId && c.ResourceId == food.Id).Sum(c => c.Quantity) ?? 0} hun={npc.HungerAt(now)} thi={npc.ThirstAt(now)} " +
+                $"mates=[{mates}] act={npc.CurrentAction} home={(home is not null && home.Location == npc.CurrentLocation ? 1 : 0)} at={npc.CurrentLocation} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"}");
             if (!npc.IsAlive) { daily.Add($"MORTE {line}"); break; }
             // AD-182: a partir da hora LW_TRACE_DECISION_FROM, a conta da decisão de cada hora
             if (now >= explainFrom) line += " | " + LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.ExplainDecision(world, npc);

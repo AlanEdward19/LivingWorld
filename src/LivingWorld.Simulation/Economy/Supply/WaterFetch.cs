@@ -90,6 +90,14 @@ public static class WaterFetch
         if ((!Below(world, home, rules.EmployedBelowDays) && FetcherOut(world, h.Value, npc.Id.Value))
             || SourceFor(world, home.Location) is not { } source) return false;
         if (source.Cell == home.Location) { Fill(world, npc, home, now); Unload(world, npc, home); return false; }
+        if (rules.NoEmptyTrips && source.Cell == npc.CurrentLocation)
+        {
+            // AD-191: já na fonte, enche aqui e a ida vira a volta para casa
+            Fill(world, npc, home, now);
+            world.Invention!.PutWaterTrip(new WaterTrip(npc.Id.Value, h.Value, source.Cell.X, source.Cell.Y, now, Returning: true));
+            world.InventionTally.WaterTrips++;
+            return true;
+        }
         Start(world, npc, h.Value, source.Cell, now);
         if (employed) world.InventionTally.WaterTripsByEmployed++;
         return true;
@@ -324,15 +332,24 @@ public static class WaterFetch
             volume = Math.Max(volume, hauler.CapacityG * 1000L / Math.Max(1, inv.WaterDensityKgM3));
         }
         int carried = 0;
+        long loadedG = 0;
         int ci = world.Invention.CarriedIndex(npc.Id.Value, int.MinValue);
         for (ci = ci >= 0 ? ci : ~ci; ci < world.Invention.Carried.Count && world.Invention.Carried[ci].NpcId == npc.Id.Value; ci++)
         {
             var load = world.Invention.Carried[ci];
-            weight -= (long)load.Quantity * inv.UnitGramsOf(load.ResourceId);
+            loadedG += (long)load.Quantity * inv.UnitGramsOf(load.ResourceId);
             if (load.ResourceId == water.Id) carried += load.Quantity;
         }
+        weight -= loadedG;
         volume -= (long)carried * inv.UnitMlOf(water.Id);
         long n = Math.Min(want, Math.Min(Math.Max(0, volume) / inv.UnitMlOf(water.Id), Math.Max(0, weight) / inv.UnitGramsOf(water.Id)));
+        if (world.NaturalWaterRules.Fetch.NoEmptyTrips)
+        {
+            // AD-191: o recipiente da casa pesado demais (cheio passa do peso a pé) fica em casa: leva o cântaro simples, no peso do corpo
+            long bareWeight = inv.FootCarryKg * 1000L - loadedG;
+            long bareVolume = world.NaturalWaterRules.Fetch.VesselMl - (long)carried * inv.UnitMlOf(water.Id);
+            n = Math.Max(n, Math.Min(want, Math.Min(Math.Max(0, bareVolume) / inv.UnitMlOf(water.Id), Math.Max(0, bareWeight) / inv.UnitGramsOf(water.Id))));
+        }
         if (n <= 0) return;
         world.Invention.Carry(npc.Id.Value, water.Id, (int)n);
         world.RecordResourceProduced(water, n);

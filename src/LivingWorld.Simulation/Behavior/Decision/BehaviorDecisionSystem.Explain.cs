@@ -33,6 +33,13 @@ public sealed partial class BehaviorDecisionSystem
             rules, world.EconomyRules, npc.CurrentAction, captureTrace: true, eligibility: eligibility,
             brainGains: world.BrainOn ? BrainMechanic.GainsFor(world.BrainRules!, npc, now) : null);
         var t = decision.Trace;
-        return line + $" winner={t.Winner}:{t.WinningUtility:F2} plus=[{string.Join(";", t.TopPositiveFactors)}] minus=[{string.Join(";", t.TopNegativeFactors)}] block=[{string.Join(";", t.BlockingFactors)}] alt=[{string.Join(",", t.KnownAlternatives)}]";
+        // AD-191: o que acontece com a vencedora depois da utility (percepção, refino de local) e para onde a viagem iria
+        int ti = world.Invention?.WaterTrips is { Count: > 0 } ? world.Invention.WaterTripIndex(npc.Id.Value) : -1;
+        string trip = ti >= 0 ? $"{world.Invention!.WaterTrips![ti]}" : "-";
+        var room = LivingWorld.Simulation.Invention.PersonalCarry.RoomOf(world, npc);
+        line += $" trip=[{trip}] room={room.WeightG}g/{room.WetMl}ml started={npc.ActionStartedAtTick}";
+        var perceived = ApplyPerception(world, npc, t.Winner);
+        var refined = RefineForLocation(world, npc, perceived, index);
+        return line + $" winner={t.Winner}:{t.WinningUtility:F2} perceived={perceived} refined={refined} sleepAt={SleepDestinationOf(world, npc)?.ToString() ?? "-"} travelTo={TravelDestinationOf(world, npc, index)?.ToString() ?? "-"} plus=[{string.Join(";", t.TopPositiveFactors)}] minus=[{string.Join(";", t.TopNegativeFactors)}] block=[{string.Join(";", t.BlockingFactors)}] alt=[{string.Join(",", t.KnownAlternatives)}]";
     }
 }
