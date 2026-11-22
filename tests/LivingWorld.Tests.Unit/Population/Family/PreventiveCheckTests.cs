@@ -217,7 +217,12 @@ public class PreventiveCheckTests
         var teen = Person(world, Sex.Male, 15, Prudent, wallet: 300);
         teen.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn with
         {
-            GrossMotor = 1, FineMotor = 1, Language = 1, SelfCare = 1, SocialCognition = 1, Abstraction = 0.6,
+            GrossMotor = 1,
+            FineMotor = 1,
+            Language = 1,
+            SelfCare = 1,
+            SocialCognition = 1,
+            Abstraction = 0.6,
         });
         var grandpa = Person(world, Sex.Male, 74, Prudent);
         House(world, teen, grandpa); // o neto é o chefe
