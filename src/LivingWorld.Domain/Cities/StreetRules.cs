@@ -193,6 +193,10 @@ public sealed record StreetRules(
     /// água que chega fica no pote de todos (a mesma casa, sem viagem entre despensas). Desligado: cada casa enche o seu.</summary>
     public bool LodgersSharePot { get; init; } = true;
 
+    /// <summary>AD-184: e dividem a mesa: sem comida na despensa da casa, quem come em casa come da de quem divide o teto (a mesma
+    /// cozinha). Desligado: cada casa come só do seu.</summary>
+    public bool LodgersShareTable { get; init; } = true;
+
     /// <summary>AD-184: o casal mora sozinho (casa própria) e não com os pais: costume do noroeste europeu (neolocal).</summary>
     public bool NeolocalCouples { get; init; } = true;
 

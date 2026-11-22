@@ -365,4 +365,28 @@ public class BuildWorksTests
         if (share) Assert.True(host.Stock.GetValueOrDefault(water) > 0, "a água que chegou ficou no pote das duas casas");
         else Assert.Equal(0, host.Stock.GetValueOrDefault(water));
     }
+    /// <summary>E dividem a mesa: sem comida na despensa do casal, quem come em casa come da de quem o acolhe (a mesma cozinha; a
+    /// criança do casal de favor da metrópole morria de fome com a despensa dos avós ao lado). Sem a regra, só a sua.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_lodging_couple_eats_from_the_hosts_table_when_its_own_pantry_is_empty(bool share)
+    {
+        var (world, _, _) = World(streets: StreetRules.Default with { LodgersShareTable = share });
+        var (a, b) = Singles(world);
+        MarriageSystem.Marry(world, Ctx(world), a, b);
+        var couple = world.FindHousehold(a.Household!.Value)!;
+        var host = world.Households.Single(h => h != couple && !h.IsEmpty && h.Dwelling == couple.Dwelling);
+        long now = world.CurrentDate.TotalHours;
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        foreach (var r in couple.Stock.Keys.ToList()) if (r.Id != world.EconomyRules.WaterResourceId) couple.Withdraw(r, couple.Stock[r]);
+        host.Deposit(food, 5);
+        long before = host.Stock.Values.Sum();
+        foreach (var n in new[] { a, b }) { n.MoveTo(couple.Location, now); n.TryDebitWallet(n.Wallet); }
+        a.SetHunger(10, now);
+        LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.ResolveFoodPlan(world, a,
+            LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(world), now, LivingWorld.Domain.Behavior.ActionType.Eat);
+        Assert.Equal(share, a.HungerAt(now) > 10);
+        Assert.Equal(share, host.Stock.Values.Sum() < before);
+    }
 }

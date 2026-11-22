@@ -11,7 +11,9 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
 - **Onde mora enquanto isso** (`MarriageSystem`): a casa que um dos noivos deixou vazia fica com o casal; senão eles moram de favor
   na casa de um dos pais, a mais conveniente para os dois. Casa vazia na cidade (do falecido): a mais conveniente, sem obra.
   De favor e quem acolhe dividem o pote de água (`LodgersSharePot`): quem vai à fonte enche para os dois, a água que chega fica
-  no pote de todos na proporção de cada casa e quem tem sede bebe do pote (a mesma casa, sem viagem entre despensas).
+  no pote de todos na proporção de cada casa e quem tem sede bebe do pote (a mesma casa, sem viagem entre despensas). E a mesa
+  (`LodgersShareTable`): sem comida na sua despensa, come da de quem divide o teto. Criança com fome urgente em casa sem comida
+  manda o crescido que pode pagar comprar, por cima do trabalho (`ProvisioningRules.ChildHungerSendsShopper`).
 - **A hora de beber** (`WaterFetchRules.DrinkAtMealLine`, vale com e sem obra): em casa e acordado (ou indo deitar), com água no
   pote, bebe um copo na linha da refeição, não só na urgência, e come se a fome já tem apetite; criança com menos de
   `SelfDrinkAgeYears` só com um crescido em casa e acordado. `ThirstFirstWhenBothStarving`: fome no fim e sede urgente, a ida à

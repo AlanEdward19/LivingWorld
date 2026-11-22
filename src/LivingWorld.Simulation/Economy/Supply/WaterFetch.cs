@@ -81,9 +81,13 @@ public static class WaterFetch
     }
 
     /// <summary>AD-184: a casa que divide o pote com esta (de favor ↔ quem acolhe, morando juntos), ou nulo.</summary>
-    internal static Household? PotPartner(WorldState world, Household home)
+    internal static Household? PotPartner(WorldState world, Household home) =>
+        world.StreetRules.LodgersSharePot ? RoofPartner(world, home) : null;
+
+    /// <summary>AD-184: a casa que mora sob o mesmo teto que esta (de favor ↔ quem acolhe), ou nulo.</summary>
+    internal static Household? RoofPartner(WorldState world, Household home)
     {
-        if (!world.StreetRules.LodgersSharePot || world.Ground is not { Lodgers.Count: > 0 } ground || home.Dwelling is not { } dwelling) return null;
+        if (world.Ground is not { Lodgers.Count: > 0 } ground || home.Dwelling is not { } dwelling) return null;
         long day = world.CurrentDate.TotalHours / Math.Max(1, world.Calendar.HoursPerDay);
         if (ground.PotIndex is null || ground.PotIndexDay != day) { ground.PotIndex = BuildPotIndex(world, ground); ground.PotIndexDay = day; }
         if (!ground.PotIndex.TryGetValue(home.Id.Value, out var other)) return null;
@@ -116,6 +120,14 @@ public static class WaterFetch
 
     /// <summary>A água do pote para quem está em casa (a da própria casa ou a de quem divide o pote).</summary>
     internal static long PotWater(WorldState world, Household home) => PotWater(world, home, PotPartner(world, home));
+
+    /// <summary>AD-184: sem comida na despensa da casa, um prato da de quem divide o teto (a mesma cozinha); devolve o que comeu.</summary>
+    internal static ResourceType? DrawMealFromTable(WorldState world, Household? home)
+    {
+        if (home is null || !world.StreetRules.LodgersShareTable || RoofPartner(world, home) is not { } partner) return null;
+        var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, partner);
+        return meal.Id > 0 && partner.Withdraw(meal, 1).IsSuccess ? meal : null;
+    }
 
     /// <summary>AD-184: sem água na própria parte, um gole do pote de quem divide a casa (verdadeiro se tirou).</summary>
     internal static bool DrawFromPot(WorldState world, Household? home, ResourceType water)

@@ -58,4 +58,29 @@ public sealed class HouseholdFoodRoundTwoTests
         Assert.Equal(!rule, DecisionContextBuilder.Build(world, child, now).CanEarn);
         Assert.True(DecisionContextBuilder.Build(world, worker, now).CanEarn);
     }
+    /// <summary>AD-184 (metrópole seed 2, ano 10): a casa sem comida com uma criança com fome urgente em casa: o crescido que pode pagar
+    /// larga o trabalho para comprar. Com comida em casa, ou sem a regra, segue no que fazia.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_hungry_child_at_home_with_no_food_sends_a_grown_member_who_can_pay_to_buy(bool rule)
+    {
+        var needs = ScenarioRunner.DefaultNeedsRules;
+        var (world, _) = ScenarioRunner.Create(7, needsRules: needs with { Provisioning = needs.Provisioning with { ChildHungerSendsShopper = rule } });
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        bool IsChild(Npc n) => world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Child;
+        var home = world.Households.Where(h => !h.IsEmpty && !h.IsHomeless).OrderBy(h => h.Id.Value).First(h =>
+            h.Members.Any(m => world.FindNpc(m) is { IsAlive: true } n && IsChild(n)) && h.Members.Any(m => world.FindNpc(m) is { IsAlive: true } n && !IsChild(n)));
+        var child = home.Members.Select(m => world.FindNpc(m)!).First(n => n.IsAlive && IsChild(n));
+        var grown = home.Members.Select(m => world.FindNpc(m)!).First(n => n.IsAlive && !IsChild(n));
+        long now = world.CurrentDate.TotalHours;
+        foreach (var m in home.Members) world.FindNpc(m)!.SetCurrentAction(LivingWorld.Domain.Behavior.ActionType.Idle, now);
+        home.Withdraw(food, home.Stock.GetValueOrDefault(food));
+        child.MoveTo(home.Location, now);
+        child.SetHunger(5, now);
+        grown.CreditWallet(new Money(50));
+        Assert.Equal(rule, BehaviorDecisionSystem.ChildHungerSendsShopper(world, grown, LivingWorld.Domain.Behavior.ActionType.Work, now));
+        home.Deposit(food, 3);
+        Assert.False(BehaviorDecisionSystem.ChildHungerSendsShopper(world, grown, LivingWorld.Domain.Behavior.ActionType.Work, now));
+    }
 }

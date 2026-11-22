@@ -233,6 +233,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
 
                 if (MealTimeAtHome(world, npc, candidate, now)) candidate = ActionType.Eat; // AD-157b
+                if (npc.ControlledAction is null && ChildHungerSendsShopper(world, npc, candidate, now)) candidate = ActionType.Buy; // AD-184
                 var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;
