@@ -325,7 +325,6 @@ public static class BuildWorks
         long now = ctx.CurrentTick;
         var canteiro = new Building(world.NextBuildingIdAndAdvance(), city.Id, typeId, now, position, orientation, croftCells: croft) { UnderWork = id };
         world.AddBuilding(canteiro);
-        Streets.StreetGroundSystem.Occupied(world, now); // AD-192 (08d 182): o canteiro ocupa o chão já
         var work = new BuildWork
         {
             Id = id,

@@ -51,7 +51,7 @@ public sealed class StreetGroundSystem : ISimulationSystem
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
 
-    /// <summary>AD-192 (08d 182): um prédio passou a ocupar o chão agora (canteiro aberto, obra pronta, prédio erguido): vira obstáculo
+    /// <summary>AD-192 (08d 182): um prédio passou a ocupar o chão agora (obra pronta, prédio erguido): vira obstáculo
     /// da rota no ato, não na virada do mês, e o chão pisado e o calçamento debaixo dele somem. A rota de quem sai depois já o contorna.
     /// Sem a chave, espera a virada do mês como antes.</summary>
     internal static void Occupied(WorldState world, long now)

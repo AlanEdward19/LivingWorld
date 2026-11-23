@@ -53,7 +53,7 @@
      da fundação daria rua no ano 0.
 181. ~~**`cidade-media` quase não pisa o chão**~~ AD-179: era fixture sem economia; agora ~55 viagens/pessoa-mês.: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
      aperto do item 172); sem trilha nenhuma em 20 anos. Ver junto com o 172.
-182. ~~**Prédio vira obstáculo só na virada do mês**~~ AD-192: obstáculo no ato (canteiro e obra pronta); lote novo não cobre caminho pisado. (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
+182. ~~**Prédio vira obstáculo só na virada do mês**~~ AD-192: obstáculo no ato (obra pronta); lote novo não cobre caminho pisado. (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
 183. ~~**Técnica de calçar sem protótipo pago**~~ AD-192: o trecho de teste traz o cascalho do leito (idas nas horas); sem fonte, não testa. Protótipo presencial da invenção: #196.: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
 

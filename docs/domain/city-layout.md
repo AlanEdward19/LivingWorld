@@ -12,7 +12,7 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 - Toda viagem que chega soma uma passagem em cada célula da rota que fez (no fim do mês), fora prédio e água. O pisoteio
   acumulado perde `WearRetainPm` por mês (o mato volta). Snapshot e hash: linhas esparsas por célula, viagens do mês, obras.
 - A cada `ReviewMonths` a superfície muda: **trilha** a partir de `TrailWear`, **terra batida** a partir de `DirtWear` (some abaixo
-  da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo (canteiro, obra pronta) vira obstáculo no ato e apaga o chão debaixo; lote novo não cobre caminho pisado nem chão de outra cidade (AD-192).
+  da metade do limiar: folga). Cascalho e pedra só por obra. Prédio pronto (obra que acaba, prédio erguido) vira obstáculo no ato e apaga o chão debaixo; lote novo não cobre caminho pisado nem chão de outra cidade (AD-192).
 - Lama na chuva (AD-180, [climate](climate.md)): o chão de terra (trilha, terra batida, campo) molha com a chuva e seca com o calor;
   lama alonga a parte da rota sem calçamento, neve a rota toda — o calçamento poupa o tempo que a lama tomaria.
 - **Chão da história** (AD-179, `StreetGroundSystem.SeedHistory`): o mundo começa no meio da história. Na criação, o mês típico

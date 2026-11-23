@@ -72,7 +72,7 @@ public class CityLeftoversTests
         var bounds = CityOccupancy.ResolveGrownBounds(world, mother, 100).Bounds;
         var ground = CityOccupancy.GroundOfCity(world, mother, bounds, new BuildingId(world.NextBuildingId));
         var barred = CityOccupancy.Barred(world, mother, network, ground);
-        Assert.Equal(cut, barred.Barred?.Contains(neighbour.Location) == true);
+        Assert.Equal(cut, barred.Bar?.Covers(neighbour.Location) == true);
     }
 
     // ---------------------------------------------------------------- 170
@@ -118,7 +118,7 @@ public class CityLeftoversTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void A_new_site_blocks_the_route_at_once_only_with_the_rule(bool atOnce)
+    public void A_finished_house_blocks_the_route_at_once_only_with_the_rule(bool atOnce)
     {
         var (world, clock) = Village(StreetRules.Default with { ObstacleOnCompletion = atOnce, LotsAvoidTrodden = false });
         clock.Run(world, world.Calendar.HoursPerDay); // um dia depois da virada do mês da criação
@@ -131,6 +131,7 @@ public class CityLeftoversTests
         var work = BuildWorks.Open(world, ctx, city, BuildKind.House, candidate.BuildingTypeId, lot.Origin, lot.Orientation, lot.Croft,
             world.Households[0].Id.Value, world.Households[0].Head.Value, 100, 0, "teste");
         var site = world.FindBuilding(new BuildingId(work.Building))!;
+        BuildWorks.Finish(world, ctx, work); // pronta no meio do mês
         var cell = BuildingFootprintGenerator.Generate(site).Select(c => new CellCoord(c.Cell.X + lot.Origin.X, c.Cell.Y + lot.Origin.Y)).First();
         var state = StreetRoutes.StateOf(world);
         Assert.Equal(atOnce, state.Owner[world.Ground!.IndexOf(cell)] != 0);

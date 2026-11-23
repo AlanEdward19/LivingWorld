@@ -438,28 +438,14 @@ public static class CityOccupancy
     /// O mesmo chão de sempre sem as chaves ou sem nada a barrar.</summary>
     internal static CityGround Barred(WorldState world, City city, StreetNetwork network, CityGround ground)
     {
+        _ = network;
         var rules = world.StreetRules;
-        HashSet<CellCoord>? barred = null, cut = null;
-        if (rules.LotsAvoidTrodden && world.StreetsOn)
-        {
-            var ledger = world.Ground!;
-            for (int i = 0; i < ledger.Count; i++)
-                if (ledger.SurfaceAt(i) != Streets.GroundSurface.None) (barred ??= []).Add(ledger.CellOf(i));
-        }
+        var trodden = rules.LotsAvoidTrodden && world.StreetsOn ? world.Ground : null;
+        List<CityBounds>? boxes = null;
         if (rules.CutAtNeighbourCity)
             foreach (var other in world.ActiveCities())
-            {
-                if (other.Id == city.Id) continue;
-                var box = OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds;
-                for (int y = box.Origin.Y; y < box.Origin.Y + box.Height; y++)
-                    for (int x = box.Origin.X; x < box.Origin.X + box.Width; x++)
-                    {
-                        var cell = new CellCoord(x, y);
-                        (barred ??= []).Add(cell);
-                        if (network.Contains(cell)) (cut ??= []).Add(cell);
-                    }
-            }
-        return barred is null && cut is null ? ground : ground.WithBarred(barred ?? [], cut ?? []);
+                if (other.Id != city.Id) (boxes ??= []).Add(OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds);
+        return trodden is null && boxes is null ? ground : ground.WithBar(new LotBar(trodden, boxes?.ToArray() ?? []));
     }
 
     private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>

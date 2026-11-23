@@ -142,7 +142,6 @@ public sealed class ConstructionSystem : ISimulationSystem
                     reserved.Position, reserved.Orientation, croftCells: reserved.Croft)
                 { UnderWork = project.WorkId };
                 world.AddBuilding(canteiro);
-                Streets.StreetGroundSystem.Occupied(world, ctx.CurrentTick); // AD-192 (08d 182): o canteiro ocupa o chão já
                 project.Canteiro = canteiro.Id.Value;
             }
             long units = recipe.Inputs.Values.Sum();
