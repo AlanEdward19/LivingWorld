@@ -31,6 +31,18 @@ Continuação de [build-works](build-works.md) (AD-184). O motor é a fonte da v
   com quem e de onde). As horas na fonte são jornada: o diarista recebe, o ajudante conta andamento; a parede só sobe no lote.
 - **Interrupção**: fome, sede, noite e tempo ruim tiram a jornada como sempre; a carga fica nas mãos até ele voltar ao lote. Quem sai da
   obra com a carga a leva para casa; a viagem que nunca chega à fonte em três dias passa a outro.
+- **O corte sem a caminhada** (`CutWithoutWalk`): `HouseGatherHours` (AD-184, 160 h para 20 unidades) era o total de buscar na mata
+  com as viagens dentro (`HouseMaterialUnits / BuildUnitsPerLoad` = 10 idas e voltas carregadas). Agora a ida é andada, então o corte
+  de uma carga é (160 − 10 × a ida e volta pela rota deste lote até esta mata, a volta com o fator da carga) / 20 por unidade, ao menos
+  1 h. Não achei fonte com horas de corte por árvore ou peça (busca de 2026-11-23 sem resultado útil); a conta só tira do número da
+  AD-184 o que agora é andado. Ferramenta e técnica não pesam no corte: o motor não tem machado nem serra como objeto de quem corta.
+- **A pilha na mata** (`BuildWork.CutStock`, uma mata por obra): quem corta empilha lá; quem chega leva a carga cheia da pilha, ou o
+  que tiver ao largar o trabalho: um corta enquanto o outro carrega e ninguém volta de mãos vazias depois de um dia de corte.
+- **Compra parcial** (`BuyPartialLoads`): com moeda e estoque na banca, compra o que pode da carga em vez de ir cortar.
+- **Dia de mutirão** (`MutiraoDays`, `SiteWork.MutiraoToday`): a família da casa e o ajudante de vontade forte (a conta de
+  `Consider`, ≥ `MutiraoDayMin` 0,4: laço × generosidade × a parte do dia que a ida deixa − metade da necessidade da própria casa)
+  dão um dia inteiro por semana, mesmo empregados; quem lavra dá dois na entressafra e nenhum na semeadura nem na ceifa. O motor não
+  tem dia de descanso no calendário nem dívida de favor da obra: o dia da semana de cada um (pelo id) faz as vezes do domingo.
 - **A fila da cidade** (`QueueHaul`): a turma do prédio-N busca no largo (estoque da cidade) o insumo da receita, carga por carga, e o
   passo da receita só consome o que está no lote (`ConstructionProject.MaterialOnSite`); sem insumo no estoque nem no lote, trava
   (`WorkMaterialShort`), e o dia perdido pelo tempo e a retomada saem com lugar como na casa. Pronta ou desfeita, o que sobrou volta ao
@@ -56,7 +68,8 @@ anos e a seed 1, 4 casas; a seed 7 segue sem lote (119 de 120 consultas dos casa
 `MenuWorkOpensTests` cria o mundo pelo caminho do menu (seed 1) e vê a obra da casa abrir e receber carga.
 
 ## Chaves
-`LW_AD195=off|nowalk|nohome` (carregador que anda; despensa primeiro). `LW_AD194=off` desliga as regras da AD-194 (material em horas na abertura, sem evento de dia perdido), na vila de código
+`LW_AD195=off|nowalk|nohome|nocut|nopartial|nomutirao` (carregador que anda; despensa primeiro; corte sem a caminhada; compra
+parcial; mutirão). `LW_AD194=off` desliga as regras da AD-194 (material em horas na abertura, sem evento de dia perdido), na vila de código
 (`CityLayoutSwitch`) e nos mundos do menu (`MenuWorlds`).
 
 ## Fontes e confiança
