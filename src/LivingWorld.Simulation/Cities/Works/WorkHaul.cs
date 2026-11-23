@@ -189,7 +189,7 @@ internal static class WorkHaul
         if (seller is not null && WorkMaterial.CanPay(world, work, units * price))
             return new HaulTrip { Npc = who.Id.Value, X = seller.Location.X, Y = seller.Location.Y, Source = "banca", Seller = seller.Id.Value, Units = units };
         if (rules.HouseGatherHours <= 0) return null;
-        var wood = WoodsFor(world, city, new CellCoord(work.X, work.Y));
+        var wood = WoodsFor(world, city, new CellCoord(work.X, work.Y), resource);
         return new HaulTrip
         {
             Npc = who.Id.Value,
@@ -241,7 +241,27 @@ internal static class WorkHaul
 
     /// <summary>A mata mais perto do lote: a célula logo fora dos limites da cidade, do lado mais perto, que se alcança a pé do lote
     /// (água e terreno sem passagem ficam de fora); sem nenhuma, a borda mais perto.</summary>
-    private static CellCoord WoodsFor(WorldState world, LivingWorld.Domain.Cities.City city, CellCoord site)
+    private static CellCoord WoodsFor(WorldState world, LivingWorld.Domain.Cities.City city, CellCoord site, ResourceType resource)
+    {
+        // a célula mais perto do lote onde o mapa tem o material (a mata de verdade), alcançável a pé
+        var map = world.Map;
+        int tried = 0;
+        for (int r = 1; r <= 24 && tried < 6; r++)
+            for (int dy = -r; dy <= r && tried < 6; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                    var cell = new CellCoord(site.X + dx, site.Y + dy);
+                    if (!map.TryGetCell(cell, out var mapCell) || !mapCell.Resources.Contains(resource)) continue;
+                    tried++;
+                    if (LivingWorld.Simulation.Behavior.Resolvers.RestPlaceResolver.IsReachable(map, site, cell)) return cell;
+                    if (tried >= 6) break;
+                }
+        return EdgeWoods(world, city, site);
+    }
+
+    /// <summary>Sem mata no mapa por perto: a borda da cidade mais perto, alcançável.</summary>
+    private static CellCoord EdgeWoods(WorldState world, LivingWorld.Domain.Cities.City city, CellCoord site)
     {
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
         var options = new (int Distance, CellCoord Cell)[]
