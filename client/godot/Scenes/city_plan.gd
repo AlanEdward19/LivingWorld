@@ -11,6 +11,9 @@ const Style := preload("res://Scenes/render/street_style.gd")
 const Describe := preload("res://Scenes/inspector_describe.gd")
 const Labels := preload("res://Scenes/render/building_labels.gd")
 const Registry := preload("res://Store/entity_registry.gd")
+const Works := preload("res://Store/work_book.gd")
+const SITE_PLAN := Color("e0b04a") ## AD-193: canteiro de obra (contorno; a barra é o quanto já foi feito)
+const SITE_HALT := Color("c0564a") ## obra parada (tempo, falta de gente ou de material)
 
 const FUNCTION_COLORS := {"dwelling": Color("d9a066"), "lodging": Color("c77dba"), "workplace": Color("5b8fd1"),
 	"structure": Color("9a9a9a")}
@@ -184,6 +187,17 @@ func _draw() -> void:
 			draw_rect(cell_rect(info.cell + entry.cell, 0.02), color)
 			if int(entry.material) == 2:
 				draw_rect(cell_rect(info.cell + entry.cell, 0.3), Color("3b2a20"))
+		var site: Dictionary = Works.of_building(store, int(id))
+		if not site.is_empty() and not info.footprint.is_empty(): # AD-193: canteiro: contorno e barra do quanto a obra já fez
+			var lo: Vector2i = info.cell + info.footprint[0].cell
+			var hi: Vector2i = lo
+			for entry in info.footprint:
+				lo = Vector2i(mini(lo.x, info.cell.x + entry.cell.x), mini(lo.y, info.cell.y + entry.cell.y))
+				hi = Vector2i(maxi(hi.x, info.cell.x + entry.cell.x), maxi(hi.y, info.cell.y + entry.cell.y))
+			var frame := cell_rect(lo, 0.04).merge(cell_rect(hi, 0.04))
+			var tone: Color = SITE_HALT if String(site.get("halt", "")) != "" else SITE_PLAN
+			draw_rect(frame, tone, false, maxf(cell_px * 0.12, 1.5))
+			draw_rect(Rect2(frame.position + Vector2(0, frame.size.y * 0.8), Vector2(frame.size.x * float(site.progress), frame.size.y * 0.16)), tone)
 		if cell_px >= 14.0 and not info.footprint.is_empty():
 			var at := cell_rect(info.cell + info.footprint[0].cell).position + Vector2(2, cell_px * 0.45)
 			draw_string(font, at, Labels.text_for(info, state, app.registry), HORIZONTAL_ALIGNMENT_LEFT, cell_px * 3.0,
@@ -261,6 +275,8 @@ func _legend(font: Font) -> void:
 	rows.append([Color("3b2a20"), "Porta"])
 	rows.append([WATER, "Água"])
 	rows.append([Style.WORK_STYLE.plan, "Obra de calçamento (barra = feito)"])
+	rows.append([SITE_PLAN, "Canteiro de obra (barra = feito)"])
+	rows.append([SITE_HALT, "Obra parada (tempo, gente ou material)"])
 	rows.append([RESERVE, "Traçado reservado, sem uso"])
 	for key in ["alley", "stair", "roof", "none"]:
 		rows.append([Style.ACCESS_STYLES[key].plan, "Acesso: %s" % Style.ACCESS_STYLES[key].name])

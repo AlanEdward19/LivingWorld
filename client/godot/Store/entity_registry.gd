@@ -17,13 +17,14 @@ const FAUNA := "fauna" ## bando agregado do mapa-múndi (id = "espécie:região"
 const LEAVING := "leaving"
 const ITEM := "item" ## peça inventada (objeto da projeção, id numérico); OBJECT é a mobília do interior (id do catálogo)
 const STREET := "street" ## célula de rua da camada `Roads` (id = "x,y"; AD-177)
-const KINDS := [PERSON, BUILDING, CITY, PROCESS, OBJECT, WORKPLACE, HOUSEHOLD, EVENT, CROP, ANIMAL, FAUNA, LEAVING, ITEM, STREET]
+const WORK := "work" ## obra em andamento (AD-193; id da obra do motor)
+const KINDS := [PERSON, BUILDING, CITY, PROCESS, OBJECT, WORKPLACE, HOUSEHOLD, EVENT, CROP, ANIMAL, FAUNA, LEAVING, ITEM, STREET, WORK]
 ## Tipo local -> tipo da rota `GET /entities/{kind}/{id}` (AD-170); ausente = sem rota (evento, processo, mobília, bando).
 const SERVER_KINDS := {PERSON: "npc", BUILDING: "building", CITY: "city", CROP: "crop", ANIMAL: "animal", LEAVING: "leaving",
-	ITEM: "object", WORKPLACE: "workplace", HOUSEHOLD: "household"}
+	ITEM: "object", WORKPLACE: "workplace", HOUSEHOLD: "household", WORK: "work"}
 const LOCAL_KINDS := {"npc": PERSON, "pessoa": PERSON, "building": BUILDING, "predio": BUILDING, "city": CITY, "cidade": CITY,
 	"crop": CROP, "lavoura": CROP, "animal": ANIMAL, "object": ITEM, "objeto": ITEM, "leaving": LEAVING, "espolio": LEAVING,
-	"household": HOUSEHOLD, "casa": HOUSEHOLD, "workplace": WORKPLACE, "oficina": WORKPLACE}
+	"household": HOUSEHOLD, "casa": HOUSEHOLD, "workplace": WORKPLACE, "oficina": WORKPLACE, "work": WORK, "obra": WORK}
 const STAGE_NAMES := {"unsown": "sem semear", "planted": "plantado", "growing": "crescendo", "mature": "maduro",
 	"harvested": "colhido", "fallow": "pousio"}
 const SPECIES_NAMES := {"rabbit": "Coelho", "wolf": "Lobo", "deer": "Cervo", "fox": "Raposa", "sheep": "Ovelha", "cow": "Vaca",
@@ -32,10 +33,10 @@ const SPECIES_NAMES := {"rabbit": "Coelho", "wolf": "Lobo", "deer": "Cervo", "fo
 const PROCESS_NAMES := {
 	"rest": "Descanso", "food": "Refeição", "cook-food": "Cozinhar", "collect-water": "Buscar água",
 	"deliver-water": "Entregar água", "carry-water": "Carregar água", "plant-crop": "Plantio", "water-crop": "Rega",
-	"harvest-crop": "Colheita", "construction": "Obra", "process": "Trabalho",
+	"harvest-crop": "Colheita", "construction": "Obra", "build-work": "Obra", "process": "Trabalho",
 }
 const KIND_NAMES := {"rest": "Descanso", "food": "Refeição", "cook": "Cozinha", "water": "Água", "crop": "Lavoura",
-	"construction": "Obra", "extraordinary-construct": "Construto extraordinário", "process": "Trabalho"}
+	"construction": "Obra", "build-work": "Obra", "extraordinary-construct": "Construto extraordinário", "process": "Trabalho"}
 
 var store
 var professions: Dictionary = {} ## id -> nome (catálogo do período)
@@ -156,6 +157,11 @@ func title_of(entity: Dictionary) -> String:
 			return "Espólio de %s" % person_name(int(leaving.dead_id)) if leaving != null and int(leaving.dead_id) >= 0 else "Espólio"
 		ITEM:
 			return String(entity_names.get(key(entity), "Objeto nº %d" % int(id)))
+		WORK:
+			var work = store.works.get(int(id)) if store != null else null
+			if work == null:
+				return String(entity_names.get(key(entity), "Obra nº %d" % int(id)))
+			return "Obra: %s" % preload("res://Store/work_book.gd").what(work)
 		STREET:
 			var road = store.roads.get(street_cell(String(id))) if store != null else null
 			return preload("res://Scenes/render/street_style.gd").title_of(road) if road != null else "Rua"
@@ -263,8 +269,20 @@ func event_title(event: Dictionary) -> String:
 			parts.append(String(involved.outcome))
 		return " · ".join(parts)
 	var title := String(event.get("label", "Evento")) if String(event.get("label", "")) != "" else "Evento"
-	var motive := String(event.get("involved", {}).get("motive", ""))
+	var involved: Dictionary = event.get("involved", {})
+	if involved.has("workId") and String(involved.get("outcome", "")) != "": # AD-193: o que a obra levanta (casa, oficina, prédio)
+		title += " — %s" % work_kind_text(String(involved.outcome))
+	var motive := String(involved.get("motive", ""))
 	return title + (" (%s)" % motive_text(motive) if motive != "" else "")
+
+
+## Tipo da obra no payload (casa, oficina, predio-N, calcamento) em palavras.
+func work_kind_text(kind: String) -> String:
+	if kind.begins_with("predio-"):
+		var name := building_type_name(kind.trim_prefix("predio-").to_int())
+		return name.to_lower() if name != "" else "prédio da cidade"
+	return {"casa": "casa", "oficina": "oficina", "calcamento": "calçamento", "desfeita": "obra desfeita",
+		"sem-pagamento": "sem pagamento", "emprego": "voltou ao emprego"}.get(kind, kind.replace("-", " "))
 
 
 ## Motivo do evento (`involved.motive`, AD-183/186) em palavras; motivo novo que o cliente não conhece vai como veio.
@@ -296,6 +314,8 @@ func event_links(event: Dictionary) -> Array:
 		links.append(["Local de trabalho", ref(WORKPLACE, int(involved.workplaceId))])
 	if involved.has("leavingId"):
 		links.append(["Espólio", ref(LEAVING, int(involved.leavingId))])
+	if involved.has("workId"):
+		links.append(["Obra", ref(WORK, int(involved.workId))])
 	if involved.has("cityId"):
 		links.append(["Cidade", ref(CITY, String(involved.cityId))])
 	var seen := {}

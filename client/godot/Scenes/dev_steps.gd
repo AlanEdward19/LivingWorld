@@ -166,6 +166,20 @@ static func run(app: Node, steps: Array) -> void:
 					var a: int = app.store.npcs[id].action
 					actions[a] = actions.get(a, 0) + 1
 				print("log: scope=", app.store.kind, " cursor=", app.stream.cursor, " state=", app.stream.state, " npcs=", app.store.npcs.size(), " actions=", actions)
+				# AD-193: obras que o cliente recebeu e quantas desenhou como canteiro (e quem está no lote com a obra como alvo)
+				var sites := 0
+				for node in app.world_view.buildings.nodes.values():
+					if node.has_meta("work_id"):
+						sites += 1
+				var on_site := 0
+				for id in app.store.npcs:
+					if String(app.store.npcs[id].get("target", {}).get("kind", "")) == "work":
+						on_site += 1
+				var works_text: Array = []
+				for work in app.store.works.values():
+					works_text.append("%d:%s:%d%%:%s:turma=%d+%d:lote=%d" % [int(work.id), String(work.kind), int(round(float(work.progress) * 100.0)),
+						String(work.halt) if String(work.halt) != "" else "anda", work.crew.size(), work.helpers.size(), work.on_site.size()])
+				print("log-works: works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
 			"walls":
 				var view = app.stage.interior_view
 				var heights := {}

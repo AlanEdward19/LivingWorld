@@ -42,6 +42,11 @@ func rebuild(store, registry, building_nodes: Dictionary) -> void:
 ## Nome que o servidor deu (ficha já lida) > tipo de local > tipo de prédio > função.
 static func text_for(building: Dictionary, state: Dictionary, registry) -> String:
 	var id := int(building.id)
+	var work: Dictionary = building.get("work", {})
+	if not work.is_empty(): # AD-193: canteiro — o prédio ainda não existe
+		var kind := String(work.get("kind", ""))
+		return "Obra: %s" % ("casa" if kind == "casa" else "oficina" if kind == "oficina" else
+			(registry.work_kind_text(kind) if registry != null else "prédio"))
 	if registry != null:
 		var known := String(registry.entity_names.get("building:%d" % id, ""))
 		if known != "":
