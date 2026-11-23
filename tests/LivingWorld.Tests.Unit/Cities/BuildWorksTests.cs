@@ -94,7 +94,7 @@ public class BuildWorksTests
     [Fact]
     public void The_family_picks_the_lot_that_costs_it_least_in_daily_trips()
     {
-        var (world, clock, _) = World(streets: StreetRules.Default with { QuarterInLotChoice = false }); // AD-192: só as idas pesam aqui
+        var (world, clock, _) = World(streets: StreetRules.Default with { QuarterInLotChoice = false, ObstacleOnCompletion = false }); // AD-192: só as idas pesam, e o canteiro não muda as rotas que a conta relê depois
         clock.Run(world, 24); // o primeiro dia contrata
         var city = world.ActiveCities().First();
         var home = world.Households.First(h => !h.IsEmpty && h.Members.Any(m => world.FindNpc(m)?.Employer is not null));
