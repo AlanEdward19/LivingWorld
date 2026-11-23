@@ -309,7 +309,16 @@ public static class BuildWorks
                 double cost = places.YearlyCost(world, lot.Origin) * rules.PaybackYears + lotFee;
                 if (cost < best) { best = cost; bestFee = lotFee; }
             }
-        if (best == double.MaxValue) return $"sem-lote lotes={lots} orcamento={budget}";
+        if (best == double.MaxValue)
+        {
+            var network = CityStreets.Of(world, city);
+            int free = 0;
+            foreach (var cell in network.Cells)
+                if (bounds.Contains(cell)) free++;
+            var whole = new LivingWorld.Domain.Cities.Spatial.CityBounds(new CellCoord(0, 0), world.Map.Width, world.Map.Height);
+            int anywhere = CityOccupancy.CandidateLots(world, city, whole, candidate.Id, typeId, 0, profile, 0, rules.LotChoices).Count;
+            return $"sem-lote lotes={lots} semLimite={anywhere} orcamento={budget} rede={network.Count} redeNosLimites={free} limites={bounds.Width}x{bounds.Height} predios={world.Buildings.Count(b => b.City == city.Id)}";
+        }
         double newCost = (best - bestFee) / Math.Max(1, rules.PaybackYears);
         double own = rules.OwnHomeDaysPerYear * (double)dayWage * Math.Max(1, household.Members.Count);
         double now = household.Dwelling is null ? 0 : places.YearlyCost(world, household.Location);

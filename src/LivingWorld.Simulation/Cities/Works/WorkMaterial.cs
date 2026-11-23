@@ -31,22 +31,31 @@ internal static class WorkMaterial
         if (work.MaterialNeeded <= 0 || done <= 0) return done;
         long total = Math.Max(1, work.HoursTotal);
         long built = total - Math.Max(0, work.HoursLeft);
-        long have = work.MaterialPlaced + work.MaterialOnSite;
-        long cap = have >= work.MaterialNeeded ? total : have * total / work.MaterialNeeded;
-        long build = Math.Clamp(cap - built, 0, done);
-        if (build > 0)
-        {
-            long placed = Math.Min(work.MaterialNeeded, CeilDiv(work.MaterialNeeded * (built + build), total));
-            long moved = Math.Clamp(placed - work.MaterialPlaced, 0, work.MaterialOnSite);
-            work.MaterialPlaced += moved;
-            work.MaterialOnSite -= moved;
-        }
+        long build = Place(work, total, built, done);
         long rest = done - build;
         if (rest > 0 && work.MaterialPlaced + work.MaterialOnSite < work.MaterialNeeded)
         {
             work.HaulBanked += rest;
             Haul(world, ctx, work, npc);
+            // as horas que sobraram depois das cargas que chegaram vão à parede, se agora há material no lote
+            long more = Math.Min(work.HaulBanked, Place(work, total, built + build, work.HaulBanked));
+            work.HaulBanked -= more;
+            build += more;
         }
+        return build;
+    }
+
+    /// <summary>Quantas das <paramref name="hours"/> a parede usa com o material que há (já movendo o material do lote para a parede).</summary>
+    private static long Place(BuildWork work, long total, long built, long hours)
+    {
+        long have = work.MaterialPlaced + work.MaterialOnSite;
+        long cap = have >= work.MaterialNeeded ? total : have * total / work.MaterialNeeded;
+        long build = Math.Clamp(cap - built, 0, hours);
+        if (build <= 0) return 0;
+        long placed = Math.Min(work.MaterialNeeded, CeilDiv(work.MaterialNeeded * (built + build), total));
+        long moved = Math.Clamp(placed - work.MaterialPlaced, 0, work.MaterialOnSite);
+        work.MaterialPlaced += moved;
+        work.MaterialOnSite -= moved;
         return build;
     }
 

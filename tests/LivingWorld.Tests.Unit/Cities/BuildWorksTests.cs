@@ -50,7 +50,7 @@ public class BuildWorksTests
     [Fact]
     public void A_married_couple_lives_where_they_can_and_their_house_exists_only_when_the_work_ends()
     {
-        var (world, clock, sink) = World(streets: StreetRules.Default with { HouseHours = 60, HouseGatherHours = 0 });
+        var (world, clock, sink) = World(streets: StreetRules.Default with { HouseHours = 60, HouseGatherHours = 0, HouseMaterialUnits = 0 }); // AD-194: sem material, o teste é a obra
         var (a, b) = Singles(world);
         var head = a.Id.Value <= b.Id.Value ? a : b;
         var parents = world.FindHousehold(head.Household!.Value)!;
@@ -150,8 +150,9 @@ public class BuildWorksTests
         long hours = long.Parse(f[6]);
         int croft = int.Parse(f[7]);
         var rules = world.StreetRules;
-        // a vila de código não vende madeira: o material é buscado na natureza
-        Assert.Equal(rules.HouseHours + croft * rules.CroftHoursPerCell + rules.HouseGatherHours, hours);
+        // AD-194: o material chega carga por carga pelas horas da obra (não entra nas horas da parede); sem a regra, a vila de código
+        // que não vende madeira somava as horas de buscá-la na natureza
+        Assert.Equal(rules.HouseHours + croft * rules.CroftHoursPerCell + (rules.MaterialOnSite ? 0 : rules.HouseGatherHours), hours);
     }
 
     /// <summary>A obra da casa rica, numa vila de pleno emprego: ninguém sem emprego aceita no jornal do dia; a oferta sobe toda semana
@@ -216,7 +217,7 @@ public class BuildWorksTests
         Assert.NotNull(quitter);
         var npc = world.FindNpc(new NpcId(quitter!.Value))!;
         Assert.Null(npc.Employer);
-        BuildWorks.Progress(world, ctx, work, npc, work.HoursLeft, paid: 0, world.CurrentDate.TotalHours); // a obra acaba
+        BuildWorks.Progress(world, ctx, work, npc, work.HoursLeft + 1_000, paid: 0, world.CurrentDate.TotalHours); // a obra acaba (AD-194: com as cargas)
         BuildWorks.Tick(world, ctx);
         Assert.Equal(from, npc.Employer);
     }
@@ -304,7 +305,7 @@ public class BuildWorksTests
         work.Prices[4] = 10;
         work.Origin = "poupanca|500|500|0";
         Assert.Equal(shopsBefore, world.Workplaces.Count); // em obra: o negócio ainda não existe
-        BuildWorks.Progress(world, ctx, work, founder, 200, paid: 0, world.CurrentDate.TotalHours);
+        BuildWorks.Progress(world, ctx, work, founder, 1_200, paid: 0, world.CurrentDate.TotalHours); // AD-194: as cargas e a parede
         Assert.Equal(shopsBefore + 1, world.Workplaces.Count);
         var shop = world.Workplaces[^1];
         Assert.Equal(founder.Id, shop.Owner);
