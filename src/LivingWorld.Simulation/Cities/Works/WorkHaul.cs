@@ -27,7 +27,7 @@ public sealed class WorkHaulSystem : ISimulationSystem
     /// <summary>AD-195: a cada hora as viagens de material andam (pegar na fonte, depositar no lote) e mais alguém sai para buscar.</summary>
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (!world.StreetsOn || !world.StreetRules.HaulersWalk || world.Ground is not { Builds.Count: > 0 } ground) return;
+        if (!world.StreetsOn || !world.StreetRules.HaulersWalk || world.Ground is not { } ground) return;
         bool touched = false;
         foreach (var work in ground.Builds)
             if (work.MaterialNeeded > 0 && (work.Hauls.Count > 0 || work.MaterialPlaced + work.MaterialOnSite < work.MaterialNeeded))
@@ -36,6 +36,16 @@ public sealed class WorkHaulSystem : ISimulationSystem
                 touched = true;
             }
         if (touched) world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+        if (!QueueHaul.Walking(world)) return;
+        bool queued = false;
+        foreach (var city in world.ActiveCities())
+            if (city.ConstructionQueue.FirstOrDefault(p => p.TicksRemaining > 0) is { WorkId: not null, SiteX: >= 0 } project
+                && world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe))
+            {
+                QueueHaul.Tick(world, ctx, city, project, recipe);
+                queued = true;
+            }
+        if (queued) world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
     }
 }
 
@@ -113,7 +123,9 @@ internal static class WorkHaul
         if (missing <= 0) return;
         int team = Math.Max(1, work.Crew.Count + work.Helpers.Count);
         long day = CeilDiv(work.MaterialNeeded * world.StreetRules.CrewHoursPerDay * team, Math.Max(1, work.HoursTotal));
-        if (work.MaterialOnSite + coming >= Math.Max(1, day)) return;
+        // quem não tem material no lote para a jornada vai buscar (o que já vem a caminho ainda não serve à parede): no começo da obra a
+        // turma toda carrega; com o lote abastecido, só o que falta (AD-195: antes um só carregava e os outros esperavam parados)
+        if (work.MaterialOnSite >= Math.Max(1, day)) return;
         Npc? who = null;
         foreach (var list in (ReadOnlySpan<List<long>>)[work.Crew, work.Helpers])
         {

@@ -59,6 +59,10 @@ public sealed class ConstructionSystem : ISimulationSystem
                 if (crew && ConstructionWorks.Abandoned(world, ctx, city, project)) break;
                 // AD-180: com chuva forte, neve ou chão congelado a obra para no dia (a argamassa não pega, o barro não seca)
                 bool workable = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, city.Location);
+                bool walking = crew && LivingWorld.Simulation.Cities.Works.QueueHaul.Walking(world); // AD-195: material no lote
+                if (crew && world.StreetRules.WorkDayEvents)
+                    LivingWorld.Simulation.Cities.Works.QueueHaul.WeatherDay(ctx, city, project, workable,
+                        LivingWorld.Simulation.Climate.WeatherNow.LostDayReason(world, city.Location));
                 long workSteps = !workable ? 0 : crew ? SpendHaul(project) : ConstructionWorkSteps(world, city);
                 for (long step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
@@ -68,13 +72,17 @@ public sealed class ConstructionSystem : ISimulationSystem
                     // Transacional: só consome se TODO recurso devido estiver disponível — insumo
                     // insuficiente por consumidor concorrente pausa a obra sem reverter o já pago
                     // (Edge Case da spec), nunca deixa a fila avançar parcialmente.
-                    bool allAvailable = due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
+                    // AD-195: com a turma que anda, o passo consome só o que ela trouxe ao lote (o estoque do largo fica onde está)
+                    bool allAvailable = walking
+                        ? due.All(kv => (project.MaterialOnSite?.GetValueOrDefault(kv.Key.Id) ?? 0) >= kv.Value)
+                        : due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
                     if (!allAvailable)
                         break;
 
                     foreach (var (resource, amount) in due)
                     {
-                        city.WithdrawStock(resource, amount);
+                        if (walking) project.MaterialOnSite![resource.Id] -= amount;
+                        else city.WithdrawStock(resource, amount);
                         world.RecordResourceConsumed(resource, amount);
                         project.RecordConsumption(resource, amount);
                     }
@@ -149,7 +157,8 @@ public sealed class ConstructionSystem : ISimulationSystem
             double trip = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost
                 * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg)
                 + LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, site, city.Location).Cost;
-            project.HaulHoursLeft = site == city.Location ? 0 : (long)Math.Ceiling(loads * trip);
+            // AD-195: com a turma que anda, as cargas são viagens de verdade (QueueHaul), não horas
+            project.HaulHoursLeft = site == city.Location || LivingWorld.Simulation.Cities.Works.QueueHaul.Walking(world) ? 0 : (long)Math.Ceiling(loads * trip);
             project.StartEventId = LivingWorld.Simulation.Cities.Works.WorkEvents.Log(ctx, WorldEventKind.BuildWorkStarted, project.WorkId.Value, city.Id.Value,
                 $"predio-{project.BuildingTypeId}", site.X, site.Y, $"cidade|{recipe.TicksToBuild + project.HaulHoursLeft}|{project.Canteiro ?? -1}|0");
         }

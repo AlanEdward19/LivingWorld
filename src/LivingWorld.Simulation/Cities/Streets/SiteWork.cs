@@ -132,7 +132,7 @@ public static class SiteWork
     /// AD-180: com chuva forte, neve ou chão congelado ninguém vai (não trabalha nem recebe no dia).</summary>
     internal static CellCoord? DestinationOf(WorldState world, Npc npc)
     {
-        CellCoord? cell = WorkOf(world, npc) is { } site ? HaulTarget(site.Build, npc) ?? SiteOf(world, site)
+        CellCoord? cell = WorkOf(world, npc) is { } site ? HaulTarget(site, npc) ?? SiteOf(world, site)
             : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? HaulTarget(build, npc) ?? new CellCoord(build.X, build.Y) : null;
         return cell is { } c && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, c) ? c : null;
     }
@@ -140,6 +140,10 @@ public static class SiteWork
     /// <summary>AD-195: quem está numa viagem de material vai à fonte ou volta ao lote, não ao lote direto.</summary>
     private static CellCoord? HaulTarget(BuildWork? build, Npc npc) =>
         build is { Hauls.Count: > 0 } ? WorkHaul.TargetOf(build, npc) : null;
+
+    private static CellCoord? HaulTarget(WorkSite site, Npc npc) =>
+        site.Build is { } build ? HaulTarget(build, npc)
+        : site.Project is { Hauls: not null } project && site.City is { } city ? QueueHaul.TargetOf(city, project, npc) : null;
 
     /// <summary>Jornal de uma hora: o jornal do dia (<see cref="PavingDecision.DayWage"/>) pelas horas da jornada.</summary>
     internal static long HourWage(WorldState world) =>
@@ -424,7 +428,8 @@ public static class SiteWork
             return;
         }
         // AD-195: as horas na fonte da viagem de material (cortando na mata, na banca, na despensa) são jornada: o diarista recebe
-        bool hauling = site.Build is { } hb && WorkHaul.AtSource(hb, npc);
+        bool hauling = site.Build is { } hb ? WorkHaul.AtSource(hb, npc)
+            : site.Project is { Hauls: not null } hp && site.City is { } hc && QueueHaul.AtSource(hc, hp, npc);
         if (!hauling && npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
         if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) return; // AD-180: dia perdido
         long hours = Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay);
@@ -464,8 +469,8 @@ public static class SiteWork
             return;
         }
         // a força de quem trabalha rende mais horas de obra (o poder modula a base, AD-084), como na fila sem turma
-        long done = (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
-        site.Project!.HoursBanked += done;
+        long done = hauling ? 0 : (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
+        site.Project!.HoursBanked += done; // AD-195: as horas no largo buscando material são jornada paga, não passo da receita
         site.Project.HoursWorked += hours;
         site.Project.Paid += due;
         LivingWorld.Simulation.Cities.Construction.ConstructionWorks.Progressed(world, ctx, city, site.Project, now);
