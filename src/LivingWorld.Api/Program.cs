@@ -13,7 +13,6 @@ using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Trade;
 using LivingWorld.Api.Treasury;
 using LivingWorld.Api.Visual.Catalogs;
-using LivingWorld.Api.VisualInput;
 using LivingWorld.Api.Watchlist;
 using LivingWorld.Api.World;
 using LivingWorld.Domain.History;
@@ -128,7 +127,7 @@ builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
 var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
 builder.Services.AddSingleton(playerService);
-// ADR-0048 (AD-197a): sessão do jogador por token do hospedeiro; PLAYER_AUTH=required exige o token nas rotas do jogador
+// ADR-0048 (AD-197a): sessão do jogador por token do hospedeiro (quando ela é exigida: PlayerAuthPolicy, AD-197e)
 var playerTokens = new LivingWorld.Api.Players.PlayerSessionTokens(TimeProvider.System);
 var playerGateway = new LivingWorld.Api.Players.PlayerCommandGateway(
     worldHost, simulationHost, playerService, savedWorlds, new LivingWorld.Api.Players.PlayerLogStore(savedWorlds.WorldsDirectory));
@@ -239,9 +238,10 @@ app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
 app.MapTradeEndpoints(worldHost);
 app.MapTreasuryEndpoints(worldHost);
-app.MapPlayerEndpoints(playerGateway, playerTokens, builder.Configuration["PLAYER_AUTH"] == "required");
+// AD-197e: token obrigatório quando o servidor escuta fora de loopback (público); PLAYER_AUTH=required|local força um ou outro
+app.MapPlayerEndpoints(playerGateway, playerTokens, new LivingWorld.Api.Players.PlayerAuthPolicy(
+    builder.Configuration["PLAYER_AUTH"], app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()));
 LivingWorld.Api.Players.PlayerChannelEndpoints.MapPlayerChannelEndpoints(app, playerGateway, playerTokens);
-app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
 app.MapDecisionSandboxEndpoints(worldHost);

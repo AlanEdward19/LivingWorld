@@ -19,6 +19,7 @@ var scope_kind := "World"
 ## Injetada pelo app: ponto do mundo -> id da cidade sob ele ("" se nenhuma).
 var city_at: Callable = func(_point: Vector3) -> String: return ""
 
+var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
 var camera: Camera3D
 var following: Node3D = null
 var _zoom_goal := 22.0 ## alvo do zoom suave (roda do mouse); `zoom_by` vai direto
@@ -145,6 +146,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom_smooth(1.18)
 	elif event is InputEventKey and event.pressed:
+		if walking.is_valid() and walking.call() and event.keycode in [KEY_W, KEY_UP, KEY_S, KEY_DOWN, KEY_A, KEY_LEFT, KEY_D, KEY_RIGHT]:
+			return # encarnado, as teclas de direção andam com o personagem (player_hud), não movem a câmera
 		match event.keycode:
 			KEY_Q: orbit(deg_to_rad(15))
 			KEY_E: orbit(deg_to_rad(-15))

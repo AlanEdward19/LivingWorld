@@ -139,6 +139,36 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? PresumedDeadAtTick { get; private set; }
 
+    /// <summary>AD-197e: modo da posse pelo controlador; nulo = comum (o de antes). Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PossessionMode? ControlMode { get; private set; }
+
+    /// <summary>AD-197e: a pessoa presa durante a posse plena; nulo fora dela. Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CaptiveMind? Captive { get; private set; }
+
+    /// <summary>AD-197e: posse plena começa (a pessoa fica presa) ou volta a comum.</summary>
+    public void SetPossession(PossessionMode mode, long tick)
+    {
+        ControlMode = mode == PossessionMode.Full ? PossessionMode.Full : null;
+        Captive = mode == PossessionMode.Full ? new CaptiveMind(tick) : null;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197e: o corpo fez algo que a pessoa presa não faria; o sofrimento soma até 100.</summary>
+    public void RecordCaptiveObjection(long target, int hurt, long tick)
+    {
+        if (Captive is not { } mind) return;
+        Captive = mind with
+        {
+            Objections = mind.Objections + 1,
+            Distress = Math.Clamp(mind.Distress + hurt, 0, 100),
+            LastObjectionTarget = target,
+            LastObjectionTick = tick,
+        };
+        TouchCanonical();
+    }
+
     /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
     /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
     /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
@@ -297,6 +327,8 @@ public sealed class Npc
         ControllerId = null;
         ControlledAction = null;
         ControlledPowerId = null;
+        ControlMode = null;
+        Captive = null;
         DisappearedAtTick = tick;
         TouchCanonical();
     }
@@ -500,7 +532,8 @@ public sealed class Npc
         LivingWorld.Domain.Cognition.PsycheState? psyche = null,
         LivingWorld.Domain.Cognition.BrainState? brain = null,
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
-        string? controlledPowerId = null, long? presumedDeadAtTick = null)
+        string? controlledPowerId = null, long? presumedDeadAtTick = null,
+        PossessionMode? controlMode = null, CaptiveMind? captive = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -540,6 +573,8 @@ public sealed class Npc
         DisappearedAtTick = disappearedAtTick;
         ControlledPowerId = controlledPowerId;
         PresumedDeadAtTick = presumedDeadAtTick;
+        ControlMode = controlMode;
+        Captive = captive;
         Development = development;
         NativeLanguage = nativeLanguage;
         Appearance = appearance;

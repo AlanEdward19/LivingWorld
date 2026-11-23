@@ -32,7 +32,17 @@ setas, pode interagir com as coisas, bater com clique"; e, no mesmo dia, que com
 - Campo `pose` (posição contínua, andar, direção) na projeção dos NPCs no escopo do jogador.
 - Comandos de tempo do jogador sozinho (ADR-0050): `idle-fast`, `sleep-until {hour}`, `sleep-fast`, recusados com outro
   jogador conectado.
-- `POST /visual/player/{id}/move`: fechar ou exigir controlador continua decisão do dono (não aprovado).
+- `POST /visual/player/{id}/move`: **removida** (dono, 2026-11-23); o passo é o comando `move` (canal e `POST /players/{playerId}/move`,
+  AD-197e), só para o corpo que a sessão controla, com pausa e registro.
+
+## Decisões do dono (2026-11-23, AD-197e)
+1. `/visual/player/{id}/move` sai; usar o `move` (feito na AD-197e).
+2. Token por padrão em servidor público: exigido quando o servidor escuta fora de loopback (feito na AD-197e).
+3. **Posse em dois modos, mesma base** (também para a possessão dentro do jogo no futuro, inclusive de jogador): pelo admin
+   ("posse plena") a pessoa vira personagem do jogador e não recusa nada; ela continua presa (estado real no motor) e quem
+   possui pode entrar na mente dela, vê-la, falar com ela e ouvir o pensamento dela no chat (só ele ouve). Sem admin ("posse
+   comum") ela recusa ordens específicas contra o que valoriza muito (ex.: ferir a família de quem ela gosta muito).
+4. O sono acelerado é interrompido por golpe, fogo, fome/sede crítica e alguém chamando (AD-197c).
 
 ## Alternativas consideradas
 - **Manter isométrica com clique-para-andar** — rejeitada pelo dono.
