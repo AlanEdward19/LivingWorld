@@ -19,8 +19,16 @@ public readonly record struct LazyNeed(
     [JsonIgnore]
     public long TickOfLastEvent => WorldSeconds.ToHourFloor(SecondOfLastEvent);
 
-    /// <summary>Valor no começo da hora <paramref name="tick"/>.</summary>
-    public double ValueAt(long tick) => ValueAtSecond(WorldSeconds.FromHours(tick));
+    /// <summary>Valor no começo da hora <paramref name="tick"/>. Âncora na hora cheia (o caso de todo sistema de fronteira): a
+    /// conta direta em horas, sem passar por segundos (caminho quente, mesmo número).</summary>
+    public double ValueAt(long tick)
+    {
+        long anchorHour = SecondOfLastEvent / WorldSeconds.PerHour;
+        if (anchorHour * WorldSeconds.PerHour != SecondOfLastEvent) return ValueAtSecond(tick * WorldSeconds.PerHour);
+        if (DecayRatePerHour <= 0)
+            return Math.Clamp(ValueAtLastEvent, 0, Max);
+        return Math.Clamp(ValueAtLastEvent - DecayRatePerHour * (tick - anchorHour), 0, Max);
+    }
 
     /// <summary>Valor no instante <paramref name="second"/>. Horas decorridas = segundos / 3.600: exato quando a âncora e o
     /// instante caem na hora cheia (a conta de antes, byte a byte).</summary>

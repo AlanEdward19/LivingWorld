@@ -14,7 +14,11 @@ public readonly struct WorldDate : IComparable<WorldDate>, IEquatable<WorldDate>
     {
         Calendar = calendar;
         TotalSeconds = totalSeconds;
+        _totalHours = WorldSeconds.ToHourFloor(totalSeconds);
     }
+
+    // A hora é lida em todo sistema e toda decisão: guardada junto, para não dividir a cada leitura (custo por NPC-tick).
+    private readonly long _totalHours;
 
     public WorldCalendar Calendar { get; }
 
@@ -22,10 +26,10 @@ public readonly struct WorldDate : IComparable<WorldDate>, IEquatable<WorldDate>
     public long TotalSeconds { get; }
 
     /// <summary>A hora do calendário em que o instante cai (piso, também antes da época).</summary>
-    public long TotalHours => WorldSeconds.ToHourFloor(TotalSeconds);
+    public long TotalHours => _totalHours;
 
     /// <summary>Segundos passados desde o começo da hora (0 a 3.599).</summary>
-    public int SecondOfHour => (int)(TotalSeconds - TotalHours * SecondsPerHour);
+    public int SecondOfHour => (int)(TotalSeconds - _totalHours * SecondsPerHour);
 
     public int Hour => (int)(TotalHours % Calendar.HoursPerDay);
     public int Day => (int)((TotalHours / Calendar.HoursPerDay) % Calendar.DaysPerMonth);

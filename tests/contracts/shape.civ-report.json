@@ -30,7 +30,7 @@
               }
             }
           ],
-          "second": "number",
+          "tick": "number",
           "world": {
             "age_mean": "number",
             "age_median": "number",
