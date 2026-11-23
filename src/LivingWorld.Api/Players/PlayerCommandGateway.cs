@@ -6,8 +6,10 @@ using LivingWorld.Simulation.Players;
 
 namespace LivingWorld.Api.Players;
 
-/// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente.</summary>
-public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null);
+/// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente. <c>Mode</c> só com <c>Incarnate</c> (posse plena é
+/// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>.</summary>
+public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
+    LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -39,8 +41,12 @@ public sealed class PlayerCommandGateway(
             var before = players.Log.Last;
             var reply = command.Kind switch
             {
-                PlayerCommandKind.Incarnate => Map(players.Incarnate(world, new NpcId(command.NpcId ?? -1), playerId),
+                PlayerCommandKind.Incarnate => Map(players.Incarnate(world, new NpcId(command.NpcId ?? -1), playerId, command.Mode),
                     _ => new { npcId = command.NpcId, playerId }),
+                PlayerCommandKind.Move => Map(players.Move(world, playerId, command.Dx, command.Dy),
+                    _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Strike => Map(players.Strike(world, playerId, new NpcId(command.NpcId ?? -1)),
+                    _ => new { playerId, targetId = command.NpcId }),
                 PlayerCommandKind.Act => Map(players.Act(world, playerId, command.Action, command.PowerId),
                     _ => new { playerId, Action = command.Action?.ToString() }),
                 _ => Map(players.Logout(world, playerId),
@@ -48,6 +54,22 @@ public sealed class PlayerCommandGateway(
             };
             if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) log.Append(accepted);
             return reply;
+        }
+    }
+
+    /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela).</summary>
+    private static object PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId) =>
+        PlayerCommands.ControlledBy(world, playerId) is { } npc
+            ? new { playerId, npcId = npc.Id.Value, x = npc.CurrentLocation.X, y = npc.CurrentLocation.Y }
+            : new { playerId, npcId = -1L, x = 0, y = 0 };
+
+    /// <summary>O que a pessoa presa vê e sente (posse plena, AD-197e), só para quem a possui; nulo se não há posse plena.</summary>
+    public CaptiveView? Captive(string playerId)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            return PlayerCommands.ControlledBy(world, playerId) is { } npc ? PossessionWill.View(world, npc, world.CurrentDate.TotalHours) : null;
         }
     }
 

@@ -7,8 +7,9 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
 ## O que existe hoje
 - **Agir**: `/players/*` (incarnate, action com Eat, Sleep, Work, Socialize, Idle, Buy, UsePower+powerId, logout), sessão por
   token (`POST /sessions`) e canal persistente `/players/ws` com comandos numerados (AD-197a). Pausa do admin = 409.
-- **Lacuna**: `POST /visual/player/{id}/move` move qualquer NPC uma célula, sem controlador, pausa nem registro (fechar é
-  decisão do dono).
+- **Passo (AD-197e)**: comando `move {dx, dy}` (intenção, não posição) no canal e em `POST /players/{playerId}/move`, só no corpo
+  que a sessão controla, pela fila (pausa 409, registro). A rota `/visual/player/{id}/move` saiu (decisão do dono). Golpe
+  `strike {npcId}` já pelo `Violence.Fight`. Posse comum e plena (AD-197e): ver item 9.
 - **Tempo e espaço**: 1 tick = 1 h; grade de células inteiras; deslocamento por rota com duração (`Mobility.TravelTicks`) e o
   cliente interpola por `routeArrivalTick`; interior por prédio, andar e célula local. Necessidades preguiçosas por tempo.
 - **Interação de NPC**: comer, beber, comprar, trabalhar, conversar, dormir, buscar água, levar carga, recolher espólio,
@@ -44,8 +45,14 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
 - Golpe do jogador e `Fight` do NPC com o mesmo par e seed: mesmo dano, mesmo caso, mesmo hash.
 - Com dois jogadores conectados, todo comando de acelerar é recusado e o hash não muda.
 
-## Decisões do dono (com recomendação)
-1. Ordem do jogador no NPC tomado: movimento e golpe sempre obedecidos; recusa só em ação longa e no limite do corpo (recomendado).
-2. Fechar `/visual/player/{id}/move` e trocar pelo comando `move` do canal (recomendado).
-3. Tecla da 1ª pessoa e padrão 3ª pessoa (recomendado).
-4. O que interrompe o sono acelerado: golpe, fogo, fome/sede crítica, alguém chamando (recomendado: os quatro).
+9. **Posse** (AD-197e, mesma base para jogador e possessão futura): `PossessionMode` no corpo. Comum: `PossessionWill` recusa
+   ferir quem a pessoa valoriza muito (vínculo × lealdade ≥ `RefuseHarmCare`), sem sorteio; a recusa volta com o motivo, não
+   muda o mundo e fica no registro. Plena (admin, `POST /players/{npcId}/possess`): obedece; a pessoa presa (`CaptiveMind`)
+   acumula objeções e sofrimento e, solta, vive a posse na psique. `GET /players/{playerId}/captive` mostra ao possuidor o que
+   ela sente e quer. Falar com ela e ouvir o pensamento no chat passa pela LLM, que só põe em palavras o `CaptiveView`.
+
+## Decisões do dono (2026-11-23)
+1. Posse: pelo admin, sem recusa (a pessoa fica presa e pode ser ouvida); sem admin, recusa o que fere muito o que ela valoriza.
+2. `/visual/player/{id}/move` removida; o passo é o `move` (feito).
+3. Tecla da 1ª pessoa e padrão 3ª pessoa (recomendado, a confirmar na AD-197d).
+4. O sono acelerado é interrompido por golpe, fogo, fome/sede crítica e alguém chamando (AD-197c).

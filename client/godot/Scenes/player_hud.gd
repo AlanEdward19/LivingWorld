@@ -161,6 +161,37 @@ func act(action: String, power_id: String = "") -> void:
 		_sync_buttons()
 
 
+## AD-197e: WASD/setas andam um passo com o personagem pelo comando `move` (a rota antiga /visual/player/move saiu). O motor
+## valida e responde a posição; aqui só se pede.
+const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vector2i(0, 1), KEY_DOWN: Vector2i(0, 1),
+	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
+var _stepping := false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if is_active and event is InputEventKey and event.pressed and STEP_KEYS.has(event.keycode):
+		get_viewport().set_input_as_handled()
+		var direction: Vector2i = STEP_KEYS[event.keycode]
+		step(direction.x, direction.y)
+
+
+## Um passo; um pedido por vez (tecla segurada não enfileira passos que o motor ainda não respondeu).
+func step(dx: int, dy: int) -> void:
+	if not is_active or _stepping:
+		return
+	_stepping = true
+	var response: Dictionary = await api.player_move(player_id, dx, dy)
+	_stepping = false
+	if not is_active:
+		return
+	if response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	elif response.status == 409:
+		warning.emit("Mundo pausado: o passo só anda quando o tempo voltar.")
+	elif not response.ok and response.status != 400:
+		warning.emit("Não foi possível andar (erro %d)." % response.status)
+
+
 func logout() -> void:
 	if (not is_active and not stale_session) or _busy:
 		return

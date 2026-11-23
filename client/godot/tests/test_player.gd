@@ -470,6 +470,27 @@ func test_with_a_session_the_player_comes_from_the_token_and_commands_go_through
 	hud.free()
 
 
+func test_direction_keys_ask_the_engine_for_one_step_through_the_move_command() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/move", {"status": 200, "body": {"playerId": "p-1", "npcId": 7, "x": 4, "y": 3}})
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	await hud.step(1, 0)
+	eq(transport.bodies["POST /players/p-1/move"], [{"dx": 1, "dy": 0}], "intenção de passo, não posição")
+	var key := InputEventKey.new()
+	key.keycode = KEY_W
+	key.pressed = true
+	eq(hud.STEP_KEYS[KEY_W], Vector2i(0, -1), "W anda para cima")
+	transport.on("POST /players/p-1/move", {"status": 409, "body": {"error": "conflict: mundo pausado pelo admin"}})
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+	await hud.step(0, -1)
+	check(warnings.size() == 1 and "pausado" in warnings[0], "pausa avisa")
+	eq(hud.is_active, true, "pausa não tira o personagem")
+	hud.free()
+
+
 func test_a_server_without_sessions_keeps_the_local_mode() -> void:
 	var transport := _transport()
 	transport.on("POST /sessions", {"status": 404, "body": null})

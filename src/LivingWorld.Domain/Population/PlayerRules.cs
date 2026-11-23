@@ -50,6 +50,14 @@ public sealed record PlayerRules
     /// <summary>Dias sumido em que o reencontro chega à saliência cheia (cresce em linha até lá a partir de 60%).</summary>
     public int ReunionFullSalienceDays { get; init; } = 365;
 
+    /// <summary>AD-197e: cuidado (0–100: vínculo × lealdade, ver <c>PossessionWill</c>) a partir do qual a pessoa em posse comum
+    /// recusa ferir alguém. 60 = parente ou amigo de vínculo forte de alguém de lealdade média (escolha do modelo).</summary>
+    public double RefuseHarmCare { get; init; } = 60;
+
+    /// <summary>AD-197e: o que a posse plena deixa em quem foi possuído, na escala do sofrimento (0–100 → 0–1) com piso de 0,3: ter
+    /// o corpo tomado já marca, e ver o corpo ferir quem se ama marca mais.</summary>
+    public LifeEventImpact Possessed { get; init; } = new(75, Fear: 0.7, Anger: 0.5, Grief: 0.3, Shame: 0.3);
+
     public static readonly PlayerRules Default = new();
 
     public static readonly PlayerRules Off = new() { Enabled = false };

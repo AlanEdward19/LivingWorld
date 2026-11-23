@@ -211,6 +211,12 @@ func player_action(player_id: String, action: String, power_id: String = "") -> 
 	return _checked("/players/action", {"status": response.status, "body": response.body}, "player-action")
 
 
+## AD-197e: um passo do personagem na direção (−1..1 em cada eixo): intenção, o motor decide onde ele chega (resposta com x, y).
+func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "move", "dx": dx, "dy": dy}, "POST", "/players/%s/move" % player_id.uri_encode(), {"dx": dx, "dy": dy})
+	return _checked("/players/move", {"status": response.status, "body": response.body}, "")
+
+
 func player_logout(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "logout"}, "POST", "/players/%s/logout" % player_id.uri_encode(), null)
 	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
