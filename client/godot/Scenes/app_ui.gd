@@ -327,6 +327,7 @@ static func build_scene(app) -> void:
 	app.add_child(app.world_view)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
+	app.rig.walking = func() -> bool: return app.player_hud != null and app.player_hud.is_active # AD-197e: WASD/setas andam com o personagem
 	app.rig.scope_requested.connect(func(kind: String, ref_id: String): app.enter_scope(kind, ref_id))
 	app.add_child(app.rig)
 	app.rig.camera.current = true

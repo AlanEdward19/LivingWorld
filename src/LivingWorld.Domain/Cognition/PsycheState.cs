@@ -56,6 +56,9 @@ public enum LifeEventKind : byte
 
     /// <summary>AD-196: reencontrou quem estava desaparecido (impacto em <c>PlayerRules.Reunited</c>).</summary>
     Reunited = 36,
+
+    /// <summary>AD-197e: foi possuído por inteiro e viu o corpo fazer o que não queria (impacto em <c>PlayerRules.Possessed</c>).</summary>
+    Possessed = 37,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),

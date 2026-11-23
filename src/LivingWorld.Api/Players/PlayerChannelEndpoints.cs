@@ -9,7 +9,8 @@ namespace LivingWorld.Api.Players;
 /// <summary>Canal persistente do jogador (AD-197a, pedido do dono: "manter conexão após conectado, sem demora para interagir"):
 /// <c>GET /players/ws</c> com <c>Authorization: Bearer {token}</c> (401 sem sessão válida) abre um WebSocket do próprio ASP.NET Core.
 /// Cada mensagem do cliente é um comando com número de sequência — <c>{"seq":1,"command":"incarnate","npcId":7}</c>,
-/// <c>{"seq":2,"command":"action","action":"Eat","powerId":null}</c>, <c>{"seq":3,"command":"logout"}</c>, <c>{"seq":4,"command":"ping"}</c>
+/// <c>{"seq":2,"command":"action","action":"Eat","powerId":null}</c>, <c>{"seq":3,"command":"move","dx":1,"dy":0}</c> (AD-197e), <c>{"seq":4,"command":"strike","npcId":9}</c>,
+/// <c>{"seq":5,"command":"logout"}</c>, <c>{"seq":6,"command":"ping"}</c>
 /// — e a resposta vem pelo mesmo canal: <c>{"seq":1,"ok":true,"status":200,"body":{...}}</c> ou
 /// <c>{"seq":2,"ok":false,"status":409,"error":"..."}</c>. Os comandos passam pela mesma fila das rotas HTTP
 /// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). As rotas HTTP continuam valendo.</summary>
@@ -83,6 +84,8 @@ public static class PlayerChannelEndpoints
                 "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
                     new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
                 "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
+                "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
+                "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 _ => null,
             };
         }

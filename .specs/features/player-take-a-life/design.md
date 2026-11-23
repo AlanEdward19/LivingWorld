@@ -52,6 +52,8 @@ fere quem o NPC ama (golpe em parente pede confirmação e pode ser recusado, de
 - Entrar como imigrante não muda a soma da população (pool + materializados).
 
 ## Perguntas ao dono
-1. Coautoria (B), casca (A) ou possessão (C)? Recomendo B.
+1. Respondida (2026-11-23, AD-197e): pelo admin, posse plena (casca obediente com a pessoa presa, que se vê e se ouve: mistura
+   de A e C); sem admin, posse comum (B) que recusa só o que fere muito o que a pessoa valoriza. Feito: `PossessionMode`,
+   `PossessionWill`, `CaptiveMind` (ADR-0049).
 2. Na saída, o NPC tomado some (padrão de hoje) ou fica com o motor? Recomendo sumir por padrão e "fica" como opção do cenário.
 3. Criar personagem: só imigrante do pool (A) ou ficha livre (B)? Recomendo A.

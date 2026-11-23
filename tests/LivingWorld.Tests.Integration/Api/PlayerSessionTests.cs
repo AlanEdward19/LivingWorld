@@ -107,6 +107,86 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
     }
 
     [Fact]
+    public async Task The_move_command_steps_only_the_body_the_session_controls_and_answers_the_pose()
+    {
+        _factory.Services.GetRequiredService<SimulationHost>().Resume();
+        var (client, session) = await Session();
+        var (_, idle) = await Session();
+        long npc = FreeNpc();
+        using var socket = await Channel(session.SessionToken);
+        using var idleSocket = await Channel(idle.SessionToken);
+
+        var nobody = await Send(idleSocket, """{"seq":1,"command":"move","dx":1,"dy":0}""");
+        Assert.Equal(200, (await Send(socket, $$"""{"seq":1,"command":"incarnate","npcId":{{npc}}}"""))["status"]!.GetValue<int>());
+        var body = World().FindNpc(new LivingWorld.Domain.Shared.NpcId(npc))!;
+        var start = body.CurrentLocation;
+        var step = await Send(socket, """{"seq":2,"command":"move","dx":1,"dy":0}""");
+        if (step["status"]!.GetValue<int>() != 200) step = await Send(socket, """{"seq":3,"command":"move","dx":-1,"dy":0}"""); // borda do mapa
+        var http = await client.PostAsJsonAsync($"/players/{session.PlayerId}/move", new { dx = 0, dy = 3 });
+
+        Assert.Equal(404, nobody["status"]!.GetValue<int>());
+        Assert.Equal(200, step["status"]!.GetValue<int>());
+        Assert.Equal((body.CurrentLocation.X, body.CurrentLocation.Y), (step["body"]!["x"]!.GetValue<int>(), step["body"]!["y"]!.GetValue<int>()));
+        Assert.NotEqual(start, body.CurrentLocation);
+        Assert.Equal(HttpStatusCode.BadRequest, http.StatusCode); // intenção é um passo, não um salto
+        await client.PostAsync($"/players/{session.PlayerId}/logout", null);
+    }
+
+    [Fact]
+    public async Task Full_possession_is_admin_only_and_the_possessor_can_look_at_the_captive()
+    {
+        _factory.Services.GetRequiredService<SimulationHost>().Resume();
+        var (client, session) = await Session();
+        long npc = FreeNpc();
+
+        var withoutAdmin = await client.PostAsync($"/players/{npc}/possess", null);
+        client.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken);
+        var possess = await client.PostAsync($"/players/{npc}/possess", null);
+        var captive = await client.GetAsync($"/players/{session.PlayerId}/captive");
+        var (other, _) = await Session();
+        var foreign = await other.GetAsync($"/players/{session.PlayerId}/captive");
+        await client.PostAsync($"/players/{session.PlayerId}/logout", null);
+        var released = await client.GetAsync($"/players/{session.PlayerId}/captive");
+
+        Assert.Equal(HttpStatusCode.Forbidden, withoutAdmin.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, possess.StatusCode);
+        Assert.Equal(npc, JsonNode.Parse(await captive.Content.ReadAsStringAsync())!["npcId"]!.GetValue<long>());
+        Assert.Equal(HttpStatusCode.Forbidden, foreign.StatusCode); // só quem possui vê a pessoa presa
+        Assert.Equal(HttpStatusCode.NotFound, released.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("http://127.0.0.1:5214", false)]
+    [InlineData("http://localhost:5214", false)]
+    [InlineData("http://[::1]:5214", false)]
+    [InlineData("http://0.0.0.0:5214", true)]
+    [InlineData("http://+:80", true)]
+    [InlineData("http://*:80", true)]
+    [InlineData("http://192.168.1.20:5214", true)]
+    [InlineData("http://servidor.exemplo:5214", true)]
+    public void A_server_listening_outside_loopback_is_public_and_requires_a_token(string address, bool isPublic)
+    {
+        Assert.Equal(isPublic, PlayerAuthPolicy.IsPublic([address]));
+    }
+
+    [Fact]
+    public async Task A_loopback_kestrel_keeps_the_local_mode_and_explicit_configuration_wins()
+    {
+        using var local = new LivingWorldApiFactory();
+        local.UseKestrel(0); // escuta só em loopback
+        local.StartServer();
+        string address = local.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+            .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!.Addresses.First();
+        using var http = new HttpClient { BaseAddress = new Uri(address) };
+
+        var anonymous = await http.PostAsync("/players/ninguem/logout", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, anonymous.StatusCode); // sem token, modo local: chega à fila e não controla ninguém
+        Assert.True(new PlayerAuthPolicy("required", local.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()).Required);
+        Assert.False(new PlayerAuthPolicy("local", local.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()).Required);
+    }
+
+    [Fact]
     public async Task The_channel_without_a_valid_session_is_refused()
     {
         await Assert.ThrowsAnyAsync<Exception>(() => Channel("nao-existe"));
@@ -130,13 +210,15 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             .Where(e => e.RoutePattern.RawText!.StartsWith("/players/", StringComparison.Ordinal)
                 && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains("POST"))
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
-        Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{playerId}/action", "/players/{playerId}/logout"], routes); // rota nova sem cobertura reprova
+        Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/action", "/players/{playerId}/logout",
+            "/players/{playerId}/move", "/players/{playerId}/strike"], routes); // rota nova sem cobertura reprova
+        fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
         var leaks = new List<string>();
         foreach (string route in routes)
         {
             string url = route.Replace("{npcId:long}", other.ToString()).Replace("{playerId}", session.PlayerId);
-            var response = await (route.Contains("{npcId", StringComparison.Ordinal) ? fresh : client).PostAsJsonAsync(url, new { action = "Idle" });
+            var response = await (route.Contains("{npcId", StringComparison.Ordinal) ? fresh : client).PostAsJsonAsync(url, new { action = "Idle", dx = 1, dy = 0, npcId = other });
             if (response.StatusCode != HttpStatusCode.Conflict) leaks.Add(route);
         }
 
@@ -144,7 +226,8 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             if ((await Send(freshSocket, $$"""{"seq":1,"command":"incarnate","npcId":{{other}}}"""))["status"]!.GetValue<int>() != 409)
                 leaks.Add("ws:incarnate");
         using (var socket = await Channel(session.SessionToken))
-            foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"logout"}""" })
+            foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"move","dx":1,"dy":0}""",
+                $$"""{"seq":4,"command":"strike","npcId":{{other}}}""", """{"seq":5,"command":"logout"}""" })
                 if ((await Send(socket, command))["status"]!.GetValue<int>() != 409) leaks.Add("ws:" + command);
 
         if (WorldSnapshot.CanonicalHash(World()) != hash) leaks.Add("hash");
