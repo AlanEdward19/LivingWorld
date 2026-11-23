@@ -72,7 +72,7 @@ public sealed class MigrationSystem : ISimulationSystem
             return scarce;
         }
 
-        var safety = new SafetyCache();
+        SafetyCache? safetyCache = null;
         foreach (var household in world.Households.OrderBy(h => h.Id.Value).ToList())
         {
             if (household.PendingRelocationCity is not null) continue;
@@ -86,6 +86,7 @@ public sealed class MigrationSystem : ISimulationSystem
             City? bestCity = null;
             // Edge case (dynamic-city-growth): mapa sem célula livre em lugar nenhum força o score de
             // "ficar" pro mínimo teórico, sem afetar o score de nenhuma cidade candidata.
+            var safety = safetyCache ??= new SafetyCache();
             double bestScore = landScarce ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity, safety);
 
             foreach (var candidate in activeCities)
@@ -168,6 +169,18 @@ public sealed class MigrationSystem : ISimulationSystem
     internal sealed class SafetyCache
     {
         public readonly Dictionary<CityId, (LivingWorld.Domain.Cities.Spatial.CityBounds Bounds, double DenseShare)> Cities = [];
+        public readonly List<Npc> Members = [];
+    }
+
+    private static bool Knows(LivingWorld.Simulation.Crime.CrimeCase c, List<Npc> members)
+    {
+        foreach (var m in members)
+        {
+            if (c.Victim == m.Id.Value) return true;
+            foreach (var k in c.Knowers)
+                if (k.Npc == m.Id.Value) return true;
+        }
+        return false;
     }
 
     /// <summary>AD-192: a segurança da cidade para esta casa (0–1). Antes 0,5 fixo (nenhuma fonte de dado); agora 0,5 × (1 − medo),
@@ -189,7 +202,8 @@ public sealed class MigrationSystem : ISimulationSystem
             }
             safety.Cities[cityId] = known = (bounds, houses == 0 ? 0 : dense / (double)houses);
         }
-        var members = new List<Npc>();
+        var members = safety.Members;
+        members.Clear();
         foreach (var id in household.Members)
             if (world.FindNpc(id) is { IsAlive: true } m) members.Add(m);
         double crimes = 0;
@@ -197,8 +211,7 @@ public sealed class MigrationSystem : ISimulationSystem
             foreach (var c in ledger.Cases)
             {
                 if (c.City != cityId.Value) continue;
-                foreach (var m in members)
-                    if (c.Victim == m.Id.Value || c.Knowers.Exists(k => k.Npc == m.Id.Value)) { crimes++; break; }
+                if (Knows(c, members)) crimes++;
             }
         double fear = Math.Clamp(crimes * streets.RegardPerCrime / Math.Max(1, members.Count)
             + Quarter.HouseholdAversion(world, members, city, known.Bounds) * known.DenseShare, 0, 1);
