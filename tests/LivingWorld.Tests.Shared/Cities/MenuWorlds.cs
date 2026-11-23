@@ -22,6 +22,11 @@ public static class MenuWorlds
             var baseRules = off ?? LivingWorld.Domain.Cities.CityLayoutRules.Default;
             off = baseRules with { Streets = baseRules.Streets.WithAd192Mode(ad192) };
         }
+        if (Environment.GetEnvironmentVariable("LW_AD195") is { } ad195) // AD-195: off|nowalk|nohome
+        {
+            var baseRules = off ?? LivingWorld.Domain.Cities.CityLayoutRules.Default;
+            off = baseRules with { Streets = baseRules.Streets.WithAd195Mode(ad195) };
+        }
         if (period == "padrao") return ScenarioRunner.Create(seed, cityLayout: off);
         var root = System.Text.Json.Nodes.JsonNode.Parse(DefaultPeriodSeeder.PayloadFor(period))!;
         root["Seed"] = seed;

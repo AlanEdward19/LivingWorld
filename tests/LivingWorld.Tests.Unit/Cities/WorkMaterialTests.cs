@@ -2,6 +2,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Works;
 using LivingWorld.Simulation.Core;
@@ -38,7 +39,7 @@ public class WorkMaterialTests
     [Fact]
     public void The_first_hours_bring_material_to_the_lot_and_the_wall_rises_only_with_it()
     {
-        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default);
+        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default with { HaulersWalk = false });
         Assert.Equal(world.StreetRules.HouseMaterialUnits, work.MaterialNeeded);
         long now = world.CurrentDate.TotalHours;
 
@@ -60,7 +61,7 @@ public class WorkMaterialTests
     [Fact]
     public void With_nowhere_to_bring_material_from_the_work_stops_once_and_resumes_when_a_seller_appears()
     {
-        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default with { HouseGatherHours = 0 });
+        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default with { HouseGatherHours = 0, HaulersWalk = false });
         long now = world.CurrentDate.TotalHours;
         BuildWorks.Progress(world, ctx, work, builder, 8, 0, now);
         BuildWorks.Progress(world, ctx, work, builder, 8, 0, now + 24);
@@ -83,7 +84,7 @@ public class WorkMaterialTests
     [Fact]
     public void Material_left_on_an_abandoned_lot_goes_back_to_the_household()
     {
-        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
+        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default with { HaulersWalk = false });
         BuildWorks.Progress(world, ctx, work, builder, 17, 0, world.CurrentDate.TotalHours); // uma carga (16 h) e 1 h de parede
         long onSite = work.MaterialOnSite;
         Assert.True(onSite > 0);
@@ -104,5 +105,167 @@ public class WorkMaterialTests
         BuildWorks.Progress(world, ctx, work, builder, 8, 0, world.CurrentDate.TotalHours);
         Assert.True(work.HoursLeft < work.HoursTotal);
         Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived);
+    }
+
+    // ---------------------------------------------------------------- AD-195: quem carrega anda
+
+    private static void Hour(WorldState world, TickContext ctx) => new WorkHaulSystem().Tick(world, ctx);
+
+    [Fact]
+    public void A_hauler_walks_to_the_woods_cuts_carries_back_and_drops_the_load_on_the_lot()
+    {
+        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default);
+        work.Helpers = [builder.Id.Value];
+        Hour(world, ctx);
+        var trip = Assert.Single(work.Hauls);
+        Assert.Equal("natureza", trip.Source); // a vila de código não vende madeira e a casa não tem
+        var woods = new CellCoord(trip.X, trip.Y);
+        Assert.NotEqual(new CellCoord(work.X, work.Y), woods);
+        Assert.Equal(woods, LivingWorld.Simulation.Cities.Streets.SiteWork.DestinationOf(world, builder) ?? woods); // o destino é a mata
+
+        builder.MoveTo(woods, world.CurrentDate.TotalHours);
+        builder.SetCurrentAction(LivingWorld.Domain.Behavior.ActionType.Work, world.CurrentDate.TotalHours);
+        for (long h = 0; h < trip.GatherHours; h++) Hour(world, ctx); // corta na mata, as horas da carga
+        Assert.True(builder.IsCarrying, "pegou a carga nas mãos");
+        Assert.Equal(work.MaterialResource, builder.CarriedResourceId);
+        Assert.True(builder.CarriedQuantity <= WorkHaul.CapacityUnits(world, builder, new ResourceType(work.MaterialResource)));
+        Assert.Equal(0, work.MaterialOnSite); // nada chega ao lote sem ela andar até lá
+
+        builder.MoveTo(new CellCoord(work.X, work.Y), world.CurrentDate.TotalHours);
+        long carried = builder.CarriedQuantity;
+        Hour(world, ctx);
+        Assert.False(builder.IsCarrying);
+        Assert.Equal(carried, work.MaterialOnSite);
+        var arrived = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived);
+        Assert.EndsWith($"|{builder.Id.Value}|natureza", arrived.Payload, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_household_brings_the_material_it_already_has_before_buying_or_cutting()
+    {
+        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
+        work.Helpers = [builder.Id.Value];
+        var home = world.FindHousehold(new HouseholdId(work.Household))!;
+        var timber = new ResourceType(work.MaterialResource);
+        home.Deposit(timber, 5);
+        Hour(world, ctx);
+        var trip = Assert.Single(work.Hauls);
+        Assert.Equal(("casa", home.Location), (trip.Source, new CellCoord(trip.X, trip.Y)));
+        builder.MoveTo(home.Location, world.CurrentDate.TotalHours);
+        Hour(world, ctx);
+        Assert.True(builder.IsCarrying);
+        Assert.Equal(5 - builder.CarriedQuantity, home.Stock.GetValueOrDefault(timber));
+    }
+
+    [Fact]
+    public void Several_of_the_team_haul_at_once_while_the_lot_lacks_a_days_material()
+    {
+        var (world, _, ctx, work, _) = HouseWork(StreetRules.Default);
+        var adults = world.Npcs.Where(n => n.IsAlive && n.City.Value == work.City && !n.IsCarrying
+            && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LifeStage.Adult).Take(3).Select(n => n.Id.Value).ToList();
+        work.Helpers = adults;
+        work.MaterialNeeded = 100; // mais do que duas mãos levam: cada um carrega o que aguenta
+        for (int h = 0; h < 3; h++) Hour(world, ctx);
+        Assert.Equal(3, work.Hauls.Select(t => t.Npc).Distinct().Count());
+        Assert.All(work.Hauls, t => Assert.Equal(WorkHaul.CapacityUnits(world, world.FindNpc(new NpcId(t.Npc))!, new ResourceType(work.MaterialResource)), t.Units)); // carga cheia
+    }
+
+    [Fact]
+    public void Without_the_rule_the_hours_pay_the_trip_on_the_lot_as_in_ad194()
+    {
+        var (world, sink, ctx, work, builder) = HouseWork(StreetRules.Default.WithAd195Mode("nowalk"));
+        work.Helpers = [builder.Id.Value];
+        Hour(world, ctx);
+        Assert.Empty(work.Hauls);
+        BuildWorks.Progress(world, ctx, work, builder, 24, 0, world.CurrentDate.TotalHours);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived);
+    }
+
+    [Fact]
+    public void The_city_queue_crew_fetches_from_the_square_stock_and_stops_with_an_event_when_it_runs_out()
+    {
+        var (world, clock) = ScenarioRunner.Create(3);
+        clock.Run(world, 24);
+        var sink = new Sink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        var city = world.ActiveCities().First();
+        var timber = new ResourceType(3);
+        var recipe = BuildingRecipe.Create(new Dictionary<ResourceType, long> { [timber] = 6 }, 6, 4).Value!;
+        var worker = world.Npcs.First(n => n.IsAlive && n.City == city.Id && !n.IsCarrying);
+        var project = new LivingWorld.Domain.Cities.Buildings.ConstructionProject(city.Id, 1, new Dictionary<ResourceType, long>(), 6)
+        { SiteX = city.Location.X + 3, SiteY = city.Location.Y + 3, WorkId = 9_000, Crew = [worker.Id.Value] };
+        city.DepositStock(timber, 4);
+
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.Single(project.Hauls!);
+        worker.MoveTo(city.Location, world.CurrentDate.TotalHours);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.True(worker.IsCarrying, "pegou no largo");
+        worker.MoveTo(new CellCoord(project.SiteX, project.SiteY), world.CurrentDate.TotalHours);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.True(project.MaterialOnSite![timber.Id] > 0);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived && e.Payload.EndsWith("|largo", StringComparison.Ordinal));
+
+        while (project.Hauls is { Count: > 0 } || city.Stock.GetValueOrDefault(timber) > 0)
+        {
+            worker.MoveTo(city.Location, world.CurrentDate.TotalHours);
+            QueueHaul.Tick(world, ctx, city, project, recipe);
+            worker.MoveTo(new CellCoord(project.SiteX, project.SiteY), world.CurrentDate.TotalHours);
+            QueueHaul.Tick(world, ctx, city, project, recipe);
+            if (sink.Events.Count > 20) break;
+        }
+        project.MaterialOnSite![timber.Id] = 0; // a parede comeu o que veio; o largo está vazio
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialShort);
+    }
+
+    [Fact]
+    public void Cutting_in_the_woods_does_not_count_again_the_walk_that_is_now_walked()
+    {
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var site = new CellCoord(work.X, work.Y);
+        var far = new CellCoord(Math.Min(world.Map.Width - 1, site.X + 10), site.Y);
+        long without = WorkHaul.CutHours(world, site, far, 10);
+        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"));
+        long with = WorkHaul.CutHours(plain, site, far, 10);
+        Assert.Equal((long)Math.Ceiling(plain.StreetRules.HouseGatherHours * 10.0 / plain.StreetRules.HouseMaterialUnits), with);
+        Assert.True(without < with, $"o corte sem a caminhada ({without} h) é menor que o total de antes ({with} h)");
+        Assert.True(without >= 10, "ao menos uma hora por unidade");
+    }
+
+    [Fact]
+    public void With_coin_and_stock_at_the_stall_the_household_buys_what_it_can_instead_of_cutting()
+    {
+        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
+        work.Helpers = [builder.Id.Value];
+        var timber = new ResourceType(work.MaterialResource);
+        var shop = world.Workplaces.First(w => w.City.Value == work.City && !w.Closed);
+        shop.Deposit(timber, 100, world.EconomyRules);
+        shop.SetPrice(timber, 50);
+        var home = world.FindHousehold(new HouseholdId(work.Household))!;
+        foreach (var id in home.Members) { var m = world.FindNpc(id)!; m.TryDebitWallet(m.Wallet); }
+        world.FindNpc(home.Members[0])!.CreditWallet(new Money(120)); // paga duas unidades, não a carga cheia
+        Hour(world, ctx);
+        var trip = Assert.Single(work.Hauls);
+        Assert.Equal("banca", trip.Source);
+        Assert.True(trip.Units >= 1 && trip.Units < WorkHaul.CapacityUnits(world, builder, timber), $"compra o que a moeda paga: {trip.Units}");
+    }
+
+    [Fact]
+    public void A_mutirao_helper_gives_a_whole_day_a_week_but_never_at_sowing_or_harvest_of_who_farms()
+    {
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var employed = world.Npcs.First(n => n.IsAlive && n.Employer is not null && n.City.Value == work.City);
+        work.Helpers = [employed.Id.Value];
+        work.Mutirao = [employed.Id.Value];
+        LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
+        int days = 0;
+        for (int d = 0; d < 14; d++)
+        {
+            if (LivingWorld.Simulation.Cities.Streets.SiteWork.MutiraoToday(world, employed)) days++;
+            world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerDay);
+        }
+        Assert.InRange(days, 2, 4); // um ou dois por semana, não todo dia
     }
 }

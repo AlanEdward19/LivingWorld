@@ -34,6 +34,7 @@ internal static class ConstructionWorks
         foreach (long npc in project.Crew)
             ctx.LogEvent(WorldEventKind.SiteWorkLeft, $"{npc}|{id}|desfeita", sourceSystem: LivingWorld.Simulation.Cities.Streets.SiteWork.SourceSystem);
         project.Crew.Clear();
+        ReturnLeftover(city, project, world); // AD-195: o material que estava no lote volta ao largo
         city.RemoveConstructionProject(project);
         LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
         WorkEvents.Log(ctx, WorldEventKind.WorkAbandoned, id, city.Id.Value, TypeOf(project), project.SiteX, project.SiteY,
@@ -54,8 +55,22 @@ internal static class ConstructionWorks
         project.LastProgressTick = now;
     }
 
+    /// <summary>AD-195: o material da receita que ficou no lote (e o que ia nas mãos da turma) volta ao estoque da cidade.</summary>
+    internal static void ReturnLeftover(City city, ConstructionProject project, WorldState? world = null)
+    {
+        foreach (var (resource, units) in project.MaterialOnSite ?? [])
+            if (units > 0)
+            {
+                city.DepositStock(new LivingWorld.Domain.Geography.ResourceType(resource), units);
+                world?.RecordResourceProduced(new LivingWorld.Domain.Geography.ResourceType(resource), units); // volta ao largo
+            }
+        project.MaterialOnSite = null;
+        project.Hauls = null;
+    }
+
     internal static void Done(WorldState world, TickContext ctx, City city, ConstructionProject project, Building built)
     {
+        ReturnLeftover(city, project, world);
         if (project.WorkId is not { } id) return;
         WorkEvents.Log(ctx, WorldEventKind.BuildWorkDone, id, city.Id.Value, TypeOf(project), project.SiteX, project.SiteY,
             $"{built.Id.Value}|{project.HoursWorked}|0|{project.Paid}|-", cause: project.StartEventId);

@@ -682,6 +682,17 @@ public sealed class Npc
         return Result<Unit>.Ok(Unit.Value);
     }
 
+    /// <summary>AD-195: larga o que leva nas mãos (no lote da obra, no chão) e diz o que era; mãos vazias = (0, 0).</summary>
+    public (int ResourceId, long Quantity) TakeCarried()
+    {
+        if (!IsCarrying) return (0, 0);
+        var taken = (CarriedResourceId, CarriedQuantity);
+        CarriedResourceId = 0;
+        CarriedQuantity = 0;
+        TouchCanonical();
+        return taken;
+    }
+
     public Result<Unit> GiveCarriedTo(Household household)
     {
         if (!IsCarrying) return Result<Unit>.Fail("carry: nada em trânsito");

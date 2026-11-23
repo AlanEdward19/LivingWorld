@@ -220,6 +220,7 @@ public class BuildWorksTests
         Assert.NotNull(quitter);
         var npc = world.FindNpc(new NpcId(quitter!.Value))!;
         Assert.Null(npc.Employer);
+        work.MaterialOnSite = work.MaterialNeeded - work.MaterialPlaced; // AD-195: o material já trazido
         BuildWorks.Progress(world, ctx, work, npc, work.HoursLeft + 1_000, paid: 0, world.CurrentDate.TotalHours); // a obra acaba (AD-194: com as cargas)
         BuildWorks.Tick(world, ctx);
         Assert.Equal(from, npc.Employer);
@@ -308,6 +309,7 @@ public class BuildWorksTests
         work.Prices[4] = 10;
         work.Origin = "poupanca|500|500|0";
         Assert.Equal(shopsBefore, world.Workplaces.Count); // em obra: o negócio ainda não existe
+        work.MaterialOnSite = work.MaterialNeeded - work.MaterialPlaced; // AD-195: o material já trazido
         BuildWorks.Progress(world, ctx, work, founder, 1_200, paid: 0, world.CurrentDate.TotalHours); // AD-194: as cargas e a parede
         Assert.Equal(shopsBefore + 1, world.Workplaces.Count);
         var shop = world.Workplaces[^1];

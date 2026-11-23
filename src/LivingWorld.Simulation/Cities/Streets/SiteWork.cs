@@ -114,10 +114,28 @@ public static class SiteWork
         // AD-185: a casa sem água bastante manda primeiro à fonte (quem ajuda na obra é quem iria buscá-la)
         if (LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeNeedsWater(world, npc)) return false;
         if (npc.Employer is null) return true;
+        if (world.StreetRules.MutiraoDays && work.Mutirao.Contains(npc.Id.Value) && MutiraoToday(world, npc)) return true; // AD-195
         var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
         var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;
         return LivingWorld.Simulation.Behavior.Needs.RoutineBoundaries.RoutineAt(world.ActionCatalog, profession, stage, hour, hpd)
             is not (LivingWorld.Domain.Behavior.ActionType.Work or LivingWorld.Domain.Behavior.ActionType.Sleep);
+    }
+
+    /// <summary>AD-195: hoje é o dia de mutirão deste ajudante empregado: um dia por semana (o dia da semana dele, pelo id), dois na
+    /// entressafra de quem lavra, nunca na semeadura nem na ceifa de quem lavra (a roça não espera). O motor não tem dia de descanso no
+    /// calendário: o dia da semana de cada um faz as vezes dele.</summary>
+    internal static bool MutiraoToday(WorldState world, Npc npc)
+    {
+        long day = world.CurrentDate.TotalHours / world.Calendar.HoursPerDay;
+        int slot = (int)((npc.Id.Value + day) % 7);
+        var agri = world.AgricultureRules;
+        if (agri.Enabled && npc.Employer is { } id && world.FindWorkplace(id) is { } place && world.FindCropAt(place.Location) is not null)
+        {
+            int month = world.CurrentDate.Month;
+            bool peak = agri.IsSowingMonth(month) || (month >= agri.EarliestRipeningMonth && month <= agri.ExpectedHarvestMonth + 1);
+            return !peak && (slot == 0 || slot == 3);
+        }
+        return slot == 0;
     }
 
     /// <summary>A célula onde a turma trabalha: a primeira do trecho, ou o lote do prédio.</summary>
@@ -132,10 +150,18 @@ public static class SiteWork
     /// AD-180: com chuva forte, neve ou chão congelado ninguém vai (não trabalha nem recebe no dia).</summary>
     internal static CellCoord? DestinationOf(WorldState world, Npc npc)
     {
-        CellCoord? cell = WorkOf(world, npc) is { } site ? SiteOf(world, site)
-            : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? new CellCoord(build.X, build.Y) : null;
+        CellCoord? cell = WorkOf(world, npc) is { } site ? HaulTarget(site, npc) ?? SiteOf(world, site)
+            : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? HaulTarget(build, npc) ?? new CellCoord(build.X, build.Y) : null;
         return cell is { } c && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, c) ? c : null;
     }
+
+    /// <summary>AD-195: quem está numa viagem de material vai à fonte ou volta ao lote, não ao lote direto.</summary>
+    private static CellCoord? HaulTarget(BuildWork? build, Npc npc) =>
+        build is { Hauls.Count: > 0 } ? WorkHaul.TargetOf(build, npc) : null;
+
+    private static CellCoord? HaulTarget(WorkSite site, Npc npc) =>
+        site.Build is { } build ? HaulTarget(build, npc)
+        : site.Project is { Hauls: not null } project && site.City is { } city ? QueueHaul.TargetOf(city, project, npc) : null;
 
     /// <summary>Jornal de uma hora: o jornal do dia (<see cref="PavingDecision.DayWage"/>) pelas horas da jornada.</summary>
     internal static long HourWage(WorldState world) =>
@@ -414,12 +440,17 @@ public static class SiteWork
     {
         if (WorkOf(world, npc) is not { } site)
         {
-            if (HelpOf(world, npc) is { } help && npc.CurrentLocation == new CellCoord(help.X, help.Y)
+            // AD-195: o ajudante na fonte da viagem de material (despensa, mata) também está na obra: a hora conta como andamento
+            if (HelpOf(world, npc) is { } help && (npc.CurrentLocation == new CellCoord(help.X, help.Y) || WorkHaul.AtSource(help, npc))
                 && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) // AD-180: dia perdido
-                BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now);
+                BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now,
+                    atSite: npc.CurrentLocation == new CellCoord(help.X, help.Y));
             return;
         }
-        if (npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
+        // AD-195: as horas na fonte da viagem de material (cortando na mata, na banca, na despensa) são jornada: o diarista recebe
+        bool hauling = site.Build is { } hb ? WorkHaul.AtSource(hb, npc)
+            : site.Project is { Hauls: not null } hp && site.City is { } hc && QueueHaul.AtSource(hc, hp, npc);
+        if (!hauling && npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
         if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) return; // AD-180: dia perdido
         long hours = Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay);
         if (hours <= 0) return;
@@ -454,12 +485,12 @@ public static class SiteWork
         }
         if (site.Build is { } build)
         {
-            BuildWorks.Progress(world, ctx, build, npc, hours, due, now);
+            BuildWorks.Progress(world, ctx, build, npc, hours, due, now, atSite: !hauling);
             return;
         }
         // a força de quem trabalha rende mais horas de obra (o poder modula a base, AD-084), como na fila sem turma
-        long done = (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
-        site.Project!.HoursBanked += done;
+        long done = hauling ? 0 : (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
+        site.Project!.HoursBanked += done; // AD-195: as horas no largo buscando material são jornada paga, não passo da receita
         site.Project.HoursWorked += hours;
         site.Project.Paid += due;
         LivingWorld.Simulation.Cities.Construction.ConstructionWorks.Progressed(world, ctx, city, site.Project, now);

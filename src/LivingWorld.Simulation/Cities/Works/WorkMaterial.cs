@@ -32,6 +32,7 @@ internal static class WorkMaterial
         long total = Math.Max(1, work.HoursTotal);
         long built = total - Math.Max(0, work.HoursLeft);
         long build = Place(work, total, built, done);
+        if (WorkHaul.Walking(world, work)) return build; // AD-195: quem traz o material anda (WorkHaul); a hora sem material não vira carga
         long rest = done - build;
         if (rest > 0 && work.MaterialPlaced + work.MaterialOnSite < work.MaterialNeeded)
         {
@@ -128,10 +129,10 @@ internal static class WorkMaterial
         return (units, Math.Max(1, CeilDiv((long)rules.HouseGatherHours * units, Math.Max(1, rules.HouseMaterialUnits))), null, 0);
     }
 
-    private static bool CanPay(WorldState world, BuildWork work, long cost) =>
+    internal static bool CanPay(WorldState world, BuildWork work, long cost) =>
         work.Kind == BuildKind.Workshop ? work.Escrow >= cost : PavingDecision.MeansOf(world, work.Household) >= cost;
 
-    private static bool Pay(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, BuildWork work, long cost)
+    internal static bool Pay(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, BuildWork work, long cost)
     {
         if (work.Kind == BuildKind.Workshop)
         {
@@ -154,6 +155,9 @@ internal static class WorkMaterial
             house.Deposit(new ResourceType(work.MaterialResource), units);
         else if (world.FindActiveCity(new CityId(work.City)) is { } city)
             city.DepositStock(new ResourceType(work.MaterialResource), units);
+        else return;
+        // AD-195: o que estava no lote já tinha sido contado consumido ao entrar na obra; de volta à despensa, volta à conta
+        world.RecordResourceProduced(new ResourceType(work.MaterialResource), units);
     }
 
     /// <summary>Horas de carregar que ainda faltam, pela próxima carga (o cliente mostra "falta carregar").</summary>
