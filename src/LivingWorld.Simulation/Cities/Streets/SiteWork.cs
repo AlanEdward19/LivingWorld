@@ -132,10 +132,14 @@ public static class SiteWork
     /// AD-180: com chuva forte, neve ou chão congelado ninguém vai (não trabalha nem recebe no dia).</summary>
     internal static CellCoord? DestinationOf(WorldState world, Npc npc)
     {
-        CellCoord? cell = WorkOf(world, npc) is { } site ? SiteOf(world, site)
-            : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? new CellCoord(build.X, build.Y) : null;
+        CellCoord? cell = WorkOf(world, npc) is { } site ? HaulTarget(site.Build, npc) ?? SiteOf(world, site)
+            : HelpingNow(world, npc) && HelpOf(world, npc) is { } build ? HaulTarget(build, npc) ?? new CellCoord(build.X, build.Y) : null;
         return cell is { } c && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, c) ? c : null;
     }
+
+    /// <summary>AD-195: quem está numa viagem de material vai à fonte ou volta ao lote, não ao lote direto.</summary>
+    private static CellCoord? HaulTarget(BuildWork? build, Npc npc) =>
+        build is { Hauls.Count: > 0 } ? WorkHaul.TargetOf(build, npc) : null;
 
     /// <summary>Jornal de uma hora: o jornal do dia (<see cref="PavingDecision.DayWage"/>) pelas horas da jornada.</summary>
     internal static long HourWage(WorldState world) =>
@@ -419,7 +423,9 @@ public static class SiteWork
                 BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now);
             return;
         }
-        if (npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
+        // AD-195: as horas na fonte da viagem de material (cortando na mata, na banca, na despensa) são jornada: o diarista recebe
+        bool hauling = site.Build is { } hb && WorkHaul.AtSource(hb, npc);
+        if (!hauling && npc.CurrentLocation != SiteOf(world, site)) return; // não estava lá: a ida não é jornada
         if (!LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) return; // AD-180: dia perdido
         long hours = Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay);
         if (hours <= 0) return;
@@ -454,7 +460,7 @@ public static class SiteWork
         }
         if (site.Build is { } build)
         {
-            BuildWorks.Progress(world, ctx, build, npc, hours, due, now);
+            BuildWorks.Progress(world, ctx, build, npc, hours, due, now, atSite: !hauling);
             return;
         }
         // a força de quem trabalha rende mais horas de obra (o poder modula a base, AD-084), como na fila sem turma

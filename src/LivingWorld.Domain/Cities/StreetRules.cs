@@ -135,6 +135,15 @@ public sealed partial record StreetRules(
     /// <summary>AD-194: a obra registra com lugar quando perde o dia pelo tempo e quando volta (uma vez por episódio).</summary>
     public bool WorkDayEvents { get; init; } = true;
 
+    /// <summary>AD-195: quem traz o material anda de verdade: sai do lote, vai pela rota à despensa da casa, à banca de quem vende ou à
+    /// mata, pega a carga nas mãos (o que aguenta pelo peso), volta e a deposita no lote; vários da turma carregam ao mesmo tempo
+    /// enquanto o lote não tem material para a próxima jornada. Desligado (<c>LW_AD195=nowalk</c>): as horas pagam a viagem sem sair
+    /// do lote, como na AD-194.</summary>
+    public bool HaulersWalk { get; init; } = true;
+
+    /// <summary>AD-195: a casa leva primeiro o material que já tem na despensa (sem comprar nem buscar); desligado: só banca e mata.</summary>
+    public bool MaterialFromHome { get; init; } = true;
+
     /// <summary>AD-184: quanto vale à família ter a casa própria em vez de morar de favor ou apertada, em dias de jornal por morador
     /// por ano: a casa nova só compensa se as idas de cada dia de lá não custam mais que isso a mais que as de onde ela está.</summary>
     public int OwnHomeDaysPerYear { get; init; } = 30;
@@ -224,7 +233,16 @@ public sealed partial record StreetRules(
 
     /// <summary>AD-184 desligada (<c>LW_AD184=off</c>), para medir pareado: a obra da AD-179 como era.</summary>
     /// <summary>AD-194 desligada (<c>LW_AD194=off</c>): material em horas e sem eventos de dia perdido, como na AD-184.</summary>
-    public StreetRules WithoutAd194() => this with { MaterialOnSite = false, WorkDayEvents = false };
+    public StreetRules WithoutAd194() => this with { MaterialOnSite = false, WorkDayEvents = false, HaulersWalk = false, MaterialFromHome = false };
+
+    /// <summary>AD-195 desligada (<c>LW_AD195=off</c>, ou só uma regra: <c>nowalk</c>, <c>nohome</c>).</summary>
+    public StreetRules WithAd195Mode(string mode) => mode switch
+    {
+        "off" => this with { HaulersWalk = false, MaterialFromHome = false },
+        "nowalk" => this with { HaulersWalk = false },
+        "nohome" => this with { MaterialFromHome = false },
+        _ => this,
+    };
 
     public StreetRules WithoutAd184() => this with
     {
@@ -236,6 +254,8 @@ public sealed partial record StreetRules(
         PrototypeIsWork = false,
         MaterialOnSite = false,
         WorkDayEvents = false,
+        HaulersWalk = false,
+        MaterialFromHome = false,
     };
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>

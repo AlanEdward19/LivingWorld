@@ -3,6 +3,22 @@ namespace LivingWorld.Simulation.Cities.Works;
 /// <summary>O que a obra levanta (AD-184): a casa de uma família ou a oficina de quem empreende.</summary>
 public enum BuildKind : byte { House = 0, Workshop = 1 }
 
+/// <summary>AD-195: uma viagem de material de alguém da obra: vai à fonte (a despensa da casa, a banca de quem vende ou a mata), pega
+/// a carga nas mãos e volta ao lote. <see cref="Stage"/> 0 = indo à fonte, 1 = voltando com a carga.</summary>
+public sealed class HaulTrip
+{
+    public long Npc { get; set; }
+    public int Stage { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    /// <summary>casa, banca ou natureza.</summary>
+    public string Source { get; set; } = "natureza";
+    public long Seller { get; set; } = -1;
+    public long Units { get; set; }
+    public long GatherDone { get; set; }
+    public long GatherHours { get; set; }
+}
+
 /// <summary>Sócio de uma oficina em obra (AD-184): quanto pôs; a cota se acerta quando ela abre.</summary>
 public sealed class BuildShare
 {
@@ -59,6 +75,8 @@ public sealed class BuildWork
     /// <summary>Travada por falta de material (evento uma vez por episódio) e perdendo o dia pelo tempo (idem).</summary>
     public bool MaterialShort { get; set; }
     public bool WeatherLost { get; set; }
+    /// <summary>AD-195: viagens de material em curso (quem foi buscar e para onde).</summary>
+    public List<HaulTrip> Hauls { get; set; } = [];
 
     // Oficina (Kind = Workshop): o que o fundador já levantou e o plano com que ela abre.
     /// <summary>Moeda guardada para a obra e o giro (paga os diaristas; o resto vira o caixa da oficina).</summary>
