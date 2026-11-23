@@ -65,7 +65,7 @@ public sealed class VentureTests
         if (opened is not null) return opened;
         var work = v.World.Ground?.Builds.FirstOrDefault(w => w.Kind == LivingWorld.Simulation.Cities.Works.BuildKind.Workshop && w.Owner == founder.Id.Value);
         if (work is null) return null;
-        LivingWorld.Simulation.Cities.Works.BuildWorks.Progress(v.World, v.Ctx, work, founder, work.HoursLeft, paid: 0, v.World.CurrentDate.TotalHours);
+        LivingWorld.Simulation.Cities.Works.BuildWorks.Progress(v.World, v.Ctx, work, founder, work.HoursLeft + 1_000, paid: 0, v.World.CurrentDate.TotalHours); // AD-194: as cargas de material e a parede
         return v.World.Workplaces.LastOrDefault(w => w.Owner == founder.Id);
     }
 

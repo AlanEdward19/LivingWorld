@@ -10,7 +10,12 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Api.Visual.Observable;
 
 /// <summary>AD-193: material da obra que o motor conta (só a obra da fila da cidade: a receita, o que já foi posto no prédio).</summary>
-public sealed record WorkMaterialVisual(int ResourceId, string? Name, long Needed, long Placed);
+public sealed record WorkMaterialVisual(int ResourceId, string? Name, long Needed, long Placed)
+{
+    /// <summary>AD-194: unidades já no lote e ainda não postas (casa e oficina; na obra da fila o material fica no estoque da cidade).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? OnSite { get; init; }
+}
 
 /// <summary>AD-193: uma obra em andamento como o motor a tem, para o cliente desenhar o canteiro com verdade e a ficha dizer quem ergue,
 /// para quem, o que falta e por que parou. Só leitura (nada aqui é guardado no mundo). <see cref="Halt"/>: <c>tempo</c> (chuva forte,
@@ -89,7 +94,7 @@ public static class WorkSiteProjector
             BuildingTypeId = typeId,
             TypeName = typeId is { } t ? names.BuildingType(t) : null,
             Stalled = work.Stalled,
-            Halt = HaltOf(world, site, work.Stalled, materialShort: false),
+            Halt = HaltOf(world, site, work.Stalled, materialShort: work.MaterialShort),
             Payer = work.Kind == BuildKind.House ? "casa" : "fundador",
             OwnerId = work.Owner,
             HouseholdId = work.Household,
@@ -105,6 +110,12 @@ public static class WorkSiteProjector
             OfferPm = work.OfferPm,
             StartedTick = work.StartTick,
             LastWorkedTick = work.LastProgressTick,
+            // AD-194: o material de verdade do canteiro (no lote, posto, o total) e as horas de carregar que faltam
+            Materials = work.MaterialNeeded > 0
+                ? ValueList<WorkMaterialVisual>.Of([new WorkMaterialVisual(work.MaterialResource, names.Resource(work.MaterialResource), work.MaterialNeeded,
+                    work.MaterialPlaced) { OnSite = work.MaterialOnSite }])
+                : ValueList<WorkMaterialVisual>.Empty,
+            HaulHoursLeft = work.MaterialNeeded > 0 ? WorkMaterial.HaulHoursLeft(world, work) : 0,
         };
     }
 

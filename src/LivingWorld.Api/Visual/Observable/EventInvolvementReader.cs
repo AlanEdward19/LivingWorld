@@ -65,8 +65,13 @@ public static class EventInvolvementReader
             WorldEventKind.ProfitDrawn or WorldEventKind.WorkplaceBankrupt => new(WorkplaceId: L(0), SubjectId: L(1), Amount: L(2)),
             WorldEventKind.VentureFounded => new(WorkplaceId: L(0), SubjectId: L(1)),
             // AD-184: eventos de obra com o id da obra, a cidade e o que ela levanta (a célula vai na posição do evento)
-            WorldEventKind.BuildWorkStarted or WorldEventKind.WorkStalled or WorldEventKind.WorkResumed or WorldEventKind.WorkAbandoned
+            WorldEventKind.BuildWorkStarted or WorldEventKind.WorkStalled or WorldEventKind.WorkAbandoned or WorldEventKind.WorkMaterialShort
                 => new(WorkId: L(0), CityId: S(1), Outcome: S(2)),
+            // AD-194: o motivo do dia perdido (chuva, neve, gelo) e o da volta (tempo, material; vazio = a turma voltou)
+            WorldEventKind.WorkWeatherLost => new(WorkId: L(0), CityId: S(1), Outcome: S(2), Motive: S(5)),
+            WorldEventKind.WorkResumed => new(WorkId: L(0), CityId: S(1), Outcome: S(2), Motive: S(6)),
+            // AD-194: carga chegou: quem a trouxe é o sujeito
+            WorldEventKind.WorkMaterialArrived => new(WorkId: L(0), CityId: S(1), Outcome: S(2), SubjectId: L(7), Amount: L(6)),
             WorldEventKind.BuildWorkDone => new(WorkId: L(0), CityId: S(1), Outcome: S(2), BuildingId: L(5)),
             WorldEventKind.StreetWorkStarted or WorldEventKind.StreetWorkDone => new(WorkId: L(0), CityId: S(1), Outcome: "calcamento"),
             WorldEventKind.SiteWorkJoined or WorldEventKind.SiteWorkLeft => new(SubjectId: L(0), WorkId: L(1), Outcome: S(2)),
@@ -91,7 +96,8 @@ public static class EventInvolvementReader
         (int ix, int iy) = evt.Kind switch
         {
             WorldEventKind.BuildWorkStarted or WorldEventKind.BuildWorkDone or WorldEventKind.WorkStalled or WorldEventKind.WorkResumed
-                or WorldEventKind.WorkAbandoned => (3, 4),
+                or WorldEventKind.WorkAbandoned or WorldEventKind.WorkMaterialArrived or WorldEventKind.WorkWeatherLost
+                or WorldEventKind.WorkMaterialShort => (3, 4),
             WorldEventKind.StreetWorkStarted => (7, 8),
             WorldEventKind.StreetWorkDone => (6, 7),
             _ => (-1, -1),

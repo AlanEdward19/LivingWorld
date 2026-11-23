@@ -35,7 +35,7 @@ static func describe(store, registry, work: Dictionary, hours_per_day: float, da
 		links.append(["Casa que encomendou", Registry.ref(Registry.HOUSEHOLD, int(work.household_id))])
 	var left := "Faltam %s de obra" % _hours(int(work.hours_left), hours_per_day)
 	if int(work.haul_left) > 0:
-		left += " e %s de carregar o material até o lote" % _hours(int(work.haul_left), hours_per_day)
+		left += " e %s de trazer o material até o lote" % _hours(int(work.haul_left), hours_per_day)
 	lines.append(left)
 	var halt := String(work.get("halt", ""))
 	if halt != "":
@@ -57,8 +57,8 @@ static func describe(store, registry, work: Dictionary, hours_per_day: float, da
 	if int(work.spent) > 0:
 		lines.append("Gasto ao abrir (material comprado, foro, equipamento): %d" % int(work.spent))
 	for entry in work.materials:
-		lines.append("Material: %s %d de %d já posto" % [String(entry.name) if String(entry.name) != "" else "recurso %d" % int(entry.resource),
-			int(entry.placed), int(entry.needed)])
+		lines.append("Material: %s %d de %d já posto%s" % [String(entry.name) if String(entry.name) != "" else "recurso %d" % int(entry.resource),
+			int(entry.placed), int(entry.needed), (" · %d no lote" % int(entry.on_site)) if int(entry.get("on_site", -1)) >= 0 else ""])
 	if int(work.started) > 0:
 		lines.append("Começou: %s · última hora de trabalho: %s" % [date_of.call(int(work.started)), date_of.call(int(work.last_worked))])
 	if int(work.building_id) >= 0:

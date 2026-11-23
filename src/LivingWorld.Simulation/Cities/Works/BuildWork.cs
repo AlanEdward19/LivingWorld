@@ -47,6 +47,19 @@ public sealed class BuildWork
     public bool Stalled { get; set; }
     public long StartEventId { get; set; }
 
+    // AD-194: material de verdade no canteiro (com StreetRules.MaterialOnSite). Zero/nulo = obra aberta antes (material em horas).
+    /// <summary>Recurso do material e unidades que a obra leva no total.</summary>
+    public int MaterialResource { get; set; }
+    public long MaterialNeeded { get; set; }
+    /// <summary>Unidades no lote ainda não postas na parede, e as já postas.</summary>
+    public long MaterialOnSite { get; set; }
+    public long MaterialPlaced { get; set; }
+    /// <summary>Horas de carregar já feitas desde a última carga que chegou (a viagem em curso).</summary>
+    public long HaulBanked { get; set; }
+    /// <summary>Travada por falta de material (evento uma vez por episódio) e perdendo o dia pelo tempo (idem).</summary>
+    public bool MaterialShort { get; set; }
+    public bool WeatherLost { get; set; }
+
     // Oficina (Kind = Workshop): o que o fundador já levantou e o plano com que ela abre.
     /// <summary>Moeda guardada para a obra e o giro (paga os diaristas; o resto vira o caixa da oficina).</summary>
     public long Escrow { get; set; }

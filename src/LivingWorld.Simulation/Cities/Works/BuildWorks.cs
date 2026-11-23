@@ -21,7 +21,8 @@ namespace LivingWorld.Simulation.Cities.Works;
 /// diaristas que a casa pode pagar. Sem hora por uma semana a obra para (evento); sem hora por meses, é abandonada e o lote volta a
 /// ser livre.</summary>
 [LivingCapability("BUILD_WORKS", Events = [WorldEventKind.BuildWorkStarted, WorldEventKind.BuildWorkDone, WorldEventKind.WorkStalled,
-    WorldEventKind.WorkResumed, WorldEventKind.WorkAbandoned], Consumers = ["population.dwelling", "economy.wallet", "economy.venture",
+    WorldEventKind.WorkResumed, WorldEventKind.WorkAbandoned, WorldEventKind.WorkMaterialArrived, WorldEventKind.WorkWeatherLost,
+    WorldEventKind.WorkMaterialShort], Consumers = ["population.dwelling", "economy.wallet", "economy.venture",
     "behavior.work-destination"])]
 public sealed class BuildWorksSystem : ISimulationSystem
 {
@@ -61,6 +62,8 @@ public static class BuildWorks
                         (idle / world.Calendar.HoursPerDay).ToString(System.Globalization.CultureInfo.InvariantCulture), cause: work.StartEventId);
                 }
                 if (rules.HelpersBuild && (work.Id + ctx.CurrentTick / world.Calendar.HoursPerDay) % 7 == 0) RefreshHelpers(world, work); // quem ajuda se acerta por semana
+                if (rules.WorkDayEvents && ctx.CurrentTick % world.Calendar.HoursPerDay == world.Calendar.HoursPerDay / 4)
+                    WeatherDay(world, ctx, work); // AD-194: uma vez por dia, ao amanhecer
                 SiteWork.Staff(world, ctx, new WorkSite(null, null, null, work));
             }
         }
@@ -88,6 +91,25 @@ public static class BuildWorks
             shop.Hire(npc.Id);
             npc.Hire(shop.Id);
             ctx.LogEvent(WorldEventKind.Hired, $"{npc.Id.Value}|{shop.Id.Value}", sourceSystem: SiteWork.SourceSystem);
+        }
+    }
+
+    /// <summary>AD-194: com gente na turma, o dia que o tempo não deixa trabalhar no lote (chuva forte, neve, chão congelado) é
+    /// registrado uma vez por episódio, e a volta quando o tempo abre.</summary>
+    private static void WeatherDay(WorldState world, TickContext ctx, BuildWork work)
+    {
+        var site = new CellCoord(work.X, work.Y);
+        bool workable = LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, site);
+        if (!workable && !work.WeatherLost && (work.Crew.Count > 0 || work.Helpers.Count > 0))
+        {
+            work.WeatherLost = true;
+            WorkEvents.Log(ctx, WorldEventKind.WorkWeatherLost, work.Id, work.City, TypeOf(work), work.X, work.Y,
+                LivingWorld.Simulation.Climate.WeatherNow.LostDayReason(world, site), cause: work.StartEventId);
+        }
+        else if (workable && work.WeatherLost)
+        {
+            work.WeatherLost = false;
+            WorkEvents.Log(ctx, WorldEventKind.WorkResumed, work.Id, work.City, TypeOf(work), work.X, work.Y, "0|tempo", cause: work.StartEventId);
         }
     }
 
@@ -252,11 +274,63 @@ public static class BuildWorks
         }
         else fee = 0;
         var site = chosen.Value;
-        var (materialHours, spent) = Material(world, ctx, city, household, site.Position, budget - fee);
+        // AD-194: com o material no canteiro, ele chega carga por carga pelas horas da obra; sem a regra, vira horas na abertura
+        var (materialHours, spent) = rules.MaterialOnSite ? (0L, 0L) : Material(world, ctx, city, household, site.Position, budget - fee);
         long hours = rules.HouseHours + (long)croftArea * rules.CroftHoursPerCell + materialHours;
         Open(world, ctx, city, BuildKind.House, typeId, site.Position, site.Orientation, site.Croft, household.Id.Value,
             household.Head.Value, hours, spent + fee, $"{household.Id.Value}|{hours}|{croftArea}|{spent + fee}");
         return true;
+    }
+
+    /// <summary>AD-194 (diagnóstico, só leitura): por que a casa não abre obra agora — <c>ok</c>, <c>nao-precisa</c>, <c>sem-adulto</c>,
+    /// <c>sem-lote</c> (nenhum lote de rua cujo foro ela pague), <c>nao-compensa</c> (as idas do lote novo passam do que vale a casa
+    /// própria) com os custos.</summary>
+    internal static string WhyNoHouse(WorldState world, Household household)
+    {
+        var tenants = DwellingCapacity.TenantsByBuilding(world);
+        var host = new Dictionary<BuildingId, long>();
+        foreach (var h in world.Households)
+            if (h.Dwelling is { } d && !h.IsEmpty && (!host.TryGetValue(d, out long first) || h.Id.Value < first)) host[d] = h.Id.Value;
+        if (!NeedsHouse(world, household, tenants, host)) return "nao-precisa";
+        if (world.FindActiveCity(household.City) is not { } city) return "sem-cidade";
+        var members = household.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList();
+        if (!members.Any(n => IsAdult(world, n))) return "sem-adulto";
+        var rules = world.StreetRules;
+        int typeId = HouseTypeOf(world);
+        var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, typeId, world.CurrentDate.TotalHours);
+        var profile = LotProfiles.ForHousehold(world, city.Id, members);
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
+        long dayWage = PavingDecision.DayWage(world);
+        long budget = Math.Max(0, PavingDecision.MeansOf(world, household.Id.Value) - dayWage * rules.SiteReserveDays);
+        var places = HomePlaces.Of(world, city.Id, members);
+        double best = double.MaxValue;
+        long bestFee = 0;
+        int lots = 0;
+        for (int level = 0; level <= 1; level++)
+            foreach (var lot in CityOccupancy.CandidateLots(world, city, bounds, candidate.Id, typeId, 0, profile, level, rules.LotChoices, places.Anchors(world)))
+            {
+                lots++;
+                long lotFee = rules.CroftFeeDaysPerCell * dayWage * CroftArea(candidate, lot.Orientation, lot.Croft);
+                if (lotFee > budget) continue;
+                double cost = places.YearlyCost(world, lot.Origin) * rules.PaybackYears + lotFee;
+                if (cost < best) { best = cost; bestFee = lotFee; }
+            }
+        if (best == double.MaxValue)
+        {
+            var network = CityStreets.Of(world, city);
+            int free = 0;
+            foreach (var cell in network.Cells)
+                if (bounds.Contains(cell)) free++;
+            var whole = new LivingWorld.Domain.Cities.Spatial.CityBounds(new CellCoord(0, 0), world.Map.Width, world.Map.Height);
+            int anywhere = CityOccupancy.CandidateLots(world, city, whole, candidate.Id, typeId, 0, profile, 0, rules.LotChoices).Count;
+            return $"sem-lote lotes={lots} semLimite={anywhere} orcamento={budget} rede={network.Count} redeNosLimites={free} limites={bounds.Width}x{bounds.Height} predios={world.Buildings.Count(b => b.City == city.Id)}";
+        }
+        double newCost = (best - bestFee) / Math.Max(1, rules.PaybackYears);
+        double own = rules.OwnHomeDaysPerYear * (double)dayWage * Math.Max(1, household.Members.Count);
+        double now = household.Dwelling is null ? 0 : places.YearlyCost(world, household.Location);
+        return WorthMoving(world, household, places, newCost, QuarterYearly(world, city, bounds, members))
+            ? $"ok novo={newCost:F0} agora={now:F0} casaPropria={own:F0}"
+            : $"nao-compensa novo={newCost:F0} agora={now:F0} casaPropria={own:F0}";
     }
 
     /// <summary>Mudar vale a pena? Quem não tem casa muda sempre. Quem mora (de favor, apertado) compara: as idas de cada dia do lugar
@@ -342,6 +416,7 @@ public static class BuildWorks
             StartTick = now,
             LastProgressTick = now,
         };
+        WorkMaterial.Plan(world, work); // AD-194
         ground.Builds.Add(work);
         work.StartEventId = WorkEvents.Log(ctx, WorldEventKind.BuildWorkStarted, id, work.City, TypeOf(work), work.X, work.Y, payload);
         if (world.StreetRules.HelpersBuild) RefreshHelpers(world, work);
@@ -473,6 +548,7 @@ public static class BuildWorks
     {
         if (hours <= 0 || !world.Ground!.Builds.Contains(work)) return;
         long done = (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
+        done = WorkMaterial.Spend(world, ctx, work, npc, done); // AD-194: a parede só sobe com material no lote; o resto traz carga
         work.HoursLeft -= done;
         if (paid > 0) { work.HoursByCrew += hours; work.Paid += paid; }
         else work.HoursByHelpers += hours;
@@ -494,6 +570,7 @@ public static class BuildWorks
         long now = ctx.CurrentTick;
         ground.Builds.Remove(work);
         ground.BuildsDone++;
+        WorkMaterial.ReturnLeftover(world, work); // AD-194
         SiteWork.Touch(world);
         if (world.FindBuilding(new BuildingId(work.Building)) is not { } building) return;
         building.Complete(now);
@@ -516,6 +593,7 @@ public static class BuildWorks
         var ground = world.Ground!;
         ground.Builds.Remove(work);
         ground.BuildsAbandoned++;
+        WorkMaterial.ReturnLeftover(world, work); // AD-194: o material no lote volta a quem pagou
         SiteWork.Touch(world);
         if (world.FindBuilding(new BuildingId(work.Building)) is { UnderWork: not null } canteiro) world.RemoveBuilding(canteiro);
         if (work.Escrow > 0) Refund(world, ctx, work);

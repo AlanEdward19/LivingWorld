@@ -62,7 +62,7 @@ public class ApiContractTests
             OfferPm = 1100,
             StartedTick = 2,
             LastWorkedTick = 4,
-            Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(3, "madeira", 20, 5)]),
+            Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(3, "madeira", 20, 5) { OnSite = 4 }]),
         };
         public static readonly LivingWorld.Api.Visual.Catalogs.ExtraordinaryNpcVisual Extraordinary = new(
             ["voo"], true, "manifest", 1.2, "#ffffff", "faisca", new("hunger", 1, 2), 0.5, true, 1.5);

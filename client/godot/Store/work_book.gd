@@ -8,9 +8,6 @@ const HALT_TEXT := {
 	"material": "a cidade não tem no estoque o material do próximo passo da obra",
 }
 const PAYER_TEXT := {"casa": "a família paga a turma", "fundador": "o fundador paga a turma com o que guardou", "cidade": "o tesouro da cidade paga a turma"}
-## AD-193: a obra que passa a perder o dia (o motor não registra isso no log; o estado `halt` diz) vira linha no registro, com lugar.
-const HALT_EVENT := {"tempo": "Uma obra parou pelo tempo (chuva forte, neve ou chão congelado)",
-	"material": "Uma obra da cidade parou: falta no estoque o material do próximo passo"}
 const STAGES := 10 ## a obra desenhada muda de forma a cada décimo (o motor manda a fração a cada hora trabalhada)
 
 
@@ -20,7 +17,8 @@ static func parse(raw: Dictionary) -> Dictionary:
 	for entry in raw.get("materials", []) if raw.get("materials") is Array else []:
 		if entry is Dictionary:
 			materials.append({"resource": int(entry.get("resourceId", -1)), "name": String(entry.get("name", "")) if entry.get("name") != null else "",
-				"needed": int(entry.get("needed", 0)), "placed": int(entry.get("placed", 0))})
+				"needed": int(entry.get("needed", 0)), "placed": int(entry.get("placed", 0)),
+				"on_site": int(entry.get("onSite", 0)) if entry.get("onSite") != null else -1}) # AD-194: -1 = o motor não conta o lote
 	var location = raw.get("location")
 	return {
 		"id": int(raw.get("id", -1)), "kind": String(raw.get("kind", "")), "city": String(raw.get("cityId", "")),
@@ -66,15 +64,9 @@ static func load_snapshot(store, state: Dictionary) -> void:
 ## Delta: só a obra que mudou vem; a que acabou ou foi abandonada sai. Avisa com os ids tocados (o renderizador redesenha só esses).
 static func apply_delta(store, delta: Dictionary) -> void:
 	var touched: Array = []
-	var halted: Array = []
 	for raw in delta.get("workUpserts", []) if delta.get("workUpserts") is Array else []:
 		if raw is Dictionary:
 			var work := parse(raw)
-			var before = store.works.get(work.id)
-			if before != null and String(before.halt) != String(work.halt) and HALT_EVENT.has(String(work.halt)):
-				halted.append({"label": HALT_EVENT[String(work.halt)], "kind": 0, "tick": int(delta.get("tick", 0)),
-					"location": {"x": work.cell.x, "y": work.cell.y},
-					"involved": {"workId": work.id, "cityId": work.city, "outcome": work.kind}})
 			store.works[work.id] = work
 			touched.append(work.id)
 	for removed in delta.get("workRemoved", []) if delta.get("workRemoved") is Array else []:
@@ -83,8 +75,6 @@ static func apply_delta(store, delta: Dictionary) -> void:
 			touched.append(id)
 	if not touched.is_empty():
 		store.works_changed.emit(touched)
-	if not halted.is_empty():
-		store.events_arrived.emit(halted)
 
 
 ## A obra do canteiro (prédio com `work`), {} se o prédio está pronto ou a obra não está no escopo.
@@ -103,16 +93,26 @@ static func stage(work: Dictionary) -> int:
 	return clampi(int(floor(float(work.get("progress", 0.0)) * STAGES)), 0, STAGES)
 
 
-## Material carregado ao lote e ainda não posto (só a obra da fila conta material): fração 0..1 do total.
+## Material no lote e ainda não posto, fração 0..1 do total. AD-194: casa e oficina contam o lote (`onSite`); a obra da fila conta o
+## posto e o carregamento (o material carregado e não posto, quando o carregamento acabou e o estoque tem o passo).
 static func pile_fraction(work: Dictionary) -> float:
-	if int(work.get("haul_left", 0)) > 0 or String(work.get("halt", "")) == "material":
-		return 0.0
 	var needed := 0
+	var on_site := 0
 	var placed := 0
+	var counted := false
 	for entry in work.get("materials", []):
 		needed += int(entry.needed)
 		placed += int(entry.placed)
-	return clampf(float(needed - placed) / float(needed), 0.0, 1.0) if needed > 0 else 0.0
+		if int(entry.get("on_site", -1)) >= 0:
+			counted = true
+			on_site += int(entry.on_site)
+	if needed <= 0:
+		return 0.0
+	if counted:
+		return clampf(float(on_site) / float(needed), 0.0, 1.0)
+	if int(work.get("haul_left", 0)) > 0 or String(work.get("halt", "")) == "material":
+		return 0.0
+	return clampf(float(needed - placed) / float(needed), 0.0, 1.0)
 
 
 ## O que a obra levanta, em palavras: casa, oficina ou o tipo de prédio da fila da cidade.
