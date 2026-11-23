@@ -15,7 +15,7 @@ namespace LivingWorld.Simulation.Cities.Works;
 /// passa a ser a fonte (<see cref="TargetOf"/>, lido por <see cref="SiteWork.DestinationOf"/>): anda pela rota, pega nas mãos o que
 /// aguenta pelo peso, volta pela rota e deposita no lote (<c>WorkMaterialArrived</c>). Fome, sede, noite e tempo ruim interrompem como
 /// qualquer jornada: a carga fica nas mãos dele até voltar ao lote. Quem sai da obra com a carga a leva para casa.</summary>
-[LivingCapability("WORK_HAUL", Events = [WorldEventKind.WorkMaterialArrived, WorldEventKind.WorkMaterialShort, WorldEventKind.WorkResumed],
+[LivingCapability("WORK_HAUL", Events = [], // os eventos de obra são declarados por BUILD_WORKS
     Consumers = ["behavior.work-destination", "economy.wallet", "economy.stock"])]
 [RunsAfter(typeof(LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem))]
 public sealed class WorkHaulSystem : ISimulationSystem
@@ -97,8 +97,13 @@ internal static class WorkHaul
                 trip.Reached = true;
                 if (trip.Source == "natureza")
                 {
-                    if (npc.CurrentAction != LivingWorld.Domain.Behavior.ActionType.Work) continue;
-                    if (++trip.GatherDone < trip.GatherHours) continue;
+                    // corta por hora de trabalho na mata; ao largar o trabalho (fim da jornada, fome, noite) leva o que já cortou: a
+                    // ida é de um dia, não fica na mata até ter a carga cheia (AD-195: antes ia e voltava dias sem trazer nada)
+                    long perUnit = Math.Max(1, trip.GatherHours / Math.Max(1, trip.Units));
+                    bool working = npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Work;
+                    if (working && ++trip.GatherDone < trip.GatherHours) continue;
+                    if (!working && trip.GatherDone < perUnit) continue;
+                    trip.Units = Math.Min(trip.Units, Math.Max(1, trip.GatherDone / perUnit));
                 }
                 long took = Take(world, ctx, city, work, trip, npc, resource);
                 if (took <= 0) { work.Hauls.RemoveAt(i); continue; } // a fonte secou ou quem paga não pode: outra viagem depois
@@ -187,7 +192,11 @@ internal static class WorkHaul
         var wood = WoodsFor(world, city, new CellCoord(work.X, work.Y));
         return new HaulTrip
         {
-            Npc = who.Id.Value, X = wood.X, Y = wood.Y, Source = "natureza", Units = units,
+            Npc = who.Id.Value,
+            X = wood.X,
+            Y = wood.Y,
+            Source = "natureza",
+            Units = units,
             GatherHours = Math.Max(1, CeilDiv((long)rules.HouseGatherHours * units, Math.Max(1, rules.HouseMaterialUnits))),
         };
     }
