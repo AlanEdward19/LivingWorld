@@ -273,7 +273,7 @@ public static class BuildWorks
 
     /// <summary>AD-192: quanto a sujeira pesa, por ano e por ponto de sujeira, na escolha de onde morar desta família: dias de jornal por
     /// morador × a aversão média dos adultos ao bairro sujo (sem a curiosidade); 0 com a chave desligada.</summary>
-    private static double QuarterYearly(WorldState world, City city, LivingWorld.Domain.Cities.Spatial.CityBounds bounds, List<Npc> members)
+    internal static double QuarterYearly(WorldState world, City city, LivingWorld.Domain.Cities.Spatial.CityBounds bounds, List<Npc> members)
     {
         var rules = world.StreetRules;
         if (!rules.QuarterInLotChoice) return 0;

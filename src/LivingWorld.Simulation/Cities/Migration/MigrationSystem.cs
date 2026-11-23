@@ -165,7 +165,7 @@ public sealed class MigrationSystem : ISimulationSystem
         + rules.MigrationFamilyTiesWeight * FamilyTiesLevel(world, household, cityId);
 
     /// <summary>Por tick: limite crescido e parte suja (casas de sujeira ≥ <c>DenseSqualor</c>) de cada cidade, calculados uma vez.</summary>
-    private sealed class SafetyCache
+    internal sealed class SafetyCache
     {
         public readonly Dictionary<CityId, (LivingWorld.Domain.Cities.Spatial.CityBounds Bounds, double DenseShare)> Cities = [];
     }
@@ -173,7 +173,7 @@ public sealed class MigrationSystem : ISimulationSystem
     /// <summary>AD-192: a segurança da cidade para esta casa (0–1). Antes 0,5 fixo (nenhuma fonte de dado); agora 0,5 × (1 − medo),
     /// medo = os crimes que a casa conhece lá (vítima ou boato, <c>RegardPerCrime</c> cada) + a aversão média dos adultos ao bairro
     /// sujo × a parte suja da cidade. Sem crime conhecido e sem aversão, os 0,5 de sempre.</summary>
-    private static double SecurityLevel(WorldState world, Household household, CityId cityId, SafetyCache safety)
+    internal static double SecurityLevel(WorldState world, Household household, CityId cityId, SafetyCache safety)
     {
         var streets = world.StreetRules;
         if (!streets.QuarterInMigration || world.FindActiveCity(cityId) is not { } city) return 0.5;

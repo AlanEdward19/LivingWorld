@@ -31,7 +31,7 @@ public sealed partial record StreetRules
     /// pega: fator = 1 + <see cref="HygieneGain"/> × (sujeira − <see cref="HygieneReference"/>), entre o piso e o teto.</summary>
     public bool QuarterHygiene { get; init; } = true;
     public double HygieneGain { get; init; } = 2.0;
-    public double HygieneReference { get; init; } = 0.2;
+    public double HygieneReference { get; init; } = 0.12;
     public double HygieneFloor { get; init; } = 0.6;
     public double HygieneMax { get; init; } = 2.5;
 
@@ -55,7 +55,7 @@ public sealed partial record StreetRules
     public double RegardCrimeMax { get; init; } = 0.75;
 
     /// <summary>AD-192: sujeira a partir da qual a casa conta como de bairro denso (para o crime que "é de lá" e a parte suja da cidade).</summary>
-    public double DenseSqualor { get; init; } = 0.45;
+    public double DenseSqualor { get; init; } = 0.35;
 
     /// <summary>AD-192: a família pesa a sujeira do lote ou da casa vazia pela aversão dos adultos: dias de jornal por morador por ano ×
     /// aversão × sujeira (curiosidade não leva ninguém a morar na sujeira: aversão abaixo de 0 conta 0).</summary>
