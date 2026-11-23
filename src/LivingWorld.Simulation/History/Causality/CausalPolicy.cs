@@ -46,6 +46,7 @@ public static class CausalPolicy
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
         WorldEventKind.StreetWorkDone, // AD-176: causa = a obra aberta
         WorldEventKind.BuildWorkDone, WorldEventKind.WorkStalled, WorldEventKind.WorkResumed, WorldEventKind.WorkAbandoned, // AD-184: causa = a obra aberta
+        WorldEventKind.WorkMaterialArrived, WorldEventKind.WorkWeatherLost, WorldEventKind.WorkMaterialShort, // AD-194: idem
         WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
         // AD-168: o espólio no chão vem da morte de quem o levava
         WorldEventKind.LeavingsLeft,

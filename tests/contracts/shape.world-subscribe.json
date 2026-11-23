@@ -642,6 +642,7 @@
             {
               "name?": "string",
               "needed": "number",
+              "onSite?": "number",
               "placed": "number",
               "resourceId": "number"
             }

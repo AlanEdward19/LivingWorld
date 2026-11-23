@@ -184,9 +184,16 @@ static func run(app: Node, steps: Array) -> void:
 						on_site += 1
 				var works_text: Array = []
 				for work in app.store.works.values():
-					works_text.append("%d:%s:%d%%:%s:turma=%d+%d:lote=%d" % [int(work.id), String(work.kind), int(round(float(work.progress) * 100.0)),
-						String(work.halt) if String(work.halt) != "" else "anda", work.crew.size(), work.helpers.size(), work.on_site.size()])
-				print("log-works: works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
+					var mat := ""
+					for entry in work.materials: # AD-194: material no lote / posto / total
+						mat += ":mat=%d/%d/%d" % [int(entry.get("on_site", -1)), int(entry.placed), int(entry.needed)]
+					works_text.append("%d:%s:%d%%:%s:turma=%d+%d:lote=%d%s" % [int(work.id), String(work.kind), int(round(float(work.progress) * 100.0)),
+						String(work.halt) if String(work.halt) != "" else "anda", work.crew.size(), work.helpers.size(), work.on_site.size(), mat])
+				var arrivals := 0
+				for event in app.registry.events.values():
+					if String(event.get("label", "")).begins_with("Chegou ao lote"):
+						arrivals += 1
+				print("log-works: cargas_no_registro=", arrivals, " works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
 			"walls":
 				var view = app.stage.interior_view
 				var heights := {}

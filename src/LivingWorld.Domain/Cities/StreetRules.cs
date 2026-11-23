@@ -126,6 +126,15 @@ public sealed partial record StreetRules(
     public int HouseMaterialResourceId { get; init; } = 3;
     public int HouseMaterialUnits { get; init; } = 20;
 
+    /// <summary>AD-194: o material é estoque do canteiro. As horas de quem está na obra vão primeiro a trazer carga (comprada de quem
+    /// vende, carga por carga, ou buscada na natureza), <see cref="BuildUnitsPerLoad"/> unidades por viagem pela rota; a parede só sobe
+    /// com material no lote; sem material, sem quem venda ou sem como pagar, e sem como buscar, a obra trava; o que sobra volta a quem
+    /// pagou. Vale para a casa e a oficina. Desligado (<c>LW_AD194=off</c>): o material vira horas na abertura, como na AD-184.</summary>
+    public bool MaterialOnSite { get; init; } = true;
+
+    /// <summary>AD-194: a obra registra com lugar quando perde o dia pelo tempo e quando volta (uma vez por episódio).</summary>
+    public bool WorkDayEvents { get; init; } = true;
+
     /// <summary>AD-184: quanto vale à família ter a casa própria em vez de morar de favor ou apertada, em dias de jornal por morador
     /// por ano: a casa nova só compensa se as idas de cada dia de lá não custam mais que isso a mais que as de onde ela está.</summary>
     public int OwnHomeDaysPerYear { get; init; } = 30;
@@ -214,6 +223,9 @@ public sealed partial record StreetRules(
     public static StreetRules Default { get; } = new();
 
     /// <summary>AD-184 desligada (<c>LW_AD184=off</c>), para medir pareado: a obra da AD-179 como era.</summary>
+    /// <summary>AD-194 desligada (<c>LW_AD194=off</c>): material em horas e sem eventos de dia perdido, como na AD-184.</summary>
+    public StreetRules WithoutAd194() => this with { MaterialOnSite = false, WorkDayEvents = false };
+
     public StreetRules WithoutAd184() => this with
     {
         BuildNeedsCrew = false,
@@ -222,6 +234,8 @@ public sealed partial record StreetRules(
         HelpersBuild = false,
         WageBidding = false,
         PrototypeIsWork = false,
+        MaterialOnSite = false,
+        WorkDayEvents = false,
     };
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>

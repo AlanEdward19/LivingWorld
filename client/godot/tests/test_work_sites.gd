@@ -165,16 +165,27 @@ func test_work_events_link_to_the_work_and_name_what_it_raises() -> void:
 	check(app.registry.event_title(event).ends_with("— casa"), app.registry.event_title(event))
 
 
-func test_a_work_that_starts_losing_the_day_goes_to_the_record_with_its_place() -> void:
+func test_the_day_lost_comes_from_the_world_log_not_from_the_state() -> void:
 	var app = await city_app(tree)
 	var seen := []
 	app.store.events_arrived.connect(func(events): seen.append_array(events))
 	app.stream.delta_applied.emit(delta(11, {"workUpserts": [work(0.3, {"halt": "tempo"})]}))
-	eq(seen.size(), 1, "a obra passou a perder o dia pelo tempo")
-	eq(int(seen[0].involved.workId), WORK, "com a obra")
-	eq(seen[0].location, {"x": 4, "y": 0}, "e o lote")
-	app.stream.delta_applied.emit(delta(12, {"workUpserts": [work(0.31, {"halt": "tempo"})]}))
-	eq(seen.size(), 1, "o mesmo episódio não se repete")
+	eq(seen.size(), 0, "o estado sozinho não inventa evento")
+	app.stream.delta_applied.emit(delta(12, {"events": [{"tick": 12, "kind": 0, "label": "Uma obra perdeu o dia pelo tempo",
+		"location": {"x": 4, "y": 0}, "eventId": 77, "involved": {"workId": WORK, "cityId": "city-a", "outcome": "casa", "motive": "chuva"}}]}))
+	eq(seen.size(), 1, "o evento do log chega")
+	var event: Dictionary = app.registry.events.get(77, {})
+	check("work:%d" % WORK in app.registry.event_links(event).map(func(l): return Registry.key(l[1])), "e abre a obra")
+
+
+func test_house_material_on_the_lot_is_the_pile() -> void:
+	var snapshot := city()
+	snapshot.payload.livingState.works = [work(0.2, {"materials": [{"resourceId": 3, "name": "madeira", "needed": 20, "placed": 4, "onSite": 6}]})]
+	var app = await city_app(tree, snapshot)
+	check(int(names_in(app.world_view.buildings.nodes[CANTEIRO]).get("Material", 0)) > 0, "madeira no lote")
+	var empty := work(0.2, {"materials": [{"resourceId": 3, "name": "madeira", "needed": 20, "placed": 4, "onSite": 0}]})
+	app.stream.delta_applied.emit(delta(11, {"workUpserts": [empty]}))
+	eq(int(names_in(app.world_view.buildings.nodes[CANTEIRO]).get("Material", 0)), 0, "o lote vazio não tem pilha")
 
 
 func test_the_city_snapshot_without_work_on_the_building_still_draws_the_site() -> void:
