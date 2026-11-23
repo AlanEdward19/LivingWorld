@@ -23,7 +23,11 @@ public class PlayerWillTests
         var npc = Pick(w);
         npc.ImprintPersonality(npc.Personality with
         {
-            EmotionalStability = stability, Conscientiousness = conscientiousness, Impulsivity = impulsivity, Altruism = altruism, Loyalty = 50,
+            EmotionalStability = stability,
+            Conscientiousness = conscientiousness,
+            Impulsivity = impulsivity,
+            Altruism = altruism,
+            Loyalty = 50,
         });
         npc.SetHealth(100);
         var stranger = w.Npcs.First(n => n.IsAlive && n.Household != npc.Household && n.Spouse != npc.Id && n.MotherId != npc.Id

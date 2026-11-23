@@ -74,6 +74,7 @@ public class PositionalSnapshotTests
             objectCatalog: LivingWorld.Tests.Unit.Objects.ObjectCatalogTests.SampleCatalog());
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-142: experimento desligado por padrão some do snapshot
         world.UsePlayers(LivingWorld.Domain.Population.PlayerRules.Default with { Abandonment = LivingWorld.Domain.Population.AbandonmentPolicy.DeclareDead }); // AD-196: regra padrão some do snapshot
+        world.RestorePossession(new LivingWorld.Simulation.Players.PossessionLedger { Suspicions = [new() { Observer = 1, Body = 2, Value = 10, Tick = 3 }] }); // AD-197f: livro vazio some do snapshot
         world.CreditBook.AddArrear(1, 2, 3); // AD-155: livro do crédito vazio some do snapshot
         world.RestoreHonor(new LivingWorld.Simulation.Population.Naming.HonorLedger { Records = [new() { Npc = 1, Honor = 5 }] }); // AD-183
         var tree = WorldSnapshot.BuildPersistentTree(world);

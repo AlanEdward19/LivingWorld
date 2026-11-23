@@ -4,7 +4,6 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
