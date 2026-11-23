@@ -166,7 +166,14 @@ func apply_observable(id: int) -> void:
 		var held: Dictionary = obs.get("held", {})
 		if not held.is_empty():
 			_apply_held(actor, int(held.design_id))
+	_aim(actor, npc)
+
+
+## Para onde o boneco olha e, no lote de uma obra (alvo `work`, AD-193), o martelo na mão em vez da ferramenta do ofício.
+func _aim(actor, npc: Dictionary) -> void:
 	actor.face_point = target_point(npc)
+	if actor.has_method("set_site_work"):
+		actor.set_site_work(String(npc.get("target", {}).get("kind", "")) == "work")
 
 
 func _apply_held(actor, design_id: int) -> void:
@@ -220,6 +227,12 @@ func target_point(npc: Dictionary) -> Vector3:
 		"city": # AD-189: o largo (a cidade da mudança ou a praça da visita)
 			var city: Dictionary = store.city if String(store.city.get("id", "")) == String(target.id) else store.cities.get(String(target.id), {})
 			return Grid.to_world(city.location) if city.get("location") is Vector2i else Vector3.INF
+		"work": # AD-193: a obra em que trabalha agora (o canteiro dela, senão a célula do lote)
+			var work = store.works.get(int(target.id))
+			if work == null:
+				return Vector3.INF
+			var at: Vector3 = building_point.call(int(work.building_id)) if int(work.building_id) >= 0 else Vector3.INF
+			return at if at != Vector3.INF else Grid.to_world(work.cell)
 		"water", "site": # AD-189: a fonte e a obra, por célula "x,y"
 			var parts := String(target.id).split(",")
 			return Grid.to_world(Vector2i(int(parts[0]), int(parts[1]))) if parts.size() == 2 else Vector3.INF
@@ -233,7 +246,7 @@ func on_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int) ->
 		return
 	if action != actor.action:
 		actor.set_action(action, labels)
-		actor.face_point = target_point(store.npcs[id])
+		_aim(actor, store.npcs[id])
 	var walking: bool = actor.walk != null
 	if _apply_route(actor, store.npcs[id]):
 		if not walking:

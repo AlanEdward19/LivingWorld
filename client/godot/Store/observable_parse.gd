@@ -248,7 +248,7 @@ static func event(raw: Dictionary, fallback_id: int) -> Dictionary:
 	var raw_involved = raw.get("involved")
 	if raw_involved is Dictionary:
 		for key in ["subjectId", "otherId", "authorId", "victimId", "householdId", "buildingId", "workplaceId", "caseId",
-				"leavingId", "designId", "amount"]:
+				"leavingId", "designId", "amount", "workId"]:
 			if raw_involved.get(key) != null:
 				involved[key] = int(raw_involved[key])
 		if raw_involved.get("cityId") != null:

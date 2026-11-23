@@ -408,6 +408,12 @@ func point_of(entity: Dictionary) -> Vector3:
 		Registry.STREET:
 			var cell := Registry.street_cell(String(id))
 			return Grid.to_world(cell) if store.roads.has(cell) else Vector3.INF
+		Registry.WORK: # AD-193: o canteiro da obra, senão a célula do lote
+			var work = store.works.get(int(id))
+			if work == null:
+				return Vector3.INF
+			var at: Vector3 = world_view.building_center(int(work.building_id)) if int(work.building_id) >= 0 else Vector3.INF
+			return at if at != Vector3.INF else Grid.to_world(work.cell)
 	return Vector3.INF
 
 

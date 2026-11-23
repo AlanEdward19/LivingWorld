@@ -25,6 +25,9 @@ public sealed record NpcEntityState(NpcInspectionDto Npc, NpcObservable? Observa
 public sealed record BuildingEntityState(
     long Id, string CityId, int BuildingTypeId, string? TypeName, long CompletedAtTick, int Floors, BuildingStateVisual Occupancy,
     IReadOnlyList<StockLine> FullStock, long? TreasuryCents);
+/// <summary>AD-193: a obra em andamento (o mesmo registro do escopo) e os nomes de quem encomenda e de quem está nela.</summary>
+public sealed record WorkEntityState(WorkSiteVisual Work, string? OwnerName, string? HouseholdName, IReadOnlyList<EntityLink> Crew,
+    IReadOnlyList<EntityLink> Helpers);
 public sealed record CropEntityState(CropVisual Crop, long Barn, long SeedReserve, long LastHarvest, long WaterRequired, long WaterDelivered);
 public sealed record AnimalEntityState(AnimalVisual Animal, bool IsAlive, long? LastBirthTick, int? RegionId);
 public sealed record ObjectEntityState(ObjectVisual Object, long BuiltTick, long ExpiresTick, long SellerId, long Price);
@@ -70,6 +73,8 @@ public static class EntityInspectionQuery
         ["oficina"] = "workplace",
         ["event"] = "event",
         ["evento"] = "event",
+        ["work"] = "work",
+        ["obra"] = "work",
     };
 
     private const int RecentTake = 20;
@@ -100,6 +105,7 @@ public static class EntityInspectionQuery
             "household" => reader.Household(value),
             "workplace" => reader.Workplace(value),
             "event" => reader.Event(value),
+            "work" => reader.Work(value),
             _ => null,
         };
     }
@@ -215,6 +221,7 @@ public static class EntityInspectionQuery
             var occupancy = ObservableProjector.BuildingStates(ctx, [building])[0];
             var workplace = occupancy.WorkplaceId is { } wid ? world.FindWorkplace(new WorkplaceId(wid)) : null;
             var links = Links(CityLink("city", building.City), Person("owner", occupancy.OwnerId));
+            if (building.UnderWork is { } underWork) links.Add(new EntityLink("work", "work", underWork.ToString(), "obra em andamento")); // AD-193
             if (workplace is not null) links.Add(WorkplaceLink("workplace", workplace));
             foreach (var h in occupancy.HouseholdIds) links.Add(Home("household", h));
             foreach (var r in occupancy.ResidentIds) links.Add(Person("resident", r));
@@ -224,6 +231,30 @@ public static class EntityInspectionQuery
                 new BuildingEntityState(id, building.City.ToString(), building.BuildingTypeId, occupancy.TypeName, building.CompletedAtTick,
                     floors, occupancy, workplace is null ? [] : Stock(workplace.Stock), workplace?.Treasury.Amount),
                 links, Events(e => e.BuildingId == id || (workplace is not null && e.WorkplaceId == workplace.Id.Value)));
+        }
+
+        /// <summary>AD-193: ficha da obra: quem encomenda (casa, fundador ou a cidade), o canteiro, a turma e os ajudantes, e os eventos dela.</summary>
+        public EntityInspection? Work(long id)
+        {
+            if (WorkSiteProjector.Find(world, id, ctx.Names) is not { } work) return null;
+            var crew = work.Crew.Select(n => Person("crew", n)).ToList();
+            var helpers = work.Helpers.Select(n => Person("helper", n)).ToList();
+            var links = Links(work.OwnerId is { } owner ? Person("owner", owner) : null,
+                work.HouseholdId is { } h && world.FindHousehold(new HouseholdId(h)) is not null ? Home("household", h) : null,
+                work.BuildingId is { } b ? BuildingLink("site", b) : null,
+                Guid.TryParse(work.CityId, out var city) ? CityLink("city", new CityId(city)) : null);
+            links.AddRange(crew);
+            links.AddRange(helpers);
+            string? ownerName = work.OwnerId is { } o ? NpcName(o) : null;
+            string? homeName = work.HouseholdId is { } hh && world.FindHousehold(new HouseholdId(hh)) is { } home ? HouseName(home.Head.Value) : null;
+            string what = work.Kind switch
+            {
+                "casa" => homeName is { } house ? $"obra da {house}" : "obra de uma casa",
+                "oficina" => ownerName is { } founder ? $"obra da oficina de {founder}" : "obra de uma oficina",
+                _ => $"obra da cidade: {work.TypeName ?? work.Kind}",
+            };
+            return new EntityInspection("work", id.ToString(), what, new WorkEntityState(work, ownerName, homeName, crew, helpers), links,
+                Events(e => e.WorkId == id));
         }
 
         public EntityInspection? Crop(long id)

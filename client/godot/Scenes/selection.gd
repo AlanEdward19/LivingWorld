@@ -7,6 +7,7 @@ const Registry := preload("res://Store/entity_registry.gd")
 const Look := preload("res://Scenes/npc_look.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const Style := preload("res://Scenes/render/street_style.gd")
+const Works := preload("res://Store/work_book.gd")
 
 const NEAR_PIXELS := 32.0
 
@@ -152,6 +153,8 @@ func describe(hit: Dictionary) -> String:
 			var label: String = app.labels.label_for(action) if action >= 0 else ""
 			if label != "" and npc != null and npc.get("target", {}).get("kind", "") == "npc":
 				label += " com %s" % app.registry.person_name(int(npc.target.id))
+			elif label != "" and npc != null and npc.get("target", {}).get("kind", "") == "work": # AD-193: no lote de uma obra
+				label += " na obra (%s)" % app.registry.title_of(Registry.ref(Registry.WORK, int(npc.target.id))).trim_prefix("Obra: ")
 			var text := name if label == "" else "%s\n%s" % [name, label]
 			var hint := Look.hint_of(npc.get("obs", {})) if npc != null else ""
 			return text if hint == "" else "%s\n%s" % [text, hint]
@@ -163,6 +166,10 @@ func describe(hit: Dictionary) -> String:
 			if String(state.get("location_type_name", "")) != "":
 				kind_name = "%s (%s)" % [state.location_type_name, kind_name]
 			var text := "%s · Edifício %d · %d andar%s" % [kind_name, int(id), floors, "es" if floors > 1 else ""]
+			var site: Dictionary = Works.of_building(store, int(id))
+			if not site.is_empty(): # AD-193: canteiro — a dica diz que é obra, quanto falta e se parou
+				text = "Obra: %s · %d%% feita · %d no lote agora%s" % [Works.what(site), int(round(float(site.progress) * 100.0)),
+					site.get("on_site", []).size(), (" · parada (%s)" % String(site.halt)) if String(site.get("halt", "")) != "" else ""]
 			if int(state.get("owner_id", -1)) >= 0:
 				text += "\ndono: %s" % app.registry.person_name(int(state.owner_id))
 			if not state.get("residents", []).is_empty():

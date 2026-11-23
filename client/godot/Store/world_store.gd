@@ -18,6 +18,7 @@ signal crops_changed()
 signal fauna_changed() ## animais (cidade) ou bandos (mundo)
 signal items_changed() ## espólio no chão e objetos inventados
 signal climate_changed()
+signal works_changed(ids: Array) ## AD-193: obras em andamento (fração, turma, quem está no lote, parada) mudaram
 signal roads_changed() ## ruas mudaram (retrato, delta `roadUpserts`/`roadRemoved` ou releitura da camada): só o chão redesenha
 
 const FrameCost := preload("res://Contract/frame_cost.gd")
@@ -26,6 +27,7 @@ const Parse := preload("res://Store/observable_parse.gd")
 const Ground := preload("res://Store/city_ground.gd")
 const Roads := preload("res://Store/road_book.gd")
 const ScopeDelta := preload("res://Store/scope_delta.gd")
+const Works := preload("res://Store/work_book.gd")
 
 var kind := ""
 var map_size := Vector2i.ZERO
@@ -48,6 +50,7 @@ var animals: Dictionary = {} ## id -> animal (escopo Cidade)
 var fauna_groups: Dictionary = {} ## "espécie:região" -> bando (escopo Mundo)
 var leavings: Dictionary = {} ## id -> espólio no chão
 var objects: Dictionary = {} ## id -> peça inventada
+var works: Dictionary = {} ## AD-193: id da obra -> obra em andamento (Works.parse), só no escopo Cidade
 var climate: Dictionary = {} ## estação e clima do escopo (Parse.climate); vazio = não modelado
 var last_tick := -1 ## tick do último snapshot ou delta aplicado (AD-172: processos rest/food avançam sozinhos)
 var climate_regions: Array = [] ## camada Climate do mundo (Parse.climate_regions): [{region, cell, temperature, drought, weather}]
@@ -190,7 +193,7 @@ func _load_processes(living: Variant) -> void:
 
 
 func _clear_observable() -> void:
-	for bag in [building_states, crops, animals, fauna_groups, leavings, objects]:
+	for bag in [building_states, crops, animals, fauna_groups, leavings, objects, works]:
 		bag.clear()
 	climate = {}
 
@@ -213,6 +216,7 @@ func _load_observable(state: Dictionary) -> void:
 	for raw in _list(state, "objects"):
 		objects[int(raw.id)] = Parse.object(raw)
 	climate = Parse.climate(state.get("climate"))
+	Works.load_snapshot(self, state)
 
 
 func _load_roads(state: Variant, layer: Variant = null) -> void:
@@ -296,7 +300,16 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 		"orientation": Parse._i(marker, "orientation", 0), "floors": Parse._i(marker, "floors", 1),
 		"footprint": footprint, "value": Parse._i(marker, "value", 0), "lodging": marker.get("lodging"),
 		"lot": Ground.lot(marker.get("lot")), ## AD-173: quintal, caminho da porta e rua da frente; {} = sem lote
+		"work": _work_view(marker.get("work")), ## AD-184/193: canteiro (obra em curso no lote); {} = prédio pronto
 	}
+
+
+## `BuildingVisual.work` (id, tipo, fração, parada, turma, ajudantes, oferta): o prédio ainda não existe, é obra.
+static func _work_view(raw: Variant) -> Dictionary:
+	if not raw is Dictionary or raw.get("id") == null:
+		return {}
+	return {"id": int(raw.id), "kind": String(raw.get("kind", "")), "progress": clampf(float(raw.get("progress", 0.0)), 0.0, 1.0),
+		"stalled": bool(raw.get("stalled", false)), "building_id": -1, "halt": "", "materials": [], "haul_left": 0}
 
 
 func apply_delta(envelope: Dictionary) -> void:
@@ -347,12 +360,18 @@ func apply_delta(envelope: Dictionary) -> void:
 		if npcs.erase(id):
 			npc_removed.emit(id)
 	var changed_buildings: Array = []
+	var work_only: Array = []
 	for upsert in delta.get("buildingUpserts", []):
 		var id: int = id_of(upsert.id)
 		var known = buildings.get(id)
 		if kind == "City" and upsert.get("cityId") is Dictionary and String(id_of(upsert.cityId)) != String(city.get("id", "")):
 			continue
-		buildings[id] = _building(id, upsert) # AD-170: o delta traz a planta completa (andares, planta, valor, hospedagem)
+		var fresh := _building(id, upsert) # AD-170: o delta traz a planta completa (andares, planta, valor, hospedagem)
+		if known != null and _same_but_work(known, fresh):
+			known.work = fresh.work # AD-193: só a obra andou (fração, turma): a obra redesenha pelo `works_changed`
+			work_only.append(int(fresh.work.id))
+			continue
+		buildings[id] = fresh
 		if buildings[id].footprint.is_empty() and known != null: # servidor antigo, só posição: vale o que o snapshot trouxe
 			buildings[id].footprint = known.footprint
 			buildings[id].floors = known.floors
@@ -366,6 +385,8 @@ func apply_delta(envelope: Dictionary) -> void:
 		changed_buildings.append(id)
 	if not changed_buildings.is_empty():
 		buildings_changed.emit(changed_buildings)
+	if not work_only.is_empty():
+		works_changed.emit(work_only)
 	for removed in delta.get("buildingRemoved", []):
 		var id: int = id_of(removed)
 		if buildings.erase(id):
@@ -394,6 +415,7 @@ func apply_delta(envelope: Dictionary) -> void:
 	started = Time.get_ticks_usec()
 	ScopeDelta.apply_roads(self, delta)
 	FrameCost.add("roads", started)
+	Works.apply_delta(self, delta)
 	if kind == "City" and not delta.get("indicators", []).is_empty() and city.has("indicators"):
 		for update in delta.indicators:
 			if update.get("key") != null and update.get("value") != null:
@@ -413,6 +435,16 @@ func apply_delta(envelope: Dictionary) -> void:
 		for removed in _list(delta, "cityRemoved"):
 			cities.erase(id_of(removed))
 		cities_changed.emit()
+
+
+## O prédio que chegou é o mesmo de antes tirando a obra (o canteiro reenviado só porque a obra andou).
+static func _same_but_work(known: Dictionary, fresh: Dictionary) -> bool:
+	if known.get("work", {}).is_empty() or fresh.work.is_empty():
+		return false
+	for key in fresh:
+		if key != "work" and known.get(key) != fresh[key]:
+			return false
+	return true
 
 
 ## Delta de interior do servidor: `entered`, `moved` (célula OU ação mudou), `changedFloor` e `exited`.
