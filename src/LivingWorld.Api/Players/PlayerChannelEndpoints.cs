@@ -79,11 +79,11 @@ public static class PlayerChannelEndpoints
             command = node?["command"]?.GetValue<string>() ?? "";
             request = command switch
             {
-            "incarnate" when node?["npcId"] is { } id => new PlayerCommandRequest(PlayerCommandKind.Incarnate, id.GetValue<long>()),
-            "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
-                new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
-            "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
-            _ => null,
+                "incarnate" when node?["npcId"] is { } id => new PlayerCommandRequest(PlayerCommandKind.Incarnate, id.GetValue<long>()),
+                "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
+                    new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
+                "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
+                _ => null,
             };
         }
         catch (Exception e) when (e is InvalidOperationException or FormatException)

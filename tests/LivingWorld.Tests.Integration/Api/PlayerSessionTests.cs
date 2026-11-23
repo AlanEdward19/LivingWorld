@@ -8,7 +8,6 @@ using LivingWorld.Api.Players;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Tests.Shared;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
