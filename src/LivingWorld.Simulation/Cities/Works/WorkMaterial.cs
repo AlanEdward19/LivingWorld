@@ -155,6 +155,9 @@ internal static class WorkMaterial
             house.Deposit(new ResourceType(work.MaterialResource), units);
         else if (world.FindActiveCity(new CityId(work.City)) is { } city)
             city.DepositStock(new ResourceType(work.MaterialResource), units);
+        else return;
+        // AD-195: o que estava no lote já tinha sido contado consumido ao entrar na obra; de volta à despensa, volta à conta
+        world.RecordResourceProduced(new ResourceType(work.MaterialResource), units);
     }
 
     /// <summary>Horas de carregar que ainda faltam, pela próxima carga (o cliente mostra "falta carregar").</summary>
