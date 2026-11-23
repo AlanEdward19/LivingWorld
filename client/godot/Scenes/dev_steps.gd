@@ -28,9 +28,11 @@ static func run(app: Node, steps: Array) -> void:
 				await RenderingServer.frame_post_draw
 				app.get_viewport().get_texture().get_image().save_png(arg)
 				print("shot ", arg)
-			"city":
+			"city": # `city:<id>` entra nessa cidade (AD-193: a fumaça escolhe a que tem obra); sem id, a primeira
 				var ids: Array = app.store.cities.keys()
-				if ids.size() > 0:
+				if arg != "":
+					await app.enter_scope("City", arg)
+				elif ids.size() > 0:
 					await app.enter_scope("City", ids[0])
 			"world":
 				await app.enter_scope("World", "")

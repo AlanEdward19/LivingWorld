@@ -41,10 +41,27 @@ public class ApiContractTests
         // AD-193: obra em andamento com todo campo preenchido (quem encomenda, canteiro, turma, no lote, material da fila)
         public static readonly LivingWorld.Api.Visual.Observable.WorkSiteVisual Work = new(11, "casa", "00000000-0000-0000-0000-000000000001", Cell, 0.25)
         {
-            BuildingId = 7, BuildingTypeId = -1, TypeName = "casa", Stalled = false, Halt = "tempo", Payer = "casa", OwnerId = 1, HouseholdId = 2,
-            Crew = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([3L]), Helpers = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]),
-            OnSite = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]), HoursTotal = 480, HoursLeft = 360, HoursByCrew = 40,
-            HoursByHelpers = 80, HaulHoursLeft = 0, Paid = 100, Spent = 60, OfferPm = 1100, StartedTick = 2, LastWorkedTick = 4,
+            BuildingId = 7,
+            BuildingTypeId = -1,
+            TypeName = "casa",
+            Stalled = false,
+            Halt = "tempo",
+            Payer = "casa",
+            OwnerId = 1,
+            HouseholdId = 2,
+            Crew = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([3L]),
+            Helpers = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]),
+            OnSite = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]),
+            HoursTotal = 480,
+            HoursLeft = 360,
+            HoursByCrew = 40,
+            HoursByHelpers = 80,
+            HaulHoursLeft = 0,
+            Paid = 100,
+            Spent = 60,
+            OfferPm = 1100,
+            StartedTick = 2,
+            LastWorkedTick = 4,
             Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(3, "madeira", 20, 5)]),
         };
         public static readonly LivingWorld.Api.Visual.Catalogs.ExtraordinaryNpcVisual Extraordinary = new(
@@ -89,7 +106,7 @@ public class ApiContractTests
         private static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(10, 1, 1, null, null, false, null, null, null, 0);
         // AD-193: obra sem canteiro, sem dono, sem casa, andando (halt nulo), sem turma nem material
         private static readonly LivingWorld.Api.Visual.Observable.WorkSiteVisual Work = new(12, "predio-1", "22222222-2222-2222-2222-222222222222", Cell, 0)
-            { Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(9, null, 1, 0)]) };
+        { Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(9, null, 1, 0)]) };
 
         public static LivingWorld.Api.Visual.Scope.LivingScopeState State => LivingWorld.Api.Visual.Scope.LivingScopeState.Empty with
         {
