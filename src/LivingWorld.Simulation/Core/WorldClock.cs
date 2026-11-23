@@ -4,9 +4,11 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Core;
 
-/// <summary>Avança o mundo em ticks de 1 hora. Ordem de execução dos sistemas é a ordem
-/// declarada na lista recebida no construtor — nunca ordem de registro acidental ou de
-/// dicionário.</summary>
+/// <summary>Avança o mundo em ticks de Δ segundos (ADR-0050; sem argumento, Δ = 1 hora, o de produção sem jogador). Os
+/// sistemas rodam quando o tick cruza a fronteira do calendário (hora, dia, meio do turno, mês, ano), nunca "a cada tick": Δ
+/// divide a hora e o tick nunca a atravessa, então toda hora cheia é um tick e a hora inteira roda uma vez só, com qualquer Δ.
+/// Ordem de execução dos sistemas é a ordem declarada na lista recebida no construtor — nunca ordem de registro acidental ou
+/// de dicionário.</summary>
 public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int maxIterationsPerTick = 1000, IWorldEventSink? sink = null)
 {
     private readonly Dictionary<string, ISimulationSystem> _byName = systems.ToDictionary(s => s.Name);
@@ -14,15 +16,33 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
     public IReadOnlyList<ISimulationSystem> Systems => systems;
     public int MaxIterationsPerTick => maxIterationsPerTick;
 
+    /// <summary>Roda <paramref name="ticks"/> ticks de 1 hora.</summary>
     public void Run(WorldState world, long ticks)
     {
         for (long i = 0; i < ticks; i++)
             Tick(world);
     }
 
-    public void Tick(WorldState world)
+    /// <summary>Roda <paramref name="ticks"/> ticks de <paramref name="deltaSeconds"/>.</summary>
+    public void Run(WorldState world, long ticks, int deltaSeconds)
     {
-        world.CurrentDate = world.CurrentDate.AddHours(1);
+        for (long i = 0; i < ticks; i++)
+            Tick(world, deltaSeconds);
+    }
+
+    public void Tick(WorldState world) => Tick(world, WorldSeconds.HourTick);
+
+    /// <summary>Avança Δ segundos, sem passar da próxima hora cheia (o tick que chegaria depois dela para nela). Δ divide a hora
+    /// (<see cref="WorldSeconds.IsValidTickDelta"/>). Fora da hora cheia só o relógio anda: os sistemas e a fila de eventos de
+    /// hora rodam no tick que chega à hora.</summary>
+    public void Tick(WorldState world, int deltaSeconds)
+    {
+        if (!WorldSeconds.IsValidTickDelta(deltaSeconds))
+            throw new ArgumentOutOfRangeException(nameof(deltaSeconds), deltaSeconds, "Δ precisa dividir a hora (1 a 3600 s)");
+        int intoHour = world.CurrentDate.SecondOfHour;
+        world.CurrentDate = world.CurrentDate.AddSeconds(Math.Min(deltaSeconds, WorldSeconds.PerHour - intoHour));
+        if (world.CurrentDate.SecondOfHour != 0) return;
+
         NpcWakeScheduler.PrepareWakeBatch(world, world.CurrentDate.TotalHours);
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
 
