@@ -574,6 +574,8 @@ public static class StreetRoutes
                     {
                         if (i == 0 && j == 0) continue;
                         int ce = es[i], cx = xs[j];
+                        // pedaços de rede sem ligação: não há trecho (nem se busca, nem se guarda)
+                        if (ce != cx && (state.Comp[ce] < 0 || state.Comp[ce] != state.Comp[cx])) continue;
                         var f1 = Line(state, a, ce);
                         var f2 = Line(state, cx, b);
                         int ex = Math.Abs(ce % state.W - cx % state.W), ey = Math.Abs(ce / state.W - cx / state.W);
@@ -609,9 +611,12 @@ public static class StreetRoutes
     {
         int n = 0;
         into[n++] = nearest;
-        int hit = LineHit(state, from, to);
-        if (hit >= 0 && hit != nearest) into[n++] = hit;
         int target = other >= 0 && other < state.Comp.Length ? state.Comp[other] : -1;
+        // a reta só conta quando a mais perto é de outro pedaço de rede (a de sempre já está ligada à outra ponta: o ganho da reta é
+        // pequeno e cada trecho a mais buscado é memória guardada)
+        bool apart = target < 0 || nearest >= state.Comp.Length || state.Comp[nearest] != target;
+        int hit = apart ? LineHit(state, from, to) : -1;
+        if (hit >= 0 && hit != nearest) into[n++] = hit;
         if (target >= 0 && (nearest >= state.Comp.Length || state.Comp[nearest] != target))
         {
             int same = NearestInComp(state, from, target, EntrySearchRadius);

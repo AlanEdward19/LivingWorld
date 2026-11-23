@@ -239,7 +239,7 @@ public static class CityOccupancy
 
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
-            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: AbsorbAll(world));
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
@@ -254,8 +254,12 @@ public static class CityOccupancy
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells,
-            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: AbsorbAll(world));
     }
+
+    /// <summary>AD-192: sem regras de cidade (nenhum aglomerado funda filha), o limite da cidade vai até todo prédio dela (a casa de
+    /// lote longe continua da cidade e no escopo dela).</summary>
+    private static bool AbsorbAll(WorldState world) => world.StreetRules.CityHoldsItsBuildings && !world.CityRules.Enabled;
 
     /// <summary>AD-192 (08d 165): com o traçado ligado, a cidade-filha (a nova) sem prédio perto do miolo encadeia o limite a partir do
     /// mais perto. A mãe não: o prédio dela longe do miolo é aglomerado à parte, que pode fundar outra filha.</summary>
@@ -445,7 +449,21 @@ public static class CityOccupancy
         if (rules.CutAtNeighbourCity)
             foreach (var other in world.ActiveCities())
                 if (other.Id != city.Id) (boxes ??= []).Add(OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds);
-        return trodden is null && boxes is null ? ground : ground.WithBar(new LotBar(trodden, boxes?.ToArray() ?? []));
+        // AD-192: com cidade-filha possível, o lote novo fica onde o limite da cidade o alcança (a até o anel do limite de agora e a
+        // até a cadeia do miolo); além disso nasceria aglomerado à parte, fora da cidade e do escopo dela
+        CityBounds? reach = null;
+        if (rules.CityHoldsItsBuildings && world.CityRules.Enabled && ChainReach(world) > 0)
+        {
+            long population = Queries.CityPopulationQuery.Population(world, city.Id);
+            var grown = ResolveGrownBounds(world, city, population).Bounds;
+            var core = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height).Bounds;
+            int ring = world.CityRules.AbsorptionRingCells, chain = ChainReach(world);
+            int x0 = Math.Max(grown.Origin.X - ring, core.Origin.X - chain), y0 = Math.Max(grown.Origin.Y - ring, core.Origin.Y - chain);
+            int x1 = Math.Min(grown.Origin.X + grown.Width + ring, core.Origin.X + core.Width + chain);
+            int y1 = Math.Min(grown.Origin.Y + grown.Height + ring, core.Origin.Y + core.Height + chain);
+            reach = new CityBounds(new CellCoord(x0, y0), Math.Max(0, x1 - x0), Math.Max(0, y1 - y0));
+        }
+        return trodden is null && boxes is null && reach is null ? ground : ground.WithBar(new LotBar(trodden, boxes?.ToArray() ?? [], reach));
     }
 
     private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>

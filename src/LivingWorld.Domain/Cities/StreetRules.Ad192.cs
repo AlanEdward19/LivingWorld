@@ -82,6 +82,10 @@ public sealed partial record StreetRules
     /// encadeia o limite a partir do prédio dela mais perto.</summary>
     public bool AnchorLoneHouse { get; init; } = true;
 
+    /// <summary>AD-192 (achado do cliente): tudo o que a cidade tem fica no limite dela. Sem regras de cidade (nenhuma filha), o limite
+    /// vai até todo prédio dela; com elas, o lote novo só nasce onde o limite o alcança (anel do limite e cadeia do miolo).</summary>
+    public bool CityHoldsItsBuildings { get; init; } = true;
+
     /// <summary>AD-192 (08d 166): o lote novo não dá para a rua de uma cidade dentro do limite de outra (o traçado é cortado ali), nem
     /// cai dentro dele; posição derivada não muda.</summary>
     public bool CutAtNeighbourCity { get; init; } = true;
@@ -105,7 +109,7 @@ public sealed partial record StreetRules
 
     /// <summary>AD-192, só para os relatórios (<c>LW_AD192</c>): <c>off</c> desliga a fatia toda; <c>nohygiene</c> só a higiene (casos do
     /// ambiente e parede-meia), <c>noregard</c> só o que a aversão ao bairro decide (onde morar, valor, migração), <c>noleft</c> só as
-    /// sobras de cidade e rota; outro valor, nada.</summary>
+    /// sobras de cidade e rota; <c>noentry</c>, <c>noobstacle</c>, <c>nostroll</c>, <c>notrodden</c> uma sobra só; outro valor, nada.</summary>
     public StreetRules WithAd192Mode(string mode) => mode switch
     {
         "off" => WithoutAd192(),
@@ -119,6 +123,10 @@ public sealed partial record StreetRules
             QuarterInValue = QuarterInValue,
             QuarterInMigration = QuarterInMigration,
         },
+        "noentry" => this with { NetEntryBestPair = false },
+        "noobstacle" => this with { ObstacleOnCompletion = false },
+        "nostroll" => this with { AmbientStepsByHour = false },
+        "notrodden" => this with { LotsAvoidTrodden = false },
         _ => this,
     };
 
@@ -132,6 +140,7 @@ public sealed partial record StreetRules
         QuarterInMigration = false,
         AmbientStepsByHour = false,
         AnchorLoneHouse = false,
+        CityHoldsItsBuildings = false,
         CutAtNeighbourCity = false,
         RecordAuthoredLots = false,
         NetEntryBestPair = false,

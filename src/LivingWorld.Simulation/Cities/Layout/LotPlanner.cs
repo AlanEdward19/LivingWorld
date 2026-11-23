@@ -62,7 +62,8 @@ internal sealed class CityGround
 
 /// <summary>AD-192 (08d 166, 182): o que barra o lote novo, lido na hora (sem copiar células): o chão pisado (trilha ou mais) e os
 /// limites das outras cidades.</summary>
-internal sealed class LotBar(LivingWorld.Simulation.Cities.Streets.GroundLedger? trodden, LivingWorld.Domain.Cities.Spatial.CityBounds[] neighbours)
+internal sealed class LotBar(LivingWorld.Simulation.Cities.Streets.GroundLedger? trodden, LivingWorld.Domain.Cities.Spatial.CityBounds[] neighbours,
+    LivingWorld.Domain.Cities.Spatial.CityBounds? reach = null)
 {
     public bool InNeighbour(CellCoord cell)
     {
@@ -72,7 +73,8 @@ internal sealed class LotBar(LivingWorld.Simulation.Cities.Streets.GroundLedger?
     }
 
     public bool Covers(CellCoord cell) =>
-        (trodden is not null && trodden.SurfaceAt(cell) != LivingWorld.Simulation.Cities.Streets.GroundSurface.None) || InNeighbour(cell);
+        (trodden is not null && trodden.SurfaceAt(cell) != LivingWorld.Simulation.Cities.Streets.GroundSurface.None) || InNeighbour(cell)
+        || (reach is { } r && !r.Contains(cell));
 }
 
 /// <summary>Quem constrói e o que pode pagar (AD-173). <see cref="Dwelling"/> falso: oficina, mercado, celeiro.</summary>

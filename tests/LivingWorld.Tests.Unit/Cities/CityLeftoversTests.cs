@@ -56,6 +56,34 @@ public class CityLeftoversTests
         Assert.Equal(anchor, bounds.Contains(new CellCoord(29, 21)));
     }
 
+    // ---------------------------------------------------------------- tudo o que a cidade tem fica no limite dela
+
+    /// <summary>Prédios (e canteiros) de cada cidade com alguma célula fora do limite crescido dela.</summary>
+    internal static int OutsideTheirCity(WorldState world)
+    {
+        int outside = 0;
+        foreach (var city in world.ActiveCities())
+        {
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city,
+                LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
+            foreach (var b in world.Buildings)
+                if (b.City == city.Id && b.Position is { } at
+                    && BuildingFootprintGenerator.Generate(b).Any(c => !bounds.Contains(new CellCoord(at.X + c.Cell.X, at.Y + c.Cell.Y))))
+                    outside++;
+        }
+        return outside;
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Every_building_of_the_village_lies_inside_its_limit_only_with_the_rule(bool hold)
+    {
+        var (world, clock) = Village(StreetRules.Default with { CityHoldsItsBuildings = hold });
+        clock.Run(world, world.Calendar.HoursPerDay * world.Calendar.DaysPerMonth * 3);
+        Assert.Equal(hold, OutsideTheirCity(world) == 0);
+    }
+
     // ---------------------------------------------------------------- 166
 
     [Theory]
