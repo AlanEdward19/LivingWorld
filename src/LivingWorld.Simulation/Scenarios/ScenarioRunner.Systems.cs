@@ -102,6 +102,7 @@ public static partial class ScenarioRunner
         new LivingWorld.Simulation.Cities.Streets.StreetGroundSystem(), // AD-176: pisoteio, superfície e decisão de calçar
         new LivingWorld.Simulation.Cities.Streets.PavingWorksSystem(), // AD-176: a obra de calçamento
         new LivingWorld.Simulation.Cities.Works.BuildWorksSystem(), // AD-184: casa e oficina são obra
+        new LivingWorld.Simulation.Cities.Works.WorkHaulSystem(), // AD-195: quem traz o material anda de verdade
         new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),

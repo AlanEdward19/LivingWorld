@@ -121,6 +121,16 @@ public static class ObservableProjector
     private static IReadOnlyList<CarriedVisual> CarriedOf(ObservableContext ctx, Npc npc, IReadOnlyList<CarriedVisual>? previous)
     {
         var loads = ctx.CarriedOf(npc.Id.Value);
+        // AD-195: o que leva nas mãos (o material da obra a caminho do lote) também é carga visível
+        if (npc.IsCarrying)
+        {
+            var hands = new CarriedVisual(npc.CarriedResourceId, (int)Math.Min(int.MaxValue, npc.CarriedQuantity), ctx.Names.Resource(npc.CarriedResourceId));
+            var all = new CarriedVisual[loads.Count + 1];
+            for (int i = 0; i < loads.Count; i++) all[i] = new CarriedVisual(loads[i].ResourceId, loads[i].Quantity, ctx.Names.Resource(loads[i].ResourceId));
+            all[^1] = hands;
+            var fresh = new ValueList<CarriedVisual>(all);
+            return previous is ValueList<CarriedVisual> before && before.Equals(fresh) ? previous : fresh;
+        }
         if (loads.Count == 0) return ValueList<CarriedVisual>.Empty;
         if (previous is { } old && old.Count == loads.Count)
         {

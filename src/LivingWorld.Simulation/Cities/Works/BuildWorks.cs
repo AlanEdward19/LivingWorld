@@ -62,8 +62,8 @@ public static class BuildWorks
                         (idle / world.Calendar.HoursPerDay).ToString(System.Globalization.CultureInfo.InvariantCulture), cause: work.StartEventId);
                 }
                 if (rules.HelpersBuild && (work.Id + ctx.CurrentTick / world.Calendar.HoursPerDay) % 7 == 0) RefreshHelpers(world, work); // quem ajuda se acerta por semana
-                if (rules.WorkDayEvents && ctx.CurrentTick % world.Calendar.HoursPerDay == world.Calendar.HoursPerDay / 4)
-                    WeatherDay(world, ctx, work); // AD-194: uma vez por dia, ao amanhecer
+                if (rules.WorkDayEvents) WeatherDay(world, ctx, work); // AD-194: uma vez por dia (o sistema é diário; AD-195: antes a hora
+                // da condição nunca caía no passo diário e o evento não saía)
                 SiteWork.Staff(world, ctx, new WorkSite(null, null, null, work));
             }
         }
@@ -469,6 +469,20 @@ public static class BuildWorks
             }
             willing.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : a.Id.CompareTo(b.Id));
             for (int i = 0; i < willing.Count && i < rules.HelpersMax; i++) helpers.Add(willing[i].Id);
+            // AD-195: dia de mutirão para a família da casa (a obra é dela) e para quem quer muito (vontade ≥ MutiraoDayMin)
+            var strong = new List<long>();
+            if (rules.MutiraoDays)
+            {
+                foreach (var a in adults) if (helpers.Contains(a.Id.Value)) strong.Add(a.Id.Value);
+                for (int i = 0; i < willing.Count && i < rules.HelpersMax; i++)
+                    if (willing[i].Value >= rules.MutiraoDayMin) strong.Add(willing[i].Id);
+                strong.Sort();
+            }
+            if (!strong.SequenceEqual(work.Mutirao))
+            {
+                work.Mutirao = strong;
+                SiteWork.Touch(world);
+            }
         }
         if (!helpers.SequenceEqual(work.Helpers))
         {
@@ -544,11 +558,12 @@ public static class BuildWorks
 
     /// <summary>Horas de alguém na obra: descontam o que falta (a força de quem tem rende mais), contam para a turma paga ou para a ajuda,
     /// retomam a obra parada e, no fim, a terminam.</summary>
-    internal static void Progress(WorldState world, TickContext ctx, BuildWork work, Npc npc, long hours, long paid, long now)
+    internal static void Progress(WorldState world, TickContext ctx, BuildWork work, Npc npc, long hours, long paid, long now, bool atSite = true)
     {
         if (hours <= 0 || !world.Ground!.Builds.Contains(work)) return;
         long done = (long)Math.Round(hours * LivingWorld.Simulation.Extraordinary.Mechanics.AttributeMechanic.StrengthMultiplier(world, npc), MidpointRounding.AwayFromZero);
-        done = WorkMaterial.Spend(world, ctx, work, npc, done); // AD-194: a parede só sobe com material no lote; o resto traz carga
+        // AD-194: a parede só sobe com material no lote; AD-195: as horas de quem estava na fonte da viagem não sobem parede
+        done = atSite ? WorkMaterial.Spend(world, ctx, work, npc, done) : 0;
         work.HoursLeft -= done;
         if (paid > 0) { work.HoursByCrew += hours; work.Paid += paid; }
         else work.HoursByHelpers += hours;
@@ -571,6 +586,7 @@ public static class BuildWorks
         ground.Builds.Remove(work);
         ground.BuildsDone++;
         WorkMaterial.ReturnLeftover(world, work); // AD-194
+        WorkHaul.Release(world, work); // AD-195: quem estava com carga a leva para casa
         SiteWork.Touch(world);
         if (world.FindBuilding(new BuildingId(work.Building)) is not { } building) return;
         building.Complete(now);
@@ -594,6 +610,7 @@ public static class BuildWorks
         ground.Builds.Remove(work);
         ground.BuildsAbandoned++;
         WorkMaterial.ReturnLeftover(world, work); // AD-194: o material no lote volta a quem pagou
+        WorkHaul.Release(world, work);
         SiteWork.Touch(world);
         if (world.FindBuilding(new BuildingId(work.Building)) is { UnderWork: not null } canteiro) world.RemoveBuilding(canteiro);
         if (work.Escrow > 0) Refund(world, ctx, work);
