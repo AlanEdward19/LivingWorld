@@ -33,6 +33,12 @@ class WsChannel extends "res://Contract/channel.gd":
 		_announced_close = true
 		peer.close()
 
+	func send(data) -> bool:
+		return is_open() and peer.send_text(JSON.stringify(data)) == OK
+
+	func is_open() -> bool:
+		return peer.get_ready_state() == WebSocketPeer.STATE_OPEN
+
 
 ## Cabeçalhos de toda requisição: JSON, token de admin (se houver em LW_ADMIN_TOKEN) e os extras (ex.: X-Admin-Actor).
 ## Pausa, velocidade e passo são do admin (ADR-0015): play.sh sobe a API com ADMIN_TOKEN e o cliente com o mesmo valor.
@@ -63,8 +69,14 @@ func request(method: String, path: String, body: Variant = null, extra_headers: 
 	return {"status": int(done[1]), "body": JSON.parse_string(text) if text != "" else null, "text": text}
 
 
-func open_channel(path: String):
+## `extra_headers` vão no aperto de mão (o canal do jogador leva `Authorization: Bearer`, AD-197a).
+func open_channel(path: String, extra_headers: Dictionary = {}):
 	var channel := WsChannel.new()
+	if not extra_headers.is_empty():
+		var handshake := PackedStringArray()
+		for name in extra_headers:
+			handshake.append("%s: %s" % [name, extra_headers[name]])
+		channel.peer.handshake_headers = handshake
 	channel.peer.inbound_buffer_size = 1 << 25 # o snapshot do mundo passa dos 64 KiB padrão
 	channel.peer.max_queued_packets = 4096
 	channel.peer.connect_to_url(base_url.replace("http", "ws") + path)

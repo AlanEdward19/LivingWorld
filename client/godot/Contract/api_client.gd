@@ -116,10 +116,85 @@ func beliefs(city_id: String) -> Dictionary:
 	return await _fetch("/history/beliefs?communityId=%s" % city_id.uri_encode(), "history-beliefs")
 
 
-# --- jogador encarnado (sem autenticação ainda, #63) -------------------------------------------
+# --- jogador encarnado: sessão por token e canal persistente (ADR-0048, AD-197a) ----------------------------
+
+class _Pending:
+	signal done(reply: Dictionary)
+
+var player_token := "" ## sessão do jogador (POST /sessions); vazio = modo local, o playerId vai na rota como antes
+var player_channel = null ## canal persistente `/players/ws`; aberto, os comandos vão por ele (sem novo aperto de mão a cada clique)
+var _player_seq := 0
+var _player_pending: Dictionary = {} ## seq -> _Pending
+const CHANNEL_TIMEOUT_S := 5.0
+
+
+## Pede uma sessão: devolve `{ok, status, body:{sessionToken, playerId}}` e guarda o token.
+func create_session() -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/sessions")
+	var result := _checked("/sessions", {"status": response.status, "body": response.body}, "")
+	if result.ok and result.body is Dictionary and String(result.body.get("sessionToken", "")) != "":
+		player_token = String(result.body.sessionToken)
+	else:
+		result.ok = false
+	return result
+
+
+## Abre o canal persistente do jogador com o token da sessão (sem token, nada).
+func open_player_channel() -> void:
+	if player_token == "" or player_channel != null or not transport.has_method("open_channel"):
+		return
+	player_channel = transport.open_channel("/players/ws", {"Authorization": "Bearer " + player_token})
+	player_channel.message.connect(_on_player_reply)
+	player_channel.closed.connect(func(): _drop_player_channel())
+
+
+func close_player_channel() -> void:
+	if player_channel != null:
+		player_channel.close()
+	_drop_player_channel()
+
+
+func _drop_player_channel() -> void:
+	player_channel = null
+	for seq in _player_pending.keys():
+		_player_pending[seq].done.emit({"status": 0, "body": null})
+	_player_pending.clear()
+
+
+func _on_player_reply(data) -> void:
+	if not (data is Dictionary) or not _player_pending.has(int(data.get("seq", -1))):
+		return
+	var seq := int(data.seq)
+	var pending = _player_pending[seq]
+	_player_pending.erase(seq)
+	var body = data.get("body") if bool(data.get("ok", false)) else {"error": data.get("error", "")}
+	pending.done.emit({"status": int(data.get("status", 0)), "body": body})
+
+
+func _player_headers() -> Dictionary:
+	return {} if player_token == "" else {"Authorization": "Bearer " + player_token}
+
+
+## Um comando do jogador: pelo canal persistente se estiver aberto, senão pela rota HTTP. Resposta igual nos dois caminhos.
+func _player_command(command: Dictionary, method: String, path: String, body: Variant) -> Dictionary:
+	if player_channel != null and player_channel.is_open():
+		_player_seq += 1
+		var seq := _player_seq
+		var pending := _Pending.new()
+		_player_pending[seq] = pending
+		command["seq"] = seq
+		if player_channel.send(command):
+			Engine.get_main_loop().create_timer(CHANNEL_TIMEOUT_S).timeout.connect(func():
+				if _player_pending.has(seq):
+					_player_pending.erase(seq)
+					pending.done.emit({"status": 0, "body": null}), CONNECT_ONE_SHOT)
+			return await pending.done
+		_player_pending.erase(seq)
+	return await transport.request(method, path, body, _player_headers())
+
 
 func incarnate(npc_id: int, player_id: String) -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/players/%d/incarnate" % npc_id, {"playerId": player_id})
+	var response: Dictionary = await _player_command({"command": "incarnate", "npcId": npc_id}, "POST", "/players/%d/incarnate" % npc_id, {"playerId": player_id})
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
@@ -129,12 +204,15 @@ func player_action(player_id: String, action: String, power_id: String = "") -> 
 	var body := {"action": null if action == "" else action}
 	if power_id != "":
 		body["powerId"] = power_id
-	var response: Dictionary = await transport.request("POST", "/players/%s/action" % player_id.uri_encode(), body)
+	var command := {"command": "action", "action": body.action}
+	if power_id != "":
+		command["powerId"] = power_id
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/action" % player_id.uri_encode(), body)
 	return _checked("/players/action", {"status": response.status, "body": response.body}, "player-action")
 
 
 func player_logout(player_id: String) -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/players/%s/logout" % player_id.uri_encode())
+	var response: Dictionary = await _player_command({"command": "logout"}, "POST", "/players/%s/logout" % player_id.uri_encode(), null)
 	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
 
 
