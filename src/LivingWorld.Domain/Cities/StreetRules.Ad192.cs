@@ -113,8 +113,11 @@ public sealed partial record StreetRules
         "noregard" => this with { QuarterInLotChoice = false, QuarterInValue = false, QuarterInMigration = false },
         "noleft" => WithoutAd192() with
         {
-            QuarterHygiene = QuarterHygiene, WallContagion = WallContagion, QuarterInLotChoice = QuarterInLotChoice,
-            QuarterInValue = QuarterInValue, QuarterInMigration = QuarterInMigration,
+            QuarterHygiene = QuarterHygiene,
+            WallContagion = WallContagion,
+            QuarterInLotChoice = QuarterInLotChoice,
+            QuarterInValue = QuarterInValue,
+            QuarterInMigration = QuarterInMigration,
         },
         _ => this,
     };

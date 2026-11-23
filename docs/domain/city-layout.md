@@ -12,7 +12,7 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 - Toda viagem que chega soma uma passagem em cada célula da rota que fez (no fim do mês), fora prédio e água. O pisoteio
   acumulado perde `WearRetainPm` por mês (o mato volta). Snapshot e hash: linhas esparsas por célula, viagens do mês, obras.
 - A cada `ReviewMonths` a superfície muda: **trilha** a partir de `TrailWear`, **terra batida** a partir de `DirtWear` (some abaixo
-  da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo vira obstáculo na virada do mês e apaga o chão debaixo.
+  da metade do limiar: folga). Cascalho e pedra só por obra. Prédio novo (canteiro, obra pronta) vira obstáculo no ato e apaga o chão debaixo; lote novo não cobre caminho pisado nem chão de outra cidade (AD-192).
 - Lama na chuva (AD-180, [climate](climate.md)): o chão de terra (trilha, terra batida, campo) molha com a chuva e seca com o calor;
   lama alonga a parte da rota sem calçamento, neve a rota toda — o calçamento poupa o tempo que a lama tomaria.
 - **Chão da história** (AD-179, `StreetGroundSystem.SeedHistory`): o mundo começa no meio da história. Na criação, o mês típico
@@ -23,7 +23,7 @@ traçado": a rua efetiva é o chão pisado. O traçado vira rua quando as pessoa
 ## Rota (`Streets/StreetRoutes`)
 - Pontas na **soleira** do prédio onde a pessoa está (por ela se entra e sai). Duas opções, fica a mais rápida: a **reta** pelo
   terreno (custo do mapa × passo médio das células, mais, por trecho de prédio atravessado, a volta em torno do solto
-  `DetourPm` = 2√2−2 célula ou a subida por cima do colado `OverPm`), ou **ir ao caminho mais perto**, seguir a **rede**
+  `DetourPm` = 2√2−2 célula ou a subida por cima do colado `OverPm`), ou **entrar na rede** pela melhor combinação (AD-192: o caminho mais perto, o primeiro da reta, o mais perto do pedaço da outra ponta), seguir a **rede**
   (trilha+, A* de 8 vizinhos) e sair perto do destino. Passo: sem caminho 1,00; trilha 0,85; terra 0,80; cascalho 0,75; pedra 0,70.
 - O tempo de toda viagem (trabalho, cama, mercado, água, ajuda mútua, pressão de tecnologia) sai da rota; o vau da invenção soma
   a água da rota. Cache por par origem–destino, refeito quando a rede (revisão) ou os obstáculos (mês) mudam.
@@ -43,7 +43,7 @@ AD-179: a obra só anda pelas horas de diaristas presentes no trecho, que aceita
 
 ## Acesso a toda casa
 `AccessOf`: `street` (soleira em caminho ou no traçado), `path`, `alley` (viela: os dois lados da soleira são prédio), `stair`
-(soleira tapada por sobrado vizinho: escada), `roof` (laje/telhado do vizinho), `none` (porta para fora do mapa: não deve
+(soleira tapada por sobrado vizinho: escada), `roof` (laje/telhado do vizinho; consequências do denso em [dense-quarter](dense-quarter.md)), `none` (porta para fora do mapa: não deve
 existir). A passagem por cima tem custo próprio na rota (`OverPm`).
 
 ## Lote (`Layout/LotPlanner`, `LotProfiles`) e degraus (`PlacementPolicy`)

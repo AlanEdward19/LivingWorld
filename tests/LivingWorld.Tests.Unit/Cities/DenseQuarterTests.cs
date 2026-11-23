@@ -10,7 +10,6 @@ using LivingWorld.Simulation.Cities.Works;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Crime;
 using LivingWorld.Simulation.Scenarios;
-using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Cities;
 
@@ -109,7 +108,10 @@ public class DenseQuarterTests
     {
         var cold = new DiseaseProfile(9, 0.0, 0.0, 30, 3650)
         {
-            Name = "teste", Route = DiseaseRoute.Respiratory, HouseholdContagionPerDay = 0, CrewContagionPerDay = 0,
+            Name = "teste",
+            Route = DiseaseRoute.Respiratory,
+            HouseholdContagionPerDay = 0,
+            CrewContagionPerDay = 0,
             CommunityContagionPerContact = 0.6,
         };
         var rules = new DiseaseRules(true, [cold], int.MaxValue, 0) { CommunityContactsPerDay = 0 };
@@ -137,8 +139,16 @@ public class DenseQuarterTests
         Assert.True(Quarter.HomeSqualor(world, crammed) >= world.StreetRules.DenseSqualor);
         var victim = homes.Skip(9).Select(h => world.FindNpc(h.Head)!).OrderBy(n => Quarter.Aversion(world, n, city, bounds)).ThenBy(n => n.Id.Value).First();
         double before = Quarter.Aversion(world, victim, city, bounds);
-        world.Crime!.Cases.Add(new CrimeCase { Id = 1, Kind = CrimeKind.Theft, Offender = crammed.Head.Value, Accused = crammed.Head.Value,
-            Victim = victim.Id.Value, City = city.Id.Value, Tick = world.CurrentDate.TotalHours });
+        world.Crime!.Cases.Add(new CrimeCase
+        {
+            Id = 1,
+            Kind = CrimeKind.Theft,
+            Offender = crammed.Head.Value,
+            Accused = crammed.Head.Value,
+            Victim = victim.Id.Value,
+            City = city.Id.Value,
+            Tick = world.CurrentDate.TotalHours
+        });
         Assert.True(Quarter.Aversion(world, victim, city, bounds) > before);
     }
 
@@ -179,8 +189,16 @@ public class DenseQuarterTests
         var (world, _) = Village(StreetRules.Default with { QuarterInMigration = migrate });
         var city = world.ActiveCities().First();
         var home = world.Households.First(h => !h.IsEmpty);
-        world.Crime!.Cases.Add(new CrimeCase { Id = 1, Kind = CrimeKind.Theft, Offender = 1, Accused = 1, Victim = home.Head.Value,
-            City = city.Id.Value, Tick = world.CurrentDate.TotalHours });
+        world.Crime!.Cases.Add(new CrimeCase
+        {
+            Id = 1,
+            Kind = CrimeKind.Theft,
+            Offender = 1,
+            Accused = 1,
+            Victim = home.Head.Value,
+            City = city.Id.Value,
+            Tick = world.CurrentDate.TotalHours
+        });
         double security = MigrationSystem.SecurityLevel(world, home, city.Id, new MigrationSystem.SafetyCache());
         Assert.Equal(migrate, security < 0.5);
     }

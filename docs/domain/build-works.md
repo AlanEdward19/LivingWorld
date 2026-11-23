@@ -25,6 +25,7 @@ com material, horas e gente presente. O motor é a fonte da verdade. Ver também
   conveniência nos anos da casa mais o foro do quintal (`CroftFeeDaysPerCell` dias de jornal por célula, ao tesouro; o quintal que
   ela não paga fica de fora). Quem já mora (de favor, apertado) só muda se o lugar novo não custa mais que o de agora mais o que
   vale a casa própria (`OwnHomeDaysPerYear`, 30 dias de jornal por morador por ano); uma casa a horas do trabalho não compensa.
+  AD-192: a sujeira do lote, da casa vazia e da de agora pesa pela aversão dos adultos ([dense-quarter](dense-quarter.md)).
   Onde aglomerado de fora funda cidade-filha (regras de cidade ligadas), lote e casa vazia só dentro da cidade e da borda que ela
   absorve. O canteiro (prédio com `UnderWork`) ocupa o lote desde já; ninguém mora nem trabalha nele até a obra acabar.
 - **Custo e prazo**: horas = `HouseHours` + quintal × `CroftHoursPerCell` + material. Material (`HouseMaterialResourceId`, madeira
