@@ -212,7 +212,7 @@ public sealed class Npc
     /// <summary>Troca a taxa de decaimento da sede (custo basal de poder manifesto, AD-156) a partir de <paramref name="tick"/>.</summary>
     public void SetThirstDecayRate(double ratePerHour, long tick)
     {
-        if (ThirstNeed.DecayRatePerTick == ratePerHour) return;
+        if (ThirstNeed.DecayRatePerHour == ratePerHour) return;
         ThirstNeed = ThirstNeed.WithDecayRate(ratePerHour, tick);
         TouchCanonical();
     }
@@ -440,7 +440,7 @@ public sealed class Npc
     /// <summary>Troca a taxa de decaimento da fome (lactação gasta mais comida) a partir de <paramref name="tick"/>.</summary>
     public void SetHungerDecayRate(double ratePerHour, long tick)
     {
-        if (HungerNeed.DecayRatePerTick == ratePerHour) return;
+        if (HungerNeed.DecayRatePerHour == ratePerHour) return;
         HungerNeed = HungerNeed.WithDecayRate(ratePerHour, tick);
         TouchCanonical();
     }

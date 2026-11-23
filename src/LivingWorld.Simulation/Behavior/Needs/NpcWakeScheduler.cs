@@ -173,14 +173,14 @@ public static class NpcWakeScheduler
 
     public static long NextThresholdCrossing(LazyNeed need, long nowTick, double urgencyThreshold)
     {
-        if (need.DecayRatePerTick <= 0) return long.MaxValue;
+        if (need.DecayRatePerHour <= 0) return long.MaxValue;
         double value = need.ValueAt(nowTick);
         if (value <= 0) return nowTick;
         if (100 - value > urgencyThreshold) return nowTick;
 
         double target = 100 - urgencyThreshold;
         if (value <= target) return nowTick;
-        long delta = (long)Math.Ceiling((value - target) / need.DecayRatePerTick);
+        long delta = (long)Math.Ceiling((value - target) / need.DecayRatePerHour);
         return nowTick + Math.Max(1, delta);
     }
 

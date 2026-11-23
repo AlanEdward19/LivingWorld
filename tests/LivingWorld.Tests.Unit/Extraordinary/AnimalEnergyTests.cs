@@ -10,7 +10,7 @@ public sealed class AnimalEnergyTests
     [Fact]
     public void Animal_energy_is_lazy_need_read_via_ValueAt()
     {
-        var energy = LazyNeed.Initial(100, tick: 0, decayRatePerTick: 10);
+        var energy = LazyNeed.Initial(100, tick: 0, decayRatePerHour: 10);
         var animal = new Animal(new AnimalId(1), "wolf", new CellCoord(0, 0), true, null, energy);
 
         Assert.Equal(100, animal.Energy.ValueAt(0));

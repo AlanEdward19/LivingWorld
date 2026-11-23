@@ -51,7 +51,7 @@ public sealed class FaunaPowerCompatibilityTests
 
         var after = world.FindAnimal(animal.Id)!;
         Assert.True(after.IsAlive);
-        Assert.Equal(1, after.Energy.DecayRatePerTick);
+        Assert.Equal(1, after.Energy.DecayRatePerHour);
         Assert.Equal(76, after.Energy.ValueAt(world.CurrentDate.TotalHours));
         Assert.NotEqual(new CellCoord(2, 2), after.Position);
     }
@@ -107,7 +107,7 @@ public sealed class FaunaPowerCompatibilityTests
         long tick = world.CurrentDate.TotalHours;
         var infectedDeer = world.FindAnimal(deer.Id)!;
         Assert.Equal("plague", infectedDeer.VectorDisease);
-        Assert.Equal(1, infectedDeer.Energy.DecayRatePerTick);
+        Assert.Equal(1, infectedDeer.Energy.DecayRatePerHour);
         Assert.Equal(76, infectedDeer.Energy.ValueAt(tick));
         Assert.Contains(world.Fauna, a => a.Species == "wolf" && a.IsAlive && a.Id.Value >= 5);
         Assert.False(world.FindAnimal(rabbit.Id)!.IsAlive);
