@@ -72,6 +72,7 @@ public sealed class MigrationSystem : ISimulationSystem
             return scarce;
         }
 
+        var safety = new SafetyCache();
         foreach (var household in world.Households.OrderBy(h => h.Id.Value).ToList())
         {
             if (household.PendingRelocationCity is not null) continue;
@@ -85,12 +86,12 @@ public sealed class MigrationSystem : ISimulationSystem
             City? bestCity = null;
             // Edge case (dynamic-city-growth): mapa sem célula livre em lugar nenhum força o score de
             // "ficar" pro mínimo teórico, sem afetar o score de nenhuma cidade candidata.
-            double bestScore = landScarce ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity);
+            double bestScore = landScarce ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity, safety);
 
             foreach (var candidate in activeCities)
             {
                 if (candidate.Id == currentCity) continue;
-                double score = ScoreOf(world, rules, household, candidate.Id);
+                double score = ScoreOf(world, rules, household, candidate.Id, safety);
                 // Hysteresis: a candidate must beat bestScore by more than HysteresisMargin
                 // (relative) to be worth relocating for -- see HysteresisMargin doc above. When
                 // bestScore is double.NegativeInfinity (land-scarce "ficar" case above), the
@@ -157,11 +158,52 @@ public sealed class MigrationSystem : ISimulationSystem
             && workplace.Employees.Count < workplace.MaxVacancies);
     }
 
-    private static double ScoreOf(WorldState world, CityRules rules, Household household, CityId cityId) =>
+    private static double ScoreOf(WorldState world, CityRules rules, Household household, CityId cityId, SafetyCache safety) =>
         rules.MigrationEmploymentWeight * EmploymentLevel(world, cityId)
         + rules.MigrationFoodWeight * FoodLevel(world, cityId)
-        + rules.MigrationSecurityWeight * 0.5 // ver SPEC_DEVIATION acima
+        + rules.MigrationSecurityWeight * SecurityLevel(world, household, cityId, safety) // ver SPEC_DEVIATION acima
         + rules.MigrationFamilyTiesWeight * FamilyTiesLevel(world, household, cityId);
+
+    /// <summary>Por tick: limite crescido e parte suja (casas de sujeira ≥ <c>DenseSqualor</c>) de cada cidade, calculados uma vez.</summary>
+    private sealed class SafetyCache
+    {
+        public readonly Dictionary<CityId, (LivingWorld.Domain.Cities.Spatial.CityBounds Bounds, double DenseShare)> Cities = [];
+    }
+
+    /// <summary>AD-192: a segurança da cidade para esta casa (0–1). Antes 0,5 fixo (nenhuma fonte de dado); agora 0,5 × (1 − medo),
+    /// medo = os crimes que a casa conhece lá (vítima ou boato, <c>RegardPerCrime</c> cada) + a aversão média dos adultos ao bairro
+    /// sujo × a parte suja da cidade. Sem crime conhecido e sem aversão, os 0,5 de sempre.</summary>
+    private static double SecurityLevel(WorldState world, Household household, CityId cityId, SafetyCache safety)
+    {
+        var streets = world.StreetRules;
+        if (!streets.QuarterInMigration || world.FindActiveCity(cityId) is not { } city) return 0.5;
+        if (!safety.Cities.TryGetValue(cityId, out var known))
+        {
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, cityId)).Bounds;
+            int houses = 0, dense = 0;
+            foreach (var b in world.Buildings)
+            {
+                if (b.City != cityId || b.Position is null || b.UnderWork is not null || !CityOccupancy.IsDwelling(world, b.BuildingTypeId)) continue;
+                houses++;
+                if (Quarter.PlaceSqualor(world, b) >= streets.DenseSqualor) dense++;
+            }
+            safety.Cities[cityId] = known = (bounds, houses == 0 ? 0 : dense / (double)houses);
+        }
+        var members = new List<Npc>();
+        foreach (var id in household.Members)
+            if (world.FindNpc(id) is { IsAlive: true } m) members.Add(m);
+        double crimes = 0;
+        if (world.Crime is { } ledger)
+            foreach (var c in ledger.Cases)
+            {
+                if (c.City != cityId.Value) continue;
+                foreach (var m in members)
+                    if (c.Victim == m.Id.Value || c.Knowers.Exists(k => k.Npc == m.Id.Value)) { crimes++; break; }
+            }
+        double fear = Math.Clamp(crimes * streets.RegardPerCrime / Math.Max(1, members.Count)
+            + Quarter.HouseholdAversion(world, members, city, known.Bounds) * known.DenseShare, 0, 1);
+        return 0.5 * (1 - fear);
+    }
 
     private static double EmploymentLevel(WorldState world, CityId cityId)
     {

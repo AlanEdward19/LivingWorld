@@ -103,6 +103,22 @@ public sealed partial record StreetRules
     /// nas horas da turma); sem fonte ao alcance, não há como testar.</summary>
     public bool PrototypeHaulsMaterial { get; init; } = true;
 
+    /// <summary>AD-192, só para os relatórios (<c>LW_AD192</c>): <c>off</c> desliga a fatia toda; <c>nohygiene</c> só a higiene (casos do
+    /// ambiente e parede-meia), <c>noregard</c> só o que a aversão ao bairro decide (onde morar, valor, migração), <c>noleft</c> só as
+    /// sobras de cidade e rota; outro valor, nada.</summary>
+    public StreetRules WithAd192Mode(string mode) => mode switch
+    {
+        "off" => WithoutAd192(),
+        "nohygiene" => this with { QuarterHygiene = false, WallContagion = false },
+        "noregard" => this with { QuarterInLotChoice = false, QuarterInValue = false, QuarterInMigration = false },
+        "noleft" => WithoutAd192() with
+        {
+            QuarterHygiene = QuarterHygiene, WallContagion = WallContagion, QuarterInLotChoice = QuarterInLotChoice,
+            QuarterInValue = QuarterInValue, QuarterInMigration = QuarterInMigration,
+        },
+        _ => this,
+    };
+
     /// <summary>AD-192 desligada (<c>LW_AD192=off</c>), para medir pareado.</summary>
     public StreetRules WithoutAd192() => this with
     {
