@@ -1,6 +1,7 @@
 # ADR-0050: mundo em tempo real com duração de tick variável
 
-- **Status**: proposto (AD-197a; a direção é do dono, 2026-11-23; desenho e padrões esperam aprovação)
+- **Status**: aceito (dono, 2026-11-23: opção (b); padrão sem jogador rápido no ritmo do admin; contrato em versão nova).
+  Migração não começou (AD-197a só desenhou).
 - **Data**: 2026-11-23
 - **Decisores**: dono do projeto; rascunho por agente
 
@@ -32,14 +33,14 @@ decorrido) e a decisão é por despertar agendado (`NpcWakeScheduler`), não var
   mudam se a migração for feita por etapas, cada uma provada por "Δ = 1 h reproduz o hash anterior".
 - **(c) Duas camadas** (mundo em horas e uma "cena" fina em volta do jogador). É o passo fino rejeitado com outro nome.
 
-## Decisão recomendada: (b)
+## Decisão: (b), aprovada pelo dono
 1. **Determinismo**: mesma seed + mesmas entradas + mesma sequência de Δ = mesmo mundo. O `PlayerSessionLog` (ADR-0048) passa a
    gravar também as trocas de modo (Δ a partir do tick T) e cada aceleração; o replay reaplica tudo.
 2. **NPC em tempo fino**: a decisão segue por despertar (agora em segundos), não por subtick; movimento progride pela rota com
    instante de chegada (a pose entre células é calculada pelo tempo, não guardada); ação conclui no instante certo. Quem é
    tocado pelo jogador (golpe, conversa, comércio) é despertado na hora pelo evento.
-3. **Ritmo do relógio por mundo**: `TimeScale` (mundo/real, padrão 1:1) com jogador; `IdleRhythm` sem jogador (proposta de
-   padrão: rápido, no ritmo do admin, como hoje; alternativa: tempo real). Admin sempre avança e acelera. Jogador só avança
+3. **Ritmo do relógio por mundo**: `TimeScale` (mundo/real, padrão 1:1) com jogador; `IdleRhythm` sem jogador (padrão
+   aprovado: rápido, no ritmo do admin, como hoje; configurável por mundo, inclusive tempo real). Admin sempre avança e acelera. Jogador só avança
    quando é o único conectado: ocioso (acelera vendo o mundo, as necessidades caem) ou dormindo (até um horário ou acelerar),
    interrompido por evento que o acorda (golpe, fogo, fome crítica). Com dois ou mais jogadores ninguém pula o tempo.
 4. **Custo**: com jogador a 1:1, uma hora de mundo leva uma hora real; os sistemas horários rodam uma vez por hora real (muito
@@ -52,12 +53,13 @@ decorrido) e a decisão é por despertar agendado (`NpcWakeScheduler`), não var
 ## Consequências
 - **Positivas**: o mundo do jogador é contínuo e realista; o mundo sem jogador segue rápido e barato; o replay continua
   determinístico; a migração em etapas preserva os goldens.
-- **Negativas**: migração ampla (unidade de tempo em ~1.400 pontos, contrato com campos em tick que passam a carregar segundos
-  ou ganham irmãos `...AtSeconds`), cliente reinterpreta relógio e interpolação; saves antigos convertidos (horas → segundos).
+- **Negativas**: migração ampla (unidade de tempo em ~1.400 pontos, contrato em **versão nova**: os campos em tick mudam de unidade
+  para segundos, sem campos irmãos; o cliente migra junto), cliente reinterpreta relógio e interpolação; saves antigos convertidos (horas → segundos).
 - **Follow-ups**: AD-197b (unidade de tempo em segundos, etapa a etapa com prova de hash), AD-197c (modo jogador com Δ fino e
   ritmo por mundo), ADR-0049 (controle direto sobre este relógio).
 
-## Perguntas ao dono
-1. Aprova (b) com tempo de mundo em segundos inteiros e Δ variável? 2. Padrão sem jogador: rápido no ritmo do admin
-   (recomendado) ou tempo real? 3. Contrato: campos em tick passam a segundos com versão nova, ou ganham irmãos em segundos e
-   os antigos ficam em horas até a fase seguinte (recomendado: irmãos, só acréscimo)?
+## Decisões do dono (2026-11-23)
+1. Aprovada a opção (b): tempo de mundo em segundos inteiros, Δ variável por modo.
+2. Sem jogador: rápido, no ritmo do admin; configurável por mundo.
+3. Contrato: versão nova (`openapi.v2`), campos em tick passam a segundos na versão nova; sem campos irmãos. O cliente Godot
+   migra na mesma fatia; a versão antiga não é mantida em paralelo.

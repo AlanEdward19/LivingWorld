@@ -8,7 +8,7 @@
 O ADR-0047 decidiu "manter o Godot 3D isométrico" para todo o cliente. Em 2026-11-23 o dono decidiu, para a camada do
 jogador: "a câmera não será isométrica, será 3ª ou 1ª pessoa; usado como um jogo de RPG mesmo; o jogador anda no WASD ou
 setas, pode interagir com as coisas, bater com clique"; e, no mesmo dia, que com jogador o mundo inteiro roda em tempo real
-(ADR-0050), sem "passo fino só do jogador". A identidade e o canal persistente do jogador são do ADR-0048 (aceito). Desenho:
+(ADR-0050, aceito: tempo em segundos, Δ variável, contrato em versão nova), sem "passo fino só do jogador". A identidade e o canal persistente do jogador são do ADR-0048 (aceito). Desenho:
 `.specs/features/player-direct-control/design.md`.
 
 ## Decisão
@@ -25,7 +25,7 @@ setas, pode interagir com as coisas, bater com clique"; e, no mesmo dia, que com
 4. **Registro reproduzível.** Intenções, trocas de Δ e acelerações entram no `PlayerSessionLog` (ADR-0048) com o instante de
    mundo; snapshot + registro reproduz o hash.
 
-## Contrato (só acréscimos)
+## Contrato (acréscimos sobre a versão nova do ADR-0050, com instantes em segundos)
 - Comandos novos no canal `/players/ws` (ADR-0048): `move {seq, x, y, run}`, `interact {seq, kind, id}`, `strike {seq, npcId}`,
   `reach {seq}`; resposta com a pose autoritativa `{seq, x, y, floor, facing, speed, stamina}` ou a recusa com motivo.
 - Rota HTTP equivalente `POST /players/{playerId}/input` (lote) e `GET /players/{playerId}/reach`, para quem não abre o canal.

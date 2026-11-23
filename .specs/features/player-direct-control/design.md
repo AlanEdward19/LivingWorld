@@ -2,7 +2,7 @@
 
 Decisões do dono (2026-11-23): câmera em 3ª/1ª pessoa, WASD ou setas, interagir, bater com clique; com jogador o mundo inteiro
 roda em tempo real (proporção configurável por mundo, padrão 1:1); avançar horas só o admin ou o jogador sozinho. Regra do
-projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera e controle), 0050 (tempo real).
+projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera e controle), 0050 (tempo real, aceito; contrato em versão nova).
 
 ## O que existe hoje
 - **Agir**: `/players/*` (incarnate, action com Eat, Sleep, Work, Socialize, Idle, Buy, UsePower+powerId, logout), sessão por
@@ -18,7 +18,7 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
 
 ## Desenho (sobre o relógio do ADR-0050)
 1. **Um relógio só.** Com jogador presente o mundo anda em Δ fino (ex.: 50 ms de mundo por tick a 1:1) para todos. Sem jogador,
-   o ritmo do mundo é o configurado (proposta: rápido, Δ = 1 h). O jogador sozinho pode acelerar ocioso ou ao dormir (até um
+   o ritmo do mundo é o configurado (padrão aprovado: rápido, Δ = 1 h, no ritmo do admin). O jogador sozinho pode acelerar ocioso ou ao dormir (até um
    horário ou acelerando; evento que acorda interrompe); com dois ou mais jogadores ninguém pula o tempo.
 2. **Movimento como entrada validada.** WASD/setas viram intenção (direção, andar/correr) enviada pelo canal com `seq`. O motor
    aplica no tick seguinte: posição contínua (`pose`, canônica enquanto encarnado), velocidade pela conta de `Mobility` e do
