@@ -367,4 +367,16 @@ public enum WorldEventKind
     /// <summary>Obra abandonada (AD-184): sem mão por meses, sem dono ou sem cidade; o lote volta a ser livre — payload:
     /// <c>obraId|cidadeId|tipo|x|y|motivo|feitoPm</c>.</summary>
     WorkAbandoned,
+
+    /// <summary>Carga de material chegou ao lote da obra (AD-194) — payload: <c>obraId|cidadeId|tipo|x|y|recurso|unidades|quem|origem</c>
+    /// (origem: banca = comprado de quem vende, natureza = buscado).</summary>
+    WorkMaterialArrived,
+
+    /// <summary>A obra perdeu o dia pelo tempo (AD-194): chuva forte, neve ou chão congelado no lote, com gente na turma; uma vez por
+    /// episódio — payload: <c>obraId|cidadeId|tipo|x|y|motivo</c> (motivo: chuva, neve, gelo).</summary>
+    WorkWeatherLost,
+
+    /// <summary>A obra travou por falta de material (AD-194): sem material no lote, sem quem venda ou sem como pagar, e sem como buscar
+    /// — payload: <c>obraId|cidadeId|tipo|x|y|recurso|falta</c>. A volta é <see cref="WorkResumed"/> com o motivo no fim.</summary>
+    WorkMaterialShort,
 }

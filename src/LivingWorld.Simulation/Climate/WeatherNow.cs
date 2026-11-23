@@ -86,6 +86,14 @@ public static class WeatherNow
     public static bool OutdoorWorkable(WorldState world, CellCoord cell) =>
         RowAt(world, cell) is not { } row || OutdoorWorkable(world.ClimateRules.Weather!, row);
 
+    /// <summary>AD-194: por que o trabalho ao ar livre não anda hoje: <c>neve</c>, <c>gelo</c> (chão congelado) ou <c>chuva</c>.</summary>
+    public static string LostDayReason(WorldState world, CellCoord cell)
+    {
+        if (RowAt(world, cell) is not { } row) return "chuva";
+        var r = world.ClimateRules.Weather!;
+        return row.SnowMm >= r.FieldSnowCm ? "neve" : row.MeanCenti <= r.FrozenGroundMeanC * 100 ? "gelo" : "chuva";
+    }
+
     /// <summary>A ceifa anda: grão molhado não se corta nem se guarda.</summary>
     public static bool CanReap(WorldState world, CellCoord cell) =>
         RowAt(world, cell) is not { } row

@@ -18,11 +18,13 @@ public static class CityLayoutSwitch
         string? ad184 = Environment.GetEnvironmentVariable("LW_AD184");
         bool ad184Off = ad184 == "off";
         bool ad184Part = ad184 is "nohelpers" or "nobid" or "nohouse" or "nofavor" || ad184?.StartsWith("own", StringComparison.Ordinal) == true; // AD-184: uma regra só, para atribuir o efeito
-        if (!layoutOff && !streetsOff && !ad179Off && !Ad185Off && !ad184Off && !ad184Part) return null;
+        bool ad194Off = Environment.GetEnvironmentVariable("LW_AD194") == "off"; // AD-194: material em horas, sem eventos de dia perdido
+        if (!layoutOff && !streetsOff && !ad179Off && !Ad185Off && !ad184Off && !ad184Part && !ad194Off) return null;
         var rules = layoutOff ? CityLayoutRules.Off : CityLayoutRules.Default;
         if (streetsOff) return rules with { Streets = StreetRules.Off };
         if (Ad185Off) rules = rules with { Streets = rules.Streets with { NearestJob = false } };
         if (ad184Off) rules = rules with { Streets = rules.Streets.WithoutAd184() }; // AD-184: obra como na AD-179
+        if (ad194Off) rules = rules with { Streets = rules.Streets.WithoutAd194() };
         if (ad184 == "nohelpers") rules = rules with { Streets = rules.Streets with { HelpersBuild = false } };
         if (ad184 == "nohouse") rules = rules with { Streets = rules.Streets with { HouseIsWork = false } };
         if (ad184 == "nofavor") rules = rules with { Streets = rules.Streets with { LodgeWithParents = false } };

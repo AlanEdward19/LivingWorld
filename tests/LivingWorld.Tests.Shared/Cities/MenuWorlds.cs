@@ -13,7 +13,9 @@ public static class MenuWorlds
         // AD-184: LW_AD184=off mede a obra como na AD-179 (antes × depois pareado)
         var off = Environment.GetEnvironmentVariable("LW_AD184") == "off"
             ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() }
-            : null;
+            : Environment.GetEnvironmentVariable("LW_AD194") == "off" // AD-194: material em horas, sem eventos de dia perdido
+                ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd194() }
+                : null;
         if (period == "padrao") return ScenarioRunner.Create(seed, cityLayout: off);
         var root = System.Text.Json.Nodes.JsonNode.Parse(DefaultPeriodSeeder.PayloadFor(period))!;
         root["Seed"] = seed;
