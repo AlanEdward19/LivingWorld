@@ -83,6 +83,7 @@ Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;q
 ## Desempenho
 
 Piso do ADR-0047 e histórico das medidas: [docs/desempenho.md](docs/desempenho.md) (AD-189: mundo rodando 63 FPS, p95 ≤ 22 ms).
+AD-193: o canteiro sobe pela obra do motor (`works`), sem regressão (`benchrun` mediana 60,3 → 60,7 FPS; motor 1.000 NPCs 0,99–1,01×).
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
