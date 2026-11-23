@@ -85,7 +85,7 @@ public class RestPresentationTests
     public void Inspection_exposes_dwelling_quality_location_and_remaining_duration_while_sleeping()
     {
         var (world, npc) = HousedSleeper(withBed: false, duration: 8);
-        world.CurrentDate = new WorldDate(Calendar, 3);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 3);
 
         var rest = NpcInspectionQuery.Inspect(world, npc.Id).Value!.Rest;
 
@@ -112,7 +112,7 @@ public class RestPresentationTests
     public void Scope_projection_emits_a_rest_process_with_progress_and_friendly_descriptor()
     {
         var (world, npc) = HousedSleeper(withBed: true, duration: 8);
-        world.CurrentDate = new WorldDate(Calendar, 2);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 2);
         var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         npc.JoinCity(city.Id);
@@ -141,7 +141,7 @@ public class RestPresentationTests
         var scope = new VisualScope(VisualScopeKind.City, city.Id.ToString());
 
         var before = LivingScopeProjector.Build(world, scope);
-        world.CurrentDate = new WorldDate(Calendar, 4);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 4);
         var after = LivingScopeProjector.Build(world, scope);
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(4, before, after));
 
@@ -175,7 +175,7 @@ public class RestPresentationTests
     {
         var (world, npc) = HousedSleeper(withBed: false, duration: 8);
         var first = NpcInspectionQuery.Inspect(world, npc.Id).Value!.Rest!.RemainingHours;
-        world.CurrentDate = new WorldDate(Calendar, 3);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 3);
         var later = NpcInspectionQuery.Inspect(world, npc.Id).Value!.Rest!.RemainingHours;
 
         Assert.Equal(8, first);

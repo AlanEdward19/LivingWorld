@@ -44,7 +44,7 @@ public class NpcBiographyQueryTests
     {
         var (world, _) = ScenarioRunner.Create(1, historyRules: HistoryRules.Default);
         var npc = world.Npcs[0];
-        npc.Die(new WorldDate(world.Calendar, 50));
+        npc.Die(WorldDate.FromHours(world.Calendar, 50));
         world.AddFact(new Fact(world.NextFactIdAndAdvance(), 40, WorldEventKind.Marriage, [npc.Id], npc.City, 0.5, "before-death"));
         world.AddFact(new Fact(world.NextFactIdAndAdvance(), 50, WorldEventKind.Death, [npc.Id], npc.City, 0.9, "death-itself"));
         world.AddFact(new Fact(world.NextFactIdAndAdvance(), 60, WorldEventKind.Marriage, [npc.Id], npc.City, 0.5, "after-death"));

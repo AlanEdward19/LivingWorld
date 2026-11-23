@@ -1,0 +1,58 @@
+using System.Text.Json;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Tests.Unit.Shared;
+
+/// <summary>ADR-0050 (AD-197b): a data do mundo é guardada em segundos inteiros; a hora é derivada; a forma serializada de um
+/// instante na hora cheia é a de antes (mesmo hash), e um save antigo em horas carrega convertido para segundos.</summary>
+public class WorldDateSecondsTests
+{
+    private static readonly WorldCalendar Calendar = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
+
+    [Fact]
+    public void TotalHours_is_the_floor_of_seconds_also_before_the_epoch()
+    {
+        Assert.Equal(1, WorldDate.FromSeconds(Calendar, 3600 + 59).TotalHours);
+        Assert.Equal(-1, WorldDate.FromSeconds(Calendar, -1).TotalHours);
+        Assert.Equal(-2, WorldDate.FromSeconds(Calendar, -3601).TotalHours);
+    }
+
+    [Fact]
+    public void Calendar_fields_change_only_when_the_hour_turns()
+    {
+        var almost = WorldDate.FromHours(Calendar, 23).AddSeconds(3599);
+        Assert.Equal((23, 0), (almost.Hour, almost.Day));
+        var next = almost.AddSeconds(1);
+        Assert.Equal((0, 1), (next.Hour, next.Day));
+    }
+
+    [Fact]
+    public void Serialized_full_hour_has_the_legacy_shape_without_seconds()
+    {
+        string json = JsonSerializer.Serialize(WorldDate.FromHours(Calendar, 30));
+        Assert.Equal(
+            "{\"Calendar\":{\"HoursPerDay\":24,\"DaysPerMonth\":30,\"MonthsPerYear\":12,\"HoursPerMonth\":720,\"HoursPerYear\":8640},"
+            + "\"TotalHours\":30,\"Hour\":6,\"Day\":1,\"Month\":0,\"Year\":0}", json);
+    }
+
+    [Fact]
+    public void Sub_hour_instant_round_trips_through_json()
+    {
+        var date = WorldDate.FromHours(Calendar, 30).AddSeconds(125);
+        Assert.Equal(date, JsonSerializer.Deserialize<WorldDate>(JsonSerializer.Serialize(date)));
+    }
+
+    [Fact]
+    public void Legacy_hours_only_json_loads_as_the_start_of_that_hour_in_seconds()
+    {
+        const string legacy = "{\"Calendar\":{\"HoursPerDay\":24,\"DaysPerMonth\":30,\"MonthsPerYear\":12},\"TotalHours\":30}";
+        Assert.Equal(30 * 3600, JsonSerializer.Deserialize<WorldDate>(legacy).TotalSeconds);
+    }
+
+    [Fact]
+    public void ToString_keeps_the_hour_text_and_adds_minutes_inside_the_hour()
+    {
+        Assert.Equal("Y0M0D1H6", WorldDate.FromHours(Calendar, 30).ToString());
+        Assert.Equal("Y0M0D1H6m2s5", WorldDate.FromHours(Calendar, 30).AddSeconds(125).ToString());
+    }
+}

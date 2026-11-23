@@ -86,7 +86,7 @@ public class CookingLifecycleTests
 
     private static void Finish(WorldState world, ResourceProcess process)
     {
-        world.CurrentDate = new WorldDate(Calendar, process.CompletesAtTick);
+        world.CurrentDate = WorldDate.FromHours(Calendar, process.CompletesAtTick);
         new ResourceProcessSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
     }
 
@@ -260,7 +260,7 @@ public class CookingLifecycleTests
         var scope = new VisualScope(VisualScopeKind.World, "");
 
         var before = LivingScopeProjector.Build(world, scope);
-        world.CurrentDate = new WorldDate(Calendar, 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 1);
         var after = LivingScopeProjector.Build(world, scope);
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(1, before, after));
 

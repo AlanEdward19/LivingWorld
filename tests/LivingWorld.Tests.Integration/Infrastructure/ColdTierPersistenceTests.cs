@@ -174,6 +174,38 @@ public sealed class ColdTierPersistenceTests
         Assert.Throws<InvalidDataException>(() => new ColdTierPersistence(path).Load(otherCalendar));
     }
 
+    /// <summary>ADR-0050 (AD-197b): arquivo do formato 1 (nascimento e morte em horas) carrega convertido para segundos.</summary>
+    [Fact]
+    public void Load_of_hours_format_converts_birth_and_death_to_seconds()
+    {
+        string path = NewTempPath();
+        using (var payload = new MemoryStream())
+        {
+            var w = new BinaryWriter(payload);
+            w.Write((byte)1);
+            w.Write(Calendar.HoursPerDay); w.Write(Calendar.DaysPerMonth); w.Write(Calendar.MonthsPerYear);
+            w.Write(1); w.Write(5); w.Write("Velho"u8.ToArray());
+            w.Write(1);
+            w.Write(7L); w.Write(0); w.Write((byte)Sex.Female);
+            w.Write(-100L); w.Write((byte)1); w.Write(250L);
+            w.Write(1); w.Write(2);
+            w.Flush();
+            byte[] raw = payload.ToArray();
+            using var compressed = new MemoryStream();
+            using (var gzip = new System.IO.Compression.GZipStream(compressed, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
+                gzip.Write(raw);
+            using var file = File.Create(path);
+            file.Write("LWCLD1\0"u8);
+            file.WriteByte((byte)ColdTierCompressionCodec.GZip);
+            file.Write(BitConverter.GetBytes(raw.Length));
+            file.Write(compressed.ToArray());
+        }
+
+        var loaded = new ColdTierPersistence(path).Load(Calendar)[7];
+
+        Assert.Equal((-100L * 3600, 250L * 3600), (loaded.BirthDate.TotalSeconds, loaded.DeathDate!.Value.TotalSeconds));
+    }
+
     private static ColdTierArchive.NpcSummary Sample(
         long id,
         string name,

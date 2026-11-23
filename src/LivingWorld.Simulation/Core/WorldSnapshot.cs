@@ -91,8 +91,8 @@ public static class WorldSnapshot
         SnapshotStringInterning.Resolve(node);
 
         var calendar = node["Calendar"].Deserialize<WorldCalendar>(JsonOptions)!;
-        var totalHours = node["CurrentDate"]!["TotalHours"]!.Deserialize<long>();
-        var currentDate = new WorldDate(calendar, totalHours);
+        // ADR-0050: save antigo (só horas) entra como o começo da hora; o conversor lê também o resto em segundos
+        var currentDate = WorldDate.FromSeconds(calendar, node["CurrentDate"].Deserialize<WorldDate>(JsonOptions).TotalSeconds);
         var seed = node["Seed"]!.Deserialize<ulong>();
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
