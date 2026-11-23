@@ -18,9 +18,9 @@
 164. ~~**Fome caiu com a casa mais longe**~~ (AD-182): não se repete na base do AD-182 (rua de verdade, AD-176): 40 × 15
      `starvation-trace`, traçado ligado 49 mortes de fome, desligado 51, mesmo perfil (17 contra 22 jovens sós empregados, o
      morto do 08c 149, corrigido na causa). Sem efeito a explicar, nada a corrigir no traçado.
-165. **Casa solitária de cidade nova**: com água em volta do largo, a primeira casa pode cair a mais de `AbsorptionRingCells`
+165. ~~**Casa solitária de cidade nova**~~ AD-192: sem prédio perto do miolo, o limite encadeia a partir do mais perto.: com água em volta do largo, a primeira casa pode cair a mais de `AbsorptionRingCells`
      dos 3×3 da cidade sem gente e fica fora do limite (não é desenhada). A absorção encadeada só parte do limite existente.
-166. **Ruas sobre outra cidade**: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra
+166. ~~**Ruas sobre outra cidade**~~ AD-192: lote novo não cai no limite da vizinha nem dá a porta para a rua cortada ali.: a ocupação é por cidade (já era no anel), então a rua de uma pode passar por prédio de outra
      colada a ela. Cortar o traçado no limite da vizinha sem mexer em posição derivada.
 167. **Fundação de cidade-filha ~25% menor**: com o limite encadeado até 6 células do miolo, filhas em 10 anos 19 contra 26 e
      fusões 11 contra 19 (seeds 1/2/3/7, `CityFoundingReport`); encadeado até o mapa dava 9 e quase nenhuma. A causa da
@@ -28,7 +28,7 @@
 168. **Contrato `world-subscribe`**: a forma gravada perdeu os exemplos de `npcs`/`externalNpcs` porque a fixture não tem mais
      NPC fora de cidade (tipo igual); preencher um exemplo como o `ObservableSample` faz para os demais.
 169. **Terreno na rua**: a rua só contorna água; altitude e declive não pesam (curva de nível, vau, ponte).
-170. **Prédio derivado sem porta para a rua**: prédio sem posição gravada (snapshot antigo) mantém a orientação por hash e cai
+170. ~~**Prédio derivado sem porta para a rua**~~ AD-192: na virada do mês grava o lote (mesmas células) com a porta para o caminho.: prédio sem posição gravada (snapshot antigo) mantém a orientação por hash e cai
      em lote de caminho ou degrau sem rua; toda criação nova grava posição e orientação.
 171. **Números sem fonte** de `CityLayoutRules` (largo 1, travessa 13, centro 5, quintal 2/1, família 5, pobre 0,5× e
      remediado 2× a mediana, desvio 4, caminho 8, pisoteio 12, valor 0,02): calibrar contra toft/croft medidos (Wharram Percy)
@@ -46,15 +46,15 @@
 175. ~~**Carga a pé não muda o passo**~~ AD-179: a carga levada alonga o passo (0,5%/kg até 40 kg), o material de obra também.: só o veículo de terra depende do caminho (cabe ou não); quem anda carregado anda igual.
 176. **Reta integra o terreno só nas pontas** (`MovementCost`, como antes); a rede integra célula a célula, com subida só entre as
      pontas. Unificar quando o custo do mapa por célula for barato no caminho quente.
-177. **Entrada e saída da rede pela célula de caminho mais perto** de cada ponta, não a melhor combinação; rota boa, não ótima.
+177. ~~**Entrada e saída da rede pela célula de caminho mais perto**~~ AD-192: melhor combinação (mais perto, primeiro da reta, mesmo pedaço). de cada ponta, não a melhor combinação; rota boa, não ótima.
 178. ~~**Diarista da obra recebe o jornal sem ir à obra**~~ AD-179: aceita pela utilidade, vai pela rota, conta e recebe por hora no trecho.: a agenda dele não muda (não anda até o trecho nem deixa de ficar à toa).
 179. **Cascalho não é mercadoria**: sai do leito do rio pela rota; a pedra é comprada quando o mundo tem o recurso (pedreira).
 180. ~~**Mundo novo sem trilha**~~ AD-179: nasce com o chão estacionário do mês típico da história.: a vila semeada nasce sem caminho até a primeira revisão (3 meses); pisar o chão dos anos de antes
      da fundação daria rua no ano 0.
 181. ~~**`cidade-media` quase não pisa o chão**~~ AD-179: era fixture sem economia; agora ~55 viagens/pessoa-mês.: ~8 passagens/mês para 150 pessoas (quase toda viagem dentro do mesmo prédio, o
      aperto do item 172); sem trilha nenhuma em 20 anos. Ver junto com o 172.
-182. **Prédio vira obstáculo só na virada do mês** (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
-183. **Técnica de calçar sem protótipo pago**: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
+182. ~~**Prédio vira obstáculo só na virada do mês**~~ AD-192: obstáculo no ato (obra pronta); lote novo não cobre caminho pisado. (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
+183. ~~**Técnica de calçar sem protótipo pago**~~ AD-192: o trecho de teste traz o cascalho do leito (idas nas horas); sem fonte, não testa. Protótipo presencial da invenção: #196.: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
 
 ## Dos nomes (AD-178)

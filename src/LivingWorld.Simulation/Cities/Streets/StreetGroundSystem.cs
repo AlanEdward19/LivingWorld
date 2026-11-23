@@ -32,6 +32,7 @@ public sealed class StreetGroundSystem : ISimulationSystem
             if (wear > 0) ground.SetWear(i, (int)((long)wear * rules.WearRetainPm / 1000));
         }
 
+        if (rules.RecordAuthoredLots) RecordDerivedLots(world, ground);
         // os prédios concluídos até aqui viram obstáculo da rota; o chão debaixo deles some (construíram em cima do caminho)
         ground.ObstacleTick = ctx.CurrentTick;
         var state = StreetRoutes.StateOf(world);
@@ -48,6 +49,61 @@ public sealed class StreetGroundSystem : ISimulationSystem
 
         PavingDecision.Monthly(world, ctx);
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
+    /// <summary>AD-192 (08d 182): um prédio passou a ocupar o chão agora (obra pronta, prédio erguido): vira obstáculo
+    /// da rota no ato, não na virada do mês, e o chão pisado e o calçamento debaixo dele somem. A rota de quem sai depois já o contorna.
+    /// Sem a chave, espera a virada do mês como antes.</summary>
+    internal static void Occupied(WorldState world, long now)
+    {
+        if (!world.StreetsOn || !world.StreetRules.ObstacleOnCompletion) return;
+        var ground = world.Ground!;
+        ground.ObstacleTick = now;
+        if (world.RouteState is { } cached) cached.ObstacleTick = long.MinValue; // refaz mesmo no mesmo tick (o prédio já existia)
+        var state = StreetRoutes.StateOf(world);
+        for (int i = 0; i < ground.Count; i++)
+        {
+            if (state.Owner[i] == 0) continue;
+            if (ground.WearAt(i) != 0) ground.SetWear(i, 0);
+            if (ground.PavingAt(i) != GroundSurface.None) ground.SetPaving(i, GroundSurface.None, 0);
+        }
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
+    /// <summary>AD-192 (08d 170): o prédio sem posição gravada (snapshot antigo, obra que não achou lote) nem era obstáculo nem tinha
+    /// porta na rota, e a orientação vinha do hash: a porta podia dar para o nada. Na virada do mês ele grava o lote em que já está —
+    /// a mesma posição e as mesmas células — virado (entre as rotações que ocupam as mesmas células) para a porta dar na rua, no
+    /// caminho pisado ou na passagem; sem nenhuma, a orientação de antes. Em ordem de id, sem sorteio.</summary>
+    internal static void RecordDerivedLots(WorldState world, GroundLedger ground)
+    {
+        foreach (var city in world.ActiveCities().OrderBy(c => c.Id.Value))
+        {
+            List<LivingWorld.Domain.Cities.Buildings.Building>? derived = null;
+            foreach (var b in world.Buildings)
+                if (b.City == city.Id && b.Position is null) (derived ??= []).Add(b);
+            if (derived is null) continue;
+            var network = CityStreets.Of(world, city);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
+            foreach (var building in derived.OrderBy(b => b.Id.Value))
+            {
+                if (Construction.BuildingPlacementResolver.ResolveLot(building, city, world, bounds) is not { } lot) continue;
+                var cells = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, lot.Orientation)
+                    .Select(c => c.Cell).ToHashSet();
+                int chosen = lot.Orientation;
+                for (int r = 0; r < 4; r++)
+                {
+                    int o = (lot.Orientation + r * 90) % 360;
+                    var shape = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, o);
+                    if (shape.Count != cells.Count || !shape.All(c => cells.Contains(c.Cell))) continue;
+                    var (door, facing) = Layout.LotGeometry.DoorOf(shape);
+                    var front = new LivingWorld.Domain.Geography.CellCoord(lot.Position.X + door.X + facing.X, lot.Position.Y + door.Y + facing.Y);
+                    int i = ground.IndexOf(front);
+                    bool walk = network.Contains(front) || (i >= 0 && ground.SurfaceAt(i) != GroundSurface.None);
+                    if (walk) { chosen = o; break; }
+                }
+                building.RecordLot(lot.Position, chosen, lot.Croft);
+            }
+        }
     }
 
     /// <summary>AD-179 (08d item 180): o mundo começa no meio da história. A vila semeada existe há anos, então nasce com o chão

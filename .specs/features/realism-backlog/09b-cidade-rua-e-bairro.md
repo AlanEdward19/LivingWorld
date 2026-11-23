@@ -22,7 +22,7 @@
    poço, ampliar a casa); meios diferentes já na fundação.
 5. **Bairro denso emerge** (terra cara, renda baixa): casas coladas e empilhadas, com acesso real sempre (viela, escada, laje,
    telhado) por onde o NPC anda; casa sem acesso não nasce.
-6. **Consequências do bairro denso**: higiene pior (contágio, água, escoamento, ligado à saúde); como a cidade é vista, por
+6. ~~**Consequências do bairro denso**~~ AD-192 ([dense-quarter](../../../docs/domain/dense-quarter.md); visita de fora vira issue): higiene pior (contágio, água, escoamento, ligado à saúde); como a cidade é vista, por
    pessoa (origem, traços, experiência, crime): quem é de perto pode achar feio ou ter medo, quem é de fora pode visitar;
    efeito em onde morar, valor dos imóveis e migração; visita de fora usa hospedagem e mercado.
 7. **Pendências da AD-173** (08d, itens 158–173): lotação das casas na cidade média, custo de escala acima do teto, números

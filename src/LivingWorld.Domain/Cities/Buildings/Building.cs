@@ -46,12 +46,23 @@ public sealed class Building(
         CompletedAtTick = tick;
         Interlocked.Increment(ref s_layoutVersion);
     }
-    public CellCoord? Position { get; } = position;
-    public int? Orientation { get; } = orientation;
+    public CellCoord? Position { get; private set; } = position;
+    public int? Orientation { get; private set; } = orientation;
+
+    /// <summary>AD-192 (08d 170): o prédio derivado (sem posição gravada: snapshot antigo, obra sem lote) passa a ter o lote gravado
+    /// — a posição em que já estava, a orientação com a porta para a rua e o quintal. Nada muda se já tem posição.</summary>
+    public void RecordLot(CellCoord at, int orientationDegrees, int croft)
+    {
+        if (Position is not null) return;
+        Position = at;
+        Orientation = orientationDegrees;
+        CroftCells = croft;
+        Interlocked.Increment(ref s_layoutVersion);
+    }
 
     /// <summary>AD-173: fundo do quintal (croft) que quem construiu escolheu, em células atrás da parede oposta à porta;
     /// 0 = sem quintal. Nulo nos prédios de antes e nos que o motor deriva (aí a escolha é recalculada pelo lugar).</summary>
-    public int? CroftCells { get; } = croftCells;
+    public int? CroftCells { get; private set; } = croftCells;
 
     /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
     /// — espelha <see cref="City.FoundingScheduledAtTick"/>.

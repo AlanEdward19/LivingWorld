@@ -38,7 +38,7 @@ namespace LivingWorld.Domain.Cities;
 /// <param name="RepairBelowPm">Condição abaixo da qual quem pagou manda consertar.</param>
 /// <param name="FoundingCommuteHours">Horas de caminho (trabalho + mercado) a partir das quais o aglomerado sem lote perto funda
 /// cidade-filha; mais perto pelo caminho, continua parte da mãe.</param>
-public sealed record StreetRules(
+public sealed partial record StreetRules(
     bool Enabled = true,
     int TrailWear = 150,
     int DirtWear = 1500,

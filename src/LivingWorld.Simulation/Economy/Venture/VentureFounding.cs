@@ -72,6 +72,7 @@ internal static class VentureFounding
 
         var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingType, ctx.CurrentTick, site.Position, site.Orientation);
         world.AddBuilding(building);
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.Occupied(world, ctx.CurrentTick); // AD-192 (08d 182)
         var stakes = capital.Partners.Select(p => new WorkplaceStake(p.Npc.Id, (int)(p.Amount * (long)WorkplaceStake.Whole / needed))).ToList();
         var workplace = new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(trade.LocationTypeId), site.Position, rules.MaxVacancies,

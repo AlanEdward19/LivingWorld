@@ -81,6 +81,9 @@ public static class BuildingValuation
                 + pricing.WaterfrontWeight * (Waterfront(world, at) ? 1 : 0)
                 // AD-173: o quintal (horta, bichos, espaço para ampliar) é terra a mais, e vale
                 + world.CityRules.EffectiveLayout().CroftValuePerCell * CroftCellCount(building, at, lot.Value.Croft);
+            // AD-192: o lugar sujo (colado, sem escoamento, água longe ou suja) vale menos — e o aluguel e a diária que saem dele
+            if (world.StreetRules.QuarterInValue && building.Position is not null)
+                location -= world.StreetRules.QuarterValuePenalty * Quarter.PlaceSqualor(world, building);
         }
 
         double pressure = recipe.Lodging is not null ? context.LodgingPressure : context.LabourPressure;

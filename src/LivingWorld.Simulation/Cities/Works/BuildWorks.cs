@@ -172,6 +172,7 @@ public static class BuildWorks
         Building? best = null;
         double bestCost = double.MaxValue;
         HomePlaces? places = null;
+        double? quarter = null;
         // só as de dentro da cidade de agora: morar na casa largada fora dela vira aglomerado e funda cidade-filha longe do trabalho
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
         foreach (var b in world.Buildings.OrderBy(b => b.Id.Value))
@@ -180,12 +181,13 @@ public static class BuildWorks
                 || !IsHouseType(world, b.BuildingTypeId)) continue;
             if (tenants.GetValueOrDefault(b.Id) > 0) continue;
             places ??= HomePlaces.Of(world, city.Id, members);
-            double cost = places.YearlyCost(world, b.Position.Value);
+            quarter ??= QuarterYearly(world, city, bounds, members);
+            double cost = places.YearlyCost(world, b.Position.Value) + quarter.Value * Quarter.PlaceSqualor(world, b);
             if (cost >= bestCost) continue;
             best = b;
             bestCost = cost;
         }
-        if (best is null || !WorthMoving(world, household, places!, bestCost)) return false;
+        if (best is null || !WorthMoving(world, household, places!, bestCost, quarter ?? 0)) return false;
         if (household.Dwelling is { } old) tenants[old] = Math.Max(0, tenants.GetValueOrDefault(old) - 1);
         household.MoveIn(best.Id, DwellingCapacity.InteriorCellOf(best, best.Position!.Value));
         tenants[best.Id] = 1;
@@ -220,6 +222,7 @@ public static class BuildWorks
         // a família escolhe o lote entre os possíveis pelo que ele custa a ela: as idas de cada dia (água, mercado, o trabalho de
         // cada um) pelo valor da hora nos anos da casa, mais o foro do quintal; o quintal que ela não pode pagar fica de fora
         var places = HomePlaces.Of(world, city.Id, members);
+        double quarter = QuarterYearly(world, city, bounds, members); // AD-192: o que a sujeira do lugar pesa para esta família, por ano
         (CellCoord Position, int Orientation, int Croft)? chosen = null;
         int croftArea = 0;
         long fee = 0;
@@ -231,6 +234,9 @@ public static class BuildWorks
                 long lotFee = rules.CroftFeeDaysPerCell * dayWage * area;
                 if (lotFee > budget) continue;
                 double cost = places.YearlyCost(world, lot.Origin) * rules.PaybackYears + lotFee;
+                if (quarter > 0)
+                    cost += quarter * rules.PaybackYears * Quarter.SiteSqualor(world, lot.Origin,
+                        BuildingFootprintGenerator.Generate(candidate.Id, typeId, lot.Orientation), lot.Croft);
                 if (cost >= best) continue;
                 best = cost;
                 chosen = (lot.Origin, lot.Orientation, lot.Croft);
@@ -238,7 +244,7 @@ public static class BuildWorks
                 fee = lotFee;
             }
         if (chosen is null) return false; // sem lote de rua que a casa possa ter: segue apertada
-        if (!WorthMoving(world, household, places, (best - fee) / Math.Max(1, rules.PaybackYears))) return false; // longe demais: vale mais seguir apertada onde está
+        if (!WorthMoving(world, household, places, (best - fee) / Math.Max(1, rules.PaybackYears), quarter)) return false; // longe demais: vale mais seguir apertada onde está
         if (fee > 0 && PavingDecision.PayFrom(world, ctx, city, [household.Id.Value], fee))
         {
             city.CreditTreasury(new Money(fee));
@@ -256,11 +262,23 @@ public static class BuildWorks
     /// <summary>Mudar vale a pena? Quem não tem casa muda sempre. Quem mora (de favor, apertado) compara: as idas de cada dia do lugar
     /// novo contra as de onde está, mais o que vale ter a casa própria (<see cref="StreetRules.OwnHomeDaysPerYear"/> dias de jornal
     /// por ano por morador). Uma casa a horas do trabalho e da água não compensa: a família segue onde está.</summary>
-    private static bool WorthMoving(WorldState world, Household household, HomePlaces places, double newCost)
+    private static bool WorthMoving(WorldState world, Household household, HomePlaces places, double newCost, double quarter)
     {
         if (household.Dwelling is null) return true;
         double own = world.StreetRules.OwnHomeDaysPerYear * (double)PavingDecision.DayWage(world) * Math.Max(1, household.Members.Count);
-        return newCost <= places.YearlyCost(world, household.Location) + own;
+        // AD-192: a sujeira de onde mora agora (apinhada de favor, colada, sem água boa) também pesa contra ficar
+        double here = quarter > 0 ? quarter * Math.Min(1, Quarter.HomeSqualor(world, household)) : 0;
+        return newCost <= places.YearlyCost(world, household.Location) + here + own;
+    }
+
+    /// <summary>AD-192: quanto a sujeira pesa, por ano e por ponto de sujeira, na escolha de onde morar desta família: dias de jornal por
+    /// morador × a aversão média dos adultos ao bairro sujo (sem a curiosidade); 0 com a chave desligada.</summary>
+    internal static double QuarterYearly(WorldState world, City city, LivingWorld.Domain.Cities.Spatial.CityBounds bounds, List<Npc> members)
+    {
+        var rules = world.StreetRules;
+        if (!rules.QuarterInLotChoice) return 0;
+        double aversion = Quarter.HouseholdAversion(world, members, city, bounds);
+        return aversion * rules.QuarterDaysPerYear * PavingDecision.DayWage(world) * Math.Max(1, members.Count);
     }
 
     private static int CroftArea(Building candidate, int orientation, int croft)
@@ -479,6 +497,7 @@ public static class BuildWorks
         SiteWork.Touch(world);
         if (world.FindBuilding(new BuildingId(work.Building)) is not { } building) return;
         building.Complete(now);
+        Streets.StreetGroundSystem.Occupied(world, now); // AD-192 (08d 182)
         if (work.Kind == BuildKind.House)
         {
             if (world.FindHousehold(new HouseholdId(work.Household)) is { IsEmpty: false } home)

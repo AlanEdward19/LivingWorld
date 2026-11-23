@@ -261,14 +261,16 @@ public class LodgingSystemTests
         var pricing = recipe.Pricing! with { AmenityWeight = 0, WaterfrontWeight = 0 };
         var centralRecipe = recipe with { Pricing = pricing };
         double demand = 1 + pricing.DemandSensitivity * (context.LodgingPressure - 1);
-        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, building, centralRecipe));
+        // AD-192: o lugar sujo vale menos (fator de local − penalidade × sujeira do lugar); os termos de antes seguem exatos
+        double q = world.StreetRules.QuarterValuePenalty * LivingWorld.Simulation.Cities.Quarter.PlaceSqualor(world, building);
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 - q) * demand), BuildingValuation.ValueOf(context, building, centralRecipe));
         long vacancies = world.Workplaces.Where(w => w.City == context.City.Id).Sum(w => (long)w.MaxVacancies);
         Assert.Equal(LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, context.City.Id) / (double)vacancies, context.LabourPressure);
         long need = world.Households.Count(h => h.City == context.City.Id && (h.Dwelling is null || h.Dwelling == Inn(world).Id));
         Assert.Equal(need / 3.0, context.LodgingPressure);
         int amenities = Math.Min(5, world.Workplaces.Count(w => Math.Max(Math.Abs(w.Location.X - building.Position!.Value.X), Math.Abs(w.Location.Y - building.Position.Value.Y)) <= 30));
         var amenityRecipe = recipe with { Pricing = pricing with { AmenityWeight = 1 } };
-        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 + amenities / 5.0) * demand), BuildingValuation.ValueOf(context, building, amenityRecipe));
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 + amenities / 5.0 - q) * demand), BuildingValuation.ValueOf(context, building, amenityRecipe));
         CellCoord? water = null;
         for (int x = 0; x < world.Map.Width && water is null; x++)
             for (int y = 0; y < world.Map.Height; y++)
@@ -276,7 +278,8 @@ public class LodgingSystemTests
         Assert.NotNull(water);
         var waterside = new Building(new BuildingId(99998), context.City.Id, InnTypeId, 0, water);
         var waterfrontRecipe = recipe with { Pricing = pricing with { CentralityWeight = 0, WaterfrontWeight = 1 } };
-        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, waterside, waterfrontRecipe));
+        double qw = world.StreetRules.QuarterValuePenalty * LivingWorld.Simulation.Cities.Quarter.PlaceSqualor(world, waterside);
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 - qw) * demand), BuildingValuation.ValueOf(context, waterside, waterfrontRecipe));
     }
 
     [Fact]

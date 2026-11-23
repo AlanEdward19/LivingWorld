@@ -107,6 +107,13 @@ public static class ScaleScenarioFixture
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
     ];
 
+    /// <summary>AD-192: <c>LW_AD192=off|nohygiene|noregard|noleft</c> mede o custo do código com a fatia (ou parte dela) desligada.</summary>
+    private static LivingWorld.Domain.Cities.CityLayoutRules? Ad192(LivingWorld.Domain.Cities.CityLayoutRules? rules) =>
+        Environment.GetEnvironmentVariable("LW_AD192") is { } mode
+            ? (rules ?? LivingWorld.Domain.Cities.CityLayoutRules.Default) with
+            { Streets = (rules ?? LivingWorld.Domain.Cities.CityLayoutRules.Default).Streets.WithAd192Mode(mode) }
+            : rules;
+
     private static bool Ad185Off => Environment.GetEnvironmentVariable("LW_AD185") == "off";
 
     public static (WorldState World, WorldClock Clock) CreateWorld(
@@ -125,7 +132,7 @@ public static class ScaleScenarioFixture
             workplaceVacancyMultiplier: vacancyMult,
             // AD-173: LW_CITY_LAYOUT=off mede o custo do código com a colocação de antes (separa custo de código de mundo diferente)
             // AD-176: LW_STREETS=off mede sem a rua de verdade (linha reta, sem pisoteio)
-            cityLayout: (Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
+            cityLayout: Ad192((Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
             {
                 // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
                 (false, false) => (Environment.GetEnvironmentVariable("LW_AD179") == "off", Environment.GetEnvironmentVariable("LW_AD184") == "off") switch
@@ -140,7 +147,7 @@ public static class ScaleScenarioFixture
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
                     with
                 { Streets = LivingWorld.Domain.Cities.StreetRules.Off },
-            },
+            }),
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,
             plantSpeciesRules: ScalePlantSpeciesRules,
