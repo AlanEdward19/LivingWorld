@@ -273,6 +273,20 @@ public static class StreetRoutes
             double net = Line(state, a, e).Cost + Line(state, x, b).Cost
                 + state.NetRate * (Math.Max(ddx, ddy) + 0.41421356237309515 * Math.Min(ddx, ddy));
             floor = Math.Min(floor, net);
+            if (state.Rules.NetEntryBestPair)
+            {
+                // AD-192: o piso vale para toda combinação que a rota pode escolher
+                Span<int> es = stackalloc int[3], xs = stackalloc int[3];
+                int ne = EntryCandidates(state, a, b, e, x, es), nx = EntryCandidates(state, b, a, x, e, xs);
+                for (int i = 0; i < ne; i++)
+                    for (int j = 0; j < nx; j++)
+                    {
+                        int ce = es[i], cx = xs[j];
+                        int ex = Math.Abs(ce % state.W - cx % state.W), ey = Math.Abs(ce / state.W - cx / state.W);
+                        floor = Math.Min(floor, Line(state, a, ce).Cost + Line(state, cx, b).Cost
+                            + state.NetRate * (Math.Max(ex, ey) + 0.41421356237309515 * Math.Min(ex, ey)));
+                    }
+            }
         }
         return (floor + extraA + extraB) * (1 - 1e-9); // folga para a ordem das somas
     }
@@ -535,6 +549,30 @@ public static class StreetRoutes
                 if (cost + water * state.FordPerCell < best.Cost + best.Water * state.FordPerCell)
                     best = (cost, water, first.OffNet + last.OffNet, e, x);
             }
+            if (state.Rules.NetEntryBestPair)
+            {
+                // AD-192 (08d 177): a melhor combinação de entrada e saída, não só as células de caminho mais perto de cada ponta
+                Span<int> es = stackalloc int[3], xs = stackalloc int[3];
+                int ne = EntryCandidates(state, a, b, e, x, es), nx = EntryCandidates(state, b, a, x, e, xs);
+                for (int i = 0; i < ne; i++)
+                    for (int j = 0; j < nx; j++)
+                    {
+                        if (i == 0 && j == 0) continue;
+                        int ce = es[i], cx = xs[j];
+                        var f1 = Line(state, a, ce);
+                        var f2 = Line(state, cx, b);
+                        int ex = Math.Abs(ce % state.W - cx % state.W), ey = Math.Abs(ce / state.W - cx / state.W);
+                        double bound = f1.Cost + f2.Cost + state.NetRate * (Math.Max(ex, ey) + 0.41421356237309515 * Math.Min(ex, ey))
+                            + (f1.Water + f2.Water) * state.FordPerCell;
+                        if (bound >= best.Cost + best.Water * state.FordPerCell) continue;
+                        var alt = ce == cx ? new NetLeg { Cost = 0, Path = [ce] } : Leg(state, ce, cx);
+                        if (double.IsPositiveInfinity(alt.Cost)) continue;
+                        double cost = f1.Cost + alt.Cost + f2.Cost;
+                        int water = f1.Water + f2.Water + WaterOn(state, alt.Path);
+                        if (cost + water * state.FordPerCell < best.Cost + best.Water * state.FordPerCell)
+                            best = (cost, water, f1.OffNet + f2.OffNet, ce, cx);
+                    }
+            }
         }
         return new StreetRoute
         {
@@ -546,6 +584,64 @@ public static class StreetRoutes
             E = best.E,
             X = best.X,
         };
+    }
+
+    /// <summary>AD-192 (08d 177): as entradas da rede que valem tentar a partir de <paramref name="from"/> rumo a <paramref name="to"/>:
+    /// a célula de caminho mais perto (<paramref name="nearest"/>, sempre a primeira), a primeira célula andável que a reta encontra e,
+    /// se a mais perto é de outro pedaço de rede que o da outra ponta (<paramref name="other"/>), a mais perto do pedaço dela (até
+    /// <see cref="EntrySearchRadius"/> células). Sem sorteio; ordem fixa.</summary>
+    private static int EntryCandidates(StreetRouteState state, int from, int to, int nearest, int other, Span<int> into)
+    {
+        int n = 0;
+        into[n++] = nearest;
+        int hit = LineHit(state, from, to);
+        if (hit >= 0 && hit != nearest) into[n++] = hit;
+        int target = other >= 0 && other < state.Comp.Length ? state.Comp[other] : -1;
+        if (target >= 0 && (nearest >= state.Comp.Length || state.Comp[nearest] != target))
+        {
+            int same = NearestInComp(state, from, target, EntrySearchRadius);
+            if (same >= 0 && same != nearest && same != hit) into[n++] = same;
+        }
+        return n;
+    }
+
+    private const int EntrySearchRadius = 6;
+
+    /// <summary>A primeira célula andável da rede na reta de <paramref name="from"/> a <paramref name="to"/> (sem a própria ponta); −1 sem.</summary>
+    private static int LineHit(StreetRouteState state, int from, int to)
+    {
+        int ax = from % state.W, ay = from / state.W, bx = to % state.W, by = to / state.W;
+        int dx = Math.Abs(bx - ax), dy = Math.Abs(by - ay);
+        int sx = bx > ax ? 1 : -1, sy = by > ay ? 1 : -1;
+        int x = ax, y = ay, steps = dx + dy, error = dx - dy;
+        dx *= 2; dy *= 2;
+        for (int i = 1; i <= steps; i++)
+        {
+            if (error > 0) { x += sx; error -= dy; }
+            else { y += sy; error += dx; }
+            int c = y * state.W + x;
+            if (state.Walk[c]) return c;
+        }
+        return -1;
+    }
+
+    /// <summary>A célula andável do componente <paramref name="comp"/> mais perto de <paramref name="cell"/> (anéis de Chebyshev, em
+    /// ordem de linha e coluna); −1 se nenhuma até <paramref name="radius"/>.</summary>
+    private static int NearestInComp(StreetRouteState state, int cell, int comp, int radius)
+    {
+        int cx = cell % state.W, cy = cell / state.W;
+        for (int r = 1; r <= radius; r++)
+            for (int y = cy - r; y <= cy + r; y++)
+            {
+                if (y < 0 || y >= state.H) continue;
+                for (int x = cx - r; x <= cx + r; x++)
+                {
+                    if (x < 0 || x >= state.W || (Math.Abs(y - cy) != r && Math.Abs(x - cx) != r)) continue;
+                    int c = y * state.W + x;
+                    if (state.Walk[c] && state.Comp[c] == comp) return c;
+                }
+            }
+        return -1;
     }
 
     private static int WaterOn(StreetRouteState state, int[] path)

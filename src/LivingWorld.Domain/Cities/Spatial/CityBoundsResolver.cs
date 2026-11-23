@@ -78,7 +78,7 @@ public static class CityBoundsResolver
     public static (CityBounds Bounds, bool IsDerived) Resolve(
         City city, long population, int mapWidth, int mapHeight,
         IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
-        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, int chainReachCells = 0)
+        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, int chainReachCells = 0, bool anchorLoneBuilding = false)
     {
         int rawSide = SideFor(population, mapWidth, mapHeight);
         var (origin, side) = ClampSideAgainstOtherCities(city.Location, rawSide, otherCityBoundsToAvoid, absorptionRingCells);
@@ -94,6 +94,27 @@ public static class CityBoundsResolver
         // AD-173: a absorção encadeia — prédio a até absorptionRingCells da cidade JÁ crescida também entra (a vila que
         // cresce ao longo da rua leva o limite junto), em passes até nada mais entrar. Ordem estável (a da lista).
         var merged = new bool[ownedBuildingFootprintBoxes.Count];
+        // AD-192 (08d 165): a cidade sem nenhum prédio ao alcance do miolo (a casa solitária da cidade nova, com água em volta do
+        // largo) parte do prédio dela mais perto: a cadeia sai dele, não do miolo vazio
+        if (anchorLoneBuilding && !ownedBuildingFootprintBoxes.Any(b => ChebyshevGap(populationBox, b) <= absorptionRingCells))
+        {
+            int nearest = -1, gap = int.MaxValue;
+            for (int i = 0; i < ownedBuildingFootprintBoxes.Count; i++)
+            {
+                int g = ChebyshevGap(populationBox, ownedBuildingFootprintBoxes[i]);
+                if (g < gap) { gap = g; nearest = i; }
+            }
+            var box = ownedBuildingFootprintBoxes[nearest];
+            int cMinX = Math.Min(minX, box.Origin.X), cMinY = Math.Min(minY, box.Origin.Y);
+            int cMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1), cMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+            var candidate = new CityBounds(new CellCoord(cMinX, cMinY), cMaxX - cMinX + 1, cMaxY - cMinY + 1);
+            if (otherCityBoundsToAvoid is not { Count: > 0 } || !otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidate, other) < absorptionRingCells))
+            {
+                minX = cMinX; minY = cMinY; maxX = cMaxX; maxY = cMaxY;
+                merged[nearest] = true;
+                populationBox = candidate; // o miolo da cidade passa a ser ela com a casa: a cadeia mede dali
+            }
+        }
         bool grew = true;
         while (grew)
         {

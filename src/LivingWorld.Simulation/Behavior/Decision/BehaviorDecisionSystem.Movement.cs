@@ -27,9 +27,17 @@ public sealed partial class BehaviorDecisionSystem
         _ => "ambient",
     };
 
+    /// <summary>AD-192 (08c 146): passos do passeio entre o começo e o fim da ação pelo relógio — os múltiplos de 1/<paramref name="perHour"/>
+    /// horas que caem no intervalo —, então à toa (2 h) e conversar (3 h) andam o mesmo por hora; determinístico, sem sorteio.</summary>
+    internal static int AmbientSteps(long startedAt, long now, double perHour)
+    {
+        if (perHour <= 0 || now <= startedAt) return 0;
+        return (int)Math.Min(8, Math.Floor(now * perHour) - Math.Floor(startedAt * perHour));
+    }
+
     private static void MoveOneAmbientStep(
         WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache, int stepIndex = 0)
     {
         // ResolveGrownBounds realimenta os boxes de overflow das
         // próprias buildings da cidade, então o passeio ambiente já respeita os bounds crescidos
@@ -77,7 +85,7 @@ public sealed partial class BehaviorDecisionSystem
 
         // Sorteio derivado de (ação, NPC, tick), sem stream guardado: o stream por NPC ficava no snapshot para sempre,
         // inclusive o de quem já morreu, e a chave em texto era montada a cada passo (#157, AD-127).
-        double draw = ctx.DrawFor(AmbientPurpose(action), unchecked(npc.Id.Value * 1_000_003L + tick));
+        double draw = ctx.DrawFor(AmbientPurpose(action), unchecked(npc.Id.Value * 1_000_003L + tick + stepIndex * 7_919L));
         int index = Math.Min((int)(draw * candidates.Length), candidates.Length - 1);
         // AD-157b: com a despensa em casa, o passeio fica ao alcance dela (quem passeia não sai sem comida para longe)
         if (LivingWorld.Simulation.Invention.PersonalCarry.StrollStep(world, npc, action, candidates, index) is not { } step) return;
