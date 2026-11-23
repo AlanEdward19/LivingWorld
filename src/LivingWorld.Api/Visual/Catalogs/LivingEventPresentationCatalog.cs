@@ -14,6 +14,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.PlayerDisappeared] = "Um habitante desapareceu sem deixar rastro",
             [WorldEventKind.DisappearedFound] = "Alguém reencontrou um desaparecido",
             [WorldEventKind.SearchGaveUp] = "A procura por um desaparecido chegou ao fim",
+            [WorldEventKind.PresumedDead] = "Um desaparecido foi dado como morto",
+            [WorldEventKind.Returned] = "Um desaparecido voltou para casa",
             [WorldEventKind.Death] = "Um habitante faleceu",
             [WorldEventKind.Starvation] = "A fome causou uma morte",
             [WorldEventKind.Dehydration] = "A sede causou uma morte",

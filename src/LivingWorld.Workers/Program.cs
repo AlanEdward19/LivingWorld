@@ -138,6 +138,7 @@ if (args.Length == 3 && args[0] == "eventlog-digest")
 if (args.Length == 3 && args[0] == "player-hash")
 {
     var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]));
+    world.UsePlayers(LivingWorld.Workers.Ad196.Rules); // LW_AD196=off: o desaparecimento do AD-111
     var sink = new BufferingWorldEventSink();
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
     clock.Run(world, 96);

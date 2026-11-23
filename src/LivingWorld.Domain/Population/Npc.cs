@@ -129,6 +129,16 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DisappearedAtTick { get; private set; }
 
+    /// <summary>AD-196: o poder que o controlador escolheu com <see cref="ActionType.UsePower"/>; a invocação sai da mesma lista de
+    /// oportunidades do motor (mesmo descritor, custo e confiabilidade). Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ControlledPowerId { get; private set; }
+
+    /// <summary>AD-196: tick da declaração de morte presumida de quem segue vivo e desaparecido (o cenário deixa voltar). Herança,
+    /// viuvez e luto já correram; voltar não os desfaz. Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? PresumedDeadAtTick { get; private set; }
+
     /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
     /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
     /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
@@ -274,9 +284,10 @@ public sealed class Npc
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    public void SetControlledAction(ActionType? action)
+    public void SetControlledAction(ActionType? action, string? powerId = null)
     {
         ControlledAction = action;
+        ControlledPowerId = action == ActionType.UsePower ? powerId : null;
         TouchCanonical();
     }
 
@@ -285,6 +296,7 @@ public sealed class Npc
     {
         ControllerId = null;
         ControlledAction = null;
+        ControlledPowerId = null;
         DisappearedAtTick = tick;
         TouchCanonical();
     }
@@ -293,6 +305,13 @@ public sealed class Npc
     public void Reappear()
     {
         DisappearedAtTick = null;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-196: declarado morto sem morrer (o cenário deixa o declarado voltar); segue desaparecido.</summary>
+    public void MarkPresumedDead(long tick)
+    {
+        PresumedDeadAtTick = tick;
         TouchCanonical();
     }
 
@@ -480,7 +499,8 @@ public sealed class Npc
         VocationState? vocation = null, UnionState? union = null,
         LivingWorld.Domain.Cognition.PsycheState? psyche = null,
         LivingWorld.Domain.Cognition.BrainState? brain = null,
-        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0)
+        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
+        string? controlledPowerId = null, long? presumedDeadAtTick = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -518,6 +538,8 @@ public sealed class Npc
         ControllerId = controllerId;
         ControlledAction = controlledAction;
         DisappearedAtTick = disappearedAtTick;
+        ControlledPowerId = controlledPowerId;
+        PresumedDeadAtTick = presumedDeadAtTick;
         Development = development;
         NativeLanguage = nativeLanguage;
         Appearance = appearance;

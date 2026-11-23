@@ -26,6 +26,10 @@ public static class LifeEventIntake
                 when sourceSystem == DeathSource:
                 if (FindAt(world, payload, 0) is { } dead) Mourn(world, dead, tick);
                 return;
+            case WorldEventKind.PresumedDead:
+                // AD-196: a morte presumida enluta como uma morte, venha de NpcDeath ou do declarado que segue vivo e sumido
+                if (FindAt(world, payload, 0) is { } presumed) Mourn(world, presumed, tick);
+                return;
             case WorldEventKind.Accident or WorldEventKind.OldAge
                 when sourceSystem == DeathSource && world.NeedsRules.Psyche.MournEveryDeath:
                 // AD-166: a morte por acidente ou velhice enluta como as outras

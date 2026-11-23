@@ -561,6 +561,12 @@
               "null",
               "string"
             ]
+          },
+          "powerId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "required": [

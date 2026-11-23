@@ -379,4 +379,13 @@ public enum WorldEventKind
     /// <summary>A obra travou por falta de material (AD-194): sem material no lote, sem quem venda ou sem como pagar, e sem como buscar
     /// — payload: <c>obraId|cidadeId|tipo|x|y|recurso|falta</c>. A volta é <see cref="WorkResumed"/> com o motivo no fim.</summary>
     WorkMaterialShort,
+
+    /// <summary>Morte presumida (AD-196): o desaparecido não foi achado na janela que o cenário declara — payload:
+    /// <c>npcId|diasSumido|1 se segue vivo e pode voltar, 0 se a declaração é a morte</c>. Com 0 vem de <c>NpcDeath</c>, como
+    /// qualquer morte.</summary>
+    PresumedDead,
+
+    /// <summary>Quem estava desaparecido voltou (AD-196): o jogador voltou a encarná-lo ou o motor o reassumiu — payload:
+    /// <c>npcId|diasSumido|vinculosQueReagiram|como</c> (como: jogador, pool).</summary>
+    Returned,
 }

@@ -6,8 +6,9 @@ using LivingWorld.Simulation.Players;
 namespace LivingWorld.Api.Players;
 
 public sealed record IncarnateRequest(string PlayerId);
-/// <summary><c>Action</c> é o nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy); vazio devolve a escolha ao motor.</summary>
-public sealed record PlayerActionRequest(string? Action);
+/// <summary><c>Action</c> é o nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); vazio devolve a escolha ao motor.
+/// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
+public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
 
 /// <summary>Fase 25: <c>POST /players/{npcId}/incarnate</c> (200, 404, 409), <c>POST /players/{playerId}/action</c> (200, 404, 400) e
 /// <c>POST /players/{playerId}/logout</c> (200, 404). Sem autenticação nem multiplayer (ADR-0015 fica para depois).</summary>
@@ -27,7 +28,7 @@ public static class PlayerEndpoints
                     return Results.BadRequest(new { error = "action: desconhecida" });
                 action = parsed;
             }
-            return Map(players.Act(host.Current, playerId, action), _ => new { playerId, Action = action?.ToString() });
+            return Map(players.Act(host.Current, playerId, action, request.PowerId), _ => new { playerId, Action = action?.ToString() });
         });
 
         app.MapPost("/players/{playerId}/logout", (string playerId) =>

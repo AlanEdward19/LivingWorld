@@ -123,9 +123,13 @@ func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
-## `action` = nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy); "" devolve a escolha ao motor.
-func player_action(player_id: String, action: String) -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/players/%s/action" % player_id.uri_encode(), {"action": null if action == "" else action})
+## `action` = nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); "" devolve a escolha ao motor. `power_id` (AD-196)
+## vai só com UsePower: o poder que o NPC porta (o servidor recusa com 400 o que ele não porta).
+func player_action(player_id: String, action: String, power_id: String = "") -> Dictionary:
+	var body := {"action": null if action == "" else action}
+	if power_id != "":
+		body["powerId"] = power_id
+	var response: Dictionary = await transport.request("POST", "/players/%s/action" % player_id.uri_encode(), body)
 	return _checked("/players/action", {"status": response.status, "body": response.body}, "player-action")
 
 
