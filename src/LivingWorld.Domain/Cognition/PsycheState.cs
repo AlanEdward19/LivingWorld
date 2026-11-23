@@ -50,6 +50,12 @@ public enum LifeEventKind : byte
 
     /// <summary>AD-154: soube que um parente próximo sofreu violência sexual ou foi sequestrado.</summary>
     KinAssaulted = 34,
+
+    /// <summary>AD-196: alguém de vínculo próximo sumiu sem deixar rastro (impacto em <c>PlayerRules.KinDisappeared</c>).</summary>
+    KinDisappeared = 35,
+
+    /// <summary>AD-196: reencontrou quem estava desaparecido (impacto em <c>PlayerRules.Reunited</c>).</summary>
+    Reunited = 36,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),
