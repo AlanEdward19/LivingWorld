@@ -291,6 +291,21 @@ public static class StreetRoutes
         return (floor + extraA + extraB) * (1 - 1e-9); // folga para a ordem das somas
     }
 
+    /// <summary>AD-192 (08d 177), diagnóstico: o custo que a rota de <paramref name="origin"/> a <paramref name="destination"/> minimiza
+    /// (o tempo mais a água que se atravessa a vau), sem o cache de pares, com ou sem a melhor combinação de entrada e saída da rede.</summary>
+    internal static double CostWithEntries(WorldState world, CellCoord origin, CellCoord destination, bool bestPair)
+    {
+        var state = StateOf(world);
+        var saved = state.Rules;
+        state.Rules = saved with { NetEntryBestPair = bestPair };
+        try
+        {
+            var route = Compute(state, Index(state, origin), Index(state, destination));
+            return route.Cost + route.Water * state.FordPerCell;
+        }
+        finally { state.Rules = saved; }
+    }
+
     private static int Index(StreetRouteState state, CellCoord c) =>
         c.X >= 0 && c.Y >= 0 && c.X < state.W && c.Y < state.H ? c.Y * state.W + c.X : -1;
 
