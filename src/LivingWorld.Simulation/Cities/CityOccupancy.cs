@@ -218,7 +218,15 @@ public static class CityOccupancy
     /// busca de célula livre), depois os boxes de <see cref="OwnedBuildingFootprintBoxes"/>
     /// alimentados de volta pra resolução final (potencialmente maior). Um único lugar em vez de
     /// duplicar as duas chamadas nos 6 call sites (mesmo conceito, per tasks.md).</summary>
-    public static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population)
+    public static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population) =>
+        ResolveGrownBounds(world, city, population, AbsorbAll(world));
+
+    /// <summary>AD-192: o miolo crescido da cidade — o limite pela cadeia a partir do miolo, sem ir até a casa de lote longe. É até onde
+    /// vai o passeio à toa (quem passeia anda pela vila, não até a última casa dela).</summary>
+    public static CityBounds ResolveCoreBounds(WorldState world, City city, long population) =>
+        ResolveGrownBounds(world, city, population, absorbAll: false).Bounds;
+
+    private static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population, bool absorbAll)
     {
         var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
@@ -239,7 +247,7 @@ public static class CityOccupancy
 
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
-            chainReachCells: ChainReach(world));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: absorbAll);
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
@@ -254,8 +262,17 @@ public static class CityOccupancy
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells,
-            chainReachCells: ChainReach(world));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: AbsorbAll(world));
     }
+
+    /// <summary>AD-192: sem regras de cidade (nenhum aglomerado funda filha), o limite da cidade vai até todo prédio dela (a casa de
+    /// lote longe continua da cidade e no escopo dela).</summary>
+    private static bool AbsorbAll(WorldState world) => world.StreetRules.CityHoldsItsBuildings && !world.CityRules.Enabled;
+
+    /// <summary>AD-192 (08d 165): com o traçado ligado, a cidade-filha (a nova) sem prédio perto do miolo encadeia o limite a partir do
+    /// mais perto. A mãe não: o prédio dela longe do miolo é aglomerado à parte, que pode fundar outra filha.</summary>
+    private static bool AnchorLone(WorldState world, City city) =>
+        ChainReach(world) > 0 && world.StreetRules.AnchorLoneHouse && city.FoundedFromCityId is not null;
 
     /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
     /// mesma fórmula de anel/hash que existia sozinha em
@@ -397,7 +414,7 @@ public static class CityOccupancy
         var found = new List<(CellCoord Origin, int Croft, int Orientation)>();
         var network = CityStreets.Of(world, city);
         if (network.Count == 0 || level >= PlacementPolicy.StreetLevels) return found;
-        var ground = GroundOfCity(world, city, bounds, id);
+        var ground = Barred(world, city, network, GroundOfCity(world, city, bounds, id));
         var options = OptionsOf(id, buildingTypeId, orientation, choose: true);
         var layout = world.CityRules.EffectiveLayout();
         // um candidato por trecho da rede, espalhados do largo para fora (o primeiro é o lote de sempre)
@@ -426,6 +443,35 @@ public static class CityOccupancy
             Sample(near, Math.Max(1, max / 2));
         }
         return found;
+    }
+
+    /// <summary>AD-192 (08d 166, 182): o chão de quem grava a posição de um prédio novo, com o que ele não pode cobrir: o caminho
+    /// pisado (trilha ou mais, passagem de todos) e o chão de outra cidade (o limite dela; a rua do traçado que cai ali fica cortada).
+    /// O mesmo chão de sempre sem as chaves ou sem nada a barrar.</summary>
+    internal static CityGround Barred(WorldState world, City city, StreetNetwork network, CityGround ground)
+    {
+        _ = network;
+        var rules = world.StreetRules;
+        var trodden = rules.LotsAvoidTrodden && world.StreetsOn ? world.Ground : null;
+        List<CityBounds>? boxes = null;
+        if (rules.CutAtNeighbourCity)
+            foreach (var other in world.ActiveCities())
+                if (other.Id != city.Id) (boxes ??= []).Add(OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds);
+        // AD-192: com cidade-filha possível, o lote novo fica onde o limite da cidade o alcança (a até o anel do limite de agora e a
+        // até a cadeia do miolo); além disso nasceria aglomerado à parte, fora da cidade e do escopo dela
+        CityBounds? reach = null;
+        if (rules.CityHoldsItsBuildings && world.CityRules.Enabled && ChainReach(world) > 0)
+        {
+            long population = Queries.CityPopulationQuery.Population(world, city.Id);
+            var grown = ResolveGrownBounds(world, city, population).Bounds;
+            var core = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height).Bounds;
+            int ring = world.CityRules.AbsorptionRingCells, chain = ChainReach(world);
+            int x0 = Math.Max(grown.Origin.X - ring, core.Origin.X - chain), y0 = Math.Max(grown.Origin.Y - ring, core.Origin.Y - chain);
+            int x1 = Math.Min(grown.Origin.X + grown.Width + ring, core.Origin.X + core.Width + chain);
+            int y1 = Math.Min(grown.Origin.Y + grown.Height + ring, core.Origin.Y + core.Height + chain);
+            reach = new CityBounds(new CellCoord(x0, y0), Math.Max(0, x1 - x0), Math.Max(0, y1 - y0));
+        }
+        return trodden is null && boxes is null && reach is null ? ground : ground.WithBar(new LotBar(trodden, boxes?.ToArray() ?? [], reach));
     }
 
     private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>
@@ -475,6 +521,13 @@ public static class CityOccupancy
         var footprint = options[0].Footprint;
         var layout = world.CityRules.EffectiveLayout();
         var network = CityStreets.Of(world, city);
+        if (chooseOrientation)
+        {
+            // AD-192: quem grava a posição não cobre caminho pisado nem chão de outra cidade; essa busca não marca o passe (os marcos
+            // valem só para o chão que só cresce, o das posições derivadas)
+            var barred = Barred(world, city, network, ground);
+            if (!ReferenceEquals(barred, ground)) { ground = barred; plan = null; }
+        }
         List<CellCoord>? shape = null;
         CellCoord? doorstep = null;
         for (int level = Math.Max(0, firstLevel); level <= Math.Min(lastLevel, PlacementPolicy.LevelCount - 1); level++)

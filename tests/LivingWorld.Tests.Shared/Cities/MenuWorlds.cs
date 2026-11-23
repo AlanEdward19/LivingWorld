@@ -16,6 +16,12 @@ public static class MenuWorlds
             : Environment.GetEnvironmentVariable("LW_AD194") == "off" // AD-194: material em horas, sem eventos de dia perdido
                 ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd194() }
                 : null;
+        // AD-192: LW_AD192=off|nohygiene|noregard|noleft mede a fatia desligada (pareado no mesmo binário)
+        if (Environment.GetEnvironmentVariable("LW_AD192") is { } ad192)
+        {
+            var baseRules = off ?? LivingWorld.Domain.Cities.CityLayoutRules.Default;
+            off = baseRules with { Streets = baseRules.Streets.WithAd192Mode(ad192) };
+        }
         if (period == "padrao") return ScenarioRunner.Create(seed, cityLayout: off);
         var root = System.Text.Json.Nodes.JsonNode.Parse(DefaultPeriodSeeder.PayloadFor(period))!;
         root["Seed"] = seed;

@@ -109,11 +109,19 @@ internal static class PavingDecision
         Open(world, ctx, city, surface, chosen.Select(c => c.Index).ToList(), hours, repair: false, material.Value);
     }
 
-    /// <summary>AD-184: abre o trecho de teste da técnica de calçar numa célula (cascalho, o tesouro paga a turma).</summary>
-    internal static void OpenPrototype(WorldState world, TickContext ctx, City city, int cell, long hours, string trial)
+    /// <summary>AD-184: abre o trecho de teste da técnica de calçar numa célula (cascalho, o tesouro paga a turma). AD-192 (08d 183): o
+    /// cascalho vem do leito pela rota, como na obra de verdade (as idas carregadas somam às horas de tentativa); sem fonte ao alcance,
+    /// não abre (falso).</summary>
+    internal static bool OpenPrototype(WorldState world, TickContext ctx, City city, int cell, long hours, string trial)
     {
         var ground = world.Ground!;
         var at = ground.CellOf(cell);
+        if (world.StreetRules.PrototypeHaulsMaterial)
+        {
+            long withLay = HoursFor(world, at, GroundSurface.Gravel);
+            if (withLay < 0) return false;
+            hours += Math.Max(0, withLay - world.StreetRules.GravelHoursPerCell); // assentar é a própria tentativa
+        }
         var work = new PavingWork
         {
             Id = ground.NextWorkId++,
@@ -130,6 +138,7 @@ internal static class PavingDecision
         work.StartEventId = ctx.LogEvent(WorldEventKind.StreetWorkStarted,
             $"{work.Id}|{city.Id.Value}|{work.Surface}|0|1|{hours}|tesouro|{at.X}|{at.Y}|prototipo", sourceSystem: StreetGroundSystem.SystemName);
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+        return true;
     }
 
     internal static long CostOf(long hours, long dayWage, StreetRules rules) =>

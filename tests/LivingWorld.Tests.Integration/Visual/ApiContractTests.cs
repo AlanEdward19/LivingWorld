@@ -537,10 +537,19 @@ public class ApiContractTests
         Walk(node);
     }
 
+    private static readonly HashSet<string> SampledFromRunningWorld =
+        ["shape.world-subscribe.json", "shape.city-subscribe.json", "shape.visual-delta.json"];
+
     internal static void AssertMatchesContract(string file, JsonNode actual)
     {
         ApplyTypedOptionals(file, actual);
         string path = Path.Combine(FindRepoRoot(), "tests", "contracts", file);
+        // Formas tiradas do mundo rodando dependem de quem a amostra pegou (alguém andando por cima de um telhado, um NPC de fora
+        // do escopo): a amostra que não viu um campo opcional não o tira do contrato. O gravado só cresce; o que a amostra traz
+        // tem de caber nele (campo obrigatório que some, ou tipo que muda, continua reprovando). Para estreitar de propósito,
+        // apague o arquivo e regrave.
+        if (SampledFromRunningWorld.Contains(file) && File.Exists(path))
+            actual = ContractShapes.Merge(JsonNode.Parse(File.ReadAllText(path))!, actual, nullOnBothStays: true);
         string text = actual.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
         if (Record)
         {

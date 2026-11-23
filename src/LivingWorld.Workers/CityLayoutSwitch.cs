@@ -7,7 +7,7 @@ namespace LivingWorld.Workers;
 /// calçamento; <c>LW_AD179=off</c> tira o que a AD-179 mudou na vila de código (o chão da história e a carga que pesa no passo);
 /// <c>LW_AD184=off</c> volta a obra da AD-179 (casa e oficina sem obra, fila sem turma, sem oferta que sobe);
 /// <c>LW_AD185=off</c> tira o que a AD-185 mudou (a ida de verdade à água, em <see cref="NaturalWaterRules"/>, e o emprego mais perto
-/// de casa); vazio = padrão (ligado).</summary>
+/// de casa); <c>LW_AD192</c> ver <see cref="StreetRules.WithAd192Mode"/>; vazio = padrão (ligado).</summary>
 public static class CityLayoutSwitch
 {
     public static CityLayoutRules? Rules()
@@ -19,7 +19,8 @@ public static class CityLayoutSwitch
         bool ad184Off = ad184 == "off";
         bool ad184Part = ad184 is "nohelpers" or "nobid" or "nohouse" or "nofavor" || ad184?.StartsWith("own", StringComparison.Ordinal) == true; // AD-184: uma regra só, para atribuir o efeito
         bool ad194Off = Environment.GetEnvironmentVariable("LW_AD194") == "off"; // AD-194: material em horas, sem eventos de dia perdido
-        if (!layoutOff && !streetsOff && !ad179Off && !Ad185Off && !ad184Off && !ad184Part && !ad194Off) return null;
+        string? ad192 = Environment.GetEnvironmentVariable("LW_AD192");
+        if (!layoutOff && !streetsOff && !ad179Off && !Ad185Off && !ad184Off && !ad184Part && ad192 is null && !ad194Off) return null;
         var rules = layoutOff ? CityLayoutRules.Off : CityLayoutRules.Default;
         if (streetsOff) return rules with { Streets = StreetRules.Off };
         if (Ad185Off) rules = rules with { Streets = rules.Streets with { NearestJob = false } };
@@ -30,6 +31,7 @@ public static class CityLayoutSwitch
         if (ad184 == "nofavor") rules = rules with { Streets = rules.Streets with { LodgeWithParents = false } };
         if (ad184?.StartsWith("own", StringComparison.Ordinal) == true) rules = rules with { Streets = rules.Streets with { OwnHomeDaysPerYear = int.Parse(ad184[3..], System.Globalization.CultureInfo.InvariantCulture) } };
         if (ad184 == "nobid") rules = rules with { Streets = rules.Streets with { QuitMargin = 1e9, QuitMarginSlack = 1e9, QuitMarginPeak = 1e9 } };
+        if (ad192 is not null) rules = rules with { Streets = rules.Streets.WithAd192Mode(ad192) };
         return ad179Off ? rules with { Streets = rules.Streets with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } } : rules;
     }
 

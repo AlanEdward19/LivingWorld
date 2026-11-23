@@ -35,6 +35,8 @@ infância pela chance da idade (`FounderImmunityByAge`).
 Só quem está contagioso espalha, e só para quem convive com ele: cada morador da casa (quem cuida, em dobro), os
 vizinhos de turma na oficina (se ainda trabalha) e alguns encontros na cidade por dia (mercado, conversa; de cama, só
 visitas). Com o surto conhecido na cidade, o medo corta os encontros fora de casa. Custo por doente e por caso.
+AD-192 ([dense-quarter](dense-quarter.md)): os casos do ambiente de água e comida e de vetor pesam pela sujeira da casa de quem
+pega, e a respiração e o contato passam pela parede-meia e entre as famílias do mesmo prédio.
 
 ## O doente
 

@@ -356,7 +356,14 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
-        if (action is ActionType.Idle or ActionType.Socialize
+        if (action is ActionType.Idle or ActionType.Socialize && world.StreetRules.AmbientStepsByHour)
+        {
+            // AD-192 (08c 146): o passeio e a conversa andam pelo relógio (os passos das horas que a ação durou), não um por ação
+            int steps = AmbientSteps(npc.ActionStartedAtTick, now, world.StreetRules.AmbientStepsPerHour);
+            for (int step = 0; step < steps; step++)
+                MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache, step);
+        }
+        else if (action is ActionType.Idle or ActionType.Socialize
             || (action == ActionType.Work && npc.Employer is not null && !LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 

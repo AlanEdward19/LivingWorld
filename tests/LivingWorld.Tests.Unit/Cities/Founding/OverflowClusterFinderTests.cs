@@ -32,7 +32,13 @@ public class OverflowClusterFinderTests
         return new WorldState(
             ScenarioRunner.DefaultCalendar, seed, map, ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
-            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
+            // AD-192: sem regras de cidade o limite vai até todo prédio dela (não há aglomerado); aqui se mede a geometria do aglomerado
+            cityRules: LivingWorld.Domain.Cities.CityRules.Disabled with
+            {
+                Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with
+                { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { CityHoldsItsBuildings = false } },
+            });
     }
 
     private static readonly Personality NeutralPersonality =

@@ -55,11 +55,14 @@ public class BuildWorksTests
         var head = a.Id.Value <= b.Id.Value ? a : b;
         var parents = world.FindHousehold(head.Household!.Value)!;
         var parentsHouse = parents.Dwelling!.Value;
+        var otherParents = world.FindHousehold((head == a ? b : a).Household!.Value)!.Dwelling!.Value;
         int buildingsBefore = world.Buildings.Count;
         foreach (var spouse in new[] { a, b }) spouse.TryDebitWallet(spouse.Wallet); // sem moeda: só os próprios braços e os da família
         MarriageSystem.Marry(world, Ctx(world, sink), a, b);
         var couple = world.FindHousehold(a.Household!.Value)!;
-        Assert.Equal(parentsHouse, couple.Dwelling); // de favor na casa dos pais do chefe
+        // de favor na casa dos pais de um dos dois (AD-192: a rota pela melhor entrada da rede mudou qual é a mais conveniente)
+        Assert.Contains(couple.Dwelling!.Value, new[] { parentsHouse, otherParents });
+        parentsHouse = couple.Dwelling!.Value;
         Assert.Equal(buildingsBefore, world.Buildings.Count); // casar não ergue casa nenhuma
 
         BuildWork? work = null;
@@ -91,7 +94,7 @@ public class BuildWorksTests
     [Fact]
     public void The_family_picks_the_lot_that_costs_it_least_in_daily_trips()
     {
-        var (world, clock, _) = World();
+        var (world, clock, _) = World(streets: StreetRules.Default with { QuarterInLotChoice = false, ObstacleOnCompletion = false }); // AD-192: só as idas pesam, e o canteiro não muda as rotas que a conta relê depois
         clock.Run(world, 24); // o primeiro dia contrata
         var city = world.ActiveCities().First();
         var home = world.Households.First(h => !h.IsEmpty && h.Members.Any(m => world.FindNpc(m)?.Employer is not null));

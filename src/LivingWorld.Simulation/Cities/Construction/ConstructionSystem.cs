@@ -188,6 +188,7 @@ public sealed class ConstructionSystem : ISimulationSystem
         if (project.Canteiro is { } canteiroId && world.FindBuilding(new BuildingId(canteiroId)) is { UnderWork: not null, Position: { } at } built)
         {
             built.Complete(ctx.CurrentTick);
+            Streets.StreetGroundSystem.Occupied(world, ctx.CurrentTick); // AD-192 (08d 182)
             if (recipe.Workplace is { } provision)
                 world.AddWorkplace(new Workplace(
                     world.NextWorkplaceIdAndAdvance(), new LocationType(provision.LocationTypeId), at,
@@ -217,6 +218,7 @@ public sealed class ConstructionSystem : ISimulationSystem
             var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick,
                 resolved.Position, resolved.Orientation, croftCells: resolved.Croft);
             world.AddBuilding(building);
+            Streets.StreetGroundSystem.Occupied(world, ctx.CurrentTick); // AD-192 (08d 182)
             world.AddWorkplace(new Workplace(
                 world.NextWorkplaceIdAndAdvance(), new LocationType(workplaceRecipe.LocationTypeId), resolved.Position,
                 workplaceRecipe.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
@@ -233,6 +235,7 @@ public sealed class ConstructionSystem : ISimulationSystem
             world.AddBuilding(lot is { } l
                 ? new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick, l.Position, l.Orientation, croftCells: l.Croft)
                 : new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick));
+            Streets.StreetGroundSystem.Occupied(world, ctx.CurrentTick); // AD-192 (08d 182)
         }
         return true;
     }

@@ -138,7 +138,7 @@ public class MenuWorldsYearsReport
             lines.Add(string.Create(inv,
                 $"{period} seed={seed} ano={yr} pop={alive} pool={world.ActiveCities().Sum(c => c.AggregatePool.Count)} cidades={world.ActiveCities().Count()} emigr={deaths.Emigrated} mortes={deaths.Deaths} fome={starv} sede={thirst} colheita={tally.HarvestByYear[^1]} " +
                 $"semeado={tally.SeedSownByYear[^1]} celeiro={barn} casas={homes} estoque={tally.StockByMonth[^1]} preco={price:F1} " +
-                $"lavradores={workers} fazendas={farms.Count} clima={tally.ClimateByYear[^1]} | {crops}"));
+                $"lavradores={workers} fazendas={farms.Count} clima={tally.ClimateByYear[^1]} fora={OutsideTheirCity(world)} | {crops}"));
             foreach (var (id, fy) in farmDiag)
             {
                 var f = world.Workplaces.First(w => w.Id.Value == id);
@@ -160,6 +160,22 @@ public class MenuWorldsYearsReport
             $"fome={starvTotal} sede={thirstTotal} fomePorMilPessoaAno={starvTotal * 1000.0 / Math.Max(1, personYears):F2} " +
             $"predios1={built1} prediosFim={world.Buildings.Count(b => b.UnderWork is null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)}"));
         return lines;
+    }
+
+    /// <summary>AD-192: prédios e canteiros de cada cidade com alguma célula fora do limite crescido dela (o escopo Cidade não os mostra).</summary>
+    private static int OutsideTheirCity(WorldState world)
+    {
+        int outside = 0;
+        foreach (var city in world.ActiveCities())
+        {
+            var bounds = LivingWorld.Simulation.Cities.CityOccupancy.ResolveGrownBounds(world, city,
+                LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
+            foreach (var b in world.Buildings)
+                if (b.City == city.Id && b.Position is { } at
+                    && LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(b).Any(c => !bounds.Contains(new CellCoord(at.X + c.Cell.X, at.Y + c.Cell.Y))))
+                    outside++;
+        }
+        return outside;
     }
 
     public static (WorldState, WorldClock) Load(string period, ulong seed, string? patch)
