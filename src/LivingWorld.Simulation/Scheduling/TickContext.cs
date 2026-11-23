@@ -9,7 +9,12 @@ namespace LivingWorld.Simulation.Scheduling;
 /// futuros e o tick atual. Nunca o relógio da máquina.</summary>
 public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventScheduler scheduler, IWorldEventSink? sink = null)
 {
+    /// <summary>A hora do calendário em que o mundo está (ADR-0050: o tempo é guardado em segundos; os sistemas de fronteira rodam
+    /// na hora cheia e contam em horas).</summary>
     public long CurrentTick => world.CurrentDate.TotalHours;
+
+    /// <summary>O instante do mundo em segundos (ADR-0050).</summary>
+    public long CurrentSecond => world.CurrentDate.TotalSeconds;
 
     /// <summary>Registra um evento de história — sem-op no sink se ninguém persiste,
     /// mas sempre gera <see cref="WorldEvent.EventId"/>. Compat: call sites legados
@@ -53,11 +58,18 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
     /// primeiro sorteio de <see cref="Rng"/>, sem deixar o stream no snapshot para sempre (#157).</summary>
     public WorldRng OneShot(string uniqueKey) => rng.OneShot(uniqueKey);
 
-    /// <summary>Agenda um evento futuro para o sistema <paramref name="systemName"/>. O ID é
-    /// atribuído pelo <see cref="WorldState"/> — monotônico e determinístico entre processos.</summary>
-    public ScheduledEvent ScheduleEvent(long targetTick, string systemName, string? payload = null)
+    /// <summary>Agenda um evento para o sistema <paramref name="systemName"/> no começo da hora <paramref name="targetTick"/> (a
+    /// hora do calendário, como <see cref="CurrentTick"/>). O ID é atribuído pelo <see cref="WorldState"/> — monotônico e
+    /// determinístico entre processos.</summary>
+    public ScheduledEvent ScheduleEvent(long targetTick, string systemName, string? payload = null) =>
+        ScheduleEventAtSecond(targetTick >= long.MaxValue / WorldSeconds.PerHour ? long.MaxValue : WorldSeconds.FromHours(targetTick),
+            systemName, payload);
+
+    /// <summary>Agenda um evento para o instante <paramref name="targetSecond"/> do mundo, em segundos (ADR-0050): vence no
+    /// primeiro tick em que o relógio chega a ele, também dentro da hora.</summary>
+    public ScheduledEvent ScheduleEventAtSecond(long targetSecond, string systemName, string? payload = null)
     {
-        var evt = new ScheduledEvent(world.NextEventIdAndAdvance(), targetTick, systemName, payload);
+        var evt = new ScheduledEvent(world.NextEventIdAndAdvance(), targetSecond, systemName, payload);
         scheduler.Schedule(evt);
         return evt;
     }

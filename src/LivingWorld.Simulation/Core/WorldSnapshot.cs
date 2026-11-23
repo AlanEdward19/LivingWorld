@@ -377,7 +377,7 @@ public static class WorldSnapshot
         foreach (var evt in pendingEvents)
         {
             if (evt.SystemName != NpcWakeScheduler.SystemName) others.Add(evt);
-            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, evt.TargetTick, evt.Id));
+            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, WorldSeconds.ToHourFloor(evt.TargetSecond), evt.Id));
         }
         return others;
     }

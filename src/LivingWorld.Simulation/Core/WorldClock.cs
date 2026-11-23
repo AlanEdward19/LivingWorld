@@ -33,15 +33,20 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
     public void Tick(WorldState world) => Tick(world, WorldSeconds.HourTick);
 
     /// <summary>Avança Δ segundos, sem passar da próxima hora cheia (o tick que chegaria depois dela para nela). Δ divide a hora
-    /// (<see cref="WorldSeconds.IsValidTickDelta"/>). Fora da hora cheia só o relógio anda: os sistemas e a fila de eventos de
-    /// hora rodam no tick que chega à hora.</summary>
+    /// (<see cref="WorldSeconds.IsValidTickDelta"/>). Todo tick despacha os eventos agendados que venceram (instante ≤ agora);
+    /// os sistemas rodam no tick que chega à hora cheia.</summary>
     public void Tick(WorldState world, int deltaSeconds)
     {
         if (!WorldSeconds.IsValidTickDelta(deltaSeconds))
             throw new ArgumentOutOfRangeException(nameof(deltaSeconds), deltaSeconds, "Δ precisa dividir a hora (1 a 3600 s)");
         int intoHour = world.CurrentDate.SecondOfHour;
         world.CurrentDate = world.CurrentDate.AddSeconds(Math.Min(deltaSeconds, WorldSeconds.PerHour - intoHour));
-        if (world.CurrentDate.SecondOfHour != 0) return;
+        if (world.CurrentDate.SecondOfHour != 0)
+        {
+            if (world.Scheduler.HasDue(world.CurrentDate.TotalSeconds))
+                DispatchDueEvents(world, new TickContext(world, world.Rng, world.Scheduler, sink));
+            return;
+        }
 
         NpcWakeScheduler.PrepareWakeBatch(world, world.CurrentDate.TotalHours);
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
@@ -71,7 +76,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
 
     private void DispatchDueEvents(WorldState world, TickContext ctx)
     {
-        long tick = world.CurrentDate.TotalHours;
+        long tick = world.CurrentDate.TotalSeconds;
         int iterations = 0;
         string? lastSystem = null;
 
