@@ -126,6 +126,30 @@ public class WorkSiteProjectionTests
         Assert.Contains(canteiro.Links, l => l.Kind == "work" && l.Id == work.Id.ToString());
     }
 
+    /// <summary>A obra da fila da cidade conta o material da receita (posto e o total) e para quando o estoque da cidade não tem o
+    /// insumo do próximo passo, com horas da turma guardadas.</summary>
+    [Fact]
+    public void Queued_city_work_shows_its_material_and_stops_for_lack_of_it()
+    {
+        var (world, _) = ScenarioRunner.Create(3);
+        var city = world.ActiveCities().First();
+        var (typeId, recipe) = world.CityCatalog.BuildingRecipes.First(kv => kv.Value.Inputs.Count > 0);
+        var project = new ConstructionProject(city.Id, typeId, new Dictionary<LivingWorld.Domain.Economy.ResourceType, long>(), recipe.TicksToBuild)
+        { SiteX = city.Location.X, SiteY = city.Location.Y, WorkId = 9_999, HoursBanked = 3, HaulHoursLeft = 0, Crew = [] };
+        city.EnqueueConstruction(project);
+        foreach (var (resource, _) in recipe.Inputs)
+            if (city.Stock.GetValueOrDefault(resource) is var have and > 0) city.WithdrawStock(resource, have);
+
+        var seen = WorkSiteProjector.Find(world, 9_999, PresentationNames.None)!;
+
+        Assert.Equal(($"predio-{typeId}", "cidade"), (seen.Kind, seen.Payer));
+        Assert.Equal(recipe.Inputs.Sum(kv => kv.Value), seen.Materials.Sum(m => m.Needed));
+        Assert.All(seen.Materials, m => Assert.Equal(0, m.Placed));
+        Assert.True(seen.Halt is "material" or "tempo", $"sem insumo no estoque a obra não anda: {seen.Halt}");
+        foreach (var (resource, amount) in recipe.Inputs) city.DepositStock(resource, amount);
+        Assert.NotEqual("material", WorkSiteProjector.Find(world, 9_999, PresentationNames.None)!.Halt);
+    }
+
     [Fact]
     public void Projecting_works_leaves_the_canonical_hash_untouched()
     {
