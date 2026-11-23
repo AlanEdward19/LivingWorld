@@ -8,6 +8,10 @@ public sealed record IncarnateRequest(string? PlayerId);
 /// <summary><c>Action</c> é o nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); vazio devolve a escolha ao motor.
 /// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
 public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
+/// <summary>Passo do jogador (AD-197e): direção −1..1 em cada eixo, intenção e não posição.</summary>
+public sealed record PlayerMoveRequest(int Dx, int Dy);
+/// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
+public sealed record PlayerStrikeRequest(long NpcId);
 /// <summary>Sessão nova (ADR-0048): <c>Authorization: Bearer {SessionToken}</c> nas rotas e no canal do jogador.</summary>
 public sealed record SessionResponse(string SessionToken, string PlayerId);
 
@@ -19,7 +23,7 @@ public sealed record SessionResponse(string SessionToken, string PlayerId);
 /// (<see cref="PlayerCommandGateway"/>), a mesma do canal <c>/players/ws</c>.</summary>
 public static class PlayerEndpoints
 {
-    public static void MapPlayerEndpoints(this WebApplication app, PlayerCommandGateway gateway, PlayerSessionTokens tokens, bool authRequired)
+    public static void MapPlayerEndpoints(this WebApplication app, PlayerCommandGateway gateway, PlayerSessionTokens tokens, PlayerAuthPolicy policy)
     {
         app.MapPost("/sessions", () =>
         {
@@ -28,16 +32,53 @@ public static class PlayerEndpoints
         });
 
         app.MapPost("/players/{npcId:long}/incarnate", (HttpContext http, long npcId, IncarnateRequest request) =>
-            Run(http, tokens, authRequired, request.PlayerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Incarnate, npcId)));
+            Run(http, tokens, policy.Required, request.PlayerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Incarnate, npcId)));
 
         app.MapPost("/players/{playerId}/action", (HttpContext http, string playerId, PlayerActionRequest request) =>
         {
             if (!TryParseAction(request.Action, out var action)) return Results.BadRequest(new { error = "action: desconhecida" });
-            return Run(http, tokens, authRequired, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: request.PowerId));
+            return Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: request.PowerId));
         });
 
         app.MapPost("/players/{playerId}/logout", (HttpContext http, string playerId) =>
-            Run(http, tokens, authRequired, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Logout)));
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Logout)));
+
+        // AD-197e: o passo do jogador substitui POST /visual/player/{id}/move (removida, decisão do dono): só o corpo que a sessão
+        // controla, pela fila única, com pausa e registro
+        app.MapPost("/players/{playerId}/move", (HttpContext http, string playerId, PlayerMoveRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Move, Dx: request.Dx, Dy: request.Dy)));
+
+        app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
+
+        // AD-197e: posse plena é do admin (X-Admin-Token) e do jogador da sessão; a pessoa vira personagem do jogador e fica presa
+        app.MapPost("/players/{npcId:long}/possess", (HttpContext http, long npcId, IConfiguration config) =>
+        {
+            if (LivingWorld.Api.Admin.AdminEndpoints.Authorize(http, config) is null) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (tokens.PlayerOf(BearerOf(http)) is not { } playerId) return Results.StatusCode(StatusCodes.Status401Unauthorized);
+            var reply = gateway.Execute(playerId, new PlayerCommandRequest(PlayerCommandKind.Incarnate, npcId,
+                Mode: LivingWorld.Domain.Population.PossessionMode.Full));
+            return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
+        });
+
+        // AD-197e: a pessoa presa, vista por quem a possui (posse plena); 404 fora dela
+        app.MapGet("/players/{playerId}/captive", (HttpContext http, string playerId) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            return gateway.Captive(playerId) is { } view ? Results.Ok(view) : Results.NotFound(new { error = "not_found: sem posse plena" });
+        });
+    }
+
+    /// <summary>Nulo quando o pedido pode agir como <paramref name="playerId"/>; senão a resposta de recusa (401/403/400).</summary>
+    private static IResult? Identify(HttpContext http, PlayerSessionTokens tokens, bool authRequired, string playerId)
+    {
+        if (BearerOf(http) is { } token)
+        {
+            string? session = tokens.PlayerOf(token);
+            if (session is null) return Results.StatusCode(StatusCodes.Status401Unauthorized);
+            return session == playerId ? null : Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+        return authRequired ? Results.StatusCode(StatusCodes.Status401Unauthorized) : null;
     }
 
     internal static bool TryParseAction(string? text, out ActionType? action)
