@@ -290,7 +290,10 @@
       "IncarnateRequest": {
         "properties": {
           "playerId": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "required": [
@@ -2065,6 +2068,18 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/sessions": {
+      "post": {
         "responses": {
           "200": {
             "description": "OK"

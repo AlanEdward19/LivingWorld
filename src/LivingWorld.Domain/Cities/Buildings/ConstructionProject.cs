@@ -69,6 +69,22 @@ public sealed class ConstructionProject(
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public long? StartEventId { get; set; }
 
+    /// <summary>AD-195: material da receita já trazido do estoque da cidade (o largo) ao lote e ainda não posto (recurso → unidades);
+    /// com a turma que anda (<c>StreetRules.HaulersWalk</c>) o passo da receita só consome daqui. Nulo = nada no lote.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<int, long>? MaterialOnSite { get; set; }
+
+    /// <summary>AD-195: viagens de material em curso (quem da turma foi ao largo buscar e o que traz).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<ConstructionHaul>? Hauls { get; set; }
+
+    /// <summary>AD-195: perdendo o dia pelo tempo e travada por falta de material (evento uma vez por episódio).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? WeatherLost { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? MaterialShort { get; set; }
+
     // SPEC_DEVIATION: design.md declara Consumed só como dado de construção
     // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao
     // longo dos ticks") — sem mutador, Consumed nunca sairia de vazio.
@@ -77,4 +93,14 @@ public sealed class ConstructionProject(
     /// — só <see cref="ConstructionSystem"/> chama.</summary>
     public void RecordConsumption(ResourceType resource, long amount) =>
         _consumed[resource] = _consumed.GetValueOrDefault(resource) + amount;
+}
+
+/// <summary>AD-195: uma viagem de material da obra da fila: <see cref="Npc"/> vai ao largo (estágio 0), pega <see cref="Units"/> de
+/// <see cref="Resource"/> do estoque da cidade e volta ao lote (estágio 1).</summary>
+public sealed class ConstructionHaul
+{
+    public long Npc { get; set; }
+    public int Stage { get; set; }
+    public int Resource { get; set; }
+    public long Units { get; set; }
 }

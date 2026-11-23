@@ -27,6 +27,12 @@ public sealed class PlayerSessionLog
         get { lock (_gate) return [.. _records]; }
     }
 
+    /// <summary>O último comando aceito (nulo se nenhum): quem persiste o registro grava um por vez.</summary>
+    public PlayerCommandRecord? Last
+    {
+        get { lock (_gate) return _records.Count == 0 ? null : _records[^1]; }
+    }
+
     internal void Append(long tick, string playerId, PlayerCommandKind kind, long? npcId = null, ActionType? action = null,
         string? powerId = null)
     {

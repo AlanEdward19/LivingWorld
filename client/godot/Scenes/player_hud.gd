@@ -27,6 +27,8 @@ var _title: Label
 var _status: Label
 var _pause: Label
 var _busy := false
+var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
+var has_session := false
 
 
 func _init() -> void:
@@ -85,6 +87,7 @@ func incarnate(id: int, name: String) -> bool:
 	if _busy or is_active:
 		return false # outro pedido em andamento ou já encarnado: um clique a mais não vira segundo POST
 	_busy = true
+	await _ensure_session()
 	var response: Dictionary = await api.incarnate(id, player_id)
 	_busy = false
 	if response.ok:
@@ -105,6 +108,19 @@ func incarnate(id: int, name: String) -> bool:
 		_offer_release()
 	warning.emit(message)
 	return false
+
+
+## ADR-0048: a identidade vem da sessão do servidor (token), não do id local; depois de conectado os comandos vão pelo canal
+## persistente. Servidor sem `/sessions` (antigo): segue no modo local com o id de `user://player.cfg`.
+func _ensure_session() -> void:
+	if not session_enabled or has_session:
+		return
+	var session: Dictionary = await api.create_session()
+	if not session.ok:
+		return
+	has_session = true
+	player_id = String(session.body.get("playerId", player_id))
+	api.open_player_channel()
 
 
 ## Os poderes do NPC encarnado (`powerIds` da ficha do servidor): um botão por poder. O motor decide se a invocação cabe

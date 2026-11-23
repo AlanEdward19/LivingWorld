@@ -193,7 +193,12 @@ static func run(app: Node, steps: Array) -> void:
 				for event in app.registry.events.values():
 					if String(event.get("label", "")).begins_with("Chegou ao lote"):
 						arrivals += 1
-				print("log-works: cargas_no_registro=", arrivals, " works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
+				var carrying := 0 # AD-195: quem leva material nas mãos (observável `carried`)
+				for id in app.store.npcs:
+					for load in app.store.npcs[id].get("obs", {}).get("carried", []):
+						if int(load.get("resource_id", load.get("resourceId", -1))) == 3:
+							carrying += 1
+				print("log-works: carregando=", carrying, " cargas_no_registro=", arrivals, " works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
 			"walls":
 				var view = app.stage.interior_view
 				var heights := {}

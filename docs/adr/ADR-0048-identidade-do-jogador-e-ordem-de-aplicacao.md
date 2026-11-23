@@ -1,8 +1,9 @@
 # ADR-0048: identidade do jogador e ordem única de aplicação no multiplayer
 
-- **Status**: proposto (rascunho da AD-196; espera aprovação do dono)
+- **Status**: aceito (dono, 2026-11-23: "eu aprovo"; ressalva: "minha preocupação é latência nos comandos, poderíamos manter
+  conexão após conectado (websocket talvez), precisamos que não tenha demora para interagir"). Implementado na AD-197a.
 - **Data**: 2026-11-23
-- **Decisores**: dono do projeto (pendente)
+- **Decisores**: dono do projeto
 
 ## Contexto
 As rotas `/players/*` (AD-111) aceitam qualquer `playerId` no corpo ou no caminho: qualquer cliente pode agir por outro
@@ -44,7 +45,9 @@ vem a identidade e como ela entra no contrato público.
   da Fase 25: dois jogadores em pontas opostas dobram o custo materializado); presença entre branches continua proibida
   (ADR-0008).
 
-## Perguntas ao dono
-1. Aprova a identidade por token de sessão do hospedeiro, sem provedor externo nesta fase?
-2. Aprova `401`/`403` nas rotas `/players/*` e as rotas novas `/sessions`?
-3. A fila aplica no limite do próximo tick (recomendado) ou o admin pode escolher aplicar só em pausa?
+## Implementação (AD-197a)
+- `POST /sessions`, token opaco (`PlayerSessionTokens`, 12 h ociosas), `Authorization: Bearer`, 401/403; `PLAYER_AUTH=required`
+  desliga o modo local. Fila única = a trava do laço do relógio (`PlayerCommandGateway`), aplicada entre ticks na ordem de
+  chegada, sem esperar o próximo tick (latência). `{mundo}.players.base.json` + `{mundo}.players.log` ao lado do save.
+- **Canal persistente** (ressalva de latência): `GET /players/ws` com o mesmo token; comandos numerados e resposta pelo mesmo
+  canal; as rotas HTTP seguem valendo. Pausa do admin = 409 nas rotas e no canal (aprovado pelo dono em 2026-11-23).
