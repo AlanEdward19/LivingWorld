@@ -30,8 +30,14 @@ public class PlayerParityTests
         var catalog = ActionCatalog.Create(
             new Dictionary<ActionType, int>
             {
-                [ActionType.Eat] = 2, [ActionType.Sleep] = 8, [ActionType.Work] = 8, [ActionType.Socialize] = 3,
-                [ActionType.Travel] = 4, [ActionType.Idle] = 2, [ActionType.Buy] = 2, [ActionType.UsePower] = 1,
+                [ActionType.Eat] = 2,
+                [ActionType.Sleep] = 8,
+                [ActionType.Work] = 8,
+                [ActionType.Socialize] = 3,
+                [ActionType.Travel] = 4,
+                [ActionType.Idle] = 2,
+                [ActionType.Buy] = 2,
+                [ActionType.UsePower] = 1,
             },
             [new RoutineSlot(ProfessionId: null, Stage: LifeStage.Adult, HourStart: 0, HourEnd: 23, Action: ActionType.Work)],
             ActionType.Idle).Value!;

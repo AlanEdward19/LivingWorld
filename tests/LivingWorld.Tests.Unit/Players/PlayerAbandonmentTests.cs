@@ -42,7 +42,8 @@ public class PlayerAbandonmentTests
 
     private static readonly PlayerRules Declare = PlayerRules.Default with
     {
-        Abandonment = AbandonmentPolicy.DeclareDead, DeclareDeadAfterDays = Window,
+        Abandonment = AbandonmentPolicy.DeclareDead,
+        DeclareDeadAfterDays = Window,
     };
 
     private static void Days(Arm arm, int days) => arm.Clock.Run(arm.World, (long)days * arm.World.Calendar.HoursPerDay);
@@ -76,7 +77,9 @@ public class PlayerAbandonmentTests
         var plain = LivingWorld.Simulation.Scenarios.ScenarioLoaderV2.LoadWorld(root.ToJsonString());
         root["Players"] = new System.Text.Json.Nodes.JsonObject
         {
-            ["Abandonment"] = "DeclareDead", ["DeclareDeadAfterDays"] = 90, ["PresumedDeadMayReturn"] = false,
+            ["Abandonment"] = "DeclareDead",
+            ["DeclareDeadAfterDays"] = 90,
+            ["PresumedDeadMayReturn"] = false,
         };
 
         var declared = LivingWorld.Simulation.Scenarios.ScenarioLoaderV2.LoadWorld(root.ToJsonString());
@@ -145,7 +148,8 @@ public class PlayerAbandonmentTests
     {
         var (arm, missing, spouse, _) = Married(3, PlayerRules.Default with
         {
-            Abandonment = AbandonmentPolicy.ReturnToPool, ReturnToPoolAfterDays = Window,
+            Abandonment = AbandonmentPolicy.ReturnToPool,
+            ReturnToPoolAfterDays = Window,
         });
         Days(arm, Window + 1);
 
