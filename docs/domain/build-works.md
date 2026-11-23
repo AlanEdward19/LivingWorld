@@ -77,6 +77,8 @@ carregamento, material da fila posto/receita, `halt` = `tempo`/`parada`/`materia
 feito (alicerce, paredes, andaime, armação do telhado), a pilha só onde o motor conta material (obra da fila), martelo na mão de
 quem está no lote e a obra na planta (P); o prédio reenviado só porque a obra andou não refaz chão nem rótulos.
 
+Material de verdade no canteiro, eventos de carga e de dia perdido: [work-material](work-material.md) (AD-194).
+
 ## Chaves (todas ligadas; `LW_AD184=off` desliga todas e volta à AD-179)
 `BuildNeedsCrew`, `HouseIsWork`, `VentureIsWork`, `HelpersBuild`, `WageBidding`, `PrototypeIsWork` (em `StreetRules`). Para
 atribuir efeito nos relatórios: `LW_AD184=nohouse|nohelpers|nobid` desliga só a casa, só a ajuda ou só a troca de ofício.
