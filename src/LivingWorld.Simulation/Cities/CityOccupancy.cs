@@ -239,7 +239,7 @@ public static class CityOccupancy
 
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
-            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city));
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
@@ -254,11 +254,13 @@ public static class CityOccupancy
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells,
-            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city));
     }
 
-    /// <summary>AD-192 (08d 165): com o traçado ligado, a cidade sem prédio perto do miolo encadeia o limite a partir do mais perto.</summary>
-    private static bool AnchorLone(WorldState world) => ChainReach(world) > 0 && world.StreetRules.AnchorLoneHouse;
+    /// <summary>AD-192 (08d 165): com o traçado ligado, a cidade-filha (a nova) sem prédio perto do miolo encadeia o limite a partir do
+    /// mais perto. A mãe não: o prédio dela longe do miolo é aglomerado à parte, que pode fundar outra filha.</summary>
+    private static bool AnchorLone(WorldState world, City city) =>
+        ChainReach(world) > 0 && world.StreetRules.AnchorLoneHouse && city.FoundedFromCityId is not null;
 
     /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
     /// mesma fórmula de anel/hash que existia sozinha em

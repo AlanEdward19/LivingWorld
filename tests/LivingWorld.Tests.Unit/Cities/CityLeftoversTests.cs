@@ -48,8 +48,8 @@ public class CityLeftoversTests
     [InlineData(false)]
     public void A_new_city_whose_only_house_lies_beyond_the_ring_keeps_it_inside_its_limit_only_with_the_anchor(bool anchor)
     {
-        var city = new City(new CityId(Guid.Parse("00000000-0000-0000-0000-000000000165")), new CellCoord(20, 20), 0, null,
-            new LivingWorld.Domain.Cities.AggregatePopulationPool(0, 0, 0));
+        var city = new City(new CityId(Guid.Parse("00000000-0000-0000-0000-000000000165")), new CellCoord(20, 20), 0,
+            new CityId(Guid.Parse("00000000-0000-0000-0000-000000000001")), new LivingWorld.Domain.Cities.AggregatePopulationPool(0, 0, 0));
         var lone = new CityBounds(new CellCoord(28, 20), 3, 3); // 6 células além dos 3×3 da cidade sem gente (o anel é 3)
         var (bounds, _) = SpatialBoundsResolver.ResolveCity(city, 0, 64, 64, [lone], absorptionRingCells: 3, chainReachCells: 6,
             anchorLoneBuilding: anchor);
