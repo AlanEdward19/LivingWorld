@@ -54,7 +54,10 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
     private void Record(WorldState world, string playerId, PlayerCommandKind kind, long? npcId, PlayerCommandRecord? with = null) =>
         Log.Append((with ?? new PlayerCommandRecord(0, 0, playerId, kind)) with
         {
-            Tick = world.CurrentDate.TotalHours, PlayerId = playerId, Kind = kind, NpcId = npcId,
+            Tick = world.CurrentDate.TotalHours,
+            PlayerId = playerId,
+            Kind = kind,
+            NpcId = npcId,
         });
 
     public Result<Unit> Incarnate(WorldState world, NpcId npcId, string playerId, PossessionMode mode = PossessionMode.Common)

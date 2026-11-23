@@ -1,7 +1,6 @@
 using LivingWorld.Domain.Cognition;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
