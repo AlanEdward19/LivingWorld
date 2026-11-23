@@ -6,14 +6,14 @@ const ApiClient := preload("res://Contract/api_client.gd")
 const App := preload("res://Scenes/app.gd")
 const Fx := preload("res://tests/fixtures.gd")
 
-const PAUSED := {"isPaused": true, "actor": "alan", "reason": "manutenção", "maxTicks": 70, "pausedAtTick": 12}
-const RUNNING := {"isPaused": false, "actor": null, "reason": null, "maxTicks": null, "pausedAtTick": null}
+const PAUSED := {"isPaused": true, "actor": "alan", "reason": "manutenção", "maxSeconds": 70 * 3600, "pausedAtSecond": 12 * 3600}
+const RUNNING := {"isPaused": false, "actor": null, "reason": null, "maxSeconds": null, "pausedAtSecond": null}
 const HITS := [
 	{"id": 4, "name": "Ana", "city": "Alfa", "professionId": 2, "alive": true},
 	{"id": 9, "name": "Ana Maria", "city": "", "professionId": 3, "alive": false}]
 const AUDIT := [
-	{"branchId": 1, "sequence": 1, "tick": 12, "actor": "alan", "action": "world.pause", "target": "world", "detail": "reason=x;maxTicks=70"},
-	{"branchId": 1, "sequence": 2, "tick": 30, "actor": "alan", "action": "world.resume", "target": "world", "detail": ""}]
+	{"branchId": 1, "sequence": 1, "second": 12 * 3600, "actor": "alan", "action": "world.pause", "target": "world", "detail": "reason=x;maxTicks=70"},
+	{"branchId": 1, "sequence": 2, "second": 30 * 3600, "actor": "alan", "action": "world.resume", "target": "world", "detail": ""}]
 
 
 func _api(transport, validate: bool = false) -> Object:
@@ -50,7 +50,7 @@ func test_pause_sends_reason_ceiling_and_the_operator_header() -> void:
 
 	await window.pause()
 
-	eq(transport.bodies.get("POST /admin/world/pause", []), [{"reason": "manutenção", "maxTicks": 70}])
+	eq(transport.bodies.get("POST /admin/world/pause", []), [{"reason": "manutenção", "maxSeconds": 70 * 3600}])
 	eq(transport.headers_of.get("POST /admin/world/pause", []), [{"X-Admin-Actor": "alan"}], "o operador vai no cabeçalho")
 	check("Pausado por alan desde dia 12: manutenção" in window.state_text, window.state_text)
 	eq(window.pause_info.reason, "manutenção")
@@ -125,9 +125,9 @@ func test_banner_comes_from_the_status_so_any_clients_pause_is_named() -> void:
 	eq(window.pause_banner({"isPaused": false}), "", "rodando: sem faixa")
 	eq(window.pause_banner({"isPaused": true}), "Mundo pausado", "pausa comum, sem ator")
 	eq(window.pause_banner({"isPaused": true, "pausedBy": null}), "Mundo pausado")
-	eq(window.pause_banner({"isPaused": true, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtTick": 12}),
+	eq(window.pause_banner({"isPaused": true, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtSecond": 12 * 3600}),
 		"Pausado por alan desde dia 12: manutenção", "nome, data pelo calendário e motivo, mesmo de outro operador")
-	eq(window.pause_banner({"isPaused": false, "pausedBy": "alan", "pauseReason": "x", "pausedAtTick": 1}), "", "só vale pausado")
+	eq(window.pause_banner({"isPaused": false, "pausedBy": "alan", "pauseReason": "x", "pausedAtSecond": 3600}), "", "só vale pausado")
 	window.free()
 
 
@@ -182,8 +182,8 @@ func test_audit_table_has_who_when_action_and_target() -> void:
 
 	await window.load_audit()
 
-	eq(transport.calls, ["GET /admin/audit?fromTick=5"])
-	eq(transport.headers_of.get("GET /admin/audit?fromTick=5", []), [{"X-Admin-Actor": "alan"}])
+	eq(transport.calls, ["GET /admin/audit?fromSecond=18000"])
+	eq(transport.headers_of.get("GET /admin/audit?fromSecond=18000", []), [{"X-Admin-Actor": "alan"}])
 	eq(window.audit_rows, ["dia 12 · alan · world.pause · world · reason=x;maxTicks=70", "dia 30 · alan · world.resume · world"])
 
 	transport.on("GET /admin/audit", {"status": 200, "body": []})
@@ -200,7 +200,7 @@ func test_responses_are_checked_against_frozen_shapes() -> void:
 	var transport := FakeTransport.new()
 	transport.on("POST /admin/world/pause", {"status": 200, "body": {"actor": "alan"}})
 	transport.on("GET /admin/search", {"status": 200, "body": [{"id": 1}]})
-	transport.on("GET /admin/audit", {"status": 200, "body": [{"tick": 1}]})
+	transport.on("GET /admin/audit", {"status": 200, "body": [{"second": 3600}]})
 	var window := _window(transport, true)
 	var warnings: Array = []
 	window.warning.connect(func(text: String): warnings.append(text))
@@ -239,7 +239,7 @@ func _find_button(node: Node, text: String) -> Button:
 func _app(enabled: bool, status: Dictionary = {}) -> Array:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": status if not status.is_empty() else {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": status if not status.is_empty() else {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -298,13 +298,13 @@ func test_everyone_sees_the_paused_banner_with_who_and_why_from_the_status() -> 
 	var made := await _app(false)
 	var app = made[0]
 
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
+	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
 	eq(app.pause_label.text, "Mundo pausado", "pausa comum")
 
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtTick": 6})
+	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": true, "year": 0, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtSecond": 6 * 3600})
 	check("Pausado por alan desde" in app.pause_label.text and "manutenção" in app.pause_label.text, app.pause_label.text)
 
-	app._on_clock_status({"tick": 7, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	app._on_clock_status({"second": 7 * 3600, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	eq(app.pause_label.text, "", "voltou a andar: faixa some")
 	app.queue_free()
 
@@ -403,7 +403,7 @@ func test_the_pause_label_lives_in_the_top_bar_and_shows_when_paused() -> void:
 	var app = made[0]
 
 	check(app.pause_label.get_parent() is HBoxContainer and app.pause_label.is_inside_tree(), "a faixa fica na barra do topo")
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
+	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
 	eq(app.pause_label.is_visible_in_tree(), true, "e aparece quando pausado")
 	app.queue_free()
 

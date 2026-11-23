@@ -26,10 +26,10 @@ public static class RealtimeEndpoints
             return Results.Ok(WithProjectedPayload(result.Value!, world, playerNpcId, names.For(world.PeriodId)));
         });
 
-        app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceTick, long sinceSequence, RealtimeGateway gateway) =>
+        app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceSecond, long sinceSequence, RealtimeGateway gateway) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
-            var since = new VisualCursor(sinceTick, visualScope.ScopeKey, sinceSequence);
+            var since = new VisualCursor(WireSeconds.HoursFrom(sinceSecond), visualScope.ScopeKey, sinceSequence);
             var result = gateway.Replay(visualScope, mode, since);
             // AD-172: o replay sai como o delta ao vivo (nulos omitidos), mesma leitura no cliente
             return result.IsSuccess ? Results.Json(result.Value, VisualWire.For(result.Value)) : Results.StatusCode(StatusCodes.Status403Forbidden);

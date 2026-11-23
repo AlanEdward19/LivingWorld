@@ -192,10 +192,10 @@ public class ApiContractTests
     [Fact]
     public async Task OpenApi_document_matches_the_committed_contract()
     {
-        var response = await _factory.CreateClient().GetAsync("/openapi/v1.json");
+        var response = await _factory.CreateClient().GetAsync("/openapi/v2.json");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        AssertMatchesContract("openapi.v1.json", Normalize(JsonNode.Parse(await response.Content.ReadAsStringAsync())!));
+        AssertMatchesContract("openapi.v2.json", Normalize(JsonNode.Parse(await response.Content.ReadAsStringAsync())!));
     }
 
     [Theory]
@@ -220,8 +220,8 @@ public class ApiContractTests
             // Quem pausou, por quê, desde quando e até quando só existem com o mundo pausado por admin (ADR-0027).
             Optional(shape!, "pausedBy", "string");
             Optional(shape!, "pauseReason", "string");
-            Optional(shape!, "pausedAtTick", "number");
-            Optional(shape!, "pauseMaxTicks", "number");
+            Optional(shape!, "pausedAtSecond", "number");
+            Optional(shape!, "pauseMaxSeconds", "number");
         }
         AssertMatchesContract($"shape.{name}.json", shape!);
     }
@@ -363,7 +363,7 @@ public class ApiContractTests
     [Fact]
     public void Delta_shapes_match_the_committed_contract()
     {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var options = LivingWorld.Api.Realtime.VisualWire.Options; // contrato v2 (ADR-0050): o fio do interior
         var scope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.World, "");
         var from = new LivingWorld.Api.Visual.Scope.VisualCursor(3, "world", 4);
         var to = new LivingWorld.Api.Visual.Scope.VisualCursor(4, "world", 5);
@@ -454,7 +454,7 @@ public class ApiContractTests
     private static JsonNode EventViewShape() => ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(
         new LivingWorld.Api.Visual.Observable.EntityEventView(4, 12, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento",
             new LivingWorld.Domain.Geography.CellCoord(1, 2), ObservableSample.Involved),
-        new JsonSerializerOptions(JsonSerializerDefaults.Web))))!;
+        LivingWorld.Api.Realtime.VisualWire.Options)))!; // contrato v2 (ADR-0050), a mesma serialização da rota
 
     /// <summary>Estrutura sem valores: objeto → propriedades ordenadas; lista → forma do primeiro elemento
     /// ("[]" quando vazia); folha → tipo JSON. Dois mundos diferentes têm a mesma forma.</summary>

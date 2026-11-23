@@ -1,6 +1,7 @@
 extends PanelContainer
 ## HUD do jogador encarnado (`/players/*`): o NPC controlado, a barra de ações que o motor aceita e a saída.
 ## O motor decide se a ação cabe: aqui só se pede. Sair não congela o personagem: ele desaparece do mundo.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal released()
 signal warning(text: String)
@@ -178,7 +179,7 @@ func logout() -> void:
 			warning.emit("Não foi possível sair do personagem anterior (erro %d)." % response.status)
 		return
 	if response.ok and response.body is Dictionary:
-		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, int(response.body.get("disappearedAtTick", 0))])
+		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, WorldTime.hours_of(response.body, "disappearedAtSecond")])
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	else:

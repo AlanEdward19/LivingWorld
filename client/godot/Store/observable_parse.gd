@@ -1,6 +1,7 @@
 extends RefCounted
 ## Leitura da projeção do observável (AD-170, ADR-0047 etapa 2) para o formato local do cliente. Só converte o que o servidor
 ## manda (snapshot e delta); nenhuma regra de simulação, nenhum valor inventado: campo ausente vira vazio/zero.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 
 static func cell_of(value: Variant) -> Vector2i:
@@ -156,7 +157,7 @@ static func fauna_group(raw: Dictionary) -> Dictionary:
 static func leaving(raw: Dictionary) -> Dictionary:
 	return {"id": int(raw.id), "cell": cell_of(raw.get("location")), "dead_id": _int_or(raw.get("deadId")),
 		"household_id": _int_or(raw.get("householdId")), "heir_household_id": _int_or(raw.get("heirHouseholdId")),
-		"tick": _i(raw, "tick", 0), "units": _i(raw, "units", 0), "item_id": _int_or(raw.get("itemId")),
+		"tick": WorldTime.hours_of(raw, "second"), "units": _i(raw, "units", 0), "item_id": _int_or(raw.get("itemId")),
 		"design_id": _int_or(raw.get("designId")), "fetcher_id": _int_or(raw.get("fetcherId")),
 		"carrier_id": _int_or(raw.get("carrierId"))}
 
@@ -260,7 +261,7 @@ static func event(raw: Dictionary, fallback_id: int) -> Dictionary:
 		if raw_involved.get("relatedIds") is Array:
 			involved.relatedIds = _ids(raw_involved.relatedIds)
 	return {"id": int(raw.eventId) if raw.get("eventId") != null else fallback_id, "label": _s(raw, "label", ""),
-		"kind": _i(raw, "kind", 0), "tick": _i(raw, "tick", 0), "cell": cell_of(location),
+		"kind": _i(raw, "kind", 0), "tick": WorldTime.hours_of(raw, "second"), "cell": cell_of(location),
 		"has_cell": location is Dictionary, "involved": involved,
 		"record_only": raw_involved is Dictionary and _b(raw_involved, "recordOnly", false)}
 

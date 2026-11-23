@@ -154,7 +154,7 @@ func _find_button(node: Node, text: String) -> Button:
 func test_the_app_wires_the_button_and_the_warning_toast() -> void:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -199,7 +199,7 @@ func test_an_anonymous_sheet_hides_the_meaningless_blocks_and_names_it_anonymous
 func test_the_city_sheet_offers_to_meet_an_anonymous_resident_and_opens_its_sheet() -> void:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -228,14 +228,14 @@ func test_the_city_sheet_offers_to_meet_an_anonymous_resident_and_opens_its_shee
 func test_the_technologies_button_stays_hidden_for_an_anonymous_resident() -> void:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
 	var anonymous := Fx.npc_inspect([], 2)
 	anonymous.body["culture"] = {"id": 1}
 	transport.on("GET /npcs/9", anonymous)
-	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3], "key": "1.2.3", "discoveredAtTick": 5, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3], "key": "1.2.3", "discoveredAtSecond": 5 * 3600, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
 	var app := App.new()
 	app.player_id = "p-1"
 	tree.root.add_child(app)

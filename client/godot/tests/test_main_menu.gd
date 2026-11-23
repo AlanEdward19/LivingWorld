@@ -39,7 +39,7 @@ func _transport(online: bool = true, worlds: Array = [world_item("a", "Aldeia")]
 	transport.on("POST /worlds/create/async", {"status": 202, "body": {"jobId": "j", "statusUrl": "/worlds/create/jobs/j", "stages": []}})
 	transport.on("GET /worlds/create/jobs/", job_route())
 	if online:
-		transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 3}})
+		transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 3}})
 		transport.on("GET /worlds", {"status": 200, "body": worlds})
 		transport.on("GET /world/info", {"status": 200, "body": {"name": "Aldeia", "periodId": period, "technologyAxes": []}})
 	transport.on("GET /periods/medieval/catalog", {"status": 200, "body": {"professionIds": [1], "professionNames": {"1": "Fazendeiro"}}})

@@ -32,7 +32,7 @@ func _transport() -> Object:
 	var transport := FakeTransport.new()
 	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
 	transport.on("POST /players/p-1/action", {"status": 200, "body": {"playerId": "p-1", "action": "Eat"}})
-	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtTick": 321}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtSecond": 321 * 3600}})
 	return transport
 
 
@@ -221,7 +221,7 @@ func _find_button(node: Node, text: String) -> Button:
 func _app_transport() -> Object:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": CATALOG})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -270,9 +270,9 @@ func test_app_forwards_the_admin_pause_to_the_hud() -> void:
 	await app.start(transport, false)
 	await app.player_hud.incarnate(7, "Ana")
 
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
+	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
 	eq(app.player_hud._pause.visible, true, "mundo pausado avisa o jogador")
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	eq(app.player_hud._pause.visible, false)
 	app.queue_free()
 
@@ -292,7 +292,7 @@ func test_a_second_click_while_waiting_does_not_send_another_request() -> void:
 	var transport := SlowTransport.new()
 	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
 	transport.on("POST /players/p-1/action", {"status": 200, "body": {"playerId": "p-1", "action": "Eat"}})
-	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtTick": 9}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtSecond": 9 * 3600}})
 	var hud := _hud(transport)
 	await hud.incarnate(7, "Ana")
 

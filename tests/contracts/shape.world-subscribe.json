@@ -4,8 +4,8 @@
   ],
   "cursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   },
   "mode": "number",
   "payload": {
@@ -278,7 +278,7 @@
             "offerPm": "number",
             "progress": "number",
             "stalled": "boolean",
-            "startedTick": "number"
+            "startedSecond": "number"
           }
         }
       ],
@@ -408,7 +408,7 @@
             "x": "number",
             "y": "number"
           },
-          "tick": "number"
+          "second": "number"
         }
       ],
       "faunaGroups": [
@@ -437,13 +437,13 @@
             "x": "number",
             "y": "number"
           },
-          "tick": "number",
+          "second": "number",
           "units": "number"
         }
       ],
       "npcs": [
         {
-          "actionStartedAtTick": "number",
+          "actionStartedAtSecond": "number",
           "actionTarget?": {
             "id": "string",
             "kind": "string"
@@ -535,8 +535,8 @@
               "y": "number"
             }
           ],
-          "routeArrivalTick?": "number",
-          "routeDepartedTick?": "number",
+          "routeArrivalSecond?": "number",
+          "routeDepartedSecond?": "number",
           "routeOver?": [
             "number"
           ]
@@ -633,7 +633,7 @@
           "householdId?": "number",
           "id": "number",
           "kind": "string",
-          "lastWorkedTick": "number",
+          "lastWorkedSecond": "number",
           "location": {
             "x": "number",
             "y": "number"
@@ -657,7 +657,7 @@
           "progress": "number",
           "spent": "number",
           "stalled": "boolean",
-          "startedTick": "number",
+          "startedSecond": "number",
           "typeName?": "string"
         }
       ]

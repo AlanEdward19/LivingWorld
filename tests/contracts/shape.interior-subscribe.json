@@ -4,8 +4,8 @@
   ],
   "cursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   },
   "mode": "number",
   "payload": {

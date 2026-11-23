@@ -2,6 +2,7 @@ extends RefCounted
 ## Partes do delta de escopo que não são NPC nem prédio (tiradas de `world_store.gd`, que estava no limite de tamanho):
 ## o observável (estado de prédio, lavoura, fauna, espólio, objetos, clima) e as ruas (AD-181: `roadUpserts`/`roadRemoved`).
 ## Só aplica na store e emite os sinais dela; a regra de leitura é a do delta enxuto (ausente/nulo = nulo, upsert inteiro).
+const WorldTime := preload("res://Contract/world_time.gd")
 
 const Parse := preload("res://Store/observable_parse.gd")
 const Roads := preload("res://Store/road_book.gd")
@@ -36,9 +37,9 @@ static func apply_observable(store, delta: Dictionary) -> void:
 		store.items_changed.emit()
 	if delta.get("climate") is Dictionary:
 		store.climate = Parse.climate(delta.climate)
-		Parse.at_hour(store.climate.get("weather", {}), int(delta.get("tick", -1)))
+		Parse.at_hour(store.climate.get("weather", {}), WorldTime.hours_of(delta, "second", -1))
 		store.climate_changed.emit()
-	elif store.climate.get("weather") is Dictionary and Parse.at_hour(store.climate.weather, int(delta.get("tick", -1))):
+	elif store.climate.get("weather") is Dictionary and Parse.at_hour(store.climate.weather, WorldTime.hours_of(delta, "second", -1)):
 		store.climate_changed.emit() # AD-189: a hora nova da curva do dia (o servidor não reenvia o clima por isso)
 
 

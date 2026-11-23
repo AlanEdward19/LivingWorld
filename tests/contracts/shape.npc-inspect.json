@@ -1,5 +1,5 @@
 {
-  "actionStartedAtTick": "number",
+  "actionStartedAtSecond": "number",
   "actionTarget?": {
     "id": "string",
     "kind": "string"
@@ -12,7 +12,7 @@
   },
   "cognitionTrace": [
     {
-      "tick": "number",
+      "second": "number",
       "trace": {
         "blockingFactors": [
           "string"

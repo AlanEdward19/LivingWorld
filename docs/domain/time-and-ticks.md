@@ -9,13 +9,17 @@ O mundo tem um `WorldDate` — ano, mês, dia e hora **do cenário**. O relógio
 nunca é fonte da verdade: ele só decide *quando* o próximo tick acontece em tempo real,
 nunca *que horas são* no mundo.
 
+O tempo é guardado em **segundos inteiros** e cada tick avança Δ segundos (ADR-0050): Δ = 1 hora sem jogador; os
+sistemas rodam ao cruzar a fronteira do calendário. Regras, save, contrato v2 e o que ainda é hora:
+[time-in-seconds.md](time-in-seconds.md).
+
 O calendário é dado do cenário (quantos meses no ano, dias no mês, horas no dia). Um
 cenário pode ter 12 meses de 30 dias; outro, 8 meses de 40. Nada no motor assume o
 calendário gregoriano.
 
 ## Escala de ticks
 
-Cada escala é uma frequência de execução; um tick maior acontece "por cima" dos menores.
+Cada escala é uma frequência de execução, que roda no tick que chega à fronteira; um tick maior acontece "por cima" dos menores.
 
 | Escala | Passo | O que roda aqui |
 |---|---|---|
@@ -69,3 +73,4 @@ Sem isso, snapshot, replay e reprodução de bug deixam de funcionar.
 - [economy.md](economy.md) — quais sistemas econômicos rodam em cada escala
 - [history.md](history.md) — como eventos processados viram linha do tempo
 - [behavior.md](behavior.md) — decisão de NPC dentro do tick Hourly/Daily
+- [time-in-seconds.md](time-in-seconds.md) — segundos, Δ variável, contrato v2 (ADR-0050)

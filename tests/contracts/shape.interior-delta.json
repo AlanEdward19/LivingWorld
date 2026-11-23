@@ -1,8 +1,8 @@
 {
   "fromCursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   },
   "payload": {
     "buildingId": {
@@ -59,7 +59,7 @@
         }
       }
     ],
-    "tick": "number"
+    "second": "number"
   },
   "scope": {
     "kind": "number",
@@ -68,7 +68,7 @@
   },
   "toCursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   }
 }

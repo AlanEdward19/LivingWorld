@@ -36,7 +36,7 @@ public class HistoryEndpointTests : IClassFixture<LivingWorldApiFactory>
     [Fact]
     public async Task Truth_without_engine_scope_is_forbidden()
     {
-        var response = await _factory.CreateClient().GetAsync("/history/truth?scope=engine&fromTick=0");
+        var response = await _factory.CreateClient().GetAsync("/history/truth?scope=engine&fromSecond=0");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
         var wrong = ScopedFactory().CreateClient();
@@ -54,7 +54,7 @@ public class HistoryEndpointTests : IClassFixture<LivingWorldApiFactory>
         var client = scoped.CreateClient();
         client.DefaultRequestHeaders.Add(HistoryEndpoints.ScopeHeader, Token);
 
-        var response = await client.GetAsync("/history/truth?scope=engine&fromTick=0");
+        var response = await client.GetAsync("/history/truth?scope=engine&fromSecond=0");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<List<TruthFactView>>();

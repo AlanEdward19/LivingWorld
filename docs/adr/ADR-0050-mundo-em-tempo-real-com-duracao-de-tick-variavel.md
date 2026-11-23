@@ -1,7 +1,8 @@
 # ADR-0050: mundo em tempo real com duração de tick variável
 
 - **Status**: aceito (dono, 2026-11-23: opção (b); padrão sem jogador rápido no ritmo do admin; contrato em versão nova).
-  Migração não começou (AD-197a só desenhou).
+  AD-197b fez a unidade em segundos, o Δ variável no relógio, o contrato v2 e o cliente ([time-in-seconds](../domain/time-in-seconds.md));
+  falta o modo fino com jogador (AD-197c).
 - **Data**: 2026-11-23
 - **Decisores**: dono do projeto; rascunho por agente
 

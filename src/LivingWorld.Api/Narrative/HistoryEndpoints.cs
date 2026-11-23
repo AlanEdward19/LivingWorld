@@ -15,11 +15,11 @@ public static class HistoryEndpoints
 
     public static void MapHistoryEndpoints(this WebApplication app, WorldHost host)
     {
-        app.MapGet("/history/truth", (HttpContext http, IConfiguration config, string? scope, long? fromTick) =>
+        app.MapGet("/history/truth", (HttpContext http, IConfiguration config, string? scope, long? fromSecond) =>
         {
             string? presented = http.Request.Headers[ScopeHeader].FirstOrDefault();
             var grant = EngineScope.TryGrant(presented, config["HISTORY_ENGINE_SCOPE_TOKEN"]);
-            var facts = HistoryTruthGateway.Skeleton(host.Current, grant, fromTick ?? 0);
+            var facts = HistoryTruthGateway.Skeleton(host.Current, grant, LivingWorld.Api.Realtime.WireSeconds.HoursFrom(fromSecond ?? 0));
             return facts.IsSuccess ? Results.Ok(facts.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
         });
 

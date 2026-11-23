@@ -1,6 +1,6 @@
 {
   "name": "string",
   "savedAtUtc": "string",
-  "tick": "number",
+  "second": "number",
   "worldId": "string"
 }

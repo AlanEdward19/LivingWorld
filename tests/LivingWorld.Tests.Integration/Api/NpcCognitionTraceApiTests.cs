@@ -14,6 +14,10 @@ namespace LivingWorld.Tests.Integration.Api;
 /// <see cref="NpcInspectionDto.CognitionTrace"/> a partir de <see cref="WorldState.CognitionLog"/>.</summary>
 public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFactory>
 {
+    /// <summary>Contrato v2 (ADR-0050): o tempo vem em segundos; lido de volta em horas como o cliente .NET faria.</summary>
+    private static readonly System.Text.Json.JsonSerializerOptions V2 =
+        LivingWorld.Api.Realtime.WireSeconds.Apply(new(System.Text.Json.JsonSerializerDefaults.Web));
+
     private readonly LivingWorldApiFactory _factory;
 
     public NpcCognitionTraceApiTests(LivingWorldApiFactory factory) => _factory = factory;
@@ -44,7 +48,7 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
         var response = await client.GetAsync($"/npcs/{id}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var dto = await response.Content.ReadFromJsonAsync<NpcInspectionDto>();
+        var dto = await response.Content.ReadFromJsonAsync<NpcInspectionDto>(V2);
         Assert.NotNull(dto);
         Assert.NotNull(dto!.CognitionTrace);
         Assert.Empty(dto.CognitionTrace);
@@ -61,7 +65,7 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
         var response = await client.GetAsync($"/npcs/{npc.Id.Value}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var dto = await response.Content.ReadFromJsonAsync<NpcInspectionDto>();
+        var dto = await response.Content.ReadFromJsonAsync<NpcInspectionDto>(V2);
         Assert.NotNull(dto);
         Assert.Single(dto!.CognitionTrace);
         Assert.Equal(10, dto.CognitionTrace[0].Tick);
@@ -78,7 +82,7 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
         var expected = World.CognitionLog.RecentEntries(npc.Id, int.MaxValue);
         var client = _factory.CreateClient();
 
-        var dto = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}");
+        var dto = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}", V2);
 
         Assert.NotNull(dto);
         Assert.Equal(expected.Count, dto!.CognitionTrace.Count);
@@ -98,8 +102,8 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
         World.CognitionLog.Record(npc.Id, 5, SampleTrace());
         var client = _factory.CreateClient();
 
-        var first = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}");
-        var second = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}");
+        var first = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}", V2);
+        var second = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}", V2);
 
         Assert.NotNull(first);
         Assert.NotNull(second);
@@ -139,7 +143,7 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
             World.CognitionLog.Record(npc.Id, tick, SampleTrace((ActionType)tick));
         var client = _factory.CreateClient();
 
-        var dto = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}");
+        var dto = await client.GetFromJsonAsync<NpcInspectionDto>($"/npcs/{npc.Id.Value}", V2);
 
         Assert.NotNull(dto);
         Assert.Equal(3, dto!.CognitionTrace.Count);

@@ -1,8 +1,8 @@
 {
   "fromCursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   },
   "payload": {
     "animalRemoved": [
@@ -129,7 +129,7 @@
           "offerPm": "number",
           "progress": "number",
           "stalled": "boolean",
-          "startedTick": "number"
+          "startedSecond": "number"
         }
       }
     ],
@@ -268,7 +268,7 @@
           "x": "number",
           "y": "number"
         },
-        "tick": "number"
+        "second": "number"
       }
     ],
     "faunaGroupRemoved": [
@@ -308,7 +308,7 @@
           "x": "number",
           "y": "number"
         },
-        "tick": "number",
+        "second": "number",
         "units": "number"
       }
     ],
@@ -330,7 +330,7 @@
     ],
     "npcUpserts": [
       {
-        "actionStartedAtTick?": "number",
+        "actionStartedAtSecond?": "number",
         "actionTarget?": {
           "id": "string",
           "kind": "string"
@@ -422,8 +422,8 @@
             "y": "number"
           }
         ],
-        "routeArrivalTick?": "number",
-        "routeDepartedTick?": "number",
+        "routeArrivalSecond?": "number",
+        "routeDepartedSecond?": "number",
         "routeOver?": [
           "number"
         ]
@@ -517,7 +517,7 @@
         }
       }
     ],
-    "tick": "number",
+    "second": "number",
     "workRemoved": [
       "number"
     ],
@@ -541,7 +541,7 @@
         "householdId?": "number",
         "id": "number",
         "kind": "string",
-        "lastWorkedTick": "number",
+        "lastWorkedSecond": "number",
         "location": {
           "x": "number",
           "y": "number"
@@ -565,7 +565,7 @@
         "progress": "number",
         "spent": "number",
         "stalled": "boolean",
-        "startedTick": "number",
+        "startedSecond": "number",
         "typeName?": "string"
       }
     ]
@@ -577,7 +577,7 @@
   },
   "toCursor": {
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "second": "number",
+    "sequence": "number"
   }
 }

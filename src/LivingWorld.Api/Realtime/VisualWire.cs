@@ -9,12 +9,12 @@ namespace LivingWorld.Api.Realtime;
 /// "ausente = igual ao anterior" de <c>docs/domain/observable-projection.md</c>.</summary>
 public static class VisualWire
 {
-    public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web);
+    public static JsonSerializerOptions Options { get; } = WireSeconds.Apply(new(JsonSerializerDefaults.Web));
 
-    public static JsonSerializerOptions DeltaOptions { get; } = new(JsonSerializerDefaults.Web)
+    public static JsonSerializerOptions DeltaOptions { get; } = WireSeconds.Apply(new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    });
 
     /// <summary>As opções certas para o que vai sair: envelope (ou lista de envelopes) de delta de escopo usa
     /// <see cref="DeltaOptions"/>; o resto, <see cref="Options"/>.</summary>

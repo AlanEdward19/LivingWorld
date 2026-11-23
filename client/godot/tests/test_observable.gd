@@ -58,8 +58,8 @@ func test_new_building_from_a_delta_is_drawn_with_its_plan_and_no_extra_read() -
 func test_located_event_becomes_a_clickable_marker_that_fades() -> void:
 	var app = await T.make_app(tree, T.transport())
 	app.stream.delta_applied.emit(Fx.delta(0, 1, {"events": [
-		{"tick": 12, "kind": 3, "label": "Incêndio no celeiro", "location": {"x": 2, "y": 3}},
-		{"tick": 12, "kind": 1, "label": "Sem lugar", "location": null}]}))
+		{"second": 12 * 3600, "kind": 3, "label": "Incêndio no celeiro", "location": {"x": 2, "y": 3}},
+		{"second": 12 * 3600, "kind": 1, "label": "Sem lugar", "location": null}]}))
 	eq(app.world_view.events.count(), 1, "só o evento com lugar vira marcador")
 	check(app.toasts.history.has("Incêndio no celeiro") and app.toasts.history.has("Sem lugar"), "o aviso de texto continua")
 	var id: int = app.world_view.events.positions.keys()[0]

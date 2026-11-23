@@ -35,7 +35,9 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot).
-builder.Services.AddOpenApi();
+// ADR-0050 (AD-197b): contrato v2, campos de tempo em segundos (LivingWorld.Api.Realtime.WireSeconds); o v1 não é mantido.
+builder.Services.AddOpenApi("v2");
+builder.Services.ConfigureHttpJsonOptions(o => LivingWorld.Api.Realtime.WireSeconds.Apply(o.SerializerOptions));
 
 // Testes continuam isolados em memória quando não configuram conexão. O app iniciado por
 // run.cmd injeta um SQLite em disco, portanto o último mundo sobrevive ao restart da API.

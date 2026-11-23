@@ -31,7 +31,7 @@ public class CultureTechnologyEndpointTests : IClassFixture<LivingWorldApiFactor
         world.AddTechnology(new Technology(
             npc.Culture, EmergenceRules.MobilityCategory, new TechnologyVector([2, 4, 6]), 50, city, null, [city]));
 
-        var response = await _factory.CreateClient().GetAsync($"/cultures/{npc.Culture.Id}/technologies?fromTick=0");
+        var response = await _factory.CreateClient().GetAsync($"/cultures/{npc.Culture.Id}/technologies?fromSecond=0");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<List<TechnologyView>>();
@@ -39,7 +39,7 @@ public class CultureTechnologyEndpointTests : IClassFixture<LivingWorldApiFactor
         Assert.Equal(1, view.AdoptedByCities);
         Assert.False(view.IsVariation);
 
-        var later = await _factory.CreateClient().GetFromJsonAsync<List<TechnologyView>>($"/cultures/{npc.Culture.Id}/technologies?fromTick=51");
+        var later = await _factory.CreateClient().GetFromJsonAsync<List<TechnologyView>>($"/cultures/{npc.Culture.Id}/technologies?fromSecond={51 * 3600}");
         Assert.DoesNotContain(later!, t => t.Key == "2.4.6");
     }
 

@@ -63,14 +63,14 @@ public class WorldInfoAndPauseStatusTests
         Assert.False(running["isPaused"]!.GetValue<bool>());
         Assert.Null(running["pausedBy"]);
 
-        await admin.PostAsJsonAsync("/admin/world/pause", new { reason = "manutenção", maxTicks = 48 });
+        await admin.PostAsJsonAsync("/admin/world/pause", new { reason = "manutenção", maxSeconds = 48 * 3600 });
 
         var paused = JsonNode.Parse(await anyone.GetStringAsync("/simulation/status"))!;
         Assert.True(paused["isPaused"]!.GetValue<bool>());
         Assert.Equal("alan", paused["pausedBy"]!.GetValue<string>());
         Assert.Equal("manutenção", paused["pauseReason"]!.GetValue<string>());
-        Assert.Equal(48, paused["pauseMaxTicks"]!.GetValue<long>());
-        Assert.NotNull(paused["pausedAtTick"]);
+        Assert.Equal(48 * 3600, paused["pauseMaxSeconds"]!.GetValue<long>());
+        Assert.NotNull(paused["pausedAtSecond"]);
 
         await admin.PostAsync("/admin/world/resume", null);
 

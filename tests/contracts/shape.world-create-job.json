@@ -7,7 +7,7 @@
     "initialScope": "string",
     "name": "string",
     "npcCount": "number",
-    "tick": "number",
+    "second": "number",
     "worldId": "string"
   },
   "running": "boolean",

@@ -4,8 +4,8 @@
     "actor": "string",
     "branchId": "number",
     "detail": "string",
+    "second": "number",
     "sequence": "number",
-    "target": "string",
-    "tick": "number"
+    "target": "string"
   }
 ]

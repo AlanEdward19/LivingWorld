@@ -2,6 +2,7 @@ extends PanelContainer
 ## Painel "Cérebro": as decisões recentes de um NPC (`cognitionTrace` de GET /npcs/{id}) em linha do tempo e,
 ## ao escolher uma, o fluxo Estímulo → Ponderação → Decisão. Só mostra o que o servidor gravou: nada é
 ## recalculado aqui. O rastro existe só para NPC em cidade/interior observados (ver ScopeObserver) ou vigiado.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal closed()
 signal warning(text: String)
@@ -255,11 +256,11 @@ func refresh(force: bool = false) -> void:
 		_show_empty(EMPTY_GONE)
 		return
 	var trace: Array = npc.get("cognitionTrace", [])
-	var latest := -1 if trace.is_empty() else int(trace.back().tick)
-	var current := -1 if entries.is_empty() else int(entries[0].tick)
+	var latest := -1 if trace.is_empty() else WorldTime.hours_of(trace.back(), "second")
+	var current := -1 if entries.is_empty() else WorldTime.hours_of(entries[0], "second")
 	if not force and latest == current and trace.size() == entries.size():
 		return # nada novo: não redesenha
-	var kept_tick := -1 if selected < 0 or selected >= entries.size() else int(entries[selected].tick)
+	var kept_tick := -1 if selected < 0 or selected >= entries.size() else WorldTime.hours_of(entries[selected], "second")
 	entries = trace.duplicate()
 	entries.reverse()
 	_rebuild_timeline()
@@ -271,7 +272,7 @@ func refresh(force: bool = false) -> void:
 	var index := 0
 	if not _follow_latest:
 		for i in entries.size():
-			if int(entries[i].tick) == kept_tick:
+			if WorldTime.hours_of(entries[i], "second") == kept_tick:
 				index = i
 	select_entry(index, false)
 
@@ -313,7 +314,7 @@ func _rebuild_timeline() -> void:
 	for entry in entries:
 		var trace: Dictionary = entry.trace
 		var action: String = labels.label_for(int(trace.winner)) if labels != null else str(trace.winner)
-		timeline.add_item("%s · %s · %s" % [date_of.call(int(entry.tick)), action, WAKE.get(int(trace.wakeReason), WAKE[0])])
+		timeline.add_item("%s · %s · %s" % [date_of.call(WorldTime.hours_of(entry, "second")), action, WAKE.get(int(trace.wakeReason), WAKE[0])])
 
 
 func select_entry(index: int, user_choice: bool = true) -> void:

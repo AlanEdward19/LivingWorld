@@ -40,13 +40,13 @@
         "x": "number",
         "y": "number"
       },
-      "tick": "number"
+      "second": "number"
     }
   ],
   "state": {
     "buildingTypeId": "number",
     "cityId": "string",
-    "completedAtTick": "number",
+    "completedAtSecond": "number",
     "floors": "number",
     "fullStock": "[]",
     "id": "number",

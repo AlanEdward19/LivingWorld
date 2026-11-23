@@ -9,9 +9,9 @@ public static class CultureTechnologyEndpoints
 {
     public static void MapCultureTechnologyEndpoints(this WebApplication app, WorldHost host)
     {
-        app.MapGet("/cultures/{id:int}/technologies", (int id, long? fromTick) =>
+        app.MapGet("/cultures/{id:int}/technologies", (int id, long? fromSecond) =>
         {
-            var result = CultureTechnologyQuery.Of(host.Current, new CultureId(id), fromTick ?? 0);
+            var result = CultureTechnologyQuery.Of(host.Current, new CultureId(id), LivingWorld.Api.Realtime.WireSeconds.HoursFrom(fromSecond ?? 0));
             return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
         });
     }

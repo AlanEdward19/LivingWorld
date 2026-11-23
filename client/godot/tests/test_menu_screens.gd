@@ -100,7 +100,7 @@ func test_pause_menu_saves_now_and_says_when() -> void:
 	var fake = T.transport()
 	fake.on("GET /worlds", {"status": 200, "body": [{"worldId": "a", "name": "A", "isCurrent": true, "lastSavedAtUtc": "2020-01-01T00:00:00+00:00"}]})
 	var now := Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()), false) + "Z"
-	fake.on("POST /world/save", {"status": 200, "body": {"worldId": "a", "name": "A", "tick": 5, "savedAtUtc": now}})
+	fake.on("POST /world/save", {"status": 200, "body": {"worldId": "a", "name": "A", "second": 5 * 3600, "savedAtUtc": now}})
 	var app = await T.make_app(tree, fake)
 	app.api.validate_shapes = false
 	await app.pause_menu.open()

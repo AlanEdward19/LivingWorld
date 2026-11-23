@@ -1,6 +1,7 @@
 extends RefCounted
 ## Monta a interface do App (barra do topo, inspetor, lista, janelas, minimapa, avisos, ajuda, dica e carregamento)
 ## e liga os sinais de cada painel às ações do App. Só construção: comportamento mora no App e nos módulos.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 const Panels := preload("res://Scenes/panels.gd")
 const UiTheme := preload("res://Scenes/ui_theme.gd")
@@ -209,7 +210,7 @@ static func _windows(app, ui: Control) -> void:
 	app.narrative = NarrativeWindow.new()
 	app.narrative.api = app.api
 	app.narrative.calendar_of = func() -> Dictionary: return _calendar(app)
-	app.narrative.tick_now = func() -> int: return int(app.clock_panel.status.get("tick", 0))
+	app.narrative.tick_now = func() -> int: return WorldTime.hours_of(app.clock_panel.status, "second")
 	app.narrative.date_of = app._date_text
 	app.admin_window = AdminWindow.new()
 	app.admin_window.api = app.api

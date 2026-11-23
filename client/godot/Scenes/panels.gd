@@ -429,7 +429,7 @@ class ClockPanel extends HBoxContainer:
 		else:
 			status = response.body
 			status_text = "%s · %s ticks/s · tick %d · ano %d%s" % [
-				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), int(status.tick), int(status.year),
+				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), preload("res://Contract/world_time.gd").hours_of(status, "second"), int(status.year),
 				"" if can_control else " · tempo: só admin"]
 			for i in _speed_buttons.size():
 				_speed_buttons[i].button_pressed = is_equal_approx(SPEEDS[i], float(status.ticksPerSecond))

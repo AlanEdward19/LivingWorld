@@ -40,12 +40,12 @@
         "x": "number",
         "y": "number"
       },
-      "tick": "number"
+      "second": "number"
     }
   ],
   "state": {
     "npc": {
-      "actionStartedAtTick": "number",
+      "actionStartedAtSecond": "number",
       "actionTarget?": {
         "id": "string",
         "kind": "string"

@@ -158,8 +158,8 @@ func _on_delta(generation: int, envelope: Dictionary) -> void:
 
 
 func _replay(generation: int) -> void:
-	var path := "/visual/replay?%s&sinceTick=%d&sinceSequence=%d" % [
-		_scope_query(), int(cursor.get("tick", 0)), int(cursor.get("sequence", 0))]
+	var path := "/visual/replay?%s&sinceSecond=%d&sinceSequence=%d" % [
+		_scope_query(), int(cursor.get("second", 0)), int(cursor.get("sequence", 0))]
 	var response: Dictionary = await transport.request("GET", path)
 	if generation != _generation:
 		return
@@ -186,8 +186,8 @@ func _on_channel_closed(generation: int) -> void:
 		await sleeper.call(delay)
 		if generation != _generation:
 			return
-		var path := "/visual/replay?%s&sinceTick=%d&sinceSequence=%d" % [
-			_scope_query(), int(cursor.get("tick", 0)), int(cursor.get("sequence", 0))]
+		var path := "/visual/replay?%s&sinceSecond=%d&sinceSequence=%d" % [
+			_scope_query(), int(cursor.get("second", 0)), int(cursor.get("sequence", 0))]
 		var response: Dictionary = await transport.request("GET", path)
 		if generation != _generation:
 			return

@@ -2,6 +2,7 @@ extends PanelContainer
 ## Janela de narrativa: biografia de um NPC, crônica de uma cidade e relatos circulando (`/narratives/*`).
 ## O texto é o que o servidor escreveu a partir das crenças da comunidade; o cliente só o mostra, com as
 ## afirmações (`claims`) e os eventos que as sustentam. Datas dos períodos vêm do calendário do servidor.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal closed()
 signal warning(text: String)
@@ -215,7 +216,7 @@ func _render_beliefs(items: Variant) -> void:
 		title.custom_minimum_size.x = 560
 		box.add_child(title)
 		var row := HBoxContainer.new()
-		var detail := "magnitude %s · %s" % [str(snappedf(float(item.distortedMagnitude), 0.01)), date_of.call(int(item.distortedTick))]
+		var detail := "magnitude %s · %s" % [str(snappedf(float(item.distortedMagnitude), 0.01)), date_of.call(WorldTime.hours_of(item, "distortedSecond"))]
 		var label := Label.new()
 		label.text = detail
 		label.custom_minimum_size.x = 300

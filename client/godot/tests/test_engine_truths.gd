@@ -56,11 +56,11 @@ func test_the_hour_comes_from_the_engine_curve_when_the_climate_is_not_resent() 
 	check(not Parse.at_hour(parsed.weather, 15), "a mesma hora: nada muda")
 	var app = await S.city_app(tree)
 	var envelope := O.delta({"climate": W.climate({"hourlyC": hourly, "hourlyFeelsLikeC": feels})})
-	envelope.payload.tick = 5
+	envelope.payload.second = 5 * 3600
 	app.stream.delta_applied.emit(envelope)
 	eq(app.store.climate.weather.now_c, 5.0)
 	var next := O.delta({})
-	next.payload.tick = 9
+	next.payload.second = 9 * 3600
 	app.stream.delta_applied.emit(next)
 	eq(app.store.climate.weather.now_c, 9.0, "delta sem clima: a hora sai da curva")
 	app.queue_free()
