@@ -175,6 +175,7 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.api = app.api
 	app.player_hud.labels = app.labels
 	app.player_hud.player_id = app.player_id if app.player_id != "" else PlayerProfile.load_or_create()
+	app.player_hud.session_enabled = true # AD-197a: sessão por token e canal persistente; o id local fica só como reserva
 	app.player_hud.warning.connect(func(text: String): app.toasts.push(text))
 	app.player_hud.released.connect(func(): app.unfollow())
 	app.player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)

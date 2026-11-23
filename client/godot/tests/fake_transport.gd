@@ -18,6 +18,21 @@ class FakeChannel extends "res://Contract/channel.gd":
 	func close() -> void:
 		open = false
 
+	var sent: Array = [] ## comandos enviados pelo canal do jogador
+	var replier: Callable ## (comando) -> resposta; vazio = o teste responde à mão com push
+
+	func send(data) -> bool:
+		if not open:
+			return false
+		sent.append(data)
+		if replier.is_valid():
+			var reply = replier.call(data)
+			Engine.get_main_loop().process_frame.connect(func(): message.emit(reply), CONNECT_ONE_SHOT)
+		return true
+
+	func is_open() -> bool:
+		return open
+
 
 var routes: Dictionary = {} ## "GET /visual/subscribe" -> Dictionary{status, body} ou Callable -> Dictionary
 var calls: Array[String] = [] ## "GET /caminho?query"
@@ -46,10 +61,17 @@ func request(method: String, path: String, body: Variant = null, extra_headers: 
 	return {"status": 0, "body": null}
 
 
-func open_channel(path: String):
+var channel_headers: Dictionary = {} ## "WS caminho" -> cabeçalhos do aperto de mão
+var channel_replier: Callable ## respostas automáticas do canal do jogador (comando -> resposta)
+
+
+func open_channel(path: String, extra_headers: Dictionary = {}):
 	var channel := FakeChannel.new()
 	channels.append(channel)
 	calls.append("WS %s" % path)
+	channel_headers["WS %s" % path] = extra_headers
+	if channel_replier.is_valid():
+		channel.replier = channel_replier
 	return channel
 
 

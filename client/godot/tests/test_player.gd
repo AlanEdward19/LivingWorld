@@ -441,6 +441,47 @@ func test_the_powers_the_npc_carries_become_buttons_that_post_use_power_with_the
 	hud.free()
 
 
+func test_with_a_session_the_player_comes_from_the_token_and_commands_go_through_the_persistent_channel() -> void:
+	var transport := _transport()
+	transport.on("POST /sessions", {"status": 200, "body": {"sessionToken": "tok-1", "playerId": "p-srv"}})
+	transport.channel_replier = func(command: Dictionary) -> Dictionary:
+		var body := {"npcId": 7, "playerId": "p-srv"} if command.command == "incarnate" else {"playerId": "p-srv", "action": command.get("action")}
+		return {"seq": command.seq, "ok": true, "status": 200, "body": body}
+	var hud := _hud(transport)
+	hud.session_enabled = true
+
+	var ok: bool = await hud.incarnate(7, "Ana") # a sessão nasce aqui e o canal persistente abre com o token
+	eq(ok, true)
+	eq(hud.player_id, "p-srv", "o jogador vem da sessão do servidor, não do id local")
+	eq(transport.channel_headers["WS /players/ws"], {"Authorization": "Bearer tok-1"}, "o canal abre com o token")
+
+	await hud.act("Work")
+	var channel = transport.channels.back()
+	eq(channel.sent.size(), 2, "conectado, os comandos vão pelo canal persistente")
+	eq([channel.sent[0].command, channel.sent[1].command], ["incarnate", "action"])
+	eq(channel.sent[1].action, "Work")
+	eq([int(channel.sent[0].seq), int(channel.sent[1].seq)], [1, 2], "comandos numerados")
+	eq(hud.current_action, "Work", "a resposta pelo canal vale como a da rota")
+	eq(transport.count_calls("POST /players"), 0, "sem requisição HTTP enquanto o canal está aberto")
+
+	channel.drop() # o canal caiu: a rota HTTP segue valendo, com o token
+	await hud.act("Eat")
+	eq(transport.headers_of["POST /players/p-srv/action"], [{"Authorization": "Bearer tok-1"}], "a rota leva o token")
+	hud.free()
+
+
+func test_a_server_without_sessions_keeps_the_local_mode() -> void:
+	var transport := _transport()
+	transport.on("POST /sessions", {"status": 404, "body": null})
+	var hud := _hud(transport)
+	hud.session_enabled = true
+	var ok: bool = await hud.incarnate(7, "Ana")
+	eq(ok, true)
+	eq(hud.player_id, "p-1", "servidor antigo: segue com o id local")
+	eq(transport.bodies["POST /players/7/incarnate"], [{"playerId": "p-1"}])
+	hud.free()
+
+
 class SlowIncarnate extends "res://tests/fake_transport.gd":
 	signal release()
 	var arrived := 0

@@ -40,6 +40,9 @@ public sealed class SavedWorldLibrary : IDisposable
     /// do AD-175, que não a guardava.</summary>
     public const ulong BootstrapSeed = 1;
     public object Gate { get; } = new();
+
+    /// <summary>Pasta dos saves (nula em memória): o registro de comandos do jogador fica ao lado (AD-197a, ADR-0048).</summary>
+    public string? WorldsDirectory => _directory;
     public Guid CurrentId { get { lock (Gate) return _current; } }
     public PersistentWorldRunner Runner => _entries[_current].Runner;
     public IWorldRepository Repository => _entries[_current].Repository;

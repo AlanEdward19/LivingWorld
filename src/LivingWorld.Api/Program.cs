@@ -128,6 +128,12 @@ builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
 var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
 builder.Services.AddSingleton(playerService);
+// ADR-0048 (AD-197a): sessão do jogador por token do hospedeiro; PLAYER_AUTH=required exige o token nas rotas do jogador
+var playerTokens = new LivingWorld.Api.Players.PlayerSessionTokens(TimeProvider.System);
+var playerGateway = new LivingWorld.Api.Players.PlayerCommandGateway(
+    worldHost, simulationHost, playerService, savedWorlds, new LivingWorld.Api.Players.PlayerLogStore(savedWorlds.WorldsDirectory));
+builder.Services.AddSingleton(playerTokens);
+builder.Services.AddSingleton(playerGateway);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
@@ -233,7 +239,8 @@ app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
 app.MapTradeEndpoints(worldHost);
 app.MapTreasuryEndpoints(worldHost);
-app.MapPlayerEndpoints(worldHost, playerService);
+app.MapPlayerEndpoints(playerGateway, playerTokens, builder.Configuration["PLAYER_AUTH"] == "required");
+LivingWorld.Api.Players.PlayerChannelEndpoints.MapPlayerChannelEndpoints(app, playerGateway, playerTokens);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
