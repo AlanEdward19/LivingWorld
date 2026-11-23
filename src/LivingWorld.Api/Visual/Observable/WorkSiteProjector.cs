@@ -159,7 +159,9 @@ public static class WorkSiteProjector
         foreach (var (resource, needed) in recipe.Inputs.OrderBy(kv => kv.Key.Id))
         {
             long placed = project.Consumed.GetValueOrDefault(resource);
-            materials.Add(new WorkMaterialVisual(resource.Id, names.Resource(resource.Id), needed, placed));
+            // AD-195: com a turma que anda, o que está no lote (o largo fica com o resto)
+            materials.Add(new WorkMaterialVisual(resource.Id, names.Resource(resource.Id), needed, placed)
+            { OnSite = project.MaterialOnSite is { } lot ? lot.GetValueOrDefault(resource.Id) : null });
             long target = tickIndex >= recipe.TicksToBuild ? needed : needed * tickIndex / Math.Max(1, recipe.TicksToBuild);
             long due = target - placed;
             if (project.TicksRemaining > 0 && project.HaulHoursLeft == 0 && project.HoursBanked > 0 && due > 0
@@ -197,11 +199,15 @@ public static class WorkSiteProjector
         if (npc.CurrentAction != ActionType.Work || !world.StreetsOn || world.Ground is null) return null;
         if (LivingWorld.Simulation.Cities.Streets.SiteWork.WorkOf(world, npc) is { } site)
         {
-            if (site.Build is { } build) return npc.CurrentLocation == new CellCoord(build.X, build.Y) ? build.Id : null;
-            if (site.Project is { WorkId: { } queued } project) return npc.CurrentLocation == new CellCoord(project.SiteX, project.SiteY) ? queued : null;
+            // AD-195: na fonte da viagem de material (despensa, banca, mata, largo) também trabalha na obra
+            if (site.Build is { } build) return npc.CurrentLocation == new CellCoord(build.X, build.Y) || WorkHaul.AtSource(build, npc) ? build.Id : null;
+            if (site.Project is { WorkId: { } queued } project)
+                return npc.CurrentLocation == new CellCoord(project.SiteX, project.SiteY)
+                    || (site.City is { } city && QueueHaul.AtSource(city, project, npc)) ? queued : null;
             return null;
         }
-        return LivingWorld.Simulation.Cities.Streets.SiteWork.HelpOf(world, npc) is { } help && npc.CurrentLocation == new CellCoord(help.X, help.Y)
+        return LivingWorld.Simulation.Cities.Streets.SiteWork.HelpOf(world, npc) is { } help
+            && (npc.CurrentLocation == new CellCoord(help.X, help.Y) || WorkHaul.AtSource(help, npc))
             ? help.Id
             : null;
     }

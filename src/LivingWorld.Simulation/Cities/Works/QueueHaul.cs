@@ -109,7 +109,7 @@ internal static class QueueHaul
             if (missing <= 0) continue;
             long day = Math.Min(total - placed, (total * dayHours + ticks - 1) / ticks);
             if (onSite >= Math.Max(1, day)) continue; // o que vem a caminho ainda não serve à parede
-            if (city.Stock.GetValueOrDefault(resource) <= 0) { lacking |= onSite <= 0; continue; }
+            if (city.Stock.GetValueOrDefault(resource) <= 0) { lacking |= onSite <= 0 && coming <= 0; continue; } // o que vem a caminho não falta
             long slack = onSite + coming - day; // o mais atrasado primeiro
             if (slack < worst) { worst = slack; want = resource.Id; wantUnits = missing; }
         }

@@ -164,8 +164,10 @@ public class WorkMaterialTests
         var adults = world.Npcs.Where(n => n.IsAlive && n.City.Value == work.City && !n.IsCarrying
             && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LifeStage.Adult).Take(3).Select(n => n.Id.Value).ToList();
         work.Helpers = adults;
+        work.MaterialNeeded = 100; // mais do que duas mãos levam: cada um carrega o que aguenta
         for (int h = 0; h < 3; h++) Hour(world, ctx);
         Assert.Equal(3, work.Hauls.Select(t => t.Npc).Distinct().Count());
+        Assert.All(work.Hauls, t => Assert.Equal(WorkHaul.CapacityUnits(world, world.FindNpc(new NpcId(t.Npc))!, new ResourceType(work.MaterialResource)), t.Units)); // carga cheia
     }
 
     [Fact]
@@ -177,5 +179,44 @@ public class WorkMaterialTests
         Assert.Empty(work.Hauls);
         BuildWorks.Progress(world, ctx, work, builder, 24, 0, world.CurrentDate.TotalHours);
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived);
+    }
+
+    [Fact]
+    public void The_city_queue_crew_fetches_from_the_square_stock_and_stops_with_an_event_when_it_runs_out()
+    {
+        var (world, clock) = ScenarioRunner.Create(3);
+        clock.Run(world, 24);
+        var sink = new Sink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        var city = world.ActiveCities().First();
+        var timber = new ResourceType(3);
+        var recipe = BuildingRecipe.Create(new Dictionary<ResourceType, long> { [timber] = 6 }, 6, 4).Value!;
+        var worker = world.Npcs.First(n => n.IsAlive && n.City == city.Id && !n.IsCarrying);
+        var project = new LivingWorld.Domain.Cities.Buildings.ConstructionProject(city.Id, 1, new Dictionary<ResourceType, long>(), 6)
+        { SiteX = city.Location.X + 3, SiteY = city.Location.Y + 3, WorkId = 9_000, Crew = [worker.Id.Value] };
+        city.DepositStock(timber, 4);
+
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.Single(project.Hauls!);
+        worker.MoveTo(city.Location, world.CurrentDate.TotalHours);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.True(worker.IsCarrying, "pegou no largo");
+        worker.MoveTo(new CellCoord(project.SiteX, project.SiteY), world.CurrentDate.TotalHours);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.True(project.MaterialOnSite![timber.Id] > 0);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialArrived && e.Payload.EndsWith("|largo", StringComparison.Ordinal));
+
+        while (project.Hauls is { Count: > 0 } || city.Stock.GetValueOrDefault(timber) > 0)
+        {
+            worker.MoveTo(city.Location, world.CurrentDate.TotalHours);
+            QueueHaul.Tick(world, ctx, city, project, recipe);
+            worker.MoveTo(new CellCoord(project.SiteX, project.SiteY), world.CurrentDate.TotalHours);
+            QueueHaul.Tick(world, ctx, city, project, recipe);
+            if (sink.Events.Count > 20) break;
+        }
+        project.MaterialOnSite![timber.Id] = 0; // a parede comeu o que veio; o largo está vazio
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        QueueHaul.Tick(world, ctx, city, project, recipe);
+        Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialShort);
     }
 }

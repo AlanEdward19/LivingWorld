@@ -185,6 +185,9 @@ public class MenuWorldsYearsReport
         if (Environment.GetEnvironmentVariable("LW_AD194") == "off") // AD-194: material em horas, sem eventos de dia perdido
             root["CityLayout"] = System.Text.Json.JsonSerializer.SerializeToNode(LivingWorld.Domain.Cities.CityLayoutRules.Default with
             { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd194() });
+        if (Environment.GetEnvironmentVariable("LW_AD195") is { } ad195) // AD-195: off|nowalk|nohome
+            root["CityLayout"] = System.Text.Json.JsonSerializer.SerializeToNode(LivingWorld.Domain.Cities.CityLayoutRules.Default with
+            { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithAd195Mode(ad195) });
         if (!string.IsNullOrEmpty(patch)) Merge(root, JsonNode.Parse(patch)!.AsObject());
         var loaded = LivingWorld.Simulation.Scenarios.ScenarioLoaderV2.LoadWorld(root.ToJsonString());
         if (!loaded.IsSuccess) throw new InvalidOperationException($"{period}: {loaded.Error}");
