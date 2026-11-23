@@ -17,6 +17,10 @@ public static class SignificanceCalculator
             [WorldEventKind.SearchGaveUp] = 0.6,
             [WorldEventKind.PresumedDead] = 0.85, // AD-196: pesa como uma morte
             [WorldEventKind.Returned] = 0.75,
+            [WorldEventKind.PossessionExpelled] = 0.8, // AD-197f
+            [WorldEventKind.PossessionSuspected] = 0.3,
+            [WorldEventKind.PossessionConcluded] = 0.7,
+            [WorldEventKind.PossessionConfronted] = 0.6,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
             [WorldEventKind.Dehydration] = 0.75,

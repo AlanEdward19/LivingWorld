@@ -211,7 +211,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
                 && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains("POST"))
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/action", "/players/{playerId}/logout",
-            "/players/{playerId}/move", "/players/{playerId}/strike"], routes); // rota nova sem cobertura reprova
+            "/players/{playerId}/move", "/players/{playerId}/persuade", "/players/{playerId}/strike"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
         var leaks = new List<string>();

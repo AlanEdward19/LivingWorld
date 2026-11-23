@@ -84,6 +84,7 @@ public static class PlayerChannelEndpoints
                 "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
                     new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
                 "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
+                "persuade" => new PlayerCommandRequest(PlayerCommandKind.Persuade),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 _ => null,

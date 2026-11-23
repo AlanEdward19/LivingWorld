@@ -58,6 +58,9 @@ public sealed record PlayerRules
     /// o corpo tomado já marca, e ver o corpo ferir quem se ama marca mais.</summary>
     public LifeEventImpact Possessed { get; init; } = new(75, Fear: 0.7, Anger: 0.5, Grief: 0.3, Shame: 0.3);
 
+    /// <summary>AD-197f: as regras da posse comum como disputa de vontade, do estranhamento e da reação. Nulo = o padrão.</summary>
+    public PossessionRules Possession { get; init; } = PossessionRules.Default;
+
     public static readonly PlayerRules Default = new();
 
     public static readonly PlayerRules Off = new() { Enabled = false };

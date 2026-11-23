@@ -40,10 +40,13 @@ public static class PlayerCommands
         if (npc.ControllerId is not null) return Result<Unit>.Fail($"{Conflict} NPC já tem controlador");
         if (ControlledBy(world, playerId) is not null) return Result<Unit>.Fail($"{Conflict} jogador já controla outro NPC");
 
+        if (mode == PossessionMode.Common && PossessionContest.Prevents(world, npc, ctx.CurrentTick)) // AD-197f: vontade forte não deixa entrar
+            return Result<Unit>.Fail($"{Refused} a vontade de {npc.Name} impede a posse");
         if (npc.DisappearedAtTick is not null) LateReturn.Apply(world, ctx, npc, LateReturn.ByPlayer); // voltar depois de sumido
         var result = npc.Incarnate(playerId);
         if (!result.IsSuccess) return result;
         if (mode == PossessionMode.Full) npc.SetPossession(PossessionMode.Full, ctx.CurrentTick); // AD-197e: a pessoa fica presa
+        else PossessionContest.Begin(world, ctx, npc); // AD-197f: a disputa de vontade começa
         // AD-196: encarnar não é fato do mundo (ninguém dentro dele percebe quem conduz): fica no registro de sessões do hospedeiro
         if (!world.Players.Enabled)
             ctx.LogEvent(WorldEventKind.PlayerIncarnated, $"{npc.Id.Value}|{playerId}", sourceSystem: "PlayerCommands");
@@ -62,6 +65,22 @@ public static class PlayerCommands
             return Result<Unit>.Fail("powerId: o NPC não porta esse poder");
         npc.SetControlledAction(action, powerId);
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>AD-197f: o controlador pediu <paramref name="action"/> e quem convive compara com o costume da pessoa.</summary>
+    internal static void Witness(WorldState world, TickContext ctx, NpcId npcId, ActionType? action)
+    {
+        if (world.FindNpc(npcId) is { } npc) PossessionWitness.OnAction(world, ctx, npc, action);
+    }
+
+    /// <summary>AD-197f: quem possui tenta convencer a pessoa a ceder (posse comum): tira resistência, uma vez por hora.</summary>
+    public static Result<Unit> Persuade(WorldState world, TickContext ctx, NpcId npcId, string playerId)
+    {
+        var npc = world.FindNpc(npcId);
+        if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        return PossessionContest.Persuade(world, npc, ctx.CurrentTick)
+            ? Result<Unit>.Ok(Unit.Value)
+            : Result<Unit>.Fail("persuade: sem disputa de vontade agora (posse plena, regra desligada ou já tentou nesta hora)");
     }
 
     private static bool Carries(WorldState world, Npc npc, string? powerId) =>
@@ -99,17 +118,20 @@ public static class PlayerCommands
             return Result<Unit>.Fail("strike: alvo fora do alcance");
         if (!world.CrimeOn) return Result<Unit>.Fail("strike: violência desligada no cenário");
 
-        double care = PossessionWill.CareFor(world, npc, target);
+        // o quanto ferir vai contra a pessoa: vínculo (AD-197e) e, com a disputa de vontade, também os valores (AD-197f)
+        double care = PossessionContest.On(world) ? PossessionContest.HarmWeight(world, npc, target) : PossessionWill.CareFor(world, npc, target);
         bool against = world.Players.Enabled && care >= world.Players.RefuseHarmCare; // LW_AD196=off: sem vontade na posse
-        if (against && npc.ControlMode != PossessionMode.Full)
+        // AD-197f: na posse comum é uma disputa de vontade (valores, vínculos, cansaço, controle)
+        if (npc.ControlMode != PossessionMode.Full && PossessionContest.Refuses(world, npc, target, ctx.CurrentTick))
             return Result<Unit>.Fail(string.Create(CultureInfo.InvariantCulture,
-                $"{Refused} {npc.Name} não fere {target.Name} (cuidado {care:0})"));
+                $"{Refused} {npc.Name} não fere {target.Name} (peso {PossessionContest.HarmWeight(world, npc, target):0})"));
         if (npc.ControlMode == PossessionMode.Full)
             npc.RecordCaptiveObjection(target.Id.Value, against ? (int)Math.Round(care) : 0, ctx.CurrentTick);
 
         long tick = ctx.CurrentTick;
         LivingWorld.Simulation.Crime.Violence.Fight(world, ctx, npc, target, "jogador",
             ctx.OneShot($"player-strike-{npc.Id.Value}-{target.Id.Value}-{tick}"));
+        PossessionWitness.OnStrike(world, ctx, npc, target); // AD-197f: quem convive estranha
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -120,6 +142,7 @@ public static class PlayerCommands
         var npc = ControlledBy(world, playerId);
         if (npc is null) return Result<Npc>.Fail($"{NotFound} jogador não controla nenhum NPC");
         PossessionWill.Release(world, npc, ctx.CurrentTick);
+        PossessionContest.End(world, npc, ctx.CurrentTick); // AD-197f: o cansaço fica e recupera
         Disappearance.Apply(world, ctx, npc, playerId);
         return Result<Npc>.Ok(npc);
     }
