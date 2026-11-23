@@ -17,6 +17,10 @@ public sealed class HaulTrip
     public long Units { get; set; }
     public long GatherDone { get; set; }
     public long GatherHours { get; set; }
+    /// <summary>Quando a viagem foi dada (indo há dias sem chegar à fonte, ela é desfeita e outra é dada).</summary>
+    public long Started { get; set; }
+    /// <summary>Já chegou à fonte ao menos uma vez (só a viagem que nunca chega é desfeita).</summary>
+    public bool Reached { get; set; }
 }
 
 /// <summary>Sócio de uma oficina em obra (AD-184): quanto pôs; a cota se acerta quando ela abre.</summary>

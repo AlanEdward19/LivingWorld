@@ -20,7 +20,7 @@ public class MenuWorksProbe
             {
                 WorldEventKind.BuildWorkStarted => "abre:" + evt.Payload.Split('|')[2],
                 WorldEventKind.BuildWorkDone => "pronta:" + evt.Payload.Split('|')[2],
-                WorldEventKind.WorkAbandoned => "abandona:" + evt.Payload.Split('|')[2],
+                WorldEventKind.WorkAbandoned => "abandona:" + evt.Payload.Split('|')[2] + ":" + evt.Payload.Split('|')[5] + ":" + evt.Payload.Split('|')[6],
                 WorldEventKind.Marriage => "casamento",
                 WorldEventKind.VentureFounded => "empreende",
                 _ => null,
@@ -45,14 +45,18 @@ public class MenuWorksProbe
                 var sink = new Sink();
                 var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sink);
                 output.WriteLine($"{period} seed={seed} streets={world.StreetsOn} houseIsWork={world.StreetRules.HouseIsWork} cities={world.CityRules.Enabled} buildNeedsCrew={world.StreetRules.BuildNeedsCrew} predios={world.Buildings.Count}");
-                for (int year = 1; year <= years; year++)
+                int step = int.TryParse(Environment.GetEnvironmentVariable("LW_PROBE_MONTHS"), out int pm) && pm > 0 ? pm : 12;
+                for (int year = 1; year <= years * 12 / step; year++)
                 {
-                    clock.Run(world, world.Calendar.HoursPerYear);
+                    clock.Run(world, world.Calendar.HoursPerMonth * step);
                     var queue = world.ActiveCities().Sum(c => c.ConstructionQueue.Count);
                     int homeless = world.Households.Count(h => !h.IsEmpty && h.Dwelling is null);
                     string counts = string.Join(' ', sink.Counts.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value}"));
                     output.WriteLine(string.Create(CultureInfo.InvariantCulture,
                         $"  ano={year} pop={world.AliveNpcIndex.Alive.Count} predios={world.Buildings.Count(b => b.UnderWork is null)} canteiros={world.Buildings.Count(b => b.UnderWork is not null)} obras={world.Ground?.Builds.Count} fila={queue} semCasa={homeless} deFavor={world.Ground?.Lodgers.Count} {counts}"));
+                    foreach (var w in world.Ground?.Builds ?? [])
+                        output.WriteLine($"    obra {w.Id} {w.Kind} feito={w.HoursTotal - w.HoursLeft}/{w.HoursTotal} lote={w.MaterialOnSite} posto={w.MaterialPlaced}/{w.MaterialNeeded} turma={w.Crew.Count} ajuda={w.Helpers.Count} parada={w.Stalled} falta={w.MaterialShort} ultima={world.CurrentDate.TotalHours - w.LastProgressTick}h viagens="
+                            + string.Join(";", w.Hauls.Select(t => $"{t.Npc}:{t.Stage}:{t.Source}:{t.X},{t.Y}:{world.FindNpc(new LivingWorld.Domain.Shared.NpcId(t.Npc))?.CurrentLocation}:{world.FindNpc(new LivingWorld.Domain.Shared.NpcId(t.Npc))?.CurrentAction}:{t.GatherDone}/{t.GatherHours}")));
                     foreach (long lodger in world.Ground?.Lodgers ?? [])
                         if (world.FindHousehold(new LivingWorld.Domain.Shared.HouseholdId(lodger)) is { } home)
                             output.WriteLine($"    favor casa={lodger} membros={home.Members.Count} {LivingWorld.Simulation.Cities.Works.BuildWorks.WhyNoHouse(world, home)}");

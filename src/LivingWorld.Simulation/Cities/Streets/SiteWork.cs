@@ -422,9 +422,11 @@ public static class SiteWork
     {
         if (WorkOf(world, npc) is not { } site)
         {
-            if (HelpOf(world, npc) is { } help && npc.CurrentLocation == new CellCoord(help.X, help.Y)
+            // AD-195: o ajudante na fonte da viagem de material (despensa, mata) também está na obra: a hora conta como andamento
+            if (HelpOf(world, npc) is { } help && (npc.CurrentLocation == new CellCoord(help.X, help.Y) || WorkHaul.AtSource(help, npc))
                 && LivingWorld.Simulation.Climate.WeatherNow.OutdoorWorkable(world, npc.CurrentLocation)) // AD-180: dia perdido
-                BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now);
+                BuildWorks.Progress(world, ctx, help, npc, Math.Min(now - startedAt, world.StreetRules.CrewHoursPerDay), paid: 0, now,
+                    atSite: npc.CurrentLocation == new CellCoord(help.X, help.Y));
             return;
         }
         // AD-195: as horas na fonte da viagem de material (cortando na mata, na banca, na despensa) são jornada: o diarista recebe

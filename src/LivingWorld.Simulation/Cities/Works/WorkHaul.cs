@@ -86,8 +86,15 @@ internal static class WorkHaul
                 work.Hauls.RemoveAt(i);
                 continue;
             }
+            if (trip.Stage == 0 && !trip.Reached && npc.CurrentLocation != new CellCoord(trip.X, trip.Y)
+                && ctx.CurrentTick - trip.Started > 3L * world.Calendar.HoursPerDay)
+            {
+                work.Hauls.RemoveAt(i); // três dias sem chegar à fonte (não pôde ir): a viagem passa a outro
+                continue;
+            }
             if (trip.Stage == 0 && npc.CurrentLocation == new CellCoord(trip.X, trip.Y))
             {
+                trip.Reached = true;
                 if (trip.Source == "natureza")
                 {
                     if (npc.CurrentAction != LivingWorld.Domain.Behavior.ActionType.Work) continue;
@@ -104,6 +111,7 @@ internal static class WorkHaul
                 work.Hauls.RemoveAt(i);
                 if (res != work.MaterialResource || units <= 0) continue;
                 work.MaterialOnSite += units;
+                work.LastProgressTick = ctx.CurrentTick; // a carga que chega é andamento da obra
                 WorkEvents.Log(ctx, WorldEventKind.WorkMaterialArrived, work.Id, work.City, BuildWorks.TypeOf(work), work.X, work.Y,
                     $"{work.MaterialResource}|{units}|{npc.Id.Value}|{trip.Source}", cause: work.StartEventId);
                 Resume(ctx, work);
@@ -147,6 +155,7 @@ internal static class WorkHaul
             }
             return;
         }
+        trip.Started = ctx.CurrentTick;
         work.Hauls.Add(trip);
         SiteWork.Touch(world);
     }
@@ -221,18 +230,26 @@ internal static class WorkHaul
         return Math.Max(1, Math.Min(byHands, byWeight));
     }
 
-    /// <summary>A mata mais perto do lote: a célula logo fora dos limites da cidade, do lado mais perto.</summary>
+    /// <summary>A mata mais perto do lote: a célula logo fora dos limites da cidade, do lado mais perto, que se alcança a pé do lote
+    /// (água e terreno sem passagem ficam de fora); sem nenhuma, a borda mais perto.</summary>
     private static CellCoord WoodsFor(WorldState world, LivingWorld.Domain.Cities.City city, CellCoord site)
     {
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds;
-        int left = site.X - bounds.Origin.X + 1, right = bounds.Origin.X + bounds.Width - site.X, top = site.Y - bounds.Origin.Y + 1,
-            bottom = bounds.Origin.Y + bounds.Height - site.Y;
-        int best = Math.Min(Math.Min(left, right), Math.Min(top, bottom));
-        var cell = best == left ? new CellCoord(bounds.Origin.X - 1, site.Y)
-            : best == right ? new CellCoord(bounds.Origin.X + bounds.Width, site.Y)
-            : best == top ? new CellCoord(site.X, bounds.Origin.Y - 1)
-            : new CellCoord(site.X, bounds.Origin.Y + bounds.Height);
-        return new CellCoord(Math.Clamp(cell.X, 0, world.Map.Width - 1), Math.Clamp(cell.Y, 0, world.Map.Height - 1));
+        var options = new (int Distance, CellCoord Cell)[]
+        {
+            (site.X - bounds.Origin.X + 1, new CellCoord(bounds.Origin.X - 1, site.Y)),
+            (bounds.Origin.X + bounds.Width - site.X, new CellCoord(bounds.Origin.X + bounds.Width, site.Y)),
+            (site.Y - bounds.Origin.Y + 1, new CellCoord(site.X, bounds.Origin.Y - 1)),
+            (bounds.Origin.Y + bounds.Height - site.Y, new CellCoord(site.X, bounds.Origin.Y + bounds.Height)),
+        };
+        CellCoord? first = null;
+        foreach (var (_, raw) in options.OrderBy(o => o.Distance).ThenBy(o => o.Cell.X).ThenBy(o => o.Cell.Y))
+        {
+            var cell = new CellCoord(Math.Clamp(raw.X, 0, world.Map.Width - 1), Math.Clamp(raw.Y, 0, world.Map.Height - 1));
+            first ??= cell;
+            if (LivingWorld.Simulation.Behavior.Resolvers.RestPlaceResolver.IsReachable(world.Map, site, cell)) return cell;
+        }
+        return first!.Value;
     }
 
     private static long HomeOf(WorldState world, BuildWork work) =>
