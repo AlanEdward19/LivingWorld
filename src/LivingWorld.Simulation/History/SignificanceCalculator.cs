@@ -15,6 +15,8 @@ public static class SignificanceCalculator
             [WorldEventKind.PlayerDisappeared] = 0.85,
             [WorldEventKind.DisappearedFound] = 0.7,
             [WorldEventKind.SearchGaveUp] = 0.6,
+            [WorldEventKind.PresumedDead] = 0.85, // AD-196: pesa como uma morte
+            [WorldEventKind.Returned] = 0.75,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
             [WorldEventKind.Dehydration] = 0.75,

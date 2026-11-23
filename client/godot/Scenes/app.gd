@@ -560,6 +560,9 @@ func incarnate(id: int) -> void:
 	if await player_hud.incarnate(id, registry.person_name(id)):
 		selected_npc = id
 		follow(Registry.ref(Registry.PERSON, id))
+		var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
+		if detail.ok and detail.body is Dictionary:
+			player_hud.set_powers(detail.body.get("powerIds", []))
 
 
 ## Pede a conversa com o NPC (atalho T); o servidor aceita ou recusa e a janela explica o motivo.
