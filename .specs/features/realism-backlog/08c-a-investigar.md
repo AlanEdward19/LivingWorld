@@ -50,7 +50,7 @@
 144. **Corpo decide com fome ou sede ≤ 30** (o limiar de urgência) e o tempo livre só desvia da rotina com ≥ 50: sem fonte.
 145. **Degraus** (ganho 20‰, expectativa 16 pontos) e **aprendizado 0,05**: escolhidos por bytes de snapshot, não por
      dado de aprendizagem humana.
-146. **Passeio à toa anda mais que conversar** (um passo por ação concluída; à toa dura 2 h, conversar 3 h): artefato do
+146. ~~**Passeio à toa anda mais que conversar**~~ AD-192: o passeio e a conversa andam pelo relógio (1 passo a cada 3 h), não por ação. (um passo por ação concluída; à toa dura 2 h, conversar 3 h): artefato do
      modelo de movimento que levava quem trocava conversar por à toa para longe da água. Investigar no movimento, não no cérebro.
 
 

@@ -13,6 +13,22 @@ internal sealed class CityGround
     public HashSet<CellCoord> Passages { get; } = [];
     public HashSet<CellCoord> Crofts { get; } = [];
 
+    /// <summary>AD-192 (08d 166, 182): onde o lote novo não pode cair nem dar a porta (o caminho pisado, o chão de outra cidade); nulo
+    /// no chão de sempre. Só no chão da busca de quem grava a posição, nunca no plano das posições derivadas.</summary>
+    public LotBar? Bar { get; private init; }
+
+    /// <summary>AD-192: o mesmo chão (sem cópia) com o que barra o lote novo.</summary>
+    public CityGround WithBar(LotBar bar) => new(Occupied, Passages, Crofts) { Bar = bar };
+
+    public CityGround() { }
+
+    private CityGround(HashSet<CellCoord> occupied, HashSet<CellCoord> passages, HashSet<CellCoord> crofts)
+    {
+        Occupied = occupied;
+        Passages = passages;
+        Crofts = crofts;
+    }
+
     /// <summary>Planta, passagem e quintal de um prédio já posicionado. A passagem é a reta da porta até a rua; sem rua à
     /// frente, o caminho mais curto (até <see cref="CityLayoutRules.PathCells"/> passos) da soleira até a rua; sem nenhum, só
     /// a soleira fica livre.</summary>
@@ -42,6 +58,23 @@ internal sealed class CityGround
 
         Crofts.UnionWith(croft);
     }
+}
+
+/// <summary>AD-192 (08d 166, 182): o que barra o lote novo, lido na hora (sem copiar células): o chão pisado (trilha ou mais) e os
+/// limites das outras cidades.</summary>
+internal sealed class LotBar(LivingWorld.Simulation.Cities.Streets.GroundLedger? trodden, LivingWorld.Domain.Cities.Spatial.CityBounds[] neighbours,
+    LivingWorld.Domain.Cities.Spatial.CityBounds? reach = null)
+{
+    public bool InNeighbour(CellCoord cell)
+    {
+        foreach (var box in neighbours)
+            if (box.Contains(cell)) return true;
+        return false;
+    }
+
+    public bool Covers(CellCoord cell) =>
+        (trodden is not null && trodden.SurfaceAt(cell) != LivingWorld.Simulation.Cities.Streets.GroundSurface.None) || InNeighbour(cell)
+        || (reach is { } r && !r.Contains(cell));
 }
 
 /// <summary>Quem constrói e o que pode pagar (AD-173). <see cref="Dwelling"/> falso: oficina, mercado, celeiro.</summary>
@@ -115,6 +148,7 @@ internal static class LotPlanner
             ref var slot = ref shapes[option * 2 + (isCentral ? 0 : 1)];
             var shape = slot ??= LotShape.Of(options[option].Footprint, terms.Setback, terms.Croft);
             var street = network.Cells[streetIndex];
+            if (ground.Bar is { } bar && bar.InNeighbour(street)) continue; // AD-192: o traçado cortado no chão da vizinha
             var origin = new CellCoord(street.X - shape.Facing.X * k - shape.Door.X, street.Y - shape.Facing.Y * k - shape.Door.Y);
             if (Fits(ground, network, map, shape, origin, k, level))
             {
@@ -216,11 +250,13 @@ internal static class LotPlanner
     internal static bool Fits(
         CityGround ground, StreetNetwork network, WorldMap map, LotShape shape, CellCoord origin, int k, int level)
     {
+        var barred = ground.Bar;
         foreach (var c in shape.Cells)
         {
             var abs = new CellCoord(c.X + origin.X, c.Y + origin.Y);
             if (!Dry(map, abs) || network.Contains(abs) || ground.Occupied.Contains(abs) || ground.Passages.Contains(abs)) return false;
             if (level < 2 && ground.Crofts.Contains(abs)) return false;
+            if (barred is not null && barred.Covers(abs)) return false;
         }
         foreach (var c in shape.Halo)
             if (ground.Occupied.Contains(new CellCoord(c.X + origin.X, c.Y + origin.Y))) return false;
@@ -234,6 +270,7 @@ internal static class LotPlanner
         {
             var abs = new CellCoord(c.X + origin.X, c.Y + origin.Y);
             if (!InMap(map, abs) || network.Contains(abs) || ground.Occupied.Contains(abs) || ground.Passages.Contains(abs)) return false;
+            if (barred is not null && barred.Covers(abs)) return false;
         }
         return true;
     }

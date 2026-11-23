@@ -245,6 +245,11 @@ public sealed class OutbreakSystem : ISimulationSystem
                 }
             }
 
+            // AD-192: a parede-meia — o ar e o contato passam para os moradores das casas que encostam nesta
+            if (WallSpreads(world, profile) && sick.Household is { } wallHome && world.FindHousehold(wallHome) is { Dwelling: { } dwelling }
+                && world.FindBuilding(dwelling) is { } house)
+                WallSpread(world, rules, profile, source, sick, house, season * (inBed ? rules.BedriddenVisitFactor : 1.0), rng, now);
+
             double contacts = rules.CommunityContactsPerDay * (inBed ? rules.BedriddenVisitFactor : 1.0);
             if (profile.Avoidance > 0 && KnownInCity(world, source, sick)) contacts *= 1 - profile.Avoidance;
             int count = (int)contacts + (rng.NextDouble() < contacts - (int)contacts ? 1 : 0);
@@ -259,6 +264,39 @@ public sealed class OutbreakSystem : ISimulationSystem
 
         _caught.Sort((a, b) => a.Npc.Value != b.Npc.Value ? a.Npc.Value.CompareTo(b.Npc.Value) : a.Disease.CompareTo(b.Disease));
         foreach (var infection in _caught) world.AddInfection(infection);
+    }
+
+    private static bool WallSpreads(WorldState world, DiseaseProfile profile) =>
+        world.StreetRules.WallContagion && world.StreetsOn && profile.Community > 0
+        && profile.Route is DiseaseRoute.Respiratory or DiseaseRoute.Contact;
+
+    private readonly List<long> _walls = [];
+    private readonly List<NpcId> _beyond = [];
+
+    /// <summary>AD-192: encontros por dia de quem está contagioso com os moradores das casas coladas à dele (escada, laje, parede-meia,
+    /// a viela de um passo) e das outras famílias do mesmo prédio: <see cref="LivingWorld.Domain.Cities.StreetRules.WallContactsPerDay"/>
+    /// × (vizinhas + o próprio prédio, até 4)/4, cada um à taxa do encontro na vila. Os vizinhos em ordem de id; sorteio do mesmo stream do doente.</summary>
+    private void WallSpread(WorldState world, DiseaseRules rules, DiseaseProfile profile, Infection source, Npc sick,
+        LivingWorld.Domain.Cities.Buildings.Building house, double weight, WorldRng rng, long now)
+    {
+        LivingWorld.Simulation.Cities.Quarter.WallNeighbours(world, house, _walls);
+        int walls = _walls.Count;
+        // as outras famílias do mesmo prédio (de favor, andares, cortiço) também
+        _walls.Add(house.Id.Value);
+        _walls.Sort();
+        _beyond.Clear();
+        foreach (var household in world.Households)
+            if (household.Id != sick.Household && household.Dwelling is { } d && _walls.BinarySearch(d.Value) >= 0)
+                foreach (var member in household.Members) _beyond.Add(member);
+        if (_beyond.Count == 0) return;
+        _beyond.Sort((a, b) => a.Value.CompareTo(b.Value));
+        double contacts = world.StreetRules.WallContactsPerDay * Math.Min(1.0, (walls + (_beyond.Count > 0 ? 1 : 0)) / 4.0);
+        int count = (int)contacts + (rng.NextDouble() < contacts - (int)contacts ? 1 : 0);
+        for (int c = 0; c < count; c++)
+        {
+            var other = _beyond[Math.Min(_beyond.Count - 1, (int)(rng.NextDouble() * _beyond.Count))];
+            TryInfect(world, rules, profile, source, other, profile.Community * weight, rng, now);
+        }
     }
 
     /// <summary>O surto é conhecido na cidade: ao menos dois doentes com sintoma da mesma doença.</summary>
@@ -306,12 +344,16 @@ public sealed class OutbreakSystem : ISimulationSystem
             double max = incidence.Max();
             if (max <= 0) continue;
             var rng = ctx.StreamFor("disease-environment", unchecked(day * 64 + profile.Id));
-            int cases = Poisson(alive.Count * max * profile.Season(month, _anomaly) / daysPerYear, rng);
+            // AD-192: água e comida, piolho e pulga pegam mais na casa suja (apinhada, colada, sem escoamento, água longe ou suja)
+            bool hygiene = Hygienic(world, profile);
+            double scale = hygiene ? Math.Max(1, world.StreetRules.HygieneMax) : 1;
+            int cases = Poisson(alive.Count * max * profile.Season(month, _anomaly) / daysPerYear * scale, rng);
             for (int i = 0; i < cases; i++)
             {
                 var npc = alive[Math.Min(alive.Count - 1, (int)(rng.NextDouble() * alive.Count))];
                 double age = Math.Max(0, now - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
                 if (rng.NextDouble() * max >= incidence.At(age) || !IsSusceptible(world, profile, npc.Id, now)) continue;
+                if (hygiene && rng.NextDouble() * scale >= HygieneOf(world, npc)) continue;
                 bool pending = false;
                 foreach (var p in _caught) pending |= p.Npc == npc.Id && p.Disease == profile.Id;
                 if (!pending) _caught.Add(NewInfection(world, rules, profile, npc.Id, now, rng));
@@ -320,6 +362,19 @@ public sealed class OutbreakSystem : ISimulationSystem
 
         _caught.Sort((a, b) => a.Npc.Value != b.Npc.Value ? a.Npc.Value.CompareTo(b.Npc.Value) : a.Disease.CompareTo(b.Disease));
         foreach (var infection in _caught) world.AddInfection(infection);
+    }
+
+    /// <summary>AD-192: o perfil de água e comida ou de vetor pesa pela higiene da casa (com a chave e o traçado da cidade).</summary>
+    private static bool Hygienic(WorldState world, DiseaseProfile profile) =>
+        world.StreetRules.QuarterHygiene && world.CityRules.EffectiveLayout().Enabled
+        && profile.Route is DiseaseRoute.WaterFood or DiseaseRoute.Vector;
+
+    /// <summary>AD-192: o fator da higiene da casa de quem pega (sem casa: a sujeira toda).</summary>
+    private static double HygieneOf(WorldState world, Npc npc)
+    {
+        double squalor = npc.Household is { } h && world.FindHousehold(h) is { } home
+            ? LivingWorld.Simulation.Cities.Quarter.HomeSqualor(world, home) : 1;
+        return LivingWorld.Simulation.Cities.Quarter.HygieneFactor(world.StreetRules, squalor);
     }
 
     private static void Import(WorldState world, TickContext ctx, DiseaseRules rules, long now, long day, int month)
