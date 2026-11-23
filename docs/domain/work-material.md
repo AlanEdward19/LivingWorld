@@ -34,10 +34,11 @@ O cliente recebe `involved.workId`, `involved.motive` e o lugar; a projeção d�
 do log (antes inferia a parada do estado).
 
 ## A cidade média sem obra (diagnóstico)
-`MenuWorksProbe` (`LW_WORKS_PROBE_OUT`): na cidade média seed 2 os casais de favor nunca abrem casa porque
-`CityOccupancy.CandidateLots` não acha lote de rua dentro dos limites da cidade e da borda que ela absorve (0 lotes; sem o limite,
-7). A cidade de 63 prédios tem limites de 19×16 a 22×16 que crescem pela população, não pelos prédios. Seeds 1 e 7: 2–3 casas em 6
-anos na seed 1, nenhuma na 7. A escolha de lote e o limite da cidade são da AD-192; o teste `MenuWorkOpensTests` cobre a seed 1.
+`MenuWorksProbe` (`LW_WORKS_PROBE_OUT`): em d8609a05 os casais de favor da cidade média nunca abriam casa porque
+`CityOccupancy.CandidateLots` não achava lote de rua dentro dos limites da cidade e da borda que ela absorve (seed 2: 0 lotes; sem o
+limite, 7; limites de 19×16 a 22×16 com 63 prédios). Com a AD-192 (bairro denso, 2e0852ed) a seed 2 abre 2 casas e 2 oficinas em 8
+anos e a seed 1, 4 casas; a seed 7 segue sem lote (119 de 120 consultas dos casais de favor: `sem-lote`). O teste
+`MenuWorkOpensTests` cria o mundo pelo caminho do menu (seed 1) e vê a obra da casa abrir e receber carga.
 
 ## Chaves
 `LW_AD194=off` desliga as duas regras (material em horas na abertura, sem evento de dia perdido), na vila de código

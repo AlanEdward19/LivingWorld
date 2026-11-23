@@ -5,8 +5,8 @@ using LivingWorld.Tests.Shared.Cities;
 namespace LivingWorld.Tests.Integration.Cities;
 
 /// <summary>AD-194: o mundo da cidade média criado pelo caminho do menu (o payload do período, o mesmo da API) abre obra de casa para
-/// o casal que mora de favor, e a carga de material chega ao lote. Seed 1: na seed 2 a cidade não tem lote de rua dentro dos limites
-/// (diagnóstico da AD-194, a cargo da fatia do limite da cidade).</summary>
+/// o casal que mora de favor, e a carga de material chega ao lote. Seed 1 (a seed 7 ainda não acha lote de rua dentro dos limites;
+/// diagnóstico da AD-194).</summary>
 public class MenuWorkOpensTests
 {
     private sealed class Sink : IWorldEventSink
