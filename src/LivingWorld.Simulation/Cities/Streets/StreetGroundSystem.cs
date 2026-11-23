@@ -50,6 +50,25 @@ public sealed class StreetGroundSystem : ISimulationSystem
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
     }
 
+    /// <summary>AD-192 (08d 182): um prédio passou a ocupar o chão agora (canteiro aberto, obra pronta, prédio erguido): vira obstáculo
+    /// da rota no ato, não na virada do mês, e o chão pisado e o calçamento debaixo dele somem. A rota de quem sai depois já o contorna.
+    /// Sem a chave, espera a virada do mês como antes.</summary>
+    internal static void Occupied(WorldState world, long now)
+    {
+        if (!world.StreetsOn || !world.StreetRules.ObstacleOnCompletion) return;
+        var ground = world.Ground!;
+        ground.ObstacleTick = now;
+        if (world.RouteState is { } cached) cached.ObstacleTick = long.MinValue; // refaz mesmo no mesmo tick (o prédio já existia)
+        var state = StreetRoutes.StateOf(world);
+        for (int i = 0; i < ground.Count; i++)
+        {
+            if (state.Owner[i] == 0) continue;
+            if (ground.WearAt(i) != 0) ground.SetWear(i, 0);
+            if (ground.PavingAt(i) != GroundSurface.None) ground.SetPaving(i, GroundSurface.None, 0);
+        }
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Ground));
+    }
+
     /// <summary>AD-179 (08d item 180): o mundo começa no meio da história. A vila semeada existe há anos, então nasce com o chão
     /// que o uso de sempre deixou: o mês típico (cada empregado vai e volta do trabalho em todo dia do mês; cada casa vai
     /// <see cref="StreetRules.HistoryMarketTripsPerMonth"/> vezes ao mercado mais perto e volta) deposita as passagens pelas rotas

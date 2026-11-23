@@ -397,7 +397,7 @@ public static class CityOccupancy
         var found = new List<(CellCoord Origin, int Croft, int Orientation)>();
         var network = CityStreets.Of(world, city);
         if (network.Count == 0 || level >= PlacementPolicy.StreetLevels) return found;
-        var ground = GroundOfCity(world, city, bounds, id);
+        var ground = Barred(world, city, network, GroundOfCity(world, city, bounds, id));
         var options = OptionsOf(id, buildingTypeId, orientation, choose: true);
         var layout = world.CityRules.EffectiveLayout();
         // um candidato por trecho da rede, espalhados do largo para fora (o primeiro é o lote de sempre)
@@ -426,6 +426,35 @@ public static class CityOccupancy
             Sample(near, Math.Max(1, max / 2));
         }
         return found;
+    }
+
+    /// <summary>AD-192 (08d 166, 182): o chão de quem grava a posição de um prédio novo, com o que ele não pode cobrir: o caminho
+    /// pisado (trilha ou mais, passagem de todos) e o chão de outra cidade (o limite dela; a rua do traçado que cai ali fica cortada).
+    /// O mesmo chão de sempre sem as chaves ou sem nada a barrar.</summary>
+    internal static CityGround Barred(WorldState world, City city, StreetNetwork network, CityGround ground)
+    {
+        var rules = world.StreetRules;
+        HashSet<CellCoord>? barred = null, cut = null;
+        if (rules.LotsAvoidTrodden && world.StreetsOn)
+        {
+            var ledger = world.Ground!;
+            for (int i = 0; i < ledger.Count; i++)
+                if (ledger.SurfaceAt(i) != Streets.GroundSurface.None) (barred ??= []).Add(ledger.CellOf(i));
+        }
+        if (rules.CutAtNeighbourCity)
+            foreach (var other in world.ActiveCities())
+            {
+                if (other.Id == city.Id) continue;
+                var box = OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds;
+                for (int y = box.Origin.Y; y < box.Origin.Y + box.Height; y++)
+                    for (int x = box.Origin.X; x < box.Origin.X + box.Width; x++)
+                    {
+                        var cell = new CellCoord(x, y);
+                        (barred ??= []).Add(cell);
+                        if (network.Contains(cell)) (cut ??= []).Add(cell);
+                    }
+            }
+        return barred is null && cut is null ? ground : ground.WithBarred(barred ?? [], cut ?? []);
     }
 
     private static bool NearBounds(CityBounds bounds, CellCoord cell, int ring) =>
@@ -475,6 +504,13 @@ public static class CityOccupancy
         var footprint = options[0].Footprint;
         var layout = world.CityRules.EffectiveLayout();
         var network = CityStreets.Of(world, city);
+        if (chooseOrientation)
+        {
+            // AD-192: quem grava a posição não cobre caminho pisado nem chão de outra cidade; essa busca não marca o passe (os marcos
+            // valem só para o chão que só cresce, o das posições derivadas)
+            var barred = Barred(world, city, network, ground);
+            if (!ReferenceEquals(barred, ground)) { ground = barred; plan = null; }
+        }
         List<CellCoord>? shape = null;
         CellCoord? doorstep = null;
         for (int level = Math.Max(0, firstLevel); level <= Math.Min(lastLevel, PlacementPolicy.LevelCount - 1); level++)

@@ -138,7 +138,7 @@ public static class PavingTechnique
             // AD-184: o trecho de teste é obra com turma no trecho mais passado (o tesouro paga o jornal); sem a regra, o prazo de antes
             if (world.StreetRules.PrototypeIsWork && busiest >= 0)
             {
-                PavingDecision.OpenPrototype(world, ctx, city, busiest, world.StreetRules.PrototypeHours, trial);
+                PavingDecision.OpenPrototype(world, ctx, city, busiest, world.StreetRules.PrototypeHours, trial); // AD-192: sem cascalho ao alcance, não testa
                 continue;
             }
             ctx.ScheduleEvent(ctx.CurrentTick + world.StreetRules.PavingPrototypeTicks, systemName, $"{PayloadPrefix}{city.Id.Value}|{trial}");
