@@ -52,6 +52,9 @@ public sealed record ScopeTickDelta(
     // AD-176: rua de verdade por célula, só o que mudou (superfície, faixa de uso, obra, condição)
     public IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView> RoadUpserts { get; init; } = [];
     public IReadOnlyList<CellCoord> RoadRemoved { get; init; } = [];
+    // AD-193: obra em andamento, só a que mudou (fração, turma, quem está no lote, parada); a que acabou ou foi abandonada sai
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.WorkSiteVisual> WorkUpserts { get; init; } = [];
+    public IReadOnlyList<long> WorkRemoved { get; init; } = [];
 
     public static ScopeTickDelta Empty(long tick) => new(tick, [], [], [], [], [], [], [], [], [], []);
 }
