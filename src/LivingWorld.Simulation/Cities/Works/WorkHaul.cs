@@ -97,13 +97,19 @@ internal static class WorkHaul
                 trip.Reached = true;
                 if (trip.Source == "natureza")
                 {
-                    // corta por hora de trabalho na mata; ao largar o trabalho (fim da jornada, fome, noite) leva o que já cortou: a
-                    // ida é de um dia, não fica na mata até ter a carga cheia (AD-195: antes ia e voltava dias sem trazer nada)
+                    // corta por hora de trabalho na mata e empilha lá (BuildWork.CutStock); leva da pilha a carga cheia quando há, ou o que
+                    // tiver ao largar o trabalho (fim da jornada, fome, noite): quem chega encontra o que outro cortou (um corta enquanto o
+                    // outro carrega) e ninguém volta de mãos vazias depois de um dia de corte
                     long perUnit = Math.Max(1, trip.GatherHours / Math.Max(1, trip.Units));
                     bool working = npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Work;
-                    if (working && ++trip.GatherDone < trip.GatherHours) continue;
-                    if (!working && trip.GatherDone < perUnit) continue;
-                    trip.Units = Math.Min(trip.Units, Math.Max(1, trip.GatherDone / perUnit));
+                    if (working && ++trip.GatherDone >= perUnit)
+                    {
+                        work.CutStock += trip.GatherDone / perUnit;
+                        trip.GatherDone %= perUnit;
+                    }
+                    if (work.CutStock < trip.Units && (working || work.CutStock <= 0)) continue;
+                    trip.Units = Math.Min(trip.Units, work.CutStock);
+                    work.CutStock -= trip.Units;
                 }
                 long took = Take(world, ctx, city, work, trip, npc, resource);
                 if (took <= 0) { work.Hauls.RemoveAt(i); continue; } // a fonte secou ou quem paga não pode: outra viagem depois
@@ -196,7 +202,13 @@ internal static class WorkHaul
         else if (seller is not null && seller.Stock.GetValueOrDefault(resource) >= units && WorkMaterial.CanPay(world, work, units * price))
             return new HaulTrip { Npc = who.Id.Value, X = seller.Location.X, Y = seller.Location.Y, Source = "banca", Seller = seller.Id.Value, Units = units };
         if (rules.HouseGatherHours <= 0) return null;
-        var wood = WoodsFor(world, city, new CellCoord(work.X, work.Y), resource);
+        if (work.WoodsX < 0) // a mata da obra é uma só: quem vai depois encontra a pilha de quem cortou antes
+        {
+            var found = WoodsFor(world, city, new CellCoord(work.X, work.Y), resource);
+            work.WoodsX = found.X;
+            work.WoodsY = found.Y;
+        }
+        var wood = new CellCoord(work.WoodsX, work.WoodsY);
         return new HaulTrip
         {
             Npc = who.Id.Value,

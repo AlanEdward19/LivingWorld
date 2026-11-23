@@ -83,6 +83,10 @@ public sealed class BuildWork
     public List<HaulTrip> Hauls { get; set; } = [];
     /// <summary>AD-195: ajudantes que dão dia inteiro de mutirão (a família da casa e quem quer muito ajudar).</summary>
     public List<long> Mutirao { get; set; } = [];
+    /// <summary>AD-195: a mata da obra (célula; -1 = ainda nenhuma) e o material cortado empilhado lá, esperando quem o carregue.</summary>
+    public int WoodsX { get; set; } = -1;
+    public int WoodsY { get; set; } = -1;
+    public long CutStock { get; set; }
 
     // Oficina (Kind = Workshop): o que o fundador já levantou e o plano com que ela abre.
     /// <summary>Moeda guardada para a obra e o giro (paga os diaristas; o resto vira o caixa da oficina).</summary>

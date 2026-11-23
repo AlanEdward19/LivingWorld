@@ -219,4 +219,53 @@ public class WorkMaterialTests
         QueueHaul.Tick(world, ctx, city, project, recipe);
         Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WorkMaterialShort);
     }
+
+    [Fact]
+    public void Cutting_in_the_woods_does_not_count_again_the_walk_that_is_now_walked()
+    {
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var site = new CellCoord(work.X, work.Y);
+        var far = new CellCoord(Math.Min(world.Map.Width - 1, site.X + 10), site.Y);
+        long without = WorkHaul.CutHours(world, site, far, 10);
+        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"));
+        long with = WorkHaul.CutHours(plain, site, far, 10);
+        Assert.Equal((long)Math.Ceiling(plain.StreetRules.HouseGatherHours * 10.0 / plain.StreetRules.HouseMaterialUnits), with);
+        Assert.True(without < with, $"o corte sem a caminhada ({without} h) é menor que o total de antes ({with} h)");
+        Assert.True(without >= 10, "ao menos uma hora por unidade");
+    }
+
+    [Fact]
+    public void With_coin_and_stock_at_the_stall_the_household_buys_what_it_can_instead_of_cutting()
+    {
+        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
+        work.Helpers = [builder.Id.Value];
+        var timber = new ResourceType(work.MaterialResource);
+        var shop = world.Workplaces.First(w => w.City.Value == work.City && !w.Closed);
+        shop.Deposit(timber, 100, world.EconomyRules);
+        shop.SetPrice(timber, 50);
+        var home = world.FindHousehold(new HouseholdId(work.Household))!;
+        foreach (var id in home.Members) { var m = world.FindNpc(id)!; m.TryDebitWallet(m.Wallet); }
+        world.FindNpc(home.Members[0])!.CreditWallet(new Money(120)); // paga duas unidades, não a carga cheia
+        Hour(world, ctx);
+        var trip = Assert.Single(work.Hauls);
+        Assert.Equal("banca", trip.Source);
+        Assert.True(trip.Units >= 1 && trip.Units < WorkHaul.CapacityUnits(world, builder, timber), $"compra o que a moeda paga: {trip.Units}");
+    }
+
+    [Fact]
+    public void A_mutirao_helper_gives_a_whole_day_a_week_but_never_at_sowing_or_harvest_of_who_farms()
+    {
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var employed = world.Npcs.First(n => n.IsAlive && n.Employer is not null && n.City.Value == work.City);
+        work.Helpers = [employed.Id.Value];
+        work.Mutirao = [employed.Id.Value];
+        LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
+        int days = 0;
+        for (int d = 0; d < 14; d++)
+        {
+            if (LivingWorld.Simulation.Cities.Streets.SiteWork.MutiraoToday(world, employed)) days++;
+            world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerDay);
+        }
+        Assert.InRange(days, 2, 4); // um ou dois por semana, não todo dia
+    }
 }
