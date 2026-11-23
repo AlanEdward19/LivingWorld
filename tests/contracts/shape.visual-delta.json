@@ -116,7 +116,21 @@
           }
         },
         "orientation": "number",
-        "value": "number"
+        "value": "number",
+        "work?": {
+          "crew": "number",
+          "helpers": "number",
+          "id": "number",
+          "kind": "string",
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "offerPm": "number",
+          "progress": "number",
+          "stalled": "boolean",
+          "startedTick": "number"
+        }
       }
     ],
     "cityRemoved": [
@@ -503,7 +517,57 @@
         }
       }
     ],
-    "tick": "number"
+    "tick": "number",
+    "workRemoved": [
+      "number"
+    ],
+    "workUpserts": [
+      {
+        "buildingId?": "number",
+        "buildingTypeId?": "number",
+        "cityId": "string",
+        "crew": [
+          "number"
+        ],
+        "halt?": "string",
+        "haulHoursLeft": "number",
+        "helpers": [
+          "number"
+        ],
+        "hoursByCrew": "number",
+        "hoursByHelpers": "number",
+        "hoursLeft": "number",
+        "hoursTotal": "number",
+        "householdId?": "number",
+        "id": "number",
+        "kind": "string",
+        "lastWorkedTick": "number",
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "materials": [
+          {
+            "name?": "string",
+            "needed": "number",
+            "placed": "number",
+            "resourceId": "number"
+          }
+        ],
+        "offerPm": "number",
+        "onSite": [
+          "number"
+        ],
+        "ownerId?": "number",
+        "paid": "number",
+        "payer": "string",
+        "progress": "number",
+        "spent": "number",
+        "stalled": "boolean",
+        "startedTick": "number",
+        "typeName?": "string"
+      }
+    ]
   },
   "scope": {
     "kind": "number",

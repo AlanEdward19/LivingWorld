@@ -5,6 +5,8 @@ extends Node3D
 const Grid := preload("res://Scenes/grid.gd")
 const Scenery := preload("res://Scenes/scenery.gd")
 const Dress := preload("res://Scenes/render/building_dress.gd")
+const Works := preload("res://Store/work_book.gd")
+const Site := preload("res://Scenes/render/work_site.gd")
 
 const MATERIAL_WALL_STONE := 0
 const MATERIAL_WALL_WOOD := 1
@@ -14,6 +16,7 @@ const PLACEHOLDER_FOOTPRINT := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), 
 
 var nodes: Dictionary = {} ## id -> Node3D
 var dressed: Dictionary = {} ## id -> assinatura do estado desenhado (estilo, placa, fechado): só redesenha se mudar
+var work_of: Callable = func(_id: int) -> Dictionary: return {} ## AD-193: obra do canteiro (o world_view liga à store)
 
 
 func rebuild(store) -> void:
@@ -28,13 +31,24 @@ func rebuild(store) -> void:
 
 ## Desenha (ou redesenha) um prédio. Sem planta (veio por delta e o snapshot ainda não chegou), usa um canteiro
 ## de obra 2x2 de madeira no lugar certo até a planta chegar.
-static func signature(state: Dictionary) -> String:
+static func signature(state: Dictionary, work: Dictionary = {}) -> String:
+	if not work.is_empty(): # AD-193: canteiro — muda de forma com o décimo da obra e com o material no lote
+		return "site|%d|%d" % [Works.stage(work), int(round(Works.pile_fraction(work) * 4.0))]
 	return "%s|%s|%s" % [Dress.style_of(state), Dress.sign_text(state), bool(state.get("closed", false))]
+
+
+## AD-193: a obra andou (fração, turma, material): redesenha o canteiro só quando a forma desenhada muda.
+func rework(info: Dictionary, state: Dictionary) -> void:
+	var work: Dictionary = work_of.call(int(info.id))
+	if String(dressed.get(int(info.id), "")) != signature(state, work):
+		upsert(info, state)
 
 
 ## Estado novo do prédio (função, placa, fechado) só redesenha quando a aparência muda (dono e estoque não mudam a forma);
 ## a luz (AD-189, `lit` do motor) só troca o material das janelas.
 func restyle(info: Dictionary, state: Dictionary) -> void:
+	if not work_of.call(int(info.id)).is_empty():
+		return # canteiro: o estado de prédio (função, luz) não muda a obra
 	if String(dressed.get(int(info.id), "")) != signature(state):
 		upsert(info, state)
 	else:
@@ -60,7 +74,15 @@ func lit_count(id: int) -> int:
 
 func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	remove(int(info.id))
-	dressed[int(info.id)] = signature(state)
+	var work: Dictionary = work_of.call(int(info.id))
+	dressed[int(info.id)] = signature(state, work)
+	if not work.is_empty() and not info.footprint.is_empty():
+		var site := Site.make(info, work, FLOOR_HEIGHT)
+		add_child(site)
+		nodes[int(info.id)] = site
+		if xray:
+			_fade(int(info.id), 0.0)
+		return site
 	var drawn := info
 	if info.footprint.is_empty():
 		drawn = info.duplicate()

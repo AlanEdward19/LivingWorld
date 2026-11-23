@@ -45,6 +45,8 @@ public static class ScopeDeltaBuilder
             Climate = after.Climate is { } climate && climate.SameDayAs(before.Climate) ? null : after.Climate,
             RoadUpserts = ReferenceEquals(before.Roads, after.Roads) ? [] : Changed(before.Roads, after.Roads, item => item.Cell),
             RoadRemoved = ReferenceEquals(before.Roads, after.Roads) ? [] : Removed(before.Roads, after.Roads, item => item.Cell),
+            WorkUpserts = Changed(before.Works, after.Works, item => item.Id),
+            WorkRemoved = Removed(before.Works, after.Works, item => item.Id),
         };
     }
 
@@ -220,6 +222,7 @@ public static class LivingDeltaReducer
             // AD-189: sem clima no delta, a hora sai da curva do dia (o tick do delta à frente do estado)
             Climate = delta.Climate ?? (delta.Tick > state.Tick ? state.Climate?.AtTick(delta.Tick) : state.Climate),
             Roads = Merge(state.Roads, delta.RoadUpserts, delta.RoadRemoved, item => item.Cell, item => (item.Cell.Y, item.Cell.X)),
+            Works = Merge(state.Works, delta.WorkUpserts, delta.WorkRemoved, item => item.Id),
             Tick = delta.Tick,
         };
 

@@ -144,6 +144,7 @@ public static class LivingScopeProjector
             Objects = focusedCity is { } objectCity ? ObservableProjector.Objects(observable, objectCity) : [],
             Climate = ObservableProjector.Climate(world, climateCell),
             Roads = RoadsOf(world, focusedCity, isWorld),
+            Works = focusedCity is { } workCity ? WorkSiteProjector.InCity(world, workCity, observable.Names) : [],
             Tick = frame.Tick,
         };
     }
@@ -152,7 +153,7 @@ public static class LivingScopeProjector
     {
         var npc = scoped.Npc;
         var observable = ObservableProjector.Npc(frame.Observable, npc, previous?.Observable);
-        var target = previous is not null && SameTarget(previous.ActionTarget, npc) ? previous.ActionTarget : NpcInspectionQuery.TargetOf(npc);
+        var target = TargetOf(frame.World, npc, previous);
         var extraordinary = ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id);
         if (previous is not null && frame.WeatherAsBefore && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
             && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
@@ -219,6 +220,19 @@ public static class LivingScopeProjector
 
     /// <summary>O alvo do tick anterior ainda vale (mesmo tipo e id), sem montar o texto do id de novo. Espelha
     /// <c>NpcInspectionQuery.TargetOf</c>; o teste de cadência confere contra a projeção sem memória a cada tick.</summary>
+    /// <summary>Alvo da ação. AD-193: quem trabalha no lote de uma obra (diarista ou ajudante, mesmo com emprego nas horas livres) tem a
+    /// obra como alvo (<c>work:id</c>); senão o alvo de sempre. O registro anterior é reaproveitado quando o alvo não mudou.</summary>
+    private static NpcActionTargetDto? TargetOf(WorldState world, Npc npc, NpcVisual? previous)
+    {
+        if (WorkSiteProjector.SiteTargetOf(world, npc) is { } workId)
+            return previous?.ActionTarget is { Kind: "work" } same && IsId(same.Id, workId)
+                ? same
+                : new NpcActionTargetDto("work", workId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return previous is not null && previous.ActionTarget is not { Kind: "work" } && SameTarget(previous.ActionTarget, npc)
+            ? previous.ActionTarget
+            : NpcInspectionQuery.TargetOf(npc);
+    }
+
     private static bool SameTarget(NpcActionTargetDto? previous, Npc npc) => (npc.CurrentAction, previous) switch
     {
         (ActionType.Work, null) => npc.Employer is null,

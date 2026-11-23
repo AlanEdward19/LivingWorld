@@ -67,6 +67,7 @@ var face_point := Vector3.INF ## alvo da ação (pessoa com quem conversa, ofici
 var held_color := Color("9a7a52") ## cor do material do recipiente (vem de /designs/{id} quando conhecido)
 var _skin_color := Color("e0ac7e")
 var _tool_kind := "hammer"
+var site_work := false ## AD-193: no lote de uma obra (alvo `work` do motor): martelo na mão, seja qual for o ofício
 var _belly: MeshInstance3D
 var _sack: Node3D
 var _held: MeshInstance3D
@@ -222,6 +223,14 @@ func _get_tool() -> Node3D:
 	return _tool
 
 
+## AD-193: o motor diz que a pessoa trabalha no lote da obra: martelo; fora dela volta a ferramenta do ofício.
+func set_site_work(on: bool) -> void:
+	if on == site_work:
+		return
+	site_work = on
+	_set_tool_kind("hammer" if on else String(spec.get("tool", "hammer")))
+
+
 ## Troca a ferramenta pelo ofício (de perto, na mão durante o trabalho).
 func _set_tool_kind(kind: String) -> void:
 	if kind == _tool_kind:
@@ -374,7 +383,7 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 		_hair_mesh.position = Vector3(0, 0.04, -0.02)
 	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
 	_skin_mesh.material_override = _shared_mat(skin)
-	_set_tool_kind(String(spec.tool))
+	_set_tool_kind("hammer" if site_work else String(spec.tool))
 	if float(spec.belly) > 0.0:
 		if _belly == null:
 			_belly = Props.belly(_body, spec.cloth)

@@ -69,6 +69,14 @@ oficina, predio-N, calcamento); `StreetWorkStarted/Done` ganharam `x|y` no fim. 
 do evento; o prédio em obra traz `work` (id, tipo, progresso, parada, turma, ajudantes, oferta) e a obra encomendada vem como
 processo `build-work` no lote.
 
+## O cliente mostra a obra (AD-193, só leitura)
+Escopo Cidade: `livingState.works` e, no delta, `workUpserts`/`workRemoved` só da obra que mudou (`WorkSiteVisual`: canteiro,
+fração, quem encomenda e paga, turma, ajudantes, `onSite` = quem está no lote na ação de trabalho, horas feitas e que faltam,
+carregamento, material da fila posto/receita, `halt` = `tempo`/`parada`/`material`). Quem trabalha no lote tem `actionTarget`
+`work:id`; `GET /entities/work/{id}` (ou `obra`) dá a ficha e o canteiro aponta para ela. O Godot desenha o canteiro pelo décimo
+feito (alicerce, paredes, andaime, armação do telhado), a pilha só onde o motor conta material (obra da fila), martelo na mão de
+quem está no lote e a obra na planta (P); o prédio reenviado só porque a obra andou não refaz chão nem rótulos.
+
 ## Chaves (todas ligadas; `LW_AD184=off` desliga todas e volta à AD-179)
 `BuildNeedsCrew`, `HouseIsWork`, `VentureIsWork`, `HelpersBuild`, `WageBidding`, `PrototypeIsWork` (em `StreetRules`). Para
 atribuir efeito nos relatórios: `LW_AD184=nohouse|nohelpers|nobid` desliga só a casa, só a ajuda ou só a troca de ofício.

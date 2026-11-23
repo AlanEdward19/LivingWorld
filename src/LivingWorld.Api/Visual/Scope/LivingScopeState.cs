@@ -125,6 +125,10 @@ public sealed record LivingScopeState(
     /// <summary>AD-176: as ruas de verdade do escopo (Cidade: as dela; Mundo: todas), as mesmas da camada <c>Roads</c>.</summary>
     public IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView> Roads { get; init; } = [];
 
+    /// <summary>AD-193: as obras em andamento da cidade em foco (casa, oficina, prédio da fila com lote): canteiro, fração, turma, quem
+    /// está no lote agora, o que falta e por que parou. Mundo: vazio.</summary>
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.WorkSiteVisual> Works { get; init; } = [];
+
     /// <summary>AD-172: tick desta foto (fora do JSON e da igualdade). O delta e o redutor avançam os processos lineares pela
     /// diferença entre o tick do delta e este.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -145,6 +149,7 @@ public sealed record LivingScopeState(
         && Leavings.SequenceEqual(other.Leavings)
         && Objects.SequenceEqual(other.Objects)
         && Roads.SequenceEqual(other.Roads)
+        && Works.SequenceEqual(other.Works)
         && Equals(Climate, other.Climate);
 
     public override int GetHashCode()
@@ -163,6 +168,7 @@ public sealed record LivingScopeState(
         AddRange(ref hash, Leavings);
         AddRange(ref hash, Objects);
         AddRange(ref hash, Roads);
+        AddRange(ref hash, Works);
         hash.Add(Climate);
         return hash.ToHashCode();
     }
