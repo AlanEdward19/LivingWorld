@@ -48,7 +48,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
             return;
         }
 
-        NpcWakeScheduler.PrepareWakeBatch(world, world.CurrentDate.TotalHours);
+        NpcWakeScheduler.PrepareWakeBatch(world, world.CurrentDate.TotalSeconds);
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
 
         bool isDayBoundary = world.CurrentDate.Hour == 0;
