@@ -48,7 +48,11 @@ internal static class QueueHaul
                 if (npc is not { IsAlive: true } || !project.Crew.Contains(trip.Npc))
                 {
                     if (npc is { IsAlive: true } && trip.Stage == 1 && npc.CarriedResourceId == trip.Resource) // a carga volta ao largo
-                        city.DepositStock(new ResourceType(trip.Resource), npc.TakeCarried().Quantity);
+                    {
+                        long back = npc.TakeCarried().Quantity;
+                        city.DepositStock(new ResourceType(trip.Resource), back);
+                        world.RecordResourceProduced(new ResourceType(trip.Resource), back); // volta ao estoque: sai do que a obra consumiu
+                    }
                     hauls.RemoveAt(i);
                     continue;
                 }
@@ -67,6 +71,7 @@ internal static class QueueHaul
                         hauls.RemoveAt(i);
                         continue;
                     }
+                    world.RecordResourceConsumed(resource, units); // saiu do largo para a obra (nas mãos, depois no lote, depois na parede)
                     trip.Units = units;
                     trip.Stage = 1;
                 }
