@@ -38,6 +38,15 @@ public class ApiContractTests
         public static readonly LivingWorld.Api.Visual.Observable.LeavingVisual Leaving = new(6, Cell, 1, 2, 3, 4, 5, 9, 77, 7, 8);
         public static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(9, 77, 2, 1, Cell, true, 3, "cylinder", 4, 0.9);
         public static readonly LivingWorld.Api.Visual.Observable.ScopeClimateVisual Climate = new(6, 2, "summer", 21.5, 1, 900, false);
+        // AD-193: obra em andamento com todo campo preenchido (quem encomenda, canteiro, turma, no lote, material da fila)
+        public static readonly LivingWorld.Api.Visual.Observable.WorkSiteVisual Work = new(11, "casa", "00000000-0000-0000-0000-000000000001", Cell, 0.25)
+        {
+            BuildingId = 7, BuildingTypeId = -1, TypeName = "casa", Stalled = false, Halt = "tempo", Payer = "casa", OwnerId = 1, HouseholdId = 2,
+            Crew = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([3L]), Helpers = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]),
+            OnSite = LivingWorld.Api.Visual.Observable.ValueList<long>.Of([1L]), HoursTotal = 480, HoursLeft = 360, HoursByCrew = 40,
+            HoursByHelpers = 80, HaulHoursLeft = 0, Paid = 100, Spent = 60, OfferPm = 1100, StartedTick = 2, LastWorkedTick = 4,
+            Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(3, "madeira", 20, 5)]),
+        };
         public static readonly LivingWorld.Api.Visual.Catalogs.ExtraordinaryNpcVisual Extraordinary = new(
             ["voo"], true, "manifest", 1.2, "#ffffff", "faisca", new("hunger", 1, 2), 0.5, true, 1.5);
     }
@@ -78,6 +87,9 @@ public class ApiContractTests
         private static readonly LivingWorld.Api.Visual.Observable.AnimalVisual Animal = new(6, "deer", Cell, 10, false, null);
         private static readonly LivingWorld.Api.Visual.Observable.LeavingVisual Leaving = new(7, Cell, 1, null, null, 1, 0, null, null, null, null);
         private static readonly LivingWorld.Api.Visual.Observable.ObjectVisual Object = new(10, 1, 1, null, null, false, null, null, null, 0);
+        // AD-193: obra sem canteiro, sem dono, sem casa, andando (halt nulo), sem turma nem material
+        private static readonly LivingWorld.Api.Visual.Observable.WorkSiteVisual Work = new(12, "predio-1", "22222222-2222-2222-2222-222222222222", Cell, 0)
+            { Materials = LivingWorld.Api.Visual.Observable.ValueList<LivingWorld.Api.Visual.Observable.WorkMaterialVisual>.Of([new(9, null, 1, 0)]) };
 
         public static LivingWorld.Api.Visual.Scope.LivingScopeState State => LivingWorld.Api.Visual.Scope.LivingScopeState.Empty with
         {
@@ -92,6 +104,7 @@ public class ApiContractTests
             Leavings = [Leaving],
             Objects = [Object],
             Roads = [Road],
+            Works = [Work],
         };
 
         public static LivingWorld.Api.Visual.Scope.ScopeTickDelta Delta(long tick) =>
@@ -104,6 +117,7 @@ public class ApiContractTests
                 AnimalUpserts = [Animal],
                 LeavingUpserts = [Leaving],
                 ObjectUpserts = [Object],
+                WorkUpserts = [Work],
             };
     }
 
@@ -141,7 +155,9 @@ public class ApiContractTests
             Climate = ObservableSample.Climate,
             // AD-173: um lote completo (quintal, caminho e rua), para a forma conhecer o elemento das listas em todo escopo
             Buildings = [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(3), city, -1, cell)
-                { Lot = new([cell], [cell], cell) { Access = "street" } }],
+                { Lot = new([cell], [cell], cell) { Access = "street" },
+                  Work = new LivingWorld.Simulation.Cities.Works.WorkView(11, "casa", cell, 0.25, false, 1, 1, 1000, 2) }],
+            Works = [ObservableSample.Work], // AD-193
         };
         var living = ContractShapes.Merge(
             ContractShapes.Of(JsonNode.Parse(LivingWorld.Api.Realtime.VisualWire.Serialize(filled))),
@@ -352,7 +368,8 @@ public class ApiContractTests
             [city],
             [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(7), city, -1, cell, 90)
                 { Floors = 2, GroundFootprint = [new LivingWorld.Domain.Cities.Buildings.FootprintCell(cell, LivingWorld.Domain.Cities.Buildings.BuildingMaterial.Door)],
-                  Value = 100, Lodging = new LivingWorld.Api.Visual.Projection.LodgingMarker(2, 1, 30, 2) }],
+                  Value = 100, Lodging = new LivingWorld.Api.Visual.Projection.LodgingMarker(2, 1, 30, 2),
+                  Work = new LivingWorld.Simulation.Cities.Works.WorkView(11, "casa", cell, 0.25, false, 1, 1, 1000, 2) }],
             [new LivingWorld.Domain.Shared.BuildingId(7)],
             [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed", 1, 3, cell, [cell], "brilho") { ResourceId = 1, ResourceName = "trigo" }],
             [1L],
@@ -373,6 +390,8 @@ public class ApiContractTests
             ObjectUpserts = [ObservableSample.Object],
             ObjectRemoved = [9L],
             Climate = ObservableSample.Climate,
+            WorkUpserts = [ObservableSample.Work],
+            WorkRemoved = [11L],
         };
         var occupant = new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null);
         var world = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, delta);
