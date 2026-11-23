@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
@@ -112,20 +113,7 @@ public static class WorkSiteProjector
         if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return null;
         var site = new CellCoord(project.SiteX, project.SiteY);
         long total = Math.Max(1, recipe.TicksToBuild);
-        var materials = new List<WorkMaterialVisual>(recipe.Inputs.Count);
-        bool short_ = false;
-        long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
-        foreach (var (resource, needed) in recipe.Inputs.OrderBy(kv => kv.Key.Id))
-        {
-            long placed = project.Consumed.GetValueOrDefault(resource);
-            materials.Add(new WorkMaterialVisual(resource.Id, names.Resource(resource.Id), needed, placed));
-            // o mesmo passo da receita que a fila cobra do estoque da cidade (ConstructionSystem): sem ele, as horas ficam guardadas
-            long target = tickIndex >= recipe.TicksToBuild ? needed : needed * tickIndex / Math.Max(1, recipe.TicksToBuild);
-            long due = target - placed;
-            if (project.TicksRemaining > 0 && project.HaulHoursLeft == 0 && project.HoursBanked > 0 && due > 0
-                && city.Stock.GetValueOrDefault(resource) < due)
-                short_ = true;
-        }
+        var (materials, short_) = MaterialOf(recipe, project, city.Stock, names);
         bool stalled = project.Stalled == true;
         return new WorkSiteVisual(project.WorkId!.Value, $"predio-{project.BuildingTypeId}", city.Id.ToString(), site,
             Fraction(total - project.TicksRemaining, total))
@@ -147,6 +135,27 @@ public static class WorkSiteProjector
             LastWorkedTick = project.LastProgressTick ?? 0,
             Materials = ValueList<WorkMaterialVisual>.Of(materials),
         };
+    }
+
+    /// <summary>Material da obra da fila: o total da receita e o já posto por recurso, e se o estoque da cidade não tem o insumo do
+    /// próximo passo com horas da turma guardadas (o mesmo passo que <c>ConstructionSystem</c> cobra; sem ele a obra não anda).</summary>
+    public static (List<WorkMaterialVisual> Materials, bool Short) MaterialOf(BuildingRecipe recipe, ConstructionProject project,
+        IReadOnlyDictionary<ResourceType, long> stock, PresentationNames names)
+    {
+        var materials = new List<WorkMaterialVisual>(recipe.Inputs.Count);
+        bool lacking = false;
+        long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
+        foreach (var (resource, needed) in recipe.Inputs.OrderBy(kv => kv.Key.Id))
+        {
+            long placed = project.Consumed.GetValueOrDefault(resource);
+            materials.Add(new WorkMaterialVisual(resource.Id, names.Resource(resource.Id), needed, placed));
+            long target = tickIndex >= recipe.TicksToBuild ? needed : needed * tickIndex / Math.Max(1, recipe.TicksToBuild);
+            long due = target - placed;
+            if (project.TicksRemaining > 0 && project.HaulHoursLeft == 0 && project.HoursBanked > 0 && due > 0
+                && stock.GetValueOrDefault(resource) < due)
+                lacking = true;
+        }
+        return (materials, lacking);
     }
 
     private static double Fraction(long done, long total) => Math.Round(Math.Clamp(done / (double)Math.Max(1, total), 0, 1), 3);

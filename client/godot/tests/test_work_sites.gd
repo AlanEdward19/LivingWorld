@@ -163,3 +163,22 @@ func test_work_events_link_to_the_work_and_name_what_it_raises() -> void:
 	var links: Array = app.registry.event_links(event).map(func(l): return Registry.key(l[1]))
 	check("work:%d" % WORK in links, "evento de obra abre a obra: %s" % [links])
 	check(app.registry.event_title(event).ends_with("— casa"), app.registry.event_title(event))
+
+
+func test_a_work_that_starts_losing_the_day_goes_to_the_record_with_its_place() -> void:
+	var app = await city_app(tree)
+	var seen := []
+	app.store.events_arrived.connect(func(events): seen.append_array(events))
+	app.stream.delta_applied.emit(delta(11, {"workUpserts": [work(0.3, {"halt": "tempo"})]}))
+	eq(seen.size(), 1, "a obra passou a perder o dia pelo tempo")
+	eq(int(seen[0].involved.workId), WORK, "com a obra")
+	eq(seen[0].location, {"x": 4, "y": 0}, "e o lote")
+	app.stream.delta_applied.emit(delta(12, {"workUpserts": [work(0.31, {"halt": "tempo"})]}))
+	eq(seen.size(), 1, "o mesmo episódio não se repete")
+
+
+func test_the_city_snapshot_without_work_on_the_building_still_draws_the_site() -> void:
+	var snapshot := city()
+	snapshot.payload.buildings[1].erase("work") # o retrato da cidade traz o prédio sem `work`; a obra vem em `livingState.works`
+	var app = await city_app(tree, snapshot)
+	eq(int(app.world_view.buildings.nodes[CANTEIRO].get_meta("work_id", -1)), WORK, "o canteiro do retrato é obra")

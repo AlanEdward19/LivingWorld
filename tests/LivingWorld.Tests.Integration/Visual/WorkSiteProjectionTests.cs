@@ -131,23 +131,20 @@ public class WorkSiteProjectionTests
     [Fact]
     public void Queued_city_work_shows_its_material_and_stops_for_lack_of_it()
     {
-        var (world, _) = ScenarioRunner.Create(3);
-        var city = world.ActiveCities().First();
-        var (typeId, recipe) = world.CityCatalog.BuildingRecipes.First(kv => kv.Value.Inputs.Count > 0);
-        var project = new ConstructionProject(city.Id, typeId, new Dictionary<LivingWorld.Domain.Economy.ResourceType, long>(), recipe.TicksToBuild)
-        { SiteX = city.Location.X, SiteY = city.Location.Y, WorkId = 9_999, HoursBanked = 3, HaulHoursLeft = 0, Crew = [] };
-        city.EnqueueConstruction(project);
-        foreach (var (resource, _) in recipe.Inputs)
-            if (city.Stock.GetValueOrDefault(resource) is var have and > 0) city.WithdrawStock(resource, have);
+        var timber = new ResourceType(3);
+        var recipe = LivingWorld.Domain.Cities.BuildingRecipe.Create(new Dictionary<ResourceType, long> { [timber] = 20 }, 10, 4).Value!;
+        var project = new ConstructionProject(new CityId(Guid.Parse("11111111-1111-1111-1111-111111111111")), 1, new Dictionary<ResourceType, long>(), 10)
+        { HoursBanked = 3, HaulHoursLeft = 0 };
+        project.RecordConsumption(timber, 4);
 
-        var seen = WorkSiteProjector.Find(world, 9_999, PresentationNames.None)!;
-
-        Assert.Equal(($"predio-{typeId}", "cidade"), (seen.Kind, seen.Payer));
-        Assert.Equal(recipe.Inputs.Sum(kv => kv.Value), seen.Materials.Sum(m => m.Needed));
-        Assert.All(seen.Materials, m => Assert.Equal(0, m.Placed));
-        Assert.True(seen.Halt is "material" or "tempo", $"sem insumo no estoque a obra não anda: {seen.Halt}");
-        foreach (var (resource, amount) in recipe.Inputs) city.DepositStock(resource, amount);
-        Assert.NotEqual("material", WorkSiteProjector.Find(world, 9_999, PresentationNames.None)!.Halt);
+        var (materials, lacking) = WorkSiteProjector.MaterialOf(recipe, project, new Dictionary<ResourceType, long>(), PresentationNames.None);
+        Assert.Equal((3, 20L, 4L), (materials[0].ResourceId, materials[0].Needed, materials[0].Placed));
+        Assert.False(lacking); // o 1º passo pede 2 e já há 4 postos
+        project.RecordConsumption(timber, -4);
+        Assert.True(WorkSiteProjector.MaterialOf(recipe, project, new Dictionary<ResourceType, long>(), PresentationNames.None).Short);
+        Assert.False(WorkSiteProjector.MaterialOf(recipe, project, new Dictionary<ResourceType, long> { [timber] = 2 }, PresentationNames.None).Short);
+        project.HaulHoursLeft = 5; // ainda carregando: as horas vão ao transporte, não ao estoque
+        Assert.False(WorkSiteProjector.MaterialOf(recipe, project, new Dictionary<ResourceType, long>(), PresentationNames.None).Short);
     }
 
     [Fact]

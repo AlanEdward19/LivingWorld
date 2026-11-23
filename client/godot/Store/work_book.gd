@@ -8,6 +8,9 @@ const HALT_TEXT := {
 	"material": "a cidade não tem no estoque o material do próximo passo da obra",
 }
 const PAYER_TEXT := {"casa": "a família paga a turma", "fundador": "o fundador paga a turma com o que guardou", "cidade": "o tesouro da cidade paga a turma"}
+## AD-193: a obra que passa a perder o dia (o motor não registra isso no log; o estado `halt` diz) vira linha no registro, com lugar.
+const HALT_EVENT := {"tempo": "Uma obra parou pelo tempo (chuva forte, neve ou chão congelado)",
+	"material": "Uma obra da cidade parou: falta no estoque o material do próximo passo"}
 const STAGES := 10 ## a obra desenhada muda de forma a cada décimo (o motor manda a fração a cada hora trabalhada)
 
 
@@ -53,14 +56,25 @@ static func load_snapshot(store, state: Dictionary) -> void:
 		if raw is Dictionary:
 			var work := parse(raw)
 			store.works[work.id] = work
+			# o retrato da cidade (`payload.buildings`) não traz `work` no prédio: o canteiro é o que a obra diz
+			var site = store.buildings.get(int(work.building_id))
+			if site != null and site.get("work", {}).is_empty():
+				site.work = {"id": work.id, "kind": work.kind, "progress": work.progress, "stalled": work.stalled, "building_id": work.building_id,
+					"halt": work.halt, "materials": [], "haul_left": 0}
 
 
 ## Delta: só a obra que mudou vem; a que acabou ou foi abandonada sai. Avisa com os ids tocados (o renderizador redesenha só esses).
 static func apply_delta(store, delta: Dictionary) -> void:
 	var touched: Array = []
+	var halted: Array = []
 	for raw in delta.get("workUpserts", []) if delta.get("workUpserts") is Array else []:
 		if raw is Dictionary:
 			var work := parse(raw)
+			var before = store.works.get(work.id)
+			if before != null and String(before.halt) != String(work.halt) and HALT_EVENT.has(String(work.halt)):
+				halted.append({"label": HALT_EVENT[String(work.halt)], "kind": 0, "tick": int(delta.get("tick", 0)),
+					"location": {"x": work.cell.x, "y": work.cell.y},
+					"involved": {"workId": work.id, "cityId": work.city, "outcome": work.kind}})
 			store.works[work.id] = work
 			touched.append(work.id)
 	for removed in delta.get("workRemoved", []) if delta.get("workRemoved") is Array else []:
@@ -69,6 +83,8 @@ static func apply_delta(store, delta: Dictionary) -> void:
 			touched.append(id)
 	if not touched.is_empty():
 		store.works_changed.emit(touched)
+	if not halted.is_empty():
+		store.events_arrived.emit(halted)
 
 
 ## A obra do canteiro (prédio com `work`), {} se o prédio está pronto ou a obra não está no escopo.

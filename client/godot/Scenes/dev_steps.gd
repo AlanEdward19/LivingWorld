@@ -122,6 +122,11 @@ static func run(app: Node, steps: Array) -> void:
 				app.first_steps.open_help()
 			"xray": # AD-177: raio-x, planta, ficha da rua mais usada e do lote com quintal, contagem do chão
 				app.reading.toggle_xray()
+			"focuswork": # AD-193: câmera e ficha na primeira obra do escopo (captura da fumaça)
+				for work_id in app.store.works:
+					app.focus_point(app.point_of({"kind": "work", "id": int(work_id)}))
+					await app.inspect({"kind": "work", "id": int(work_id)})
+					break
 			"plan":
 				app.reading.toggle_plan()
 			"street":
