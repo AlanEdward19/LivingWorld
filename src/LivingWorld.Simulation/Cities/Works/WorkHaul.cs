@@ -255,6 +255,7 @@ internal static class WorkHaul
                 if (world.FindHousehold(new HouseholdId(HomeOf(world, work))) is not { } house) return 0;
                 units = Math.Min(units, house.Stock.GetValueOrDefault(resource));
                 if (units <= 0 || !house.Withdraw(resource, units).IsSuccess) return 0;
+                world.RecordResourceConsumed(resource, units); // AD-195: da despensa para a obra (como a compra na banca)
                 break;
             case "banca":
                 if (world.FindWorkplace(new WorkplaceId(trip.Seller)) is not { Closed: false } seller
@@ -267,7 +268,14 @@ internal static class WorkHaul
                 work.Spent += cost;
                 break;
         }
-        return npc.PickUp(resource, units, Math.Max(units, npc.CarryCapacity)).IsSuccess ? units : 0;
+        if (!npc.PickUp(resource, units, Math.Max(units, npc.CarryCapacity)).IsSuccess) return 0;
+        if (trip.Source == "natureza")
+        {
+            // AD-195: o material cortado na mata entra na economia ao ser pego e vai direto para a obra
+            world.RecordResourceProduced(resource, units);
+            world.RecordResourceConsumed(resource, units);
+        }
+        return units;
     }
 
     /// <summary>Quanto do material a pessoa aguenta numa viagem: o teto de carga dela e o peso que ainda deixa andar
@@ -332,7 +340,9 @@ internal static class WorkHaul
     private static void KeepLoad(WorldState world, Npc npc, ResourceType resource)
     {
         if (npc.CarriedResourceId != resource.Id || npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
+        long units = npc.CarriedQuantity;
         npc.GiveCarriedTo(home);
+        world.RecordResourceProduced(resource, units); // AD-195: o que era da obra volta à despensa
     }
 
     /// <summary>Obra pronta ou abandonada: quem estava com carga dela a leva para casa.</summary>

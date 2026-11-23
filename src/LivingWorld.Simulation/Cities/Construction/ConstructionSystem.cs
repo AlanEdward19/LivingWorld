@@ -81,9 +81,13 @@ public sealed class ConstructionSystem : ISimulationSystem
 
                     foreach (var (resource, amount) in due)
                     {
+                        // AD-195: com a turma que anda, o insumo já saiu do largo (e foi contado consumido) quando a turma o pegou
                         if (walking) project.MaterialOnSite![resource.Id] -= amount;
-                        else city.WithdrawStock(resource, amount);
-                        world.RecordResourceConsumed(resource, amount);
+                        else
+                        {
+                            city.WithdrawStock(resource, amount);
+                            world.RecordResourceConsumed(resource, amount);
+                        }
                         project.RecordConsumption(resource, amount);
                     }
 
