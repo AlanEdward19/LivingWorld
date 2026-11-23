@@ -24,7 +24,9 @@ vem a identidade e como ela entra no contrato público.
    (arquivo `players.log` ao lado do save), para que reaplicar snapshot + registro dê o mesmo mundo depois de reiniciar.
 4. **Estado do hospedeiro, fora do hash.** Sessão, token e fila não entram no snapshot canônico; só o efeito no mundo
    (controlador, ação pedida) entra, como hoje.
-5. **Respostas novas** (contrato, por isso este ADR): `401` sem token válido e `403` quando o token não é do jogador da rota.
+5. **Modo RPG (ADR-0049)**: as intenções de movimento, interação e golpe entram na mesma fila, com subtick; a ordem entre
+   jogadores no mesmo subtick é a de chegada (`Sequence`).
+6. **Respostas novas** (contrato, por isso este ADR): `401` sem token válido e `403` quando o token não é do jogador da rota.
 
 ## Alternativas consideradas
 - **Manter o `playerId` do cliente e confiar nele** — é o de hoje; qualquer um age por qualquer um. Serve só a um jogador local.

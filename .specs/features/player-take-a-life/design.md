@@ -26,7 +26,10 @@ O jogador assume alguém com família, ofício, dívidas, memórias e laços. A 
 | B. Coautoria (recomendada) | segue viva: personalidade, humor e necessidades pesam e podem **recusar** a ordem | sim, pela conduta | o NPC lembra do período como seu |
 | C. Possessão | o NPC é passageiro e resiste como na possessão por poder | estranhamento, medo | trauma (lembrança de possessão) |
 
-Recomendação: **B**, porque mantém o jogador sem regra especial e reusa o que existe.
+Recomendação: **B**, porque mantém o jogador sem regra especial e reusa o que existe. No modo RPG (decisão do dono de
+2026-11-23, `.specs/features/player-direct-control/`): andar e golpear por WASD/clique são sempre obedecidos (o corpo só
+limita: ferimento, cansaço, carga); a coautoria vale para as ações longas (trabalhar, dormir, casar, vender) e para o que
+fere quem o NPC ama (golpe em parente pede confirmação e pode ser recusado, decisão do dono).
 1. **Recusa calculada.** A ordem do jogador entra como mais um termo da utilidade (`DecisionContext`), com peso alto mas
    finito; urgência forte (fome, sede, sono no limite), luto e medo podem vencer, como já vencem a rotina (AD-138). A recusa é
    registrada (`PlayerOrderRefused`, evento novo) e o jogador vê o motivo. Hoje (AD-111/196) a ordem vence sempre; mudar é
