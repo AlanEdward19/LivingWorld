@@ -38,7 +38,7 @@ public class PlayerLogStoreTests
             clock.Run(world, 30);
             Apply(() => players.Logout(world, "bia").IsSuccess);
             clock.Run(world, 20);
-            long saved = world.CurrentDate.TotalHours;
+            long saved = world.CurrentDate.TotalSeconds;
             string hash = WorldSnapshot.CanonicalHash(world);
 
             // reinício: nada em memória, só os arquivos

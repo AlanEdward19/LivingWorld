@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
 
@@ -24,17 +25,22 @@ public sealed class PlayerLogStore(string? directory)
     public IReadOnlyList<PlayerCommandRecord> Records => _records;
 
     /// <summary>Antes de aplicar um comando ao mundo <paramref name="worldKey"/>: na primeira vez desde que o mundo foi aberto
-    /// (ou trocado), fixa a base com o mundo como está e começa um registro novo.</summary>
-    public void BeforeCommand(string worldKey, WorldState world)
+    /// (ou trocado), fixa a base com o mundo como está e começa um registro novo. Se o mundo já roda com Δ diferente de uma hora
+    /// (ADR-0050), o registro começa com essa duração (sequência -1), porque o replay parte de uma hora.</summary>
+    public void BeforeCommand(string worldKey, WorldState world, int tickDeltaSeconds = WorldSeconds.HourTick)
     {
         if (_worldKey == worldKey && ReferenceEquals(_world, world) && _base is not null) return;
         _worldKey = worldKey;
         _world = world;
         _base = WorldSnapshot.Serialize(world);
         _records.Clear();
-        if (directory is null) return;
-        File.WriteAllText(BasePath(worldKey), _base);
-        File.WriteAllText(LogPath(worldKey), "");
+        if (directory is not null)
+        {
+            File.WriteAllText(BasePath(worldKey), _base);
+            File.WriteAllText(LogPath(worldKey), "");
+        }
+        if (tickDeltaSeconds != WorldSeconds.HourTick)
+            Append(new PlayerCommandRecord(world.CurrentDate.TotalSeconds, -1, "host", PlayerCommandKind.TickDelta, DeltaSeconds: tickDeltaSeconds));
     }
 
     public void Append(PlayerCommandRecord record)

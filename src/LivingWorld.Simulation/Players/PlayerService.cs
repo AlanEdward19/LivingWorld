@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
@@ -6,13 +7,18 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
 
-public enum PlayerCommandKind { Incarnate, Act, Logout }
+/// <summary><see cref="TickDelta"/> (ADR-0050) não é comando de jogador: é a troca da duração do tick do mundo, que entra no mesmo
+/// registro porque o replay precisa da mesma sequência de Δ para dar o mesmo mundo.</summary>
+public enum PlayerCommandKind { Incarnate, Act, Logout, TickDelta }
 
-/// <summary>Um comando de jogador aceito, no tick do mundo em que foi aplicado (antes do tick rodar). <see cref="Sequence"/> é a
-/// ordem de chegada no hospedeiro: com vários jogadores no mesmo branch, é a ordem única de aplicação.</summary>
+/// <summary>Um comando de jogador aceito, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em segundos
+/// (<see cref="Second"/>; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
+/// convertido). <see cref="Sequence"/> é a ordem de chegada no hospedeiro: com vários jogadores no mesmo branch, é a ordem única
+/// de aplicação. <see cref="DeltaSeconds"/> só no <see cref="PlayerCommandKind.TickDelta"/>.</summary>
 public sealed record PlayerCommandRecord(
-    long Tick, long Sequence, string PlayerId, PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null,
-    string? PowerId = null);
+    [property: JsonPropertyName("Tick"), JsonConverter(typeof(HourCompatibleSecondsJsonConverter))] long Second,
+    long Sequence, string PlayerId, PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null,
+    string? PowerId = null, int? DeltaSeconds = null);
 
 /// <summary>Registro de sessões do hospedeiro (AD-196): quem encarnou, agiu e saiu, na ordem em que o mundo aplicou. Fica fora
 /// do snapshot e do hash (não é fato do mundo); reaplicar o registro a partir do snapshot do começo reproduz o mesmo mundo
@@ -33,10 +39,22 @@ public sealed class PlayerSessionLog
         get { lock (_gate) return _records.Count == 0 ? null : _records[^1]; }
     }
 
-    internal void Append(long tick, string playerId, PlayerCommandKind kind, long? npcId = null, ActionType? action = null,
-        string? powerId = null)
+    /// <summary>Duração do tick com que o hospedeiro roda o mundo agora (ADR-0050). Começa em uma hora.</summary>
+    public int TickDeltaSeconds
     {
-        lock (_gate) _records.Add(new PlayerCommandRecord(tick, _records.Count, playerId, kind, npcId, action, powerId));
+        get { lock (_gate) return _tickDeltaSeconds; }
+    }
+
+    private int _tickDeltaSeconds = WorldSeconds.HourTick;
+
+    internal void Append(long second, string playerId, PlayerCommandKind kind, long? npcId = null, ActionType? action = null,
+        string? powerId = null, int? deltaSeconds = null)
+    {
+        lock (_gate)
+        {
+            _records.Add(new PlayerCommandRecord(second, _records.Count, playerId, kind, npcId, action, powerId, deltaSeconds));
+            if (kind == PlayerCommandKind.TickDelta) _tickDeltaSeconds = deltaSeconds!.Value;
+        }
     }
 }
 
@@ -51,7 +69,7 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
     public Result<Unit> Incarnate(WorldState world, NpcId npcId, string playerId)
     {
         var result = PlayerCommands.Incarnate(world, Context(world), npcId, playerId);
-        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalHours, playerId, PlayerCommandKind.Incarnate, npcId.Value);
+        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalSeconds, playerId, PlayerCommandKind.Incarnate, npcId.Value);
         return result;
     }
 
@@ -60,40 +78,65 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         var result = PlayerCommands.Act(world, npc.Id, playerId, action, powerId);
-        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalHours, playerId, PlayerCommandKind.Act, npc.Id.Value, action, powerId);
+        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalSeconds, playerId, PlayerCommandKind.Act, npc.Id.Value, action, powerId);
         return result;
     }
 
     public Result<Npc> Logout(WorldState world, string playerId)
     {
         var result = PlayerCommands.Logout(world, Context(world), playerId);
-        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalHours, playerId, PlayerCommandKind.Logout, result.Value!.Id.Value);
+        if (result.IsSuccess) Log.Append(world.CurrentDate.TotalSeconds, playerId, PlayerCommandKind.Logout, result.Value!.Id.Value);
         return result;
+    }
+
+    /// <summary>Troca a duração do tick do mundo a partir de agora (ADR-0050): Δ divide a hora. Quem pede é o hospedeiro (admin; na
+    /// AD-197c, a troca de modo com jogador presente); vai para o registro para o replay reproduzir a mesma sequência de Δ.</summary>
+    public Result<Unit> SetTickDelta(WorldState world, string requestedBy, int deltaSeconds)
+    {
+        if (!WorldSeconds.IsValidTickDelta(deltaSeconds))
+            return Result<Unit>.Fail($"Δ inválido: {deltaSeconds} s não divide a hora (1 a 3600 s)");
+        if (deltaSeconds != Log.TickDeltaSeconds)
+            Log.Append(world.CurrentDate.TotalSeconds, requestedBy, PlayerCommandKind.TickDelta, deltaSeconds: deltaSeconds);
+        return Result<Unit>.Ok(Unit.Value);
     }
 }
 
 /// <summary>Reaplica um <see cref="PlayerSessionLog"/> sobre o mundo restaurado do snapshot do começo (AD-196): roda o relógio
-/// até o tick de cada comando e o aplica na ordem de chegada. Mesmo snapshot e mesmo registro dão o mesmo mundo.</summary>
+/// até o instante de cada comando, com a duração de tick em vigor (ADR-0050: começa em uma hora e muda nos registros
+/// <see cref="PlayerCommandKind.TickDelta"/>), e o aplica na ordem de chegada. Mesmo snapshot, mesmo registro e mesma sequência
+/// de Δ dão o mesmo mundo.</summary>
 public static class PlayerReplay
 {
     public static WorldState Run(
-        string snapshotJson, IReadOnlyList<PlayerCommandRecord> records, WorldClock clock, IWorldEventSink sink, long untilTick)
+        string snapshotJson, IReadOnlyList<PlayerCommandRecord> records, WorldClock clock, IWorldEventSink sink, long untilSecond)
     {
         var world = WorldSnapshot.Deserialize(snapshotJson);
         var service = new PlayerService(sink);
-        foreach (var record in records.OrderBy(r => r.Tick).ThenBy(r => r.Sequence))
+        int delta = WorldSeconds.HourTick;
+        foreach (var record in records.OrderBy(r => r.Second).ThenBy(r => r.Sequence))
         {
-            clock.Run(world, record.Tick - world.CurrentDate.TotalHours);
+            AdvanceTo(clock, world, record.Second, delta);
             var applied = record.Kind switch
             {
                 PlayerCommandKind.Incarnate => service.Incarnate(world, new NpcId(record.NpcId!.Value), record.PlayerId).IsSuccess,
                 PlayerCommandKind.Act => service.Act(world, record.PlayerId, record.Action, record.PowerId).IsSuccess,
+                PlayerCommandKind.TickDelta => service.SetTickDelta(world, record.PlayerId, record.DeltaSeconds!.Value).IsSuccess,
                 _ => service.Logout(world, record.PlayerId).IsSuccess,
             };
             if (!applied) throw new InvalidOperationException($"replay divergiu no comando {record.Sequence}");
+            if (record.Kind == PlayerCommandKind.TickDelta) delta = record.DeltaSeconds!.Value;
         }
 
-        clock.Run(world, untilTick - world.CurrentDate.TotalHours);
+        AdvanceTo(clock, world, untilSecond, delta);
         return world;
+    }
+
+    /// <summary>Os mesmos ticks que o hospedeiro rodou: Δ em vigor, parando em cada hora cheia (<see cref="WorldClock.Tick(WorldState, int)"/>).</summary>
+    private static void AdvanceTo(WorldClock clock, WorldState world, long second, int delta)
+    {
+        while (world.CurrentDate.TotalSeconds < second)
+            clock.Tick(world, delta);
+        if (world.CurrentDate.TotalSeconds != second)
+            throw new InvalidOperationException($"replay passou do instante {second} com Δ = {delta} s");
     }
 }
