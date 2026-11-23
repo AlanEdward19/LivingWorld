@@ -109,7 +109,7 @@ public sealed partial record StreetRules
 
     /// <summary>AD-192, só para os relatórios (<c>LW_AD192</c>): <c>off</c> desliga a fatia toda; <c>nohygiene</c> só a higiene (casos do
     /// ambiente e parede-meia), <c>noregard</c> só o que a aversão ao bairro decide (onde morar, valor, migração), <c>noleft</c> só as
-    /// sobras de cidade e rota; <c>noentry</c>, <c>noobstacle</c>, <c>nostroll</c>, <c>notrodden</c> uma sobra só; outro valor, nada.</summary>
+    /// sobras de cidade e rota; <c>noentry</c>, <c>noobstacle</c>, <c>nostroll</c>, <c>notrodden</c>, <c>nohold</c> uma sobra só; outro valor, nada.</summary>
     public StreetRules WithAd192Mode(string mode) => mode switch
     {
         "off" => WithoutAd192(),
@@ -127,6 +127,7 @@ public sealed partial record StreetRules
         "noobstacle" => this with { ObstacleOnCompletion = false },
         "nostroll" => this with { AmbientStepsByHour = false },
         "notrodden" => this with { LotsAvoidTrodden = false },
+        "nohold" => this with { CityHoldsItsBuildings = false },
         _ => this,
     };
 

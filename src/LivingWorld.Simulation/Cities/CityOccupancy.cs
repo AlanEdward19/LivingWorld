@@ -218,7 +218,15 @@ public static class CityOccupancy
     /// busca de célula livre), depois os boxes de <see cref="OwnedBuildingFootprintBoxes"/>
     /// alimentados de volta pra resolução final (potencialmente maior). Um único lugar em vez de
     /// duplicar as duas chamadas nos 6 call sites (mesmo conceito, per tasks.md).</summary>
-    public static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population)
+    public static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population) =>
+        ResolveGrownBounds(world, city, population, AbsorbAll(world));
+
+    /// <summary>AD-192: o miolo crescido da cidade — o limite pela cadeia a partir do miolo, sem ir até a casa de lote longe. É até onde
+    /// vai o passeio à toa (quem passeia anda pela vila, não até a última casa dela).</summary>
+    public static CityBounds ResolveCoreBounds(WorldState world, City city, long population) =>
+        ResolveGrownBounds(world, city, population, absorbAll: false).Bounds;
+
+    private static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population, bool absorbAll)
     {
         var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
@@ -239,7 +247,7 @@ public static class CityOccupancy
 
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds,
-            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: AbsorbAll(world));
+            chainReachCells: ChainReach(world), anchorLoneBuilding: AnchorLone(world, city), absorbAll: absorbAll);
     }
 
     /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth

@@ -47,8 +47,8 @@ public sealed partial class BehaviorDecisionSystem
         {
             if (!cityBoundsCache.TryGetValue(city.Id, out var cached))
             {
-                cached = CityOccupancy.ResolveGrownBounds(
-                    world, city, PopulationOf(world, city.Id, cityPopulationCache)).Bounds;
+                cached = CityOccupancy.ResolveCoreBounds(
+                    world, city, PopulationOf(world, city.Id, cityPopulationCache)); // AD-192: o passeio fica no miolo
                 cityBoundsCache[city.Id] = cached;
             }
             homeBounds = cached;
