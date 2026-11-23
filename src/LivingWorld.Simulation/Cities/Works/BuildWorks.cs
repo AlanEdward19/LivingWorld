@@ -469,6 +469,20 @@ public static class BuildWorks
             }
             willing.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : a.Id.CompareTo(b.Id));
             for (int i = 0; i < willing.Count && i < rules.HelpersMax; i++) helpers.Add(willing[i].Id);
+            // AD-195: dia de mutirão para a família da casa (a obra é dela) e para quem quer muito (vontade ≥ MutiraoDayMin)
+            var strong = new List<long>();
+            if (rules.MutiraoDays)
+            {
+                foreach (var a in adults) if (helpers.Contains(a.Id.Value)) strong.Add(a.Id.Value);
+                for (int i = 0; i < willing.Count && i < rules.HelpersMax; i++)
+                    if (willing[i].Value >= rules.MutiraoDayMin) strong.Add(willing[i].Id);
+                strong.Sort();
+            }
+            if (!strong.SequenceEqual(work.Mutirao))
+            {
+                work.Mutirao = strong;
+                SiteWork.Touch(world);
+            }
         }
         if (!helpers.SequenceEqual(work.Helpers))
         {

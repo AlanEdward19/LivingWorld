@@ -114,10 +114,28 @@ public static class SiteWork
         // AD-185: a casa sem água bastante manda primeiro à fonte (quem ajuda na obra é quem iria buscá-la)
         if (LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeNeedsWater(world, npc)) return false;
         if (npc.Employer is null) return true;
+        if (world.StreetRules.MutiraoDays && work.Mutirao.Contains(npc.Id.Value) && MutiraoToday(world, npc)) return true; // AD-195
         var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
         var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;
         return LivingWorld.Simulation.Behavior.Needs.RoutineBoundaries.RoutineAt(world.ActionCatalog, profession, stage, hour, hpd)
             is not (LivingWorld.Domain.Behavior.ActionType.Work or LivingWorld.Domain.Behavior.ActionType.Sleep);
+    }
+
+    /// <summary>AD-195: hoje é o dia de mutirão deste ajudante empregado: um dia por semana (o dia da semana dele, pelo id), dois na
+    /// entressafra de quem lavra, nunca na semeadura nem na ceifa de quem lavra (a roça não espera). O motor não tem dia de descanso no
+    /// calendário: o dia da semana de cada um faz as vezes dele.</summary>
+    internal static bool MutiraoToday(WorldState world, Npc npc)
+    {
+        long day = world.CurrentDate.TotalHours / world.Calendar.HoursPerDay;
+        int slot = (int)((npc.Id.Value + day) % 7);
+        var agri = world.AgricultureRules;
+        if (agri.Enabled && npc.Employer is { } id && world.FindWorkplace(id) is { } place && world.FindCropAt(place.Location) is not null)
+        {
+            int month = world.CurrentDate.Month;
+            bool peak = agri.IsSowingMonth(month) || (month >= agri.EarliestRipeningMonth && month <= agri.ExpectedHarvestMonth + 1);
+            return !peak && (slot == 0 || slot == 3);
+        }
+        return slot == 0;
     }
 
     /// <summary>A célula onde a turma trabalha: a primeira do trecho, ou o lote do prédio.</summary>

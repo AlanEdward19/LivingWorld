@@ -183,10 +183,17 @@ internal static class WorkHaul
         long price = 0;
         foreach (var w in world.Workplaces)
         {
-            if (w.City != city.Id || w.Closed || w.Stock.GetValueOrDefault(resource) < units || !w.Prices.TryGetValue(resource, out long p) || p <= 0) continue;
+            if (w.City != city.Id || w.Closed || w.Stock.GetValueOrDefault(resource) < 1 || !w.Prices.TryGetValue(resource, out long p) || p <= 0) continue;
             if (seller is null || p < price || (p == price && w.Id.Value < seller.Id.Value)) { seller = w; price = p; }
         }
-        if (seller is not null && WorkMaterial.CanPay(world, work, units * price))
+        // AD-195: com moeda e estoque na banca, compra o que pode desta carga (antes só comprava a carga cheia, e ia cortar na mata)
+        if (seller is not null && rules.BuyPartialLoads)
+        {
+            long affordable = Math.Min(Math.Min(units, seller.Stock.GetValueOrDefault(resource)), PayableUnits(world, work, price));
+            if (affordable > 0)
+                return new HaulTrip { Npc = who.Id.Value, X = seller.Location.X, Y = seller.Location.Y, Source = "banca", Seller = seller.Id.Value, Units = affordable };
+        }
+        else if (seller is not null && seller.Stock.GetValueOrDefault(resource) >= units && WorkMaterial.CanPay(world, work, units * price))
             return new HaulTrip { Npc = who.Id.Value, X = seller.Location.X, Y = seller.Location.Y, Source = "banca", Seller = seller.Id.Value, Units = units };
         if (rules.HouseGatherHours <= 0) return null;
         var wood = WoodsFor(world, city, new CellCoord(work.X, work.Y), resource);
@@ -197,8 +204,33 @@ internal static class WorkHaul
             Y = wood.Y,
             Source = "natureza",
             Units = units,
-            GatherHours = Math.Max(1, CeilDiv((long)rules.HouseGatherHours * units, Math.Max(1, rules.HouseMaterialUnits))),
+            GatherHours = CutHours(world, new CellCoord(work.X, work.Y), wood, units),
         };
+    }
+
+    /// <summary>Horas de cortar e preparar <paramref name="units"/> na mata, sem a caminhada. AD-195: <c>HouseGatherHours</c> (AD-184) era o
+    /// total de buscar o material da casa na natureza, com as viagens dentro: <c>HouseMaterialUnits / BuildUnitsPerLoad</c> idas e voltas
+    /// carregadas. Agora a ida é andada de verdade, então o corte é o total menos essas viagens pela rota deste lote até esta mata
+    /// (<c>StreetRoutes.CostOf</c>, a ida com o fator da carga). Sem a regra (<c>CutWithoutWalk</c> desligada), o total como antes.</summary>
+    internal static long CutHours(WorldState world, CellCoord site, CellCoord wood, long units)
+    {
+        var rules = world.StreetRules;
+        double total = rules.HouseGatherHours;
+        if (rules.CutWithoutWalk)
+        {
+            long loads = CeilDiv(Math.Max(1, rules.HouseMaterialUnits), Math.Max(1, rules.BuildUnitsPerLoad));
+            double trip = StreetRoutes.CostOf(world, site, wood).Cost
+                + StreetRoutes.CostOf(world, wood, site).Cost * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg);
+            total = Math.Max(rules.HouseMaterialUnits, total - loads * trip); // ao menos uma hora por unidade
+        }
+        return Math.Max(1, (long)Math.Ceiling(total * units / Math.Max(1, rules.HouseMaterialUnits)));
+    }
+
+    private static long PayableUnits(WorldState world, BuildWork work, long price)
+    {
+        if (price <= 0) return long.MaxValue;
+        long means = work.Kind == BuildKind.Workshop ? work.Escrow : PavingDecision.MeansOf(world, work.Household);
+        return Math.Max(0, means / price);
     }
 
     /// <summary>Pega a carga na fonte: tira da despensa, compra da banca (paga quem encomenda) ou corta na mata; devolve o que pegou.</summary>

@@ -144,6 +144,19 @@ public sealed partial record StreetRules(
     /// <summary>AD-195: a casa leva primeiro o material que já tem na despensa (sem comprar nem buscar); desligado: só banca e mata.</summary>
     public bool MaterialFromHome { get; init; } = true;
 
+    /// <summary>AD-195: o corte na mata não conta de novo a caminhada que já é andada (o total da AD-184 menos as viagens pela rota).</summary>
+    public bool CutWithoutWalk { get; init; } = true;
+
+    /// <summary>AD-195: com moeda e a banca com estoque, a casa compra o que pode da carga em vez de ir cortar.</summary>
+    public bool BuyPartialLoads { get; init; } = true;
+
+    /// <summary>AD-195: dia de mutirão: o ajudante de vontade forte (família, parente, vizinho de afeto) dá um dia inteiro por semana à
+    /// obra, fora da semeadura e da ceifa de quem lavra; quem lavra dá dois na entressafra.</summary>
+    public bool MutiraoDays { get; init; } = true;
+
+    /// <summary>AD-195: vontade mínima de ajudar (a mesma conta de <c>HelpMin</c>) para dar o dia inteiro e não só as horas livres.</summary>
+    public double MutiraoDayMin { get; init; } = 0.4;
+
     /// <summary>AD-184: quanto vale à família ter a casa própria em vez de morar de favor ou apertada, em dias de jornal por morador
     /// por ano: a casa nova só compensa se as idas de cada dia de lá não custam mais que isso a mais que as de onde ela está.</summary>
     public int OwnHomeDaysPerYear { get; init; } = 30;
@@ -233,14 +246,17 @@ public sealed partial record StreetRules(
 
     /// <summary>AD-184 desligada (<c>LW_AD184=off</c>), para medir pareado: a obra da AD-179 como era.</summary>
     /// <summary>AD-194 desligada (<c>LW_AD194=off</c>): material em horas e sem eventos de dia perdido, como na AD-184.</summary>
-    public StreetRules WithoutAd194() => this with { MaterialOnSite = false, WorkDayEvents = false, HaulersWalk = false, MaterialFromHome = false };
+    public StreetRules WithoutAd194() => this with { MaterialOnSite = false, WorkDayEvents = false, HaulersWalk = false, MaterialFromHome = false, CutWithoutWalk = false, BuyPartialLoads = false, MutiraoDays = false };
 
     /// <summary>AD-195 desligada (<c>LW_AD195=off</c>, ou só uma regra: <c>nowalk</c>, <c>nohome</c>).</summary>
     public StreetRules WithAd195Mode(string mode) => mode switch
     {
-        "off" => this with { HaulersWalk = false, MaterialFromHome = false },
+        "off" => this with { HaulersWalk = false, MaterialFromHome = false, CutWithoutWalk = false, BuyPartialLoads = false, MutiraoDays = false },
         "nowalk" => this with { HaulersWalk = false },
         "nohome" => this with { MaterialFromHome = false },
+        "nocut" => this with { CutWithoutWalk = false },
+        "nopartial" => this with { BuyPartialLoads = false },
+        "nomutirao" => this with { MutiraoDays = false },
         _ => this,
     };
 
@@ -256,6 +272,9 @@ public sealed partial record StreetRules(
         WorkDayEvents = false,
         HaulersWalk = false,
         MaterialFromHome = false,
+        CutWithoutWalk = false,
+        BuyPartialLoads = false,
+        MutiraoDays = false,
     };
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>
