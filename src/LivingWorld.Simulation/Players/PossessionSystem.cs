@@ -1,4 +1,5 @@
 using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
 

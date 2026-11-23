@@ -94,7 +94,7 @@ public class PlayerWillTests
                 && hash == WorldSnapshot.CanonicalHash(strong.World))
                 prevent++;
 
-            var (middle, m, _) = Scene(seed, 85, 85, 20, 50);
+            var (middle, m, _) = Scene(seed, 88, 88, 20, 50);
             Assert.True(PlayerCommands.Incarnate(middle.World, middle.Ctx, m.Id, "alan").IsSuccess);
             middle.Clock.Run(middle.World, 48);
             if (m.ControllerId is null && middle.Sink.Events.Any(e => e.Kind == WorldEventKind.PossessionExpelled)) expel++;
