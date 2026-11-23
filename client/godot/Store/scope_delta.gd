@@ -37,9 +37,9 @@ static func apply_observable(store, delta: Dictionary) -> void:
 		store.items_changed.emit()
 	if delta.get("climate") is Dictionary:
 		store.climate = Parse.climate(delta.climate)
-		Parse.at_hour(store.climate.get("weather", {}), WorldTime.hours_of(delta, "second", -1))
+		Parse.at_hour(store.climate.get("weather", {}), WorldTime.hours_of(delta, "atMs", -1))
 		store.climate_changed.emit()
-	elif store.climate.get("weather") is Dictionary and Parse.at_hour(store.climate.weather, WorldTime.hours_of(delta, "second", -1)):
+	elif store.climate.get("weather") is Dictionary and Parse.at_hour(store.climate.weather, WorldTime.hours_of(delta, "atMs", -1)):
 		store.climate_changed.emit() # AD-189: a hora nova da curva do dia (o servidor não reenvia o clima por isso)
 
 

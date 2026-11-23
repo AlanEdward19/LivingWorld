@@ -1,10 +1,11 @@
 {
   "fromCursor": {
+    "atMs": "number",
     "scopeKey": "string",
-    "second": "number",
     "sequence": "number"
   },
   "payload": {
+    "atMs": "number",
     "buildingId": {
       "value": "number"
     },
@@ -58,8 +59,7 @@
           "value": "number"
         }
       }
-    ],
-    "second": "number"
+    ]
   },
   "scope": {
     "kind": "number",
@@ -67,8 +67,8 @@
     "scopeKey": "string"
   },
   "toCursor": {
+    "atMs": "number",
     "scopeKey": "string",
-    "second": "number",
     "sequence": "number"
   }
 }

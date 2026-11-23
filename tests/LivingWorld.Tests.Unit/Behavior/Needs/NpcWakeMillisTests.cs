@@ -8,7 +8,7 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.Unit.Behavior.Needs;
 
-/// <summary>ADR-0050 (AD-197b): o despertar é agendado em segundos; vence no primeiro lote que chega a ele, e quem acorda mais
+/// <summary>ADR-0050 (AD-197b): o despertar é agendado em milissegundos; vence no primeiro lote que chega a ele, e quem acorda mais
 /// tarde na mesma hora continua na fila.</summary>
 public class NpcWakeSecondsTests
 {
@@ -31,25 +31,25 @@ public class NpcWakeSecondsTests
     public void A_wake_inside_the_hour_waits_for_its_instant_and_the_later_one_stays_queued()
     {
         var world = Build(1, 2);
-        world.ReplaceNpcWakeAtSecond(1, 600);
-        world.ReplaceNpcWakeAtSecond(2, 1800);
+        world.ReplaceNpcWakeAtMs(1, 600);
+        world.ReplaceNpcWakeAtMs(2, 1800);
 
         NpcWakeScheduler.PrepareWakeBatch(world, 300);
         int atFive = world.NpcWakeBatch.Count;
         NpcWakeScheduler.PrepareWakeBatch(world, 900);
         string atFifteen = string.Join(',', world.NpcWakeBatch.Select(n => n.Id.Value));
 
-        Assert.Equal((0, "1", 1800L), (atFive, atFifteen, world.PendingWakeSecondOf(2)));
+        Assert.Equal((0, "1", 1800L), (atFive, atFifteen, world.PendingWakeMsOf(2)));
     }
 
     [Fact]
     public void Pending_wake_serializes_hours_on_the_full_hour_and_seconds_inside_it()
     {
-        string full = JsonSerializer.Serialize(new PendingNpcWake(1, 5 * 3600, 9));
-        string inside = JsonSerializer.Serialize(new PendingNpcWake(1, 5 * 3600 + 30, 9));
+        string full = JsonSerializer.Serialize(new PendingNpcWake(1, 5 * 3_600_000L, 9));
+        string inside = JsonSerializer.Serialize(new PendingNpcWake(1, 5 * 3_600_000L + 30, 9));
 
         Assert.Equal(
-            ("{\"NpcId\":1,\"TargetTick\":5,\"Sequence\":9}", "{\"NpcId\":1,\"TargetTick\":\"18030s\",\"Sequence\":9}"),
+            ("{\"NpcId\":1,\"TargetTick\":5,\"Sequence\":9}", "{\"NpcId\":1,\"TargetTick\":\"18000030ms\",\"Sequence\":9}"),
             (full, inside));
     }
 }

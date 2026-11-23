@@ -16,7 +16,7 @@ public sealed class NpcCognitionTraceApiTests : IClassFixture<LivingWorldApiFact
 {
     /// <summary>Contrato v2 (ADR-0050): o tempo vem em segundos; lido de volta em horas como o cliente .NET faria.</summary>
     private static readonly System.Text.Json.JsonSerializerOptions V2 =
-        LivingWorld.Api.Realtime.WireSeconds.Apply(new(System.Text.Json.JsonSerializerDefaults.Web));
+        LivingWorld.Api.Realtime.WireMillis.Apply(new(System.Text.Json.JsonSerializerDefaults.Web));
 
     private readonly LivingWorldApiFactory _factory;
 

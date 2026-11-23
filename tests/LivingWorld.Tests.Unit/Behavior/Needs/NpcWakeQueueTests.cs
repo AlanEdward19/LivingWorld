@@ -50,7 +50,7 @@ public class NpcWakeQueueTests
         NpcWakeScheduler.ScheduleWake(world, ctx, 1, 5);
         NpcWakeScheduler.ScheduleWake(world, ctx, 1, 5);
 
-        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3600);
+        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3_600_000L);
 
         Assert.Equal([1L], world.NpcWakeBatch.Select(n => n.Id.Value));
     }
@@ -64,7 +64,7 @@ public class NpcWakeQueueTests
         NpcWakeScheduler.ScheduleWake(world, ctx, 3, 5);
         NpcWakeScheduler.ScheduleWake(world, ctx, 1, 5);
 
-        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3600);
+        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3_600_000L);
 
         Assert.Equal([1L, 3L, 2L], world.NpcWakeBatch.Select(n => n.Id.Value));
     }
@@ -76,7 +76,7 @@ public class NpcWakeQueueTests
         NpcWakeScheduler.ScheduleWake(world, ctx, 1, 5);
         world.FindNpc(new NpcId(1))!.Die(world.CurrentDate);
 
-        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3600);
+        NpcWakeScheduler.PrepareWakeBatch(world, 5 * 3_600_000L);
 
         Assert.Equal((0, 0), (world.NpcWakeBatch.Count, world.PendingNpcWakes.Count));
     }
@@ -90,7 +90,7 @@ public class NpcWakeQueueTests
         NpcWakeScheduler.ScheduleWake(world, ctx, 1, 5);
 
         Assert.Equal(
-            (before + 1, 0, new PendingNpcWake(1, 5 * 3600, before)),
+            (before + 1, 0, new PendingNpcWake(1, 5 * 3_600_000L, before)),
             (world.NextEventId, world.PendingEvents.Count, world.PendingNpcWakes.Single()));
     }
 

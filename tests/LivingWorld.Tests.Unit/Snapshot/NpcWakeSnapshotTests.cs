@@ -94,7 +94,7 @@ public class NpcWakeSnapshotTests
         var continuous = Run(36, SplitTick);
         var tree = ToLegacy(WorldSnapshot.BuildPersistentTree(continuous));
         var wake = continuous.PendingNpcWakes[0];
-        tree["PendingEvents"]!.AsArray().Add(LegacyEvent(wake with { TargetSecond = wake.TargetSecond + 3600, Sequence = -1 }));
+        tree["PendingEvents"]!.AsArray().Add(LegacyEvent(wake with { TargetMs = wake.TargetMs + 3_600_000, Sequence = -1 }));
 
         var legacy = WorldSnapshot.FromNode(tree);
 
@@ -108,7 +108,7 @@ public class NpcWakeSnapshotTests
         var events = tree["PendingEvents"]!.AsArray();
         foreach (var wake in tree["PendingNpcWakes"]!.AsArray())
             events.Add(LegacyEvent(new PendingNpcWake(
-                wake!["NpcId"]!.GetValue<long>(), wake["TargetTick"]!.GetValue<long>() * 3600, wake["Sequence"]!.GetValue<long>())));
+                wake!["NpcId"]!.GetValue<long>(), wake["TargetTick"]!.GetValue<long>() * 3_600_000, wake["Sequence"]!.GetValue<long>())));
         tree.Remove("PendingNpcWakes");
         return tree;
     }

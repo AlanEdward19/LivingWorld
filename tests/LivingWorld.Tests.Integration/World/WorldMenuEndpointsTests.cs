@@ -16,7 +16,7 @@ namespace LivingWorld.Tests.Integration.World;
 /// criação com etapas e mundo que já abre rodando. Só acréscimos: sem os parâmetros novos tudo responde como antes.</summary>
 public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
 {
-    private static readonly JsonSerializerOptions Web = LivingWorld.Api.Realtime.WireSeconds.Apply(new(JsonSerializerDefaults.Web)); // contrato v2 (ADR-0050)
+    private static readonly JsonSerializerOptions Web = LivingWorld.Api.Realtime.WireMillis.Apply(new(JsonSerializerDefaults.Web)); // contrato v2 (ADR-0050)
     private readonly LivingWorldApiFactory _factory;
     public WorldMenuEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
 

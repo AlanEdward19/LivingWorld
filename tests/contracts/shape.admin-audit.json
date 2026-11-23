@@ -2,9 +2,9 @@
   {
     "action": "string",
     "actor": "string",
+    "atMs": "number",
     "branchId": "number",
     "detail": "string",
-    "second": "number",
     "sequence": "number",
     "target": "string"
   }

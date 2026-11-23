@@ -18,9 +18,11 @@ public enum ColdTierCompressionCodec : byte
 public sealed class ColdTierPersistence
 {
     private static readonly byte[] Magic = "LWCLD1\0"u8.ToArray();
-    // 2 (ADR-0050): nascimento e morte em segundos de mundo; a 1 guardava horas e ainda é lida (convertida ao carregar).
-    private const byte FormatVersion = 2;
+    // 3 (ADR-0050): nascimento e morte em milissegundos de mundo; a 1 (horas) e a 2 (segundos, só antes da troca para ms) ainda
+    // são lidas, convertidas ao carregar.
+    private const byte FormatVersion = 3;
     private const byte HoursFormatVersion = 1;
+    private const byte SecondsFormatVersion = 2;
 
     private readonly string _filePath;
     private readonly ColdTierCompressionCodec _codec;
@@ -107,9 +109,9 @@ public sealed class ColdTierPersistence
     {
         using var ms = new MemoryStream(payload);
         int version = ms.ReadByte();
-        if (version != FormatVersion && version != HoursFormatVersion)
+        if (version is not (FormatVersion or HoursFormatVersion or SecondsFormatVersion))
             throw new InvalidDataException($"versão inválida: {version}");
-        bool inHours = version == HoursFormatVersion;
+        long unit = version switch { HoursFormatVersion => WorldMillis.PerHour, SecondsFormatVersion => WorldMillis.PerSecond, _ => 1 };
 
         WorldCalendar storedCalendar = ReadCalendar(ms);
         if (!storedCalendar.Equals(calendar))
@@ -120,7 +122,7 @@ public sealed class ColdTierPersistence
         var result = new Dictionary<long, ColdTierArchive.NpcSummary>(count);
         for (int i = 0; i < count; i++)
         {
-            var summary = ReadSummary(ms, calendar, pool, inHours);
+            var summary = ReadSummary(ms, calendar, pool, unit);
             result[summary.Id.Value] = summary;
         }
 
@@ -132,11 +134,11 @@ public sealed class ColdTierPersistence
         WriteInt64(ms, summary.Id.Value);
         WriteInt32(ms, pool.Intern(summary.Name));
         ms.WriteByte((byte)summary.Sex);
-        WriteInt64(ms, summary.BirthDate.TotalSeconds);
+        WriteInt64(ms, summary.BirthDate.TotalMilliseconds);
         if (summary.DeathDate is { } death)
         {
             ms.WriteByte(1);
-            WriteInt64(ms, death.TotalSeconds);
+            WriteInt64(ms, death.TotalMilliseconds);
         }
         else
         {
@@ -147,10 +149,9 @@ public sealed class ColdTierPersistence
         WriteInt32(ms, summary.Profession.Id);
     }
 
-    private static WorldDate At(WorldCalendar calendar, long value, bool inHours) =>
-        inHours ? WorldDate.FromHours(calendar, value) : WorldDate.FromSeconds(calendar, value);
+    private static WorldDate At(WorldCalendar calendar, long value, long unit) => WorldDate.FromMilliseconds(calendar, checked(value * unit));
 
-    private static ColdTierArchive.NpcSummary ReadSummary(Stream ms, WorldCalendar calendar, StringInternPool pool, bool inHours)
+    private static ColdTierArchive.NpcSummary ReadSummary(Stream ms, WorldCalendar calendar, StringInternPool pool, long unit)
     {
         long id = ReadInt64(ms);
         int nameId = ReadInt32(ms);
@@ -166,7 +167,7 @@ public sealed class ColdTierPersistence
 
         WorldDate? deathDate = null;
         if (hasDeath != 0)
-            deathDate = At(calendar, ReadInt64(ms), inHours);
+            deathDate = At(calendar, ReadInt64(ms), unit);
 
         int cultureId = ReadInt32(ms);
         int professionId = ReadInt32(ms);
@@ -175,7 +176,7 @@ public sealed class ColdTierPersistence
             new NpcId(id),
             name,
             (Sex)sexByte,
-            At(calendar, birth, inHours),
+            At(calendar, birth, unit),
             deathDate,
             new CultureId(cultureId),
             new ProfessionType(professionId));

@@ -179,7 +179,7 @@ func logout() -> void:
 			warning.emit("Não foi possível sair do personagem anterior (erro %d)." % response.status)
 		return
 	if response.ok and response.body is Dictionary:
-		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, WorldTime.hours_of(response.body, "disappearedAtSecond")])
+		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, WorldTime.hours_of(response.body, "disappearedAtMs")])
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	else:

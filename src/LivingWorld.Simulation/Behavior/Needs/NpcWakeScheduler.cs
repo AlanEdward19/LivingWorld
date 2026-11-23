@@ -17,9 +17,9 @@ public static class NpcWakeScheduler
     /// snapshot antigo ainda o procura em <c>PendingEvents</c> (AD-129).</summary>
     public const string SystemName = "npc-wake";
 
-    /// <summary>Monta o lote de quem acorda neste tick (instante <paramref name="nowSecond"/>) a partir da fila de despertar do
+    /// <summary>Monta o lote de quem acorda neste tick (instante <paramref name="nowMs"/>) a partir da fila de despertar do
     /// mundo (AD-129, ADR-0050).</summary>
-    public static void PrepareWakeBatch(WorldState world, long nowSecond) => world.PrepareNpcWakeBatch(nowSecond);
+    public static void PrepareWakeBatch(WorldState world, long nowMs) => world.PrepareNpcWakeBatch(nowMs);
 
     /// <summary><paramref name="ctx"/> fica na assinatura por simetria com os outros agendamentos do tick; a fila de
     /// despertar é do <see cref="WorldState"/> e não passa pelo <see cref="EventScheduler"/>.</summary>

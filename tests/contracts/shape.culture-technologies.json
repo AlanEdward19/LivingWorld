@@ -2,7 +2,7 @@
   {
     "adoptedByCities": "number",
     "category": "string",
-    "discoveredAtSecond": "number",
+    "discoveredAtMs": "number",
     "isVariation": "boolean",
     "key": "string",
     "variationOfKey?": "string",

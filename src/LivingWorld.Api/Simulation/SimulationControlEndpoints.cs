@@ -9,13 +9,13 @@ namespace LivingWorld.Api.Simulation;
 
 public sealed record SetSpeedRequest(double TicksPerSecond);
 
-/// <summary>Duração do tick do mundo em segundos de mundo (ADR-0050): divide a hora (1 a 3600).</summary>
-public sealed record SetTickDeltaRequest(int DeltaSeconds);
+/// <summary>Duração do tick do mundo em milissegundos de mundo (ADR-0050): divide a hora (1 a 3.600.000; 50 serve).</summary>
+public sealed record SetTickDeltaRequest(int DeltaMs);
 
-/// <summary><see cref="Second"/> é o instante do mundo em segundos (ADR-0050); <see cref="TickDeltaSeconds"/>, a duração do tick em
+/// <summary><see cref="AtMs"/> é o instante do mundo em milissegundos (ADR-0050); <see cref="TickDeltaMs"/>, a duração do tick em
 /// vigor.</summary>
 public sealed record SimulationStatusResponse(
-    bool IsPaused, double TicksPerSecond, long Second, long Year, int TickDeltaSeconds,
+    bool IsPaused, double TicksPerSecond, long AtMs, long Year, int TickDeltaMs,
     string? PausedBy = null, string? PauseReason = null, long? PausedAtTick = null, long? PauseMaxTicks = null);
 
 /// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP. Pausa, retomada, velocidade, passo e avanço de ano
@@ -63,10 +63,10 @@ public static class SimulationControlEndpoints
             LivingWorld.Api.Players.PlayerCommandGateway gateway, WorldHost worldHost) =>
         {
             if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            var reply = gateway.SetTickDelta(access.Actor, request.DeltaSeconds);
+            var reply = gateway.SetTickDelta(access.Actor, request.DeltaMs);
             if (!reply.Ok) return Results.BadRequest(reply.Error);
             audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.tick-delta", "world",
-                $"deltaSeconds={request.DeltaSeconds}");
+                $"deltaMs={request.DeltaMs}");
             return Results.Ok(reply.Body);
         });
 
@@ -104,9 +104,9 @@ public static class SimulationControlEndpoints
             Results.Ok(new SimulationStatusResponse(
                 host.IsPaused,
                 host.TicksPerSecond,
-                worldHost.Current.CurrentDate.TotalSeconds,
+                worldHost.Current.CurrentDate.TotalMilliseconds,
                 worldHost.Current.CurrentDate.Year,
-                players.Log.TickDeltaSeconds,
+                players.Log.TickDeltaMs,
                 host.IsPaused ? host.AdminPause?.Actor : null,
                 host.IsPaused ? host.AdminPause?.Reason : null,
                 host.IsPaused ? host.AdminPause?.PausedAtTick : null,

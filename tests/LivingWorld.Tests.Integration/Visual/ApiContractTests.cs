@@ -220,8 +220,8 @@ public class ApiContractTests
             // Quem pausou, por quê, desde quando e até quando só existem com o mundo pausado por admin (ADR-0027).
             Optional(shape!, "pausedBy", "string");
             Optional(shape!, "pauseReason", "string");
-            Optional(shape!, "pausedAtSecond", "number");
-            Optional(shape!, "pauseMaxSeconds", "number");
+            Optional(shape!, "pausedAtMs", "number");
+            Optional(shape!, "pauseMaxMs", "number");
         }
         AssertMatchesContract($"shape.{name}.json", shape!);
     }

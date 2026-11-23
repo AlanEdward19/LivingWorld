@@ -12,6 +12,7 @@
   "name": "string",
   "recentEvents": [
     {
+      "atMs": "number",
       "eventId": "number",
       "involved": {
         "amount": "number",
@@ -39,13 +40,12 @@
       "location": {
         "x": "number",
         "y": "number"
-      },
-      "second": "number"
+      }
     }
   ],
   "state": {
     "npc": {
-      "actionStartedAtSecond": "number",
+      "actionStartedAtMs": "number",
       "actionTarget?": {
         "id": "string",
         "kind": "string"

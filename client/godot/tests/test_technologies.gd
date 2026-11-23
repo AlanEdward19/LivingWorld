@@ -7,8 +7,8 @@ const App := preload("res://Scenes/app.gd")
 const Fx := preload("res://tests/fixtures.gd")
 
 const TECHS := [
-	{"category": "mobilidade", "vector": [2, 4, 6], "key": "2.4.6", "discoveredAtSecond": 50 * 3600, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1},
-	{"category": "mobilidade", "vector": [3, 4, 6], "key": "3.4.6", "discoveredAtSecond": 80 * 3600, "isVariation": true, "variationOfKey": "2.4.6", "adoptedByCities": 3}]
+	{"category": "mobilidade", "vector": [2, 4, 6], "key": "2.4.6", "discoveredAtMs": 50 * 3600000, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1},
+	{"category": "mobilidade", "vector": [3, 4, 6], "key": "3.4.6", "discoveredAtMs": 80 * 3600000, "isVariation": true, "variationOfKey": "2.4.6", "adoptedByCities": 3}]
 
 
 func _window(transport, validate: bool = false) -> Object:
@@ -97,7 +97,7 @@ func _find_button(node: Node, text: String) -> Button:
 func _app_transport() -> Object:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -269,7 +269,7 @@ func test_axis_labels_follow_the_scenario_and_unknown_axes_appear_as_they_came()
 
 func test_vectors_longer_than_the_scenario_axes_get_numbered_labels() -> void:
 	var transport := FakeTransport.new()
-	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3, 4], "key": "1.2.3.4", "discoveredAtSecond": 5 * 3600, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3, 4], "key": "1.2.3.4", "discoveredAtMs": 5 * 3600000, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
 	var window := _window(transport)
 
 	await window.show_culture(1)

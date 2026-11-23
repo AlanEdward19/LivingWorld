@@ -49,7 +49,7 @@ static func person(name: String, extra: Dictionary = {}) -> Dictionary:
 static func transport() -> Object:
 	var fake := FakeTransport.new()
 	fake.on("GET /visual/catalog/actions", {"status": 200, "body": [{"actionType": 2, "label": "Trabalhando"}, {"actionType": 8, "label": "Furtando"}]})
-	fake.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	fake.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	fake.on("GET /world/info", {"status": 200, "body": {"name": "w", "periodId": "p1", "technologyAxes": []}})
 	fake.on("GET /periods/p1/catalog", {"status": 200, "body": {"professionIds": [1], "professionNames": {"1": "Lavrador"},
 		"skillIds": [], "skillNames": {}, "descriptors": {"resource": [], "buildingType": [{"id": 3, "name": "Padaria"}]}}})
@@ -97,7 +97,7 @@ func test_open_sheet_refreshes_only_when_the_world_hour_changes() -> void:
 
 	await app.inspector.refresh(true)
 	eq(fake.count_calls("GET /npcs/7"), before, "mesma hora do mundo: cache, sem nova leitura")
-	app._on_clock_status({"second": 6 * 3600, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	app._on_clock_status({"atMs": 6 * 3600000, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	await app.inspector.refresh(true)
 	eq(fake.count_calls("GET /npcs/7"), before + 1, "hora nova: a ficha aberta se atualiza")
 	app.queue_free()

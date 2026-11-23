@@ -131,7 +131,7 @@ func test_shapes_are_frozen_and_checked() -> void:
 func test_app_button_and_t_key_start_a_conversation_and_esc_ends_it() -> void:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 0 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -225,7 +225,7 @@ func test_open_window_makes_no_requests_while_frames_pass() -> void:
 func test_returning_to_the_menu_ends_the_open_conversation_once() -> void:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 0 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("POST /conversations/start", {"status": 200, "body": {"decision": "Accepted", "sessionId": 4}})
 	transport.on("POST /conversations/end", {"status": 200, "body": {"result": "Ok"}})
 	var app := App.new()

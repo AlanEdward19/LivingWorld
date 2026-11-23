@@ -79,9 +79,9 @@ public sealed class TickLoopService(
 
         var world = worldHost.Current;
         // ADR-0050: Δ em vigor no registro (uma hora salvo troca pedida pelo admin); o save diário só na virada da hora 0
-        worldHost.Clock.Tick(world, players.Log.TickDeltaSeconds);
+        worldHost.Clock.Tick(world, players.Log.TickDeltaMs);
         PublishDeltas(world);
-        if (world.CurrentDate.SecondOfHour == 0 && world.CurrentDate.TotalHours % 24 == 0)
+        if (world.CurrentDate.MillisecondOfHour == 0 && world.CurrentDate.TotalHours % 24 == 0)
             library.Save(world);
     }
 

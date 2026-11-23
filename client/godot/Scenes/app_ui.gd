@@ -210,7 +210,7 @@ static func _windows(app, ui: Control) -> void:
 	app.narrative = NarrativeWindow.new()
 	app.narrative.api = app.api
 	app.narrative.calendar_of = func() -> Dictionary: return _calendar(app)
-	app.narrative.tick_now = func() -> int: return WorldTime.hours_of(app.clock_panel.status, "second")
+	app.narrative.tick_now = func() -> int: return WorldTime.hours_of(app.clock_panel.status, "atMs")
 	app.narrative.date_of = app._date_text
 	app.admin_window = AdminWindow.new()
 	app.admin_window.api = app.api

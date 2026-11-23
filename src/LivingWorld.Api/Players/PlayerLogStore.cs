@@ -27,7 +27,7 @@ public sealed class PlayerLogStore(string? directory)
     /// <summary>Antes de aplicar um comando ao mundo <paramref name="worldKey"/>: na primeira vez desde que o mundo foi aberto
     /// (ou trocado), fixa a base com o mundo como está e começa um registro novo. Se o mundo já roda com Δ diferente de uma hora
     /// (ADR-0050), o registro começa com essa duração (sequência -1), porque o replay parte de uma hora.</summary>
-    public void BeforeCommand(string worldKey, WorldState world, int tickDeltaSeconds = WorldSeconds.HourTick)
+    public void BeforeCommand(string worldKey, WorldState world, int tickDeltaMs = WorldMillis.HourTick)
     {
         if (_worldKey == worldKey && ReferenceEquals(_world, world) && _base is not null) return;
         _worldKey = worldKey;
@@ -39,8 +39,8 @@ public sealed class PlayerLogStore(string? directory)
             File.WriteAllText(BasePath(worldKey), _base);
             File.WriteAllText(LogPath(worldKey), "");
         }
-        if (tickDeltaSeconds != WorldSeconds.HourTick)
-            Append(new PlayerCommandRecord(world.CurrentDate.TotalSeconds, -1, "host", PlayerCommandKind.TickDelta, DeltaSeconds: tickDeltaSeconds));
+        if (tickDeltaMs != WorldMillis.HourTick)
+            Append(new PlayerCommandRecord(world.CurrentDate.TotalMilliseconds, -1, "host", PlayerCommandKind.TickDelta, DeltaMs: tickDeltaMs));
     }
 
     public void Append(PlayerCommandRecord record)
@@ -61,9 +61,20 @@ public sealed class PlayerLogStore(string? directory)
         if (!File.Exists(basePath)) return null;
         string logPath = Path.Combine(directory, $"{worldKey}.players.log");
         var records = File.Exists(logPath)
-            ? File.ReadLines(logPath).Where(l => l.Length > 0).Select(l => JsonSerializer.Deserialize<PlayerCommandRecord>(l, Json)!).ToList()
+            ? File.ReadLines(logPath).Where(l => l.Length > 0).Select(ReadRecord).ToList()
             : [];
         return (File.ReadAllText(basePath), records);
+    }
+
+    /// <summary>Uma linha do registro. A forma de antes da troca para ms (<c>DeltaSeconds</c>, ADR-0050) carrega convertida; o
+    /// instante (<c>Tick</c>) já é lido em horas, em segundos ou em ms pelo conversor do campo.</summary>
+    private static PlayerCommandRecord ReadRecord(string line)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(line)!.AsObject();
+        if (node["DeltaSeconds"] is { } seconds && node["DeltaMs"] is null)
+            node["DeltaMs"] = seconds.GetValue<int>() * WorldMillis.PerSecond;
+        node.Remove("DeltaSeconds");
+        return node.Deserialize<PlayerCommandRecord>(Json)!;
     }
 
     private string BasePath(string worldKey) => Path.Combine(directory!, $"{worldKey}.players.base.json");

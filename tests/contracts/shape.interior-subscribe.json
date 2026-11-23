@@ -3,8 +3,8 @@
     "number"
   ],
   "cursor": {
+    "atMs": "number",
     "scopeKey": "string",
-    "second": "number",
     "sequence": "number"
   },
   "mode": "number",

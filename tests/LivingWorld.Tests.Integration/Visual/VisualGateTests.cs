@@ -58,7 +58,7 @@ public class VisualGateTests
         await client.GetAsync("/visual/subscribe?scope=World&mode=Spectator");
         await client.GetAsync($"/visual/subscribe?scope=City&refId={Guid.NewGuid()}&mode=Spectator");
         await client.GetAsync("/visual/subscribe?scope=Interior&refId=999999&mode=Spectator");
-        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceSecond=0&sinceSequence=0");
+        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceMs=0&sinceSequence=0");
 
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
     }

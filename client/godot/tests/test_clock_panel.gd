@@ -8,7 +8,7 @@ const ApiClient := preload("res://Contract/api_client.gd")
 func test_buttons_call_routes_and_show_status() -> void:
 	var transport := FakeTransport.new()
 	transport.on("POST /simulation/", {"status": 200, "body": null})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 2.0, "second": 48 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 2.0, "atMs": 48 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	var panel := Panels.ClockPanel.new()
 	var api := ApiClient.new(transport)
 	api.validate_shapes = false

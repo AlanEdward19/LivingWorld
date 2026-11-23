@@ -7,8 +7,8 @@ const App := preload("res://Scenes/app.gd")
 const Fx := preload("res://tests/fixtures.gd")
 
 const BELIEFS := [
-	{"reportId": 1, "distortedMagnitude": 0.8123, "distortedSecond": 12 * 3600, "seed": "A praga levou muitos", "distanceFromFact": 0.35},
-	{"reportId": 2, "distortedMagnitude": 0.2, "distortedSecond": 30 * 3600, "seed": "O rei caiu", "distanceFromFact": 1.8}]
+	{"reportId": 1, "distortedMagnitude": 0.8123, "distortedAtMs": 12 * 3600000, "seed": "A praga levou muitos", "distanceFromFact": 0.35},
+	{"reportId": 2, "distortedMagnitude": 0.2, "distortedAtMs": 30 * 3600000, "seed": "O rei caiu", "distanceFromFact": 1.8}]
 
 
 func _window(transport, validate: bool = false) -> Object:
@@ -108,7 +108,7 @@ func _find_button(node: Node, text: String) -> Button:
 func test_city_sheet_button_opens_the_beliefs_of_that_city() -> void:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "second": 5 * 3600, "tickDeltaSeconds": 3600, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})

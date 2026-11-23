@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Core;
 
-/// <summary>ADR-0050 (AD-197b): o tick avança Δ segundos e os sistemas rodam ao cruzar a fronteira do calendário, não a cada tick.</summary>
+/// <summary>ADR-0050 (AD-197b): o tick avança Δ milissegundos e os sistemas rodam ao cruzar a fronteira do calendário, não a cada tick.</summary>
 public class WorldClockDeltaTests
 {
     private static readonly TickFrequency[] Frequencies =
@@ -30,16 +30,17 @@ public class WorldClockDeltaTests
     }
 
     [Theory]
-    [InlineData(60)]
-    [InlineData(1)]
-    [InlineData(900)]
-    public void Boundary_systems_run_the_same_number_of_times_with_a_smaller_delta(int delta)
+    [InlineData(60_000, 5)]
+    [InlineData(1_000, 5)]
+    [InlineData(900_000, 5)]
+    [InlineData(50, 1)] // o tick fino do jogador (~50 ms), um dia
+    public void Boundary_systems_run_the_same_number_of_times_with_a_smaller_delta(int delta, int days)
     {
         var (hourly, hourlyClock, hourlyRuns) = CounterWorld();
         var (fine, fineClock, fineRuns) = CounterWorld();
 
-        hourlyClock.Run(hourly, 24 * 5);
-        fineClock.Run(fine, 24 * 5 * (3600 / delta), delta);
+        hourlyClock.Run(hourly, 24 * days);
+        fineClock.Run(fine, 24L * days * (WorldMillis.PerHour / delta), delta);
 
         Assert.Equal(
             (hourly.CurrentDate, string.Join(',', hourlyRuns.Values)),
@@ -51,9 +52,9 @@ public class WorldClockDeltaTests
     {
         var (world, clock, runs) = CounterWorld();
 
-        clock.Run(world, 59, 60);
+        clock.Run(world, 59, 60_000);
 
-        Assert.Equal((59 * 60L, 0L), (world.CurrentDate.TotalSeconds, runs[TickFrequency.Hourly]));
+        Assert.Equal((59 * 60_000L, 0L), (world.CurrentDate.TotalMilliseconds, runs[TickFrequency.Hourly]));
     }
 
     [Fact]
@@ -62,15 +63,15 @@ public class WorldClockDeltaTests
         var (world, clock, runs) = CounterWorld();
         clock.Tick(world, 1);
 
-        clock.Tick(world, 3600);
+        clock.Tick(world, WorldMillis.PerHour);
 
-        Assert.Equal((3600L, 1L), (world.CurrentDate.TotalSeconds, runs[TickFrequency.Hourly]));
+        Assert.Equal((3_600_000L, 1L), (world.CurrentDate.TotalMilliseconds, runs[TickFrequency.Hourly]));
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(7)]
-    [InlineData(7200)]
+    [InlineData(7_200_000)]
     public void Delta_that_does_not_divide_the_hour_is_refused(int delta)
     {
         var (world, clock, _) = CounterWorld();

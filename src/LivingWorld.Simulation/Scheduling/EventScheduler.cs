@@ -2,9 +2,9 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Scheduling;
 
-/// <summary>Fila de eventos futuros indexada pelo instante alvo em segundos (ADR-0050). Vence na ordem do instante; empate no
+/// <summary>Fila de eventos futuros indexada pelo instante alvo em milissegundos (ADR-0050). Vence na ordem do instante; empate no
 /// mesmo instante desempata por <see cref="ScheduledEvent.Id"/>, nunca por ordem de inserção (docs/domain/time-and-ticks.md).
-/// Os baldes são por hora de fecho (<see cref="WorldSeconds.ToHourCeiling"/>): um tick nunca atravessa a hora, então tudo que
+/// Os baldes são por hora de fecho (<see cref="WorldMillis.ToHourCeiling"/>): um tick nunca atravessa a hora, então tudo que
 /// vence num tick está num balde só, e com Δ = 1 h cada balde é o tick inteiro, como antes.</summary>
 public sealed class EventScheduler
 {
@@ -18,7 +18,7 @@ public sealed class EventScheduler
     // Achado no profiling: com população grande,
     // muitos NPCs reagendam por hora e o bucket do mesmo tick cresce — o Sort() completo por
     // inserção dominava o custo do tick (O(k log k) por chamada, k = eventos nesse tick).
-    private readonly Dictionary<long, long> _tickById = new(); // id → instante alvo em segundos
+    private readonly Dictionary<long, long> _tickById = new(); // id → instante alvo em milissegundos
 
     // Baldes devolvidos por quem já despachou o tick: reaproveitar a lista (e a capacidade que ela já cresceu) evita criar e
     // redimensionar uma lista nova a cada hora simulada (os baldes de tick têm centenas de acordares).
@@ -37,7 +37,7 @@ public sealed class EventScheduler
 
     public void Schedule(ScheduledEvent evt)
     {
-        long key = WorldSeconds.ToHourCeiling(evt.TargetSecond);
+        long key = WorldMillis.ToHourCeiling(evt.TargetMs);
         if (!_byTick.TryGetValue(key, out var bucket))
         {
             bucket = _spare.Count > 0 ? _spare.Pop() : [];
@@ -47,9 +47,9 @@ public sealed class EventScheduler
         // Insere na posição ordenada por (instante, Id) via busca binária em vez de Add+Sort — mesmo
         // resultado final (bucket sempre ordenado, mesmo contrato de desempate documentado
         // na classe), custo O(k) em vez de O(k log k) por inserção.
-        int pos = BinarySearch(bucket, evt.TargetSecond, evt.Id);
+        int pos = BinarySearch(bucket, evt.TargetMs, evt.Id);
         bucket.Insert(pos, evt);
-        _tickById[evt.Id] = evt.TargetSecond;
+        _tickById[evt.Id] = evt.TargetMs;
     }
 
     private static int BinarySearch(List<ScheduledEvent> bucket, long target, long id)
@@ -59,7 +59,7 @@ public sealed class EventScheduler
         {
             int mid = lo + (hi - lo) / 2;
             var m = bucket[mid];
-            int order = m.TargetSecond != target ? m.TargetSecond.CompareTo(target) : m.Id.CompareTo(id);
+            int order = m.TargetMs != target ? m.TargetMs.CompareTo(target) : m.Id.CompareTo(id);
             if (order == 0) return mid;
             if (order < 0) lo = mid + 1;
             else hi = mid - 1;
@@ -71,7 +71,7 @@ public sealed class EventScheduler
     public bool Cancel(long id)
     {
         if (!_tickById.TryGetValue(id, out var target)) return false;
-        long key = WorldSeconds.ToHourCeiling(target);
+        long key = WorldMillis.ToHourCeiling(target);
         if (!_byTick.TryGetValue(key, out var bucket)) return false;
 
         int pos = BinarySearch(bucket, target, id);
@@ -88,17 +88,17 @@ public sealed class EventScheduler
         return true;
     }
 
-    /// <summary>Remove e devolve, em ordem de (instante, ID), os eventos da hora de <paramref name="nowSecond"/> que já venceram
+    /// <summary>Remove e devolve, em ordem de (instante, ID), os eventos da hora de <paramref name="nowMs"/> que já venceram
     /// (instante ≤ agora). Vazio custa O(1) — não existe entrada para horas sem evento.</summary>
-    public IReadOnlyList<ScheduledEvent> PopDue(long nowSecond)
+    public IReadOnlyList<ScheduledEvent> PopDue(long nowMs)
     {
-        long key = WorldSeconds.ToHourCeiling(nowSecond);
+        long key = WorldMillis.ToHourCeiling(nowMs);
         if (!_byTick.TryGetValue(key, out var bucket)) return [];
         int due = bucket.Count;
-        if (bucket[^1].TargetSecond > nowSecond)
+        if (bucket[^1].TargetMs > nowMs)
         {
             due = 0;
-            while (due < bucket.Count && bucket[due].TargetSecond <= nowSecond) due++;
+            while (due < bucket.Count && bucket[due].TargetMs <= nowMs) due++;
             if (due == 0) return [];
             var popped = _spare.Count > 0 ? _spare.Pop() : new List<ScheduledEvent>(due);
             popped.AddRange(bucket.GetRange(0, due));
@@ -124,19 +124,19 @@ public sealed class EventScheduler
         _spare.Push(list);
     }
 
-    public bool HasDue(long nowSecond) =>
-        _byTick.TryGetValue(WorldSeconds.ToHourCeiling(nowSecond), out var bucket) && bucket.Count > 0
-        && bucket[0].TargetSecond <= nowSecond;
+    public bool HasDue(long nowMs) =>
+        _byTick.TryGetValue(WorldMillis.ToHourCeiling(nowMs), out var bucket) && bucket.Count > 0
+        && bucket[0].TargetMs <= nowMs;
 
-    public IReadOnlyList<ScheduledEvent> PeekDue(long nowSecond) =>
-        _byTick.TryGetValue(WorldSeconds.ToHourCeiling(nowSecond), out var bucket)
-            ? bucket.Where(e => e.TargetSecond <= nowSecond).ToList()
+    public IReadOnlyList<ScheduledEvent> PeekDue(long nowMs) =>
+        _byTick.TryGetValue(WorldMillis.ToHourCeiling(nowMs), out var bucket)
+            ? bucket.Where(e => e.TargetMs <= nowMs).ToList()
             : [];
 
     /// <summary>Todos os eventos ainda pendentes, ordenados por instante e depois por ID —
     /// para snapshot.</summary>
     public IReadOnlyList<ScheduledEvent> Snapshot() =>
         _byTick.OrderBy(kv => kv.Key)
-            .SelectMany(kv => kv.Value.OrderBy(e => e.TargetSecond).ThenBy(e => e.Id))
+            .SelectMany(kv => kv.Value.OrderBy(e => e.TargetMs).ThenBy(e => e.Id))
             .ToList();
 }

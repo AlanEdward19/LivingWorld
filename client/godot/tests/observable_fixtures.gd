@@ -28,7 +28,7 @@ static func city(climate: Dictionary = {}) -> Dictionary:
 	var env := T.city()
 	var living: Dictionary = env.payload.livingState
 	living.npcs[0]["observable"] = observable("Ana", {"pregnancy": {"fraction": 0.6, "babies": 1}})
-	living.npcs[0]["actionStartedAtSecond"] = 3 * 3600
+	living.npcs[0]["actionStartedAtMs"] = 3 * 3600000
 	living.npcs[1]["observable"] = observable("Beto", {"sex": "Male", "professionId": 2, "professionName": "Ferreiro",
 		"mourning": true, "dominantEmotion": "grief", "carried": [{"resourceId": 2, "quantity": 6, "resourceName": "Trigo"}]})
 	living["buildingStates"] = [{"buildingId": 4, "buildingTypeId": 3, "typeName": "Padaria", "function": "workplace",
@@ -39,7 +39,7 @@ static func city(climate: Dictionary = {}) -> Dictionary:
 		"predatorOf": null}]
 	living["faunaGroups"] = []
 	living["leavings"] = [{"id": 30, "location": {"x": 4, "y": 5}, "deadId": 9, "householdId": 3, "heirHouseholdId": null,
-		"second": 8 * 3600, "units": 4, "itemId": null, "designId": null, "fetcherId": null, "carrierId": null}]
+		"atMs": 8 * 3600000, "units": 4, "itemId": null, "designId": null, "fetcherId": null, "carrierId": null}]
 	living["objects"] = [{"id": 501, "designId": 77, "householdId": 3, "holderId": null, "location": {"x": 0, "y": 4},
 		"forSale": true, "marketId": null, "rootShape": "cylinder", "rootMaterial": 2, "qualityFraction": 0.8}]
 	living["climate"] = climate if not climate.is_empty() else {"month": 5, "seasonIndex": 2, "seasonKey": "summer",
@@ -63,13 +63,13 @@ static func transport() -> Object:
 	fake.on("GET /entities/building/4", {"status": 200, "body": {"kind": "building", "id": "4", "name": "Padaria do Beto",
 		"state": {}, "links": [{"relation": "owner", "kind": "npc", "id": "8", "name": "Beto"},
 		{"relation": "worker", "kind": "npc", "id": "7", "name": "Ana"}],
-		"recentEvents": [{"eventId": 3, "kind": 4, "label": "Venda de pão", "second": 9 * 3600, "location": {"x": 1, "y": 1},
+		"recentEvents": [{"eventId": 3, "kind": 4, "label": "Venda de pão", "atMs": 9 * 3600000, "location": {"x": 1, "y": 1},
 			"involved": {"subjectId": 8}}]}})
 	var ana: Dictionary = T.person("Ana", {"motherId": {"value": 9}, "household": {"value": 3}, "employer": {"value": 4},
 		"childIds": [{"value": 11}, {"value": 12}], "householdBuildingId": {"value": 4},
 		"employment": {"id": {"value": 4}, "locationTypeId": 7, "buildingId": {"value": 4}, "name": "Padaria do Beto"},
 		"currentScope": {"kind": 1}, "id": {"value": 7}, "culture": {"id": 0}, "skills": {"values": {}}, "beliefs": [],
-		"memories": [], "powerIds": [], "actionStartedAtSecond": 3 * 3600}).body
+		"memories": [], "powerIds": [], "actionStartedAtMs": 3 * 3600000}).body
 	fake.on("GET /entities/npc/7", {"status": 200, "body": {"kind": "npc", "id": "7", "name": "Ana", "state": {"npc": ana},
 		"links": [{"relation": "child", "kind": "npc", "id": "11", "name": "Caio"}], "recentEvents": []}})
 	fake.on("GET /designs/77", {"status": 200, "body": {"id": 77, "parts": [{"shape": "sphere"}],

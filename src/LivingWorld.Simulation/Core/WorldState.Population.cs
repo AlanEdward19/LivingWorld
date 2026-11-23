@@ -87,18 +87,18 @@ public sealed partial class WorldState
     /// contador de <see cref="NextEventId"/>, como quando o despertar era um <see cref="ScheduledEvent"/>: os ids dos outros
     /// eventos e a ordem do lote ficam iguais.</summary>
     internal void ReplaceNpcWake(long npcId, long targetTick) =>
-        ReplaceNpcWakeAtSecond(npcId, LivingWorld.Domain.Shared.WorldSeconds.FromHours(targetTick));
+        ReplaceNpcWakeAtMs(npcId, LivingWorld.Domain.Shared.WorldMillis.FromHours(targetTick));
 
-    /// <summary>Agenda (ou move) o despertar do NPC para o instante <paramref name="targetSecond"/> do mundo (ADR-0050).</summary>
-    internal void ReplaceNpcWakeAtSecond(long npcId, long targetSecond) =>
-        _npcWakes.Schedule(npcId, targetSecond, NextEventIdAndAdvance());
+    /// <summary>Agenda (ou move) o despertar do NPC para o instante <paramref name="targetMs"/> do mundo (ADR-0050).</summary>
+    internal void ReplaceNpcWakeAtMs(long npcId, long targetMs) =>
+        _npcWakes.Schedule(npcId, targetMs, NextEventIdAndAdvance());
 
-    /// <summary>Monta <see cref="NpcWakeBatch"/> com os despertares vencidos em <paramref name="nowSecond"/> (da hora corrente):
+    /// <summary>Monta <see cref="NpcWakeBatch"/> com os despertares vencidos em <paramref name="nowMs"/> (da hora corrente):
     /// vivos, por sequência decrescente. O despertar de quem morreu ou saiu do mundo é consumido sem acordar ninguém.</summary>
-    internal void PrepareNpcWakeBatch(long nowSecond)
+    internal void PrepareNpcWakeBatch(long nowMs)
     {
         _npcWakeBatch.Clear();
-        _npcWakes.TakeDue(nowSecond, _dueNpcWakeIds);
+        _npcWakes.TakeDue(nowMs, _dueNpcWakeIds);
         foreach (var npcId in _dueNpcWakeIds)
             if (FindNpc(new NpcId(npcId)) is { IsAlive: true } npc)
                 _npcWakeBatch.Add(npc);
@@ -106,14 +106,14 @@ public sealed partial class WorldState
 
     /// <summary>Quem acordaria na hora cheia <paramref name="tick"/>, na ordem do lote, sem consumir — para testes e inspeção.</summary>
     internal IReadOnlyList<long> PeekDueNpcWakes(long tick) =>
-        _npcWakes.PeekDue(LivingWorld.Domain.Shared.WorldSeconds.FromHours(tick));
+        _npcWakes.PeekDue(LivingWorld.Domain.Shared.WorldMillis.FromHours(tick));
 
     /// <summary>Hora (piso) do despertar pendente do NPC, ou nulo se não houver.</summary>
     internal long? PendingWakeTickOf(long npcId) =>
-        _npcWakes.SecondOf(npcId) is { } second ? LivingWorld.Domain.Shared.WorldSeconds.ToHourFloor(second) : null;
+        _npcWakes.MsOf(npcId) is { } ms ? LivingWorld.Domain.Shared.WorldMillis.ToHourFloor(ms) : null;
 
-    /// <summary>Instante (segundos) do despertar pendente do NPC, ou nulo se não houver.</summary>
-    internal long? PendingWakeSecondOf(long npcId) => _npcWakes.SecondOf(npcId);
+    /// <summary>Instante (milissegundos) do despertar pendente do NPC, ou nulo se não houver.</summary>
+    internal long? PendingWakeMsOf(long npcId) => _npcWakes.MsOf(npcId);
 
     internal void RestoreNpcWakes(IEnumerable<PendingNpcWake> wakes) => _npcWakes.Restore(wakes);
 

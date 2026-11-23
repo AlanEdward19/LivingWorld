@@ -48,13 +48,13 @@ static func city_app(tree: SceneTree, snapshot := city()) -> Node:
 
 static func delta(tick: int, payload: Dictionary) -> Dictionary:
 	var envelope := O.delta(payload)
-	envelope.payload.second = tick * 3600
+	envelope.payload.atMs = tick * 3600000
 	return envelope
 
 
 static func walk_payload(id: int, cells: Array, started: int, arrival: int) -> Dictionary:
 	return {"id": {"value": id}, "location": {"x": cells[0].x, "y": cells[0].y}, "currentAction": TRAVEL,
-		"city": {"value": "city-a"}, "actionStartedAtSecond": started * 3600, "route": cells, "routeArrivalSecond": arrival * 3600}
+		"city": {"value": "city-a"}, "actionStartedAtMs": started * 3600000, "route": cells, "routeArrivalAtMs": arrival * 3600000}
 
 
 static func xy(list: Array) -> Array:
@@ -142,7 +142,7 @@ func test_street_work_shows_progress_sheet_and_becomes_marker_and_timeline_entry
 	var pile_40 := _pile_height(Style.style_of(app.store.roads[Vector2i(5, 4)]))
 	app.stream.delta_applied.emit(delta(11, {"roadUpserts": [road(5, 4, 1, 50, {"work": {"surface": 3, "progressPct": 80,
 		"repair": true, "payer": "treasury", "workerIds": [7, 8]}})],
-		"events": [{"eventId": 900, "kind": 101, "label": "Começou uma obra de calçamento na rua", "second": 11 * 3600,
+		"events": [{"eventId": 900, "kind": 101, "label": "Começou uma obra de calçamento na rua", "atMs": 11 * 3600000,
 			"involved": {"recordOnly": false, "cityId": "city-a"}}]}))
 	await app.inspect(Registry.ref(Registry.STREET, "5,4"))
 	text = app.inspector.text
@@ -154,7 +154,7 @@ func test_street_work_shows_progress_sheet_and_becomes_marker_and_timeline_entry
 	check(app.registry.events.has(900), "e entra na linha do tempo")
 	check(_pile_height(Style.style_of(app.store.roads[Vector2i(5, 4)])) < pile_40, "a pilha de material baixa conforme a obra anda")
 	app.stream.delta_applied.emit(delta(12, {"roadUpserts": [road(5, 4, 3, 50, {"condition": 1000})],
-		"events": [{"eventId": 901, "kind": 102, "label": "Uma rua ficou calçada", "second": 12 * 3600, "involved": {"recordOnly": false}}]}))
+		"events": [{"eventId": 901, "kind": 102, "label": "Uma rua ficou calçada", "atMs": 12 * 3600000, "involved": {"recordOnly": false}}]}))
 	app.world_view._process(0.016)
 	eq(Grid.to_cell(app.world_view.events.positions.get(901, Vector3.ZERO)), Vector2i(5, 4), "fim da obra: marcador onde ela acabou")
 	check(Style.work_of(app.world_view.ground.drawn_roads[Vector2i(5, 4)]).is_empty(), "obra acabou: sem pilha nem estacas")
@@ -219,7 +219,7 @@ func test_person_walks_the_route_and_arrives_on_the_arrival_tick() -> void:
 	npcs.advance(0.016, Vector3.ZERO, 40.0, false, false)
 	check(actor.position.distance_to(Grid.to_world(Vector2i(0, 3))) < 0.01, "chega no tick da chegada: %s" % actor.position)
 	app.stream.delta_applied.emit(delta(13, {"npcUpserts": [{"id": {"value": 7}, "location": {"x": 0, "y": 3}, "currentAction": 2,
-		"actionStartedAtSecond": 13 * 3600}]}))
+		"actionStartedAtMs": 13 * 3600000}]}))
 	check(actor.walk == null and actor.cell == Vector2i(0, 3), "o motor o moveu: fim da rota, comportamento de sempre")
 	check(actor.position.distance_to(Grid.to_world(Vector2i(0, 3))) < 0.4, "sem salto ao chegar")
 	app.queue_free()
@@ -288,8 +288,8 @@ func test_unknown_fields_and_odd_values_are_tolerated() -> void:
 		"roadUpserts": [road(0, 0, 9, 3, {"mud": 2, "useBand": 99, "work": {"surface": 7, "progressPct": 250, "crew": "x"}}),
 			{"cell": null}, "lixo"],
 		"roadRemoved": [{"x": 40, "y": 40}, null],
-		"npcUpserts": [{"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": TRAVEL, "actionStartedAtSecond": 11 * 3600,
-			"route": [{"x": 4, "y": 3}, "?", {"y": 1}], "routeArrivalSecond": 12 * 3600, "gait": "manco"}]}))
+		"npcUpserts": [{"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": TRAVEL, "actionStartedAtMs": 11 * 3600000,
+			"route": [{"x": 4, "y": 3}, "?", {"y": 1}], "routeArrivalAtMs": 12 * 3600000, "gait": "manco"}]}))
 	app.world_view._process(0.016)
 	var odd: Dictionary = app.store.roads[Vector2i(0, 0)]
 	eq(odd.extra.get("mud"), 2, "campo desconhecido guardado")

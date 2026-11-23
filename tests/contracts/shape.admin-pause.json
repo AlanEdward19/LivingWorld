@@ -1,7 +1,7 @@
 {
   "actor?": "string",
   "isPaused": "boolean",
-  "maxSeconds?": "number",
-  "pausedAtSecond?": "number",
+  "maxMs?": "number",
+  "pausedAtMs?": "number",
   "reason?": "string"
 }

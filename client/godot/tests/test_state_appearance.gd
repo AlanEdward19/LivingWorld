@@ -41,7 +41,7 @@ func test_delta_without_observable_keeps_the_body_and_a_change_is_announced() ->
 	eq(store.npcs[7].obs.pregnancy, 0.6, "observable omitido = não mudou (o NPC só andou)")
 	eq(observed, [], "andar não refaz o corpo")
 	store.apply_delta(O.delta({"npcUpserts": [{"id": {"value": 7}, "location": {"x": 4, "y": 4}, "currentAction": 3,
-		"actionStartedAtSecond": 11 * 3600, "actionTarget": {"kind": "npc", "id": "8"}, "observable": O.observable("Ana", {"illness": {"diseaseId": 2, "symptomatic": true,
+		"actionStartedAtMs": 11 * 3600000, "actionTarget": {"kind": "npc", "id": "8"}, "observable": O.observable("Ana", {"illness": {"diseaseId": 2, "symptomatic": true,
 		"bedridden": true}})}]}))
 	eq(observed, [7], "sinal visível novo avisa a cena")
 	eq(store.npcs[7].obs.bedridden, true)
@@ -57,7 +57,7 @@ func test_delta_upserts_and_removals_of_crops_fauna_items_states_and_climate() -
 	for name in ["crops_changed", "fauna_changed", "items_changed", "climate_changed"]:
 		store.connect(name, func(): signals.append(name))
 	store.apply_delta(O.delta({"cropUpserts": [O.crop(71, "mature")], "faunaGroupRemoved": ["wolf:1"],
-		"leavingUpserts": [{"id": 31, "location": {"x": 1, "y": 1}, "deadId": 5, "second": 3600, "units": 2}],
+		"leavingUpserts": [{"id": 31, "location": {"x": 1, "y": 1}, "deadId": 5, "atMs": 3600000, "units": 2}],
 		"climate": {"month": 0, "seasonIndex": 0, "seasonKey": "winter", "temperatureC": -3.0, "regionId": 0,
 			"cropYearFactorMilli": 1000, "drought": false},
 		"cityUpserts": [{"id": {"value": "city-a"}, "name": "Alfa", "location": {"x": 2, "y": 2}, "population": 4,
@@ -130,8 +130,8 @@ func test_city_bodies_come_from_the_scope_for_everyone() -> void:
 	eq(beto.spec.cloth, Look.MOURNING_CLOTH, "Beto de luto")
 	check(beto._sack != null, "Beto carrega trigo")
 	app.stream.delta_applied.emit(O.delta({"npcUpserts": [{"id": {"value": 7}, "location": {"x": 3, "y": 3}, "currentAction": 3,
-		"actionStartedAtSecond": 11 * 3600, "actionTarget": {"kind": "npc", "id": "8"}}, {"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": 3,
-		"actionStartedAtSecond": 11 * 3600, "actionTarget": {"kind": "npc", "id": "7"}}]}))
+		"actionStartedAtMs": 11 * 3600000, "actionTarget": {"kind": "npc", "id": "8"}}, {"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": 3,
+		"actionStartedAtMs": 11 * 3600000, "actionTarget": {"kind": "npc", "id": "7"}}]}))
 	app.world_view.npcs.refresh_links()
 	eq(app.world_view.npcs.link_pairs, [[7, 8]], "linha discreta entre quem conversa")
 	check(ana.face_point.distance_to(beto.position) < 0.01, "vira para quem conversa")
@@ -196,7 +196,7 @@ func test_season_recolors_ground_snow_falls_and_hud_shows_temperature() -> void:
 	app.stream.delta_applied.emit(O.delta({"climate": {"month": 0, "seasonIndex": 0, "seasonKey": "winter", "temperatureC": -4.0,
 		"regionId": 0, "cropYearFactorMilli": 1000, "drought": false, "weather": WEATHER_SNOW}}))
 	eq(app.world_view.snow.emitting, true, "o clima diz neve")
-	app._update_time_label({"second": 5 * 3600, "year": 1, "isPaused": false})
+	app._update_time_label({"atMs": 5 * 3600000, "year": 1, "isPaused": false})
 	check("-4 °C" in app.time_label.text, app.time_label.text)
 	app.queue_free()
 

@@ -15,7 +15,7 @@ namespace LivingWorld.Api.Players;
 /// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). As rotas HTTP continuam valendo.</summary>
 public static class PlayerChannelEndpoints
 {
-    private static readonly JsonSerializerOptions Wire = LivingWorld.Api.Realtime.WireSeconds.Apply(new(JsonSerializerDefaults.Web));
+    private static readonly JsonSerializerOptions Wire = LivingWorld.Api.Realtime.WireMillis.Apply(new(JsonSerializerDefaults.Web));
 
     public static void MapPlayerChannelEndpoints(this WebApplication app, PlayerCommandGateway gateway, PlayerSessionTokens tokens)
     {

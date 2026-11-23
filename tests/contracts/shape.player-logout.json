@@ -1,5 +1,5 @@
 {
-  "disappearedAtSecond": "number",
+  "disappearedAtMs": "number",
   "npcId": "number",
   "playerId": "string"
 }

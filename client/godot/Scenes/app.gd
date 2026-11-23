@@ -179,16 +179,16 @@ func _load_world_info() -> void:
 # --- relógio, eventos, nomes -----------------------------------------------
 
 func _on_clock_status(status: Dictionary) -> void:
-	api.set_tick(WorldTime.hours_of(status, "second"))
-	day_cycle.sync(WorldTime.hours_f(status.get("second")), float(status.ticksPerSecond), bool(status.isPaused))
-	brain_panel.on_world_tick(WorldTime.hours_of(status, "second"))
+	api.set_tick(WorldTime.hours_of(status, "atMs"))
+	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), float(status.ticksPerSecond), bool(status.isPaused))
+	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
 	if not bool(status.isPaused):
 		admin_window.note_running()
 	pause_label.text = admin_window.pause_banner(status)
 	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
-	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "second"), float(status.ticksPerSecond), bool(status.isPaused)) # rota (AD-181)
+	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "atMs"), float(status.ticksPerSecond), bool(status.isPaused)) # rota (AD-181)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
 
@@ -197,7 +197,7 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var s: Dictionary = status if not status.is_empty() else clock_panel.status
 	if s.is_empty():
 		return
-	var date: Dictionary = day_cycle.date_parts(WorldTime.hours_f(s.get("second")))
+	var date: Dictionary = day_cycle.date_parts(WorldTime.hours_f(s.get("atMs")))
 	var weather := Season.hud_text(store.climate) if store != null else ""
 	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
 		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]

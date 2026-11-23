@@ -9,7 +9,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Você vai mexer em… | Leia |
 |---|---|
 | Relógio do mundo, ticks, agendamento de eventos | [time-and-ticks.md](domain/time-and-ticks.md) |
-| Tempo em segundos, Δ variável, contrato v2 (ADR-0050) | [time-in-seconds.md](domain/time-in-seconds.md) |
+| Tempo em milissegundos, Δ variável, contrato v2 (ADR-0050) | [time-in-milliseconds.md](domain/time-in-milliseconds.md) |
 | Quanto detalhe simular por região, agregação, materialização de NPC | [simulation-lod.md](domain/simulation-lod.md) |
 | Identidade, atributos, personalidade, necessidades, habilidades | [npc.md](domain/npc.md) |
 | Decisão do NPC no dia a dia (utility AI, rotina, objetivos) | [behavior.md](domain/behavior.md) |

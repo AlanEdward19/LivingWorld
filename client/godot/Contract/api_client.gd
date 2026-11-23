@@ -234,7 +234,7 @@ func admin_create_workplace(actor: String, body: Dictionary) -> Dictionary:
 
 
 func admin_pause(actor: String, reason: String, max_ticks: int) -> Dictionary:
-	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxSeconds": WorldTime.seconds(max_ticks)}, "admin-pause")
+	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxMs": WorldTime.ms(max_ticks)}, "admin-pause")
 
 
 func admin_resume(actor: String) -> Dictionary:
@@ -250,7 +250,7 @@ func admin_search(actor: String, query: String, kind: String) -> Dictionary:
 
 
 func admin_audit(actor: String, from_tick: int) -> Dictionary:
-	return await _fetch("/admin/audit?fromSecond=%d" % WorldTime.seconds(from_tick), "admin-audit", {"X-Admin-Actor": actor})
+	return await _fetch("/admin/audit?fromMs=%d" % WorldTime.ms(from_tick), "admin-audit", {"X-Admin-Actor": actor})
 
 
 # --- economia (só leitura) ------------------------------------------------------------------

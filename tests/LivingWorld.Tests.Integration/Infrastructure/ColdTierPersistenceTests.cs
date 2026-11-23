@@ -174,15 +174,17 @@ public sealed class ColdTierPersistenceTests
         Assert.Throws<InvalidDataException>(() => new ColdTierPersistence(path).Load(otherCalendar));
     }
 
-    /// <summary>ADR-0050 (AD-197b): arquivo do formato 1 (nascimento e morte em horas) carrega convertido para segundos.</summary>
-    [Fact]
-    public void Load_of_hours_format_converts_birth_and_death_to_seconds()
+    /// <summary>ADR-0050 (AD-197b): arquivo do formato 1 (horas) e do 2 (segundos, antes da troca para ms) carrega convertido para milissegundos.</summary>
+    [Theory]
+    [InlineData(1, 3_600_000L)]
+    [InlineData(2, 1_000L)]
+    public void Load_of_older_formats_converts_birth_and_death_to_milliseconds(byte version, long unit)
     {
         string path = NewTempPath();
         using (var payload = new MemoryStream())
         {
             var w = new BinaryWriter(payload);
-            w.Write((byte)1);
+            w.Write(version);
             w.Write(Calendar.HoursPerDay); w.Write(Calendar.DaysPerMonth); w.Write(Calendar.MonthsPerYear);
             w.Write(1); w.Write(5); w.Write("Velho"u8.ToArray());
             w.Write(1);
@@ -203,7 +205,7 @@ public sealed class ColdTierPersistenceTests
 
         var loaded = new ColdTierPersistence(path).Load(Calendar)[7];
 
-        Assert.Equal((-100L * 3600, 250L * 3600), (loaded.BirthDate.TotalSeconds, loaded.DeathDate!.Value.TotalSeconds));
+        Assert.Equal((-100L * unit, 250L * unit), (loaded.BirthDate.TotalMilliseconds, loaded.DeathDate!.Value.TotalMilliseconds));
     }
 
     private static ColdTierArchive.NpcSummary Sample(

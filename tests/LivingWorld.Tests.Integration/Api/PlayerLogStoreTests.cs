@@ -38,7 +38,7 @@ public class PlayerLogStoreTests
             clock.Run(world, 30);
             Apply(() => players.Logout(world, "bia").IsSuccess);
             clock.Run(world, 20);
-            long saved = world.CurrentDate.TotalSeconds;
+            long saved = world.CurrentDate.TotalMilliseconds;
             string hash = WorldSnapshot.CanonicalHash(world);
 
             // reinício: nada em memória, só os arquivos
@@ -48,6 +48,34 @@ public class PlayerLogStoreTests
 
             Assert.Equal(4, records.Count);
             Assert.Equal(hash, WorldSnapshot.CanonicalHash(replayed));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>ADR-0050 (AD-197b): registro gravado em horas (AD-197a) ou na forma em segundos de antes da troca para ms carrega
+    /// convertido para milissegundos.</summary>
+    [Fact]
+    public void An_old_log_in_hours_or_seconds_loads_in_milliseconds()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "lw-players-old-" + Environment.ProcessId + "-" + Environment.CurrentManagedThreadId);
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "mundo.players.base.json"), "{}");
+            File.WriteAllLines(Path.Combine(dir, "mundo.players.log"),
+            [
+                "{\"Tick\":5,\"Sequence\":0,\"PlayerId\":\"ana\",\"Kind\":\"Incarnate\",\"NpcId\":3}",
+                "{\"Tick\":\"18030s\",\"Sequence\":1,\"PlayerId\":\"admin\",\"Kind\":\"TickDelta\",\"DeltaSeconds\":60}",
+            ]);
+
+            var (_, records) = PlayerLogStore.Read(dir, "mundo")!.Value;
+
+            Assert.Equal(
+                (5 * 3_600_000L, 18_030_000L, (int?)60_000),
+                (records[0].AtMs, records[1].AtMs, records[1].DeltaMs));
         }
         finally
         {

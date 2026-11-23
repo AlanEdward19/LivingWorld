@@ -38,7 +38,7 @@ func test_action_group_is_kept_without_started_tick_and_replaced_whole_with_it()
 	eq(store.npcs[7].intent, 2)
 	eq(store.npcs[7].intent_target, "w4")
 	store.apply_delta(O.delta({"npcUpserts": [{"id": {"value": 7}, "city": null, "location": {"x": 4, "y": 4}, "currentAction": 5,
-		"actionStartedAtSecond": 20 * 3600}]}))
+		"actionStartedAtMs": 20 * 3600000}]}))
 	eq(store.npcs[7].started, 20, "presente = grupo inteiro novo")
 	eq(store.npcs[7].target, {}, "alvo ausente com grupo novo = nulo")
 	eq(store.npcs[7].intent, -1)
@@ -60,7 +60,7 @@ func test_removed_and_upserted_in_the_same_delta_restarts_the_npc_from_the_upser
 func test_rest_and_food_advance_by_the_delta_clock_when_not_resent() -> void:
 	var store := Store.new()
 	var env := O.city()
-	env.cursor.second = 10 * 3600
+	env.cursor.atMs = 10 * 3600000
 	env.payload.livingState.processes = [
 		{"id": 60, "kind": "rest", "targetId": 7, "progress": 0.5, "descriptorKey": "rest", "location": {"x": 3, "y": 3},
 			"remainingHours": 4, "quality": null},
@@ -74,7 +74,7 @@ func test_rest_and_food_advance_by_the_delta_clock_when_not_resent() -> void:
 	store.processes_changed.connect(func(): changed.append(1))
 	var delta := O.delta({"processUpserts": [{"id": 61, "kind": "food", "targetId": 8, "progress": 0.5, "descriptorKey": "food",
 		"location": {"x": 4, "y": 3}, "remainingHours": 5, "quality": null}]})
-	delta.payload.second = 12 * 3600
+	delta.payload.atMs = 12 * 3600000
 	store.apply_delta(delta)
 	eq(float(store.processes[60].remaining), 2.0, "regra 5: duração 8 h, passaram 2: faltam 2")
 	eq(float(store.processes[60].progress), 0.75)
@@ -83,7 +83,7 @@ func test_rest_and_food_advance_by_the_delta_clock_when_not_resent() -> void:
 	eq(store.last_tick, 12, "tick do delta guardado")
 	eq(changed.size(), 1)
 	var later := O.delta({})
-	later.payload.second = 20 * 3600
+	later.payload.atMs = 20 * 3600000
 	store.apply_delta(later)
 	eq(float(store.processes[60].remaining), 0.0, "nunca negativo")
 	eq(float(store.processes[60].progress), 1.0)

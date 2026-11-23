@@ -116,7 +116,7 @@ func _tech_node(tech: Dictionary, scale: float) -> Control:
 	head.add_theme_color_override("font_color", Color("ffe9a6"))
 	box.add_child(head)
 	var detail := "%s · descoberta em %s · adotada por %d cidade%s" % [
-		String(tech.category), date_of.call(WorldTime.hours_of(tech, "discoveredAtSecond")), int(tech.adoptedByCities), "" if int(tech.adoptedByCities) == 1 else "s"]
+		String(tech.category), date_of.call(WorldTime.hours_of(tech, "discoveredAtMs")), int(tech.adoptedByCities), "" if int(tech.adoptedByCities) == 1 else "s"]
 	var info := Label.new()
 	info.text = detail
 	info.modulate = Color(1, 1, 1, 0.8)

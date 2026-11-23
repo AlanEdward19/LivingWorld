@@ -3,7 +3,7 @@ extends RefCounted
 
 
 static func cursor(seq: int, kind: String = "world", tick: int = 10) -> Dictionary:
-	return {"second": tick * 3600, "scopeKey": kind, "sequence": seq}
+	return {"atMs": tick * 3600000, "scopeKey": kind, "sequence": seq}
 
 
 static func snapshot(seq: int = 0, payload: Variant = null, kind: String = "World") -> Dictionary:
@@ -15,7 +15,7 @@ static func snapshot(seq: int = 0, payload: Variant = null, kind: String = "Worl
 
 static func empty_delta(tick: int) -> Dictionary:
 	return {
-		"second": tick * 3600, "npcUpserts": [], "npcRemoved": [], "cityUpserts": [], "cityRemoved": [],
+		"atMs": tick * 3600000, "npcUpserts": [], "npcRemoved": [], "cityUpserts": [], "cityRemoved": [],
 		"buildingUpserts": [], "buildingRemoved": [], "processUpserts": [], "processRemoved": [],
 		"indicators": [], "events": [],
 	}
@@ -45,7 +45,7 @@ static func trace_entry(tick: int, winner: int, pressures: int = 2, opportunitie
 	var alternative_list: Array = []
 	for i in alternatives:
 		alternative_list.append(i + 2)
-	return {"second": tick * 3600, "trace": {
+	return {"atMs": tick * 3600000, "trace": {
 		"wakeReason": 1, "previousIntent": 2, "topPressures": pressure_list, "knownOpportunities": opportunity_list,
 		"winner": winner, "winningUtility": 120.5, "topPositiveFactors": ["Fome"], "topNegativeFactors": ["Distancia"],
 		"blockingFactors": ["Buy:outscored"], "knownAlternatives": alternative_list}}

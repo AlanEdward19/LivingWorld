@@ -36,7 +36,7 @@ static func parse(raw: Dictionary) -> Dictionary:
 		"hours_total": int(raw.get("hoursTotal", 0)), "hours_left": int(raw.get("hoursLeft", 0)),
 		"hours_crew": int(raw.get("hoursByCrew", 0)), "hours_helpers": int(raw.get("hoursByHelpers", 0)),
 		"haul_left": int(raw.get("haulHoursLeft", 0)), "paid": int(raw.get("paid", 0)), "spent": int(raw.get("spent", 0)),
-		"offer_pm": int(raw.get("offerPm", 1000)), "started": WorldTime.hours_of(raw, "startedSecond"), "last_worked": WorldTime.hours_of(raw, "lastWorkedSecond"),
+		"offer_pm": int(raw.get("offerPm", 1000)), "started": WorldTime.hours_of(raw, "startedAtMs"), "last_worked": WorldTime.hours_of(raw, "lastWorkedAtMs"),
 		"materials": materials,
 	}
 

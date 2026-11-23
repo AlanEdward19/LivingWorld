@@ -166,7 +166,7 @@ func pause() -> void:
 		return
 	var response: Dictionary = await api.admin_pause(actor, reason, max_ticks)
 	if response.ok:
-		pause_info = {"actor": String(response.body.get("actor", actor)), "reason": reason, "pausedAtTick": WorldTime.hours_of(response.body, "pausedAtSecond")}
+		pause_info = {"actor": String(response.body.get("actor", actor)), "reason": reason, "pausedAtTick": WorldTime.hours_of(response.body, "pausedAtMs")}
 		_set_state("Pausado por %s desde %s: %s (retoma em até %d ticks)." % [pause_info.actor, date_of.call(pause_info.pausedAtTick), reason, max_ticks])
 	else:
 		_fail(response)
@@ -199,7 +199,7 @@ func pause_banner(status: Dictionary) -> String:
 		return ""
 	if status.get("pausedBy") == null:
 		return "Mundo pausado"
-	return "Pausado por %s desde %s: %s" % [String(status.pausedBy), date_of.call(WorldTime.hours_of(status, "pausedAtSecond")), String(status.get("pauseReason", ""))]
+	return "Pausado por %s desde %s: %s" % [String(status.pausedBy), date_of.call(WorldTime.hours_of(status, "pausedAtMs")), String(status.get("pauseReason", ""))]
 
 
 ## O relógio voltou a andar (retomada de outro operador ou teto vencido): esquece a pausa lembrada.
@@ -411,7 +411,7 @@ func load_audit() -> void:
 	_audit_say("%d ações." % response.body.size())
 	for entry in response.body:
 		var detail := String(entry.detail)
-		var line := "%s · %s · %s · %s%s" % [date_of.call(WorldTime.hours_of(entry, "second")), entry.actor, entry.action, entry.target, (" · " + detail) if detail != "" else ""]
+		var line := "%s · %s · %s · %s%s" % [date_of.call(WorldTime.hours_of(entry, "atMs")), entry.actor, entry.action, entry.target, (" · " + detail) if detail != "" else ""]
 		audit_rows.append(line)
 		var label := Label.new()
 		label.text = line

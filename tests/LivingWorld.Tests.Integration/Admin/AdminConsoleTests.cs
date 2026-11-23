@@ -97,7 +97,7 @@ public class AdminConsoleTests
         var worldHost = factory.Services.GetRequiredService<WorldHost>();
         var client = AdminClient(factory);
 
-        var response = await client.PostAsJsonAsync("/admin/world/pause", new { reason = "manutenção", maxSeconds = 100 * 3600 });
+        var response = await client.PostAsJsonAsync("/admin/world/pause", new { reason = "manutenção", maxMs = 100 * 3_600_000L });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         long tick = worldHost.Current.CurrentDate.TotalHours;
@@ -126,8 +126,8 @@ public class AdminConsoleTests
         var simulation = factory.Services.GetRequiredService<SimulationHost>();
 
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = " " })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = "x", maxSeconds = 0 })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = "x", maxSeconds = 100_000L * 3600 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = "x", maxMs = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = "x", maxMs = 100_000L * 3_600_000L })).StatusCode);
         Assert.False(simulation.IsPaused);
 
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/admin/world/pause", new { reason = "padrão" })).StatusCode);

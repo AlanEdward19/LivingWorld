@@ -9,9 +9,9 @@ namespace LivingWorld.Api.Realtime;
 /// "ausente = igual ao anterior" de <c>docs/domain/observable-projection.md</c>.</summary>
 public static class VisualWire
 {
-    public static JsonSerializerOptions Options { get; } = WireSeconds.Apply(new(JsonSerializerDefaults.Web));
+    public static JsonSerializerOptions Options { get; } = WireMillis.Apply(new(JsonSerializerDefaults.Web));
 
-    public static JsonSerializerOptions DeltaOptions { get; } = WireSeconds.Apply(new(JsonSerializerDefaults.Web)
+    public static JsonSerializerOptions DeltaOptions { get; } = WireMillis.Apply(new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     });

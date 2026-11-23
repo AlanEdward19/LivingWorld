@@ -216,7 +216,7 @@ func _render_beliefs(items: Variant) -> void:
 		title.custom_minimum_size.x = 560
 		box.add_child(title)
 		var row := HBoxContainer.new()
-		var detail := "magnitude %s · %s" % [str(snappedf(float(item.distortedMagnitude), 0.01)), date_of.call(WorldTime.hours_of(item, "distortedSecond"))]
+		var detail := "magnitude %s · %s" % [str(snappedf(float(item.distortedMagnitude), 0.01)), date_of.call(WorldTime.hours_of(item, "distortedAtMs"))]
 		var label := Label.new()
 		label.text = detail
 		label.custom_minimum_size.x = 300
