@@ -7,7 +7,7 @@ logout **não congela o personagem**: emite um evento de **desaparecimento**. O 
 e quem convivia com ele dá falta, procura, chora, herda e ocupa a vaga que ele deixou.
 
 > **Status: parcial.** Entregue: encarnar, agir e logout como desaparecimento com procura (plano `.specs/features/player-incarnation`, AD-111).
-> Resto: #63. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
+> AD-196: offline = desaparecimento provado, abandono no cenário, volta tardia, poder, espectador, replay. Resto: #63. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
 1. *(parcial, AD-111)* **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
