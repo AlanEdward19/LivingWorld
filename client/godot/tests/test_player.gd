@@ -422,6 +422,25 @@ func test_a_double_click_on_incarnate_sends_a_single_request() -> void:
 	hud.free()
 
 
+func test_the_powers_the_npc_carries_become_buttons_that_post_use_power_with_the_power_id() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+	hud.set_powers(["teleport-power"])
+
+	eq(hud.power_buttons.keys(), ["teleport-power"], "um botão por poder que o servidor diz que ele porta")
+	hud.power_buttons["teleport-power"].pressed.emit()
+	await Engine.get_main_loop().process_frame
+	eq(transport.bodies["POST /players/p-1/action"].back(), {"action": "UsePower", "powerId": "teleport-power"}, "UsePower leva o poder")
+	eq(hud.power_buttons["teleport-power"].button_pressed, true, "a escolha fica marcada")
+	await hud.act("Work")
+	eq(transport.bodies["POST /players/p-1/action"].back(), {"action": "Work"}, "as outras ações não levam powerId")
+	eq(hud.power_buttons["teleport-power"].button_pressed, false)
+	await hud.logout()
+	eq(hud.power_buttons.size(), 0, "sem personagem, sem poderes")
+	hud.free()
+
+
 class SlowIncarnate extends "res://tests/fake_transport.gd":
 	signal release()
 	var arrived := 0

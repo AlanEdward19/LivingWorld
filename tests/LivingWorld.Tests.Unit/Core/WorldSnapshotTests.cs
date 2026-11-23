@@ -132,6 +132,7 @@ public class WorldSnapshotTests
         world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
         // AD-142: cérebro ligado (experimento), para o mutador ter folha em BrainRules.
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        world.UsePlayers(LivingWorld.Domain.Population.PlayerRules.Default with { Abandonment = LivingWorld.Domain.Population.AbandonmentPolicy.DeclareDead }); // AD-196: regra padrão some do snapshot
         // AD-150: crime ligado com uma mágoa, para o mutador ter folha em Crime e CrimeRules.
         var crime = new LivingWorld.Simulation.Crime.CrimeLedger();
         crime.InsertGrudge(new LivingWorld.Simulation.Crime.Grudge { Holder = 1, Target = 2, Motive = "ofensa", Intensity = 40, Tick = 3 });

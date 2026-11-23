@@ -25,7 +25,7 @@ public static class CausalPolicy
         // Mortes e perdas de vida
         WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration,
         WorldEventKind.Exhaustion, WorldEventKind.Disease, WorldEventKind.MaternalDeath,
-        WorldEventKind.Accident, WorldEventKind.OldAge,
+        WorldEventKind.Accident, WorldEventKind.OldAge, WorldEventKind.PresumedDead, // AD-196: a declaração vem do sumiço
         // Trabalho, renda e moradia
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
         WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
@@ -83,6 +83,7 @@ public static class CausalPolicy
         WorldEventKind.AuthoringCommandApplied, WorldEventKind.AuthoringCommandRejected,
         WorldEventKind.AuthoredImmigration, WorldEventKind.AuthoredWorkplaceFounded,
         WorldEventKind.PlayerIncarnated, WorldEventKind.PlayerDisappeared,
+        WorldEventKind.Returned, // AD-196: a volta é decisão de quem conduz (o jogador ou o motor que o reassume)
     ];
 
     private static readonly FrozenDictionary<WorldEventKind, CausalRole> Roles = Build();

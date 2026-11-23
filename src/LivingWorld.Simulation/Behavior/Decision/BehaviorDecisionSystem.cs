@@ -161,6 +161,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 {
                     // Controlador externo: troca só a escolha. A resolução abaixo (percepção, passos, viagem) é a de qualquer NPC.
                     candidate = playerAction;
+                    if (playerAction == ActionType.UsePower) // AD-196: a invocação sai da mesma lista de oportunidades do motor
+                        (candidate, pendingPower) = ControlledPower(world, npc, now);
                 }
                 else if (urgent)
                 {

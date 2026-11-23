@@ -18,6 +18,8 @@ var stale_session := false ## o servidor ainda liga este playerId a um NPC (clie
 var current_action := ""
 var paused := false
 var action_buttons: Dictionary = {} ## "Eat" -> Button
+var power_buttons: Dictionary = {} ## powerId -> Button (AD-196: os poderes que o NPC porta, segundo o servidor)
+var _powers_row: HFlowContainer
 var auto_button: Button
 var logout_button: Button
 var status_text := ""
@@ -60,6 +62,8 @@ func _init() -> void:
 	logout_button.text = "Sair do personagem"
 	logout_button.pressed.connect(func(): logout())
 	row.add_child(logout_button)
+	_powers_row = HFlowContainer.new()
+	box.add_child(_powers_row)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size.x = 560
@@ -103,18 +107,34 @@ func incarnate(id: int, name: String) -> bool:
 	return false
 
 
-func act(action: String) -> void:
+## Os poderes do NPC encarnado (`powerIds` da ficha do servidor): um botão por poder. O motor decide se a invocação cabe
+## agora; sem oportunidade o personagem fica parado, como qualquer NPC.
+func set_powers(power_ids: Array) -> void:
+	for id in power_buttons:
+		power_buttons[id].queue_free()
+	power_buttons.clear()
+	for raw in power_ids:
+		var id := String(raw)
+		var button := Button.new()
+		button.toggle_mode = true
+		button.text = "Usar poder: %s" % id
+		button.pressed.connect(func(): act("UsePower", id))
+		_powers_row.add_child(button)
+		power_buttons[id] = button
+
+
+func act(action: String, power_id: String = "") -> void:
 	if not is_active or _busy:
 		return
 	_busy = true
-	var response: Dictionary = await api.player_action(player_id, action)
+	var response: Dictionary = await api.player_action(player_id, action, power_id)
 	_busy = false
 	if not is_active:
 		return
 	if response.ok:
-		current_action = action
+		current_action = "UsePower:" + power_id if action == "UsePower" else action
 		_sync_buttons()
-		_set_status("Pedido: %s." % (action_text(action) if action != "" else "o motor decide"))
+		_set_status("Pedido: %s." % (action_text(current_action) if action != "" else "o motor decide"))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	elif response.status == 400:
@@ -162,6 +182,8 @@ func _offer_release() -> void:
 func _set_actions_enabled(enabled: bool) -> void:
 	for name in action_buttons:
 		action_buttons[name].disabled = not enabled
+	for id in power_buttons:
+		power_buttons[id].disabled = not enabled
 	auto_button.disabled = not enabled
 
 
@@ -171,12 +193,15 @@ func set_paused(value: bool) -> void:
 
 
 func action_text(action: String) -> String:
+	if action.begins_with("UsePower:") and power_buttons.has(action.substr(9)):
+		return power_buttons[action.substr(9)].text
 	return action_buttons[action].text if action_buttons.has(action) else action
 
 
 func _lost(text: String) -> void:
 	is_active = false
 	current_action = ""
+	set_powers([])
 	_pause.visible = false
 	_title.text = "Sem personagem"
 	_set_status(text)
@@ -187,6 +212,8 @@ func _lost(text: String) -> void:
 func _sync_buttons() -> void:
 	for name in action_buttons:
 		action_buttons[name].set_pressed_no_signal(name == current_action)
+	for id in power_buttons:
+		power_buttons[id].set_pressed_no_signal("UsePower:" + id == current_action)
 	_pause.visible = paused and is_active
 
 

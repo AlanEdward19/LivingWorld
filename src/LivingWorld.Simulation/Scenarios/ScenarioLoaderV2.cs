@@ -22,6 +22,12 @@ namespace LivingWorld.Simulation.Scenarios;
 /// blocos Economy/Cities/Dynamics e passa por aqui.</summary>
 public static class ScenarioLoaderV2
 {
+    private static readonly System.Text.Json.JsonSerializerOptions PlayersJson = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
     /// <param name="progress">AD-175: avisado com cada etapa de <see cref="ScenarioLoadStages"/> ao começá-la; só informa
     /// (a tela de carregamento do cliente), não muda nada no mundo nem na ordem do que é montado.</param>
     public static Result<(WorldState World, WorldClock Clock)> LoadWorld(
@@ -95,6 +101,10 @@ public static class ScenarioLoaderV2
         // AD-160b: cérebro ligado por padrão, como o cenário de código (ScenarioRunner.Create); {"Brain": {"Enabled": false}} desliga
         world.UseBrain(System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == false
             ? null : LivingWorld.Domain.Cognition.BrainRules.Default);
+        // AD-196: o que acontece com quem some e não volta é dado de cenário; bloco opcional
+        // {"Players": {"Abandonment": "DeclareDead", "DeclareDeadAfterDays": 2555, "PresumedDeadMayReturn": false}}; ausente = padrão
+        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Players"] is { } playersNode)
+            world.UsePlayers(System.Text.Json.JsonSerializer.Deserialize<LivingWorld.Domain.Population.PlayerRules>(playersNode, PlayersJson));
 
         progress?.Invoke(ScenarioLoadStages.Settlements);
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
