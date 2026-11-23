@@ -25,11 +25,14 @@ internal static class ContractShapes
         _ => JsonValue.Create("null")!,
     };
 
-    public static JsonNode Merge(JsonNode a, JsonNode b)
+    public static JsonNode Merge(JsonNode a, JsonNode b) => Merge(a, b, nullOnBothStays: false);
+
+    /// <param name="nullOnBothStays">Juntar o gravado com a amostra nova: campo nulo nos dois lados continua como está (não vira opcional).</param>
+    public static JsonNode Merge(JsonNode a, JsonNode b, bool nullOnBothStays)
     {
         if (IsLeaf(a, "null") || IsLeaf(a, "[]") && b is JsonArray) return b.DeepClone();
         if (IsLeaf(b, "null") || IsLeaf(b, "[]") && a is JsonArray) return a.DeepClone();
-        if (a is JsonArray la && b is JsonArray lb) return new JsonArray(Merge(la[0]!, lb[0]!));
+        if (a is JsonArray la && b is JsonArray lb) return new JsonArray(Merge(la[0]!, lb[0]!, nullOnBothStays));
         if (a is JsonObject oa && b is JsonObject ob)
         {
             var keys = oa.Select(p => Base(p.Key)).Union(ob.Select(p => Base(p.Key))).Distinct();
@@ -37,8 +40,9 @@ internal static class ContractShapes
             {
                 var (va, optA) = Field(oa, key);
                 var (vb, optB) = Field(ob, key);
-                var merged = Merge(va ?? JsonValue.Create("null")!, vb ?? JsonValue.Create("null")!);
-                bool optional = optA || optB || va is null || vb is null || IsLeaf(va, "null") || IsLeaf(vb, "null");
+                var merged = Merge(va ?? JsonValue.Create("null")!, vb ?? JsonValue.Create("null")!, nullOnBothStays);
+                bool bothNull = nullOnBothStays && va is not null && vb is not null && IsLeaf(va, "null") && IsLeaf(vb, "null");
+                bool optional = optA || optB || va is null || vb is null || !bothNull && (IsLeaf(va, "null") || IsLeaf(vb, "null"));
                 return (optional ? key + "?" : key, merged);
             }));
         }
