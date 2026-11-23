@@ -89,3 +89,11 @@ tempo reaproveita os 10 botões (eram recriados a cada delta com evento); a pose
 só é procurada quando a rota muda; a malha de processos não realoca; a transição das ruas a 20/s. `bench-cost` ganhou `npc_pose`,
 `npc_links`, `events` e `processes`. `client-test.sh` 394 → 399.
 
+
+### A obra de verdade no cliente (AD-193)
+
+`bench.sh 3` pareado pela fila pesada, M1 Pro dividida com outros agentes, API da entrega, cliente base `eeaaea1d` (cópia) → entrega:
+`stress` 115,0 / 114,6 / 115,2 → 115,7 / 113,3 / 114,3; `bench` 153,9 / 156,7 / 156,1 (p95 7,96 / 8,05 / 7,89) → 153,7 / 152,5 / 154,1
+(p95 7,95 / 7,89 / 7,92); `benchbig` 120,6 / 123,3 / 125,7 → 120,8 / 120,3 / 123,5; `benchrain` 155,4 / 146,7 / 151,9 → 153,5 / 153,0 /
+153,1; `benchrun` 60,1 / 60,7 / 60,3 (p95 24,0 / 22,1 / 21,9) → 57,0 / 60,7 / 61,1 (p95 24,4 / 22,2 / 21,7). Medianas dentro do ruído.
+O canteiro só se refaz quando muda o décimo feito ou a pilha; o prédio reenviado só porque a obra andou não refaz chão nem rótulos.

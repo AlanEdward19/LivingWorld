@@ -21,6 +21,7 @@ const WeatherRenderer := preload("res://Scenes/render/weather_renderer.gd")
 const WeatherLook := preload("res://Scenes/render/weather_look.gd")
 const FrameCost := preload("res://Contract/frame_cost.gd")
 const Grid := preload("res://Scenes/grid.gd")
+const Works := preload("res://Store/work_book.gd")
 
 signal weather_changed(weather: Dictionary) ## tempo sob a câmera mudou (o app atualiza o sol e o indicador)
 
@@ -147,6 +148,8 @@ func bind(p_store, p_labels) -> void:
 	store.cities_changed.connect(_rebuild_cities)
 	store.buildings_changed.connect(_on_buildings_changed)
 	store.building_removed.connect(buildings.remove)
+	store.works_changed.connect(_on_works_changed)
+	buildings.work_of = func(id: int) -> Dictionary: return Works.of_building(store, id)
 	store.processes_changed.connect(_rebuild_processes)
 
 
@@ -251,6 +254,25 @@ func _on_buildings_changed(ids: Array) -> void:
 			buildings.upsert(store.buildings[id], store.building_states.get(id, {}))
 	_mark_ground()
 	_relabel()
+
+
+## AD-193: a obra andou, parou ou acabou: o canteiro dela redesenha só se a forma mudou (décimo feito, material no lote).
+func _on_works_changed(ids: Array) -> void:
+	if store.kind != "City":
+		return
+	var missing := {}
+	for id in ids:
+		var work = store.works.get(int(id))
+		var building_id := int(work.building_id) if work != null else -1
+		if store.buildings.has(building_id):
+			buildings.rework(store.buildings[building_id], store.building_states.get(building_id, {}))
+		else:
+			missing[int(id)] = true # a obra saiu (ou o servidor não diz o canteiro): o prédio que a tinha
+	if missing.is_empty():
+		return
+	for building_id in store.buildings:
+		if missing.has(int(store.buildings[building_id].get("work", {}).get("id", -1))):
+			buildings.rework(store.buildings[building_id], store.building_states.get(building_id, {}))
 
 
 func _on_npc_removed(id: int) -> void:

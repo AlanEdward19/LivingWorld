@@ -8,6 +8,8 @@ const Panels := preload("res://Scenes/panels.gd")
 const Registry := preload("res://Store/entity_registry.gd")
 const Describe := preload("res://Scenes/inspector_describe.gd")
 const Look := preload("res://Scenes/npc_look.gd")
+const Works := preload("res://Store/work_book.gd")
+const WorkDescribe := preload("res://Scenes/work_describe.gd")
 
 signal follow_requested(entity: Dictionary)
 signal enter_requested(building_id: int)
@@ -160,7 +162,7 @@ func refresh(auto: bool = false) -> void:
 	var kind := String(current.kind)
 	_kind.text = {"person": "Pessoa", "building": "Prédio", "city": "Cidade", "process": "Processo", "object": "Objeto",
 		"workplace": "Local de trabalho", "household": "Casa", "event": "Evento", "crop": "Lavoura", "animal": "Animal",
-		"fauna": "Bando", "leaving": "Espólio", "item": "Objeto inventado", "street": "Rua"}.get(kind, kind)
+		"fauna": "Bando", "leaving": "Espólio", "item": "Objeto inventado", "street": "Rua", "work": "Obra"}.get(kind, kind)
 	back_button.disabled = history.is_empty()
 	follow_button.visible = kind in FOLLOWABLE
 	enter_button.visible = kind == Registry.BUILDING
@@ -300,6 +302,8 @@ func _describe_sync(entity: Dictionary) -> Dictionary:
 			return Describe.leaving(store, registry, int(id))
 		Registry.STREET:
 			return Describe.street(store, String(id))
+		Registry.WORK: # AD-193
+			return WorkDescribe.describe(store, registry, WorkDescribe.work_of(store, int(id), server_body), hours_per_day.call(), date_of)
 	return {"text": "", "links": []}
 
 
@@ -309,6 +313,12 @@ func _describe_building(id: int) -> Dictionary:
 		return {"text": "Este prédio não está no escopo atual (ou foi demolido).", "links": []}
 	var lines: Array[String] = ["Edifício %d · %d andar%s · célula %d,%d" % [id, int(building.floors),
 		"es" if int(building.floors) > 1 else "", building.cell.x, building.cell.y]]
+	var site := Works.of_building(store, id)
+	if not site.is_empty(): # AD-193: canteiro — o prédio ainda não existe; a ficha é a da obra
+		var view := WorkDescribe.describe(store, registry, site, hours_per_day.call(), date_of)
+		var site_links: Array = [["Obra", Registry.ref(Registry.WORK, int(site.id))]]
+		site_links.append_array(view.links)
+		return {"text": "Canteiro de obra (ninguém mora nem trabalha aqui ainda)\n" + String(view.text) + "\n" + "\n".join(lines), "links": site_links}
 	var lodging = building.get("lodging")
 	if lodging is Dictionary:
 		lines.append("Hospedagem: %d/%d vagas · aluguel %d/mês%s" % [int(lodging.occupied), int(lodging.units), int(lodging.rentPerMonth),

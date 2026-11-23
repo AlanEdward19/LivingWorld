@@ -28,9 +28,11 @@ static func run(app: Node, steps: Array) -> void:
 				await RenderingServer.frame_post_draw
 				app.get_viewport().get_texture().get_image().save_png(arg)
 				print("shot ", arg)
-			"city":
+			"city": # `city:<id>` entra nessa cidade (AD-193: a fumaça escolhe a que tem obra); sem id, a primeira
 				var ids: Array = app.store.cities.keys()
-				if ids.size() > 0:
+				if arg != "":
+					await app.enter_scope("City", arg)
+				elif ids.size() > 0:
 					await app.enter_scope("City", ids[0])
 			"world":
 				await app.enter_scope("World", "")
@@ -120,6 +122,11 @@ static func run(app: Node, steps: Array) -> void:
 				app.first_steps.open_help()
 			"xray": # AD-177: raio-x, planta, ficha da rua mais usada e do lote com quintal, contagem do chão
 				app.reading.toggle_xray()
+			"focuswork": # AD-193: câmera e ficha na primeira obra do escopo (captura da fumaça)
+				for work_id in app.store.works:
+					app.focus_point(app.point_of({"kind": "work", "id": int(work_id)}))
+					await app.inspect({"kind": "work", "id": int(work_id)})
+					break
 			"plan":
 				app.reading.toggle_plan()
 			"street":
@@ -166,6 +173,20 @@ static func run(app: Node, steps: Array) -> void:
 					var a: int = app.store.npcs[id].action
 					actions[a] = actions.get(a, 0) + 1
 				print("log: scope=", app.store.kind, " cursor=", app.stream.cursor, " state=", app.stream.state, " npcs=", app.store.npcs.size(), " actions=", actions)
+				# AD-193: obras que o cliente recebeu e quantas desenhou como canteiro (e quem está no lote com a obra como alvo)
+				var sites := 0
+				for node in app.world_view.buildings.nodes.values():
+					if node.has_meta("work_id"):
+						sites += 1
+				var on_site := 0
+				for id in app.store.npcs:
+					if String(app.store.npcs[id].get("target", {}).get("kind", "")) == "work":
+						on_site += 1
+				var works_text: Array = []
+				for work in app.store.works.values():
+					works_text.append("%d:%s:%d%%:%s:turma=%d+%d:lote=%d" % [int(work.id), String(work.kind), int(round(float(work.progress) * 100.0)),
+						String(work.halt) if String(work.halt) != "" else "anda", work.crew.size(), work.helpers.size(), work.on_site.size()])
+				print("log-works: works=", app.store.works.size(), " sites=", sites, " npcs_on_site=", on_site, " ", " ".join(works_text))
 			"walls":
 				var view = app.stage.interior_view
 				var heights := {}

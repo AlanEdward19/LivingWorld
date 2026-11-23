@@ -9,7 +9,7 @@ const Grid := preload("res://Scenes/grid.gd")
 const BAR_HEIGHT := 1.42
 const BAR_WIDTH := 0.6
 const KIND_COLORS := {"rest": Color("7fa8e0"), "food": Color("e0a24f"), "cook": Color("e07a4f"), "water": Color("4fb3e0"),
-	"construction": Color("c9a36b"), "extraordinary-construct": Color("9f7fe0"), "process": Color("bdbdbd")}
+	"construction": Color("c9a36b"), "build-work": Color("c9a36b"), "extraordinary-construct": Color("9f7fe0"), "process": Color("bdbdbd")}
 const SOIL := Color("6b4a2e")
 const SPROUT := Color("8fbf5a")
 const RIPE := Color("d9b44a")
