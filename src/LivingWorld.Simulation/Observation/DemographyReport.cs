@@ -113,7 +113,14 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null, ReferenceTally? Reference = null, DomesticHungerProbe? DomesticHunger = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null, ReferenceTally? Reference = null, DomesticHungerProbe? DomesticHunger = null)
+    {
+        /// <summary>AD-194: obras de prédio prontas (casa e oficina), meses-casa sem moradia e de favor depois do aquecimento, anos medidos.</summary>
+        public long WorksDone { get; init; }
+        public long HomelessHouseMonths { get; init; }
+        public long LodgerHouseMonths { get; init; }
+        public int MeasuredYears { get; init; }
+    }
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -163,6 +170,7 @@ public static class DemographyReport
         var clock = new WorldClock(systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
+        long homelessMonths = 0, lodgerMonths = 0, worksAtWarmup = 0; // AD-194
         for (int m = 0; m < months; m++)
         {
             if (m % world.Calendar.MonthsPerYear == 0) economy.SampleYear(m / world.Calendar.MonthsPerYear);
@@ -181,7 +189,13 @@ public static class DemographyReport
             tally.Family.SampleMonth();
             tally.Disease.SampleMonth();
             tally.Reproduction.SampleMonth();
-            if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
+            if (m >= warmupYears * world.Calendar.MonthsPerYear)
+            {
+                tally.SampleMonth();
+                foreach (var house in world.Households) if (!house.IsEmpty && house.Dwelling is null) homelessMonths++;
+                lodgerMonths += world.Ground?.Lodgers.Count ?? 0;
+            }
+            if (m + 1 == warmupYears * world.Calendar.MonthsPerYear) worksAtWarmup = world.Ground?.BuildsDone ?? 0;
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             food.SampleMonth();
             decades.SampleMonth(world.CurrentDate.TotalHours);
@@ -199,7 +213,13 @@ public static class DemographyReport
         economy.SampleYear(years);
         reference.Finish();
         domestic.Finish();
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress, reference, domestic);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress, reference, domestic)
+        {
+            WorksDone = (world.Ground?.BuildsDone ?? 0) - worksAtWarmup,
+            HomelessHouseMonths = homelessMonths,
+            LodgerHouseMonths = lodgerMonths,
+            MeasuredYears = Math.Max(0, years - warmupYears),
+        };
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -338,6 +358,7 @@ public static class DemographyReport
         if (r.Invention is { } invention) sb.Append(inv, $" constr_boas={invention.Tally.Built} constr_falhas={invention.Tally.BuildFailures}");
         var fam = t.Family;
         sb.Append(inv, $" casamentos={fam.Marriages}"); // AD-178: razão pareada de casamentos
+        sb.Append(inv, $" obras_prontas={r.WorksDone} sem_casa_meses={r.HomelessHouseMonths} favor_meses={r.LodgerHouseMonths} anos={r.MeasuredYears}"); // AD-194
         sb.Append(inv, $" oficio_n={fam.FollowCompared} oficio_segue={fam.Followed} oficio_acaso={fam.FollowByChance:F2} oficio_alta_n={fam.HighPressureCompared} oficio_alta={fam.HighPressureFollowed} oficio_baixa_n={fam.LowPressureCompared} oficio_baixa={fam.LowPressureFollowed}");
         r.Reference?.Append(sb);
         r.DomesticHunger?.Append(sb);

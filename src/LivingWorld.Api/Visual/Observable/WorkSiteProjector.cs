@@ -13,7 +13,8 @@ namespace LivingWorld.Api.Visual.Observable;
 public sealed record WorkMaterialVisual(int ResourceId, string? Name, long Needed, long Placed)
 {
     /// <summary>AD-194: unidades já no lote e ainda não postas (casa e oficina; na obra da fila o material fica no estoque da cidade).</summary>
-    public long OnSite { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? OnSite { get; init; }
 }
 
 /// <summary>AD-193: uma obra em andamento como o motor a tem, para o cliente desenhar o canteiro com verdade e a ficha dizer quem ergue,

@@ -58,6 +58,9 @@ def mem(r, kinds=None):
 METRICS = [
     ("natalidade_por_mil_pa", lambda r: g(r, "nasc"), lambda r: g(r, "pa"), 1000),
     ("casamentos_por_mil_pa", lambda r: g(r, "casamentos"), lambda r: g(r, "pa"), 1000),  # AD-178
+    ("obras_prontas_por_ano", lambda r: g(r, "obras_prontas"), lambda r: g(r, "anos"), 1),  # AD-194
+    ("casas_sem_moradia_meses_por_ano", lambda r: g(r, "sem_casa_meses"), lambda r: g(r, "anos"), 1),  # AD-194
+    ("casas_de_favor_meses_por_ano", lambda r: g(r, "favor_meses"), lambda r: g(r, "anos"), 1),  # AD-194
     ("mortalidade_por_mil_pa", lambda r: deaths(r), lambda r: g(r, "pa"), 1000),
     ("fome_por_mil_pa", lambda r: g(r, "d.Starvation"), lambda r: g(r, "pa"), 1000),
     ("fome_<5_por_mil_pa", lambda r: g(r, "d.Starvation", [0, 1]), lambda r: g(r, "pa", [0, 1]), 1000),
