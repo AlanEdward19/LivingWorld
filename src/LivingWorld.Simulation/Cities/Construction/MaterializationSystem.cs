@@ -117,8 +117,8 @@ public sealed class MaterializationSystem : ISimulationSystem
 
     /// <summary>Materializa 1 NPC do pool agregado de <paramref name="cityId"/>: debita
     /// exatamente 1 do <see cref="AggregatePopulationPool"/> e cria exatamente 1 linha de <see
-    /// cref="Npc"/>. Atributos sorteados a partir das médias agregadas da cidade
-    /// (Assumption confirmada: "sorteio livre a partir das faixas/estatísticas agregadas").
+    /// cref="Npc"/>. Atributos pela amostragem condicionada do agregado da cidade (<see cref="MaterializationPrior"/>, AD-197q):
+    /// riqueza e saúde por cabeça, ofício e cultura dos adultos da cidade, nascimento na cidade-mãe de quem é mais velho que ela.
     /// <paramref name="specificId"/> materializa exatamente aquele id reservado (clique do
     /// usuário num membro específico do pool); omitido, materializa qualquer um (o último
     /// reservado) — comportamento de sempre pra quem só quer "materialize alguém desta cidade".</summary>
@@ -130,31 +130,13 @@ public sealed class MaterializationSystem : ISimulationSystem
 
         var id = specificId ?? city.PoolNpcIds[^1];
 
-        long wealthPerHead = city.AggregatePool.Count > 0 ? city.AggregatePool.WealthSum / city.AggregatePool.Count : 0;
-        long healthPerHead = city.AggregatePool.Count > 0
-            ? Math.Clamp(city.AggregatePool.HealthSum / city.AggregatePool.Count, 0, 100)
-            : 50;
-
-        var materialized = city.Materialize(id, wealthPerHead, healthPerHead);
+        // AD-197q: o perfil é o mesmo da prévia do criador de personagem (amostragem condicionada pelo agregado da cidade)
+        var prior = MaterializationPrior.Of(world, city);
+        var profile = prior.Profile(id);
+        var materialized = city.Materialize(id, profile.Wealth, profile.Health);
         if (!materialized.IsSuccess) return Result<Npc>.Fail(materialized.Error!);
 
-        var sex = ctx.OneShot($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
-        int maxAge = Math.Max(19, world.PopulationRules.LifeTable.MaxLongevityYears - 1);
-        int ageYears = 18 + (int)(ctx.OneShot($"materialize-age-{id.Value}").NextDouble() * (maxAge - 18));
-        // aniversário num dia qualquer do ano (AD-130)
-        var birthDate = world.CurrentDate.AddYears(-ageYears).AddHours(
-            -(long)(ctx.OneShot($"materialize-birthday-{id.Value}").NextDouble() * world.Calendar.HoursPerYear));
-        var personality = Personality.RollFrom(ctx.OneShot($"materialize-personality-{id.Value}"));
-        var profession = world.PopulationCatalog.RollProfession(ctx.OneShot($"materialize-profession-{id.Value}"));
-        var culture = world.PopulationCatalog.CultureIds.Count > 0
-            ? new CultureId(world.PopulationCatalog.CultureIds.Order().First())
-            : default;
-
-        var npc = new Npc(
-            id, LivingWorld.Simulation.Population.Naming.PersonNaming.NameStranger(world, culture, sex, id), sex, birthDate, culture, city.Location,
-            motherId: null, fatherId: null, household: null, health: (int)healthPerHead,
-            personality: personality, profession: profession, currentLocation: city.Location,
-            wallet: new Money(wealthPerHead), city: city.Id, materializedAtTick: ctx.CurrentTick);
+        var npc = prior.Build(profile, ctx.CurrentTick);
 
         world.AddNpc(npc);
         ApplyCosmeticLayer(world, npc, ctx.CurrentTick);

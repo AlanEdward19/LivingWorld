@@ -290,23 +290,48 @@ func incarnate(id: int, name: String) -> bool:
 	var response: Dictionary = await api.incarnate(id, player_id)
 	_busy = false
 	if response.ok:
-		stale_session = false
-		_set_actions_enabled(true)
-		npc_id = id
-		npc_name = name
-		is_active = true
-		current_action = ""
-		visible = true
-		_title.text = "Você é %s" % name
-		_set_status("")
-		_sync_buttons()
-		refresh_labels()
+		_became(id, name)
 		return true
 	var message := _incarnate_error(response)
 	if response.status == 409 and "outro NPC" in message:
 		_offer_release()
 	warning.emit(message)
 	return false
+
+
+func _became(id: int, name: String) -> void:
+	stale_session = false
+	_set_actions_enabled(true)
+	npc_id = id
+	npc_name = name
+	is_active = true
+	current_action = ""
+	visible = true
+	_title.text = "Você é %s" % name
+	_set_status("")
+	_sync_buttons()
+	refresh_labels()
+
+
+## AD-197q: amostra do agregado da cidade para o criador de personagem (a sessão vem antes, como ao encarnar).
+func candidates(city_id: String, filter: Dictionary) -> Dictionary:
+	await _ensure_session()
+	return await api.player_candidates(player_id, city_id, filter)
+
+
+## AD-197q: entra como o candidato escolhido: o motor tira a pessoa do agregado e a encarna. Devolve "" se entrou, senão o motivo.
+func enter_as_new(city_id: String, id: int, sample: int, name: String) -> String:
+	if _busy or is_active:
+		return "Você já controla outro NPC." if is_active else ""
+	_busy = true
+	await _ensure_session()
+	var response: Dictionary = await api.player_create(player_id, city_id, id, sample)
+	_busy = false
+	if response.ok:
+		_became(id, name)
+		return ""
+	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+	return error if error != "" else "Não foi possível entrar (erro %d)." % response.status
 
 
 ## ADR-0048: a identidade vem da sessão do servidor (token), não do id local; depois de conectado os comandos vão pelo canal

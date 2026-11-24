@@ -1,0 +1,36 @@
+{
+  "aggregateCount": "number",
+  "candidates": [
+    {
+      "ageYears": "number",
+      "bornIn": "string",
+      "bornInCityId": "string",
+      "cultureId": "number",
+      "health": "number",
+      "name": "string",
+      "npcId": "number",
+      "personality": {
+        "agreeableness": "number",
+        "altruism": "number",
+        "ambition": "number",
+        "conscientiousness": "number",
+        "emotionalStability": "number",
+        "extroversion": "number",
+        "impulsivity": "number",
+        "loyalty": "number",
+        "openness": "number",
+        "riskAversion": "number"
+      },
+      "profession": "string",
+      "professionId": "number",
+      "sex": "string",
+      "wealth": "number",
+      "willPrevents": "boolean",
+      "yearsInCity": "number"
+    }
+  ],
+  "cityId": "string",
+  "cityName": "string",
+  "matching": "number",
+  "sample": "number"
+}
