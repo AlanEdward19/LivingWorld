@@ -101,8 +101,8 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? WalkHoldMs { get; init; }
 
-    [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? 1.4;
-    [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? 1.5;
+    [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? LivingWorld.Domain.Geography.WorldScale.ReferenceWalkMps;
+    [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? LivingWorld.Domain.Geography.WorldScale.CellMeters;
     [System.Text.Json.Serialization.JsonIgnore] public int WalkHold => WalkHoldMs ?? 300;
 
     [System.Text.Json.Serialization.JsonIgnore] public bool PaceOn => BodyPace ?? true;

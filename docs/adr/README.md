@@ -59,3 +59,4 @@ conteúdo de ADR para dentro dele.
 | [0049](ADR-0049-modo-jogador-em-terceira-e-primeira-pessoa.md) | Modo jogador em 3ª/1ª pessoa com controle direto (emenda o 0047) | aceito |
 | [0050](ADR-0050-mundo-em-tempo-real-com-duracao-de-tick-variavel.md) | Mundo em tempo real com duração de tick variável | aceito |
 | [0051](ADR-0051-camera-e-controle-do-modo-jogador.md) | Câmera, controle e interação do modo jogador (emenda o 0047) | aceito |
+| [0052](ADR-0052-escala-unica-da-celula.md) | Escala única de 1,5 m por célula (tudo em metros reais) | aceito |

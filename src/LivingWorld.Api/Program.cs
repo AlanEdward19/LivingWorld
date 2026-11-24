@@ -179,6 +179,16 @@ app.MapGet("/world/info", () =>
         name = world.Name,
         periodId = world.PeriodId,
         technologyAxes = world.EmergenceRules.AxisNames,
+        // ADR-0052: a escala do mundo (metros por célula e as medidas de prédio que o cliente desenha)
+        scale = new
+        {
+            cellMeters = LivingWorld.Domain.Geography.WorldScale.CellMeters,
+            floorMeters = LivingWorld.Domain.Geography.WorldScale.FloorMeters,
+            doorMeters = LivingWorld.Domain.Geography.WorldScale.DoorMeters,
+            doorWidthMeters = LivingWorld.Domain.Geography.WorldScale.DoorWidthMeters,
+            windowSillMeters = LivingWorld.Domain.Geography.WorldScale.WindowSillMeters,
+            windowMeters = LivingWorld.Domain.Geography.WorldScale.WindowMeters,
+        },
     });
 });
 
