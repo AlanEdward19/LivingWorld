@@ -13,7 +13,6 @@ using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Trade;
 using LivingWorld.Api.Treasury;
 using LivingWorld.Api.Visual.Catalogs;
-using LivingWorld.Api.VisualInput;
 using LivingWorld.Api.Watchlist;
 using LivingWorld.Api.World;
 using LivingWorld.Domain.History;
@@ -35,7 +34,9 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot).
-builder.Services.AddOpenApi();
+// ADR-0050 (AD-197b): contrato v2, campos de tempo em milissegundos (LivingWorld.Api.Realtime.WireMillis); o v1 não é mantido.
+builder.Services.AddOpenApi("v2");
+builder.Services.ConfigureHttpJsonOptions(o => LivingWorld.Api.Realtime.WireMillis.Apply(o.SerializerOptions));
 
 // Testes continuam isolados em memória quando não configuram conexão. O app iniciado por
 // run.cmd injeta um SQLite em disco, portanto o último mundo sobrevive ao restart da API.
@@ -103,7 +104,11 @@ var worldHost = new WorldHost(world, worldClock);
 // SimulationHost fica pronto no DI para pausa/velocidade/avanço e para o gateway realtime —
 // este host ainda não ticka automaticamente (decisão explícita: troca a origem do mundo por
 // persistência real primeiro, tick em tempo real fica para depois).
-var simulationHost = new SimulationHost(worldHost);
+var simulationHost = new SimulationHost(worldHost)
+{
+    // AD-197c: LW_AD197C=off desliga o ritmo automático (o Δ é o que o admin pede, como na AD-197b) e o pulo de tempo do jogador
+    AutoRhythm = builder.Configuration["LW_AD197C"] != "off",
+};
 
 // Gateway realtime lê o mesmo relógio do host canônico acima — nunca dirige tick nem escreve
 // no mundo (Publish só é chamado pelos projectors futuros com o resultado de uma leitura já
@@ -128,6 +133,12 @@ builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
 var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
 builder.Services.AddSingleton(playerService);
+// ADR-0048 (AD-197a): sessão do jogador por token do hospedeiro (quando ela é exigida: PlayerAuthPolicy, AD-197e)
+var playerTokens = new LivingWorld.Api.Players.PlayerSessionTokens(TimeProvider.System);
+var playerGateway = new LivingWorld.Api.Players.PlayerCommandGateway(
+    worldHost, simulationHost, playerService, savedWorlds, new LivingWorld.Api.Players.PlayerLogStore(savedWorlds.WorldsDirectory), sessions);
+builder.Services.AddSingleton(playerTokens);
+builder.Services.AddSingleton(playerGateway);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
@@ -137,6 +148,7 @@ builder.Services.AddSingleton(chronicles);
 // como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default pra nenhuma
 // WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo dela (mesmo
 // motivo documentado em WorldHost/Program.cs:71-74).
+builder.Services.AddSingleton<LivingWorld.Api.Visual.Observable.PresentationNameResolver>(); // AD-170: nomes do período, uma vez por período
 builder.Services.AddSingleton<TickLoopService>();
 if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
     builder.Services.AddHostedService(sp => sp.GetRequiredService<TickLoopService>());
@@ -167,6 +179,16 @@ app.MapGet("/world/info", () =>
         name = world.Name,
         periodId = world.PeriodId,
         technologyAxes = world.EmergenceRules.AxisNames,
+        // ADR-0052: a escala do mundo (metros por célula e as medidas de prédio que o cliente desenha)
+        scale = new
+        {
+            cellMeters = LivingWorld.Domain.Geography.WorldScale.CellMeters,
+            floorMeters = LivingWorld.Domain.Geography.WorldScale.FloorMeters,
+            doorMeters = LivingWorld.Domain.Geography.WorldScale.DoorMeters,
+            doorWidthMeters = LivingWorld.Domain.Geography.WorldScale.DoorWidthMeters,
+            windowSillMeters = LivingWorld.Domain.Geography.WorldScale.WindowSillMeters,
+            windowMeters = LivingWorld.Domain.Geography.WorldScale.WindowMeters,
+        },
     });
 });
 
@@ -183,18 +205,18 @@ app.MapGet("/world/calendar", () =>
     });
 });
 
-app.MapGet("/npcs/{id:long}", (long id) =>
+app.MapGet("/npcs/{id:long}", (long id, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
 {
     var result = NpcInspectionQuery.Inspect(worldHost.Current, new NpcId(id));
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+    return result.IsSuccess ? Results.Ok(LivingWorld.Api.Visual.Observable.EntityInspectionQuery.Named(result.Value!, names.For(worldHost.Current.PeriodId))) : Results.NotFound();
 });
 
 // Comando explícito e nomeado — o GET acima nunca materializa; quem precisa do detalhe
 // completo de um id ainda anônimo no pool agregado chama esta rota de propósito.
-app.MapPost("/npcs/{id:long}/materialize", (long id) =>
+app.MapPost("/npcs/{id:long}/materialize", (long id, LivingWorld.Api.Visual.Observable.PresentationNameResolver names) =>
 {
     var result = NpcInspectionQuery.MaterializeAndInspect(worldHost.Current, new NpcId(id));
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+    return result.IsSuccess ? Results.Ok(LivingWorld.Api.Visual.Observable.EntityInspectionQuery.Named(result.Value!, names.For(worldHost.Current.PeriodId))) : Results.NotFound();
 });
 
 // LLM_PROVIDER escolhe o provider real de diálogo; default "fake" para não mudar nenhum
@@ -224,17 +246,22 @@ app.MapSavedWorldEndpoints(worldHost, savedWorlds, simulationHost, restored => n
     ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles, extraordinary: restored.Extraordinary), sink: worldSink));
 app.MapWorldPreviewEndpoints();
 app.MapCultureTechnologyEndpoints(worldHost);
+app.MapDesignEndpoints(worldHost);
+LivingWorld.Api.Visual.Observable.EntityEndpoints.MapEntityEndpoints(app, worldHost); // AD-170: ficha genérica por tipo
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
 app.MapTradeEndpoints(worldHost);
 app.MapTreasuryEndpoints(worldHost);
-app.MapPlayerEndpoints(worldHost, playerService);
-app.MapVisualInputEndpoints();
+// AD-197e: token obrigatório quando o servidor escuta fora de loopback (público); PLAYER_AUTH=required|local força um ou outro
+app.MapPlayerEndpoints(playerGateway, playerTokens, new LivingWorld.Api.Players.PlayerAuthPolicy(
+    builder.Configuration["PLAYER_AUTH"], app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()));
+LivingWorld.Api.Players.PlayerChannelEndpoints.MapPlayerChannelEndpoints(app, playerGateway, playerTokens);
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
 app.MapDecisionSandboxEndpoints(worldHost);
+app.MapBrainEndpoints(worldHost); // AD-160b: ler o cérebro
 app.MapObservationScopeEndpoints(worldHost);
 app.MapAdminEndpoints(worldHost, simulationHost);
 simulationHost.OnPauseExpired = pause =>

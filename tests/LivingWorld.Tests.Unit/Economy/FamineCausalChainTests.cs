@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Geography;
+using LivingWorld.Tests.Shared;
 using LivingWorld.Tests.Shared.Economy;
 
 namespace LivingWorld.Tests.Unit.Economy;
@@ -40,13 +41,14 @@ public class FamineCausalChainTests
         int seedsWhereTreatmentHigher = 0;
         var evidence = new List<string>();
 
-        for (ulong seed = 1; seed <= 10; seed++)
+        // Cada seed (base e tratamento) é um par de mundos independentes: rodam em paralelo; a contagem segue a ordem das seeds.
+        var arms = ParallelSeeds.Map(1, 10, seed =>
+            (Base: HungryNpcHoursDuringWindow(seed, productionMultiplier: 1.0), Treatment: HungryNpcHoursDuringWindow(seed, productionMultiplier: 0.0)));
+        for (int index = 0; index < arms.Length; index++)
         {
-            long baseHungry = HungryNpcHoursDuringWindow(seed, productionMultiplier: 1.0);
-            long treatmentHungry = HungryNpcHoursDuringWindow(seed, productionMultiplier: 0.0);
-
+            var (baseHungry, treatmentHungry) = arms[index];
             if (treatmentHungry > baseHungry) seedsWhereTreatmentHigher++;
-            evidence.Add($"{seed}:base={baseHungry},trat={treatmentHungry}");
+            evidence.Add($"{index + 1}:base={baseHungry},trat={treatmentHungry}");
         }
 
         Assert.True(seedsWhereTreatmentHigher == 10,

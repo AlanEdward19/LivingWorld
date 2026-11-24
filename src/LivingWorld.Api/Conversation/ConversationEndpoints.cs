@@ -31,18 +31,14 @@ public static class ConversationEndpoints
     // não estão implementados. Lista vazia de ações é a opção mais restritiva (nenhuma ação de
     // mundo liberada por padrão) até uma implementação futura definir a fonte real; intents são
     // só o vocabulário mínimo do fallback.
-    private const long ExpireAfterTicks = 100;
+    internal const long ExpireAfterTicks = 100;
     private static readonly string[] AllowedIntents = ["greet", "ask", "farewell"];
     private static readonly string[] AllowedActions = [];
 
-    private static readonly NeedsRules NeedsRules = ScenarioRunner.DefaultNeedsRules;
+    internal static readonly NeedsRules NeedsRules = ScenarioRunner.DefaultNeedsRules;
 
-    // Sleep é a única ação declarada Forbidden: não dá para acordar alguém para conversar
-    // (mesmo raciocínio do exemplo usado nos testes). Todo o resto é Compatible.
-    private static readonly LlmRules ConversationLlmRules = LlmRules.Create(
-        hostileTrustThreshold: 10,
-        actionCompatibility: Enum.GetValues<ActionType>().ToDictionary(
-            a => a, a => a == ActionType.Sleep ? ConversationCompatibility.Forbidden : ConversationCompatibility.Compatible)).Value!;
+    // Sleep é a única ação declarada Forbidden: não dá para acordar alguém para conversar. Mesmas regras da interação do jogador.
+    internal static readonly LlmRules ConversationLlmRules = ConversationAvailabilityPolicy.PlayerRules;
 
     public static void MapConversationEndpoints(this WebApplication app, WorldHost host, ConversationSessionStore sessions, ConversationOrchestrator orchestrator)
     {

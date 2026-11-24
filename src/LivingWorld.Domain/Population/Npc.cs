@@ -31,13 +31,37 @@ public sealed class Npc
     [JsonIgnore]
     public Action<Npc, CellCoord>? LocationObserver { get; set; }
 
+    /// <summary>AD-197l: avisa quem acompanha os viajantes (índice dos vivos, só no passo fino) quando o NPC começa ou deixa de viajar.</summary>
+    [JsonIgnore]
+    public Action<Npc>? TravelObserver { get; set; }
+
     /// <summary>Notifica <c>(npc, saúdeAnterior)</c> quando <see cref="SetHealth"/> muda a saúde — único
     /// caminho de mutação, o que permite ao índice de vivos contar quem está em perigo sem varrer o mundo.</summary>
     [JsonIgnore]
     public Action<Npc, int>? HealthObserver { get; set; }
 
     public NpcId Id { get; }
-    public string Name { get; }
+
+    /// <summary>Nome completo "próprio família" (AD-178). Mundo antigo pode trazer o rótulo legado <c>npc-…</c>, sem espaço.</summary>
+    public string Name { get; private set; }
+
+    /// <summary>Nome de família: a última palavra do <see cref="Name"/>; nulo no nome legado de uma palavra só (AD-178).
+    /// Derivado do nome, então não pesa no snapshot.</summary>
+    [JsonIgnore]
+    public string? FamilyName => Name.LastIndexOf(' ') is var cut and > 0 ? Name[(cut + 1)..] : null;
+
+    /// <summary>Nome próprio: tudo antes do nome de família (o nome inteiro, se não houver família).</summary>
+    [JsonIgnore]
+    public string GivenName => Name.LastIndexOf(' ') is var cut and > 0 ? Name[..cut] : Name;
+
+    /// <summary>Troca de nome por costume (o cônjuge que adota o nome de família da outra linhagem, AD-178).</summary>
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name não pode ser vazio", nameof(name));
+        if (name == Name) return;
+        Name = name;
+        TouchCanonical();
+    }
     public Sex Sex { get; }
     public WorldDate BirthDate { get; }
     public CultureId Culture { get; }
@@ -60,6 +84,31 @@ public sealed class Npc
     public CellCoord CurrentLocation { get; private set; }
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
+
+    /// <summary>AD-197c: milissegundo da hora em que a ação começou (0 = na hora cheia, o de sempre; só o passo fino com jogador
+    /// começa ação dentro da hora). Omitido do snapshot quando 0: o mundo que anda de hora em hora tem os bytes de antes.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int ActionPhaseMs { get; private set; }
+
+    /// <summary>AD-197h: a perna da viagem em curso no passo fino: para onde vai e quando chega (ms), gravada quando o viajante decide.
+    /// A pose no caminho sai dela, sem refazer destino e caminho a cada tick. Fora do JSON de hora em hora.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long TravelLegEndMs { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CellCoord? TravelLegTo { get; private set; }
+
+    public void SetTravelLeg(CellCoord to, long endMs)
+    {
+        if (TravelLegTo == to && TravelLegEndMs == endMs) return;
+        TravelLegTo = to;
+        TravelLegEndMs = endMs;
+        TouchCanonical();
+    }
+
+    /// <summary>Instante (ms) em que a ação em curso começou.</summary>
+    [JsonIgnore]
+    public long ActionStartedAtMs => ActionStartedAtTick * LivingWorld.Domain.Shared.WorldMillis.PerHour + ActionPhaseMs;
 
     /// <summary>Intent de plano persistente — granularidade de
     /// <see cref="ActionType"/> + target opcional; sobrevive além da ação imediata.</summary>
@@ -109,6 +158,68 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DisappearedAtTick { get; private set; }
 
+    /// <summary>AD-196: o poder que o controlador escolheu com <see cref="ActionType.UsePower"/>; a invocação sai da mesma lista de
+    /// oportunidades do motor (mesmo descritor, custo e confiabilidade). Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ControlledPowerId { get; private set; }
+
+    /// <summary>AD-196: tick da declaração de morte presumida de quem segue vivo e desaparecido (o cenário deixa voltar). Herança,
+    /// viuvez e luto já correram; voltar não os desfaz. Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? PresumedDeadAtTick { get; private set; }
+
+    /// <summary>AD-197e: modo da posse pelo controlador; nulo = comum (o de antes). Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PossessionMode? ControlMode { get; private set; }
+
+    /// <summary>AD-197e: a pessoa presa durante a posse plena; nulo fora dela. Omitido enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CaptiveMind? Captive { get; private set; }
+
+    /// <summary>AD-197f: a disputa de vontade da posse comum (e o cansaço que fica depois dela); nulo = nunca disputou. Omitido
+    /// enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WillContest? Will { get; private set; }
+
+    public void SetWill(WillContest? will)
+    {
+        Will = will;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197f: a vontade expulsou o controlador: o corpo volta à pessoa, que não some (ela está ali).</summary>
+    public void ReleaseController()
+    {
+        ControllerId = null;
+        ControlledAction = null;
+        ControlledPowerId = null;
+        ControlMode = null;
+        Captive = null;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197e: posse plena começa (a pessoa fica presa) ou volta a comum.</summary>
+    public void SetPossession(PossessionMode mode, long tick)
+    {
+        ControlMode = mode == PossessionMode.Full ? PossessionMode.Full : null;
+        Captive = mode == PossessionMode.Full ? new CaptiveMind(tick) : null;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197e: o corpo fez algo que a pessoa presa não faria; o sofrimento soma até 100.</summary>
+    public void RecordCaptiveObjection(long target, int hurt, long tick)
+    {
+        if (Captive is not { } mind) return;
+        Captive = mind with
+        {
+            Objections = mind.Objections + 1,
+            Distress = Math.Clamp(mind.Distress + hurt, 0, 100),
+            LastObjectionTarget = target,
+            LastObjectionTick = tick,
+        };
+        TouchCanonical();
+    }
+
     /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
     /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
     /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
@@ -122,6 +233,113 @@ public sealed class Npc
     /// Gravado só na geração (ou autoria) e imutável depois.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Appearance? Appearance { get; private set; }
+
+    /// <summary>Histórico reprodutivo e gravidez em curso (AD-130). Nulo = nunca concebeu: omitido do snapshot.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ReproductiveState? Reproduction { get; private set; }
+
+    /// <summary>Duração da gestação de que nasceu, em dias desde a concepção (AD-130); nulo na população inicial. Lido pela
+    /// mortalidade do 1º ano (prematuridade).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GestationAtBirthDays { get; private set; }
+
+    /// <summary>Horas somadas à idade biológica na mortalidade (transferência de anos de vida por poder); 0 = nenhuma.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long LifespanOffsetHours { get; private set; }
+
+    public void SetReproduction(ReproductiveState? state)
+    {
+        if (Reproduction == state) return;
+        Reproduction = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Tick da puberdade (menarca nela, gonadarca nele; AD-139). Nulo = ainda não chegou, ou snapshot anterior (a
+    /// leitura cai na idade individual sem atraso). Gravado uma vez pelo crescimento mensal.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? PubertyTick { get; private set; }
+
+    /// <summary>Alelos de doença genética (AD-139): 2 bits por locus (0, 1 ou 2 cópias). 0 = nenhum alelo, ou fundador cujo
+    /// genótipo é sorteio fixo da semente (lido por <c>Genome.Of</c>).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public uint Genome { get; private set; }
+
+    public void SetPuberty(long tick)
+    {
+        if (PubertyTick == tick) return;
+        PubertyTick = tick;
+        TouchCanonical();
+    }
+
+    public void SetGenome(uint genome)
+    {
+        if (Genome == genome) return;
+        Genome = genome;
+        TouchCanonical();
+    }
+
+    /// <summary>Alelos de poder (AD-156): 2 bits por locus, guardados só por quem nasceu no mundo. 0 = nenhum alelo, ou fundador
+    /// cujo genótipo é sorteio fixo da semente (lido por <c>PowerGenome.Of</c>). Ausente do snapshot quando 0.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ulong PowerGenome { get; private set; }
+
+    public void SetPowerGenome(ulong genome)
+    {
+        if (PowerGenome == genome) return;
+        PowerGenome = genome;
+        TouchCanonical();
+    }
+
+    /// <summary>Troca a taxa de decaimento da sede (custo basal de poder manifesto, AD-156) a partir de <paramref name="tick"/>.</summary>
+    public void SetThirstDecayRate(double ratePerHour, long tick)
+    {
+        if (ThirstNeed.DecayRatePerHour == ratePerHour) return;
+        ThirstNeed = ThirstNeed.WithDecayRate(ratePerHour, tick);
+        TouchCanonical();
+    }
+
+    public void SetGestationAtBirth(int days)
+    {
+        GestationAtBirthDays = days;
+        TouchCanonical();
+    }
+
+    public void ShiftLifespanOffset(long hours)
+    {
+        if (hours == 0) return;
+        LifespanOffsetHours += hours;
+        TouchCanonical();
+    }
+
+    /// <summary>Quem criou a pessoa, acumulado durante a infância (AD-132); nulo fora dela, com <c>null</c> explícito no
+    /// snapshot como <see cref="Development"/> (o delta binário só carrega campos presentes e a criança que vira adulta passa
+    /// de objeto a nulo). Snapshot antigo, sem o campo, abre com nulo. Só <c>SkillTeachingSystem</c> grava.</summary>
+    public RearingRecord? Rearing { get; private set; }
+
+    public void SetRearing(RearingRecord? record)
+    {
+        if (ReferenceEquals(Rearing, record)) return;
+        Rearing = record;
+        TouchCanonical();
+    }
+
+    /// <summary>Fim da infância (AD-132): a personalidade adulta passa a incluir o ambiente de quem criou e o registro da
+    /// criação se encerra. Única mudança de personalidade de um sistema ordinário, uma vez na vida.</summary>
+    public void ConcludeRearing(Personality adult)
+    {
+        Personality = adult;
+        Rearing = null;
+        TouchCanonical();
+    }
+
+    /// <summary>Marca de um grande acontecimento na personalidade (AD-138): luto por filho ou cônjuge e traição baixam um pouco a
+    /// estabilidade emocional para sempre; casar a sobe. Só <c>PsycheMechanic</c> chama, no instante do evento.</summary>
+    public void ImprintPersonality(Personality changed)
+    {
+        if (changed == Personality) return;
+        Personality = changed;
+        TouchCanonical();
+    }
 
     public void SetNativeLanguage(CultureId? culture)
     {
@@ -147,9 +365,10 @@ public sealed class Npc
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    public void SetControlledAction(ActionType? action)
+    public void SetControlledAction(ActionType? action, string? powerId = null)
     {
         ControlledAction = action;
+        ControlledPowerId = action == ActionType.UsePower ? powerId : null;
         TouchCanonical();
     }
 
@@ -158,6 +377,9 @@ public sealed class Npc
     {
         ControllerId = null;
         ControlledAction = null;
+        ControlledPowerId = null;
+        ControlMode = null;
+        Captive = null;
         DisappearedAtTick = tick;
         TouchCanonical();
     }
@@ -166,6 +388,13 @@ public sealed class Npc
     public void Reappear()
     {
         DisappearedAtTick = null;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-196: declarado morto sem morrer (o cenário deixa o declarado voltar); segue desaparecido.</summary>
+    public void MarkPresumedDead(long tick)
+    {
+        PresumedDeadAtTick = tick;
         TouchCanonical();
     }
 
@@ -201,14 +430,103 @@ public sealed class Npc
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
-    // Corpo mínimo causal — Height/Weight imutáveis após nascimento;
-    // MuscleMass pode crescer lentamente com trabalho pesado (BodyMechanic).
-    /// <summary>Altura em metros, gerada via RNG semeado (<see cref="BodyGeneration"/>).</summary>
-    public double Height { get; }
-    /// <summary>Peso em kg, gerado via RNG semeado.</summary>
-    public double Weight { get; }
-    /// <summary>Massa muscular em kg — pode aumentar com trabalho pesado sustentado.</summary>
+    // Corpo causal (AD-134): altura, peso e músculo mudam com a idade, a comida e o trabalho (GrowthSystem, mensal).
+    /// <summary>Altura em metros na idade atual.</summary>
+    public double Height { get; private set; }
+    /// <summary>Peso em kg na idade atual.</summary>
+    public double Weight { get; private set; }
+    /// <summary>Massa muscular em kg — sobe com trabalho braçal, cai sem ele, com a idade e na fome.</summary>
     public double MuscleMass { get; private set; }
+
+    /// <summary>Valor genético aditivo da estatura, em desvios-padrão do sexo (AD-134): herdado com segregação; 0 = médio.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double StatureGene { get; private set; }
+
+    /// <summary>Estatura adulta que o corpo ainda pode alcançar (m), já descontado o nanismo da desnutrição na infância; 0 =
+    /// snapshot anterior ao AD-134 (o crescimento a deriva da altura atual).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double AdultHeight { get; private set; }
+
+    /// <summary>Desnutrição acumulada em [0,1] (média móvel diária, 0 = bem nutrido). Lida pela mortalidade, pelo peso, pelo
+    /// nanismo e pela saúde.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double Undernutrition { get; private set; }
+
+    /// <summary>Último tick em que mamou (lactente). Nulo = nunca mamou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastNursedTick { get; private set; }
+
+    /// <summary>Último tick em que deu de mamar (lactante). Nulo = nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastLactationTick { get; private set; }
+
+    /// <summary>Dias com trabalho braçal no mês corrente; o crescimento mensal lê e zera.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int PhysicalWorkDays { get; private set; }
+
+    public void SetBody(double height, double weight, double muscleMass)
+    {
+        if (Height == height && Weight == weight && MuscleMass == muscleMass) return;
+        Height = height;
+        Weight = weight;
+        MuscleMass = muscleMass;
+        TouchCanonical();
+    }
+
+    public void SetStature(double statureGene, double adultHeight)
+    {
+        StatureGene = statureGene;
+        AdultHeight = adultHeight;
+        TouchCanonical();
+    }
+
+    public void SetAdultHeight(double adultHeight)
+    {
+        if (AdultHeight == adultHeight) return;
+        AdultHeight = adultHeight;
+        TouchCanonical();
+    }
+
+    public void SetUndernutrition(double value)
+    {
+        value = Math.Clamp(value, 0.0, 1.0);
+        if (Undernutrition == value) return;
+        Undernutrition = value;
+        TouchCanonical();
+    }
+
+    public void MarkNursed(long tick)
+    {
+        LastNursedTick = tick;
+        TouchCanonical();
+    }
+
+    public void MarkLactation(long tick)
+    {
+        LastLactationTick = tick;
+        TouchCanonical();
+    }
+
+    public void AddPhysicalWorkDay()
+    {
+        PhysicalWorkDays++;
+        TouchCanonical();
+    }
+
+    public void ResetPhysicalWorkDays()
+    {
+        if (PhysicalWorkDays == 0) return;
+        PhysicalWorkDays = 0;
+        TouchCanonical();
+    }
+
+    /// <summary>Troca a taxa de decaimento da fome (lactação gasta mais comida) a partir de <paramref name="tick"/>.</summary>
+    public void SetHungerDecayRate(double ratePerHour, long tick)
+    {
+        if (HungerNeed.DecayRatePerHour == ratePerHour) return;
+        HungerNeed = HungerNeed.WithDecayRate(ratePerHour, tick);
+        TouchCanonical();
+    }
 
     /// <summary>Cidade onde o NPC vive — nunca "sem cidade"
     /// (todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
@@ -256,7 +574,18 @@ public sealed class Npc
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
-        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null)
+        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null,
+        ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0,
+        RearingRecord? rearing = null,
+        double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
+        long? lastLactationTick = null, int physicalWorkDays = 0,
+        VocationState? vocation = null, UnionState? union = null,
+        LivingWorld.Domain.Cognition.PsycheState? psyche = null,
+        LivingWorld.Domain.Cognition.BrainState? brain = null,
+        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
+        string? controlledPowerId = null, long? presumedDeadAtTick = null,
+        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
+        long travelLegEndMs = 0, CellCoord? travelLegTo = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -284,6 +613,9 @@ public sealed class Npc
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
+        ActionPhaseMs = actionPhaseMs;
+        TravelLegEndMs = travelLegEndMs;
+        TravelLegTo = travelLegTo;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -294,9 +626,27 @@ public sealed class Npc
         ControllerId = controllerId;
         ControlledAction = controlledAction;
         DisappearedAtTick = disappearedAtTick;
+        ControlledPowerId = controlledPowerId;
+        PresumedDeadAtTick = presumedDeadAtTick;
+        ControlMode = controlMode;
+        Captive = captive;
+        Will = will;
         Development = development;
         NativeLanguage = nativeLanguage;
         Appearance = appearance;
+        Reproduction = reproduction;
+        GestationAtBirthDays = gestationAtBirthDays;
+        LifespanOffsetHours = lifespanOffsetHours;
+        Rearing = rearing;
+        Vocation = vocation;
+        Union = union;
+        Psyche = psyche;
+        Brain = brain;
+        PubertyTick = pubertyTick;
+        Genome = genome;
+        PowerGenome = powerGenome;
+        Emigrated = emigrated;
+        Inheritance = Math.Max(0, inheritance);
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -319,6 +669,12 @@ public sealed class Npc
         Height = height;
         Weight = weight;
         MuscleMass = muscleMass;
+        StatureGene = statureGene;
+        AdultHeight = adultHeight;
+        Undernutrition = Math.Clamp(undernutrition, 0.0, 1.0);
+        LastNursedTick = lastNursedTick;
+        LastLactationTick = lastLactationTick;
+        PhysicalWorkDays = physicalWorkDays;
     }
 
     public Npc(
@@ -382,6 +738,17 @@ public sealed class Npc
         return Result<Unit>.Ok(Unit.Value);
     }
 
+    /// <summary>AD-195: larga o que leva nas mãos (no lote da obra, no chão) e diz o que era; mãos vazias = (0, 0).</summary>
+    public (int ResourceId, long Quantity) TakeCarried()
+    {
+        if (!IsCarrying) return (0, 0);
+        var taken = (CarriedResourceId, CarriedQuantity);
+        CarriedResourceId = 0;
+        CarriedQuantity = 0;
+        TouchCanonical();
+        return taken;
+    }
+
     public Result<Unit> GiveCarriedTo(Household household)
     {
         if (!IsCarrying) return Result<Unit>.Fail("carry: nada em trânsito");
@@ -408,6 +775,39 @@ public sealed class Npc
         if (deathDate < BirthDate)
             throw new ArgumentOutOfRangeException(nameof(deathDate), deathDate, "DeathDate não pode ser anterior a BirthDate");
         DeathDate = deathDate;
+        TouchCanonical();
+    }
+
+    /// <summary>Saiu do mundo simulado como emigrante (AD-145): <see cref="DeathDate"/> marca o dia da partida e a pessoa deixa de
+    /// ser simulada como qualquer ausente, mas não morreu. Omitido do snapshot enquanto falso.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Emigrated { get; private set; }
+
+    /// <summary>Moeda recebida de herança que ainda não foi posta num negócio (AD-152): diz de onde veio o capital de quem abre a
+    /// própria oficina. Só conta: a moeda mesma está na <see cref="Wallet"/>. Omitido do snapshot enquanto zero.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Inheritance { get; private set; }
+
+    public void NoteInheritance(long amount)
+    {
+        if (amount <= 0) return;
+        Inheritance += amount;
+        TouchCanonical();
+    }
+
+    /// <summary>A parte herdada que foi para um negócio; nunca abaixo de zero.</summary>
+    public void SpendInheritance(long amount)
+    {
+        if (amount <= 0 || Inheritance == 0) return;
+        Inheritance = Math.Max(0, Inheritance - amount);
+        TouchCanonical();
+    }
+
+    /// <summary>Partida para fora do mundo simulado (AD-145). Só <c>EmigrationSystem</c> chama.</summary>
+    public void LeaveWorld(WorldDate date)
+    {
+        Die(date);
+        Emigrated = true;
         TouchCanonical();
     }
 
@@ -486,6 +886,32 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>AD-197j: instante (ms) em que o corpo conduzido pelo jogador termina o passo em curso e pode dar o próximo. Omitido
+    /// enquanto 0 (quem nunca foi conduzido passo a passo).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long StepReadyAtMs { get; private set; }
+
+    /// <summary>AD-197j: o passo dado agora termina em <paramref name="readyAtMs"/> e gasta <paramref name="sleepCost"/> do sono
+    /// (energia) além do desgaste de sempre.</summary>
+    public void Step(long readyAtMs, double sleepCost, long nowMs)
+    {
+        StepReadyAtMs = readyAtMs;
+        if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197k: a posição fina do corpo conduzido pelo jogador dentro da grade (milésimos de célula, absolutos), o rumo em que
+    /// anda (milésimos, −1000..1000) e o instante dela. A célula, a parede, a porta e a ocupação seguem vindo da grade
+    /// (<see cref="CurrentLocation"/>). Omitida enquanto nula (quem nunca andou solto).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FinePose? Fine { get; private set; }
+
+    public void SetFine(FinePose? pose)
+    {
+        Fine = pose;
+        TouchCanonical();
+    }
+
     public void SetSocial(int social, long tick = 0)
     {
         SocialNeed = SocialNeed.WithValue(social, tick);
@@ -506,13 +932,26 @@ public sealed class Npc
 
     public void SetCurrentAction(ActionType action, long tick)
     {
+        bool wasTravelling = CurrentAction == ActionType.Travel;
         CurrentAction = action;
+        if (TravelObserver is not null && wasTravelling != (action == ActionType.Travel)) TravelObserver(this);
         ActionStartedAtTick = tick;
+        ActionPhaseMs = 0;
+        TravelLegEndMs = 0;
+        TravelLegTo = null;
         if (action != ActionType.Travel)
             TravelPurpose = null;
         if (action != ActionType.UsePower)
             PendingPowerInvocation = null;
         TouchCanonical();
+    }
+
+    /// <summary>AD-197c: a ação começa no instante <paramref name="atMs"/> (dentro da hora, no passo fino).</summary>
+    public void SetCurrentActionAtMs(ActionType action, long atMs)
+    {
+        long hour = LivingWorld.Domain.Shared.WorldMillis.ToHourFloor(atMs);
+        SetCurrentAction(action, hour);
+        ActionPhaseMs = (int)(atMs - hour * LivingWorld.Domain.Shared.WorldMillis.PerHour);
     }
 
     /// <summary>Inicia ou substitui o intent de plano — status sempre Active.</summary>
@@ -644,6 +1083,14 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Vários ganhos (ou perdas) de habilidade numa única troca de <see cref="Skills"/>; vazio não muda nada.</summary>
+    public void GainSkills(IReadOnlyList<(SkillType Type, double Delta)> deltas, double cap)
+    {
+        if (deltas.Count == 0) return;
+        Skills = Skills.WithGains(deltas, cap);
+        TouchCanonical();
+    }
+
     /// <summary>Vínculo de tutoria mestre->aprendiz — espelha <see cref="JoinHousehold"/>.</summary>
     public void AssignMentor(NpcId mentor)
     {
@@ -743,6 +1190,64 @@ public sealed class Npc
     public void ExitBuilding()
     {
         Interior = null;
+        TouchCanonical();
+    }
+
+    /// <summary>Vocação (AD-136): gosto próprio por ofício e como o ofício foi escolhido. Nulo até a primeira amostra de
+    /// criação (ou da manutenção, para quem já era adulto): omitido do snapshot, snapshot antigo abre com nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public VocationState? Vocation { get; private set; }
+
+    /// <summary>Estado conjugal (AD-136): mágoa com o cônjuge, caso em curso e o fim da última união. Nulo = nunca casou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UnionState? Union { get; private set; }
+
+    public void SetVocation(VocationState? state)
+    {
+        if (ReferenceEquals(Vocation, state)) return;
+        Vocation = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Vida interior (AD-138): lembranças da própria vida e emoções com duração. Nulo = nada vivido ainda: omitido do
+    /// snapshot, snapshot antigo abre com nulo. Só o motor grava (<c>PsycheMechanic</c>); a LLM nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Cognition.PsycheState? Psyche { get; private set; }
+
+    public void SetPsyche(LivingWorld.Domain.Cognition.PsycheState? state)
+    {
+        if (ReferenceEquals(Psyche, state)) return;
+        Psyche = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Ganhos sinápticos herdados e aprendidos (ADR-0046, AD-142). Nulo = cérebro desligado ou ainda não usado:
+    /// omitido do snapshot, snapshot antigo abre com nulo. Só o motor grava (<c>BrainMechanic</c>); a LLM nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Cognition.BrainState? Brain { get; private set; }
+
+    public void SetBrain(LivingWorld.Domain.Cognition.BrainState? state)
+    {
+        Brain = state;
+        TouchCanonical();
+    }
+
+    /// <summary>O cérebro foi mutado no lugar (ganho aprendido, participação guardada): o hash do NPC precisa ser refeito.</summary>
+    public void TouchBrain() => TouchCanonical();
+
+    public void SetUnion(UnionState? state)
+    {
+        if (ReferenceEquals(Union, state)) return;
+        Union = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Fim da união em vida (AD-136): o vínculo de cônjuge se desfaz deste lado. A viuvez continua sem mutador (o
+    /// cônjuge morto segue em <see cref="Spouse"/>); quem chama desfaz os dois lados.</summary>
+    public void EndMarriage()
+    {
+        if (Spouse is null) return;
+        Spouse = null;
         TouchCanonical();
     }
 }

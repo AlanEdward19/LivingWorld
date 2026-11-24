@@ -32,7 +32,7 @@ public sealed class InputSupplySystem : ISimulationSystem
         if (!rules.Enabled) return;
 
         var catalog = world.EconomyCatalog;
-        bool workplacesNeedInputs = catalog.Recipes.Values.Any(recipe => recipe.Inputs.Count > 0);
+        bool workplacesNeedInputs = catalog.Recipes.Values.Any(recipe => recipe.Inputs.Count > 0 || recipe.Tool is not null);
         var cityTargets = world.CityRules.Enabled ? ConstructionTargets(world) : [];
         if (!workplacesNeedInputs && cityTargets.Count == 0) return;
 
@@ -73,9 +73,25 @@ public sealed class InputSupplySystem : ISimulationSystem
     private static void SupplyWorkplace(
         WorldState world, EconomyCatalog catalog, EconomyRules rules, List<Workplace> workplaces, Workplace buyer)
     {
-        if (!catalog.Recipes.TryGetValue(buyer.LocationType.Id, out var recipe) || recipe.Inputs.Count == 0) return;
+        if (!catalog.Recipes.TryGetValue(buyer.LocationType.Id, out var recipe) || (recipe.Inputs.Count == 0 && recipe.Tool is null)) return;
         int employees = buyer.Employees.Count;
         if (employees == 0) return;
+
+        // ferramenta (AD-144): repõe o jogo de cada empregado, comprado de quem a faz na cidade
+        if (recipe.Tool is { } tool && tool.KitFor(employees) > buyer.Stock.GetValueOrDefault(new ResourceType(tool.ResourceId)))
+        {
+            var toolResource = new ResourceType(tool.ResourceId);
+            long lacking = tool.KitFor(employees) - buyer.Stock.GetValueOrDefault(toolResource);
+            long toolRoom = rules.CapacityOf(toolResource, buyer.LocationType) - buyer.Stock.GetValueOrDefault(toolResource);
+            // quem usa a ferramenta não vende o próprio jogo: só a oficina que a faz
+            var makers = workplaces.Where(w => !(catalog.Recipes.TryGetValue(w.LocationType.Id, out var r) && r.Tool?.ResourceId == tool.ResourceId)).ToList();
+            long boughtTools = Buy(rules, makers, buyer, toolResource, Math.Min(lacking, toolRoom), buyer.Treasury, out var paidTools);
+            if (boughtTools > 0)
+            {
+                buyer.TryDebitTreasury(paidTools);
+                buyer.Deposit(toolResource, boughtTools, rules);
+            }
+        }
 
         foreach (var (resourceId, perWorker) in recipe.Inputs.OrderBy(e => e.Key))
         {

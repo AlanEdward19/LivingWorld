@@ -15,12 +15,12 @@
 - **Foco do produto (vale para toda entrega):** realismo da simulação, ótima UX/experiência do usuário e
   **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
   NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
-
-- **Issues do GitHub (evita retrabalho):** use `gh api` (REST); `gh issue view/edit` usam GraphQL e falham
-  na nuvem. Antes de pegar: `gh api repos/AlanEdward19/LivingWorld/issues/<n> -q '.state,.assignees[].login'`
-  e confira PR aberto que cite `#<n>`. Se houver assignee ou PR em andamento, **não pegue** — escolha outra ou
-  avise o usuário. Ao pegar, atribua-se: `gh api -X POST repos/AlanEdward19/LivingWorld/issues/<n>/assignees
-  -f "assignees[]=$(gh api user -q .login)"`. Branch base: **`main`** (`develop` não existe mais).
+- **Issues do GitHub — OBRIGATÓRIO (várias pessoas no projeto):** use `gh api` (REST); `gh issue view/edit`
+  usam GraphQL e falham na nuvem. (1) **Toda feature tem issue**; se não existir, crie antes de começar.
+  (2) **Só pegue issue sem ninguém atuando**: `gh api repos/AlanEdward19/LivingWorld/issues/<n> -q
+  '.state,.assignees[].login'` vazio e nenhum PR aberto citando `#<n>`; senão escolha outra ou avise o usuário.
+  (3) **Atribua-se ANTES de começar**: `gh api -X POST repos/AlanEdward19/LivingWorld/issues/<n>/assignees
+  -f "assignees[]=$(gh api user -q .login)"`. Commits e PR citam `#<n>`. Branch base: **`main`**.
 
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.
@@ -73,8 +73,8 @@
 - **Testes**: comportamento novo tem teste. O agente não se autoavalia — quem decide é o gate.
 - **Simulação**: determinística e reprodutível. Mesma seed + mesmos ticks = mesmo mundo.
 - **Coesão**: todo sistema novo entra **conectado** (consumidor causal real) — ver
-  `rules/living-world-cohesion.md`. Stub presentation-only sem consumidor é dívida explícita,
-  não entrega.
+  `rules/living-world-cohesion.md`. Stub presentation-only sem consumidor é dívida, não entrega.
+- **Não entregue**: item que ajuda o realismo é implementado; grande demais → issue (`prioridade`). Nunca solto.
 - **LLM**: propõe linguagem e intenção; o motor valida e aplica. Nunca o contrário.
 
 ## Harness

@@ -1,6 +1,14 @@
 {
   "name": "string",
   "periodId": "string",
+  "scale": {
+    "cellMeters": "number",
+    "doorMeters": "number",
+    "doorWidthMeters": "number",
+    "floorMeters": "number",
+    "windowMeters": "number",
+    "windowSillMeters": "number"
+  },
   "technologyAxes": [
     "string"
   ]

@@ -19,6 +19,7 @@ public class CivilizationConservationTests
     {
         var root = JsonNode.Parse(ObservatoryFixture.DefaultScenarioJson())!.AsObject();
         root["EmigrationRatePerDeficitUnit"] = emigrationRate;
+        root["Crime"] = new JsonObject { ["Enabled"] = false }; // AD-150: o banimento também tira gente; aqui só a emigração conta
         root["Cities"]![0]!["AggregatePool"] = new JsonObject { ["Count"] = pool, ["WealthSum"] = pool * 100, ["HealthSum"] = pool * 100 };
 
         long initial = 0, initialCities = 0;
@@ -101,8 +102,14 @@ public class CivilizationConservationTests
     [Fact]
     public void Cities_founded_and_merged_per_year_add_up_to_what_the_world_holds_at_the_end()
     {
-        // Seed 2 funda e funde cidades já no ano 1 (cidade fundada e fundida no mesmo ano continua contando como fundada).
+        // A primeira seed que funda e funde no horizonte (cidade fundada e fundida no mesmo ano continua contando como fundada).
+        // AD-176: era a seed 2; com a rota real a trajetória dela mudou, então a conta procura a seed que exercita os dois lados.
         var arm = Observe(seed: 2, Years, emigrationRate: 0.1, pool: 0);
+        foreach (ulong seed in new ulong[] { 3, 7, 1 })
+        {
+            if (arm.Run.Years.Sum(y => y.World["cities_founded"]) > 0 && arm.Run.Years.Sum(y => y.World["cities_merged"]) > 0) break;
+            arm = Observe(seed, Years, emigrationRate: 0.1, pool: 0);
+        }
 
         double founded = arm.Run.Years.Sum(y => y.World["cities_founded"]);
         double merged = arm.Run.Years.Sum(y => y.World["cities_merged"]);

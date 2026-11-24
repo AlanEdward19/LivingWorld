@@ -10,9 +10,26 @@ namespace LivingWorld.Simulation.Core;
 // Parte de WorldState — operações sobre fatos, relatos, livros e memórias. O estado (campos e propriedades) fica em WorldState.cs.
 public sealed partial class WorldState
 {
-    internal void AddTechnology(LivingWorld.Domain.Emergence.Technology technology) => _technologies.Add(technology);
+    internal void AddTechnology(LivingWorld.Domain.Emergence.Technology technology)
+    {
+        _technologies.Add(technology);
+        TechnologiesVersion++;
+    }
 
-    internal void ReplaceTechnology(int index, LivingWorld.Domain.Emergence.Technology technology) => _technologies[index] = technology;
+    internal void ReplaceTechnology(int index, LivingWorld.Domain.Emergence.Technology technology)
+    {
+        _technologies[index] = technology;
+        TechnologiesVersion++;
+    }
+
+    /// <summary>Carimbo das tecnologias (descoberta ou adoção, AD-167): só memória volátil, não entra no snapshot nem no hash.</summary>
+    internal long TechnologiesVersion { get; private set; }
+
+    /// <summary>Bônus de passo por cidade (<see cref="Emergence.Mobility.BonusPct"/>) da versão <see cref="TechnologiesVersion"/>;
+    /// trocado inteiro (cópia) a cada cidade nova, então a leitura nunca vê o dicionário no meio de uma escrita.</summary>
+    internal PaceBonusByCity? PaceBonusMemo { get; set; }
+
+    internal sealed record PaceBonusByCity(long Version, Dictionary<CityId, int> ByCity);
 
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 

@@ -4,6 +4,9 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const Anim := preload("res://Scenes/animation_catalog.gd")
+const Look := preload("res://Scenes/npc_look.gd")
+const Props := preload("res://Scenes/npc_props.gd")
+const RouteWalk := preload("res://Scenes/route_walk.gd")
 
 const LEG_X := 0.08
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
@@ -15,6 +18,8 @@ const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa,
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
 static var frozen := false
+## Hora do mundo contínua (RouteClock), posta pelo renderizador a cada quadro: quem tem rota anda por ela.
+static var world_tick := 0.0
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
 
@@ -42,7 +47,7 @@ var _head: Node3D
 var _arms: Array[Node3D] = []
 var _legs: Array[Node3D] = []
 var _tool: Node3D
-var _hat: MeshInstance3D
+var _hat: Node3D
 var _hair_mesh: MeshInstance3D
 var _skin_mesh: MeshInstance3D
 var _bed: Node3D
@@ -56,6 +61,23 @@ var use_pose := "" ## pose declarada pelo objeto em uso (vazio = pose da ação)
 var use_bed := false ## o interior liga: cama só dentro de casa
 var _selected := false
 var _hovered := false
+var spec: Dictionary = {} ## aparência derivada do estado (Look.spec_of); vazio = corpo base
+var near_detail := false ## LOD "perto": ferramenta, objeto em uso e rosto
+var face_point := Vector3.INF ## alvo da ação (pessoa com quem conversa, oficina): o NPC parado vira para lá
+var held_color := Color("9a7a52") ## cor do material do recipiente (vem de /designs/{id} quando conhecido)
+var _skin_color := Color("e0ac7e")
+var _tool_kind := "hammer"
+var site_work := false ## AD-193: no lote de uma obra (alvo `work` do motor): martelo na mão, seja qual for o ofício
+var _belly: MeshInstance3D
+var _sack: Node3D
+var _held: MeshInstance3D
+var _face: Node3D
+var _face_expression := "-"
+var _sickbed: Node3D
+var _bubble_dots := 0
+var walk = null ## RouteWalk: anda pela rota do motor até a chegada (AD-181); null = movimento de sempre
+var spread := Vector3.ZERO ## lugar dentro da célula quando ela é dividida (só apresentação; a célula é a do servidor)
+const VEER := 0.16 ## desvio lateral no meio do passo: quem se cruza passa pela direita, não por dentro do outro
 
 
 func setup(id: int, p_cell: Vector2i, p_action: int, labels, p_look: Dictionary = {}) -> void:
@@ -89,7 +111,8 @@ func apply_look(p_look: Dictionary) -> void:
 	look = p_look
 	if look.is_empty() or _skin_mesh == null:
 		return
-	_skin_mesh.material_override = _shared_mat(ramp_color(SKIN_RAMP, int(look.skin_tone)))
+	_skin_color = ramp_color(SKIN_RAMP, int(look.skin_tone))
+	_skin_mesh.material_override = _shared_mat(_skin_color)
 	_hair_mesh.material_override = _shared_mat(ramp_color(HAIR_RAMP, int(look.hair_tone)))
 	var curl := float(look.hair_curl) / 100.0
 	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
@@ -138,7 +161,8 @@ func _build() -> void:
 	var hue := rng.randf()
 	_shirt = _mat(Color.from_hsv(hue, 0.55, 0.8))
 	var pants := _shared_mat(Color.from_hsv(snappedf(fmod(hue + 0.5, 1.0), 0.1), 0.35, 0.4))
-	var skin := _shared_mat(SKIN_TONES[rng.randi() % SKIN_TONES.size()])
+	_skin_color = SKIN_TONES[rng.randi() % SKIN_TONES.size()]
+	var skin := _shared_mat(_skin_color)
 	var hair := _shared_mat(HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
 	_shirt.emission_enabled = true
 	_shirt.emission = Color.BLACK
@@ -195,15 +219,28 @@ func _build() -> void:
 ## pronto custam muitos nós; assim a maioria dos NPCs tem só corpo, cabeça, braços e pernas.
 func _get_tool() -> Node3D:
 	if _tool == null:
-		_tool = Node3D.new()
-		_arms[1].add_child(_tool)
-		var handle := BoxMesh.new()
-		handle.size = Vector3(0.04, 0.34, 0.04)
-		_part(_tool, handle, _mat(Color("6b4a2b")), Vector3(0, -0.34, 0.08))
-		var head_tool := BoxMesh.new()
-		head_tool.size = Vector3(0.14, 0.08, 0.08)
-		_part(_tool, head_tool, _mat(Color("7d838c")), Vector3(0, -0.5, 0.08))
+		_tool = Props.tool(_arms[1], _tool_kind)
 	return _tool
+
+
+## AD-193: o motor diz que a pessoa trabalha no lote da obra: martelo; fora dela volta a ferramenta do ofício.
+func set_site_work(on: bool) -> void:
+	if on == site_work:
+		return
+	site_work = on
+	_set_tool_kind("hammer" if on else String(spec.get("tool", "hammer")))
+
+
+## Troca a ferramenta pelo ofício (de perto, na mão durante o trabalho).
+func _set_tool_kind(kind: String) -> void:
+	if kind == _tool_kind:
+		return
+	_tool_kind = kind
+	if _tool != null:
+		var shown := _tool.visible
+		_tool.free()
+		_tool = null
+		_get_tool().visible = shown
 
 
 func _get_bed() -> Node3D:
@@ -322,6 +359,93 @@ func _set_hat(kind: String) -> void:
 	_hat = _part(_head, mesh, _shared_mat(Color("6b4a2b") if kind == "straw" else Color("3b3f46")), Vector3(0, 0.16, 0))
 
 
+## Corpo pelo estado (ADR-0047 etapa 3): escala por altura e idade, roupa e chapéu do ofício, cabelo pelo sexo, barriga de
+## gravidez, palidez e cama de doente, roupa de luto, carga nas costas, recipiente e ferramenta. Só muda o que mudou.
+func apply_observable(obs: Dictionary, catalog = null) -> void:
+	var next := Look.spec_of(obs, catalog)
+	if next == spec:
+		return
+	var before := spec
+	spec = next
+	if spec.is_empty():
+		return
+	scale = Vector3.ONE * float(spec.scale)
+	_shirt.albedo_color = spec.cloth
+	if before.get("hat", "") != spec.hat:
+		if _hat != null:
+			_hat.free()
+			_hat = null
+		_hat = Props.hat(_head, String(spec.hat))
+	if bool(spec.female) and String(spec.stage) != "baby":
+		_hair_mesh.scale = Vector3(1.06, 1.45, 1.3)
+		_hair_mesh.position = Vector3(0, -0.01, -0.04)
+	else:
+		_hair_mesh.position = Vector3(0, 0.04, -0.02)
+	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
+	_skin_mesh.material_override = _shared_mat(skin)
+	_set_tool_kind("hammer" if site_work else String(spec.tool))
+	if float(spec.belly) > 0.0:
+		if _belly == null:
+			_belly = Props.belly(_body, spec.cloth)
+		_belly.material_override = Props.material(spec.cloth)
+		_belly.scale = Vector3.ONE * (0.55 + 0.75 * float(spec.belly))
+		_belly.visible = true
+	elif _belly != null:
+		_belly.visible = false
+	if before.get("sack", {}) != spec.sack:
+		if _sack != null:
+			_sack.free()
+			_sack = null
+		if not spec.sack.is_empty():
+			_sack = Props.sack(_body, spec.sack)
+	_refresh_held()
+	if spec.sick_pose == "bed" or _sickbed != null:
+		if _sickbed == null:
+			_sickbed = Props.sickbed(self)
+		_sickbed.visible = spec.sick_pose == "bed"
+	_face_expression = "-" # o rosto refaz na próxima vez que estiver perto
+	_refresh_face()
+
+
+func _refresh_held() -> void:
+	var wants: bool = not spec.get("held", {}).is_empty()
+	if wants and _held == null:
+		_held = Props.held(_arms[0], "cylinder", held_color)
+	if _held != null:
+		_held.material_override = Props.material(held_color)
+		_held.visible = wants and near_detail
+
+
+## Cor e forma do recipiente vindas do design (o renderizador lê `/designs/{id}` uma vez e repassa).
+func set_held_look(shape: String, color: Color) -> void:
+	held_color = color
+	if _held != null:
+		_held.mesh = Props.shape_mesh(shape, 0.14)
+	_refresh_held()
+
+
+## LOD "perto" (câmera bem próxima): ferramenta e objeto em uso na mão e rosto com expressão simples.
+func set_detail(value: bool) -> void:
+	if near_detail == value:
+		return
+	near_detail = value
+	_sync_props()
+	_refresh_held()
+	_refresh_face()
+
+
+func _refresh_face() -> void:
+	var expression := String(spec.get("expression", ""))
+	var wants := near_detail and not bubble and not far_lod
+	if wants and expression != _face_expression:
+		if _face != null:
+			_face.free()
+		_face = Props.face(_head, expression)
+		_face_expression = expression
+	if _face != null:
+		_face.visible = wants
+
+
 func set_action(new_action: int, labels, p_use_pose: String = "") -> void:
 	action = new_action
 	use_pose = p_use_pose
@@ -374,8 +498,9 @@ func set_bubble(value: bool) -> void:
 
 
 func _sync_props() -> void:
-	if pose == "work" or _tool != null:
-		_get_tool().visible = pose == "work"
+	var shows_tool := pose == "work" and near_detail and _tool_kind != ""
+	if shows_tool or _tool != null:
+		_get_tool().visible = shows_tool
 	if (pose == "sleep" and use_bed) or _bed != null:
 		_get_bed().visible = pose == "sleep" and use_bed
 	if pose == "power" or _aura != null:
@@ -401,7 +526,18 @@ func _refresh_label() -> void:
 		return
 	var label := _get_label()
 	label.text = ("%s\n%s" % [display_name, label_text]) if display_name != "" else label_text
-	label.visible = _selected or _hovered
+	label.visible = (_selected or _hovered) and not is_self
+
+
+## AD-197p: o corpo do próprio jogador: sem nome, ação nem anel sobre ele (quem joga já sabe quem é).
+var is_self := false
+
+
+func set_self(value: bool) -> void:
+	is_self = value
+	if _ring != null:
+		_ring.visible = (_selected or _hovered) and not is_self
+	_refresh_label()
 
 
 func label_visible() -> bool:
@@ -412,10 +548,47 @@ func label_text_shown() -> String:
 	return _label.text if _label != null else ""
 
 
+## Novo lugar dentro da mesma célula (outro chegou ou saiu): desliza até lá se está parado.
+func set_spread(offset: Vector3) -> void:
+	if offset.is_equal_approx(spread):
+		return
+	spread = offset
+	if walk != null: # andando pela rota: o lugar na célula vale na chegada
+		return
+	if _t >= 1.0:
+		_from = position
+		_to = Grid.to_world(cell) + spread
+		_duration = 0.35
+		_t = 0.0 if not frozen else 1.0
+		if frozen:
+			position = _to
+	else:
+		_to = Grid.to_world(cell) + spread
+
+
+var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+
+
+## AD-197k: a posição fina (células, absoluta) do corpo do jogador; vira para onde anda.
+func set_fine(at: Vector2) -> void:
+	var to := Vector3(at.x * Grid.CELL, position.y, at.y * Grid.CELL)
+	var heading := to - position
+	if heading.length() > 0.001:
+		rotation.y = atan2(heading.x, heading.z)
+		_from = position
+		_to = to
+		_duration = 0.12
+		_t = 0.0 # a pose de andar enquanto se move
+	position = to
+	cell = Vector2i(floori(at.x), floori(at.y))
+
+
 func move_to(new_cell: Vector2i, duration: float) -> void:
+	if driven:
+		return
 	cell = new_cell
 	_from = position
-	_to = Grid.to_world(new_cell)
+	_to = Grid.to_world(new_cell) + spread
 	_duration = maxf(duration, 0.001)
 	_t = 0.0
 	if frozen: # pausado (passo manual): sem caminhada, o NPC aparece no destino
@@ -424,20 +597,37 @@ func move_to(new_cell: Vector2i, duration: float) -> void:
 
 
 func is_moving() -> bool:
-	return _t < 1.0
+	return _t < 1.0 or (walk != null and not walk.done)
+
+
+## Rota do motor (células, início da viagem, chegada em ticks). A mesma rota já em curso não recomeça. False se não dá.
+func set_route(cells: Array, start: float, arrival: float, heights: Dictionary = {}) -> bool:
+	if walk != null and walk.same(cells, start, arrival):
+		return true
+	var next = RouteWalk.new()
+	if not next.setup(cells, start, arrival, position, heights):
+		walk = null
+		return false
+	walk = next
+	_t = 1.0
+	return true
+
+
+func clear_route() -> void:
+	walk = null
 
 
 func set_selected(selected: bool) -> void:
 	_selected = selected
 	if _ring != null or selected or _hovered:
-		_get_ring().visible = selected or _hovered
+		_get_ring().visible = (selected or _hovered) and not is_self
 	_refresh_label()
 
 
 func set_hovered(hovered: bool) -> void:
 	_hovered = hovered
 	if _ring != null or hovered or _selected:
-		_get_ring().visible = _selected or hovered
+		_get_ring().visible = (_selected or hovered) and not is_self
 	_refresh_label()
 
 
@@ -445,10 +635,18 @@ func set_hovered(hovered: bool) -> void:
 func advance_motion(dt: float) -> void:
 	if frozen:
 		return
+	if walk != null:
+		walk.step(world_tick)
+		position = walk.position
+		if not far_lod and walk.heading.length_squared() > 0.0001:
+			rotation.y = lerp_angle(rotation.y, atan2(walk.heading.x, walk.heading.z), minf(1.0, dt * 10.0))
+		return
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)
-		position = _from.lerp(_to, _t)
 		var heading := _to - _from
+		position = _from.lerp(_to, _t)
+		if heading.length() > 0.5: # passo de verdade: desvia para a direita no meio e volta ao lugar no fim
+			position += Vector3(-heading.z, 0, heading.x).normalized() * VEER * sin(PI * _t)
 		if heading.length() > 0.01 and not far_lod:
 			rotation.y = lerp_angle(rotation.y, atan2(heading.x, heading.z), minf(1.0, dt * 10.0))
 
@@ -479,6 +677,29 @@ func tick(dt: float, near: bool, due: bool) -> void:
 		_anim_accum = 0.0
 
 
+## Postura pela emoção e pela doença, por cima da pose da ação: cabeça baixa, encolhido, duro ou leve.
+func _apply_posture(effective: String) -> void:
+	if effective == "sleep":
+		return
+	match String(spec.get("posture", "")):
+		"down":
+			_head.rotation.x += 0.35
+			_body.rotation.x += 0.08
+		"slump":
+			_head.rotation.x += 0.25
+			_body.rotation.x += 0.18
+			_body.position.y -= 0.03
+		"hunch":
+			_body.position.y -= 0.04
+			_body.rotation.x += 0.12
+			_head.rotation.y = sin(_clock * 3.0) * 0.5
+		"stiff":
+			_arms[0].rotation.z = 0.15
+			_arms[1].rotation.z = -0.15
+		"light":
+			_body.position.y += absf(sin(_clock * 4.0)) * 0.025
+
+
 func _reset_pose() -> void:
 	_body.position = Vector3.ZERO
 	_body.rotation = Vector3.ZERO
@@ -488,13 +709,30 @@ func _reset_pose() -> void:
 	for i in _legs.size():
 		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
 	_torso.scale = Vector3.ONE
-	_shirt.emission = Color.BLACK
+	if _shirt.emission != Color.BLACK: # só o poder acende a roupa: não reenvia o material de 500 NPCs a cada quadro
+		_shirt.emission = Color.BLACK
+
+
+const STRIKE_TIME := 0.35 ## s do golpe (AD-197j): o braço vai acima da cabeça e desce
+
+
+## AD-197j: o golpe que o motor aceitou (ou tentou): o braço da frente desce no alvo.
+func play_strike() -> void:
+	_strike_until = _clock + STRIKE_TIME
+
+
+var _strike_until := -1.0
 
 
 func _animate() -> void:
 	_reset_pose()
 	var phase := _clock * 7.0 + float(npc_id)
-	var effective := "walk" if (is_moving() and pose != "sleep") else pose
+	var lying: bool = String(spec.get("sick_pose", "")) == "bed"
+	var effective := "walk" if (is_moving() and pose != "sleep" and not lying) else ("sleep" if lying else pose)
+	if not is_moving() and face_point != Vector3.INF and effective != "sleep":
+		var to := face_point - position
+		if to.length() > 0.2:
+			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), 0.25)
 	match effective:
 		"walk":
 			var swing := sin(phase * 1.3)
@@ -529,11 +767,29 @@ func _animate() -> void:
 			_arms[1].rotation.x = -0.7 + cos(phase * 0.8) * 0.5
 			_body.position.y = absf(sin(phase * 0.9)) * 0.02
 			var dots := 1 + int(_clock * 2.0) % 3
-			_get_bubble().text = ".".repeat(dots)
+			if _bubble_dots != dots: # AD-189: o texto só muda quando o número de pontos muda (refazer o texto custa)
+				_bubble_dots = dots
+				_get_bubble().text = ".".repeat(dots)
 		"buy":
 			_arms[1].rotation.x = -1.3
 			_arms[0].rotation.x = -1.3
 			_head.rotation.x = 0.1
+		"steal": # furtivo: agachado, olha para os lados, um braço estendido e rápido para a frente
+			_body.position.y = -0.06
+			_body.rotation.x = 0.35
+			_head.rotation.y = sin(phase * 0.9) * 0.9
+			_arms[1].rotation.x = -1.4 + sin(phase * 2.2) * 0.25
+			_arms[0].rotation.x = 0.3
+			_legs[0].rotation.x = 0.45
+			_legs[1].rotation.x = -0.2
+		"cry": # cabeça baixa, mãos no rosto, ombros sacudindo
+			_head.rotation.x = 0.45
+			_arms[0].rotation.x = -2.3
+			_arms[1].rotation.x = -2.3
+			_arms[0].rotation.z = -0.35
+			_arms[1].rotation.z = 0.35
+			_body.position.y = absf(sin(phase * 2.6)) * 0.025
+			_body.rotation.x = 0.12
 		"power":
 			_body.position.y = 0.12 + sin(phase * 0.6) * 0.06
 			_arms[0].rotation.z = 0.9
@@ -545,5 +801,10 @@ func _animate() -> void:
 			_head.rotation.y = sin(phase * 0.15) * 0.4
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
+	_apply_posture(effective)
+	if _clock < _strike_until: # por cima da pose: o golpe
+		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
+		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)
+		_body.rotation.x = lerpf(-0.1, 0.25, k)
 	if _ring != null and (_selected or _hovered):
 		_ring.rotation.y = _clock * 1.5

@@ -22,7 +22,7 @@ public static class BodyGeneration
         SampleTruncatedNormal(
             rng, rules.MuscleMassMean, rules.MuscleMassStdDev, rules.MuscleMassMin, rules.MuscleMassMax);
 
-    private static double SampleTruncatedNormal(
+    internal static double SampleTruncatedNormal(
         WorldRng rng, double mean, double stdDev, double min, double max)
     {
         if (stdDev <= 0)

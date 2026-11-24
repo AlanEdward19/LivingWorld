@@ -10,7 +10,7 @@ namespace LivingWorld.Domain.Cities.Buildings;
 /// (<see cref="ConstructionSystem"/> ainda não escolhe posição/orientação, G4).</summary>
 public sealed class Building(
     BuildingId id, CityId city, int buildingTypeId, long completedAtTick,
-    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null)
+    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null, int? croftCells = null)
 {
     private static long s_layoutVersion = 1;
 
@@ -28,9 +28,41 @@ public sealed class Building(
     public BuildingId Id { get; } = id;
     public CityId City { get; private set; } = city;
     public int BuildingTypeId { get; } = buildingTypeId;
-    public long CompletedAtTick { get; } = TouchLayout(completedAtTick);
-    public CellCoord? Position { get; } = position;
-    public int? Orientation { get; } = orientation;
+    public long CompletedAtTick { get; private set; } = TouchLayout(completedAtTick);
+
+    /// <summary>AD-184: obra em curso neste lote (o canteiro: estacas, material e paredes subindo); nulo = prédio pronto. Enquanto
+    /// não fica pronto, ninguém mora nem trabalha nele, mas o lote é dele. <see cref="CompletedAtTick"/> é o início da obra até
+    /// <see cref="Complete"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? UnderWork { get; set; }
+
+    /// <summary>O canteiro foi desfeito (obra abandonada): o lote volta a ser livre (os caches de layout se invalidam).</summary>
+    public static void TouchLayoutVersion() => Interlocked.Increment(ref s_layoutVersion);
+
+    /// <summary>A obra terminou: o prédio passa a existir de verdade neste tick.</summary>
+    public void Complete(long tick)
+    {
+        UnderWork = null;
+        CompletedAtTick = tick;
+        Interlocked.Increment(ref s_layoutVersion);
+    }
+    public CellCoord? Position { get; private set; } = position;
+    public int? Orientation { get; private set; } = orientation;
+
+    /// <summary>AD-192 (08d 170): o prédio derivado (sem posição gravada: snapshot antigo, obra sem lote) passa a ter o lote gravado
+    /// — a posição em que já estava, a orientação com a porta para a rua e o quintal. Nada muda se já tem posição.</summary>
+    public void RecordLot(CellCoord at, int orientationDegrees, int croft)
+    {
+        if (Position is not null) return;
+        Position = at;
+        Orientation = orientationDegrees;
+        CroftCells = croft;
+        Interlocked.Increment(ref s_layoutVersion);
+    }
+
+    /// <summary>AD-173: fundo do quintal (croft) que quem construiu escolheu, em células atrás da parede oposta à porta;
+    /// 0 = sem quintal. Nulo nos prédios de antes e nos que o motor deriva (aí a escolha é recalculada pelo lugar).</summary>
+    public int? CroftCells { get; private set; } = croftCells;
 
     /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
     /// — espelha <see cref="City.FoundingScheduledAtTick"/>.

@@ -13,7 +13,7 @@ public static class EcologyScenarioSeeder
 {
     /// <summary>Vila default (objetivo #1): população modesta perto do núcleo.</summary>
     public static void SeedDefault(WorldState world) =>
-        Seed(world, animalCount: 16, plantCount: 24, ScenarioRunner.DefaultVillageLocation);
+        Seed(world, animalCount: 40, plantCount: 400, ScenarioRunner.DefaultVillageLocation); // AD-135: pasto bastante para a colônia passar o inverno
 
     /// <summary>Cenário de escala: N ≈ metade da população NPC inicial.</summary>
     public static void SeedMass(WorldState world, int initialPopulation) =>
@@ -38,7 +38,8 @@ public static class EcologyScenarioSeeder
 
         var rulesBySpecies = world.AnimalSpeciesRules
             .ToDictionary(r => r.Species, StringComparer.Ordinal);
-        int wolves = Math.Max(0, animalCount / 4);
+        // AD-135: predador raro como na natureza (um lobo para ~10 presas, uma alcateia de quatro na vila padrão), não um para três
+        int wolves = animalCount <= 0 ? 0 : Math.Max(1, animalCount / 10);
         int rabbits = Math.Max(0, animalCount - wolves);
 
         if (rulesBySpecies.TryGetValue("wolf", out var wolfRules))
@@ -60,7 +61,7 @@ public static class EcologyScenarioSeeder
         {
             for (int i = 0; i < rabbits; i++)
             {
-                var cell = cells[(i * 5 + origin.X + origin.Y + 1) % cells.Count];
+                var cell = cells[((i / 2) * 7 + origin.X + 2) % cells.Count]; // aos pares, no pasto semeado: coelho vive em colônia
                 world.AddAnimal(new Animal(
                     world.NextAnimalIdAndAdvance(),
                     "rabbit",
@@ -74,14 +75,16 @@ public static class EcologyScenarioSeeder
         if (world.PlantSpeciesRules.Count > 0)
         {
             string species = world.PlantSpeciesRules[0].Species;
+            // vegetação estabelecida no começo do mundo (AD-135): o pasto já está crescido, não brotando do zero
+            int stage = Math.Max(0, world.PlantSpeciesRules[0].MaturityStage);
             for (int i = 0; i < plantCount; i++)
             {
-                var cell = cells[(i * 7 + origin.X + 2) % cells.Count];
+                var cell = cells[(i + origin.X + 2) % cells.Count]; // AD-135: pasto contíguo (um prado), não uma planta a cada sete células
                 world.AddPlant(new Plant(
                     world.NextPlantIdAndAdvance(),
                     species,
                     cell,
-                    GrowthStage: 0));
+                    GrowthStage: stage));
             }
         }
     }

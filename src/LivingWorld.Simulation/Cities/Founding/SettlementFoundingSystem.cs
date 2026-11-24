@@ -3,7 +3,6 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
-using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Founding;
@@ -21,7 +20,7 @@ namespace LivingWorld.Simulation.Cities.Founding;
 
 /// <summary>Checa limiares de fundação de assentamento mensalmente; ao
 /// bater todos, agenda um evento único em <c>now + CityRules.OrganizationTicks</c> (mesmo padrão
-/// de <see cref="MortalitySystem.SchedulePlannedDeath"/>); ao disparar, funda uma <see
+/// de evento agendado do scheduler); ao disparar, funda uma <see
 /// cref="City"/> nova e move o <see cref="AggregatePopulationPool"/> inteiro da cidade-mãe pra
 /// ela, preservando a soma de população.</summary>
 [LivingCapability("FOUNDING", Events = [WorldEventKind.SettlementFounded, WorldEventKind.CityMerged], Consumers = ["map.founding"])]
@@ -64,7 +63,7 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
         var (extractedPool, extractedPoolNpcIds) = motherCity.ExtractEntirePool();
         var newCity = new City(
             world.NextCityId(), foundingSite.Value, ctx.CurrentTick, motherCityId, extractedPool,
-            name: CityNameGenerator.Generate(world), poolNpcIds: extractedPoolNpcIds);
+            name: CityNameGenerator.Generate(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity), poolNpcIds: extractedPoolNpcIds);
         world.AddCity(newCity);
         // Dotação de fundação: a cidade nova recebe metade do caixa da mãe (só muda de dono, nada é cunhado).
         var dotation = new Money(motherCity.Treasury.Amount / 2);

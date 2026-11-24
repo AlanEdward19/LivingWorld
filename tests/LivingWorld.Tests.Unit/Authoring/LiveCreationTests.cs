@@ -60,10 +60,17 @@ public sealed class LiveCreationTests
         var members = created.NpcIds.Select(id => world.FindNpc(new LivingWorld.Domain.Shared.NpcId(id))!).ToList();
         var agesBefore = members.Select(m => m.AgeYears(world.CurrentDate)).ToList();
 
-        clock.Run(world, world.Calendar.HoursPerYear);
+        var sink = new RecordingSink();
+        new WorldClock(clock.Systems, clock.MaxIterationsPerTick, sink).Run(world, world.Calendar.HoursPerYear);
 
-        Assert.All(members, m => Assert.True(m.IsAlive, $"{m.Name} morreu no primeiro ano"));
-        Assert.Equal(agesBefore.Select(a => a + 1), members.Select(m => m.AgeYears(world.CurrentDate)));
+        // AD-130: a criança de 4 anos tem ~5% de risco no ano pela tábua de época; o que a regra comum não pode é matar de
+        // fome, sede ou cansaço quem acabou de chegar. Quem morreu parou de envelhecer.
+        var ids = members.Select(m => m.Id.Value.ToString()).ToHashSet();
+        Assert.DoesNotContain(sink.Events, e => e.Kind is WorldEventKind.Starvation or WorldEventKind.Dehydration
+            or WorldEventKind.Exhaustion && ids.Contains(e.Payload));
+        Assert.Equal(
+            members.Select((m, i) => m.IsAlive ? agesBefore[i] + 1 : m.AgeYears(world.CurrentDate)),
+            members.Select(m => m.AgeYears(world.CurrentDate)));
         Assert.Contains(members, m => m.Employer is not null); // ao menos um adulto passou a trabalhar
         Assert.All(members, m => Assert.True(m.Household is not null));
     }

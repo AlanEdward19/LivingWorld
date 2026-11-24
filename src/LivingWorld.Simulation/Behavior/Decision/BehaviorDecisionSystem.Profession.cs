@@ -44,22 +44,40 @@ public sealed partial class BehaviorDecisionSystem
         if (catalog.LocationTypeByProfession.Count == 0) return;
 
         var current = npc.Employer is { } employerId ? world.FindWorkplace(employerId) : null;
-        double currentValue = current is null ? 0 : PersonalValue(npc, rules, catalog, labor, current);
+        // emprego que não paga não vale nada para quem trabalha: é o que faz o trabalhador sair da oficina falida
+        double currentValue = current is null || !LivingWorld.Simulation.Economy.Labor.Payroll.CanPay(world, current, npc.Profession)
+            ? 0
+            : PersonalValue(npc, rules, catalog, labor, current);
+        // E20 (AD-155): o dono não larga a própria oficina enquanto ela paga: a oficina é dele, não um emprego a trocar
+        if (currentValue > 0 && current!.Owner == npc.Id && world.EconomyRules.Venture is { OwnerKeepsShop: true }) return;
 
         Workplace? best = null;
-        double bestValue = 0;
+        double bestValue = 0, bestCost = double.NaN;
+        // AD-185: no empate de valor (as fazendas iguais do primeiro dia), a oficina mais perto de casa pela rota
+        bool nearest = world.StreetsOn && world.StreetRules.NearestJob;
+        var from = npc.Household is { } hh && world.FindHousehold(hh) is { IsHomeless: false } home ? home.Location : npc.CurrentLocation;
         var candidates = labor.In(npc.City);
         for (int i = 0; i < candidates.Length; i++)
         {
             var workplace = candidates[i];
             if (workplace == current || workplace.Employees.Count >= workplace.MaxVacancies) continue;
-            if (ProfessionFor(catalog, labor, workplace.LocationType.Id, npc.Profession) is null) continue;
+            if (ProfessionFor(catalog, labor, workplace.LocationType.Id, npc.Profession) is not { } offered) continue;
+            if (!LivingWorld.Simulation.Economy.Labor.Payroll.CanPay(world, workplace, offered)) continue;
+            // AD-149: a terra cheia não toma mais uma mão que não paga o que come (a mesma regra da contratação)
+            if (!LivingWorld.Simulation.Economy.Production.CropSystem.LandNeedsHands(world, workplace)) continue;
 
             double value = PersonalValue(npc, rules, catalog, labor, workplace);
             if (value > bestValue)
             {
                 best = workplace;
                 bestValue = value;
+                bestCost = double.NaN;
+            }
+            else if (nearest && value == bestValue && best is not null)
+            {
+                if (double.IsNaN(bestCost)) bestCost = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, from, best.Location).Cost;
+                double cost = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, from, workplace.Location).Cost;
+                if (cost < bestCost) { best = workplace; bestCost = cost; }
             }
         }
 
@@ -82,9 +100,9 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (from is not null)
         {
+            // Quem troca de emprego saiu, não foi demitido: o evento de contratação no destino já conta a troca (AD-128).
             from.Fire(npc.Id);
             npc.Fire();
-            ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{from.Id.Value}", sourceSystem: "LaborAllocation");
         }
 
         to.Hire(npc.Id);
@@ -101,7 +119,9 @@ public sealed partial class BehaviorDecisionSystem
         double skillWeight = profession is { } p && rules.SkillByProfession.TryGetValue(p.Id, out var skillType)
             ? 1.0 + npc.Skills.Get(skillType) / rules.Cap
             : 1.0;
-        return labor.ValueOf(workplace) * skillWeight;
+        // o ofício que combina com a pessoa vale mais para ela (AD-136): quem foi empurrado para o que não combina troca quando pode
+        double fit = profession is { } offered ? Population.Skills.VocationMechanic.JobValueFit(rules, npc, offered) : 1.0;
+        return labor.ValueOf(workplace, npc) * skillWeight * fit;
     }
 
     /// <summary>Ofício que trabalha num tipo de local: o atual se já mapeia para ele, senão o de menor id que mapeia.</summary>

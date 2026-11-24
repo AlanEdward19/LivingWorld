@@ -15,8 +15,9 @@ public class ClimateTests
 {
     private const long YearHours = 12L * 30 * 24;
 
+    // AD-135: o cenário padrão passou a ter clima; "sem clima" aqui é o desligado explícito
     private static WorldState NewWorld(ClimateRules? climate = null, ulong seed = 1) =>
-        ScenarioRunner.Create(seed, initialPopulation: 5, climateRules: climate).World;
+        ScenarioRunner.Create(seed, initialPopulation: 5, climateRules: climate ?? ClimateRules.Disabled).World;
 
     private static void Draw(WorldState world, long year)
     {
@@ -119,7 +120,8 @@ public class ClimateTests
     public void A_drought_year_cuts_the_plant_harvest_in_proportion_and_an_abundant_year_adds_to_it()
     {
         var world = NewWorld(new ClimateRules(true, 300, 1500));
-        var wheat = ScenarioRunner.DefaultPlantSpeciesRules[0];
+        // AD-135: o pasto padrão não vai mais ao celeiro (rendimento 0); a regra de clima continua valendo para planta que rende
+        var wheat = ScenarioRunner.DefaultPlantSpeciesRules[0] with { YieldPerMaturePlant = 10 };
         var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
         var plant = new Plant(new PlantId(900), wheat.Species, farm.Location, GrowthStage: 3);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
@@ -163,8 +165,13 @@ public class ClimateTests
         long droughtYear = 5;
         controlClock.Run(control, droughtYear * YearHours - 1);
         dryClock.Run(dry, droughtYear * YearHours - 1);
-        // o sorteio do ano 5 acontece no primeiro tick dele; gravar antes, o sistema não reescreve um ano já sorteado
-        foreach (var region in dry.Map.Regions) dry.SetClimateYear(region.Id, droughtYear, 300); // seca em toda região
+        // o sorteio do ano 5 acontece no primeiro tick dele; gravar antes, o sistema não reescreve um ano já sorteado. AD-140: dois
+        // anos de seca seguidos (5 e 6): com margem na semeadura o celeiro carrega sobra e um ano só já não esvazia a venda
+        foreach (var region in dry.Map.Regions)
+        {
+            dry.SetClimateYear(region.Id, droughtYear, 300); // seca em toda região
+            dry.SetClimateYear(region.Id, droughtYear + 1, 300);
+        }
         controlClock.Run(control, 1);
         dryClock.Run(dry, 1);
         long ProducedBefore(WorldState w) => w.ResourceProduced.GetValueOrDefault(new ResourceType(w.EconomyRules.FoodResourceId));
@@ -172,7 +179,8 @@ public class ClimateTests
         long FoodPrice(WorldState w) => w.Workplaces.Where(x => x.Prices.ContainsKey(new ResourceType(w.EconomyRules.FoodResourceId)))
             .Max(x => x.Prices[new ResourceType(w.EconomyRules.FoodResourceId)]);
         long controlPeak = 0, dryPeak = 0;
-        for (int day = 0; day < YearHours / 2 / 24; day++) // o preço do alimento no pico do semestre
+        // AD-135: a colheita é no verão e o celeiro curto aparece depois dela, então a janela é o ano inteiro
+        for (int day = 0; day < 2 * YearHours / 24; day++) // o preço do alimento no pico dos dois anos
         {
             controlClock.Run(control, 24);
             dryClock.Run(dry, 24);
@@ -184,7 +192,7 @@ public class ClimateTests
         Assert.True(dryHarvest < 0.6 * controlHarvest, $"colheita com seca {dryHarvest} contra controle {controlHarvest}");
         Assert.True(dryPeak > controlPeak, $"pico de preço com seca {dryPeak} contra controle {controlPeak}");
 
-        dryClock.Run(dry, 15 * YearHours - YearHours / 2);
+        dryClock.Run(dry, 13 * YearHours);
         Assert.True(dry.Npcs.Count(n => n.IsAlive) > 0, "a vila se extinguiu depois da seca");
     }
 }

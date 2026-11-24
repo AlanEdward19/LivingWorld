@@ -16,7 +16,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// vivo por ano, por tipo de evento, no fixture de 1.000 NPCs com snapshot mensal. Teto da Fase 9: 50 B/NPC vivo/ano; o
 /// baseline por tipo fica em <c>tests/baselines/event-log-bytes.json</c> (110% do total). O que não é ruído sai da
 /// compactação byte a byte igual ao que o sistema emitiu.</summary>
-[Collection(ScalePerformanceCollection.Name)]
+// Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 public class EventLogSensorTests
 {
     private const double BudgetBytesPerNpcPerYear = 50.0;

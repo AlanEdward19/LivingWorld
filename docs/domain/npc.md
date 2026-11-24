@@ -20,10 +20,21 @@ pronto.
 | Profissão, classe social | Mudam com a vida; ver behavior.md |
 | Religião, facção | Podem ser abandonadas ou trocadas |
 
+**Nome (AD-178, AD-183):** "próprio família", pela língua e o costume da cultura; o nome pesa na ajuda, no luto, no legado,
+no namoro e na fama (boa e má) da linhagem, e a cidade-filha registra quem a fundou. Ver [names.md](names.md).
+
 ## Atributos
 
 **Físicos:** força, resistência, agilidade, saúde, fertilidade, longevidade, aparência,
 percepção — governam trabalho braçal, combate, doença e reprodução.
+
+**Corpo (AD-134):** nasce com tamanho de recém-nascido (~50 cm, ~3,3 kg; menor se prematuro), cresce pela curva de
+idade e sexo com estirão na puberdade (antes nas meninas) até ~1,71 m (homem) e ~1,59 m (mulher), encolhe e perde
+músculo na velhice. O músculo sobe com trabalho braçal, cai sem uso e na fome. A saúde é uma reserva: cai com fome, sede,
+doença, parto difícil e velhice; volta com comida e sono, devagar no velho. Quem está fraco trabalha menos e anda mais
+devagar; a desnutrição pesa no risco de morte, sobretudo da criança. O bebê mama na mãe (ou noutra lactante da casa) até
+o desmame, entre 6 meses e 2 anos; sem leite, come papa com risco alto. Doenças de época (AD-137, [disease.md](disease.md)) pegam pela
+convivência, deixam de cama, tiram saúde e explicam boa parte das mortes.
 
 **Cognitivos:** inteligência, memória, criatividade, disciplina, curiosidade, capacidade
 social, agressividade, empatia — governam aprendizado, decisão e vida social.
@@ -31,7 +42,9 @@ social, agressividade, empatia — governam aprendizado, decisão e vida social.
 ## Personalidade (0–100)
 
 Extroversão, amabilidade, conscienciosidade, estabilidade emocional, abertura, ambição,
-lealdade, altruísmo, impulsividade, aversão ao risco.
+lealdade, altruísmo, impulsividade, aversão ao risco. Herdada no nascimento e, ao virar adulto,
+acrescida do ambiente compartilhado de quem de fato criou a criança (AD-132, `RearingRules`; peso 0,1 desde o AD-162:
+o ambiente compartilhado quase não pesa na personalidade, Plomin e Daniels 1987).
 
 Não é enfeite de ficha: a personalidade **modula** profissão, relações, decisão momento a
 momento, reprodução, conflito, ritmo de aprendizado, migração e tom de diálogo. Sempre como
@@ -51,18 +64,22 @@ Agricultura, caça, comércio, construção, medicina, combate, ensino, artesana
 liderança, pesquisa, tecnologia, magia. Crescem por prática, treinamento, educação, observação, tutoria, predisposição genética,
 cultura e acesso a recursos. A curva tem **retornos decrescentes**: de 10 para 20 é fácil;
 de 80 para 90 exige anos, mestre e material — mestria rara faz linhagem e instituição
-importarem.
+importarem. Desde AD-132 a idade pesa: bebê não aprende ofício; a criança ajuda em casa a partir dos ~5 anos e
+aprende dos adultos com quem mora (pais, avós, tios, quem a acolheu) até metade do que eles sabem; dos 12 anos o
+aprendiz ganha um mestre; vendo, só se aprende o que o outro sabe. A habilidade fora de uso cai ~4%/ano e a manual
+cai depois dos 55. Na vila padrão: ~6 aos 10 anos, ~28 aos 15, ~48 aos 20, ~77 aos 30, ~93 aos 50.
 
 ## Ciclo de vida
 
 | Estágio | O que muda |
 |---|---|
-| Criança | Não produz; aprende dos pais e do ambiente; atributos ainda se formando |
-| Aprendiz | Entra em ofício ou escola; habilidades sobem rápido; começa a formar relações |
+| Criança | Não produz; dos ~5 anos aprende o ofício de quem a cria; valores de quem a cria entram na personalidade |
+| Aprendiz | Dos 12 anos, com um mestre; habilidade sobe por anos, com retorno decrescente |
 | Adulto | Produtivo, reprodutivo, politicamente ativo; auge físico e de renda |
 | Idoso | Físico decai, prestígio e conhecimento sobem; ensina, lidera, transmite herança |
 
 ## Ver também
+- [names.md](names.md) — nome, linhagem, honra e fundador
 - [behavior.md](behavior.md) — como esses números viram decisão
 - [genetics-and-family.md](genetics-and-family.md) — o que é herdado e o que é ambiental
 - [memory.md](memory.md) — o que o NPC guarda do que viveu

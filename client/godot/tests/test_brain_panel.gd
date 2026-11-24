@@ -221,3 +221,33 @@ func test_scope_observer_heartbeat_timer_fires_every_ten_seconds() -> void:
 	await tree.process_frame
 	eq(transport.count_calls("POST /observation/scope"), before + 1, "o fim do Timer reenvia o escopo")
 	observer.free()
+
+
+func test_opening_reads_the_brain_once_and_shows_value_and_strongest_learned_gains() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /npcs/7/brain", {"status": 200, "body": {"enabled": true, "value": {"body": 310, "pantry": 40, "money": 20, "mood": -5, "total": 365},
+		"scores": [], "synapses": [
+			{"action": 4, "term": 1, "group": 2, "value": 12.0, "gainMilli": 130},
+			{"action": 2, "term": 1, "group": 7, "value": 5.0, "gainMilli": -40},
+			{"action": 0, "term": 1, "group": 0, "value": 60.0, "gainMilli": 0}]}})
+	transport.on("GET /npcs/7", Fx.npc_inspect(_three()))
+	var panel := _panel(transport)
+	await panel.open(7)
+
+	eq(transport.count_calls("GET /npcs/7/brain"), 1, "uma leitura do cérebro ao abrir")
+	check(panel._brain_label.visible, "linha do cérebro visível")
+	check(panel._brain_label.text.contains("despensa 40"), "parcela da despensa: " + panel._brain_label.text)
+	check(panel._brain_label.text.contains("Conversar · temperamento +13%"), "ganho mais forte primeiro: " + panel._brain_label.text)
+	check(not panel._brain_label.text.contains("impulso"), "ganho zero não aparece")
+	panel.free()
+
+
+func test_brain_off_hides_the_line() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /npcs/7/brain", {"status": 200, "body": {"enabled": false, "synapses": [], "scores": [], "value": null}})
+	transport.on("GET /npcs/7", Fx.npc_inspect(_three()))
+	var panel := _panel(transport)
+	await panel.open(7)
+
+	check(not panel._brain_label.visible, "desligado: sem linha")
+	panel.free()

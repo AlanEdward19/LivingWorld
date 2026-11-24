@@ -61,12 +61,12 @@ public class LaborAllocationTests
         },
         MarketLocationTypeIds: [1, 2], LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
 
-    private static (WorldState World, Workplace A, Workplace B) Build(long priceA, long priceB, int vacanciesB = 5)
+    private static (WorldState World, Workplace A, Workplace B) Build(long priceA, long priceB, int vacanciesB = 5, EconomyRules? economy = null)
     {
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, Needs, Actions, Stages,
-            economyRules: Economy(), economyCatalog: Catalog());
+            economyRules: economy ?? Economy(), economyCatalog: Catalog());
         var a = AddWorkplace(world, locationType: 1, resource: 7, price: priceA, vacancies: 5);
         var b = AddWorkplace(world, locationType: 2, resource: 8, price: priceB, vacancies: vacanciesB);
         return (world, a, b);
@@ -149,6 +149,19 @@ public class LaborAllocationTests
     }
 
     [Fact]
+    public void An_owner_does_not_leave_his_own_paying_shop_for_a_better_job()
+    {
+        var (world, a, b) = Build(priceA: 10, priceB: 30, economy: Economy() with { Venture = VentureRules.Default }); // E20, AD-155
+        var npc = AddAdult(world, a, profession: 1);
+        a.AssignOwner(npc.Id);
+        AlignToReviewHour(world, npc);
+
+        Evaluate(world);
+
+        Assert.Equal(a.Id, npc.Employer);
+    }
+
+    [Fact]
     public void Exactly_the_margin_stays_and_one_unit_above_it_moves()
     {
         var (world, a, b) = Build(priceA: 100, priceB: 125); // exatamente 1,25x
@@ -195,7 +208,7 @@ public class LaborAllocationTests
     }
 
     [Fact]
-    public void Move_is_atomic_one_fired_and_one_hired_in_the_same_tick()
+    public void Move_is_atomic_and_logs_the_hiring_only_because_who_changes_jobs_was_not_fired()
     {
         var (world, a, b) = Build(priceA: 5, priceB: 50);
         var npc = AddAdult(world, a, profession: 1);
@@ -203,10 +216,13 @@ public class LaborAllocationTests
 
         var events = Evaluate(world).Where(e => e.SourceSystem == "LaborAllocation").ToList();
 
-        Assert.Equal([WorldEventKind.Fired, WorldEventKind.Hired], events.Select(e => e.Kind));
-        Assert.Equal($"{npc.Id.Value}|{a.Id.Value}", events[0].Payload);
-        Assert.Equal($"{npc.Id.Value}|{b.Id.Value}", events[1].Payload);
-        Assert.Equal(events[0].Tick, events[1].Tick);
+        // AD-128: a troca voluntária não é demissão; a contratação no destino já conta a mudança.
+        var hired = Assert.Single(events);
+        Assert.Equal(WorldEventKind.Hired, hired.Kind);
+        Assert.Equal($"{npc.Id.Value}|{b.Id.Value}", hired.Payload);
+        Assert.DoesNotContain(npc.Id, a.Employees);
+        Assert.Contains(npc.Id, b.Employees);
+        Assert.Equal(b.Id, npc.Employer);
     }
 
     [Fact]

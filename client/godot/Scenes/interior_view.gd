@@ -8,7 +8,6 @@ const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
-const FLOOR_HEIGHT := 1.0
 const WALL_HEIGHT := 0.9
 const WALL_STONE := 0
 const WALL_WOOD := 1
@@ -26,6 +25,7 @@ var furniture: Node3D
 var _object_bases: Dictionary = {} ## id do catálogo -> [Vector3] base (chão) de cada peça, na ordem de colocação (alvos de uso)
 var _use_points: Dictionary = {} ## id do catálogo -> pontos de uso do descritor
 var occupant_nodes: Dictionary = {} ## npc_id -> NpcActor
+var object_points: Array = [] ## [{id, level, position}] cada peça de mobília, para clique e dica (ADR-0047)
 var _occupants: Array = []
 var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
@@ -43,14 +43,14 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		var level := int(floor_layout.level)
 		var node := Node3D.new()
 		node.name = "Floor_%d" % level
-		node.position.y = level * FLOOR_HEIGHT
+		node.position.y = level * Grid.floor_height()
 		for entry in floor_layout.cells:
 			_add_cell(node, entry, level)
 		add_child(node)
 		floor_nodes[level] = node
 	roof = Node3D.new()
 	roof.name = "Roof"
-	roof.position.y = floor_count * FLOOR_HEIGHT
+	roof.position.y = floor_count * Grid.floor_height()
 	var seen := {}
 	_compute_center(info)
 	for entry in info.layout[0].cells if info.layout.size() > 0 else []:
@@ -133,6 +133,17 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 	var node: Node3D = factory.build(piece_id, variation)
 	node.position += Grid.to_world(cell)
 	parent.add_child(node)
+	_register_point(piece_id, cell, parent)
+
+
+func _register_point(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
+	var level := int(parent.get_parent().position.y / Grid.floor_height()) if parent.get_parent() is Node3D else 0
+	object_points.append({"id": piece_id, "level": level, "position": Grid.to_world(cell, level * Grid.floor_height() + 0.35)})
+
+
+## Peças do andar visível (para a seleção): [{id, level, position}].
+func visible_objects() -> Array:
+	return object_points.filter(func(point): return int(point.level) == current_floor)
 
 
 ## Guarda a base (chão) da peça do catálogo para o NPC que a usa ser posto no ponto de uso.
@@ -153,6 +164,7 @@ func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
 	node.material_override = _material(Color(String(spec.color)))
 	node.position = Grid.to_world(cell, size[1] / 2.0)
 	parent.add_child(node)
+	_register_point(piece_id, cell, parent)
 
 
 func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
@@ -190,6 +202,7 @@ func _material(color: Color) -> StandardMaterial3D:
 
 
 func _clear() -> void:
+	object_points.clear()
 	_object_bases.clear()
 	_use_points.clear()
 	_walls.clear()
@@ -236,7 +249,7 @@ func set_occupants(occupants: Array) -> void:
 		if actor.action != action or actor.use_pose != String(use.pose):
 			actor.set_action(action, _labels, String(use.pose))
 		actor.enable_bed(not use.active) # a cama do catálogo substitui a do NPC
-		actor.position = use.position if use.active else Grid.to_world(cell, level * FLOOR_HEIGHT)
+		actor.position = use.position if use.active else Grid.to_world(cell, level * Grid.floor_height())
 		actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():

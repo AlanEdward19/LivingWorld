@@ -79,12 +79,12 @@ public class BehaviorDecisionSystemHysteresisTests
         Assert.True(fewer >= 12, $"só {fewer}/20 seeds tiveram menos trocas com histerese (mínimo 12, AD-088 mediu 15)");
     }
 
-    /// <summary>Regravação manual (mesmo padrão de <c>PopulationBaselineTests.ZZZ_record_baseline</c>):
-    /// remove o Skip, roda uma vez pra (re)gravar <c>tests/baselines/action-switches.json</c>,
-    /// reverte o Skip antes de commitar.</summary>
-    [Fact(Skip = "grava baseline — rode manualmente")]
-    public void ZZZ_record_action_switches_baseline()
+    /// <summary>Regrava <c>tests/baselines/action-switches.json</c> só com <c>LW_RECORD_ACTION_SWITCHES=1</c>
+    /// (a junção roda isto quando o mundo muda de propósito); sem a variável não faz nada.</summary>
+    [Fact]
+    public void Record_action_switches_baseline_when_explicitly_requested()
     {
+        if (Environment.GetEnvironmentVariable("LW_RECORD_ACTION_SWITCHES") != "1") return;
         var perSeed = Enumerable.Range(1, 20).ToDictionary(seed => seed, seed => SwitchesPerDay((ulong)seed, hysteresisEnabled: true));
         BaselineFixture.Record(BaselinesDir, "action-switches", perSeed);
     }

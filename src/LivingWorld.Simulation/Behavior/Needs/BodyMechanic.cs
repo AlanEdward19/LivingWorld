@@ -29,9 +29,10 @@ public static class BodyMechanic
         if (!rules.Enabled)
             return 1.0;
 
-        double mean = Math.Max(rules.MuscleMassMean, 1e-9);
+        // AD-134: com crescimento, a referência é o adulto médio da vila, e a saúde fraca tira capacidade
+        double mean = Math.Max(rules.Growth.Enabled ? rules.Growth.ReferenceAdultMuscleMass : rules.MuscleMassMean, 1e-9);
         // Em mean → 1.0; ±100% da média → ±0.5 no fator (faixa típica ~0.5–1.5).
-        return 1.0 + 0.5 * ((npc.MuscleMass - mean) / mean);
+        return (1.0 + 0.5 * ((npc.MuscleMass - mean) / mean)) * world.NeedsRules.Physiology.WorkFactor(npc.Health);
     }
 
     /// <summary>Ofensa em combate — reusa a curva de MuscleMass de
@@ -46,6 +47,17 @@ public static class BodyMechanic
         var rules = world.BodyRules;
         if (!rules.Enabled)
             return 1.0;
+
+        if (rules.Growth.Enabled)
+        {
+            // AD-134: pesa a gordura (IMC acima da referência), a passada curta da criança e a fraqueza
+            var growth = rules.Growth;
+            double height = Math.Max(npc.Height, 0.3);
+            double bmi = npc.Weight / (height * height);
+            double bmiFactor = 0.3 * Math.Max(0, bmi - growth.ReferenceAdultBmi) / growth.ReferenceAdultBmi;
+            double stride = height < growth.ShortStrideHeight ? 0.5 * (growth.ShortStrideHeight - height) / growth.ShortStrideHeight : 0;
+            return Math.Max(0.1, (1.0 + bmiFactor + stride) * world.NeedsRules.Physiology.MovementFactor(npc.Health));
+        }
 
         double weightMean = Math.Max(rules.WeightMean, 1e-9);
         double heightMean = Math.Max(rules.HeightMean, 1e-9);

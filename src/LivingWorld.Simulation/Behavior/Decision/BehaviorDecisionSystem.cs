@@ -10,6 +10,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
@@ -27,7 +28,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// bloqueia no local atual em vez de teleportar.</summary>
 [LivingCapability("BEHAVIOR", Events = [WorldEventKind.TheftDiscovered], Consumers = ["map.npc.action"])]
 [RunsAfter(typeof(NeedsDecaySystem))]
-public sealed partial class BehaviorDecisionSystem : ISimulationSystem
+public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
 {
     public const string SystemName = "behavior-decision";
 
@@ -68,6 +69,15 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     private readonly Dictionary<CityId, long> _cityPopulationCache = [];
     private readonly Dictionary<CityId, CityBounds> _cityBoundsCache = [];
 
+    // AD-142: grupos da ação em conta e da vencedora, reaproveitados (o tick é serial)
+    private readonly double[] _brainGroups = new double[2 * BrainState.Groups];
+
+    // AD-197l: relações da decisão reaproveitadas de NPC em NPC (o tick é serial e o contexto sem rastro vive só na decisão)
+    private readonly LazyRelationshipFacts _relations = new(null!, default);
+
+    // AD-197m: o contexto da decisão sem rastro, reaproveitado de NPC em NPC (Reset reescreve todos os campos)
+    private readonly DecisionContext _context = new(default, 0, default, default, null, [], [], [], [], default!, null);
+
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -78,9 +88,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var rules = world.NeedsRules;
         var catalog = world.ActionCatalog;
         long now = ctx.CurrentTick;
+        long nowMs = world.CurrentDate.TotalMilliseconds; // AD-197c: no passo fino, ação começa e termina dentro da hora
+        bool fine = world.FineTime;
         var marketIndex = MarketIndex.BuildForTick(world);
         var laborIndex = LaborValueIndex.BuildForTick(world);
-        var theftIndex = TheftIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
 
         // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
@@ -106,26 +117,40 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         cityPopulationCache.Clear();
         cityBoundsCache.Clear();
 
+        // AD-142: cérebro (experimento atrás de flag); desligado, nada abaixo lê ou escreve estado novo
+        bool brainOn = world.BrainOn;
+        var brainGroups = _brainGroups;
+
         foreach (var npc in targets)
         {
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+            // AD-154: quem está preso num sequestro fica fora da rotina, no cativeiro (come do que o sequestrador tem)
+            if (world.Crime?.Captives is not null && LivingWorld.Simulation.Crime.Kidnapping.Hold(world, npc, now))
+            {
+                NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
+            // AD-197f: a disputa de vontade da posse comum é checada quando o possuído desperta (sem evento agendado)
+            if (npc.Will is { Controlled: true }) LivingWorld.Simulation.Players.PossessionContest.OnWake(world, ctx, npc, now);
             bool possessed = ControlMechanic.IsPossessed(world, npc);
             if (!possessed)
                 EvaluateProfessionSwitch(world, ctx, npc, laborIndex, stage);
 
             long startedBefore = npc.ActionStartedAtTick;
             bool justCompleted = TryCompleteAction(
-                world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
-                cityPopulationCache, cityBoundsCache, theftIndex);
+                world, npc, rules, catalog, now, nowMs, marketIndex, ctx, occupancy,
+                cityPopulationCache, cityBoundsCache);
+            SettleCarried(world, npc, now); // AD-147: devolve em casa; longe, bebe do que leva se a sede é crítica
 
             ActionType chosen;
             ActionType? travelPurpose = null;
+            bool departing = false;
             if (possessed && ControlMechanic.TryDelegatedAction(world, npc, justCompleted, out var delegated))
             {
                 chosen = delegated;
                 if (justCompleted || chosen != npc.CurrentAction)
                 {
-                    npc.SetCurrentAction(chosen, now);
+                    StartAction(npc, chosen, now, nowMs, fine);
                     ctx.LogEvent(
                         WorldEventKind.ExtraordinaryEffectApplied,
                         $"{npc.Id.Value}|possessed-action|{chosen}", sourceSystem: SystemName);
@@ -137,26 +162,71 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
+                int buySource = 0; // AD-148, só contagem: 1 utilidade, 2 rotina (despensa baixa ou choro)
                 bool urgent = HasUrgentNeedForDecision(npc, rules, now);
+                bool workHour = LivingWorld.Simulation.Observation.PurchaseTally.Diagnose && npc.Employer is not null
+                    && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
+                var diag = world.PurchaseTally;
                 if (npc.ControlledAction is { } playerAction)
                 {
                     // Controlador externo: troca só a escolha. A resolução abaixo (percepção, passos, viagem) é a de qualquer NPC.
                     candidate = playerAction;
+                    if (playerAction == ActionType.UsePower) // AD-196: a invocação sai da mesma lista de oportunidades do motor
+                        (candidate, pendingPower) = ControlledPower(world, npc, now);
                 }
                 else if (urgent)
                 {
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
+                    var provision = ProvisionViewFor(world, npc, marketIndex); // AD-148
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex)),
+                        DecisionContextBuilder.Build(world, npc, now, recordTrace ? null : _relations, // AD-197l: sem rastro, não sai da decisão
+                            provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
+                            foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty,
+                            reuseContext: recordTrace ? null : _context), // AD-197m: idem o contexto inteiro
                         rules,
                         world.EconomyRules,
                         continuityAction,
                         wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
                         previousIntent: npc.CurrentIntent,
                         captureTrace: recordTrace,
-                        eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development));
+                        eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development),
+                        brainGains: brainOn ? BrainMechanic.GainsFor(world.BrainRules!, npc, now) : null,
+                        recountWinner: brainOn);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
+                    buySource = 1;
+                    // AD-185: a sede sem água em casa nem no que leva vai à fonte quando ela fica mais perto que o mercado (ou sem com que
+                    // pagar), qualquer que fosse a escolha (sem água nem moeda a utilidade não via saída e a pessoa morria de sede em casa);
+                    // e quem está em casa com a água acabada vai buscá-la para a casa (a criança que chora, o resto da família)
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.SickGetsWaterBrought(world, npc, now);
+                    if (LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+                        && (100 - npc.HungerAt(now) < LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit || candidate == ActionType.Travel
+                            || LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstFirst(world, npc, now))) // a caminho da água: segue, salvo fome à beira da morte (com a sede também, segue)
+                        candidate = ActionType.Travel;
+                    else if (ThirstGoesToSource(world, npc, now, marketIndex, candidate))
+                        candidate = ActionType.Travel;
+                    else if (LivingWorld.Simulation.Economy.Supply.WaterFetch.NeighbourWatersChild(world, npc, now))
+                        candidate = ActionType.Eat; // o vizinho trouxe água: a criança bebe
+                    else if (candidate is not (ActionType.Eat or ActionType.Buy or ActionType.Travel)
+                             && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAwayWithWaterHome(world, npc, now))
+                        candidate = ActionType.Eat; // volta para beber da despensa
+                    else if (candidate is not (ActionType.Travel or ActionType.Eat or ActionType.Buy)
+                             && LivingWorld.Simulation.Economy.Supply.WaterFetch.HomeDry(world, npc)
+                             && LivingWorld.Simulation.Economy.Supply.WaterFetch.WantsToFetch(world, npc, now))
+                        candidate = ActionType.Travel;
+                    if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
+                    if (brainOn)
+                    {
+                        // AD-167: os grupos da vencedora só são recontados quando a escolha vai ser guardada (quem segue no que faz não guarda)
+                        if (BrainRememberStores(npc, candidate, justCompleted))
+                            FillWinnerGroups(decision, brainGroups);
+                        BrainRemember(world, npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups), now, justCompleted);
+                        if (LivingWorld.Simulation.Observation.BrainDecisionTally.Diagnose) // AD-160: sonda, só o brain-trace liga
+                            ProbeBrain(npc, DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
+                                foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),
+                                rules, world.EconomyRules, continuityAction,
+                                LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development), candidate, now);
+                    }
 
                     if (recordTrace)
                         world.CognitionLog.Record(npc.Id, now, decision.Trace);
@@ -167,21 +237,66 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // a rotina só é consultada aqui: quem decide por urgência ou por controlador não a lê
                     candidate = NonUrgentCandidate(
                         world, npc, RoutineWithCommuteLead(world, npc, catalog, stage), stage, marketIndex);
+                    buySource = 2;
+                    if (workHour) { diag.NonUrgentAtWork++; if (candidate == ActionType.Buy) diag.RestockAtWork++; }
+                    var beforeMood = candidate;
+                    candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
+                    if (candidate is ActionType.Sleep && SupperBeforeSleep(world, npc, catalog, now)) candidate = ActionType.Eat; // AD-157b
+                    if (workHour && candidate != beforeMood) diag.MoodAtWork++;
+                    if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted, catalog, stage); // AD-160b: tempo livre
                 }
 
+                if (MealTimeAtHome(world, npc, candidate, now)) candidate = ActionType.Eat; // AD-157b
+                if (npc.ControlledAction is null && ChildHungerSendsShopper(world, npc, candidate, now)) candidate = ActionType.Buy; // AD-184
+                var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
+                if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;
+                beforeSteps = candidate;
                 candidate = ConstrainByDevelopment(world, npc, candidate);
-                if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
-                    candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
+                if (workHour && !urgent && candidate != beforeSteps) diag.DevelopmentAtWork++;
+                // só quem já decidiu buscar comida ou água (comer, comprar) pensa em furtar: o resto das decisões urgentes não paga a conta
+                // AD-166: o furto também passa pelo marco (Steal pede cognição social); antes entrava depois dele e a criança furtava
+                if (urgent && candidate is ActionType.Eat or ActionType.Buy && npc.ControlledAction is null && world.TheftRules.Enabled
+                    && ConstrainByDevelopment(world, npc, ActionType.Steal) == ActionType.Steal && TheftResolver.Wants(world, npc, now))
+                    candidate = ActionType.Steal; // fome sem comida nem como comprar + temperamento + algo a levar (AD-150)
+                var sickAware = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
+                if (workHour && !urgent && sickAware != candidate) { if (sickAware == ActionType.Idle) diag.CareAtWork++; else diag.SickAtWork++; }
+                // a cama troca a ação (comer, comprar) depois do marco: a troca também passa pelo desenvolvimento (AD-140). A
+                // criança de cama que não pode ir comprar come (o plano de comida usa a despensa e a compra assistida), em vez
+                // de ficar parada e morrer de sede com água em casa
+                candidate = sickAware == candidate ? candidate
+                    : sickAware == ActionType.Buy && ConstrainByDevelopment(world, npc, ActionType.Buy) != ActionType.Buy
+                        ? ConstrainByDevelopment(world, npc, ActionType.Eat)
+                        : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
-                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
+                // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
+                if (chosen is not (ActionType.Eat or ActionType.Travel))
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
+                        chosen == ActionType.Sleep ? Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog) : 0, now);
+                // AD-185: em casa, com sede urgente e água na despensa, bebe antes de sair (a mudança de cidade levava a criança com
+                // sede para uma viagem de um dia, ao lado da água de casa)
+                if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
+                    LivingWorld.Simulation.Economy.Supply.WaterFetch.DrinkFromPantry(world, npc, now); // só a água: a comida fica
+                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
                     ? candidate
                     : null;
 
                 if (justCompleted || chosen != npc.CurrentAction)
                 {
-                    npc.SetCurrentAction(chosen, now);
+                    departing = chosen == ActionType.Travel;
+                    if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
+                    if (departing && candidate == ActionType.Socialize && travelPurpose == ActionType.Socialize) world.InventionTally.CompanyTrips++;
+                    // AD-179: o diarista que larga a jornada no meio (fome, sede, fim da rotina) conta as horas que fez no trecho
+                    if (!justCompleted && npc.CurrentAction == ActionType.Work
+                        && (npc.Employer is null || LivingWorld.Simulation.Cities.Streets.SiteWork.IsHelper(world, npc)))
+                        LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, npc.ActionStartedAtTick, now);
+                    if (candidate == ActionType.Buy && (departing || npc.CurrentAction != ActionType.Travel))
+                    {
+                        if (buySource == 1) world.PurchaseTally.BuyByUtility++;
+                        else world.PurchaseTally.BuyByRestock++;
+                    }
+                    StartAction(npc, chosen, now, nowMs, fine);
                     if (chosen == ActionType.UsePower && pendingPower is not null)
                         npc.PendingPowerInvocation = pendingPower;
                     if (chosen is ActionType.Buy or ActionType.Eat)
@@ -191,9 +306,18 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
+            if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
+            if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
-            NpcWakeScheduler.RescheduleAfterHour(
-                world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
+            if (fine) // AD-197h: a chegada no instante do caminho em ms; a perna fica no viajante para a pose de cada tick
+            {
+                var leg = TravelLegNow(world, npc, marketIndex);
+                if (leg is { } planned) npc.SetTravelLeg(planned.To, planned.EndMs);
+                NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, leg?.EndMs, stage);
+            }
+            else
+                NpcWakeScheduler.RescheduleAfterHour(
+                    world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
         }
     }
 
@@ -218,10 +342,9 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         && MaterializationSystem.HasFullCosmeticDetail(world, npc);
 
     private static bool TryCompleteAction(
-        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
+        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now, long nowMs,
         MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache,
-        TheftIndex? theftIndex)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -235,26 +358,68 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 return advance.Reached;
             }
 
-            long ticksNeeded = Mobility.TravelTicks(
-                world, npc, npc.CurrentLocation, destination,
-                BodyMechanic.MovementCostMultiplier(world, npc));
-            if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
+            if (world.FineTime)
+            {
+                // AD-197h: no passo fino a viagem dura o caminho em ms (um trajeto curto leva minutos)
+                if (nowMs - npc.ActionStartedAtMs < Mobility.TravelMs(world, npc, npc.CurrentLocation, destination,
+                        BodyMechanic.MovementCostMultiplier(world, npc))) return false;
+            }
+            else if (Underway(nowMs, npc.ActionStartedAtMs, Mobility.TravelTicks(
+                world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)))) return false; // AD-197c: em ms
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 
+            // AD-141: quem atravessou água a pé sente o tempo perdido; quem foi na embarcação da casa, não
+            if (world.InventionOn) LivingWorld.Simulation.Invention.InventionIntake.OnTravelArrived(world, npc, npc.CurrentLocation, destination, now);
+            if (world.StreetsOn) world.Ground!.RecordTrip(npc.CurrentLocation, destination); // AD-176: o pisoteio desta viagem
             MoveTracked(npc, destination, now, occupancy);
+            LivingWorld.Simulation.Invention.Leavings.OnArrived(world, ctx, npc, destination); // AD-168: o espólio no caminho
+            LivingWorld.Simulation.Economy.Supply.WaterFetch.OnArrived(world, ctx, npc, destination); // AD-185: fonte ou casa da ida de água
             return true;
         }
 
-        if (now - npc.ActionStartedAtTick < LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)) return false;
+        if (world.FineTime
+                ? nowMs - npc.ActionStartedAtMs < LivingWorld.Simulation.Objects.ObjectUse.DurationMs(world, npc, action, catalog) // AD-197h
+                : Underway(nowMs, npc.ActionStartedAtMs, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)))
+            return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
-        if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
+        if (action is ActionType.Idle or ActionType.Socialize && world.StreetRules.AmbientStepsByHour)
+        {
+            // AD-192 (08c 146): o passeio e a conversa andam pelo relógio (os passos das horas que a ação durou), não um por ação
+            int steps = AmbientSteps(npc.ActionStartedAtTick, now, world.StreetRules.AmbientStepsPerHour);
+            for (int step = 0; step < steps; step++)
+                MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache, step);
+        }
+        else if (action is ActionType.Idle or ActionType.Socialize
+            || (action == ActionType.Work && npc.Employer is not null && !LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
-        ApplyActionEffect(world, npc, action, marketIndex, now, ctx, theftIndex);
+        // AD-142: a ação que a utilidade escolheu e o cérebro guardou ensina pelo alívio que deu
+        bool learn = world.BrainOn && npc.Brain?.PendingAction == action;
+        var felt = learn && !world.BrainRules!.ValuesSustenance ? FeltNow(world, npc, now) : default; // AD-160b: mede só no fim
+        long startedAt = npc.ActionStartedAtTick;
+        ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
+        if (action == ActionType.Work && (npc.Employer is null || LivingWorld.Simulation.Cities.Streets.SiteWork.IsHelper(world, npc)))
+            LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, startedAt, now); // AD-179, AD-184 (ajudante)
+        if (learn) BrainLearnOnCompletion(world, npc, action, felt, startedAt, now, ctx);
         return true;
     }
+
+    /// <summary>AD-197c: a ação começada em <paramref name="startedMs"/> ainda não cumpriu <paramref name="hours"/> horas. Na hora cheia
+    /// é a conta de antes em horas (<c>now - início &lt; duração</c>).</summary>
+    internal static bool Underway(long nowMs, long startedMs, long hours) =>
+        hours >= long.MaxValue / WorldMillis.PerHour || nowMs - startedMs < hours * WorldMillis.PerHour;
+
+    /// <summary>AD-197c: no passo fino a ação começa no instante do tick (dentro da hora); de hora em hora, na hora cheia, como antes.</summary>
+    private static void StartAction(Npc npc, ActionType action, long now, long nowMs, bool fine)
+    {
+        if (fine) npc.SetCurrentActionAtMs(action, nowMs);
+        else npc.SetCurrentAction(action, now);
+    }
+
+    private static BrainMechanic.Felt FeltNow(WorldState world, Npc npc, long now) =>
+        BrainMechanic.Feel(world, npc, now, world.EconomyRules.FoodResourceId, world.EconomyRules.WaterResourceId);
 
     /// <summary>Move e mantém `occupancy` coerente com a posição real dentro do mesmo tick — sem
     /// isso, um NPC que já andou nesta rodada continuaria "fantasma" na célula antiga pros

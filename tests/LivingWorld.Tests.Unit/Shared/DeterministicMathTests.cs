@@ -36,6 +36,8 @@ public class DeterministicMathTests
             double turns = i / 2000.0 * 3 - 1; // inclui voltas negativas e acima de 1
             Assert.Equal(Math.Cos(2 * Math.PI * turns), DeterministicMath.CosTurns(turns), 1e-12);
             Assert.Equal(Math.Sin(2 * Math.PI * turns), DeterministicMath.SinTurns(turns), 1e-12);
+            double e = i / 50.0 - 20; // [-20, 20]
+            Assert.Equal(1.0, DeterministicMath.Exp(e) / Math.Exp(e), 1e-13);
         }
     }
 

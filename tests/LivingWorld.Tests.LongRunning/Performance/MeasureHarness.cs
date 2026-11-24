@@ -10,9 +10,10 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// <summary>Medição antes/depois de mudanças de comportamento (não é gate). Rode com
 /// <c>LW_MEASURE_OUT=arquivo dotnet test ... --filter MeasureHarness</c>: escreve µs/NPC-tick,
 /// alocação, bytes de snapshot por NPC e a estabilidade da vila padrão (10 anos, 5 seeds).</summary>
-[Collection(ScalePerformanceCollection.Name)]
+// Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
+[Trait("Category", "Report")] // sem asserção: fora do gate (scripts/test.sh), roda no --nightly e quando pedido no --filter
 public class MeasureHarness
 {
     private sealed class CountingSink : IWorldEventSink
@@ -38,31 +39,60 @@ public class MeasureHarness
         return LivingWorld.Simulation.Objects.ObjectCatalogScenarioLoader.Load(root).Value;
     }
 
+    /// <summary>LW_MEASURE_BRAIN=1 liga o cérebro com ganhos aprendidos (AD-142) em todos os mundos medidos; sem ele, como sempre.
+    /// AD-160: <c>frozen</c> liga o mecanismo inteiro com ganhos presos em zero (escolhe igual à utilidade: separa o custo do mecanismo
+    /// do efeito no mundo); <c>ad142</c> é o experimento como foi juntado (sem o corpo decidir na necessidade crítica).</summary>
+    private static LivingWorld.Domain.Cognition.BrainRules? Brain =>
+        Environment.GetEnvironmentVariable("LW_MEASURE_BRAIN") is { Length: > 0 } name
+            ? LivingWorld.Domain.Cognition.BrainRules.Variant(name)
+            : null;
+
+    private static void MaybeBrain(WorldState world)
+    {
+        // AD-160b: o cenário liga o cérebro; LW_MEASURE_BRAIN=0 (ou off) mede sem, uma variante mede com ela
+        if (Brain is { } brain) world.UseBrain(brain);
+        // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143): mede o custo dela na mesma árvore, com o mesmo código
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
+    }
+
+    /// <summary>LW_MEASURE_POP muda a população da medida de escala (padrão 1000); LW_MEASURE_SCALE_ONLY=1 pula vila e mundo ao vivo.</summary>
+    private static int Population => int.TryParse(Environment.GetEnvironmentVariable("LW_MEASURE_POP"), out int pop) && pop > 0 ? pop : 1000;
+
     [Fact]
     public void Measure()
     {
         var sb = new StringBuilder();
         // Perf: 1000 NPCs, 30 dias, melhor de 3 (ruído de máquina).
-        double bestMicros = double.MaxValue, alloc = 0;
+        double bestMicros = double.MaxValue, bestCpu = double.MaxValue, alloc = 0;
+        int population = Population;
         for (int run = 0; run < 3; run++)
         {
-            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000, objectCatalog: MeasuredCatalog());
+            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population, objectCatalog: MeasuredCatalog());
+            MaybeBrain(world);
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             long alive = 0, before = GC.GetTotalAllocatedBytes(true);
+            var cpuBefore = Process.GetCurrentProcess().TotalProcessorTime; // AD-160b: CPU do processo, menos sensível à máquina cheia
             var sw = Stopwatch.StartNew();
             for (int t = 0; t < 720; t++) { alive += world.Npcs.Count(n => n.IsAlive); clock.Tick(world); }
             sw.Stop();
+            bestCpu = Math.Min(bestCpu, (Process.GetCurrentProcess().TotalProcessorTime - cpuBefore).TotalMicroseconds / Math.Max(1, alive));
             bestMicros = Math.Min(bestMicros, sw.Elapsed.TotalMicroseconds / Math.Max(1, alive));
             alloc = (GC.GetTotalAllocatedBytes(true) - before) / 720.0;
             if (run == 2)
-                sb.AppendLine($"scale1000 snapshotBytesPerAlive={Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world)) / Math.Max(1, world.Npcs.Count(n => n.IsAlive))} alive={world.Npcs.Count(n => n.IsAlive)}");
+                sb.AppendLine($"scale{population} snapshotBytesPerAlive={Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world)) / Math.Max(1, world.Npcs.Count(n => n.IsAlive))} alive={world.Npcs.Count(n => n.IsAlive)}");
         }
-        sb.AppendLine($"scale1000 microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0}");
+        sb.AppendLine($"scale{population} microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0} cpuMicrosPerNpcTick={bestCpu:F3}");
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_SCALE_ONLY") == "1")
+        {
+            File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-measure.txt"), sb.ToString());
+            return;
+        }
 
         // Vila padrão: 100 NPCs, 10 anos.
         for (ulong seed = 1; seed <= 5; seed++)
         {
             var (world, _) = ScenarioRunner.Create(seed);
+            MaybeBrain(world);
             var sink = new CountingSink();
             var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
             var marks = new List<int>();
@@ -89,6 +119,7 @@ public class MeasureHarness
             var loaded = ScenarioLoaderV2.LoadWorld(node.ToJsonString());
             Assert.True(loaded.IsSuccess, loaded.Error);
             var (world, clock) = loaded.Value;
+            MaybeBrain(world);
             var marks = new List<int>();
             var sw = Stopwatch.StartNew();
             for (int year = 1; year <= 10; year++)

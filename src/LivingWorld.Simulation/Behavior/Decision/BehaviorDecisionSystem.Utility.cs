@@ -20,11 +20,30 @@ public sealed partial class BehaviorDecisionSystem
     /// <see cref="NpcCognitionLog"/>, e derivar pressões/oportunidades custava mais que a
     /// própria escolha da ação.</summary>
     internal readonly struct UtilityDecision(
-        ActionType action, PendingPowerInvocation? pendingPower, Func<DecisionTrace> trace)
+        ActionType action, PendingPowerInvocation? pendingPower, Func<DecisionTrace> trace, WinnerRecount? recount = null)
     {
         public ActionType Action { get; } = action;
         public PendingPowerInvocation? PendingPower { get; } = pendingPower;
         public DecisionTrace Trace => trace();
+
+        /// <summary>AD-167: o que recontar a vencedora com os grupos precisa (só com o cérebro ligado).</summary>
+        public WinnerRecount? Recount { get; } = recount;
+    }
+
+    /// <summary>Os dados para recontar a vencedora com os grupos do cérebro depois da escolha, só se ela for guardada (AD-167).</summary>
+    internal readonly record struct WinnerRecount(
+        DecisionContext Ctx, NeedsRules Rules, EconomyRules Economy, ActionType? ContinuityAction, ActionEligibility Eligibility,
+        UtilityTerm? Knockout, short[]? Gains, double BestScore);
+
+    /// <summary>Os grupos da vencedora em <c>groups[8..16)</c>: a mesma conta que a escolha fazia logo depois de pontuar (AD-160b), agora
+    /// só quando a escolha vai ser guardada. Poder (não passa pelos grupos) ou nenhuma ação: zeros.</summary>
+    private static void FillWinnerGroups(UtilityDecision decision, double[] groups)
+    {
+        Array.Clear(groups, BrainState.Groups, BrainState.Groups);
+        if (decision.Recount is not { } r || double.IsNegativeInfinity(r.BestScore) || decision.Action == ActionType.UsePower) return;
+        var foresight = r.Ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
+        var winner = new WithBrain(r.Gains ?? NoGains, groups, BrainState.Groups);
+        ScoreOf(r.Ctx, decision.Action, r.Rules, r.Economy, r.ContinuityAction, r.Eligibility, foresight, null, r.Knockout, ref winner);
     }
 
     /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil.
@@ -36,35 +55,47 @@ public sealed partial class BehaviorDecisionSystem
         WakeReason wakeReason = WakeReason.UrgentNeed,
         ActionType? previousIntent = null,
         bool captureTrace = true,
-        ActionEligibility eligibility = default)
+        ActionEligibility eligibility = default,
+        UtilityTerm? knockout = null,
+        short[]? brainGains = null,
+        double[]? brainGroups = null,
+        bool recountWinner = false)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
-        var best = ActionType.Eat;
-        double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
         // O rastro só é montado para quem é gravado no log de cognição; sem ele, nada de lista, fecho nem delegate por decisão
         var scored = captureTrace ? new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count) : null;
+        var terms = captureTrace ? new List<UtilityContribution>(AllActions.Length * 4) : null;
 
-        foreach (var action in AllActions)
+        ActionType best;
+        double bestScore;
+        if (brainGains is null)
         {
-            // Fase 21: quem ainda não alcançou o marco da ação nem a considera (filtro antes da pontuação, não nota zero).
-            if (!eligibility.Allows(action))
-                continue;
+            var none = default(NoBrain);
+            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref none, null);
+        }
+        else
+        {
+            // AD-142: brainGroups[8..16) = os grupos da vencedora (para o NPC aprender na conclusão). AD-160: só a vencedora precisa
+            // deles; ela é recontada uma vez com os grupos, em vez de cada ação escrevê-los (311 → ~280 ns por decisão)
+            var lens = new WithBrain(brainGains, null, 0);
+            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, null);
+        }
 
-            double score = UtilityBaseOf(ctx, action, economy, eligibility) * PersonalityWeighting.WeightOf(ctx.Personality, action)
-                + ContextFactorBonus(ctx, action, economy);
-            if (foresight.TryGetValue(action, out var preview))
-                score *= ForesightUtilityFactor(preview);
-            if (rules.HysteresisEnabled && continuityAction == action)
-                score += rules.ContinuityBonus;
+        WinnerRecount? recount = recountWinner
+            ? new WinnerRecount(ctx, rules, economy, continuityAction, eligibility, knockout, brainGains, bestScore)
+            : null;
 
-            scored?.Add((action, score));
-            if (score > bestScore)
+        // AD-160b: os grupos da vencedora vão para o aprendizado mesmo quando os ganhos não pesaram (corpo decidindo, ganhos todos
+        // zero): a conta é a da utilidade pura e só a vencedora é recontada
+        if (brainGroups is not null)
+        {
+            Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups);
+            if (!double.IsNegativeInfinity(bestScore))
             {
-                bestScore = score;
-                best = action;
-                bestPending = null;
+                var winner = new WithBrain(brainGains ?? NoGains, brainGroups, BrainState.Groups);
+                ScoreOf(ctx, best, rules, economy, continuityAction, eligibility, foresight, null, knockout, ref winner);
             }
         }
 
@@ -92,13 +123,45 @@ public sealed partial class BehaviorDecisionSystem
                 best = ActionType.UsePower;
                 bestPending = new PendingPowerInvocation(
                     opp.PowerId, opp.MechanicToken, opp.SuggestedTarget);
+                if (brainGroups is not null) Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups); // poder não passa pelos grupos
             }
         }
 
         if (scored is null)
-            return new UtilityDecision(best, bestPending, NoTrace);
+            return new UtilityDecision(best, bestPending, NoTrace, recount);
 
-        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, bestPending);
+        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, terms!, bestPending, recount);
+    }
+
+    /// <summary>As ações fixas, pela utilidade, especializada pelo jeito de ver o cérebro (sem cérebro, o laço de antes).</summary>
+    private static (ActionType Best, double BestScore) ScoreActions<TLens>(
+        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction, ActionEligibility eligibility,
+        IReadOnlyDictionary<ActionType, ResolutionResult> foresight, List<UtilityContribution>? terms, UtilityTerm? knockout,
+        List<(ActionType Action, double Score)>? scored, ref TLens lens, double[]? groups)
+        where TLens : struct, IBrainLens
+    {
+        var best = ActionType.Eat;
+        double bestScore = double.NegativeInfinity;
+        if (groups is not null) Array.Clear(groups, BrainState.Groups, BrainState.Groups);
+        foreach (var action in AllActions)
+        {
+            // Fase 21: quem ainda não alcançou o marco da ação nem a considera (filtro antes da pontuação, não nota zero).
+            if (!eligibility.Allows(action))
+                continue;
+
+            double score = ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, terms, knockout, ref lens);
+
+            scored?.Add((action, score));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = action;
+                if (groups is not null)
+                    for (int i = 0; i < BrainState.Groups; i++) groups[BrainState.Groups + i] = groups[i];
+            }
+        }
+
+        return (best, bestScore);
     }
 
     private static readonly Func<DecisionTrace> NoTrace = static () =>
@@ -107,21 +170,24 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Em método próprio: o compilador aloca o fecho no início do método que o declara.</summary>
     private static UtilityDecision TracedDecision(
         DecisionContext ctx, WakeReason wakeReason, ActionType? previousIntent, ActionType best, double bestScore,
-        List<(ActionType Action, double Score)> scored, PendingPowerInvocation? bestPending) =>
-        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
+        List<(ActionType Action, double Score)> scored, List<UtilityContribution> terms, PendingPowerInvocation? bestPending,
+        WinnerRecount? recount = null) =>
+        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored, terms), recount);
 
+    /// <summary>Rastro feito só do que decidiu (AD-138, achado 11): as pressões e os fatores são os termos da utilidade da ação
+    /// vencedora, com o peso que tiveram; os negativos são os termos que tiraram dela e as alternativas com a nota que tiveram.
+    /// Nada que não entrou na soma aparece.</summary>
     private static DecisionTrace BuildDecisionTrace(
         DecisionContext ctx,
         WakeReason wakeReason,
         ActionType? previousIntent,
         ActionType winner,
         double winningUtility,
-        List<(ActionType Action, double Score)> scored)
+        List<(ActionType Action, double Score)> scored,
+        List<UtilityContribution> terms)
     {
-        var pressures = PressureModel.DerivePressures(ctx);
-        var opportunities = OpportunityModel.DeriveOpportunities(ctx);
-
-        var topPressures = pressures
+        var winnerTerms = terms.Where(t => t.Action == winner).ToList();
+        var topPressures = PressureModel.FromTerms(winnerTerms)
             .OrderByDescending(p => p.Intensity)
             .ThenBy(p => p.Kind, StringComparer.Ordinal)
             .Take(3)
@@ -140,28 +206,34 @@ public sealed partial class BehaviorDecisionSystem
             .Select(s => s.Action)
             .ToList();
 
-        var positives = new List<string>();
-        foreach (var pressure in topPressures)
-        {
-            positives.Add($"{pressure.Kind}:{pressure.Intensity:0.#}");
-            foreach (var factor in pressure.Factors.Take(2))
-                positives.Add(factor);
-        }
+        var positives = winnerTerms
+            .Where(t => t.Value > 0)
+            .OrderByDescending(t => t.Value)
+            .ThenBy(t => t.Term)
+            .Select(t => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{t.Term}:{t.Value:+0.#;-0.#}"))
+            .ToList();
 
-        foreach (var opp in opportunities.Take(2))
-            positives.Add(opp.Kind);
-
-        var negatives = new List<string>();
+        var negatives = winnerTerms
+            .Where(t => t.Value < 0)
+            .OrderBy(t => t.Value)
+            .ThenBy(t => t.Term)
+            .Select(t => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{t.Term}:{t.Value:+0.#;-0.#}"))
+            .ToList();
         var blocking = new List<string>();
         foreach (var alt in ordered.Where(s => s.Action != winner).Take(3))
         {
-            negatives.Add($"{alt.Action}:{alt.Score:0.#}");
+            negatives.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"vs {alt.Action}:{alt.Score:0.#}"));
             if (alt.Score < 0 || alt.Score + 25 < winningUtility)
                 blocking.Add($"{alt.Action}:outscored");
         }
 
-        if (ctx.Household is null && winner is ActionType.Eat or ActionType.Buy)
-            blocking.Add("NoHousehold");
+        // só as oportunidades que concorreram (candidatos de poder pontuados); o resto do que o NPC sabe não entrou na escolha
+        var opportunities = winner == ActionType.UsePower || scored.Any(s => s.Action == ActionType.UsePower)
+            ? ctx.PowerOpportunities.Take(2)
+                .Select(o => new Opportunity(OpportunityModel.ExtraordinaryCapability,
+                    scored.Where(s => s.Action == ActionType.UsePower).Select(s => s.Score).DefaultIfEmpty(0).Max(), o.MechanicToken))
+                .ToList()
+            : (IReadOnlyList<Opportunity>)[];
 
         return new DecisionTrace(
             WakeReason: wakeReason,
@@ -226,18 +298,18 @@ public sealed partial class BehaviorDecisionSystem
     };
 
     /// <summary>Bônus só quando memória/crença/relação estão presentes —
-    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
-    private static double ContextFactorBonus(DecisionContext ctx, ActionType action, EconomyRules economy)
+    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado). Devolve o termo nomeado.</summary>
+    private static (UtilityTerm Term, double Bonus) ContextFactorBonus(DecisionContext ctx, ActionType action, EconomyRules economy)
     {
         const double factorBonus = 40.0;
         return action switch
         {
             ActionType.Travel when ctx.RelevantMemories.Any(m =>
-                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
+                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => (UtilityTerm.ThreatMemory, factorBonus),
             ActionType.Buy when CanActOnScarcityBelief(ctx, economy) && ctx.RelevantBeliefs.Any(b =>
-                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
-            ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => factorBonus,
-            _ => 0.0,
+                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => (UtilityTerm.ScarcityBelief, factorBonus),
+            ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => (UtilityTerm.StrongBond, factorBonus),
+            _ => (UtilityTerm.Baseline, 0.0),
         };
     }
 
@@ -245,7 +317,7 @@ public sealed partial class BehaviorDecisionSystem
     /// da meta. Sem isso a crença tirava do trabalho (e da renda) quem não comprava nada, e a população do mundo ao vivo caía.</summary>
     private static bool CanActOnScarcityBelief(DecisionContext ctx, EconomyRules economy)
     {
-        if (ctx.WalletAmount < 1) return false;
+        if (ctx.WalletAmount < 1 || !ctx.CanPayFood || ctx.ShopperOut) return false; // AD-148: sem pagar ou com alguém da casa já indo
         if (!economy.Enabled || ctx.Household is not { } household) return true;
         long scarcest = Math.Min(
             household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
@@ -314,12 +386,15 @@ public sealed partial class BehaviorDecisionSystem
 
         long food = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
         long water = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
-        bool needsFood = food < 1;
+        // AD-148 (item 46): sem moeda para uma unidade de comida a fome não leva ao mercado; a água sem moeda ainda sai do poço
+        bool needsFood = food < 1 && ctx.CanPayFood;
         bool needsWater = water < 1;
-        double provision = ProvisionPressureOf(ctx, household, Math.Min(food, water));
+        double provision = ctx.ShopperOut ? 0 : ProvisionPressureOf(ctx, household, ctx.CanPayFood ? Math.Min(food, water) : water);
         if (!needsFood && !needsWater) return Math.Max(NonNeedBaselineUtility, provision);
 
         double own = Math.Max(needsFood ? SurvivalDeficit(ctx.Needs.Hunger) : 0, needsWater ? SurvivalDeficit(ctx.Needs.Thirst) : 0);
+        // AD-148: alguém da casa já foi comprar; só a própria necessidade crítica não espera por ele
+        if (ctx.ShopperOut && own <= CriticalDeficit) own = 0;
         return Math.Max(own, provision);
     }
 

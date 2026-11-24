@@ -91,9 +91,7 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
         double weight = 1;
         if (carrier is { IsManifested: true })
         {
-            foreach (var descriptor in world.Extraordinary.Descriptors
-                         .Where(item => carrier.PowerIds.Contains(item.Id, StringComparer.Ordinal))
-                         .OrderBy(item => item.Id, StringComparer.Ordinal))
+            foreach (var descriptor in DescriptorsOf(world, carrier))
             {
                 foreach (var effect in descriptor.Effects)
                 {
@@ -119,6 +117,13 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
             weight *= carrier.GravityTargetMultiplier;
         return weight <= 0 ? 1 : weight;
     }
+
+    /// <summary>Os descritores dos poderes do portador, em ordem de id. AD-197i: fora de <see cref="ComposeWeight"/>, cuja captura do
+    /// portador pelo lambda alocava a cada deslocamento de qualquer NPC, portador ou não.</summary>
+    private static IEnumerable<PowerDescriptor> DescriptorsOf(WorldState world, ExtraordinaryCarrierState carrier) =>
+        world.Extraordinary.Descriptors
+            .Where(item => carrier.PowerIds.Contains(item.Id, StringComparer.Ordinal))
+            .OrderBy(item => item.Id, StringComparer.Ordinal);
 
     internal static bool TryParseSelf(string declaration, out double multiplier) =>
         Self.TryParse(declaration, out multiplier);

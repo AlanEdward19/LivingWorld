@@ -30,7 +30,8 @@ public static class PopulationGenerator
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
         CityId city = default,
         Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null,
-        BodyRules? bodyRules = null, AppearanceRules? appearanceRules = null)
+        BodyRules? bodyRules = null, AppearanceRules? appearanceRules = null,
+        Action<IReadOnlyList<IReadOnlyList<Npc>>>? householdsComposed = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -44,9 +45,12 @@ public static class PopulationGenerator
         {
             int ageYears = RollAge(rng, lifeTable.MaxLongevityYears);
             var sex = rng.NextDouble() < 0.5 ? Sex.Female : Sex.Male;
-            var birthDate = now.AddYears(-ageYears);
-            int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
             var npcId = new NpcId(nextNpcId++);
+            // aniversário num dia e hora qualquer do ano (AD-130): sem isso todos nasciam no mesmo dia do calendário
+            long birthdayOffset = (long)(rng.Derive(WorldRngRegistry.StableHash($"birthday-{npcId.Value}")).NextDouble()
+                * now.Calendar.HoursPerYear);
+            var birthDate = now.AddYears(-ageYears).AddHours(-birthdayOffset);
+            int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
 
             // Streams próprios por NPC — derivados do stream "population-init"
             // já recebido em rng, nunca um novo WorldRng raiz. WorldRngRegistry.StableHash garante
@@ -86,7 +90,7 @@ public static class PopulationGenerator
         }
 
         var households = PairIntoHouseholds(
-            adults, children, villageLocation, ref nextHouseholdId, city, householdLocationsFactory);
+            adults, children, villageLocation, ref nextHouseholdId, city, householdLocationsFactory, householdsComposed);
 
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
@@ -99,7 +103,7 @@ public static class PopulationGenerator
         WorldRng rng, WorldDate now, IReadOnlyList<AuthoredHousehold> authored, CultureId culture,
         CellCoord villageLocation, long startingNpcId, long startingHouseholdId, CityId city,
         Func<int, IReadOnlyList<CellCoord>> householdLocationsFactory, BodyRules? bodyRules = null,
-        AppearanceRules? appearanceRules = null)
+        AppearanceRules? appearanceRules = null, Action<IReadOnlyList<IReadOnlyList<Npc>>>? householdsComposed = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -130,7 +134,10 @@ public static class PopulationGenerator
                     : person.Appearance ?? Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
 
                 var npc = new Npc(
-                    npcId, person.Name, person.Sex, now.AddYears(-person.AgeYears), culture, villageLocation,
+                    npcId, person.Name, person.Sex,
+                    now.AddYears(-person.AgeYears).AddHours(-(long)(rng.Derive(WorldRngRegistry.StableHash($"birthday-{npcId.Value}"))
+                        .NextDouble() * now.Calendar.HoursPerYear)),
+                    culture, villageLocation,
                     motherId: person.Mother is int m ? new NpcId(firstId + m) : null,
                     fatherId: person.Father is int f ? new NpcId(firstId + f) : null,
                     household: null, health,
@@ -152,6 +159,7 @@ public static class PopulationGenerator
             groups.Add(members);
         }
 
+        householdsComposed?.Invoke(groups); // AD-173: quem mora em cada casa decide o lote dela
         var locations = householdLocationsFactory(groups.Count);
         var households = new List<Household>(groups.Count);
         for (int g = 0; g < groups.Count; g++)
@@ -192,7 +200,8 @@ public static class PopulationGenerator
 
     private static List<Household> PairIntoHouseholds(
         List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId, CityId city,
-        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory)
+        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory,
+        Action<IReadOnlyList<IReadOnlyList<Npc>>>? householdsComposed = null)
     {
         var females = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Female));
         var males = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Male));
@@ -220,6 +229,7 @@ public static class PopulationGenerator
             for (int i = 0; i < children.Count; i++)
                 seeds[i % seeds.Count].Add(children[i]);
 
+        householdsComposed?.Invoke(seeds); // AD-173: quem mora em cada casa decide o lote dela
         var householdLocations = householdLocationsFactory?.Invoke(seeds.Count)
             ?? Enumerable.Repeat(location, seeds.Count).ToArray();
         if (householdLocations.Count != seeds.Count)

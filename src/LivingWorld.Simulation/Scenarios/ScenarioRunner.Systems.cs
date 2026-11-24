@@ -60,17 +60,23 @@ public static partial class ScenarioRunner
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new ClimateYearSystem(),
+        new WeatherSystem(), // AD-180: o tempo do dia antes de quem o lê
+        new NaturalWaterSystem(), // antes da natalidade: a despensa de água já cheia no dia
         new MortalitySystem(),
         new OutbreakSystem(),
         new TechDiscoverySystem(),
+        new LivingWorld.Simulation.Invention.InventionSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
         new CourtshipSystem(),
+        new UnionSystem(),
         new NatalitySystem(),
         new LivingWorld.Simulation.Ontogeny.MilestoneProgressSystem(),
         new OrphanCareSystem(),
         new NeedsDecaySystem(),
+        new PhysiologySystem(),
+        new LivingWorld.Simulation.Population.Body.GrowthSystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
         new TradeLedgerSystem(),
         new BuildingOccupancySystem(),
@@ -86,19 +92,30 @@ public static partial class ScenarioRunner
         new FaunaLifecycleSystem(),
         new FloraLifecycleSystem(),
         new TemperatureSeasonSystem(),
-        new CropSystem(),
+        new CropSystem(DefaultSkillsRules),
         new MarketPricingSystem(),
+        new LivingWorld.Simulation.Economy.Credit.WorkingCapitalSystem(DefaultSkillsRules), // AD-155: giro antes da folha
         new WagePaymentSystem(),
+        new LivingWorld.Simulation.Economy.Credit.CreditSystem(), // AD-155: parcela, calote e falência antes do lucro
+        new OwnerDrawSystem(),
+        new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio
+        new LivingWorld.Simulation.Cities.Streets.StreetGroundSystem(), // AD-176: pisoteio, superfície e decisão de calçar
+        new LivingWorld.Simulation.Cities.Streets.PavingWorksSystem(), // AD-176: a obra de calçamento
+        new LivingWorld.Simulation.Cities.Works.BuildWorksSystem(), // AD-184: casa e oficina são obra
+        new LivingWorld.Simulation.Cities.Works.WorkHaulSystem(), // AD-195: quem traz o material anda de verdade
         new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),
         new ConstructionSystem(),
         new MigrationSystem(),
+        new EmigrationSystem(), // AD-145: quem não tem lugar vai embora
+        new LivingWorld.Simulation.Crime.CrimeSystem(), // AD-150: furto planejado, briga, boato, denúncia e corte
         new RelocationArrivalSystem(),
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
         new PlayerSearchSystem(),
+        new PossessionSystem(), // AD-197f: a disputa de vontade da posse comum (só eventos agendados)
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

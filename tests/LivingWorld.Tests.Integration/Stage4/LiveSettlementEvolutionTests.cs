@@ -24,12 +24,16 @@ public class LiveSettlementEvolutionTests
 {
     private static readonly ResourceType Food = new(1);
 
+    // AD-184: estes testes medem a fila da cidade sem gente (o estoque e o prazo da receita); a obra com turma (ligada por
+    // padrão) é coberta em SiteWorkTests e BuildWorksTests, então aqui a fila anda um tick da receita por dia, como antes
     private static CityRules MakeRules(double foodWeight = 1) => CityRules.Create(
         enabled: true, foodShortageThreshold: 100, housingShortageThreshold: 100, securityShortageThreshold: 100,
         emigrationRatePerDeficitUnit: 0, migrationEmploymentWeight: 0, migrationFoodWeight: foodWeight,
         migrationSecurityWeight: 0, migrationFamilyTiesWeight: 0, foundingConcentrationThreshold: 0.1,
         foundingResourceThreshold: 0, foundingRouteThreshold: 0, foundingDefensibilityThreshold: 0,
-        foundingLeadershipThreshold: 0, organizationTicks: 1, materializationIdleTicksBeforeEligible: 5).Value!;
+        foundingLeadershipThreshold: 0, organizationTicks: 1, materializationIdleTicksBeforeEligible: 5).Value!
+        with
+    { Layout = LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { BuildNeedsCrew = false } } };
 
     private static WorldState MakeWorld(CityRules rules, ulong seed = 51) => new(
         ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed),

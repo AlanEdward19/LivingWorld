@@ -22,7 +22,7 @@ func _interior_envelope() -> Dictionary:
 func _transport() -> Object:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": [{"actionType": 1, "label": "Dormindo"}]})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": _world()})
 	transport.on("GET /visual/subscribe?scope=Interior", {"status": 200, "body": _interior_envelope()})
 	return transport
@@ -70,7 +70,7 @@ func _city() -> Dictionary:
 func _interior_delta(from_seq: int, to_seq: int, entered: Array, moved: Array, exited: Array) -> Dictionary:
 	var env := Fx.delta(from_seq, to_seq)
 	env.scope.kind = 2
-	env.payload = {"tick": 10 + to_seq, "buildingId": {"value": 4}, "entered": entered, "moved": moved, "changedFloor": [], "exited": exited}
+	env.payload = {"atMs": (10 + to_seq) * 3600000, "buildingId": {"value": 4}, "entered": entered, "moved": moved, "changedFloor": [], "exited": exited}
 	return env
 
 
@@ -144,7 +144,7 @@ func test_offline_shows_banner_text_and_recovers() -> void:
 			return {"status": 0, "body": null}
 		return {"status": 200, "body": _world()})
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	var app := App.new()
 	tree.root.add_child(app)
 	var seen: Array = []
@@ -211,7 +211,7 @@ func test_open_brain_panel_refreshes_on_clock_tick_and_dates_use_the_server_cale
 	await app.open_brain(7)
 	var before: int = transport.count_calls("GET /npcs/7")
 
-	app._on_clock_status({"tick": 55, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	app._on_clock_status({"atMs": 55 * 3600000, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	await app.get_tree().process_frame
 
 	eq(transport.count_calls("GET /npcs/7"), before + 1, "a hora nova do relógio atualiza o painel aberto")

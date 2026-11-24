@@ -1,0 +1,19 @@
+{
+  "offers": [
+    {
+      "id": "number",
+      "kind": "string",
+      "label": "string",
+      "resources": [
+        {
+          "price": "number",
+          "quantity": "number",
+          "resourceId": "number"
+        }
+      ],
+      "verbs": "[]",
+      "x": "number",
+      "y": "number"
+    }
+  ]
+}

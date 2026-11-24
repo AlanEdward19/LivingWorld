@@ -42,6 +42,16 @@ public static class HeredityService
         return Math.Clamp(blended + mutation, 0.0, 100.0);
     }
 
+    /// <summary>Vitalidade do filho com segregação mendeliana (AD-134): média ponderada dos pais + N(0, segregação), em
+    /// <c>[0,100]</c>. Com <see cref="QuantitativeGeneticsRules.Mendelian"/> falso, a mistura antiga.</summary>
+    public static double InheritVitality(
+        double motherVitality, double fatherVitality, FamilyRules rules, QuantitativeGeneticsRules genetics, WorldRng rng)
+    {
+        if (!genetics.Mendelian) return InheritVitality(motherVitality, fatherVitality, rules, rng);
+        double blended = motherVitality * rules.VitalityMotherWeight + fatherVitality * rules.VitalityFatherWeight;
+        return Math.Clamp(blended + QuantitativeGenetics.Normal(rng) * genetics.VitalitySegregationStdDev, 0.0, 100.0);
+    }
+
     /// <summary>Deriva <c>Upbringing</c> puramente da riqueza (soma do <see cref="Household.Stock"/>)
     /// do household na concepção — <b>nunca lê <c>Vitality</c>/genes dos pais</b>,
     /// canal ambiental inteiramente independente do genético por construção (prova estrutural:

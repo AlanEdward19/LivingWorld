@@ -97,4 +97,42 @@ public class LifeTableTests
         double p = table.AnnualMortality(5, health: 20, vitalityMultiplier: 1000.0);
         Assert.InRange(p, 0.0, 1.0);
     }
+    // AD-130: a tábua do cenário padrão é de época (pré-industrial), não a otimista de antes (e0 ≈ 51, 80‰ no 1º ano).
+    private static (double E0, double L15) Summary(LifeTable table)
+    {
+        double l = 1, e0 = 0, l15 = 0;
+        for (int age = 0; age < table.MaxLongevityYears; age++)
+        {
+            if (age == 15) l15 = l;
+            double d = l * table.AnnualMortality(age, health: 100);
+            e0 += l - (age == 0 ? 0.7 : 0.5) * d;
+            l -= d;
+        }
+
+        return (e0, l15);
+    }
+
+    [Fact]
+    public void Default_scenario_life_expectancy_at_birth_is_pre_industrial() =>
+        Assert.InRange(Summary(LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultPopulationRules.LifeTable).E0, 25, 35);
+
+    [Fact]
+    public void Default_scenario_first_year_mortality_is_150_to_300_per_thousand() =>
+        Assert.InRange(LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultPopulationRules.LifeTable.AnnualMortality(0, 100), 0.15, 0.30);
+
+    [Fact]
+    public void Default_scenario_has_about_half_of_newborns_reaching_15() =>
+        Assert.InRange(Summary(LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultPopulationRules.LifeTable).L15, 0.5, 0.65);
+
+    [Fact]
+    public void Default_scenario_adult_risk_is_about_one_percent_a_year_and_rises_in_old_age()
+    {
+        var table = LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultPopulationRules.LifeTable;
+        Assert.InRange(table.AnnualMortality(30, 100), 0.007, 0.02);
+        Assert.True(table.AnnualMortality(70, 100) > 4 * table.AnnualMortality(30, 100));
+    }
+
+    [Fact]
+    public void Period_mortality_of_a_full_year_equals_the_annual_value() =>
+        Assert.Equal(LifeTable.PreIndustrial.AnnualMortality(20, 80), LifeTable.PreIndustrial.PeriodMortality(20, 80, 1.0, 1.0), 12);
 }

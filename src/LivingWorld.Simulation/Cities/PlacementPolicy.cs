@@ -15,10 +15,15 @@ internal sealed class PlacementPolicy
 
     private static readonly ConditionalWeakTable<WorldMap, PlacementPolicy[]> ByMap = new();
 
-    /// <summary>Degraus de relaxamento quando falta terra: 0 = folga e sem água (o normal); 1 = encostando,
-    /// ainda sem água; 2 = só sem sobreposição (regra antiga). Um prédio desce ao próximo degrau somente
-    /// depois que o degrau anterior não achou nenhuma célula em todo o mapa — nunca por preferência.</summary>
-    public const int LevelCount = 3;
+    /// <summary>Degraus de relaxamento quando falta terra (AD-173). De frente para a rua (<see cref="StreetLevels"/>):
+    /// 0 = o lote escolhido; 1 = sem quintal de trás; 2 = parede-meia. Sem rua (os degraus antigos): 3 = folga e sem água;
+    /// 4 = encostando, ainda sem água; 5 = só sem sobreposição. Um prédio desce ao próximo degrau somente depois que o
+    /// anterior não achou lugar em todo o mapa — nunca por preferência. Rua e passagem de porta nunca recebem prédio, salvo
+    /// no último degrau.</summary>
+    public const int LevelCount = 6;
+
+    /// <summary>Quantos degraus são de lote na rua; os seguintes são os degraus antigos (<see cref="For"/> com nível − este).</summary>
+    public const int StreetLevels = 3;
 
     public int Gap { get; }
     private readonly HashSet<CellCoord>? _water;
@@ -29,6 +34,7 @@ internal sealed class PlacementPolicy
         _water = water;
     }
 
+    /// <summary>Política de um degrau sem rua: 0 = folga e sem água; 1 = encostando; 2 = só sem sobreposição.</summary>
     public static PlacementPolicy For(WorldMap map, int level = 0) =>
         ByMap.GetValue(map, m =>
         {
@@ -55,13 +61,43 @@ internal sealed class PlacementPolicy
 
     /// <summary>Sem sobreposição nem encosto (<paramref name="halo"/> livre) e sem água sob o footprint.
     /// Limites do mapa e dos bounds são problema do chamador.</summary>
-    public bool Allows(IReadOnlyList<CellCoord> shape, CellCoord[] halo, CellCoord origin, HashSet<CellCoord> occupied)
+    public bool Allows(
+        IReadOnlyList<CellCoord> shape, CellCoord[] halo, CellCoord origin, HashSet<CellCoord> occupied, GroundGuard? guard = null)
     {
         for (int i = 0; i < halo.Length; i++)
             if (occupied.Contains(new CellCoord(halo[i].X + origin.X, halo[i].Y + origin.Y))) return false;
+        if (guard is not null && !guard.Allows(shape, origin, occupied, _water)) return false;
         if (_water is null) return true;
         for (int i = 0; i < shape.Count; i++)
             if (_water.Contains(new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y))) return false;
         return true;
+    }
+}
+
+/// <summary>AD-173, nos degraus sem rua: a planta não cai em rua nem na passagem de porta de outro prédio, e a soleira do
+/// próprio prédio (a célula na frente da porta) fica livre e seca, para a porta ter por onde sair.</summary>
+internal sealed class GroundGuard(HashSet<CellCoord> streets, HashSet<CellCoord> passages, CellCoord? doorstep,
+    int mapWidth = int.MaxValue, int mapHeight = int.MaxValue, bool onlyOnMap = false)
+{
+    /// <summary>AD-176: nos últimos degraus (encostando, só sem sobreposição) a soleira pode cair em outro prédio (aí se entra por
+    /// escada, laje ou telhado), mas nunca fora do mapa: casa sem acesso não nasce.</summary>
+    public static GroundGuard DoorOnMap(CellCoord doorstep, int mapWidth, int mapHeight) => new([], [], doorstep, mapWidth, mapHeight, onlyOnMap: true);
+
+    public bool Allows(IReadOnlyList<CellCoord> shape, CellCoord origin, HashSet<CellCoord> occupied, HashSet<CellCoord>? water)
+    {
+        if (doorstep is { } door)
+        {
+            int x = door.X + origin.X, y = door.Y + origin.Y;
+            if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return false;
+            if (onlyOnMap) return true;
+        }
+        for (int i = 0; i < shape.Count; i++)
+        {
+            var abs = new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y);
+            if (streets.Contains(abs) || passages.Contains(abs)) return false;
+        }
+        if (doorstep is not { } step) return true;
+        var at = new CellCoord(step.X + origin.X, step.Y + origin.Y);
+        return !occupied.Contains(at) && (water is null || !water.Contains(at));
     }
 }

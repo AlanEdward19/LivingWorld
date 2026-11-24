@@ -131,7 +131,7 @@ public class DeterminismTwoProcessTests
         string b = RunCommand("theft-hash 5 8640");
 
         Assert.Equal(a, b);
-        Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhum furto descoberto: o teste não mediu nada");
+        Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhum furto: o teste não mediu nada"); // AD-150: conta todo furto (o descoberto pede testemunha e é raro)
     }
 
     [Fact]

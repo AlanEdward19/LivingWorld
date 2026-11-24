@@ -99,14 +99,15 @@ public static class NpcInstantiationMechanic
         var skills = NpcInstantiationHeredity.InheritSkills(
             source.Skills, skillWeight, ctx.StreamFor("inherit-skills", id.Value));
         var clone = new Npc(
-            id, $"{source.Name}-{origin}-{id.Value}", source.Sex, source.BirthDate, source.Culture,
+            // AD-178: a cópia leva o nome da pessoa (a origem fica no evento NpcInstantiated)
+            id, source.Name, source.Sex, source.BirthDate, source.Culture,
             source.BirthLocation, motherId: null, fatherId: null, household: null, health: source.Health,
             personality, source.Profession, source.CurrentLocation,
             skills: skills, rateGene: source.RateGene, vitality: source.Vitality, upbringing: source.Upbringing,
             city: source.City);
         world.AddNpc(clone);
         clone.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
-        MortalitySystem.SchedulePlannedDeath(world, ctx, clone);
+        MortalitySystem.CoverUntilNextSweep(world, ctx, clone);
         NpcWakeScheduler.ScheduleWake(world, ctx, clone.Id.Value, world.CurrentDate.TotalHours + 1);
 
         var sourceState = world.CarrierOf(source.Id);

@@ -22,8 +22,18 @@ namespace LivingWorld.Simulation.Scenarios;
 /// blocos Economy/Cities/Dynamics e passa por aqui.</summary>
 public static class ScenarioLoaderV2
 {
-    public static Result<(WorldState World, WorldClock Clock)> LoadWorld(string json, int maxIterationsPerTick = 1000)
+    private static readonly System.Text.Json.JsonSerializerOptions PlayersJson = new()
     {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    /// <param name="progress">AD-175: avisado com cada etapa de <see cref="ScenarioLoadStages"/> ao começá-la; só informa
+    /// (a tela de carregamento do cliente), não muda nada no mundo nem na ordem do que é montado.</param>
+    public static Result<(WorldState World, WorldClock Clock)> LoadWorld(
+        string json, int maxIterationsPerTick = 1000, Action<string>? progress = null)
+    {
+        progress?.Invoke(ScenarioLoadStages.Terrain);
         var definitionResult = PeriodDefinitionValidator.Validate(json);
         if (!definitionResult.IsSuccess)
             return Result<(WorldState, WorldClock)>.Fail(definitionResult.Error!);
@@ -52,6 +62,9 @@ public static class ScenarioLoaderV2
         // agora é usado exatamente como veio do JSON; escassez de espaço é responsabilidade do
         // placement (BuildingPlacementResolver/OverflowPlacer), que já resolve isso sem regerar
         // nada (célula livre nos bounds, senão anel de overflow, senão recusa/decline).
+        // AD-183: costume de nome declarado (bloco opcional Naming); ausente = o sorteio por cultura
+        var familyRules = LivingWorld.Simulation.Population.Naming.NamingScenarioBlock.Apply(json, ScenarioRunner.DefaultFamilyRules);
+        if (!familyRules.IsSuccess) return Result<(WorldState, WorldClock)>.Fail(familyRules.Error!);
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, definition.Map.Seed, definition.Map,
             catalog, population.Rules,
@@ -60,7 +73,7 @@ public static class ScenarioLoaderV2
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
             // Mesmos padrões de ScenarioRunner.Create (#112 D): sem eles o mundo carregado por JSON caía em FamilyRules.Disabled
             // (sem risco de parto nem pisos de concepção), PerfRules.Default implícito e ecologia vazia.
-            familyRules: ScenarioRunner.DefaultFamilyRules, perfRules: ScenarioRunner.DefaultPerfRules,
+            familyRules: familyRules.Value!, perfRules: ScenarioRunner.DefaultPerfRules,
             animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
             plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
             biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules,
@@ -75,12 +88,29 @@ public static class ScenarioLoaderV2
             emergenceRules: definition.Emergence,
             ontogenyRules: definition.Ontogeny,
             appearanceRules: definition.Appearance,
-            objectCatalog: definition.Objects);
+            objectCatalog: definition.Objects, agricultureRules: LivingWorld.Domain.Economy.AgricultureRules.Default,
+            // AD-135: água de rio e fonte ligada por padrão; o bloco opcional {"NaturalWater": {"Enabled": false}} desliga
+            naturalWaterRules: System.Text.Json.Nodes.JsonNode.Parse(json)?["NaturalWater"]?["Enabled"]?.GetValue<bool>() == false
+                ? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled : LivingWorld.Domain.Economy.NaturalWaterRules.Default);
+        // AD-141: invenção ligada por padrão; o bloco opcional {"Invention": {"Enabled": false}} desliga
+        world.UseInvention(System.Text.Json.Nodes.JsonNode.Parse(json)?["Invention"]?["Enabled"]?.GetValue<bool>() == false
+            ? null : ScenarioRunner.DefaultInventionRules); // AD-149: mesma invenção do cenário de código
+        // AD-150: violência, justiça e herança ligadas por padrão; o bloco opcional {"Crime": {"Enabled": false}} desliga
+        world.UseCrime(System.Text.Json.Nodes.JsonNode.Parse(json)?["Crime"]?["Enabled"]?.GetValue<bool>() == false
+            ? null : LivingWorld.Domain.Crime.CrimeRules.Default);
+        // AD-160b: cérebro ligado por padrão, como o cenário de código (ScenarioRunner.Create); {"Brain": {"Enabled": false}} desliga
+        world.UseBrain(System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == false
+            ? null : LivingWorld.Domain.Cognition.BrainRules.Default);
+        // AD-196: o que acontece com quem some e não volta é dado de cenário; bloco opcional
+        // {"Players": {"Abandonment": "DeclareDead", "DeclareDeadAfterDays": 2555, "PresumedDeadMayReturn": false}}; ausente = padrão
+        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Players"] is { } playersNode)
+            world.UsePlayers(System.Text.Json.JsonSerializer.Deserialize<LivingWorld.Domain.Population.PlayerRules>(playersNode, PlayersJson));
 
+        progress?.Invoke(ScenarioLoadStages.Settlements);
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
         {
-            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
+            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world, population.Culture) : city.Name;
             // cidade autorada com pool não-vazio reserva um NpcId estável por membro,
             // clicável/materializável individualmente (antes só existia contagem+somas).
             var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
@@ -131,7 +161,7 @@ public static class ScenarioLoaderV2
             {
                 var homeCity = new City(
                     world.NextCityId(), population.Village, foundedAtTick: 0, foundedFromCityId: null,
-                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world));
+                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world, population.Culture));
                 world.AddCity(homeCity);
                 homeCityIndex = seedTargets.Count;
                 seedTargets.Add((homeCity.Location, homeCity.Id));
@@ -147,6 +177,7 @@ public static class ScenarioLoaderV2
                 return Result<(WorldState, WorldClock)>.Fail(placed.Error!);
         }
 
+        progress?.Invoke(ScenarioLoadStages.Families);
         if (population.InitialPopulation > 0)
         {
             // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
@@ -201,10 +232,18 @@ public static class ScenarioLoaderV2
             PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
         }
 
+        progress?.Invoke(ScenarioLoadStages.Economy);
         if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
             ScenarioRunner.SeedInitialEconomyBuffer(world);
 
+        // dono declarado precisa existir; o resto das oficinas de ofício vai ao mestre da cidade (AD-144)
+        foreach (var workplace in world.Workplaces)
+            if (workplace.Owner is { } owner && world.FindNpc(owner) is null)
+                return Result<(WorldState, WorldClock)>.Fail($"Workplaces[].Owner: NPC {owner.Value} não existe no cenário");
+        LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, definition.Economy.CraftLocationTypeIds);
+
         ExtraordinaryPrevalenceSeeder.Seed(world);
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios
@@ -242,4 +281,14 @@ public static class ScenarioLoaderV2
             PortalSpaceKind.Building => new PortalEndpoint(PortalSpaceKind.Building, createdBuildingIds[endpoint.RefIndex].ToString(), endpoint.Cell),
             _ => throw new ArgumentOutOfRangeException(nameof(endpoint)),
         };
+}
+
+/// <summary>AD-175: etapas reais da montagem de um mundo por <see cref="ScenarioLoaderV2.LoadWorld"/>, na ordem em que
+/// acontecem: terreno (validação e mapa), assentamentos (cidades, prédios e oficinas), famílias (população) e economia.</summary>
+public static class ScenarioLoadStages
+{
+    public const string Terrain = "terrain";
+    public const string Settlements = "settlements";
+    public const string Families = "families";
+    public const string Economy = "economy";
 }

@@ -31,6 +31,31 @@ public sealed record OntogenyRules
     /// <summary>Se a criança sem adulto é acolhida (na orfandade e no sweep mensal). Desligar devolve o comportamento anterior à issue #93: só parente próximo, senão domicílio unitário.</summary>
     public bool OrphanCare { get; }
 
+    /// <summary>AD-163 (backlog 08 item 50): o motor fino pesa no rendimento e na prática do ofício entre o marco que deixa
+    /// trabalhar (<see cref="Requirements"/> de Trabalhar, 0,7) e a mão hábil completa (1,0): o fator é o próprio motor fino,
+    /// limitado a esse intervalo. Falso = o motor fino só barra o trabalho abaixo do marco.</summary>
+    public bool FineMotorScalesWork { get; init; }
+
+    /// <summary>AD-182 (08c item 149): verdadeiro = o de antes, o piso da regressão por doença (marco consolidado) contava a idade
+    /// escalada pela taxa do NPC; quem se desenvolve devagar perdia na doença, aos 15–16 anos, o "raciocínio" já atingido (0,76 →
+    /// 0,65) e nunca mais podia comprar: só em casa, morria de fome com moeda e comida à venda. Falso (padrão) = o marco atingido
+    /// se consolida pelos anos vividos: passada a janela dele na idade de calendário, a doença não o tira.</summary>
+    public bool RegressionByEffectiveAge { get; init; }
+
+    /// <summary>AD-186: verdadeiro = o acolhimento de antes (varredura mensal, o primeiro parente achado leva a criança, irmãos um a
+    /// um). Falso (padrão) = a casa que ficou só com crianças é vista no dia, os irmãos vão juntos, e quem acolhe é escolhido pelo
+    /// laço (parente, quem gosta da criança, quem gostava dos pais), pelos meios da casa (comida e moeda por boca, com o que as
+    /// crianças trazem) e pela generosidade, com a casa menos cheia; a cidade (o adulto mais generoso com casa e meios) por último.</summary>
+    public bool OrphanCareLegacy { get; init; }
+
+    /// <summary>Fator do motor fino no trabalho de quem tem <paramref name="state"/> (nulo = desenvolvimento completo).</summary>
+    public double FineMotorWorkFactor(DevelopmentState? state)
+    {
+        if (!Enabled || !FineMotorScalesWork || state is null) return 1.0;
+        double gate = Requirements.TryGetValue(ActionType.Work, out var r) && r.Axis == DevelopmentAxis.FineMotor ? r.Threshold : 0;
+        return Math.Clamp(state.FineMotor, gate, 1.0);
+    }
+
     private readonly Dictionary<DevelopmentAxis, (double Age, double Progress)[]> _curves;
 
     /// <summary>Idade (anos, já escalada pela taxa) a partir da qual o desenvolvimento está completo em todos os eixos.</summary>

@@ -21,6 +21,11 @@ public sealed class City
     public long FoundedAtTick { get; }
     public CityId? FoundedFromCityId { get; }
     public CityId? MergedIntoCityId { get; private set; }
+
+    /// <summary>AD-183: quem liderou a saída e fundou a cidade-filha (id de NPC). Nulo na cidade semeada, na fundada pelo pool e
+    /// no mundo de antes: fora do snapshot e do hash.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? FounderId { get; private set; }
     public long? MergeScheduledAtTick { get; private set; }
 
     /// <summary>Nome canônico: autorado no World Creator, ou composto por
@@ -75,7 +80,7 @@ public sealed class City
     public IReadOnlyList<ReportState> CanonSlots => _canonSlots;
 
     // SPEC_DEVIATION: SettlementFoundingSystem agenda um evento único (mesmo padrão
-    // de MortalitySystem.SchedulePlannedDeath) e não pode agendar duas vezes pra mesma cidade
+    // de um evento agendado) e não pode agendar duas vezes pra mesma cidade
     // enquanto o primeiro ainda não disparou — sem um marcador, o Monthly Tick reagendaria todo
     // mês enquanto os limiares continuarem batidos.
 
@@ -104,7 +109,8 @@ public sealed class City
         IReadOnlyList<NpcId>? poolNpcIds = null,
         CityId? mergedIntoCityId = null,
         long? mergeScheduledAtTick = null,
-        Money treasury = default)
+        Money treasury = default,
+        long? founderId = null)
     {
         Id = id;
         Location = location;
@@ -120,6 +126,7 @@ public sealed class City
         MergedIntoCityId = mergedIntoCityId;
         MergeScheduledAtTick = mergeScheduledAtTick;
         Treasury = treasury;
+        FounderId = founderId;
     }
 
     public void SetCanonSlots(IReadOnlyList<ReportState> slots)

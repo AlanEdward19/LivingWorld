@@ -32,7 +32,7 @@ func _transport() -> Object:
 	var transport := FakeTransport.new()
 	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
 	transport.on("POST /players/p-1/action", {"status": 200, "body": {"playerId": "p-1", "action": "Eat"}})
-	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtTick": 321}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtMs": 321 * 3600000}})
 	return transport
 
 
@@ -221,7 +221,7 @@ func _find_button(node: Node, text: String) -> Button:
 func _app_transport() -> Object:
 	var transport := _transport()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": CATALOG})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
 		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
@@ -262,6 +262,74 @@ func test_app_button_and_i_key_incarnate_the_selected_npc_and_the_camera_follows
 	app.queue_free()
 
 
+## AD-197p: encarnado (3ª/1ª pessoa) some o que é do espectador e o topo fica compacto; ao sair, tudo volta.
+func test_incarnating_hides_the_spectator_ui_and_leaving_restores_it() -> void:
+	var transport := _app_transport()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	var node := NpcActor.new()
+	node.setup(7, Vector2i(1, 1), 0, app.labels)
+	app.add_child(node)
+	app.world_view.npc_nodes[7] = node
+	await app.select_npc(7)
+	app.timeline.visible = true
+	var before := [app.side_panel.visible, app.minimap.visible, app.timeline.visible, app.help_label.text]
+
+	await app.incarnate(7)
+	await tree.process_frame
+	var playing := [app.player_mode, app.side_panel.visible, app.minimap.visible, app.timeline.visible,
+		app.help_label.text.begins_with("WASD"), app.player_hud.orders.visible, app.player_hud.orders_button.visible,
+		app.player_hud.logout_button.is_visible_in_tree(), node.is_self]
+	app._on_events([{"eventId": 1, "kind": 0, "atMs": 3600000, "label": "Um casamento"}])
+	var toasts_while_playing: Array = app.toasts.visible_texts()
+
+	await app.player_hud.logout()
+	await tree.process_frame
+	var after := [app.side_panel.visible, app.minimap.visible, app.timeline.visible, app.help_label.text]
+
+	eq(playing, [true, false, false, false, true, false, true, true, true])
+	eq(toasts_while_playing, [], "acontecimento não vira aviso sobre a cena do jogador")
+	eq([after, app.player_mode, node.is_self], [before, false, false], "o espectador volta intacto")
+	app.queue_free()
+
+
+func test_tab_opens_the_orders_and_releases_the_cursor_and_the_reach_hint_comes_from_the_offer() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+	var toggles: Array = []
+	hud.menu_toggled.connect(func(open: bool): toggles.append(open))
+	hud.set_rpg(true)
+	var closed: bool = hud.orders.visible
+
+	hud.toggle_orders()
+	var opened: bool = hud.orders.visible
+	hud.toggle_orders()
+	hud.set_reach_hint([{"kind": "stall", "id": 3, "verbs": ["buy"], "resources": [{"resourceId": 1, "quantity": 2, "price": 4}]}])
+	var hint: String = hud.reach_hint.text
+	hud.set_reach_hint([])
+
+	eq([closed, opened, toggles, hint, hud.reach_hint.visible], [false, true, [true, false], "Banca: Comprar recurso 1 (4)", false])
+	hud.set_rpg(false)
+	eq(hud.orders.visible, true, "fora do modo jogador as ordens ficam à vista, como antes")
+	hud.free()
+
+
+func test_the_own_body_shows_no_name_action_or_ring() -> void:
+	var node := NpcActor.new()
+	node.setup(7, Vector2i(1, 1), 0, ActionLabels.new())
+	node.set_display_name("Ana")
+	node.set_selected(true)
+	var shown := node.label_visible()
+	node.set_self(true)
+	eq([shown, node.label_visible()], [true, false])
+	node.set_self(false)
+	eq(node.label_visible(), true)
+	node.free()
+
+
 func test_app_forwards_the_admin_pause_to_the_hud() -> void:
 	var transport := _app_transport()
 	var app := App.new()
@@ -270,9 +338,9 @@ func test_app_forwards_the_admin_pause_to_the_hud() -> void:
 	await app.start(transport, false)
 	await app.player_hud.incarnate(7, "Ana")
 
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
+	app._on_clock_status({"atMs": 6 * 3600000, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
 	eq(app.player_hud._pause.visible, true, "mundo pausado avisa o jogador")
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	app._on_clock_status({"atMs": 6 * 3600000, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	eq(app.player_hud._pause.visible, false)
 	app.queue_free()
 
@@ -292,7 +360,7 @@ func test_a_second_click_while_waiting_does_not_send_another_request() -> void:
 	var transport := SlowTransport.new()
 	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
 	transport.on("POST /players/p-1/action", {"status": 200, "body": {"playerId": "p-1", "action": "Eat"}})
-	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtTick": 9}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtMs": 9 * 3600000}})
 	var hud := _hud(transport)
 	await hud.incarnate(7, "Ana")
 
@@ -419,6 +487,132 @@ func test_a_double_click_on_incarnate_sends_a_single_request() -> void:
 	var third: bool = await hud.incarnate(7, "Ana")
 	eq(third, false, "já encarnado: nada de novo POST")
 	eq(transport.arrived, 1)
+	hud.free()
+
+
+func test_the_powers_the_npc_carries_become_buttons_that_post_use_power_with_the_power_id() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+	hud.set_powers(["teleport-power"])
+
+	eq(hud.power_buttons.keys(), ["teleport-power"], "um botão por poder que o servidor diz que ele porta")
+	hud.power_buttons["teleport-power"].pressed.emit()
+	await Engine.get_main_loop().process_frame
+	eq(transport.bodies["POST /players/p-1/action"].back(), {"action": "UsePower", "powerId": "teleport-power"}, "UsePower leva o poder")
+	eq(hud.power_buttons["teleport-power"].button_pressed, true, "a escolha fica marcada")
+	await hud.act("Work")
+	eq(transport.bodies["POST /players/p-1/action"].back(), {"action": "Work"}, "as outras ações não levam powerId")
+	eq(hud.power_buttons["teleport-power"].button_pressed, false)
+	await hud.logout()
+	eq(hud.power_buttons.size(), 0, "sem personagem, sem poderes")
+	hud.free()
+
+
+func test_with_a_session_the_player_comes_from_the_token_and_commands_go_through_the_persistent_channel() -> void:
+	var transport := _transport()
+	transport.on("POST /sessions", {"status": 200, "body": {"sessionToken": "tok-1", "playerId": "p-srv"}})
+	transport.channel_replier = func(command: Dictionary) -> Dictionary:
+		var body := {"npcId": 7, "playerId": "p-srv"} if command.command == "incarnate" else {"playerId": "p-srv", "action": command.get("action")}
+		return {"seq": command.seq, "ok": true, "status": 200, "body": body}
+	var hud := _hud(transport)
+	hud.session_enabled = true
+
+	var ok: bool = await hud.incarnate(7, "Ana") # a sessão nasce aqui e o canal persistente abre com o token
+	eq(ok, true)
+	eq(hud.player_id, "p-srv", "o jogador vem da sessão do servidor, não do id local")
+	eq(transport.channel_headers["WS /players/ws"], {"Authorization": "Bearer tok-1"}, "o canal abre com o token")
+
+	await hud.act("Work")
+	var channel = transport.channels.back()
+	eq(channel.sent.size(), 2, "conectado, os comandos vão pelo canal persistente")
+	eq([channel.sent[0].command, channel.sent[1].command], ["incarnate", "action"])
+	eq(channel.sent[1].action, "Work")
+	eq([int(channel.sent[0].seq), int(channel.sent[1].seq)], [1, 2], "comandos numerados")
+	eq(hud.current_action, "Work", "a resposta pelo canal vale como a da rota")
+	eq(transport.count_calls("POST /players"), 0, "sem requisição HTTP enquanto o canal está aberto")
+
+	channel.drop() # o canal caiu: a rota HTTP segue valendo, com o token
+	await hud.act("Eat")
+	eq(transport.headers_of["POST /players/p-srv/action"], [{"Authorization": "Bearer tok-1"}], "a rota leva o token")
+	hud.free()
+
+
+func test_direction_keys_ask_the_engine_for_one_step_through_the_move_command() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/move", {"status": 200, "body": {"playerId": "p-1", "npcId": 7, "x": 4, "y": 3}})
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	await hud.step(1, 0)
+	eq(transport.bodies["POST /players/p-1/move"], [{"dx": 1, "dy": 0}], "intenção de passo, não posição")
+	var key := InputEventKey.new()
+	key.keycode = KEY_W
+	key.pressed = true
+	eq(hud.STEP_KEYS[KEY_W], Vector2i(0, -1), "W anda para cima")
+	transport.on("POST /players/p-1/move", {"status": 409, "body": {"error": "conflict: mundo pausado pelo admin"}})
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+	await hud.step(0, -1)
+	check(warnings.size() == 1 and "pausado" in warnings[0], "pausa avisa")
+	eq(hud.is_active, true, "pausa não tira o personagem")
+	hud.free()
+
+
+func test_a_server_without_sessions_keeps_the_local_mode() -> void:
+	var transport := _transport()
+	transport.on("POST /sessions", {"status": 404, "body": null})
+	var hud := _hud(transport)
+	hud.session_enabled = true
+	var ok: bool = await hud.incarnate(7, "Ana")
+	eq(ok, true)
+	eq(hud.player_id, "p-1", "servidor antigo: segue com o id local")
+	eq(transport.bodies["POST /players/7/incarnate"], [{"playerId": "p-1"}])
+	hud.free()
+
+
+## AD-197c: o ritmo do tempo e os controles de dormir e acelerar aparecem só quando o motor diz que valem (quem joga sozinho).
+func test_time_controls_follow_what_the_engine_says() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 1, "canSkip": false, "skipping": false, "sleeping": false})
+	var hidden: bool = not hud.sleep_until_button.visible and not hud.accelerate_button.visible and not hud.wake_button.visible
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 12, "canSkip": true, "skipping": false, "sleeping": false})
+	var shown: bool = hud.sleep_until_button.visible and hud.sleep_fast_button.visible and hud.accelerate_button.visible
+
+	eq([hidden, shown, hud.rhythm_label.text], [true, true, "Tempo real 1:12"])
+	hud.free()
+
+
+func test_sleep_posts_the_hour_and_the_engine_reason_for_waking_becomes_a_notice() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/sleep", {"status": 200, "body": {"rhythm": "Accelerated", "tickDeltaMs": 3600000, "timeScale": 1,
+		"playersPresent": 1, "canSkip": false, "skipping": true, "sleeping": true, "untilMs": 30 * 3600000}})
+	var hud := _hud(transport, true)
+	await hud.incarnate(7, "Ana")
+
+	await hud.sleep(6)
+	var asleep: Array = [transport.bodies["POST /players/p-1/sleep"], hud.wake_button.visible, hud.wake_button.text, hud.rhythm_label.text]
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 1, "canSkip": true, "skipping": false, "sleeping": false, "lastWakeReason": "golpe"})
+
+	eq(asleep, [[{"untilHour": 6}], true, "Acordar", "Tempo acelerado"])
+	eq([hud.wake_button.visible, hud.status_text], [false, "Você acordou com um golpe."])
+	hud.free()
+
+
+func test_a_refused_skip_with_another_player_warns() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/accelerate", {"status": 409, "body": {"error": "conflict: só quem joga sozinho pula o tempo"}})
+	var hud := _hud(transport)
+	var warnings: Array = []
+	hud.warning.connect(func(text): warnings.append(text))
+	await hud.incarnate(7, "Ana")
+
+	await hud.accelerate()
+
+	eq(warnings, ["Só quem joga sozinho pode pular o tempo agora."])
 	hud.free()
 
 

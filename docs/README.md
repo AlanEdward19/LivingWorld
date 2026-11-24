@@ -9,23 +9,41 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Você vai mexer em… | Leia |
 |---|---|
 | Relógio do mundo, ticks, agendamento de eventos | [time-and-ticks.md](domain/time-and-ticks.md) |
+| Tempo em milissegundos, Δ variável, contrato v2 (ADR-0050) | [time-in-milliseconds.md](domain/time-in-milliseconds.md) |
+| Tempo real com jogador, ritmo por mundo, passo fino dos NPCs, dormir e acelerar (AD-197c) | [real-time-rhythm.md](domain/real-time-rhythm.md) |
 | Quanto detalhe simular por região, agregação, materialização de NPC | [simulation-lod.md](domain/simulation-lod.md) |
 | Identidade, atributos, personalidade, necessidades, habilidades | [npc.md](domain/npc.md) |
 | Decisão do NPC no dia a dia (utility AI, rotina, objetivos) | [behavior.md](domain/behavior.md) |
+| Doença de época, contágio, doente de cama, causas de morte | [disease.md](domain/disease.md) |
 | Relações, casamento, reprodução, hereditariedade, genoma | [genetics-and-family.md](domain/genetics-and-family.md) |
+| Hormônios, puberdade, ciclo, sexo fora da união, doença genética, contracepção | [hormones-and-reproduction.md](domain/hormones-and-reproduction.md) |
+| Freio preventivo: casar e 1º filho por meios, ajuda da família, esmola racionada, emigração | [population-pressure.md](domain/population-pressure.md) |
+| Terra finita, braços que a terra paga, ceifa da vila toda | [land-and-harvest.md](domain/land-and-harvest.md) |
+| Furto, briga, homicídio, boato, denúncia, julgamento, punição, herança | [crime-and-justice.md](domain/crime-and-justice.md) |
 | Memória operacional/episódica/semântica/social, compactação, crenças | [memory.md](domain/memory.md) |
 | Recursos, produção, empregos, salários, preços, comércio | [economy.md](domain/economy.md) |
 | Cidades, edifícios, crescimento, migração, fundação de assentamentos | [cities.md](domain/cities.md) |
+| Ruas, lotes, quintal, caminho e superfície de rua (AD-173) | [city-layout.md](domain/city-layout.md) |
+| Toda construção é obra: casa, oficina, jornal que disputa a mão (AD-184) | [build-works.md](domain/build-works.md) |
+| Material de verdade no canteiro e o dia perdido pelo tempo (AD-194) | [work-material.md](domain/work-material.md) |
+| Bairro denso: sujeira da casa, higiene na doença, como cada um vê o bairro, onde morar (AD-192) | [dense-quarter.md](domain/dense-quarter.md) |
 | Mapa, regiões, biomas, terreno, camadas de visualização | [world-map.md](domain/world-map.md) |
+| Estações, temperatura, tempo do dia (chuva, neve, lama, seca, luz) e o que ele muda | [climate.md](domain/climate.md) |
 | Event log, linha do tempo, dinastias, crônicas | [history.md](domain/history.md) |
 | Degradação do passado, relatos, livros, mito, cânone limitado | [historical-memory.md](domain/historical-memory.md) |
 | Montagem de contexto, prompt, DTO de saída, validação | [llm-contract.md](domain/llm-contract.md) |
 | Cultura, conhecimento, tecnologia, política | [society.md](domain/society.md) |
+| Invenção por composição física: materiais, design, avaliador, difusão | [invention.md](domain/invention.md) |
+| Espólio de quem morre longe de casa: busca pela casa, furto, estrago | [leavings.md](domain/leavings.md) |
+| O que o cliente vê de cada escopo e a ficha genérica (`/entities`): projeção do observável | [observable-projection.md](domain/observable-projection.md) |
+| Cérebro legível com ganhos herdados e aprendidos (experimento atrás de flag) | [brain.md](domain/brain.md) |
+| O que o cliente Godot ainda não recebe do servidor (etapa 2 do ADR-0047) | [cliente-lacunas-etapa-2.md](cliente-lacunas-etapa-2.md) |
 
 ### Escopo extra — spec, bloqueado até a Fase 8 fechar
 | Você vai mexer em… | Leia |
 |---|---|
 | Mutantes, magos, poderes, custo e falha de potência | [powers.md](domain/powers.md) |
+| Herança dos poderes (genótipo, Mendel, penetrância, custo) | [powers-genetics.md](domain/powers-genetics.md) |
 | Deuses, culto, economia de crença, cisma | [divinity-and-belief.md](domain/divinity-and-belief.md) |
 | Viagem no tempo, ramificação, âncora e colapso de branch | [timelines.md](domain/timelines.md) |
 | Sistema estelar, órbitas, contato alienígena, colônias | [cosmos.md](domain/cosmos.md) |

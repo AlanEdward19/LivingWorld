@@ -40,27 +40,27 @@ public sealed class PersistentWorldRunner(
         {
             var events = EventLogCompactor.Compact(sink.DrainAll(), world.Calendar);
             long tick = world.CurrentDate.TotalHours;
-            byte[] block;
             long? baseTick = null;
             // base nova: mundo novo ou diferente, tick zero, ou 12 diffs depois da última; senão, diff sobre a base
-            if (tick == 0 || _base is null || !_base.Fits(world) || _diffsSinceBase >= DiffsPerBase)
-            {
-                block = PositionalSnapshot.EncodeFull(world, out var fresh);
-                _diffsSinceBase = 0;
-                _base = fresh;
-            }
-            else
-            {
-                block = PositionalSnapshot.EncodeDelta(world, _base);
-                baseTick = _base.Tick;
-                _diffsSinceBase++;
-            }
+            bool full = tick == 0 || _base is null || !_base.Fits(world) || _diffsSinceBase >= DiffsPerBase;
 
             try
             {
+                // o mundo é serializado uma vez para o bloco e os dois hashes (#156)
+                var write = PositionalSnapshot.Write(world, full ? null : _base);
+                if (full)
+                {
+                    _diffsSinceBase = 0;
+                    _base = write.NewBase;
+                }
+                else
+                {
+                    baseTick = _base!.Tick;
+                    _diffsSinceBase++;
+                }
+
                 repository.SaveSnapshotWithEvents(
-                    branch, tick, string.Empty, WorldSnapshot.CanonicalHash(world), WorldSnapshot.VolatileHash(world),
-                    events, block, baseTick);
+                    branch, tick, string.Empty, write.CanonicalHash, write.VolatileHash, events, write.Block, baseTick);
             }
             catch
             {

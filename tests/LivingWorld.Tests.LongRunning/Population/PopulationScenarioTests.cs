@@ -11,8 +11,7 @@ public class PopulationScenarioTests
 {
     private const long OneMonthInHours = 30 * 24;
     private const long OneYearInHours = 12 * 30 * 24;
-    private const long TenYearsInHours = 10 * OneYearInHours;
-    private const long SampleEveryHours = 24;
+    internal const long SampleEveryHours = 24;
 
     [Fact]
     public void One_month_with_100_initial_npcs_never_breaks_invariants_at_any_sample()
@@ -24,14 +23,23 @@ public class PopulationScenarioTests
     [Fact]
     public void One_year_with_100_initial_npcs_never_breaks_invariants_at_any_sample()
     {
-        AssertInvariantsOverHorizon(OneYearInHours);
+        // Mesma seed, mesma amostragem diária: lido da corrida compartilhada da seed 42 (ADR-0044).
+        Assert.Null(DefaultVillageSeed42.Value.InvariantFailureYear1);
     }
 
     [Trait("Category", "Scenario")]
     [Fact]
     public void Ten_years_with_100_initial_npcs_never_breaks_invariants_at_any_tick()
     {
-        AssertInvariantsOverHorizon(TenYearsInHours);
+        // Mesma seed, mesma amostragem diária: lido da corrida compartilhada da seed 42 (ADR-0044).
+        Assert.Null(DefaultVillageSeed42.Value.InvariantFailureYear10);
+    }
+
+    /// <summary>Os invariantes de <see cref="AssertInvariants"/> como valor observado: nulo se valem, senão a mensagem com o tick.</summary>
+    internal static string? InvariantFailure(WorldState world, long tick)
+    {
+        try { AssertInvariants(world); return null; }
+        catch (Xunit.Sdk.XunitException ex) { return $"tick {tick}: {ex.Message}"; }
     }
 
     private static void AssertInvariantsOverHorizon(long ticks)
@@ -119,13 +127,13 @@ public class PopulationScenarioTests
     [Fact]
     public void Disabling_natality_changes_the_1_year_canonical_hash()
     {
-        var (withNatality, clockWith) = ScenarioRunner.Create(seed: 42);
-        clockWith.Run(withNatality, OneYearInHours);
+        // Braço com natalidade: a vila padrão da seed 42 no ano 1, da corrida compartilhada (ADR-0044).
+        string withNatality = DefaultVillageSeed42.Value.HashYear1;
 
         var systemsWithoutNatality = ScenarioRunner.DefaultSystems().Where(s => s.Name != NatalitySystem.SystemName).ToList();
         var (withoutNatality, _) = ScenarioRunner.Create(seed: 42);
         new WorldClock(systemsWithoutNatality).Run(withoutNatality, OneYearInHours);
 
-        Assert.NotEqual(WorldSnapshot.CanonicalHash(withNatality), WorldSnapshot.CanonicalHash(withoutNatality));
+        Assert.NotEqual(withNatality, WorldSnapshot.CanonicalHash(withoutNatality));
     }
 }

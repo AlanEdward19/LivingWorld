@@ -19,6 +19,29 @@ public class BodyMechanicTests
     private static readonly Personality Personality =
         Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
 
+    /// <summary>O corpo de antes do AD-134 (adulto desde o nascimento, músculo só por trabalho).</summary>
+    private static readonly BodyRules StaticGrowth = BodyRules.Default with { Growth = GrowthRules.Static };
+
+    [Fact]
+    public void WorkCapacityMultiplier_is_one_at_the_reference_adult_muscle_with_growth()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(1.70, 64, world.BodyRules.Growth.ReferenceAdultMuscleMass);
+
+        Assert.Equal(1.0, BodyMechanic.WorkCapacityMultiplier(world, npc), precision: 10);
+    }
+
+    [Fact]
+    public void With_growth_a_heavy_adult_and_a_small_child_walk_at_a_higher_cost_than_a_lean_adult()
+    {
+        var world = BuildWorld();
+        double lean = BodyMechanic.MovementCostMultiplier(world, MakeNpc(1.70, 62, 25));
+        double heavy = BodyMechanic.MovementCostMultiplier(world, MakeNpc(1.70, 85, 25));
+        double child = BodyMechanic.MovementCostMultiplier(world, MakeNpc(1.00, 16, 4));
+
+        Assert.True(heavy > lean && child > lean && lean == 1.0, $"{lean} {heavy} {child}");
+    }
+
     private static WorldState BuildWorld(BodyRules? bodyRules = null)
     {
         var map = ScenarioRunner.DefaultMap(1);
@@ -68,9 +91,9 @@ public class BodyMechanicTests
     }
 
     [Fact]
-    public void WorkCapacityMultiplier_is_one_at_MuscleMass_mean()
+    public void WorkCapacityMultiplier_is_one_at_MuscleMass_mean_with_static_growth()
     {
-        var rules = BodyRules.Default;
+        var rules = StaticGrowth;
         var world = BuildWorld(rules);
         var npc = MakeNpc(rules.HeightMean, rules.WeightMean, rules.MuscleMassMean);
 
@@ -78,9 +101,9 @@ public class BodyMechanicTests
     }
 
     [Fact]
-    public void MovementCostMultiplier_varies_with_Weight_and_Height()
+    public void MovementCostMultiplier_varies_with_Weight_and_Height_with_static_growth()
     {
-        var world = BuildWorld();
+        var world = BuildWorld(StaticGrowth);
         var light = MakeNpc(height: 1.55, weight: 50, muscleMass: 28);
         var heavy = MakeNpc(height: 1.90, weight: 95, muscleMass: 28);
 
@@ -206,9 +229,9 @@ public class BodyMechanicTests
     }
 
     [Fact]
-    public void WorkHardeningSystem_grows_MuscleMass_after_sustained_heavy_labor_days()
+    public void WorkHardeningSystem_grows_MuscleMass_after_sustained_heavy_labor_days_with_static_growth()
     {
-        var world = BuildWorld();
+        var world = BuildWorld(StaticGrowth);
         var location = new CellCoord(1, 1);
         var npc = MakeNpc(1.70, 68, muscleMass: 20);
         world.AddNpc(npc);
@@ -231,5 +254,30 @@ public class BodyMechanicTests
 
         Assert.True(npc.MuscleMass > baseline);
         Assert.Equal(baseline + 10 * BodyMechanic.DailyWorkHardeningDelta, npc.MuscleMass, precision: 10);
+    }
+
+    [Fact]
+    public void With_growth_a_day_of_heavy_labor_counts_toward_the_months_muscle_instead_of_adding_mass_at_once()
+    {
+        var world = BuildWorld();
+        var location = new CellCoord(1, 1);
+        var npc = MakeNpc(1.70, 68, muscleMass: 20);
+        world.AddNpc(npc);
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 1,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        workplace.Hire(npc.Id);
+        npc.Hire(workplace.Id);
+        npc.MoveTo(location, 0);
+        npc.SetCurrentAction(ActionType.Work, 0);
+        var system = new WorkHardeningSystem();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        for (int day = 0; day < 10; day++)
+            system.Tick(world, ctx);
+
+        Assert.Equal((10, 20.0), (npc.PhysicalWorkDays, npc.MuscleMass));
     }
 }

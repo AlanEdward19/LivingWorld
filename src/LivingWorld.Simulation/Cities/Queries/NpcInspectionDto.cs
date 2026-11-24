@@ -78,4 +78,12 @@ public sealed record NpcInspectionDto(
     NpcRestStatusDto? Rest = null,
     NpcFoodStatusDto? Food = null,
     // #46 fatia 2: genes de aparência; nulo (omitido) em mundo sem AppearanceRules
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Appearance? Appearance = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Appearance? Appearance = null,
+    // AD-170 (ADR-0047 etapa 2), só acréscimo: filhos vivos, o prédio onde a casa mora e o emprego legível (o `employer` segue id)
+    IReadOnlyList<NpcId>? ChildIds = null,
+    BuildingId? HouseholdBuildingId = null,
+    NpcEmploymentDto? Employment = null);
+
+/// <summary>Emprego legível (AD-170): a oficina, o tipo de local, o prédio e o dono; <see cref="Name"/> é o nome do tipo de local no
+/// período (preenchido pela API; nulo sem período).</summary>
+public sealed record NpcEmploymentDto(WorkplaceId Id, int LocationTypeId, BuildingId? BuildingId, NpcId? OwnerId, string? Name = null);

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.Unit.Population;
 
@@ -17,27 +16,10 @@ public sealed class PopulationBaselineCollection
 [Trait("Category", "Scenario")]
 public class PopulationBaselineTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
     private static readonly string BaselinePath = Path.Combine(FindRepoRoot(), "tests", "baselines", "population.json");
 
-    private static int FinalPopulation(ulong seed)
-    {
-        var (world, clock) = ScenarioRunner.Create(seed);
-        clock.Run(world, TenYearsInHours);
-        return world.Npcs.Count(n => n.IsAlive);
-    }
-
-    private static int[] FinalPopulations()
-    {
-        var counts = new int[20];
-        var options = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 8),
-        };
-        Parallel.For(0, counts.Length, options, index =>
-            counts[index] = FinalPopulation((ulong)(index + 1)));
-        return counts;
-    }
+    // A vila padrão das seeds 1..20 no ano 10 vem da corrida compartilhada (ADR-0044): mesmo mundo que antes rodava aqui.
+    private static int[] FinalPopulations() => DefaultVillageDecade.Runs.Select(r => r.Alive[DefaultVillageDecade.Years]).ToArray();
 
     [Fact(Skip = "regravação manual — remove o Skip, rode uma vez, reverta")]
     public void ZZZ_record_baseline()

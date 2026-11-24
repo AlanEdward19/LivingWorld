@@ -22,8 +22,19 @@ public sealed class FertilityMechanicTests
         new LifeTableBracket(0, 89, 0.01),
     ]).Value!;
 
+    // AD-130: a concepção vem da fecundabilidade por ciclo; "certa" = 1 em toda idade, ninguém estéril, sem perda.
     private static readonly PopulationRules CertainConception = PopulationRules.Create(
-        Table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0, gestationDays: 10).Value!;
+        Table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0, gestationDays: 10).Value!
+        with
+    {
+        Reproduction = ReproductionRules.Default with
+        {
+            FemaleMonthlyFecundability = AgeCurve.Of((0, 1.0)),
+            FemaleSterileFraction = AgeCurve.Of((0, 0.0)),
+            MaleFertility = AgeCurve.Of((0, 1.0)),
+            MiscarriageRiskByAge = AgeCurve.Of((0, 0.0)),
+        },
+    };
 
     private static readonly Personality SomePersonality =
         Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;

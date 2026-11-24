@@ -1,0 +1,69 @@
+# A investigar (continuação de [08](08-a-investigar.md), mesma numeração)
+
+> AD-161 (2026-11-16): conferência e classificação em [classificação](relatorios/classificacao-a-investigar.md); abertos ficam só
+> `MEDIR` ([a-medir](relatorios/a-medir.md)) e o que não deu para conferir.
+
+## Da sonda de terra (AD-153, [invention-land](../../../docs/domain/invention-land.md))
+73. **Força humana sustentada puxando: 250 N** (lembrança de ergonomia de tração por horas, ~200–300 N; pico bem acima). Precisa
+    de conferência. (AD-161: não conferido — a tabela de Snook & Ciriello 1991 não abriu; lembrança de ~150–200 N para horas.)
+    **AD-164:** guia industrial de 24 lb ≈ 107 N sustentado (Ergoweb [L]); Snook segue ilegível. Acima da faixa provável:
+    correções #13 (150–200 N), não aplicado (mexe no trenó e no arrasto; medir antes).
+74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
+75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
+76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
+77. ~~tratado no AD-157b~~ (a casa volta pelo resto: `LeftAtMarket`; 08c 147). **Uma ida e volta inteira por carga que ficou** — AD-163, medido (40×100, sonda `TripProbe`): 0,6% das idas são cortadas pela
+    carga; a ida seguinte da casa vem em 120 h (mediana) contra 79 h depois de uma ida normal, 5,6% em 24 h contra 33,5%. A casa
+    **não volta** pelo que ficou: defeito — a reposição precisa saber o que faltou (fatia da carga pessoal).
+78. ~~**Carregador de 30 kg**~~ (AD-161): fora da faixa — água na cabeça ~20 kg (Limpopo, UEA); sugerido 20 em correções.
+79. **Custo do AD-153 a 5.000 NPCs** não medido; goldens, pins e baselines feitos na junção (AD-161).
+
+## Da violência e justiça (AD-150)
+80. **AD-150, população**: 20×100 final 280 → 260, menor seed 141 → 114; parte do açoite e dos 0,43 banimentos/ano não isolada seed a seed. **AD-163** (20 pares × 100, `LW_CRIME_OFF=flog,banish`): população 184,7 → 183,4, mortalidade 0,995× (IC90 0,97–1,03): açoite e banimento não pesam na população (banidos hoje 0,01/ano). Fome 0,81× sem eles (0,66–1,01): inconclusivo com 20; δ = 25% pede ~36 pares. CPU total com a fila livre não medida (A/B crime ligado/desligado dentro do ruído). Teste do poço fraco roda sem furto e crime (com eles o sinal de preço cai de 18 para 10 de 20 seeds; causa provável, furto de água na banca, não confirmada evento a evento).
+
+## Do crime contra a pessoa (AD-154, [crime-against-persons](../../../docs/domain/crime-against-persons.md))
+81. ~~**Violência doméstica sem fonte firme**~~ (AD-161, [crime](relatorios/conferencia-crime-e-justica.md)): OMS 13%/ano confere como
+    referência; a taxa do código é outra grandeza — medir a fração de esposas agredidas antes de calibrar; Given (1/5?) não conferido.
+82. ~~**Sequestro sem taxa histórica**~~ (AD-161): nenhuma taxa achada; escolha de modelo (o *raptus* das fontes é mais rapto para casar, #164).
+83. ~~**Violência sexual sem fonte firme**~~ (AD-161): gravidez de 5% por estupro confere (Holmes 1996); Hanawalt não conferido; resto escolha.
+84. ~~**Separação a mais pela doméstica**~~ (AD-161): separação "de mesa e leito" por crueldade existia, mas rara e com prova de
+    violência excessiva; deixar rara (correções). Efeito na natalidade sem fonte. **AD-162:** agressão leve e isolada soma 1/4 da mágoa; grave ou repetida, inteira.
+85. **Fome acima da base nos dois blocos: efeito difuso, sem chave que o concentre.** Mortes de fome 309 → 339 (seeds 1–20)
+    e 325 → 362 (21–40). Com uma chave nula por vez (seeds 1–20, mesmo código do topo, `LW_CRIME_OFF`): sem doméstica 394,
+    sem sequestro 462, sem violência sexual 336; todas ≥ o topo. O sequestro (0,02/seed-ano, nenhum preso morreu no
+    cativeiro) não pode causar 120 mortes: é a divergência caótica das trajetórias, maior que a diferença base × topo.
+    Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). **AD-163**, 40 pares × 100 anos, taxa por pessoas-ano
+    (`scripts/paired-rates.py`): desligar os três dá fome 0,83× (IC90 0,67–1,01), horas com fome crítica 1,07× (0,90–1,26).
+    Inconclusivo com 40: o ligado fica entre 0,99× e 1,49× do desligado; δ = 25% pede ~48 pares (CV 0,53, ρ 0,14), δ = 20% ~75.
+    **AD-164** (sonda da doméstica, 12 pares × 50, doméstica ×3): mecanismo local achado só para parte — separação depois da
+    agressão (3× a fome da aldeia, 10× nos <5) e a vítima no ano seguinte (1,75×, sem trabalhar menos); ~60% do excesso segue
+    difuso. A 50 anos o CV da fome entre seeds é 0,95 e ρ 0,09: δ = 25% pede ~160 pares. Segue inconclusivo (custo > 40 min).
+
+## Da medição (2026-11-15)
+86. ~~**Falta uma medida de fome que aguente o ruído**~~ medida criada no AD-157 (`NeedDistressTally`: horas com fome/sede crítica por pessoa-ano, pareado em 40 seeds × 15 anos; 08c item 108). Desenho para 20×100 em [a-medir](relatorios/a-medir.md).
+
+## Do crédito e da falência (AD-155, [credit](../../../docs/domain/credit.md))
+90. ~~**Usura**~~ (AD-161, [economia](relatorios/conferencia-economia-e-credito.md)): 10%/ano e teto de 20% conferem (montes ~5%, judeus 43,3%, penhoristas 20–30%).
+91. ~~**Prazos**~~ (AD-161): 12 meses confere (Briggs: um dia a um ano); 36 meses fora da faixa (sugerido ≤ 12); calote, memória e falência escolha. **AD-162:** abertura 12 meses (até 24 com o prédio).
+92. ~~**Quanto se financia**~~ (AD-161): sem fonte para empréstimo; a *commenda* (sociedade) financiava ⅔ a 100%. Escolha de modelo.
+93. ~~**Confiança**~~ (AD-161): escolha de modelo.
+94. ~~**Tesouro empresta até 25%**, giro, gatilho e penhora~~ (AD-161): escolha de modelo.
+95. ~~**Ordem dos credores na falência**~~ (AD-161): fora da faixa, anacrônica; 1543 trouxe o rateio *pari passu*; sugerido penhor + rateio (correções). **AD-162:** aplicado.
+96. ~~**Valor do prédio tomado em pagamento**~~ (AD-161): sem fonte; escolha de modelo.
+
+## Dos poderes por genética (AD-156, [powers-genetics](../../../docs/domain/powers-genetics.md))
+100. ~~**Penetrância 0,9**~~ (AD-161, [biologia](relatorios/conferencia-biologia-e-genetica.md)): dentro da faixa real; expressividade escolha.
+101. ~~**Idade de início N(13; 1,5)**~~ (AD-161): fora da faixa do próprio mundo (puberdade 15/15,5); atrelar ao `PubertyTick` (correções). **AD-162:** início na puberdade do próprio NPC.
+102. ~~**Mutação 1e-5 por locus por gameta**~~ (AD-161): confere (genes de doença 10⁻⁶ a 10⁻⁴; acondroplasia ~10⁻⁵).
+103. ~~**Custo do poder manifesto**~~ (AD-161): poder fictício, escolha de modelo.
+104. ~~**Poligênico**~~ (AD-161): forma de limiar (Falconer) confere; valores escolha de modelo.
+105. ~~**Prevalência do cenário de medida 8%**~~ (AD-161): escolha de modelo.
+106. **Feito no AD-156 (índice de vivos, fontes de flora por hora, salto adiado; mesmo hash). Sobra: o `PowerOpportunityProvider`
+     ainda varre todos os portadores, mortos inclusive, por NPC** (`PowerOpportunityProvider.cs:34`; a fauna já não lê portadores,
+     AD-161). Medir o custo com poderes ligados ([a-medir](relatorios/a-medir.md) grupo 2). Achado original: mundo com poderes ligados
+     ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h. **AD-164** (`LW_PROFILE_POWERS=1`,
+     1.000 NPCs, 720 h): 4,70 µs e 411 B por NPC-tick contra 2,49 µs e 194 B sem poderes (1,9×, não 10×); a flora saiu do topo;
+     a decisão foi de 1.346 para 2.457 ms (+83%, inclui o provedor e o `UsePower`). Isolar o provedor pede contador próprio.
+107. ~~**Equivalência do conserto dos poderes ligados**~~ confirmado (AD-161): `LivingCarrierIndexTests` não compara com a varredura
+     completa; o teste barato está em correções. **AD-162:** teste escrito (24 meses, mês a mês).
+
+Itens 120 em diante: [08c-a-investigar.md](08c-a-investigar.md).

@@ -20,7 +20,8 @@ public sealed partial class WorldState
         {
             relationship = Relationship.Initial(now);
             _relationships[key] = relationship;
-            IndexRelationshipTarget(key);
+            _relationshipOrder.Append(key, relationship);
+            IndexRelationshipTarget(key, relationship);
             AttachRelationshipStamp(key, relationship);
         }
         return relationship;
@@ -30,10 +31,17 @@ public sealed partial class WorldState
     internal IReadOnlyList<NpcId> RelationshipTargetsOf(NpcId from) =>
         _relationshipTargetsByFrom.TryGetValue(from, out var targets) ? targets : [];
 
-    private void IndexRelationshipTarget(RelationshipKey key)
+    /// <summary>As relações de <paramref name="from"/> na mesma ordem de <see cref="RelationshipTargetsOf"/>, sem busca por
+    /// chave: quem só precisa varrer os eixos do dono (<c>"tem vínculo forte?"</c>) não paga um hash por relação.</summary>
+    internal List<Relationship>? RelationshipsFrom(NpcId from) => _relationshipsByFrom.GetValueOrDefault(from);
+
+    private void IndexRelationshipTarget(RelationshipKey key, Relationship relationship)
     {
         if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets))
+        {
             _relationshipTargetsByFrom[key.From] = targets = [];
+            _relationshipsByFrom[key.From] = [];
+        }
         int lo = 0, hi = targets.Count;
         while (lo < hi)
         {
@@ -41,6 +49,7 @@ public sealed partial class WorldState
             if (targets[mid].Value < key.To.Value) lo = mid + 1; else hi = mid;
         }
         targets.Insert(lo, key.To);
+        _relationshipsByFrom[key.From].Insert(lo, relationship);
     }
 
     /// <summary>Liga a relação ao carimbo do dono e o avança (o conjunto de relações dele mudou).</summary>
@@ -61,24 +70,52 @@ public sealed partial class WorldState
     {
         if (_relationshipStampByFrom.TryGetValue(key.From, out var stamp)) stamp.Touch();
         if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets)) return;
-        targets.Remove(key.To);
-        if (targets.Count == 0) _relationshipTargetsByFrom.Remove(key.From);
+        int index = targets.IndexOf(key.To);
+        if (index < 0) return;
+        targets.RemoveAt(index);
+        _relationshipsByFrom[key.From].RemoveAt(index);
+        if (targets.Count == 0)
+        {
+            _relationshipTargetsByFrom.Remove(key.From);
+            _relationshipsByFrom.Remove(key.From);
+        }
     }
-
-    internal void ClearNpcWakeBatch() => _npcWakeBatch.Clear();
 
     internal void AddNpcWake(Npc npc) => _npcWakeBatch.Add(npc);
 
-    internal void ReplaceNpcWake(TickContext ctx, long npcId, long targetTick)
-    {
-        if (_npcWakeEventIdByNpc.TryGetValue(npcId, out var oldId))
-            _scheduler.Cancel(oldId);
+    /// <summary>Agenda (ou move) o despertar do NPC para o começo da hora <paramref name="targetTick"/>. A sequência sai do
+    /// contador de <see cref="NextEventId"/>, como quando o despertar era um <see cref="ScheduledEvent"/>: os ids dos outros
+    /// eventos e a ordem do lote ficam iguais.</summary>
+    internal void ReplaceNpcWake(long npcId, long targetTick) =>
+        ReplaceNpcWakeAtMs(npcId, LivingWorld.Domain.Shared.WorldMillis.FromHours(targetTick));
 
-        var evt = ctx.ScheduleEvent(targetTick, NpcWakeScheduler.SystemName, npcId.ToString());
-        _npcWakeEventIdByNpc[npcId] = evt.Id;
+    /// <summary>Agenda (ou move) o despertar do NPC para o instante <paramref name="targetMs"/> do mundo (ADR-0050).</summary>
+    internal void ReplaceNpcWakeAtMs(long npcId, long targetMs) =>
+        _npcWakes.Schedule(npcId, targetMs, NextEventIdAndAdvance());
+
+    /// <summary>Monta <see cref="NpcWakeBatch"/> com os despertares vencidos em <paramref name="nowMs"/> (da hora corrente):
+    /// vivos, por sequência decrescente. O despertar de quem morreu ou saiu do mundo é consumido sem acordar ninguém.</summary>
+    internal void PrepareNpcWakeBatch(long nowMs)
+    {
+        _npcWakeBatch.Clear();
+        _npcWakes.TakeDue(nowMs, _dueNpcWakeIds);
+        foreach (var npcId in _dueNpcWakeIds)
+            if (FindNpc(new NpcId(npcId)) is { IsAlive: true } npc)
+                _npcWakeBatch.Add(npc);
     }
 
-    internal void ClearNpcWakeEvent(long npcId) => _npcWakeEventIdByNpc.Remove(npcId);
+    /// <summary>Quem acordaria na hora cheia <paramref name="tick"/>, na ordem do lote, sem consumir — para testes e inspeção.</summary>
+    internal IReadOnlyList<long> PeekDueNpcWakes(long tick) =>
+        _npcWakes.PeekDue(LivingWorld.Domain.Shared.WorldMillis.FromHours(tick));
+
+    /// <summary>Hora (piso) do despertar pendente do NPC, ou nulo se não houver.</summary>
+    internal long? PendingWakeTickOf(long npcId) =>
+        _npcWakes.MsOf(npcId) is { } ms ? LivingWorld.Domain.Shared.WorldMillis.ToHourFloor(ms) : null;
+
+    /// <summary>Instante (milissegundos) do despertar pendente do NPC, ou nulo se não houver.</summary>
+    internal long? PendingWakeMsOf(long npcId) => _npcWakes.MsOf(npcId);
+
+    internal void RestoreNpcWakes(IEnumerable<PendingNpcWake> wakes) => _npcWakes.Restore(wakes);
 
     internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
     internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);
@@ -159,13 +196,46 @@ public sealed partial class WorldState
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
 
+    /// <summary>Remove toda relação de e para <paramref name="id"/>: usado quando o NPC deixa de existir no mundo (arquivo
+    /// frio). Sem isso o par ficava para sempre apontando para quem já não está em <see cref="Npcs"/>, e a seção crescia
+    /// com a idade do mundo, não com a população (#155, #157).</summary>
+    internal int RemoveRelationshipsOf(NpcId id)
+    {
+        int removed = 0;
+        if (_relationshipTargetsByFrom.TryGetValue(id, out var targets))
+            foreach (var to in targets.ToArray())
+            {
+                var key = new RelationshipKey(id, to);
+                if (RemoveRelationship(key)) removed++;
+            }
+
+        // Quem tinha relação com ele: a ordem não importa (cada remoção só mexe no próprio par), mas vai ordenada por Id.
+        var owners = _relationshipTargetsByFrom.Keys.ToArray();
+        Array.Sort(owners, (a, b) => a.Value.CompareTo(b.Value));
+        foreach (var from in owners)
+        {
+            var key = new RelationshipKey(from, id);
+            if (RemoveRelationship(key)) removed++;
+        }
+        return removed;
+    }
+
+    /// <summary>Remove um par orientado (o vínculo esquecido de A por B não apaga o de B por A).</summary>
+    internal bool RemoveRelationship(RelationshipKey key)
+    {
+        if (!_relationships.Remove(key, out var removed)) return false;
+        _relationshipOrder.Remove(removed);
+        UnindexRelationshipTarget(key);
+        return true;
+    }
+
     internal int RemoveRelationshipsBetween(NpcId first, NpcId second)
     {
         int removed = 0;
         var forward = new RelationshipKey(first, second);
         var backward = new RelationshipKey(second, first);
-        if (_relationships.Remove(forward)) { removed++; UnindexRelationshipTarget(forward); }
-        if (_relationships.Remove(backward)) { removed++; UnindexRelationshipTarget(backward); }
+        if (RemoveRelationship(forward)) removed++;
+        if (RemoveRelationship(backward)) removed++;
         return removed;
     }
 

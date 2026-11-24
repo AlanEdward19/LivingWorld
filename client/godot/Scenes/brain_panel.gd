@@ -2,6 +2,7 @@ extends PanelContainer
 ## Painel "Cérebro": as decisões recentes de um NPC (`cognitionTrace` de GET /npcs/{id}) em linha do tempo e,
 ## ao escolher uma, o fluxo Estímulo → Ponderação → Decisão. Só mostra o que o servidor gravou: nada é
 ## recalculado aqui. O rastro existe só para NPC em cidade/interior observados (ver ScopeObserver) ou vigiado.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal closed()
 signal warning(text: String)
@@ -48,6 +49,8 @@ var _touched: Dictionary = {} ## sliders que o usuário mexeu ("hunger", "ambiti
 var _sandbox_column: ScrollContainer
 var _sandbox_note: Label
 var _title: Label
+var _brain_label: Label ## AD-160b: o valor do estado e o que o NPC aprendeu a valorizar (GET /npcs/{id}/brain)
+var name_of: Callable = func(id: int) -> String: return "pessoa nº %d" % id ## o app liga aos nomes do escopo
 var _empty: Label
 var _flow_root: Control
 var _columns: HBoxContainer
@@ -101,6 +104,10 @@ func _init() -> void:
 	close_button.text = "Fechar (B)"
 	close_button.pressed.connect(func(): close())
 	header.add_child(close_button)
+	_brain_label = Label.new()
+	_brain_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_brain_label.visible = false
+	box.add_child(_brain_label)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(body)
@@ -143,7 +150,75 @@ func open(id: int) -> void:
 	_follow_latest = true
 	_touched = {}
 	sandbox_trace = {}
+	_brain_label.visible = false
 	await refresh(true)
+	await load_brain()
+
+
+const GROUPS := ["impulso", "conforto", "temperamento", "contexto", "humor", "pressão", "antevisão", "hábito"]
+
+## AD-160b: lê o cérebro uma vez ao abrir (a linha do tempo segue pelo GET /npcs/{id} de cada hora). Desligado ou sem
+## leitura, a linha some.
+func load_brain() -> void:
+	var id := npc_id
+	var response: Dictionary = await api.npc_brain(id)
+	if id != npc_id or not is_open:
+		return
+	var body = response.body
+	if not response.ok or not (body is Dictionary) or not body.has("synapses") or not bool(body.get("enabled", false)):
+		_brain_label.visible = false
+		return
+	_brain_label.text = brain_summary(body)
+	_brain_label.visible = true
+
+
+## Texto da leitura: as parcelas do valor do estado e os três ganhos aprendidos mais fortes (ação · grupo ±%).
+func brain_summary(body: Dictionary) -> String:
+	var text := ""
+	var value = body.get("value")
+	if value is Dictionary:
+		text = "Vale para ele agora: corpo %d · despensa %d · moeda %d · humor %d" % [
+			int(value.get("body", 0)), int(value.get("pantry", 0)), int(value.get("money", 0)), int(value.get("mood", 0))]
+	var seen := {}
+	var gains: Array = []
+	for synapse in body.get("synapses", []):
+		var gain := int(synapse.get("gainMilli", 0))
+		var key := "%d/%d" % [int(synapse.get("action", 0)), int(synapse.get("group", 0))]
+		if gain == 0 or seen.has(key):
+			continue
+		seen[key] = true
+		gains.append([absi(gain), gain, int(synapse.get("action", 0)), int(synapse.get("group", 0))])
+	gains.sort_custom(func(a, b): return a[0] > b[0])
+	var learned: PackedStringArray = []
+	for g in gains.slice(0, 3):
+		var group: String = GROUPS[g[3]] if g[3] < GROUPS.size() else str(g[3])
+		learned.append("%s · %s %+d%%" % [labels.label_for(g[2]) if labels != null else str(g[2]), group, int(round(g[1] / 10.0))])
+	if not learned.is_empty():
+		text += ("\n" if text != "" else "") + "Aprendeu a pesar: " + ", ".join(learned)
+	var why := motives_text(body.get("motives", []))
+	if why != "":
+		text += ("\n" if text != "" else "") + "Por quê: " + why
+	return text
+
+
+## AD-183/186: o nome por trás de um termo (`motives[]{term, motive, otherId}`): luto pelo xará, quem ele procura para
+## conversar (−1 = vai ao largo) e a criança acolhida. Motivo que o cliente não conhece vai como veio.
+func motives_text(motives: Variant) -> String:
+	var parts: PackedStringArray = []
+	for entry in motives if motives is Array else []:
+		if not entry is Dictionary:
+			continue
+		var other := int(entry.get("otherId", -1)) if entry.get("otherId") != null else -1
+		match String(entry.get("motive", "")):
+			"xara":
+				parts.append("luto por %s, de quem leva o nome" % name_of.call(other))
+			"procurar-companhia":
+				parts.append("está só e sai atrás de companhia: %s" % ("vai ao largo" if other < 0 else name_of.call(other)))
+			"acolher-crianca":
+				parts.append("a casa sustenta criança acolhida (%s)" % name_of.call(other))
+			var other_motive:
+				parts.append(other_motive.replace("-", " ") + ((" (%s)" % name_of.call(other)) if other >= 0 else ""))
+	return "; ".join(parts)
 
 
 func close() -> void:
@@ -181,11 +256,11 @@ func refresh(force: bool = false) -> void:
 		_show_empty(EMPTY_GONE)
 		return
 	var trace: Array = npc.get("cognitionTrace", [])
-	var latest := -1 if trace.is_empty() else int(trace.back().tick)
-	var current := -1 if entries.is_empty() else int(entries[0].tick)
+	var latest := -1 if trace.is_empty() else WorldTime.hours_of(trace.back(), "atMs")
+	var current := -1 if entries.is_empty() else WorldTime.hours_of(entries[0], "atMs")
 	if not force and latest == current and trace.size() == entries.size():
 		return # nada novo: não redesenha
-	var kept_tick := -1 if selected < 0 or selected >= entries.size() else int(entries[selected].tick)
+	var kept_tick := -1 if selected < 0 or selected >= entries.size() else WorldTime.hours_of(entries[selected], "atMs")
 	entries = trace.duplicate()
 	entries.reverse()
 	_rebuild_timeline()
@@ -197,7 +272,7 @@ func refresh(force: bool = false) -> void:
 	var index := 0
 	if not _follow_latest:
 		for i in entries.size():
-			if int(entries[i].tick) == kept_tick:
+			if WorldTime.hours_of(entries[i], "atMs") == kept_tick:
 				index = i
 	select_entry(index, false)
 
@@ -239,7 +314,7 @@ func _rebuild_timeline() -> void:
 	for entry in entries:
 		var trace: Dictionary = entry.trace
 		var action: String = labels.label_for(int(trace.winner)) if labels != null else str(trace.winner)
-		timeline.add_item("%s · %s · %s" % [date_of.call(int(entry.tick)), action, WAKE.get(int(trace.wakeReason), WAKE[0])])
+		timeline.add_item("%s · %s · %s" % [date_of.call(WorldTime.hours_of(entry, "atMs")), action, WAKE.get(int(trace.wakeReason), WAKE[0])])
 
 
 func select_entry(index: int, user_choice: bool = true) -> void:

@@ -30,8 +30,13 @@ public static class GlobalLayerBuilder
                 .Select(c => new KeyValuePair<CellCoord, IReadOnlyList<ResourceType>>(c.Coord, c.Resources)).ToList()),
         VisualLayerId.Rivers => LayerBuildResult.Available(
             world.Map.Cells.Where(c => c.HasWater).Select(c => c.Coord).ToList()),
-        VisualLayerId.Mountains or VisualLayerId.Roads or VisualLayerId.Borders
-            or VisualLayerId.Kingdoms or VisualLayerId.Climate => LayerBuildResult.NotYetModeled,
+        // AD-170: estação e clima por região, do que o motor já tem (estação, ajustes de temperatura, ano de safra)
+        VisualLayerId.Climate => LayerBuildResult.Available(LivingWorld.Api.Visual.Observable.ObservableProjector.ClimateLayer(world)),
+        // AD-173: ruas e caminhos em uso, com superfície (trilha, terra batida) e quantas pessoas passam
+        VisualLayerId.Roads => LayerBuildResult.Available(
+            world.ActiveCities().OrderBy(c => c.Id.Value).SelectMany(c => LivingWorld.Simulation.Cities.CityStreets.RoadsOf(world, c)).ToList()),
+        VisualLayerId.Mountains or VisualLayerId.Borders
+            or VisualLayerId.Kingdoms => LayerBuildResult.NotYetModeled,
         _ => LayerBuildResult.OutOfScope(layerId, "global"),
     };
 }

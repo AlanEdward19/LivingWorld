@@ -5,16 +5,16 @@ porque o motor as deriva por composição de eixos já declarados. A LLM só pro
 entidade emergente existe, funciona e entra na conta **antes de ter nome** (ADR-0013).
 Nomear é etiquetar o que o motor já instanciou — nunca criar fato.
 
-> **Status: parcial.** Entregue: tecnologia de mobilidade por composição (plano `.specs/features/emergence-first-slice`, AD-110) e consumo por todo deslocamento (`.specs/features/mobility-all-travel`, #61 fatia A).
+> **Status: parcial.** Entregue: mobilidade por composição (AD-110), consumo por todo deslocamento (#61 fatia A) e invenção física sobre água (AD-141, `docs/domain/invention.md`).
 > Resto: #61. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
 1. **Especiação como aritmética**: distância genética acumulada (Fase 7) + isolamento
    reprodutivo + pressão ambiental (Fase 2) cruzam um limiar declarado no cenário e o motor
    instancia uma subespécie. Nenhuma raça em `enum`, mesma regra da Fase 3 para profissão.
-2. *(parcial: mobilidade entregue, AD-110)* **Tecnologia como composição**: nó novo = nós existentes + recursos disponíveis +
-   especialistas vivos + estabilidade da comunidade. Os pré-requisitos são **declarados** e
-   consultáveis por reflexão — é o registro que sustenta o critério de pré-requisito.
+2. *(parcial: mobilidade AD-110; transporte sobre água AD-141)* **Tecnologia como composição física** (ADR-0045):
+   partes e materiais compostos por um NPC e medidos pelo avaliador físico do motor. Nenhum pré-requisito é
+   declarado; a ordem das invenções emerge do que a física deixa funcionar.
 3. **Ideologia e religião**: mutação no vetor de valores culturais (`society.md`) + evento
    fundador + transmissão. Se pegar, vira doutrina consumível pela Fase 17.
 4. **Potência nova por combinação dos eixos de `powers.md`** (fonte, efeito, modo, custo
@@ -62,10 +62,10 @@ Nomear é etiquetar o que o motor já instanciou — nunca criar fato.
   tratamento = rota de migração cortada entre duas populações. A taxa de especiação do braço
   tratado é maior em ≥ 18/20 seeds. Direção, não magnitude; sem o braço base, deriva
   demográfica explicaria sozinha.
-- **Nenhuma tecnologia emerge sem pré-requisito**: enumerar por reflexão todo nó emergido no
-  run e exigir que **todos** os pré-requisitos declarados existissem no tick da emergência —
-  falha se algum nó ficar sem cobertura, e falha se algum pré-requisito declarado nunca for
-  exercido pelo cenário. Só a primeira metade passa com a emergência desligada.
+- **Nenhum pré-requisito tecnológico é declarado**: uma invenção só existe se o avaliador físico do
+  motor mostrar que a composição de partes e materiais cumpre a função, e o que vem antes emerge do que
+  a física deixa funcionar com os materiais e o saber presentes no mundo. Falha se algum design aceito
+  não passar no avaliador, ou se o código de domínio nomear um artefato.
 - **Emergência entrou na conta**: desligar o sistema por flag muda o hash canônico em 10 anos.
 
 ## Fora do escopo

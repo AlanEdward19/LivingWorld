@@ -54,6 +54,8 @@ public class PlayerIncarnationTests
         var after = NpcJson(npc);
         Assert.Equal("alan", after["ControllerId"]!.GetValue<string>());
         after.Remove("ControllerId");
+        Assert.NotNull(after["Will"]); // AD-197f: a posse comum começa a disputa de vontade da pessoa (estado real dela)
+        after.Remove("Will");
         Assert.Equal(before.ToJsonString(), after.ToJsonString());
     }
 
@@ -139,9 +141,12 @@ public class PlayerIncarnationTests
             world.CanonicalMemories.Concat(world.VolatileMemories),
             m => m.OwnerId == id && m.Participants.Contains(npc.Id) && m.Content.Contains("desapareceu", StringComparison.Ordinal)));
 
+        long startedBefore = npc.ActionStartedAtTick;
         clock.Run(world, world.Calendar.HoursPerYear); // um ano depois: o NPC não congelou
         Assert.Null(npc.ControllerId);
-        Assert.True(npc.HungerAt(world.CurrentDate.TotalHours) != 100 || !npc.IsAlive);
+        // AD-157b: antes olhava a fome diferente de 100; com a refeição de rotina ele pode ter acabado de comer nessa hora. Não
+        // congelar é seguir escolhendo ações: a última começou depois do logout (ou morreu pelas regras de sempre)
+        Assert.True(npc.ActionStartedAtTick > startedBefore || !npc.IsAlive);
     }
 
     [Fact]

@@ -29,6 +29,6 @@ public class GlobalProjectionEndpointTests
         var terrain = layers.GetProperty("Terrain");
         Assert.True(terrain.GetProperty("isModeled").GetBoolean());
         Assert.Equal(System.Text.Json.JsonValueKind.Array, terrain.GetProperty("payload").ValueKind);
-        Assert.False(layers.GetProperty("Roads").GetProperty("isModeled").GetBoolean());
+        Assert.True(layers.GetProperty("Roads").GetProperty("isModeled").GetBoolean()); // AD-173: ruas em uso modeladas
     }
 }

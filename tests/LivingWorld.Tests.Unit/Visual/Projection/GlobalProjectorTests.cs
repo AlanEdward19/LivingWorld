@@ -115,10 +115,8 @@ public class GlobalProjectorTests
 
     [Theory]
     [InlineData(VisualLayerId.Mountains)]
-    [InlineData(VisualLayerId.Roads)]
     [InlineData(VisualLayerId.Borders)]
     [InlineData(VisualLayerId.Kingdoms)]
-    [InlineData(VisualLayerId.Climate)]
     public void Build_returns_not_yet_modeled_for_layers_without_domain_data(VisualLayerId layerId)
     {
         var (world, _, _, _) = MakeWorldWithCity();
@@ -127,6 +125,32 @@ public class GlobalProjectorTests
 
         Assert.False(snapshot.Layers[layerId].IsModeled);
         Assert.Null(snapshot.Layers[layerId].Payload);
+    }
+
+    /// <summary>AD-173: a camada de ruas é modelada: cada célula de rua em uso, com superfície e quem passa por ela.</summary>
+    [Fact]
+    public void Build_models_the_roads_layer_with_the_streets_in_use()
+    {
+        // AD-176: rua é o chão que o uso pisou; no mundo recém-criado ainda não há trilha, então roda até a primeira revisão
+        var (world, clock) = LivingWorld.Simulation.Scenarios.ScenarioRunner.Create(seed: 1);
+        clock.Run(world, world.Calendar.HoursPerMonth * 4);
+
+        var layer = GlobalProjector.Build(world).Layers[VisualLayerId.Roads];
+
+        Assert.True(layer.IsModeled);
+        Assert.NotEmpty(Assert.IsAssignableFrom<IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView>>(layer.Payload));
+    }
+
+    /// <summary>AD-170: a camada de clima passa a ter estação e clima por região, do que o motor já guarda.</summary>
+    [Fact]
+    public void Build_models_the_climate_layer_with_season_and_one_line_per_region()
+    {
+        var (world, _, _, _) = MakeWorldWithCity();
+
+        var climate = GlobalProjector.Build(world).Layers[VisualLayerId.Climate];
+
+        var payload = Assert.IsType<LivingWorld.Api.Visual.Observable.ClimateLayerPayload>(climate.Payload);
+        Assert.Equal(world.Map.Regions.Count(r => r.Cells.Count > 0), payload.Regions.Count);
     }
 
     [Fact]

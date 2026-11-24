@@ -11,6 +11,18 @@ public sealed class AliveNpcIndex
     private readonly List<Npc> _alive;
     private readonly Dictionary<CellCoord, List<Npc>> _byCell = new();
 
+    // AD-197h: no passo fino, quem viaja está na célula da rota em que a pose de agora o põe (TravelPose), não na origem: percepção,
+    // testemunha e encontro (tudo que pergunta "quem está aqui?") o veem no caminho. Vazio de hora em hora: At é o de sempre.
+    private readonly Dictionary<long, CellCoord> _pose = new();
+    private readonly Dictionary<CellCoord, List<Npc>> _byPose = new();
+    private readonly Dictionary<long, Npc> _posed = new(); // AD-197l: quem tem pose, para soltar sem varrer os vivos
+    private readonly List<Npc> _unpose = [];
+
+    // AD-197l: os viajantes em ordem de id, mantidos pelo aviso do NPC só enquanto o passo fino precisa deles (de hora em hora o aviso
+    // fica desligado e nada é mantido)
+    private readonly SortedDictionary<long, Npc> _travellers = new();
+    private bool _tracking;
+
     private AliveNpcIndex(List<Npc> alive)
     {
         _alive = alive;
@@ -20,6 +32,10 @@ public sealed class AliveNpcIndex
 
     public IReadOnlyList<Npc> Alive => _alive;
 
+    /// <summary>Muda a cada entrada ou saída de vivo: chave dos caches derivados dos vivos (AD-156, portadores vivos).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long Version { get; private set; }
+
     /// <summary>Vivos com saúde ≤ <see cref="EndangeredHealth"/> (perigo observável). Mantido por
     /// <see cref="Npc.HealthObserver"/>: zero na imensa maioria dos ticks, e então nenhuma varredura de
     /// vizinhança pode encontrar ameaça.</summary>
@@ -28,9 +44,105 @@ public sealed class AliveNpcIndex
 
     public const int EndangeredHealth = 1;
 
-    /// <summary>NPCs vivos na célula (ordem do bucket não especificada). Vazio se nenhum.</summary>
-    public IReadOnlyList<Npc> At(CellCoord cell) =>
-        _byCell.TryGetValue(cell, out var bucket) ? bucket : Array.Empty<Npc>();
+    /// <summary>NPCs vivos na célula (ordem do bucket não especificada). Vazio se nenhum. AD-197h: com poses de viagem no passo fino,
+    /// quem viaja conta na célula da pose, não na da origem.</summary>
+    public IReadOnlyList<Npc> At(CellCoord cell)
+    {
+        var bucket = _byCell.TryGetValue(cell, out var found) ? found : (IReadOnlyList<Npc>)Array.Empty<Npc>();
+        if (_pose.Count == 0) return bucket;
+        bool moved = false;
+        for (int i = 0; i < bucket.Count && !moved; i++) moved = _pose.ContainsKey(bucket[i].Id.Value);
+        bool arriving = _byPose.TryGetValue(cell, out var passing);
+        if (!moved && !arriving) return bucket;
+        var merged = new List<Npc>(bucket.Count + (passing?.Count ?? 0));
+        foreach (var npc in bucket)
+            if (!_pose.ContainsKey(npc.Id.Value)) merged.Add(npc);
+        if (passing is not null) merged.AddRange(passing);
+        return merged;
+    }
+
+    /// <summary>Há alguma pose de viagem em vigor. Fora do JSON: o hash volátil do índice fica o de antes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasPoses => _pose.Count > 0;
+
+    /// <summary>A célula da pose de viagem do NPC, se houver (no passo fino, longe da origem).</summary>
+    public CellCoord? PoseOf(Npc npc) => _pose.TryGetValue(npc.Id.Value, out var cell) ? cell : null;
+
+    /// <summary>Põe (ou tira, com nulo ou a própria célula do NPC) a pose de viagem.</summary>
+    public void SetPose(Npc npc, CellCoord? cell)
+    {
+        long id = npc.Id.Value;
+        bool had = _pose.TryGetValue(id, out var old);
+        if (cell is not { } at || at == npc.CurrentLocation)
+        {
+            if (!had) return;
+            _pose.Remove(id);
+            _posed.Remove(id);
+            RemoveFrom(_byPose, npc, old);
+            return;
+        }
+        if (had && old == at) return;
+        if (had) RemoveFrom(_byPose, npc, old);
+        _pose[id] = at;
+        _posed[id] = npc;
+        AddTo(_byPose, npc, at);
+    }
+
+    public void ClearPoses()
+    {
+        _pose.Clear();
+        _posed.Clear();
+        _byPose.Clear();
+    }
+
+    /// <summary>AD-197l: quem viaja agora, em ordem de id. Liga o acompanhamento na primeira vez (uma varredura dos vivos); depois o
+    /// NPC avisa ao começar ou deixar de viajar.</summary>
+    public IReadOnlyCollection<Npc> Travellers()
+    {
+        {
+            if (!_tracking)
+            {
+                _tracking = true;
+                _travellers.Clear();
+                foreach (var npc in _alive)
+                {
+                    npc.TravelObserver = OnTravelChanged;
+                    if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel) _travellers[npc.Id.Value] = npc;
+                }
+            }
+            return _travellers.Values;
+        }
+    }
+
+    /// <summary>Os viajantes estão sendo acompanhados (passo fino).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool TrackingTravellers => _tracking;
+
+    /// <summary>Desliga o acompanhamento dos viajantes (de volta de hora em hora).</summary>
+    public void StopTrackingTravellers()
+    {
+        if (!_tracking) return;
+        _tracking = false;
+        _travellers.Clear();
+        foreach (var npc in _alive) npc.TravelObserver = null;
+    }
+
+    private void OnTravelChanged(Npc npc)
+    {
+        if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel && npc.IsAlive) _travellers[npc.Id.Value] = npc;
+        else _travellers.Remove(npc.Id.Value);
+    }
+
+    /// <summary>AD-197l: solta a pose de quem já não viaja com perna (chegou, mudou de ação), olhando só quem tem pose.</summary>
+    public void PrunePoses()
+    {
+        if (_posed.Count == 0) return;
+        _unpose.Clear();
+        foreach (var npc in _posed.Values)
+            if (!npc.IsAlive || npc.CurrentAction != LivingWorld.Domain.Behavior.ActionType.Travel || npc.TravelLegTo is null)
+                _unpose.Add(npc);
+        foreach (var npc in _unpose) SetPose(npc, null);
+    }
 
     public static AliveNpcIndex RebuildFrom(WorldState world)
     {
@@ -46,6 +158,7 @@ public sealed class AliveNpcIndex
         {
             _alive.Insert(~i, npc);
             Track(npc);
+            Version++;
         }
     }
 
@@ -57,6 +170,7 @@ public sealed class AliveNpcIndex
             {
                 _alive.RemoveAt(i);
                 Untrack(npc);
+                Version++;
                 return;
             }
         }
@@ -66,14 +180,22 @@ public sealed class AliveNpcIndex
     {
         AddToBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = OnMoved;
+        if (_tracking)
+        {
+            npc.TravelObserver = OnTravelChanged;
+            if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel) _travellers[npc.Id.Value] = npc;
+        }
         npc.HealthObserver = OnHealthChanged;
         if (npc.Health <= EndangeredHealth) EndangeredCount++;
     }
 
     private void Untrack(Npc npc)
     {
+        SetPose(npc, null);
         RemoveFromBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = null;
+        npc.TravelObserver = null;
+        _travellers.Remove(npc.Id.Value);
         npc.HealthObserver = null;
         if (npc.Health <= EndangeredHealth) EndangeredCount--;
     }
@@ -87,20 +209,29 @@ public sealed class AliveNpcIndex
 
     private void OnMoved(Npc npc, CellCoord previous)
     {
+        if (_pose.Count > 0 && _pose.Remove(npc.Id.Value, out var posed)) // chegou: a pose acaba
+        {
+            _posed.Remove(npc.Id.Value);
+            RemoveFrom(_byPose, npc, posed);
+        }
         RemoveFromBucket(npc, previous);
         AddToBucket(npc, npc.CurrentLocation);
     }
 
-    private void AddToBucket(Npc npc, CellCoord cell)
+    private void AddToBucket(Npc npc, CellCoord cell) => AddTo(_byCell, npc, cell);
+
+    private void RemoveFromBucket(Npc npc, CellCoord cell) => RemoveFrom(_byCell, npc, cell);
+
+    private static void AddTo(Dictionary<CellCoord, List<Npc>> index, Npc npc, CellCoord cell)
     {
-        if (!_byCell.TryGetValue(cell, out var bucket))
-            _byCell[cell] = bucket = new List<Npc>(2);
+        if (!index.TryGetValue(cell, out var bucket))
+            index[cell] = bucket = new List<Npc>(2);
         bucket.Add(npc);
     }
 
-    private void RemoveFromBucket(Npc npc, CellCoord cell)
+    private static void RemoveFrom(Dictionary<CellCoord, List<Npc>> index, Npc npc, CellCoord cell)
     {
-        if (!_byCell.TryGetValue(cell, out var bucket)) return;
+        if (!index.TryGetValue(cell, out var bucket)) return;
         int i = bucket.IndexOf(npc);
         if (i < 0) return;
         // A ordem do balde não é especificada: trocar pelo último evita deslocar centenas de referências
@@ -109,6 +240,6 @@ public sealed class AliveNpcIndex
         bucket[i] = bucket[last];
         bucket.RemoveAt(last);
         if (bucket.Count == 0)
-            _byCell.Remove(cell);
+            index.Remove(cell);
     }
 }

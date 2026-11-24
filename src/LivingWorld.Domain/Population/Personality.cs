@@ -3,8 +3,9 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Domain.Population;
 
 /// <summary>Personalidade do NPC: os 10 traços de <c>docs/domain/npc.md</c>,
-/// cada um em <c>[0,100]</c>. Sistemas ordinários não a alteram após o nascimento; a única
-/// exceção é uma intervenção explícita de autoria que substitui o conjunto validado inteiro.
+/// cada um em <c>[0,100]</c>. Herdada no nascimento; uma vez na vida, ao fim da infância, recebe o ambiente
+/// compartilhado de quem criou a criança (<c>RearingRules</c>, AD-132). Fora disso só uma intervenção explícita de
+/// autoria substitui o conjunto validado inteiro.
 /// Modula profissão, relações e decisão momento a momento sempre como peso, nunca como trava.</summary>
 public sealed record Personality(
     int Extroversion,

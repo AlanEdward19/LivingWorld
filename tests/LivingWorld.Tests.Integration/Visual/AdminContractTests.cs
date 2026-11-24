@@ -22,7 +22,7 @@ public class AdminContractTests
         client.DefaultRequestHeaders.Add(AdminEndpoints.TokenHeader, Token);
         client.DefaultRequestHeaders.Add(AdminEndpoints.ActorHeader, "contrato");
 
-        var pause = await client.PostAsJsonAsync("/admin/world/pause", new { reason = "contrato", maxTicks = 48 });
+        var pause = await client.PostAsJsonAsync("/admin/world/pause", new { reason = "contrato", maxMs = 48 * 3_600_000L });
         Assert.Equal(HttpStatusCode.OK, pause.StatusCode);
         AssertState("shape.admin-pause.json", JsonNode.Parse(await pause.Content.ReadAsStringAsync()));
 
@@ -31,11 +31,15 @@ public class AdminContractTests
         // Retomado, ator, motivo, teto e tick da pausa vêm nulos: o mesmo contrato os aceita.
         AssertState("shape.admin-pause.json", JsonNode.Parse(await resume.Content.ReadAsStringAsync()));
 
-        var search = await client.GetAsync("/admin/search?q=npc&kind=name");
+        // AD-178: ninguém mais se chama "npc-…"; busca pelo nome de família de quem aparece primeiro no diretório
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        string firstName = directory["items"]![0]!["name"]!.GetValue<string>();
+        string family = firstName[(firstName.LastIndexOf(' ') + 1)..];
+        var search = await client.GetAsync($"/admin/search?q={Uri.EscapeDataString(family)}&kind=name");
         Assert.Equal(HttpStatusCode.OK, search.StatusCode);
         ApiContractTests.AssertMatchesContract("shape.admin-search.json", ApiContractTests.ShapeOf(JsonNode.Parse(await search.Content.ReadAsStringAsync())));
 
-        var audit = await client.GetAsync("/admin/audit?fromTick=0");
+        var audit = await client.GetAsync("/admin/audit?fromMs=0");
         Assert.Equal(HttpStatusCode.OK, audit.StatusCode);
         ApiContractTests.AssertMatchesContract("shape.admin-audit.json", ApiContractTests.ShapeOf(JsonNode.Parse(await audit.Content.ReadAsStringAsync())));
     }
@@ -46,8 +50,8 @@ public class AdminContractTests
         var shape = ApiContractTests.ShapeOf(body)!;
         ApiContractTests.Optional(shape, "actor", "string");
         ApiContractTests.Optional(shape, "reason", "string");
-        ApiContractTests.Optional(shape, "maxTicks", "number");
-        ApiContractTests.Optional(shape, "pausedAtTick", "number");
+        ApiContractTests.Optional(shape, "maxMs", "number");
+        ApiContractTests.Optional(shape, "pausedAtMs", "number");
         ApiContractTests.AssertMatchesContract(file, shape);
     }
 }

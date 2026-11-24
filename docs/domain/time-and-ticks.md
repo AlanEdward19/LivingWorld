@@ -9,21 +9,25 @@ O mundo tem um `WorldDate` — ano, mês, dia e hora **do cenário**. O relógio
 nunca é fonte da verdade: ele só decide *quando* o próximo tick acontece em tempo real,
 nunca *que horas são* no mundo.
 
+O tempo é guardado em **milissegundos inteiros** e cada tick avança Δ ms (ADR-0050): Δ = 1 hora sem jogador; os
+sistemas rodam ao cruzar a fronteira do calendário. Regras, save, contrato v2 e o que ainda é hora:
+[time-in-milliseconds.md](time-in-milliseconds.md).
+
 O calendário é dado do cenário (quantos meses no ano, dias no mês, horas no dia). Um
 cenário pode ter 12 meses de 30 dias; outro, 8 meses de 40. Nada no motor assume o
 calendário gregoriano.
 
 ## Escala de ticks
 
-Cada escala é uma frequência de execução; um tick maior acontece "por cima" dos menores.
+Cada escala é uma frequência de execução, que roda no tick que chega à fronteira; um tick maior acontece "por cima" dos menores.
 
 | Escala | Passo | O que roda aqui |
 |---|---|---|
 | Hourly | 1 hora | Deslocamento, trabalho, sono, alimentação, eventos imediatos |
 | Daily | 1 dia (hora 0) | Necessidades, consumo, relações, saúde |
 | Midshift | 1 dia (hora `HoursPerDay*10/24`, meio do turno) | Produção, colheita, prática/ensino de habilidade, endurecimento por trabalho, obra — sistemas que dependem de **quem está trabalhando agora**; à meia-noite ninguém está no posto |
-| Monthly | 1 mês | Salários, preços, migração, empregos, gravidez, comércio, criminalidade |
-| Yearly | 1 ano | Envelhecimento, nascimento, morte, educação, evolução de atributos, política, tecnologia |
+| Monthly | 1 mês | Salários, preços, migração, empregos, concepção e risco de morte (AD-130), comércio, criminalidade |
+| Yearly | 1 ano | Educação, evolução de atributos, política, tecnologia |
 | Historic | décadas/séculos | Só agregado: dinastias, ascensão e queda, deslocamentos de povos |
 
 **Nem todo sistema roda em todo tick.** Cada sistema se registra na frequência mais barata
@@ -40,7 +44,7 @@ gravidez inicia  -> agenda NascimentoEvent(alvo = WorldDate + ~9 meses)
 tick(WorldDate)  -> processa fila[WorldDate]
 ```
 
-Isso troca **O(população) por O(eventos)**. Vale para parto, colheita, morte agendada,
+Isso troca **O(população) por O(eventos)**. Vale para parto, colheita, a morte já sorteada no mês,
 chegada de caravana, fim de contrato. A fila é indexada por tick alvo; ticks vazios custam
 zero.
 
@@ -69,3 +73,4 @@ Sem isso, snapshot, replay e reprodução de bug deixam de funcionar.
 - [economy.md](economy.md) — quais sistemas econômicos rodam em cada escala
 - [history.md](history.md) — como eventos processados viram linha do tempo
 - [behavior.md](behavior.md) — decisão de NPC dentro do tick Hourly/Daily
+- [time-in-milliseconds.md](time-in-milliseconds.md) — milissegundos, Δ variável, contrato v2 (ADR-0050)

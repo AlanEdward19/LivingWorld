@@ -18,15 +18,20 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// cada sistema que mata NPC.</summary>
 public static class NpcDeath
 {
-    public static void Apply(WorldState world, TickContext ctx, Npc npc, WorldEventKind kind)
+    /// <param name="cause">Nome da causa no payload (<c>npcId|nome</c>) quando o kind não a diz (AD-164: a sobra da tábua e o
+    /// combate saem como <c>Death</c>); vazio, o payload é só o id.</param>
+    public static void Apply(WorldState world, TickContext ctx, Npc npc, WorldEventKind kind, string cause = "")
     {
         NpcInstantiationMechanic.OnCarrierDeath(world, ctx, npc);
         npc.Die(world.CurrentDate);
         EstateSystem.Settle(world, ctx, npc);
         SoulMechanic.OnCarrierDeath(world, npc);
         world.AliveNpcIndex.OnDied(npc);
-        ctx.LogEvent(kind, npc.Id.Value.ToString(), sourceSystem: "NpcDeath");
+        string id = npc.Id.Value.ToString();
+        ctx.LogEvent(kind, cause.Length == 0 ? id : id + "|" + cause, sourceSystem: "NpcDeath");
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
+        LivingWorld.Simulation.Health.Lactation.OnDeath(world, npc, ctx.CurrentTick);
+        world.ForgetHealthOf(npc.Id); // infecção e imunidade do morto saem dos livros (AD-137)
 
         if (npc.Household is not { } householdId) return;
 

@@ -208,7 +208,13 @@ public class PairedScenarioTests
         // do pai correlaciona com a do filho? gene do pai correlaciona com o do filho?) sem
         // depender da sobrevivência de uma população inteira. Toda aleatoriedade via <see
         // cref="WorldRng"/> (stream próprio, mesmo padrão do resto do projeto).
-        var rules = ScenarioRunner.DefaultSkillsRules;
+        // AD-132: a vila padrão não tem escola (taxa 0) e a aptidão depende da idade, que aqui não avança (Tick direto); o
+        // teste mede herança genética de habilidade, então usa uma escola explícita e as regras sem idade.
+        var rules = ScenarioRunner.DefaultSkillsRules with
+        {
+            BaseRateBySource = new Dictionary<SkillGainSource, double>(ScenarioRunner.DefaultSkillsRules.BaseRateBySource) { [SkillGainSource.School] = 0.2 },
+            Learning = SkillLearningRules.Ageless,
+        };
         var teaching = new SkillTeachingSystem(rules, ScenarioRunner.DefaultLifeStageRules);
         var rngWorld = SkillScenarioHarness.CreateWorld(seed: 7); // só hospeda o stream de RNG do harness
         var rng = rngWorld.Rng.Stream("t17-birth-harness");

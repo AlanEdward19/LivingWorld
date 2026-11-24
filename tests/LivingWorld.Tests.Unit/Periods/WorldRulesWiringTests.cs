@@ -62,15 +62,15 @@ public class WorldRulesWiringTests
     }
 
     [Fact]
-    public void Absent_blocks_leave_the_rules_disabled()
+    public void Absent_blocks_leave_disease_and_climate_disabled_and_theft_on_by_default()
     {
         var world = Load(Default());
         Assert.False(world.DiseaseRules.Enabled);
         Assert.False(world.ClimateRules.Enabled);
-        Assert.False(world.TheftRules.Enabled);
+        Assert.True(world.TheftRules.Enabled); // AD-150: o furto existe sem o cenário declarar
         Assert.Equal(DiseaseRules.Disabled, world.DiseaseRules);
         Assert.Equal(ClimateRules.Disabled, world.ClimateRules);
-        Assert.Equal(TheftRules.Disabled, world.TheftRules);
+        Assert.Equal(TheftRules.Default, world.TheftRules);
     }
 
     [Fact]
@@ -87,16 +87,51 @@ public class WorldRulesWiringTests
         Assert.Equal(20, world.DiseaseRules.OutbreakPopulationThreshold);
         Assert.Equal(0.02, world.DiseaseRules.OutbreakDailyChance);
         Assert.Equal(new DiseaseProfile(3, 0.08, 0.15, 6, 180), Assert.Single(world.DiseaseRules.Diseases));
-        Assert.Equal(new ClimateRules(true, 300, 1500), world.ClimateRules);
+        // AD-180: o clima ligado traz o tempo diário padrão (o sub-bloco Weather é opcional)
+        Assert.Equal(new ClimateRules(true, 300, 1500, Weather: WeatherRules.Default), world.ClimateRules);
         Assert.True(world.TheftRules.Enabled);
         Assert.Equal(90, world.TheftRules.DesperateBelow);
         Assert.Equal(0.7, world.TheftRules.BaseSuccess);
         Assert.Equal(4, world.TheftRules.GuardProfessionId);
         Assert.Equal(0.3, world.TheftRules.GuardEffect);
-        Assert.Equal(TheftRules.Disabled.DiscoveryChance, world.TheftRules.DiscoveryChance); // campo ausente usa o padrão
+        Assert.Equal(TheftRules.Default.DiscoveryChance, world.TheftRules.DiscoveryChance); // campo ausente usa o padrão
+    }
+
+    [Fact]
+    public void Climate_weather_block_sets_the_place_and_can_turn_the_daily_weather_off()
+    {
+        var root = Default();
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":300,"MaxMilli":1500,"Weather":{"LatitudeDeg":-33.9}}""");
+        Assert.Equal(-33.9, Load(root).ClimateRules.Weather!.LatitudeDeg);
+
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":300,"MaxMilli":1500,"Weather":{"Enabled":false}}""");
+        Assert.False(Load(root).ClimateRules.WeatherOn());
+    }
+
+    /// <summary>AD-190: o ano de safra do cenário JSON lê média, desvio, persistência e parte comum (antes só a faixa, lida como
+    /// uniforme), e os mundos do menu declaram os da vila de código.</summary>
+    [Fact]
+    public void Climate_block_reads_the_crop_year_distribution_and_the_menu_uses_the_code_village_one()
+    {
+        var root = Default();
+        root["Climate"] = JsonNode.Parse("""{"Enabled":true,"MinMilli":250,"MaxMilli":1500,"MeanMilli":1000,"StdDevMilli":200,"Persistence":0.3,"SharedShare":0.7}""");
+        var rules = Load(root).ClimateRules;
+        Assert.Equal((1000, 200, 0.3, 0.7), (rules.MeanMilli, rules.StdDevMilli, rules.Persistence, rules.SharedShare));
+
+        var d = ClimateRules.Default;
+        foreach (var period in LivingWorld.Api.Periods.DefaultPeriodSeeder.PresetIds)
+        {
+            var menu = ScenarioLoaderV2.LoadWorld(LivingWorld.Api.Periods.DefaultPeriodSeeder.PayloadFor(period)).Value.World.ClimateRules;
+            Assert.Equal((d.MinMilli, d.MaxMilli, d.MeanMilli, d.StdDevMilli, d.Persistence, d.SharedShare),
+                (menu.MinMilli, menu.MaxMilli, menu.MeanMilli, menu.StdDevMilli, menu.Persistence, menu.SharedShare));
+        }
     }
 
     [Theory]
+    [InlineData("Climate", """{"Enabled":true,"StdDevMilli":-1}""", "StdDevMilli")]
+    [InlineData("Climate", """{"Enabled":true,"Persistence":1.0}""", "Persistence")]
+    [InlineData("Climate", """{"Enabled":true,"Weather":{"MeanTempC":[1,2,3]}}""", "MeanTempC")]
+    [InlineData("Climate", """{"Enabled":true,"Weather":{"LatitudeDeg":120}}""", "LatitudeDeg")]
     [InlineData("Disease", """{"Diseases":[]}""", "Disease.Enabled")]
     [InlineData("Disease", """{"Enabled":true,"Diseases":[]}""", "ao menos uma doença")]
     [InlineData("Disease", """{"Enabled":false,"OutbreakDailyChance":2}""", "OutbreakDailyChance")]
@@ -130,7 +165,7 @@ public class WorldRulesWiringTests
         var off = Default();
         off["Disease"] = JsonNode.Parse("""{"Enabled":false}""");
         off["Climate"] = JsonNode.Parse("""{"Enabled":false}""");
-        off["Theft"] = JsonNode.Parse("""{"Enabled":false}""");
+        off["Theft"] = JsonNode.Parse("""{"Enabled":true}"""); // AD-150: sem bloco, o furto é o padrão (ligado)
         var (a, clockA) = ScenarioLoaderV2.LoadWorld(plain.ToJsonString()).Value;
         var (b, clockB) = ScenarioLoaderV2.LoadWorld(off.ToJsonString()).Value;
         clockA.Run(a, 24 * 30);

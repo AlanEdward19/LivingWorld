@@ -113,7 +113,8 @@ public class EatAndBuyBehaviorTests
 
         new BehaviorDecisionSystem().Tick(world, ctx);
 
-        Assert.Equal(10, household.Stock.GetValueOrDefault(new ResourceType(1)));
+        // comprou 10 por 50; a fome do residente já é crítica, então come uma na volta da compra (AD-146)
+        Assert.Equal(9, household.Stock.GetValueOrDefault(new ResourceType(1)));
         Assert.Equal(new Money(50), npc.Wallet);
     }
 

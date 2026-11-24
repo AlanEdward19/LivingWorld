@@ -1,0 +1,121 @@
+using System.Globalization;
+using System.Text;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Invention;
+
+namespace LivingWorld.Simulation.Observation;
+
+/// <summary>Medida que aguenta o ruído (AD-157, backlog 08b item 86): em vez das mortes de fome (raras, e que divergem com a
+/// trajetória), horas-pessoa com fome ou sede crítica (déficit acima de 80) por pessoa-ano, separadas em longe de casa e em casa,
+/// e as de quem fica em casa (criança abaixo de 12 e velho de 65 ou mais). Amostra de hora em hora; só lê o mundo.</summary>
+public sealed class NeedDistressTally(WorldState world) : IWorldEventSink
+{
+    public const int Critical = 80;
+    public long MeasureFromTick { get; init; }
+    public double PersonHours, AdultHours, AdultWorkHours;
+    public long HungerCrit, ThirstCrit, HungerCritAway, ThirstCritAway, DependentHours, DependentCritAtHome;
+    public long Starved, Dehydrated, HomeNoFood, CarryingFood, CarryingFoodAtHome;
+    /// <summary>Fome crítica por o que a pessoa fazia (para achar a causa): viajando para comer, outra viagem, trabalhando, comendo,
+    /// dormindo, o resto; e as horas com fome urgente (déficit acima da urgência), mais sensíveis.</summary>
+    private readonly Dictionary<long, (ActionType Act, ActionType? Purpose, bool Away)> _last = [];
+    public Dictionary<string, long> EatingFrom { get; } = [];
+    public long HungerTravelToEat, HungerTravel, HungerWork, HungerEating, HungerSleeping, HungerOther, HungerUrgent, HungerEatingAway, HungerSleepingAway, HungerEatingEmpty, HungerEatingLong, HungerEatingNoMeal;
+    public int HoursPerDay => world.Calendar.HoursPerDay;
+    public InventionTally Invention => world.InventionTally;
+    public PurchaseTally Purchases => world.PurchaseTally;
+
+    /// <summary>AD-168: furtos (todos, levou ou falhou) e os do espólio no chão, desde o início da medida.</summary>
+    public long Thefts, GroundThefts;
+
+    /// <summary>AD-186: horas de adulto (16+) com solidão de 0,5 ou mais (crônica), e horas de criança numa casa sem adulto nem idoso.</summary>
+    public long LonelyHours, ChildNoAdultHours;
+
+    public void Record(WorldEvent evt)
+    {
+        if (evt.Tick >= MeasureFromTick && evt.Kind == WorldEventKind.TheftCommitted)
+        {
+            Thefts++;
+            if (evt.Payload is { } p && p.Contains("|espolio|", StringComparison.Ordinal)) GroundThefts++;
+            return;
+        }
+        if (evt.Tick < MeasureFromTick || evt.SourceSystem != YearEventTally.DeathSource) return;
+        if (evt.Kind == WorldEventKind.Starvation) Starved++;
+        else if (evt.Kind == WorldEventKind.Dehydration) Dehydrated++;
+    }
+
+    public void SampleHour()
+    {
+        long now = world.CurrentDate.TotalHours;
+        if (now < MeasureFromTick) return;
+        foreach (var npc in world.AliveNpcIndex.Alive)
+        {
+            PersonHours++;
+            int age = npc.AgeYears(world.CurrentDate);
+            if (age is >= 16 and <= 64)
+            {
+                AdultHours++;
+                if (npc.CurrentAction == ActionType.Work) AdultWorkHours++;
+            }
+            if (age >= 16 && npc.Psyche is not null
+                && LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, now).Loneliness >= 0.5) LonelyHours++;
+            if (world.LifeStageRules.LifeStageOf(age) == LivingWorld.Domain.Population.Body.LifeStage.Child && npc.Household is { } ch
+                && world.FindHousehold(ch) is { } chHome
+                && !LivingWorld.Simulation.Population.Family.HouseholdRedistribution.HasLivingAdultOrElder(world, chHome, world.LifeStageRules, world.CurrentDate))
+                ChildNoAdultHours++;
+            int hungerDeficit = 100 - npc.HungerAt(now);
+            var homeOf = npc.Household is { } hh ? world.FindHousehold(hh) : null;
+            bool away = homeOf is not null && !homeOf.IsHomeless && npc.CurrentLocation != homeOf.Location;
+            bool hungry = hungerDeficit > Critical, thirsty = 100 - npc.ThirstAt(now) > Critical;
+            if (hungerDeficit > world.NeedsRules.UrgencyThreshold) HungerUrgent++;
+            if (hungry)
+            {
+                var act = npc.CurrentAction;
+                if (act == ActionType.Travel && npc.TravelPurpose == ActionType.Eat) HungerTravelToEat++;
+                else if (act == ActionType.Travel) HungerTravel++;
+                else if (act == ActionType.Work) HungerWork++;
+                else if (act == ActionType.Eat)
+                {
+                    HungerEating++;
+                    if (away) HungerEatingAway++;
+                    else if (homeOf is not null && homeOf.Stock.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.FoodResourceId)) == 0) HungerEatingEmpty++;
+                    if (!away && now - npc.ActionStartedAtTick > 2) HungerEatingLong++;
+                    if (!away && _last.TryGetValue(npc.Id.Value, out var prev) && prev.Act != ActionType.Eat)
+                    {
+                        string k = prev.Act + (prev.Purpose is { } pp ? "-" + pp : "") + (prev.Away ? "-longe" : "");
+                        EatingFrom[k] = EatingFrom.GetValueOrDefault(k) + 1;
+                    }
+                    if (!away && homeOf is not null && LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, homeOf).Id <= 0) HungerEatingNoMeal++;
+                }
+                else if (act == ActionType.Sleep) { HungerSleeping++; if (away) HungerSleepingAway++; }
+                else HungerOther++;
+            }
+            var home = npc.Household is { } h ? world.FindHousehold(h) : null;
+            bool atHome = home is null || home.IsHomeless || npc.CurrentLocation == home.Location;
+            bool dependent = age < 12 || age >= 65;
+            if (dependent && atHome) DependentHours++;
+            if (atHome && home is not null && home.Stock.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.FoodResourceId)) == 0) HomeNoFood++;
+            if (world.Invention is { } inv && inv.CarriedQuantity(npc.Id.Value, world.EconomyRules.FoodResourceId) > 0) { CarryingFood++; if (atHome) CarryingFoodAtHome++; }
+            _last[npc.Id.Value] = (npc.CurrentAction ?? ActionType.Idle, npc.TravelPurpose, away);
+            if (!hungry && !thirsty) continue;
+            if (hungry) { HungerCrit++; if (!atHome) HungerCritAway++; }
+            if (thirsty) { ThirstCrit++; if (!atHome) ThirstCritAway++; }
+            if (dependent && atHome) DependentCritAtHome++;
+        }
+    }
+
+    /// <summary>Uma linha por seed (para parear a mesma seed em duas rodadas) e a soma; taxas em horas por pessoa-ano.</summary>
+    public static string Summarize(IReadOnlyList<(ulong Seed, NeedDistressTally Tally)> runs, long hoursPerYear)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var sb = new StringBuilder();
+        foreach (var (seed, t) in runs)
+        {
+            double py = Math.Max(1e-9, t.PersonHours / hoursPerYear), depPy = Math.Max(1e-9, t.DependentHours / (double)hoursPerYear);
+            var i = t.Invention;
+            sb.AppendLine(inv, $"aflicao seed={seed} pa={py:F0} fome_crit={t.HungerCrit / py:F2} sede_crit={t.ThirstCrit / py:F2} fome_crit_longe={t.HungerCritAway / py:F2} sede_crit_longe={t.ThirstCritAway / py:F2} dep_casa_crit={t.DependentCritAtHome / depPy:F2} trab_h_dia={t.AdultWorkHours * t.HoursPerDay / Math.Max(1, t.AdultHours):F3} mortes_fome={t.Starved} mortes_sede={t.Dehydrated} fome_longe={i.StarvedAway} sede_longe={i.DehydratedAway} comeu_carga={i.PackEaten} bebeu_carga={i.PackDrunk} volta_comer={i.HomeForMeal} longe_sem_nada={i.CriticalAwayFromPack} racao_longe={t.Purchases.FoodRationsAway} volta_comer_pa={i.HomeForMeal / py:F2} casa_sem_comida={t.HomeNoFood / py:F2} levando_comida={t.CarryingFood / py:F2} levando_em_casa={t.CarryingFoodAtHome / py:F2} fome_urg={t.HungerUrgent / py:F2} fc_ida_comer={t.HungerTravelToEat / py:F2} fc_viagem={t.HungerTravel / py:F2} fc_trab={t.HungerWork / py:F2} fc_comendo={t.HungerEating / py:F2} fc_dormindo={t.HungerSleeping / py:F2} fc_outro={t.HungerOther / py:F2} fc_comendo_longe={t.HungerEatingAway / py:F2} fc_comendo_casa_vazia={t.HungerEatingEmpty / py:F2} fc_dormindo_longe={t.HungerSleepingAway / py:F2} fc_comendo_longo={t.HungerEatingLong / py:F2} fc_comendo_sem_refeicao={t.HungerEatingNoMeal / py:F2} comeu_antes={i.AteBeforeLeaving} bebeu_antes={i.DrankBeforeLeaving} ceia={i.SupperBeforeSleep} copo_noite={i.DrankBeforeSleep} refeicao_casa={i.MealTimeAtHome} pausa_trab={i.WorkBreakMeals} comendo_vindo_de={string.Join(",", t.EatingFrom.OrderByDescending(kv => kv.Value).Take(6).Select(kv => kv.Key + ":" + kv.Value))} volta_do_trab={i.HomeForMealFromWork} volta_de_local={i.HomeForMealFromOtherPlace} volta_com_sede={i.HomeForMealThirsty} volta_de_casa_alheia={i.HomeForMealFromOtherHome} volta_conversa={i.HomeForMealSocial} volta_ocio={i.HomeForMealIdle} volta_viajando={i.HomeForMealTravel} furtos={t.Thefts} furtos_espolio={t.GroundThefts} esp_deixados={i.LeavingsLeft} esp_em_casa={i.LeavingsAtHome} esp_idas={i.LeavingsFetches} esp_recolhidos={i.LeavingsCollected} esp_achados={i.LeavingsFound} esp_furtados={i.LeavingsStolen} esp_unid={i.LeftUnits} esp_unid_recolhidas={i.CollectedUnits} esp_unid_furtadas={i.StolenUnits} esp_unid_estragadas={i.SpoiledUnits} nasc1_adiados_mil={t.Purchases.FirstBirthHeldBackMilli} rec_compra={i.MarketCarrierHeld} volta_resto={i.ReturnsForLeft} volta_resto_dispensada={i.ReturnsForLeftSkipped} esp_agua_perdida={i.GroundWaterLost} saidas_lanche={i.PackTrips} saidas_com_peca={i.PackTripsWithCarrier} saidas_com_tira={i.PackTripsWorn} compra_repartida={t.Purchases.FoodDearthCapped} conversa_so={i.SocializedAlone} so_fora={i.AloneAway} so_sem_falta={i.AloneContent} so_sem_solidao={i.AloneNotLonely} so_sem_destino={i.AloneNowhere} conversa_com={i.SocializedWithCompany} saida_companhia={i.CompanyTrips} solidao_h={t.LonelyHours / py:F2} crianca_sem_adulto_h={t.ChildNoAdultHours / py:F2} agua_idas={i.WaterTripsHome} agua_unid={i.WaterUnitsHome} agua_sede={i.WaterTripsByThirst} agua_empregado={i.WaterTripsByEmployed} agua_socorro={i.WaterAidGiven}");
+        }
+        return sb.ToString();
+    }
+}

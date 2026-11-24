@@ -91,6 +91,7 @@ pode reportar "3 portadores conhecidos" sem que nenhum tenha nome.
 ## Ver também
 - [npc.md](npc.md) — atributos e habilidades que a capacidade consulta
 - [society.md](society.md) — cultura decidindo a reação ao extraordinário
+- [powers-genetics.md](powers-genetics.md) — como o poder passa de pais a filhos (genótipo, Mendel, penetrância, custo)
 - [genetics-and-family.md](genetics-and-family.md) — predisposição, nunca habilidade pronta
 - [divinity-and-belief.md](divinity-and-belief.md) — potência acoplada a crença
 - [simulation-lod.md](simulation-lod.md) — quando um portador vira NPC detalhado

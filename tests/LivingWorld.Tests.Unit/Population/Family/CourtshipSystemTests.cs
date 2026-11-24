@@ -192,8 +192,9 @@ public class CourtshipSystemTests
     {
         var rules = RulesWith(courtshipThreshold: 0.0);
         var world = BuildWorld(rules);
-        var man = MakeAdult(world, Sex.Male, new NpcId(1), ageYears: 50);
-        var woman = MakeAdult(world, Sex.Female, new NpcId(2), ageYears: 25);
+        // AD-130: a janela fértil limita a mulher (aqui com 50); o homem não tem teto
+        var man = MakeAdult(world, Sex.Male, new NpcId(1), ageYears: 25);
+        var woman = MakeAdult(world, Sex.Female, new NpcId(2), ageYears: 50);
         LinkRelationship(world, man, woman);
 
         var sink = new EventSink();
@@ -202,6 +203,16 @@ public class CourtshipSystemTests
         Assert.Contains(
             (WorldEventKind.CourtshipRejected, $"ForaDaFaixaEtaria|{man.Id.Value}|{woman.Id.Value}"),
             sink.Events);
+    }
+
+    [Fact]
+    public void A_man_past_45_can_still_court_a_woman_of_fertile_age()
+    {
+        var world = BuildWorld(RulesWith(courtshipThreshold: 0.0));
+        var man = MakeAdult(world, Sex.Male, new NpcId(1), ageYears: 50);
+        var woman = MakeAdult(world, Sex.Female, new NpcId(2), ageYears: 25);
+
+        Assert.Null(CourtshipSystem.Reject(man, woman, world.CurrentDate, PopulationRules));
     }
 
     [Fact]

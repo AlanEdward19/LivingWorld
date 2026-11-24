@@ -25,16 +25,31 @@ public static class CausalPolicy
         // Mortes e perdas de vida
         WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration,
         WorldEventKind.Exhaustion, WorldEventKind.Disease, WorldEventKind.MaternalDeath,
+        WorldEventKind.Accident, WorldEventKind.OldAge, WorldEventKind.PresumedDead, // AD-196: a declaração vem do sumiço
         // Trabalho, renda e moradia
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
-        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled,
+        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
         WorldEventKind.AidGiven, WorldEventKind.TheftDiscovered,
+        // Crédito (AD-155): a quitação, o calote e a falência vêm de um empréstimo ou de uma folha que não fechou
+        WorldEventKind.LoanRepaid, WorldEventKind.LoanDefaulted, WorldEventKind.WorkplaceBankrupt,
+        // Crime e justiça (AD-150)
+        WorldEventKind.TheftCommitted, WorldEventKind.Assault, WorldEventKind.Homicide, WorldEventKind.CrimeReported,
+        WorldEventKind.Verdict, WorldEventKind.Executed, WorldEventKind.Banished, WorldEventKind.InheritanceDisputed,
+        WorldEventKind.DomesticViolence, WorldEventKind.Kidnapped, WorldEventKind.KidnappingEnded, WorldEventKind.SexualAssault,
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
         WorldEventKind.PowerInherited, WorldEventKind.MilestoneRegressed,
+        WorldEventKind.UnionEnded, WorldEventKind.AffairDiscovered, WorldEventKind.SupportPaid,
         // Cidade, saúde e tecnologia
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
+        WorldEventKind.OutbreakEnded,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
+        WorldEventKind.StreetWorkDone, // AD-176: causa = a obra aberta
+        WorldEventKind.BuildWorkDone, WorldEventKind.WorkStalled, WorldEventKind.WorkResumed, WorldEventKind.WorkAbandoned, // AD-184: causa = a obra aberta
+        WorldEventKind.WorkMaterialArrived, WorldEventKind.WorkWeatherLost, WorldEventKind.WorkMaterialShort, // AD-194: idem
+        WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
+        // AD-168: o espólio no chão vem da morte de quem o levava
+        WorldEventKind.LeavingsLeft,
         // Extraordinário e combate (cadeia pela invocação)
         WorldEventKind.ExtraordinaryCostPaid, WorldEventKind.ExtraordinaryEffectApplied,
         WorldEventKind.ExtraordinaryUseFailed, WorldEventKind.ExtraordinaryFailureApplied,
@@ -53,8 +68,14 @@ public static class CausalPolicy
     [
         WorldEventKind.Birth, WorldEventKind.StillBirth, WorldEventKind.PlantMatured,
         WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected,
+        WorldEventKind.AffairStarted, WorldEventKind.VocationChosen, WorldEventKind.UnwedPregnancy,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
-        WorldEventKind.Trade, WorldEventKind.BookLost,
+        WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold, WorldEventKind.ProfitDrawn, WorldEventKind.VentureFounded,
+        WorldEventKind.LeavingsCollected, // AD-168: recolher o espólio é contabilidade, como a venda
+        WorldEventKind.LoanGranted,
+        WorldEventKind.StreetWorkStarted, // AD-176: decisão de calçar (quem paga decide pelo uso do trecho)
+        WorldEventKind.SiteWorkJoined, WorldEventKind.SiteWorkLeft, // AD-179: a decisão do diarista (entrar ou sair da obra)
+        WorldEventKind.BuildWorkStarted, // AD-184: a decisão de quem encomenda (casa, oficina, a cidade)
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,
@@ -62,6 +83,10 @@ public static class CausalPolicy
         WorldEventKind.AuthoringCommandApplied, WorldEventKind.AuthoringCommandRejected,
         WorldEventKind.AuthoredImmigration, WorldEventKind.AuthoredWorkplaceFounded,
         WorldEventKind.PlayerIncarnated, WorldEventKind.PlayerDisappeared,
+        WorldEventKind.Returned, // AD-196: a volta é decisão de quem conduz (o jogador ou o motor que o reassume)
+        WorldEventKind.PossessionExpelled, WorldEventKind.PossessionSuspected, WorldEventKind.PossessionConcluded, // AD-197f: a conduta e a vontade
+        WorldEventKind.PossessionConfronted,
+        WorldEventKind.HouseSold, WorldEventKind.ChildAbandoned, // AD-197d: ordem de quem conduz o corpo
     ];
 
     private static readonly FrozenDictionary<WorldEventKind, CausalRole> Roles = Build();

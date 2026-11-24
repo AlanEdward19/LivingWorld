@@ -22,8 +22,22 @@ public class NatalitySystemTests
         new LifeTableBracket(0, 89, 0.01),
     ]).Value!;
 
+    /// <summary>Concepção certa no primeiro ciclo (fecundabilidade 1, ninguém estéril, sem perda nem gêmeos nem prematuro): isola
+    /// o comportamento sob teste do sorteio de fertilidade (AD-130).</summary>
+    private static readonly ReproductionRules Certain = ReproductionRules.Default with
+    {
+        FemaleMonthlyFecundability = AgeCurve.Of((0, 1.0)),
+        FemaleSterileFraction = AgeCurve.Of((0, 0.0)),
+        MaleFertility = AgeCurve.Of((0, 1.0)),
+        MiscarriageRiskByAge = AgeCurve.Of((0, 0.0)),
+        TwinRate = 0,
+        PretermBands = [],
+    };
+
     private static readonly PopulationRules Rules = PopulationRules.Create(
-        Table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0, gestationDays: 10).Value!;
+        Table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0, gestationDays: 10).Value!
+        with
+    { Reproduction = Certain };
 
     private static readonly Personality SomePersonality =
         Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
@@ -63,22 +77,24 @@ public class NatalitySystemTests
     }
 
     private (WorldState World, TickContext Ctx, Npc Mother, Npc Father, Household Household) BuildWorldWithMarriedCouple(
-        PopulationCatalog catalog, ulong seed, FamilyRules? familyRules = null)
+        PopulationCatalog catalog, ulong seed, FamilyRules? familyRules = null, ReproductionRules? reproduction = null,
+        int motherAgeYears = 20, int fatherAgeYears = 22, IWorldEventSink? sink = null, LivingWorld.Domain.Behavior.NeedsRules? needsRules = null)
     {
         var map = ScenarioRunner.DefaultMap(seed);
         var family = familyRules ?? PermissiveFamilyRules();
         var world = new WorldState(
-            Calendar, seed, map, catalog, Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            Calendar, seed, map, catalog, Rules with { Reproduction = reproduction ?? Certain },
+            needsRules ?? ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, familyRules: family);
         var location = new CellCoord(1, 1);
 
         var mother = new Npc(
-            new NpcId(1), "mother", Sex.Female, WorldDate.Epoch(Calendar).AddYears(-20), new CultureId(1), location,
+            new NpcId(1), "mother", Sex.Female, WorldDate.Epoch(Calendar).AddYears(20 - motherAgeYears), new CultureId(1), location,
             motherId: null, fatherId: null, household: null, health: 100,
             personality: SomePersonality, profession: ProfessionType.None, currentLocation: location,
             vitality: 60, upbringing: 40);
         var father = new Npc(
-            new NpcId(2), "father", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-22), new CultureId(1), location,
+            new NpcId(2), "father", Sex.Male, WorldDate.Epoch(Calendar).AddYears(20 - fatherAgeYears), new CultureId(1), location,
             motherId: null, fatherId: null, household: null, health: 100,
             personality: SomePersonality, profession: ProfessionType.None, currentLocation: location,
             vitality: 70, upbringing: 45);
@@ -98,7 +114,7 @@ public class NatalitySystemTests
         world.AdvanceHouseholdIdTo(2);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(20);
 
-        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
         return (world, ctx, mother, father, household);
     }
 
@@ -140,14 +156,15 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void Baby_born_at_runtime_gets_a_profession_valid_for_the_scenario_catalog()
+    public void Baby_born_at_runtime_has_no_profession_even_when_the_scenario_has_crafts()
     {
+        // AD-136: ninguém nasce com ofício; ele é escolhido na juventude (VocationMechanic)
         var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int> { 5, 6, 7 }, new HashSet<int>());
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(catalog, seed: 7);
 
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
-        Assert.True(catalog.IsValidProfession(baby.Profession));
+        Assert.Equal(ProfessionType.None, baby.Profession);
     }
 
     [Fact]
@@ -220,17 +237,28 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void Baby_born_at_runtime_gets_body_fields_within_BodyRules_range()
+    public void Baby_born_at_runtime_has_the_size_of_a_newborn_not_of_an_adult()
     {
+        // AD-134: antes o recém-nascido saía com corpo de adulto (1,70 m, 68 kg); a intenção (corpo plausível) continua
         var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>());
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(catalog, seed: 13);
-        var rules = world.BodyRules;
 
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
-        Assert.InRange(baby.Height, rules.HeightMin, rules.HeightMax);
-        Assert.InRange(baby.Weight, rules.WeightMin, rules.WeightMax);
-        Assert.InRange(baby.MuscleMass, rules.MuscleMassMin, rules.MuscleMassMax);
+        Assert.True(baby.Height is > 0.40 and < 0.60 && baby.Weight is > 2.0 and < 5.0 && baby.MuscleMass < 1.5,
+            $"{baby.Height} m, {baby.Weight} kg, {baby.MuscleMass} kg");
+    }
+
+    [Fact]
+    public void A_preterm_baby_is_born_smaller_than_a_term_baby()
+    {
+        var growth = Domain.Population.Body.GrowthRules.Default;
+        double term = growth.HeightAt(Sex.Female, 0, 1.59, 268);
+        double preterm = growth.HeightAt(Sex.Female, 0, 1.59, 200);
+        double termWeight = growth.WeightAt(Sex.Female, 0, term, 1.0, 0, 268);
+        double pretermWeight = growth.WeightAt(Sex.Female, 0, preterm, 1.0, 0, 200);
+
+        Assert.True(preterm < term && pretermWeight < termWeight * 0.6, $"{preterm}/{term} m, {pretermWeight}/{termWeight} kg");
     }
 
     [Fact]
@@ -262,9 +290,11 @@ public class NatalitySystemTests
     [Fact]
     public void Tick_does_not_conceive_when_resource_floor_not_met()
     {
+        // AD-182 (08c item 151): o piso da despensa só vale com a regra de antes (o corpo decide quando o ciclo hormonal está ligado)
         var rules = PermissiveFamilyRules() with
         {
             ConceptionResourceFloor = new Dictionary<int, long> { [1] = 10_000 },
+            ConceptionFloorReadsBody = false,
         };
         var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
             ScenarioRunner.DefaultPopulationCatalog, seed: 3, familyRules: rules);
@@ -272,6 +302,36 @@ public class NatalitySystemTests
         new NatalitySystem().Tick(world, ctx);
 
         Assert.Null(mother.PregnantUntil);
+    }
+
+    /// <summary>AD-182 (08c item 151): casal da vila padrão (ciclo hormonal ligado) com a despensa abaixo do piso de 5.</summary>
+    private static bool CoupleWithEmptyPantryMeetsFloors(bool readsBody)
+    {
+        var (world, _) = ScenarioRunner.Create(3);
+        // a relação do casal fundador ainda não cresceu no tick 0: só a despensa decide aqui
+        var rules = world.FamilyRules with { ConceptionRelationshipFloor = 0 };
+        var noFloor = rules with { ConceptionResourceFloor = new Dictionary<int, long>() };
+        // um casal que passa nos outros pisos (saúde, relação), para só a despensa decidir
+        var mother = world.Npcs.OrderBy(n => n.Id.Value).First(n => n.IsAlive && n.Sex == Sex.Female && n.Spouse is not null
+            && n.Household is not null && NatalitySystem.MeetsConceptionFloors(world, n, world.FindNpc(n.Spouse.Value)!, noFloor));
+        var father = world.FindNpc(mother.Spouse!.Value)!;
+        var home = world.FindHousehold(mother.Household!.Value)!;
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        if (home.Stock.GetValueOrDefault(food) > 0) home.Withdraw(food, home.Stock.GetValueOrDefault(food));
+        Assert.True(world.PopulationRules.Fertility.Endocrine.Enabled);
+        return NatalitySystem.MeetsConceptionFloors(world, mother, father, rules with { ConceptionFloorReadsBody = readsBody });
+    }
+
+    [Fact]
+    public void With_the_hormonal_cycle_an_empty_pantry_does_not_block_conception()
+    {
+        Assert.True(CoupleWithEmptyPantryMeetsFloors(readsBody: true));
+    }
+
+    [Fact]
+    public void Before_ad182_an_empty_pantry_blocked_conception()
+    {
+        Assert.False(CoupleWithEmptyPantryMeetsFloors(readsBody: false));
     }
 
     [Fact]
@@ -304,11 +364,13 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void HandleEvent_maternal_death_risk_kills_mother_without_creating_baby()
+    public void HandleEvent_maternal_death_risk_kills_mother_without_creating_baby_when_physiology_is_static()
     {
+        // o modelo de antes (sem fisiologia): a morte materna não deixa bebê
         var rules = PermissiveFamilyRules() with { MaternalDeathRisk = 1.0 };
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
-            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules);
+            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules,
+            needsRules: ScenarioRunner.DefaultNeedsRules with { Physiology = Domain.Health.PhysiologyRules.Static });
         int npcsBefore = world.Npcs.Count;
 
         var evt = ctx.ScheduleEvent(world.CurrentDate.TotalHours, NatalitySystem.SystemName,
@@ -317,6 +379,26 @@ public class NatalitySystemTests
 
         Assert.Equal(npcsBefore, world.Npcs.Count);
         Assert.False(mother.IsAlive);
+    }
+
+    [Fact]
+    public void A_mother_who_dies_in_childbirth_still_delivers_a_living_baby()
+    {
+        var rules = PermissiveFamilyRules() with { MaternalDeathRisk = 1.0 };
+        var physiology = Domain.Health.PhysiologyRules.Default;
+        var needs = ScenarioRunner.DefaultNeedsRules with
+        {
+            Physiology = physiology with { Lactation = physiology.Lactation with { StillbirthRiskWhenMotherDies = 0 } },
+        };
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules, needsRules: needs);
+        int npcsBefore = world.Npcs.Count;
+
+        var evt = ctx.ScheduleEvent(world.CurrentDate.TotalHours, NatalitySystem.SystemName,
+            $"{mother.Id.Value}|{father.Id.Value}|{household.Id.Value}|100");
+        new NatalitySystem().HandleEvent(world, ctx, evt);
+
+        Assert.True(world.Npcs.Count == npcsBefore + 1 && world.Npcs[^1].IsAlive && !mother.IsAlive);
     }
 
     [Fact]
@@ -393,5 +475,136 @@ public class NatalitySystemTests
                 baby.Personality.Openness, baby.Personality.Ambition, baby.Personality.Loyalty, baby.Personality.Altruism,
                 baby.Personality.Impulsivity, baby.Personality.RiskAversion },
             trait => Assert.InRange(trait, 14, 86));
+    }
+    private sealed class ListSink : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
+    }
+
+    private static ScheduledEvent PendingBirth(WorldState world) =>
+        world.Scheduler.Snapshot().Single(e => e.SystemName == NatalitySystem.SystemName);
+
+    [Fact]
+    public void Conception_falls_on_any_day_of_the_cycle_so_due_dates_spread_instead_of_one_fixed_offset()
+    {
+        var offsets = new HashSet<long>();
+        for (ulong seed = 1; seed <= 30; seed++)
+        {
+            var (world, ctx, _, _, _) = BuildWorldWithMarriedCouple(ScenarioRunner.DefaultPopulationCatalog, seed);
+            new NatalitySystem().Tick(world, ctx);
+            offsets.Add((PendingBirth(world).TargetTick - world.CurrentDate.TotalHours) / world.Calendar.HoursPerDay);
+        }
+
+        // antes (AD-130) todo parto saía em agora + GestationDays: um único deslocamento
+        Assert.True(offsets.Count >= 15, $"só {offsets.Count} deslocamentos distintos em 30 concepções");
+    }
+
+    [Fact]
+    public void Mother_does_not_conceive_again_during_postpartum_infecundity()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(ScenarioRunner.DefaultPopulationCatalog, seed: 31);
+        TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        new NatalitySystem().Tick(world, ctx);
+
+        Assert.Null(mother.PregnantUntil);
+        Assert.True(mother.Reproduction!.InfecundUntilTick > world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public void Baby_sex_is_decided_at_conception_and_kept_in_the_pregnancy()
+    {
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 32, reproduction: Certain with { MaleBirthShare = 1.0 });
+        new NatalitySystem().Tick(world, ctx);
+        Assert.Equal("M", mother.Reproduction!.Pregnancy!.Sexes);
+
+        var evt = PendingBirth(world);
+        world.CurrentDate = world.CurrentDate.AddHours(evt.TargetTick - world.CurrentDate.TotalHours);
+        new NatalitySystem().HandleEvent(world, ctx, evt);
+
+        Assert.Equal(Sex.Male, world.Npcs[^1].Sex);
+    }
+
+    [Fact]
+    public void Default_sex_ratio_at_birth_is_about_105_boys_per_100_girls()
+    {
+        double share = ReproductionRules.Default.MaleBirthShare;
+        Assert.InRange(share / (1 - share), 1.03, 1.07);
+    }
+
+    [Fact]
+    public void Twin_pregnancy_delivers_two_babies()
+    {
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 33, reproduction: Certain with { TwinRate = 1.0 });
+        new NatalitySystem().Tick(world, ctx);
+        int before = world.Npcs.Count;
+
+        new NatalitySystem().HandleEvent(world, ctx, PendingBirth(world));
+
+        Assert.Equal(before + 2, world.Npcs.Count(n => n.MotherId == mother.Id) + before);
+    }
+
+    [Fact]
+    public void Early_pregnancy_loss_ends_without_a_baby_and_logs_a_miscarriage()
+    {
+        var sink = new ListSink();
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 34, reproduction: Certain with { MiscarriageRiskByAge = AgeCurve.Of((0, 1.0)) },
+            sink: sink);
+        new NatalitySystem().Tick(world, ctx);
+        var pregnancy = mother.Reproduction!.Pregnancy!;
+        Assert.True(pregnancy.EndsInLoss);
+        Assert.InRange(pregnancy.GestationDays, Certain.MiscarriageMinDays, Certain.MiscarriageMaxDays);
+        int before = world.Npcs.Count;
+
+        new NatalitySystem().HandleEvent(world, ctx, PendingBirth(world));
+
+        Assert.Equal(before, world.Npcs.Count);
+        Assert.Contains(sink.Events, e => e.Kind == LivingWorld.Domain.History.WorldEventKind.StillBirth
+            && e.Payload.EndsWith(NatalitySystem.MiscarriageMarker, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Woman_past_menopause_never_conceives_with_the_default_curves()
+    {
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 35, reproduction: ReproductionRules.Default, motherAgeYears: 51);
+        for (int month = 0; month < 24; month++)
+        {
+            new NatalitySystem().Tick(world, ctx);
+            world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerMonth);
+        }
+
+        Assert.Null(mother.Reproduction);
+    }
+
+    [Fact]
+    public void An_older_husband_still_fathers_a_child()
+    {
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 36,
+            reproduction: Certain with { MaleFertility = ReproductionRules.Default.MaleFertility }, fatherAgeYears: 62);
+        for (int month = 0; month < 24 && mother.PregnantUntil is null; month++)
+        {
+            new NatalitySystem().Tick(world, ctx);
+            world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerMonth);
+        }
+
+        Assert.NotNull(mother.PregnantUntil);
+    }
+
+    [Fact]
+    public void Newborn_records_its_gestation_length()
+    {
+        var (world, ctx, mother, _, _) = BuildWorldWithMarriedCouple(ScenarioRunner.DefaultPopulationCatalog, seed: 37);
+        new NatalitySystem().Tick(world, ctx);
+        int days = mother.Reproduction!.Pregnancy!.GestationDays;
+
+        new NatalitySystem().HandleEvent(world, ctx, PendingBirth(world));
+
+        Assert.Equal(days, world.Npcs[^1].GestationAtBirthDays);
     }
 }

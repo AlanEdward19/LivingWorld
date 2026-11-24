@@ -16,6 +16,11 @@ public class ConstructionSystemTests
 {
     private static readonly ResourceType Timber = new(1);
 
+    /// <summary>AD-179 (reescrito): mede a fila (FIFO, pausa sem insumo, terra escassa, força que acelera), um tick da receita por
+    /// passo do sistema, sem ninguém no lote. Com a regra nova a obra só anda pelas horas de uma turma no lote; aqui ela fica
+    /// desligada de propósito, e o andamento pela turma tem teste próprio (SiteWorkTests).</summary>
+    private static readonly CityLayoutRules QueueOnly = CityLayoutRules.Default with { Streets = StreetRules.Default with { BuildNeedsCrew = false } };
+
     private static WorldState MakeWorld(CityCatalog? catalog = null)
     {
         var rules = CityRules.Create(
@@ -24,7 +29,8 @@ public class ConstructionSystemTests
             migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 0.5,
             foundingResourceThreshold: 0.5, foundingRouteThreshold: 0.5, foundingDefensibilityThreshold: 0.5,
             foundingLeadershipThreshold: 0.5, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5)
-            .Value!;
+            .Value! with
+        { Layout = QueueOnly };
 
         return new WorldState(
             ScenarioRunner.DefaultCalendar, seed: 11, ScenarioRunner.DefaultMap(11),
@@ -65,7 +71,8 @@ public class ConstructionSystemTests
             migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 0.5,
             foundingResourceThreshold: 0.5, foundingRouteThreshold: 0.5, foundingDefensibilityThreshold: 0.5,
             foundingLeadershipThreshold: 0.5, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5)
-            .Value!;
+            .Value! with
+        { Layout = QueueOnly };
         var map = MapGenerator.Generate(seed: 12, width, height, Math.Max(width, height), TinyCatalog, TinyCostWeights, [])
             .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
 
@@ -284,7 +291,8 @@ public class ConstructionSystemTests
             migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 0.5,
             foundingResourceThreshold: 0.5, foundingRouteThreshold: 0.5, foundingDefensibilityThreshold: 0.5,
             foundingLeadershipThreshold: 0.5, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5)
-            .Value!;
+            .Value! with
+        { Layout = QueueOnly };
         var map = MapGenerator.Generate(seed: 13, w, h, Math.Max(w, h), AdSevenTinyCatalog, AdSevenTinyCostWeights, [])
             .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
         var world = new WorldState(

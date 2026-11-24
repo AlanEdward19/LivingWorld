@@ -1,7 +1,6 @@
 # Genética e Família
 
-Como pessoas se aproximam, formam famílias, têm filhos e passam adiante — ou não — o que
-são. Modelo de relações, reprodução e hereditariedade.
+Como pessoas se aproximam, formam famílias, têm filhos e passam adiante — ou não — o que são. Relações, reprodução e herança.
 
 ## Relações
 
@@ -16,11 +15,37 @@ relação emerge de encontros repetidos, sobre eixos numéricos que evoluem com 
 | Respeito | competência, feito público, cargo | fracasso visível, humilhação |
 | Dívida | empréstimo, favor recebido | pagamento, retribuição |
 
+Como a convivência vira vínculo (AD-128): em casa todos convivem; no trabalho cada um passa o dia com os
+poucos de quem mais gosta dentro da própria turma; quem socializa conversa com alguém por perto. Afeto e
+confiança têm um teto por par (temperamentos parecidos, o quanto o outro é agradável e leal), sobem cada
+vez menos perto dele e esfriam aos poucos sem contato, até o par ser esquecido. Parentes não se esquecem.
+O resultado é um punhado de vínculos fortes e muitos fracos por pessoa.
+
+## União e fim da união (AD-136)
+
+Cada um escolhe o par pelo que o outro tem e só namoram se os dois se quiserem; união com parente de r ≥ 1/8
+(primo-irmão, meio-irmão, tio) é tabu. O casal leva o que tinha em casa: nada é criado no casamento. A mágoa sobe
+com briga de temperamento, penúria, distância, luto de filho e traição, é perdoada aos poucos e baixa o teto do
+afeto: o amor esfria de verdade. Quem tem propensão e oportunidade pode ter um caso que pode dar filho do amante (~0,6%, AD-162)
+e ser descoberto pelo boato que corre pelos vínculos (perdão, separação ou violência). Quem deixou de amar pode
+sair no ritmo da norma da época (`UnionRules`: na vila medieval quase sem divórcio, com abandono e separação de
+fato; no moderno, divórcio). Filho pequeno fica com a mãe, os maiores se dividem; quem sai volta para os pais ou
+abre casa, e só se une de novo depois do tempo da norma; viúvo espera o luto. AD-165: quem não mora com o filho
+comum < 12 anos manda por mês comida e moeda acima da própria reserva até cobrir o mês da casa dele (`SupportPaid`;
+o fugitivo do abandono não manda). Assim surgem padrastos, meios-irmãos e irmãos criados em casas diferentes.
+
 ## Reprodução
 
 Depende de idade, fertilidade, saúde, relação, cultura, recursos, condições sociais,
 mortalidade e eventos históricos — guerra e fome derrubam natalidade sem regra especial.
-Gravidez **agenda um evento futuro de nascimento**, em vez de varredura diária.
+Fecundidade natural de época (AD-130, `ReproductionRules`): a mulher depois da menarca concebe na
+ovulação do ciclo (AD-139, [hormônios](hormones-and-reproduction.md); fora da união só no mês com
+sexo), com chance por ciclo que culmina aos 20–29, cai depois dos 35 e zera na menopausa; o homem segue fértil na velhice e pode casar depois dos 45. Não há concepção na gravidez
+nem no intervalo da lactação (~16 meses, AD-162), o que dá partos a cada ~31 meses. Na concepção ficam decididos o sexo
+(~105 meninos por 100 meninas, gêmeos raros), a duração (~38 semanas, com prematuros) ou a perda
+precoce; aborto, natimorto e morte materna crescem na adolescência precoce, depois dos 35, com
+muitos partos e com saúde ruim. Gravidez **agenda um evento futuro de parto**, sem varredura diária.
+A morte por idade é risco mensal da tábua de época pelo estado atual, nunca data sorteada no berço.
 
 ## Hereditariedade
 
@@ -28,7 +53,10 @@ Gravidez **agenda um evento futuro de nascimento**, em vez de varredura diária.
 atributoFilho = atributoPai*pesoPai + atributoMãe*pesoMãe + mutação + influênciaAmbiental
 ```
 
-A mutação garante variação; o termo ambiental garante que o mundo pese. Separação dura:
+A mutação garante variação; o termo ambiental garante que o mundo pese. Traço contínuo (vitalidade, gene de taxa,
+estatura) segue o modelo infinitesimal (AD-134): filho = média dos pais + segregação mendeliana com metade da variância
+aditiva da população, o que mantém a variância estável entre gerações (média simples a cortava pela metade). A
+estatura herdada (h² ≈ 0,8) ainda perde centímetros com fome na infância. Separação dura:
 
 | Genético (predisposição) | Ambiental (adquirido) |
 |---|---|
@@ -36,7 +64,9 @@ A mutação garante variação; o termo ambiental garante que o mundo pese. Sepa
 | Parte do potencial cognitivo | Cultura, idioma, valores |
 | Temperamento básico | Habilidades, conhecimento, traumas |
 
-**Habilidade nunca é herdada** — é a oficina que faz o ferreiro, não o sangue.
+**Habilidade nunca é herdada** — é a oficina que faz o ferreiro, não o sangue. Quem cria importa (AD-132): o
+órfão criado por tios aprende o ofício deles, e o adotado se parece com os pais biológicos no herdado e com os
+adotivos no criado.
 
 ## Algoritmo genético emergente
 

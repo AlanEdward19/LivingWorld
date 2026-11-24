@@ -1,0 +1,84 @@
+{
+  "id": "string",
+  "kind": "string",
+  "links": [
+    {
+      "id": "string",
+      "kind": "string",
+      "name": "null",
+      "relation": "string"
+    }
+  ],
+  "name": "string",
+  "recentEvents": [
+    {
+      "atMs": "number",
+      "eventId": "number",
+      "involved": {
+        "amount": "number",
+        "authorId": "number",
+        "buildingId": "number",
+        "caseId": "number",
+        "cityId": "string",
+        "designId": "number",
+        "householdId": "number",
+        "leavingId": "number",
+        "motive": "null",
+        "otherId": "number",
+        "outcome": "string",
+        "recordOnly": "boolean",
+        "relatedIds": [
+          "number"
+        ],
+        "subjectId": "number",
+        "victimId": "number",
+        "workId": "null",
+        "workplaceId": "number"
+      },
+      "kind": "number",
+      "label": "string",
+      "location": {
+        "x": "number",
+        "y": "number"
+      }
+    }
+  ],
+  "state": {
+    "buildings": "number",
+    "climate": {
+      "cropYearFactorMilli": "number",
+      "drought": "boolean",
+      "month": "number",
+      "regionId": "number",
+      "seasonIndex": "number",
+      "seasonKey": "string",
+      "temperatureC": "number"
+    },
+    "foundedAtMs": "number",
+    "foundedFromCityId": "null",
+    "founderId": "null",
+    "founderName": "null",
+    "households": "number",
+    "id": "string",
+    "indicators": {
+      "economy": "number",
+      "education": "null",
+      "health": "number",
+      "housing": "number",
+      "inequality": "number",
+      "infrastructure": "null",
+      "population": "number",
+      "security": "null",
+      "wealth": "number"
+    },
+    "location": {
+      "x": "number",
+      "y": "number"
+    },
+    "mergedIntoCityId": "null",
+    "name": "string",
+    "pooledResidents": "number",
+    "population": "number",
+    "workplaces": "number"
+  }
+}

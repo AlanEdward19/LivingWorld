@@ -11,8 +11,11 @@ namespace LivingWorld.Tests.Integration.Periods;
 
 public class DefaultPeriodSeederTests
 {
+    /// <summary>AD-179 (reescrito): antes o teste exigia economia desligada e nenhuma oficina, porque o preset sem cadeia produtiva
+    /// matava de fome. Agora o preset é um mundo completo (a economia da vila de código: fazenda com poço, forja, mercado), e o
+    /// teste de cenário <c>MenuWorldsLiveTests</c> confere que ninguém morre de fome nem de sede no primeiro ano.</summary>
     [Fact]
-    public void SeedIfEmpty_keeps_builtin_presets_safe_without_an_authored_food_economy()
+    public void SeedIfEmpty_gives_every_builtin_preset_a_living_economy_with_work_market_and_technology()
     {
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -26,9 +29,41 @@ public class DefaultPeriodSeederTests
         {
             Assert.Equal(1, template.Version);
             var payload = JsonNode.Parse(template.PayloadJson)!.AsObject();
-            Assert.False(payload["EconomyEnabled"]!.GetValue<bool>());
-            Assert.Empty(payload["Workplaces"]!.AsArray());
+            Assert.True(payload["EconomyEnabled"]!.GetValue<bool>());
+            var types = payload["Workplaces"]!.AsArray().Select(w => w!["LocationTypeId"]!.GetValue<int>()).ToHashSet();
+            Assert.Contains(1, types); // fazenda: trigo e poço
+            Assert.Contains(2, types); // forja: ferramenta
+            Assert.True(payload["Emergence"]!["Enabled"]!.GetValue<bool>());
+            var world = ScenarioLoaderV2.LoadWorld(template.PayloadJson).Value.World;
+            Assert.True(world.EconomyRules.PresenceNeedsWork);
+            Assert.NotNull(world.EconomyRules.Venture);
+            Assert.NotNull(world.EconomyRules.Credit);
+            Assert.True(world.Map.Width * world.Map.Height >= 30 * world.AliveNpcIndex.Alive.Count, "lote para cada casa e oficina");
         }
+    }
+
+    [Fact]
+    public void SeedIfEmpty_replaces_a_preset_seeded_as_a_fixture_without_economy_by_a_new_version()
+    {
+        var (repository, _) = EmptyRepository();
+        var old = JsonNode.Parse(SeededPayloads()[0])!.AsObject();
+        old["EconomyEnabled"] = false;
+        string periodId = FirstPresetId();
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = periodId,
+            Version = 1,
+            PayloadJson = old.ToJsonString(),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = FirstPresetSource(),
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+        DefaultPeriodSeeder.SeedIfEmpty(repository); // idempotente
+
+        var latest = repository.FindLatestVersion(periodId)!;
+        Assert.Equal(2, latest.Version);
+        Assert.True(JsonNode.Parse(latest.PayloadJson)!["EconomyEnabled"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -95,6 +130,76 @@ public class DefaultPeriodSeederTests
             var named = LoadHash(json);
             Assert.Equal(LoadHash(bare.ToJsonString()), named);
         }
+    }
+
+    [Fact]
+    public void Presentation_block_does_not_change_the_world_hash()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var bare = JsonNode.Parse(json)!.AsObject();
+            Assert.True(bare.Remove("Presentation"), "preset sem bloco Presentation");
+            Assert.Equal(LoadHash(bare.ToJsonString()), LoadHash(json));
+        }
+    }
+
+    [Fact]
+    public void SeedIfEmpty_adds_the_presentation_as_a_new_version_of_a_preset_seeded_before_it()
+    {
+        var (repository, _) = EmptyRepository();
+        var old = JsonNode.Parse(SeededPayloads()[0])!.AsObject();
+        old.Remove("Presentation");
+        string periodId = FirstPresetId();
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = periodId,
+            Version = 1,
+            PayloadJson = old.ToJsonString(),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = FirstPresetSource(),
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+        DefaultPeriodSeeder.SeedIfEmpty(repository); // idempotente: não cria uma terceira versão
+
+        var latest = repository.FindLatestVersion(periodId)!;
+        Assert.Equal(2, latest.Version);
+        var upgraded = JsonNode.Parse(latest.PayloadJson)!.AsObject();
+        Assert.NotNull(upgraded["Presentation"]?["Era"]);
+        upgraded.Remove("Presentation");
+        Assert.True(JsonNode.DeepEquals(old, upgraded), "o resto do payload gravado tem de ficar intacto");
+    }
+
+    [Fact]
+    public void SeedIfEmpty_never_touches_a_period_registered_by_an_operator_with_a_preset_id()
+    {
+        var (repository, _) = EmptyRepository();
+        var payload = JsonNode.Parse(SeededPayloads()[0])!.AsObject();
+        payload.Remove("Presentation");
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = FirstPresetId(),
+            Version = 1,
+            PayloadJson = payload.ToJsonString(),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = "operador",
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+
+        Assert.Equal(1, repository.FindLatestVersion(FirstPresetId())!.Version);
+    }
+
+    private static string FirstPresetId() => "vila-pequena";
+    private static string FirstPresetSource() => "Vila pequena";
+
+    private static (SqlitePeriodTemplateRepository Repository, WorldDbContext Context) EmptyRepository()
+    {
+        var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        var context = new WorldDbContext(new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(connection).Options);
+        context.Database.Migrate();
+        return (new SqlitePeriodTemplateRepository(context), context);
     }
 
     private static string LoadHash(string json)

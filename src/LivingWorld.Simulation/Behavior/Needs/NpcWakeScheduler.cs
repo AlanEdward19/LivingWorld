@@ -14,28 +14,21 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// <see cref="AttentionRouter"/>.</summary>
 public static class NpcWakeScheduler
 {
+    /// <summary>Nome do sistema dos despertares quando eram eventos do <see cref="EventScheduler"/>: só a leitura de
+    /// snapshot antigo ainda o procura em <c>PendingEvents</c> (AD-129).</summary>
     public const string SystemName = "npc-wake";
 
-    public static void PrepareWakeBatch(WorldState world, long tick)
-    {
-        world.ClearNpcWakeBatch();
-        var due = world.Scheduler.PeekDue(tick);
-        for (int i = due.Count - 1; i >= 0; i--)
-        {
-            var evt = due[i];
-            if (evt.SystemName != SystemName) continue;
-            world.Scheduler.Cancel(evt.Id);
-            if (long.TryParse(evt.Payload, out var idValue)
-                && world.FindNpc(new NpcId(idValue)) is { IsAlive: true } npc)
-            {
-                world.ClearNpcWakeEvent(idValue);
-                world.AddNpcWake(npc);
-            }
-        }
-    }
+    /// <summary>Monta o lote de quem acorda neste tick (instante <paramref name="nowMs"/>) a partir da fila de despertar do
+    /// mundo (AD-129, ADR-0050).</summary>
+    public static void PrepareWakeBatch(WorldState world, long nowMs) => world.PrepareNpcWakeBatch(nowMs);
 
-    public static void ScheduleWake(WorldState world, TickContext ctx, long npcId, long targetTick) =>
-        world.ReplaceNpcWake(ctx, npcId, targetTick);
+    /// <summary><paramref name="ctx"/> fica na assinatura por simetria com os outros agendamentos do tick; a fila de
+    /// despertar é do <see cref="WorldState"/> e não passa pelo <see cref="EventScheduler"/>.</summary>
+    public static void ScheduleWake(WorldState world, TickContext ctx, long npcId, long targetTick)
+    {
+        _ = ctx;
+        world.ReplaceNpcWake(npcId, targetTick);
+    }
 
     /// <summary>Agenda wake imediato (próximo tick) para NPCs roteados pelo AttentionRouter
     /// que tenham Intent Active — dedupe via <see cref="WorldState.ReplaceNpcWake"/>.</summary>
@@ -67,10 +60,19 @@ public static class NpcWakeScheduler
         var purpose = current == ActionType.Travel ? npc.TravelPurpose : current;
         bool feeding = purpose is ActionType.Eat or ActionType.Buy;
         bool resting = purpose == ActionType.Sleep;
-        Consider(ref next, ref cause, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting), WakeCause.NeedCrossing);
-        Consider(ref next, ref cause, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
+        // AD-187: a caminho da água (ida de água em curso, ida ou volta) e sem nada nas mãos, a decisão da hora só manda seguir, salvo a
+        // fome à beira da morte: a necessidade já urgente não reacorda de hora em hora (despertar sem efeito); acorda na chegada, no
+        // cruzamento que ainda vem e quando a fome chega ao ponto que mudaria a escolha. Quem leva algo acorda como antes (come do que
+        // leva, devolve à despensa perto de casa)
+        bool waterBound = current == ActionType.Travel && LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+            && world.Invention is { } carry && !carry.CarriesOrHolds(npc.Id.Value);
+        Consider(ref next, ref cause, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding || waterBound), WakeCause.NeedCrossing);
+        if (waterBound)
+            Consider(ref next, ref cause, NextThresholdCrossing(npc.HungerNeed, now, LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding || waterBound), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting || waterBound), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, waterBound ? NextNeedWake(npc.SocialNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: true)
+            : NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
 
         // Viagem com chegada conhecida termina na chegada, não na duração máxima de Travel: depois dessa duração o
         // "fim de ação" já vencido acordava o viajante de hora em hora até chegar, sem nada para concluir (#152).
@@ -81,7 +83,8 @@ public static class NpcWakeScheduler
             Consider(ref next, ref cause, actionEnd, WakeCause.ActionEnd);
         }
 
-        Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage), WakeCause.RoutineBoundary);
+        // AD-187: a virada da rotina também não muda a ida de água (vem antes de tudo que não é urgente)
+        if (!waterBound) Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage), WakeCause.RoutineBoundary);
 
         // Quem está a caminho acorda ao chegar, não ao fim da duração máxima da ação: sem isso toda viagem
         // de 1–2 h só terminava às 4 h, e o trajeto comia o dia.
@@ -139,9 +142,91 @@ public static class NpcWakeScheduler
 
     public static void RescheduleAfterHour(
         WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now,
-        long? travelArrivalTick = null, LifeStage? lifeStage = null) =>
+        long? travelArrivalTick = null, LifeStage? lifeStage = null)
+    {
+        if (world.FineTime)
+        {
+            // AD-197c: a chegada e o fim da ação caem no instante certo (a fase da hora em que a viagem saiu)
+            long? arrivalMs = travelArrivalTick is { } arrival ? arrival * WorldMillis.PerHour + npc.ActionPhaseMs : null;
+            RescheduleAtMs(world, npc, needsRules, catalog, arrivalMs, lifeStage);
+            return;
+        }
         ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(
             npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick, lifeStage: lifeStage));
+    }
+
+    /// <summary>AD-197h: reagenda no passo fino com a chegada já em ms (<c>TravelArrivalMs</c>).</summary>
+    public static void RescheduleAtMs(WorldState world, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long? travelArrivalMs,
+        LifeStage? lifeStage = null) =>
+        world.ReplaceNpcWakeAtMs(npc.Id.Value,
+            ComputeNextWakeMs(npc, needsRules, catalog, world.CurrentDate.TotalMilliseconds, world, travelArrivalMs, lifeStage));
+
+    /// <summary>AD-197c: o mesmo despertar de <see cref="ComputeNextWakeTick"/> no passo fino, em milissegundos: fim de ação e
+    /// chegada no instante exato (com a fase da hora em que começaram), necessidade no instante em que cruza o limiar, virada da
+    /// rotina na hora cheia do calendário. Atrasado ou sem candidato, uma hora depois (a cadência de antes).</summary>
+    public static long ComputeNextWakeMs(
+        Npc npc, NeedsRules needsRules, ActionCatalog catalog, long nowMs, WorldState world, long? travelArrivalMs = null,
+        LifeStage? lifeStage = null)
+    {
+        const long H = WorldMillis.PerHour;
+        long now = WorldMillis.ToHourFloor(nowMs);
+        long next = long.MaxValue;
+        var cause = WakeCause.Fallback;
+        var current = npc.CurrentAction;
+        var purpose = current == ActionType.Travel ? npc.TravelPurpose : current;
+        bool feeding = purpose is ActionType.Eat or ActionType.Buy;
+        bool resting = purpose == ActionType.Sleep;
+        bool waterBound = current == ActionType.Travel && LivingWorld.Simulation.Economy.Supply.WaterFetch.OnTheWay(world, npc)
+            && world.Invention is { } carry && !carry.CarriesOrHolds(npc.Id.Value);
+        double urgency = needsRules.UrgencyThreshold;
+        Consider(ref next, ref cause, NeedWakeMs(npc.HungerNeed, nowMs, urgency, feeding || waterBound), WakeCause.NeedCrossing);
+        if (waterBound)
+            Consider(ref next, ref cause, CrossingMs(npc.HungerNeed, nowMs, LivingWorld.Simulation.Economy.Supply.WaterFetch.StarvingDeficit), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NeedWakeMs(npc.ThirstNeed, nowMs, urgency, feeding || waterBound), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NeedWakeMs(npc.SleepNeed, nowMs, urgency, resting || waterBound), WakeCause.NeedCrossing);
+        long social = CrossingMs(npc.SocialNeed, nowMs, urgency);
+        Consider(ref next, ref cause, waterBound ? NeedWakeMs(npc.SocialNeed, nowMs, urgency, true)
+            : social > nowMs ? social
+            : npc.SocialNeed.ValueAtMs(nowMs) <= BehaviorDecisionSystem.SocialCriticalNeed ? nowMs + SocialRewakeHours * H : long.MaxValue,
+            WakeCause.NeedCrossing);
+
+        bool arrivalPending = travelArrivalMs is { } pendingArrival && pendingArrival > nowMs;
+        if (npc.CurrentAction is { } action && !arrivalPending)
+            Consider(ref next, ref cause, npc.ActionStartedAtMs + LivingWorld.Simulation.Objects.ObjectUse.DurationMs(world, npc, action, catalog),
+                WakeCause.ActionEnd); // AD-197h: a duração em ms (a mesma conta da conclusão)
+        if (!waterBound)
+            Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage) * H, WakeCause.RoutineBoundary);
+        if (travelArrivalMs is { } arrival)
+            Consider(ref next, ref cause, arrival, WakeCause.TravelArrival);
+
+        if (next == long.MaxValue) next = nowMs + H;
+        if (next <= nowMs)
+        {
+            next = nowMs + H;
+            cause = cause == WakeCause.NeedCrossing ? WakeCause.NeedAlreadyUrgent : WakeCause.Overdue;
+        }
+        world.WakeCounters.RecordScheduled(cause, npc.CurrentAction);
+
+        double reaction = AttributeMechanic.ReactionSpeedMultiplier(world, npc);
+        if (reaction > 1) next = nowMs + Math.Max(1L, (long)Math.Ceiling((next - nowMs) / reaction));
+        return next;
+    }
+
+    private static long NeedWakeMs(LazyNeed need, long nowMs, double urgencyThreshold, bool servedByCurrentAction)
+    {
+        long crossing = CrossingMs(need, nowMs, urgencyThreshold);
+        return servedByCurrentAction && crossing <= nowMs ? long.MaxValue : crossing;
+    }
+
+    /// <summary>Instante (ms) em que a necessidade cruza o limiar de urgência; agora, se já cruzou.</summary>
+    private static long CrossingMs(LazyNeed need, long nowMs, double urgencyThreshold)
+    {
+        if (need.DecayRatePerHour <= 0) return long.MaxValue;
+        double value = need.ValueAtMs(nowMs);
+        double target = 100 - urgencyThreshold;
+        if (value <= 0 || value <= target) return nowMs;
+        return nowMs + Math.Max(1L, (long)Math.Ceiling((value - target) / need.DecayRatePerHour * WorldMillis.PerHour));
+    }
 
     /// <summary>Despertar por necessidade. Quem já está fazendo o que atende a necessidade (comer, dormir) não a
     /// reavalia a cada hora enquanto a ação não termina — a ação em curso é a resposta, e o fim dela acorda o
@@ -171,14 +256,14 @@ public static class NpcWakeScheduler
 
     public static long NextThresholdCrossing(LazyNeed need, long nowTick, double urgencyThreshold)
     {
-        if (need.DecayRatePerTick <= 0) return long.MaxValue;
+        if (need.DecayRatePerHour <= 0) return long.MaxValue;
         double value = need.ValueAt(nowTick);
         if (value <= 0) return nowTick;
         if (100 - value > urgencyThreshold) return nowTick;
 
         double target = 100 - urgencyThreshold;
         if (value <= target) return nowTick;
-        long delta = (long)Math.Ceiling((value - target) / need.DecayRatePerTick);
+        long delta = (long)Math.Ceiling((value - target) / need.DecayRatePerHour);
         return nowTick + Math.Max(1, delta);
     }
 

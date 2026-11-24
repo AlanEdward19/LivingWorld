@@ -12,8 +12,6 @@ namespace LivingWorld.Tests.LongRunning.Serialization;
 public class ReferentialIntegritySweepTests
 {
     private const long OneMonthInHours = 30 * 24;
-    private const long OneYearInHours = 12 * 30 * 24;
-    private const long TenYearsInHours = 10 * OneYearInHours;
 
     [Fact]
     public void Every_id_type_in_the_domain_assembly_has_a_registered_resolver()
@@ -37,24 +35,16 @@ public class ReferentialIntegritySweepTests
     [Fact]
     public void Default_scenario_after_1_year_has_no_referential_violations()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 42);
-        clock.Run(world, OneYearInHours);
-
-        var violations = ReferentialIntegritySweep.Check(world);
-
-        Assert.Empty(violations);
+        // A vila padrão da seed 42 no ano 1, varrida dentro da corrida compartilhada (ADR-0044).
+        Assert.Empty(Population.DefaultVillageSeed42.Value.ReferentialYear1);
     }
 
     [Trait("Category", "Scenario")]
     [Fact]
     public void Default_scenario_after_10_years_has_no_referential_violations()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 42);
-        clock.Run(world, TenYearsInHours);
-
-        var violations = ReferentialIntegritySweep.Check(world);
-
-        Assert.Empty(violations);
+        // A vila padrão da seed 42 no ano 10, varrida dentro da corrida compartilhada (ADR-0044).
+        Assert.Empty(Population.DefaultVillageSeed42.Value.ReferentialYear10);
     }
 
     // Sensor de mutação (R5): prova que o sweep de fato detecta uma referência pendurada, em vez

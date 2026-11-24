@@ -49,7 +49,8 @@ public static class ScaleScenarioFixture
             [(2, 1)] = 50_000,
             [(4, 2)] = 50_000,
         },
-        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.005 },
+        // AD-135: a despensa da casa passou a estragar na mesma taxa; 0,5%/dia (84%/ano) comia a reserva anual do fixture
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.00045 },
         wageByProfession: new Dictionary<int, long> { [1] = 150, [2] = 180 },
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 25, [2] = 20, [4] = 100 },
@@ -61,7 +62,7 @@ public static class ScaleScenarioFixture
         relationshipDeltas: ScenarioRunner.DefaultFamilyRules.RelationshipDeltas,
         decayPerDay: 0.25,
         contactLossThresholdDays: 30,
-        neutralAxisValue: 50,
+        neutralAxisValue: 0,
         attractionWeights: Enum.GetValues<AttractionFactor>().ToDictionary(f => f, _ => 1.0),
         courtshipThreshold: 0.55,
         courtshipDurationDays: 90,
@@ -85,7 +86,9 @@ public static class ScaleScenarioFixture
         // timings.md, fase 16 T5). 30 é "círculo social" plausível (mais que qualquer household,
         // bem menos que centenas de colegas) — não afeta nenhum household/workplace pequeno
         // (default de outros cenários nem declara este campo, cai no int.MaxValue sem teto).
-        maxCohabitationGroupSize: 30).Value
+        maxCohabitationGroupSize: 30,
+        // mesmo modelo social do cenário padrão (AD-128): no trabalho cada um convive com poucos por dia
+        bonds: SocialBondRules.Default).Value
         ?? throw new InvalidOperationException("scale family rules inválida");
 
     /// <summary>Reprodução/predação desligadas — sensor mede custo O(n) de entidades em massa;
@@ -104,8 +107,18 @@ public static class ScaleScenarioFixture
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
     ];
 
+    /// <summary>AD-192: <c>LW_AD192=off|nohygiene|noregard|noleft</c> mede o custo do código com a fatia (ou parte dela) desligada.</summary>
+    private static LivingWorld.Domain.Cities.CityLayoutRules? Ad192(LivingWorld.Domain.Cities.CityLayoutRules? rules) =>
+        Environment.GetEnvironmentVariable("LW_AD192") is { } mode
+            ? (rules ?? LivingWorld.Domain.Cities.CityLayoutRules.Default) with
+            { Streets = (rules ?? LivingWorld.Domain.Cities.CityLayoutRules.Default).Streets.WithAd192Mode(mode) }
+            : rules;
+
+    private static bool Ad185Off => Environment.GetEnvironmentVariable("LW_AD185") == "off";
+
     public static (WorldState World, WorldClock Clock) CreateWorld(
-        ulong seed, int initialPopulation, HistoryRules? historyRules = null, LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        ulong seed, int initialPopulation, HistoryRules? historyRules = null, LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
     {
         int vacancyMult = Math.Max(1, initialPopulation / 100);
         var scenario = ScenarioRunner.Create(
@@ -117,10 +130,30 @@ public static class ScaleScenarioFixture
             populationRules: ScalePopulationRules,
             perfRules: PerfRules.ScaleSensorInitial,
             workplaceVacancyMultiplier: vacancyMult,
+            // AD-173: LW_CITY_LAYOUT=off mede o custo do código com a colocação de antes (separa custo de código de mundo diferente)
+            // AD-176: LW_STREETS=off mede sem a rua de verdade (linha reta, sem pisoteio)
+            cityLayout: Ad192((Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
+            {
+                // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
+                (false, false) => (Environment.GetEnvironmentVariable("LW_AD179") == "off", Environment.GetEnvironmentVariable("LW_AD184") == "off") switch
+                {
+                    (true, var off184) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = (off184 ? LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() : LivingWorld.Domain.Cities.StreetRules.Default) with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0, NearestJob = !Ad185Off } },
+                    // AD-184: LW_AD184=off mede a obra como na AD-179 (casa e oficina sem obra)
+                    (false, true) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() with { NearestJob = !Ad185Off } },
+                    // AD-185: LW_AD185=off tira a ida de verdade à água e o emprego mais perto de casa
+                    _ => Ad185Off ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { NearestJob = false } } : null,
+                },
+                (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
+                (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
+                    with
+                { Streets = LivingWorld.Domain.Cities.StreetRules.Off },
+            }),
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,
             plantSpeciesRules: ScalePlantSpeciesRules,
-            objectCatalog: objectCatalog);
+            objectCatalog: objectCatalog,
+            extraordinary: extraordinary,
+            naturalWaterRules: Ad185Off ? LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off } : null);
 
         // PERF-01 mede custo e estabilidade demográfica, não a capacidade de um único mercado
         // central alimentar uma metrópole. Depois que cada household ganhou residência física,

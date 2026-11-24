@@ -49,19 +49,8 @@ public static partial class ScenarioRunner
     public static readonly PopulationCatalog DefaultPopulationCatalog = new(
         CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int> { 1, 2 }, LocationTypeIds: new HashSet<int>());
 
-    // Mortalidade infantil alta e longevidade máxima explícita: quem sobrevive à
-    // infância tem risco baixo até a velhice, onde sobe de novo.
-    private static readonly LifeTable DefaultLifeTable = LifeTable.Create(
-        maxLongevityYears: 90,
-        brackets:
-        [
-            new LifeTableBracket(0, 1, 0.08),
-            new LifeTableBracket(2, 14, 0.01),
-            new LifeTableBracket(15, 39, 0.004),
-            new LifeTableBracket(40, 59, 0.01),
-            new LifeTableBracket(60, 79, 0.04),
-            new LifeTableBracket(80, 89, 0.15),
-        ]).Value ?? throw new InvalidOperationException("life table default inválida — bug no cenário, não no gerador");
+    // Tábua de época (AD-130): dado em LifeTable.PreIndustrial.
+    private static readonly LifeTable DefaultLifeTable = LifeTable.PreIndustrial;
 
     public static readonly PopulationRules DefaultPopulationRules = PopulationRules.Create(
         DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270,
@@ -74,7 +63,8 @@ public static partial class ScenarioRunner
     public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
         hungerDecayPerHour: 2.0, thirstDecayPerHour: 3.0, sleepDecayPerHour: 1.5, socialDecayPerHour: 1.0,
         urgencyThreshold: 70, maxActionSelectionSteps: 10, hysteresisEnabled: true,
-        continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
+        continuityBonus: 5.0, homelessSleepEfficiency: 0.5,
+        starvationSurvivalHours: NeedsRules.DefaultStarvationSurvivalHours)
         .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
 
     // Criança até 14 (mesmo corte de fertilidade mínima não se aplica ainda), adulto até 64,
@@ -91,12 +81,12 @@ public static partial class ScenarioRunner
         cap: 100,
         baseRateBySource: new Dictionary<SkillGainSource, double>
         {
-            [SkillGainSource.Practice] = 0.3,
-            [SkillGainSource.DeliberateTraining] = 0.4,
-            [SkillGainSource.School] = 0.2,
-            [SkillGainSource.Parental] = 0.15,
-            [SkillGainSource.Observation] = 0.05,
-            [SkillGainSource.Tutoring] = 0.25,
+            [SkillGainSource.Practice] = 0.02, // AD-132: maestria em anos de prática, não meses
+            [SkillGainSource.DeliberateTraining] = 0.03,
+            [SkillGainSource.School] = 0.0, // vila medieval sem escola
+            [SkillGainSource.Parental] = 0.025, // o que a casa ensina, até metade do que os adultos dela sabem
+            [SkillGainSource.Observation] = 0.004,
+            [SkillGainSource.Tutoring] = 0.012,
         },
         skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
         teachingSkill: new SkillType(6))
@@ -106,7 +96,8 @@ public static partial class ScenarioRunner
         relationshipDeltas: BuildDefaultRelationshipDeltas(),
         decayPerDay: 0.25,
         contactLossThresholdDays: 30,
-        neutralAxisValue: 50,
+        // 0 = desconhecido: sem contato o vínculo esfria até ser esquecido, em vez de subir para o meio da escala (AD-128)
+        neutralAxisValue: 0,
         // Appearance fica de fora: o peso só entra com AppearanceRules (WithAppearanceAttraction), senão o hash mudaria
         attractionWeights: Enum.GetValues<AttractionFactor>().Where(f => f != AttractionFactor.Appearance).ToDictionary(f => f, _ => 1.0),
         courtshipThreshold: 0.55,
@@ -115,7 +106,8 @@ public static partial class ScenarioRunner
         conceptionHealthFloor: 30,
         conceptionRelationshipFloor: 20,
         conceptionResourceFloor: new Dictionary<int, long> { [1] = 5, [2] = 5 },
-        maternalDeathRisk: 0.01,
+        // base 0,7%: com os fatores de idade e paridade o efetivo fica perto dos ~10 por mil partos da Inglaterra 1650–1800
+        maternalDeathRisk: 0.007,
         infantDeathRisk: 0.03,
         vitalityMotherWeight: 0.5,
         vitalityFatherWeight: 0.5,
@@ -125,8 +117,10 @@ public static partial class ScenarioRunner
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false,
         vitalityMortalitySelectionEnabled: true,
-        personalityHeritability: 0.7).Value
-        ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
+        personalityHeritability: 0.7,
+        bonds: SocialBondRules.Default).Value is { } familyDefaults
+        ? familyDefaults with { Pressure = PopulationPressureRules.Measured } // AD-148: freios preventivos ligados (backlog 08, item 38)
+        : throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()
     {
@@ -202,7 +196,7 @@ public static partial class ScenarioRunner
     // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina.
     // Sem recurso de célula exigido: DefaultCatalog (Geografia) não declara recurso
     // natural nenhum (ResourceIds vazio) — exigir um aqui travaria toda produção em silêncio.
-    public static readonly EconomyRules DefaultEconomyRules = EconomyRules.Create(
+    public static readonly EconomyRules DefaultEconomyRules = (EconomyRules.Create(
         enabled: true, foodResourceId: 1, waterResourceId: 2,
         capacityByResourceLocation: new Dictionary<(int ResourceId, int LocationTypeId), long>
         {
@@ -210,17 +204,37 @@ public static partial class ScenarioRunner
             [(2, 1)] = 1000, // água na fazenda (poço da propriedade)
             [(4, 2)] = 1000, // ferro na ferraria
         },
-        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.01 }, // só trigo estraga
-                                                                              // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
-                                                                              // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
-                                                                              // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.00045 }, // só trigo estraga: ~15%/ano (AD-135)
+                                                                                 // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
+                                                                                 // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
+                                                                                 // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
         wageByProfession: new Dictionary<int, long> { [1] = 90, [2] = 110 },
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
         priceSensitivity: 0.2,
         demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
         wageTaxRate: 0.05) // a cidade retém 5% do salário
-        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
+        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador"))
+        with
+    {
+        SurplusDrawShare = 1.0,
+        PresenceNeedsWork = true, // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
+        Venture = VentureRules.Default with { LocationTypeIds = [2], EquipmentResourceId = 4, EquipmentUnits = 40 }, // AD-152: o ferreiro abre a forja dele
+        Credit = CreditRules.Default, // AD-155: empréstimo em moeda que existe, capital de giro e falência
+    };
+
+    /// <summary>Invenção dos cenários (código e JSON), num lugar só. AD-157b: a carga pessoal (`PantryNeedsPresence`) ligada, com a
+    /// refeição de rotina (docs/domain/household-provisioning.md).</summary>
+    public static readonly LivingWorld.Domain.Invention.InventionRules DefaultInventionRules = LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = true };
+
+    /// <summary>Tipos de local que são oficina de ofício (AD-144): a ferraria é do mestre ferreiro; a fazenda, terra comum,
+    /// fica sem dono (o excedente vai à cidade). Ver <see cref="WorkplaceOwnership"/>.</summary>
+    public static readonly IReadOnlyList<int> DefaultCraftLocationTypeIds = [2];
+
+    /// <summary>Ferramenta do lavrador (AD-144): ~3 kg de ferro por pessoa (relha e sega repartidas, foice, enxada, pá), ~2 kg
+    /// gastos por ano de uso (afiar, recalçar a relha, perder e quebrar); sem ferro, pau e pedra rendem ~60%. Estimativas
+    /// sem fonte firme, na ordem de grandeza do consumo de ferro per capita da Europa medieval.</summary>
+    public static readonly ToolUse DefaultFarmTool = new(ResourceId: 4, KitPerWorker: 3, WearPerWorkerYear: 2, UntooledOutput: 0.6);
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(
         Recipes: new Dictionary<int, ProductionRecipe>
@@ -233,10 +247,11 @@ public static partial class ScenarioRunner
             // real, um gargalo artificial que a vila inteira sentiria (visto na prática: 100
             // NPCs, só 15 vagas, população inteira morrendo de fome com celeiro cheio e sem
             // vender nada).
-            [1] = ProductionRecipe.Create(
+            [1] = (ProductionRecipe.Create(
                 inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
                 requiresCellResource: null, maxWorkersPerCycle: 80)
-                .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                .Value ?? throw new InvalidOperationException("recipe fazenda inválida")) with
+            { Tool = DefaultFarmTool },
             [2] = ProductionRecipe.Create(
                 inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
                 requiresCellResource: null, maxWorkersPerCycle: 40)
@@ -254,18 +269,17 @@ public static partial class ScenarioRunner
     /// futura <c>FaunaLifecycleSystem</c>.</summary>
     public static readonly IReadOnlyList<AnimalSpeciesRules> DefaultAnimalSpeciesRules =
     [
-        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3,
-            ReproduceProbability: 0.12, PredatorOf: "rabbit", PredationProbability: 0.25),
-        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
-            ReproduceProbability: 0.18, PredatorOf: null, PredationProbability: 0),
+        // AD-135: chances por dia; uma ninhada de lobo por ano (fim do inverno), coelho em ninhadas de ~30 dias na primavera e verão
+        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3, ReproduceProbability: 0.05, PredatorOf: "rabbit", PredationProbability: 0.25, BreedStartMonth: 1, BreedEndMonth: 2, GestationDays: 300, LitterSize: 2, AnnualMortality: 0.25, HuntsOnlyWhenHungry: true, WandersWhenHungry: true),
+        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2, ReproduceProbability: 0.1, PredatorOf: null, PredationProbability: 0, Diet: AnimalSpeciesRules.FloraDiet, ForageRadius: 2, MealEnergy: 25, GrazeStageCost: 500, BreedStartMonth: 2, BreedEndMonth: 8, GestationDays: 30, LitterSize: 3, AnnualMortality: 0.6, WandersWhenHungry: true),
     ];
 
     /// <summary>Espécies vegetais do cenário medieval default — trigo alinhado ao
     /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
     public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
     [
-        new("crop1", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
-            CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0.2),
+        // AD-135: pasto silvestre (perene, cresce devagar no frio): ~2 semanas de verão para amadurecer, brota ~5%/dia, não vai ao celeiro
+        new("crop1", MinToleratedTemp: -5, MaxToleratedTemp: 35, MaturityStage: 720, CropResourceId: 1, YieldPerMaturePlant: 0, ReproduceRadius: 2, ReproduceProbability: 0.002),
     ];
 
     /// <summary>Delta sazonal por bioma (4 estações) — bioma 1 do default tem amplitude
@@ -282,10 +296,11 @@ public static partial class ScenarioRunner
         return new EconomyCatalog(
             Recipes: new Dictionary<int, ProductionRecipe>
             {
-                [1] = ProductionRecipe.Create(
+                [1] = (ProductionRecipe.Create(
                     inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
                     requiresCellResource: null, maxWorkersPerCycle: 80 * mult)
-                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida")) with
+                { Tool = DefaultFarmTool },
                 [2] = ProductionRecipe.Create(
                     inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
                     requiresCellResource: null, maxWorkersPerCycle: 40 * mult)
@@ -312,7 +327,11 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
+        LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null,
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null,
+        LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null) // AD-173: nulo = traçado padrão (ruas e lotes)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -322,17 +341,22 @@ public static partial class ScenarioRunner
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
             DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
-            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
+            needsRules ?? DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules ?? LivingWorld.Domain.Crime.TheftRules.Default, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
-            appearanceRules: appearanceRules, objectCatalog: objectCatalog);
+            appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
+            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default, extraordinary: extraordinary,
+            cityRules: cityLayout is null ? null : LivingWorld.Domain.Cities.CityRules.Disabled with { Layout = cityLayout });
+        world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
+        world.UseCrime(crimeRules ?? LivingWorld.Domain.Crime.CrimeRules.Default); // AD-150
+        world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-160b: cérebro ligado no cenário de código
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
-            foundedFromCityId: null, AggregatePopulationPool.Empty);
+            foundedFromCityId: null, AggregatePopulationPool.Empty, name: Cities.CityNameGenerator.Generate(world, DefaultCulture)); // AD-178
         world.AddCity(initialCity);
         // A infraestrutura fundadora ocupa primeiro o núcleo urbano. Com residências físicas,
         // criar milhares de casas antes empurrava fazenda/mercado e forja para a periferia,
@@ -343,11 +367,14 @@ public static partial class ScenarioRunner
             PopulationSeeder.SeedInitial(
                 world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
             SeedInitialEconomyBuffer(world);
+            LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, DefaultCraftLocationTypeIds);
             if (initialPopulation == DefaultInitialPopulation)
                 EcologyScenarioSeeder.SeedDefault(world);
         }
 
-        return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
+        LivingWorld.Simulation.Extraordinary.Culture.ExtraordinaryPrevalenceSeeder.Seed(world); // AD-156: no-op com poderes desligados
+        LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
+        return (world, new WorldClock(DefaultSystems(extraordinary: extraordinary), maxIterationsPerTick));
     }
 
     public static (string CanonicalHash, string VolatileHash) RunAndHash(ulong seed, long ticks)

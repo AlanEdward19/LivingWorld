@@ -129,6 +129,9 @@ public sealed class PossessionResistanceTests
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             extraordinary: new ExtraordinaryScenarioData(true, [descriptor]), extraordinaryCarriers: [carrierState]);
+        // AD-197g: estes testes cobrem o sorteio por vigor de antes, que vale com a disputa de vontade desligada (LW_AD197F=nowill);
+        // a disputa (vontade contra o controle do poder) está em PowerPossessionContestTests
+        world.UsePlayers(PlayerRules.Default with { Possession = PossessionRules.Default with { WillContest = false } });
         var carrier = Npc(new NpcId(1), vitality: 50);
         var target = Npc(new NpcId(2), vitality: hostVitality);
         world.AddNpc(carrier);

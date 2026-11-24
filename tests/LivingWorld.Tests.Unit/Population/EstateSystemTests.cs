@@ -207,13 +207,14 @@ public class EstateSystemTests
     }
 
     [Fact]
-    public void Money_stays_balanced_through_a_year_of_natural_deaths()
+    public void Money_stays_balanced_through_two_years_of_natural_deaths()
     {
+        // dois anos (AD-137): com a doença como causa, a seed 3 com 60 pessoas pode passar um ano inteiro sem morte
         var (world, clock) = ScenarioRunner.Create(seed: 3, initialPopulation: 60);
         long before = TotalMoney(world);
         int deadBefore = world.Npcs.Count(n => !n.IsAlive);
 
-        for (int day = 0; day < 360; day++)
+        for (int day = 0; day < 720; day++)
         {
             clock.Run(world, 24);
             Assert.Equal(before + world.MoneyMinted.Amount - world.MoneyDestroyed.Amount, TotalMoney(world));

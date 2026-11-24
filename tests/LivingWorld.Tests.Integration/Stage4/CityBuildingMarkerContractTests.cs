@@ -49,9 +49,12 @@ public class CityBuildingMarkerContractTests
     [Fact]
     public void Projector_marker_location_matches_BuildingPlacementResolver()
     {
-        var world = ScenarioRunner.Create(seed: 18, initialPopulation: 1).World;
-        var npc = world.Npcs.First();
-        var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
+        // AD-173: cidade nova longe da vila (com o largo e a rua, a casa não cabe nos 3x3 de uma cidade sem gente colada a outra)
+        var world = ScenarioRunner.Create(seed: 18, initialPopulation: 80).World;
+        var dry = Enumerable.Range(4, world.Map.Width - 8).Reverse()
+            .SelectMany(x => Enumerable.Range(4, world.Map.Height - 8).Reverse().Select(y => new CellCoord(x, y)))
+            .First(c => !world.Map.Cells.Any(cell => cell.HasWater && Math.Abs(cell.Coord.X - c.X) <= 3 && Math.Abs(cell.Coord.Y - c.Y) <= 3));
+        var city = new City(world.NextCityId(), dry, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, -1, 0);
         world.AddBuilding(building);

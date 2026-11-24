@@ -14,6 +14,7 @@ namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Fase 7, T23–T26: cenários pareados/estatísticos de família — fora do gate padrão via
 /// <c>[Trait("Category","Scenario")]</c> (mesmo padrão de <see cref="PairedScenarioTests"/>).</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class FamilyPairedScenarioTests
 {
     private const int HorizonYears = 10;
@@ -32,11 +33,15 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Ten_years_default_scenario_has_zero_marriages_between_first_degree_relatives()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
-        clock.Run(world, HorizonHours);
+        // A vila padrão da seed 42 por 10 anos é a corrida compartilhada DefaultVillageSeed42 (ADR-0044): ela roda esta checagem
+        // no ano 10 sobre os eventos que gravou e guarda a falha (ou nulo).
+        Assert.Equal(DefaultSeed, (int)DefaultVillageSeed42.Seed);
+        Assert.Null(DefaultVillageSeed42.Value.FirstDegreeMarriageFailure);
+    }
 
+    /// <summary>Corpo do teste acima, sobre o mundo no ano 10 e os eventos gravados até ali.</summary>
+    internal static void AssertNoFirstDegreeMarriages(WorldState world, RecordingSink sink)
+    {
         var npcById = world.Npcs.ToDictionary(n => n.Id);
         var populationRules = world.PopulationRules;
         var now = world.CurrentDate;
@@ -117,14 +122,15 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Every_birth_in_horizon_has_valid_parents_alive_at_conception_and_fertile_mother_age()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
-        clock.Run(world, HorizonHours);
+        // Seed 42 × 10 anos: checado dentro da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        Assert.Null(DefaultVillageSeed42.Value.BirthParentsFailure);
+    }
 
+    /// <summary>Corpo do teste acima, sobre o mundo no ano 10 e os eventos gravados até ali.</summary>
+    internal static void AssertBirthParents(WorldState world, RecordingSink sink)
+    {
         var npcById = world.Npcs.ToDictionary(n => n.Id);
         var rules = world.PopulationRules;
-        int gestationDays = rules.GestationDays;
 
         foreach (var evt in sink.Events.Where(IsNpcBirth))
         {
@@ -133,48 +139,34 @@ public class FamilyPairedScenarioTests
             var child = npcById[childId];
             Assert.NotNull(child.MotherId);
 
-            var conceptionDate = child.BirthDate.AddDays(-gestationDays);
+            // AD-130: a gestação de cada um fica gravada no bebê (prematuro ou a termo)
+            var conceptionDate = child.BirthDate.AddDays(-(child.GestationAtBirthDays ?? rules.Fertility.TermMeanDays));
             AssertMotherAndFather(child, npcById, conceptionDate, rules);
         }
     }
 
     /// <summary>Flora e fauna também emitem <see cref="WorldEventKind.Birth"/>; só o do
     /// <c>NatalitySystem</c> é nascimento de NPC (carga: filho|mãe|pai|household).</summary>
-    private static bool IsNpcBirth((WorldEventKind Kind, string? Payload, string SourceSystem) e) =>
+    internal static bool IsNpcBirth((WorldEventKind Kind, string? Payload, string SourceSystem) e) =>
         e.Kind == WorldEventKind.Birth && e.SourceSystem == "NatalitySystem";
 
     // --- T25 (FAM-26) ---
 
-    /// <summary>Tolerância ampla: o critério do roadmap usa ordem de grandeza
-    /// (<c>esperado = anos / idadeMédiaPrimeiroParto</c>), não contagem exata — reprodução depende
-    /// reprodução depende de casamento, recursos e mortalidade além da fertilidade bruta.
-    /// Wake esparso (PERF-08) pode reduzir concepções observadas vs. grid horário cheio; com a população
-    /// sobrevivendo (B1) o total observado passa de 2x o esperado bruto. Depois que a vila passou a
-    /// comer (salário proporcional, ajuda mútua, compra de casa), o default mede ~40 nascimentos em
-    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.</summary>
-    private const double BirthCountToleranceFraction = 1.5;
+    /// <summary>Faixa da natalidade bruta da 1ª década (AD-162, item 16): a de uma vila pré-industrial vai de ~30‰ a ~50‰ (faixa
+    /// clássica do estágio 1 da transição; os anos da pirâmide inicial, sem ninguém no intervalo pós-parto, ficam no alto dela). O
+    /// teste antigo comparava com <c>anos / idade do 1º parto</c> e uma tolerância de 270%, cujo limite inferior era negativo
+    /// (zero nascimentos passava); a faixa abaixo é a que o raciocínio dele já usava, com folga para uma seed só.</summary>
+    private const double MinBirthRatePerMille = 25, MaxBirthRatePerMille = 60;
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Birth_count_over_horizon_is_compatible_with_scenario_derived_expectation()
+    public void Birth_rate_of_the_first_decade_stays_in_the_preindustrial_band()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, HorizonHours);
+        // Nascimentos de NPC e pessoas-ano da seed 42 em 10 anos, da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        var observed = DefaultVillageSeed42.Value;
+        double perMille = 1000.0 * observed.NpcBirthsYear10 / observed.PersonYearsYear10;
 
-        int births = sink.Events.Count(IsNpcBirth);
-        var populationRules = ScenarioRunner.DefaultPopulationRules;
-        double meanAgeAtFirstBirth = MeanAgeAtFirstBirthYears(populationRules);
-        double expected = HorizonYears / meanAgeAtFirstBirth;
-        double lower = expected * (1 - BirthCountToleranceFraction);
-        double upper = expected * (1 + BirthCountToleranceFraction);
-
-        // Escala pelo tamanho inicial: o critério fala em linhagens numa vila, não uma única família.
-        int initial = ScenarioRunner.DefaultInitialPopulation;
-        lower *= initial / 2.0;
-        upper *= initial / 2.0;
-
-        Assert.InRange(births, (int)Math.Floor(lower), (int)Math.Ceiling(Math.Max(upper, 1)));
+        Assert.InRange(perMille, MinBirthRatePerMille, MaxBirthRatePerMille);
     }
 
     // --- T26 (FAM-27) ---
@@ -183,14 +175,8 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Final_population_over_the_seed_set_stays_alive_and_near_committed_average_baseline()
     {
-        // Cada seed é um mundo independente: roda em paralelo, resultado indexado pela seed.
-        var counts = new int[SeedCount];
-        Parallel.For(1, SeedCount + 1, seed =>
-        {
-            var (world, clock) = ScenarioRunner.Create((ulong)seed);
-            clock.Run(world, HorizonHours);
-            counts[seed - 1] = world.Npcs.Count(n => n.IsAlive);
-        });
+        // A vila padrão das seeds 1..10 no ano 10 é a corrida compartilhada do século (ADR-0044): mesmo mundo, mesma contagem.
+        var counts = DefaultVillageCentury.Runs.Take(SeedCount).Select(r => r.Alive[HorizonYears]).ToArray();
 
         for (int seed = 1; seed <= SeedCount; seed++)
             Assert.True(counts[seed - 1] > 0, $"seed {seed}: extinção total — Fase 7 não pode apagar a vila");
@@ -316,7 +302,9 @@ public class FamilyPairedScenarioTests
     public void Household_wealth_distance_is_at_least_as_large_as_genome_distance()
     {
         const int samplesPerGroup = 200;
-        const int horizonYears = 60;
+        // AD-130: carreira dos 30 aos 60 (vida de trabalho). Com a tábua de época, o horizonte antigo até os 90 media quase só
+        // quem sobrevive à velhice — o canal genético via mortalidade — e não a riqueza acumulada no trabalho.
+        const int horizonYears = 30;
         var rules = ScenarioRunner.DefaultFamilyRules;
 
         // Mesmo genoma (Vitality=60), Upbringing variando em [40,60] — nunca satura o fator de
@@ -447,13 +435,13 @@ public class FamilyPairedScenarioTests
             EnvironmentalWealthChannelEnabled = false,
         };
 
-        var (worldOn, clockOn) = ScenarioRunner.Create(DefaultSeed);
-        clockOn.Run(worldOn, HorizonHours);
+        // Braço ligado: a vila padrão da seed 42 no ano 10, da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        string hashOn = DefaultVillageSeed42.Value.HashYear10;
 
         var (worldOff, clockOff) = ScenarioRunner.Create(DefaultSeed, familyRules: phase7OffRules);
         clockOff.Run(worldOff, HorizonHours);
 
-        Assert.NotEqual(WorldSnapshot.CanonicalHash(worldOn), WorldSnapshot.CanonicalHash(worldOff));
+        Assert.NotEqual(hashOn, WorldSnapshot.CanonicalHash(worldOff));
     }
 
     private static void AssertMotherAndFather(
@@ -470,7 +458,12 @@ public class FamilyPairedScenarioTests
         // morreu ela devolveria a idade no óbito e não na concepção.
         int motherAgeAtConception = (int)(
             (conceptionDate.TotalHours - mother.BirthDate.TotalHours) / mother.BirthDate.Calendar.HoursPerYear);
-        Assert.InRange(motherAgeAtConception, rules.FertilityMinAge, rules.FertilityMaxAge);
+        // AD-130: casa a partir de FertilityMinAge e concebe enquanto a curva de fecundabilidade for positiva (menopausa).
+        // AD-139/AD-140: com hormônios a fertilidade começa na menarca dela (média ~15, dp 1,2), dentro ou fora de união; a
+        // concepção vale a partir da própria puberdade, ou de FertilityMinAge para quem não tem a puberdade marcada.
+        bool pastPuberty = mother.PubertyTick is { } puberty && puberty <= conceptionDate.TotalHours;
+        Assert.True((motherAgeAtConception >= rules.FertilityMinAge || pastPuberty)
+            && rules.Fertility.FemaleMonthlyFecundability.At(motherAgeAtConception) > 0, $"mãe concebeu com {motherAgeAtConception}");
 
         if (child.FatherId is { } fatherId)
         {
@@ -479,16 +472,22 @@ public class FamilyPairedScenarioTests
         }
     }
 
-    /// <summary>Proxy de idade média de primeiro parto a partir das regras demográficas do cenário
-    /// default (campo dedicado no JSON fica para quando o loader expuser — hoje só há janela).</summary>
-    private static double MeanAgeAtFirstBirthYears(PopulationRules rules) =>
-        (rules.FertilityMinAge + rules.FertilityMaxAge) / 2.0;
-
-    private sealed class RecordingSink : IWorldEventSink
+    /// <summary>Grava os eventos enquanto <see cref="Recording"/>; com <see cref="OnlyMarriagesAndBirths"/>, só o que os testes
+    /// de 10 anos leem (a corrida compartilhada segue por 60 anos e não precisa guardar o resto).</summary>
+    internal sealed class RecordingSink : IWorldEventSink
     {
         public List<(WorldEventKind Kind, string? Payload, string SourceSystem)> Events { get; } = [];
 
-        public void Record(WorldEvent evt) => Events.Add((evt.Kind, evt.Payload, evt.SourceSystem));
+        public bool Recording { get; set; } = true;
+
+        public bool OnlyMarriagesAndBirths { get; init; }
+
+        public void Record(WorldEvent evt)
+        {
+            if (!Recording) return;
+            if (OnlyMarriagesAndBirths && !(evt.Kind == WorldEventKind.Marriage || IsNpcBirth((evt.Kind, evt.Payload, evt.SourceSystem)))) return;
+            Events.Add((evt.Kind, evt.Payload, evt.SourceSystem));
+        }
     }
 
     private static string FindRepoRoot()

@@ -108,6 +108,10 @@ class NpcDetailPanel extends PanelContainer:
 	var api
 	var labels
 	var name_of: Callable = func(id: int) -> String: return "NPC %d" % id
+	var profession_name_of: Callable = func(id: int) -> String: return "ofício nº %d" % id
+	var skill_name_of: Callable = func(id: int) -> String: return "habilidade %d" % id ## AD-197p: o app liga o catálogo do período
+	var detail: Dictionary = {} ## última ficha mostrada (o inspetor monta os links a partir dela)
+	signal presented(id: int, detail: Dictionary)
 	var npc_id := -1
 	var text := ""
 	var details_text := ""
@@ -220,7 +224,11 @@ class NpcDetailPanel extends PanelContainer:
 			warning.emit("Não foi possível detalhar este morador (erro %d)." % response.status)
 
 
-	func _present(id: int, npc: Dictionary) -> void:
+	## `quiet`: atualização automática da mesma pessoa (inspetor aberto) — não repete a checagem de tecnologias nem
+	## o pedido de modelo; o botão de tecnologias fica como estava.
+	func _present(id: int, npc: Dictionary, quiet: bool = false) -> void:
+		quiet = quiet and id == npc_id
+		var tech_was: bool = tech_button.visible
 		npc_id = id
 		lod = int(npc.get("lod", 0))
 		var anonymous := lod == 2
@@ -234,7 +242,7 @@ class NpcDetailPanel extends PanelContainer:
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
 		culture_id = int(npc.culture.id) if npc.get("culture") is Dictionary else -1
-		tech_button.visible = false
+		tech_button.visible = tech_was if quiet else false
 		employer_id = int(npc.employer.value) if npc.get("employer") is Dictionary else -1
 		trades_button.visible = employer_id >= 0 and not anonymous
 		var named := String(npc.get("name", "")) != ""
@@ -248,35 +256,34 @@ class NpcDetailPanel extends PanelContainer:
 			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
 		details_text = _describe(npc)
 		_details.text = details_text
+		detail = npc
 		visible = true
 		highlight.emit(id)
+		presented.emit(id, npc)
+		if quiet:
+			return
 		if culture_id >= 0:
 			culture_shown.emit(culture_id)
 		var profession = npc.get("profession")
 		model_known.emit(id, int(profession.id) if profession is Dictionary else -1, float(npc.ageYears))
 
 
-	## Ficha em linhas curtas: quem é, de quem é parente, onde trabalha, o que sabe e como é.
+	## Ficha em linhas curtas: quem é, o ofício (pelo nome do catálogo), o que sabe e como é. Parentesco, casa e
+	## trabalho viram links clicáveis no inspetor (Scenes/inspector.gd), não texto morto.
 	func _describe(npc: Dictionary) -> String:
 		var lines: Array[String] = []
 		var profession = npc.get("profession")
-		lines.append("%s · profissão %s" % ["Mulher" if int(npc.get("sex", 0)) == 0 else "Homem", str(int(profession.id)) if profession is Dictionary else "—"])
-		var spouse = npc.get("spouse")
-		if spouse is Dictionary:
-			lines.append("Cônjuge: %s" % name_of.call(int(spouse.value)))
-		for parent in [["Mãe", npc.get("motherId")], ["Pai", npc.get("fatherId")]]:
-			if parent[1] is Dictionary:
-				lines.append("%s: %s" % [parent[0], name_of.call(int(parent[1].value))])
-		var household = npc.get("household")
-		if household is Dictionary:
-			lines.append("Casa nº %d" % int(household.value))
-		if npc.get("employer") is Dictionary:
-			lines.append("Trabalha no local %d" % int(npc.employer.value))
+		lines.append("%s · %s" % ["Mulher" if int(npc.get("sex", 0)) == 0 else "Homem",
+			profession_name_of.call(int(profession.id)) if profession is Dictionary else "sem ofício"])
+		var target = npc.get("actionTarget")
+		if target is Dictionary:
+			lines.append("Alvo da ação: %s %s" % [String(target.get("kind", "")), String(target.get("id", ""))])
 		var skills: Dictionary = npc.get("skills", {}).get("values", {})
 		if not skills.is_empty():
 			var parts: Array[String] = []
+			# AD-197p: a chave é o id da habilidade (o nome vem do catálogo do período) e o valor já é o nível 0–100, não uma fração
 			for key in skills:
-				parts.append("%s %d%%" % [key, int(float(skills[key]) * 100.0)])
+				parts.append("%s %d" % [skill_name_of.call(int(key)), roundi(float(skills[key]))])
 			lines.append("Habilidades: " + ", ".join(parts))
 		var personality: Dictionary = npc.get("personality", {})
 		var traits: Array = personality.keys()
@@ -362,6 +369,10 @@ class ClockPanel extends HBoxContainer:
 	var _label: Label
 	var _timer: Timer
 	var _speed_buttons: Array = []
+	var _command_buttons: Array = []
+	var can_control := true
+	var locked_reason := ""
+	var show_status_text := true ## falso: a linha de estado vai só na dica (barra estreita)
 	signal changed()
 	signal status_changed(status: Dictionary)
 
@@ -375,6 +386,7 @@ class ClockPanel extends HBoxContainer:
 			var action: String = spec[1]
 			button.pressed.connect(func(): command(action))
 			add_child(button)
+			_command_buttons.append(button)
 		for speed in SPEEDS:
 			var button := Button.new()
 			button.text = "%d×" % int(speed)
@@ -389,12 +401,26 @@ class ClockPanel extends HBoxContainer:
 		_timer.timeout.connect(refresh)
 		add_child(_timer)
 
+	## Tempo é só do admin (ADR-0015, decisão do dono em 2026-11-17): sem token os botões ficam desabilitados com o
+	## motivo na dica, em vez de mandar o comando e receber 403.
+	func set_control_enabled(enabled: bool, reason: String = "") -> void:
+		can_control = enabled
+		locked_reason = "" if enabled else reason
+		for button in _command_buttons + _speed_buttons:
+			button.disabled = not enabled
+			button.tooltip_text = locked_reason
+		tooltip_text = locked_reason
+
 	func command(action: String) -> void:
+		if not can_control:
+			return
 		await api.clock_command(action)
 		await refresh()
 		changed.emit()
 
 	func set_speed(ticks_per_second: float) -> void:
+		if not can_control:
+			return
 		await api.set_speed(ticks_per_second)
 		await refresh()
 
@@ -404,9 +430,13 @@ class ClockPanel extends HBoxContainer:
 			status_text = "sem conexão"
 		else:
 			status = response.body
-			status_text = "%s · %s ticks/s · tick %d · ano %d" % [
-				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), int(status.tick), int(status.year)]
+			status_text = "%s · %s ticks/s · tick %d · ano %d%s" % [
+				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), preload("res://Contract/world_time.gd").hours_of(status, "atMs"), int(status.year),
+				"" if can_control else " · tempo: só admin"]
 			for i in _speed_buttons.size():
 				_speed_buttons[i].button_pressed = is_equal_approx(SPEEDS[i], float(status.ticksPerSecond))
 			status_changed.emit(status)
 		_label.text = status_text
+		_label.visible = show_status_text
+		if not show_status_text:
+			tooltip_text = locked_reason if locked_reason != "" else status_text

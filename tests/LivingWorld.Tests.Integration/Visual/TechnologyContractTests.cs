@@ -23,7 +23,7 @@ public class TechnologyContractTests : IClassFixture<LivingWorldApiFactory>
         world.AddTechnology(new Technology(
             npc.Culture, EmergenceRules.MobilityCategory, new TechnologyVector([2, 4, 6]), 50, city, null, [city]));
 
-        var response = await _factory.CreateClient().GetAsync($"/cultures/{npc.Culture.Id}/technologies?fromTick=0");
+        var response = await _factory.CreateClient().GetAsync($"/cultures/{npc.Culture.Id}/technologies?fromMs=0");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var shape = ApiContractTests.ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;

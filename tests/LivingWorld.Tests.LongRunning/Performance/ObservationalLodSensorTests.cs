@@ -24,6 +24,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// µs/NPC-tick separado para observado vs. aproximado; fração declarada; rastro zero fora de
 /// escopo.</summary>
 [Collection(ScalePerformanceCollection.Name)]
+[Trait("Category", "Timing")] // assert de tempo de relógio: fase quieta do verify.sh
 public class ObservationalLodSensorTests
 {
     private const long OneMonthTicks = 30 * 24;

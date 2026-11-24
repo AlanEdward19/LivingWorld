@@ -7,6 +7,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 [Collection(ScalePerformanceCollection.Name)]
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
+[Trait("Category", "Timing")] // mede tempo de relógio: fase quieta do verify.sh
 public class WorldCreationCostTests
 {
     [Fact]

@@ -59,6 +59,19 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         return owner is { IsManifested: true };
     }
 
+    /// <summary>AD-197g: o descritor do poder de possessão de quem possui <paramref name="npc"/>, ou nulo se ninguém o possui por
+    /// poder. A força do controle na disputa de vontade sai dele (<c>PossessionContest.PowerControl</c>).</summary>
+    internal static PowerDescriptor? PossessingPower(WorldState world, Npc npc)
+    {
+        if (!IsPossessed(world, npc)) return null;
+        var owner = world.CarrierOf(world.CarrierOf(npc.Id)!.PossessedBy!.Value)!;
+        foreach (string powerId in owner.PowerIds)
+            if (world.Extraordinary.Descriptors.FirstOrDefault(p => p.Id == powerId) is { } descriptor
+                && descriptor.Effects.Any(e => e == PossessToken || e.StartsWith(PossessPrefix, StringComparison.Ordinal)))
+                return descriptor;
+        return null;
+    }
+
     internal static bool TryDelegatedAction(
         WorldState world, Npc npc, bool justCompleted, out ActionType action)
     {
@@ -100,7 +113,12 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         foreach (var other in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
         {
             if (other.PossessedBy == npc.Id)
+            {
                 world.UpsertExtraordinaryCarrier(other with { PossessedBy = null });
+                // AD-197g: o poder cessou: quem estava possuído para de cansar (e recupera solto), salvo se um jogador segue nele
+                if (world.FindNpc(other.CarrierId) is { ControllerId: null } freed)
+                    LivingWorld.Simulation.Players.PossessionContest.End(world, freed, ctx.CurrentTick);
+            }
         }
 
         if (previous.BodySwapPartner is not { } partnerId) return;
@@ -114,7 +132,9 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         ClearSwap(world, partnerId);
     }
 
-    /// <summary>Roll determinístico por tick para cada hospedeiro possuído.</summary>
+    /// <summary>Resistência de cada hospedeiro possuído, a cada hora. AD-197g: com a disputa de vontade ligada
+    /// (<c>LW_AD197F</c>), é a mesma regra da posse do jogador (<c>PossessionContest</c>): vontade contra o controle do poder,
+    /// sem sorteio. Desligada, o sorteio por vigor de antes (REALISM-33/34).</summary>
     internal static void ApplyPossessionResistance(WorldState world, TickContext ctx)
     {
         if (!world.Extraordinary.Enabled) return;
@@ -126,8 +146,26 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         {
             if (world.FindNpc(hostState.CarrierId) is not { IsAlive: true } host) continue;
             if (!IsPossessed(world, host)) continue;
+            if (LivingWorld.Simulation.Players.PossessionContest.On(world))
+            {
+                LivingWorld.Simulation.Players.PossessionContest.Begin(world, host, ctx.CurrentTick); // posse anterior à regra: começa agora
+                if (LivingWorld.Simulation.Players.PossessionContest.StrugglesAgainstPower(world, host, ctx.CurrentTick))
+                    Resisted(world, hostState, host, ctx, "possession-resisted");
+                continue;
+            }
             TryResist(world, hostState, host, ctx);
         }
+    }
+
+    /// <summary>A pessoa venceu a posse por poder: o corpo volta a ela, o fato fica no cânone.</summary>
+    private static void Resisted(WorldState world, ExtraordinaryCarrierState hostState, Npc host, TickContext ctx, string how)
+    {
+        var possessorId = hostState.PossessedBy!.Value;
+        world.UpsertExtraordinaryCarrier(hostState with { PossessedBy = null });
+        string payload = $"{host.Id.Value}|{possessorId.Value}|{how}";
+        ctx.LogEvent(WorldEventKind.PossessionResisted, payload, sourceSystem: "ControlMechanic");
+        world.AddFact(new Fact(world.NextFactIdAndAdvance(), ctx.CurrentTick, WorldEventKind.PossessionResisted, [host.Id, possessorId],
+            host.City != default ? host.City : null, 0.75, payload));
     }
 
     /// <summary>Roll modulado por <see cref="Npc.Vitality"/>; sucesso limpa
@@ -172,10 +210,20 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         var world = ctx.World;
         var carrier = ctx.Carrier;
         var target = ctx.Target;
+        var tick = ctx.Tick;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, _ =>
         {
             var state = CarrierOf(world, target);
             world.UpsertExtraordinaryCarrier(state with { PossessedBy = carrier.Id });
+            if (!LivingWorld.Simulation.Players.PossessionContest.On(world)) return;
+            // AD-197g: a mesma regra do jogador: vontade bastante contra o controle inicial do poder impede a entrada
+            double initial = LivingWorld.Simulation.Players.PossessionContest.PowerControl(world, target, 0) ?? 0;
+            if (LivingWorld.Simulation.Players.PossessionContest.Prevents(world, target, tick.CurrentTick, initial))
+            {
+                Resisted(world, CarrierOf(world, target), target, tick, "possession-prevented");
+                return;
+            }
+            LivingWorld.Simulation.Players.PossessionContest.Begin(world, target, tick.CurrentTick);
         }));
     }
 

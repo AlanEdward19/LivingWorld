@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0036. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0036. Fila de despertar fora do <c>PendingEvents</c> — AD-129: canônico regravado só pela forma do snapshot, volátil e lote de despertar idênticos. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -33,8 +33,9 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "081b0d84ecbb67aa422f95c6c32753edda00e38a1b31acf9795a42d79a66fa19", "4a22b523e38a7094a2684fe29099f644c2837998cb36d12147b0ec17d4f75b1f")]
-    [InlineData(2UL, "a1f37a85db61419fabe15f2c5556231267c42a8ede007e8d45e06546cd4d5fc9", "5d8cd4452a25e83d31660b95d7cd14c41a8154c37eeab560783b941f99f89e7d")]
+    // AD-146: regravados (quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem)
+    [InlineData(1UL, "02bb0fd00cf752596bd885b20333bdd3004fd6ab8f1e0ef761b01cb3f4b72073", "4c5967913050d06764d581c80844d1d51ea9224d9faf02a14ebb51893358a0c5")]
+    [InlineData(2UL, "0283987c09c6960adba8c6f52f89adf738ce284805cd154860d66d4aae9a003d", "5c9ba9d0ed5949e53bd2384de4f45e3bc659be85efabdb3ca8b9c7d464e8a72f")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -62,10 +63,38 @@ public class OptimizationEquivalenceTests
             }
     }
 
-    // --- Mortalidade condicional da população inicial (flag, desligada por padrão) ---
+    [Fact]
+    public void One_shot_stream_draws_what_the_named_stream_would_and_leaves_nothing_in_the_snapshot()
+    {
+        foreach (var key in new[] { "natality-12-345", "contagion-1-2-90", "climate-3-17", "", "ação-ç-7" })
+        {
+            var registry = new WorldRngRegistry(77);
+            var oneShot = registry.OneShot(key);
+            Assert.Empty(registry.Snapshot());
+
+            var named = new WorldRngRegistry(77).Stream(key);
+            Assert.Equal(named.NextDouble(), oneShot.NextDouble());
+            Assert.Equal(named.NextDouble(), oneShot.NextDouble());
+        }
+    }
 
     [Fact]
-    public void Conditional_initial_mortality_keeps_the_seeded_population_from_dying_in_the_first_hour()
+    public void Rng_streams_do_not_grow_with_the_age_of_the_world()
+    {
+        var (world, clock) = ScenarioRunner.Create(5);
+        clock.Run(world, OneYearInHours);
+        int afterOneYear = world.RngStreams.Count;
+        clock.Run(world, 2 * OneYearInHours);
+
+        // Antes: um stream por (ação, NPC) do passeio ambiente e um por nascimento, contágio, clima e cortejo, para sempre.
+        Assert.Equal(afterOneYear, world.RngStreams.Count);
+        Assert.DoesNotContain(world.RngStreams, s => s.Key.StartsWith("ambient-", StringComparison.Ordinal));
+    }
+
+    // --- Mortalidade da população inicial ---
+
+    [Fact]
+    public void Seeded_population_does_not_die_in_its_first_days_whatever_the_legacy_conditional_flag()
     {
         int AliveAfterTwoDays(bool conditional)
         {
@@ -75,12 +104,9 @@ public class OptimizationEquivalenceTests
             return world.Npcs.Count(n => n.IsAlive);
         }
 
-        int legacy = AliveAfterTwoDays(conditional: false);
-        int conditional = AliveAfterTwoDays(conditional: true);
-
-        // Legado: quem recebe idade de morte menor que a atual morre 1 hora depois (~30% da vila).
-        Assert.True(legacy <= 80, $"esperava mortes imediatas no comportamento legado (vivos: {legacy})");
-        Assert.True(conditional >= 95, $"flag ligada não deveria matar a população inicial (vivos: {conditional})");
+        // AD-130: a morte é risco contínuo a partir da idade atual, então a flag ficou sem efeito; antes, sem ela, quem
+        // recebia idade de morte menor que a atual morria 1 hora depois (~30% da vila).
+        Assert.True(AliveAfterTwoDays(conditional: false) >= 95 && AliveAfterTwoDays(conditional: true) >= 95);
     }
 
     // --- Índice espacial de NPCs vivos ---
@@ -138,6 +164,43 @@ public class OptimizationEquivalenceTests
         AssertRelationshipIndexMatchesDictionary(world);
     }
 
+    [Theory]
+    [InlineData(1UL)]
+    [InlineData(5UL)]
+    public void No_relationship_points_to_someone_who_left_the_world_through_the_cold_archive(ulong seed)
+    {
+        var perf = LivingWorld.Domain.Performance.PerfRules.Create(1.0, 100, 2000, coldArchiveAfterYears: 1).Value!;
+        var (world, clock) = ScenarioRunner.Create(seed, perfRules: perf);
+        clock.Run(world, 6 * OneYearInHours);
+
+        Assert.True(world.ColdArchive.AllNpcSummaries.Count > 0, "ninguém foi arquivado: o teste não mediu nada");
+        Assert.All(world.Relationships.Keys, key =>
+        {
+            Assert.NotNull(world.FindNpc(key.From));
+            Assert.NotNull(world.FindNpc(key.To));
+        });
+        AssertRelationshipIndexMatchesDictionary(world);
+    }
+
+    [Fact]
+    public void Removing_every_relationship_of_an_npc_leaves_no_pair_in_either_direction_and_keeps_the_index_in_sync()
+    {
+        var (world, clock) = ScenarioRunner.Create(3);
+        clock.Run(world, OneYearInHours);
+        var gone = world.Relationships.Keys.GroupBy(k => k.From).OrderByDescending(g => g.Count()).First().Key;
+        int expected = world.Relationships.Keys.Count(k => k.From == gone || k.To == gone);
+        int others = world.Relationships.Count - expected;
+        Assert.True(expected > 2);
+
+        Assert.Equal(expected, world.RemoveRelationshipsOf(gone));
+
+        Assert.Equal(others, world.Relationships.Count);
+        Assert.DoesNotContain(world.Relationships.Keys, k => k.From == gone || k.To == gone);
+        Assert.Null(world.RelationshipsFrom(gone));
+        AssertRelationshipIndexMatchesDictionary(world);
+        Assert.Equal(0, world.RemoveRelationshipsOf(gone));
+    }
+
     private static void AssertRelationshipIndexMatchesDictionary(WorldState world)
     {
         foreach (var npc in world.Npcs)
@@ -148,6 +211,12 @@ public class OptimizationEquivalenceTests
                 .OrderBy(v => v)
                 .ToList();
             Assert.Equal(expected, world.RelationshipTargetsOf(npc.Id).Select(t => t.Value));
+
+            // A lista paralela guarda a própria relação de cada alvo, na mesma posição (ou não existe, sem relação nenhuma).
+            var owned = world.RelationshipsFrom(npc.Id);
+            Assert.Equal(expected.Count, owned?.Count ?? 0);
+            for (int i = 0; i < expected.Count; i++)
+                Assert.Same(world.Relationships[new RelationshipKey(npc.Id, new NpcId(expected[i]))], owned![i]);
         }
     }
 
@@ -636,9 +705,7 @@ public class OptimizationEquivalenceTests
         {
             // Poucos tipos repetidos: o marco de overflow de cada forma é reaproveitado várias vezes.
             var next = new Building(world.NextBuildingIdAndAdvance(), city.Id, new[] { -1, 3, 4 }[round % 3], 0);
-            var shape = BuildingFootprintGenerator.Generate(next).Select(c => c.Cell).ToList();
-            var occupied = ReferenceOccupied(world, city, bounds, next.Id);
-            var expected = ReferencePlacement(occupied, bounds, next.Id, shape, world.Map);
+            var expected = ReferencePlacement(ReferenceGround(world, city, bounds, next.Id), world, city, bounds, next)?.Item1;
 
             var resolved = BuildingPlacementResolver.Resolve(next, city, world, bounds);
 
@@ -743,10 +810,16 @@ public class OptimizationEquivalenceTests
             ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
     }
 
-    /// <summary>Definição direta anterior à memoização: passe ascendente que recomputa tudo.</summary>
-    private static HashSet<CellCoord> ReferenceOccupied(WorldState world, City city, CityBounds bounds, BuildingId placingId)
+    /// <summary>Definição direta anterior à memoização: passe ascendente que recomputa tudo (AD-173: o chão inteiro —
+    /// plantas, passagens e quintais).</summary>
+    private static HashSet<CellCoord> ReferenceOccupied(WorldState world, City city, CityBounds bounds, BuildingId placingId) =>
+        ReferenceGround(world, city, bounds, placingId).Occupied;
+
+    private static LivingWorld.Simulation.Cities.Layout.CityGround ReferenceGround(WorldState world, City city, CityBounds bounds, BuildingId placingId)
     {
-        var occupied = new HashSet<CellCoord>();
+        var ground = new LivingWorld.Simulation.Cities.Layout.CityGround();
+        var network = CityStreets.Of(world, city);
+        var rules = world.CityRules.EffectiveLayout();
         var siblings = world.Buildings
             .Where(b => b.City == city.Id)
             .Where(b => b.Id.Value != placingId.Value)
@@ -754,39 +827,62 @@ public class OptimizationEquivalenceTests
 
         foreach (var building in siblings.OrderBy(b => b.Id.Value))
         {
-            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
-            CellCoord? position = building.Position
-                ?? ReferencePlacement(occupied, bounds, building.Id, shape, world.Map);
-            if (position is null) continue;
-
-            foreach (var cell in shape)
-                occupied.Add(new CellCoord(cell.X + position.Value.X, cell.Y + position.Value.Y));
+            var lot = building.Position is { } p ? (p, building.CroftCells ?? 0) : ReferencePlacement(ground, world, city, bounds, building);
+            if (lot is not { } found) continue;
+            ground.Add(BuildingFootprintGenerator.Generate(building), found.Item1, found.Item2, network, world.Map, rules);
         }
 
-        return occupied;
+        return ground;
     }
 
-    /// <summary>Definição direta da regra de posicionamento: dentro dos bounds, nenhuma célula do footprint
-    /// em água, nenhuma célula ocupada nem vizinha (folga de <see cref="CityOccupancy.MinGap"/>) a ele.</summary>
-    /// <summary>Degraus de relaxamento: 0 = folga e sem água; 1 = encostando, sem água; 2 = só sem sobreposição.
-    /// Cada degrau varre os bounds e depois o anel; só desce quando o anterior não achou nada.</summary>
-    private static CellCoord? ReferencePlacement(
-        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> shape,
-        LivingWorld.Domain.Geography.Map.WorldMap map)
+    /// <summary>Definição direta dos degraus (AD-173): 0–2 de frente para a rua ou com caminho a pé curto (o mais perto do largo,
+    /// quintal só se não afasta mais que <c>CroftDetourCells</c>), buscas desde o começo; 3–5 os degraus antigos, varrendo os bounds
+    /// e depois o anel, sem cair em rua nem passagem e com a soleira livre.</summary>
+    private static (CellCoord, int)? ReferencePlacement(
+        LivingWorld.Simulation.Cities.Layout.CityGround ground, WorldState world, City city, CityBounds bounds, Building building)
     {
-        for (int level = 0; level < 3; level++)
+        var map = world.Map;
+        var network = CityStreets.Of(world, city);
+        var rules = world.CityRules.EffectiveLayout();
+        int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
+        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        LivingWorld.Simulation.Cities.Layout.LotPlanner.Option[] options = [new(orientation, footprint)];
+        var profile = CityOccupancy.DerivedProfile(world, building.BuildingTypeId);
+        int Distance((CellCoord Origin, int Croft, int Orientation)? l) =>
+            l is { } v ? Math.Max(Math.Abs(v.Origin.X - city.Location.X), Math.Abs(v.Origin.Y - city.Location.Y)) : int.MaxValue;
+        (CellCoord Origin, int Croft, int Orientation)? Street(int level)
         {
-            var found = ReferenceScan(occupied, bounds, shape, map, level)
+            var onStreet = LivingWorld.Simulation.Cities.Layout.LotPlanner.Find(ground, network, map, rules, options, profile, level, 0, out _);
+            var viaPath = LivingWorld.Simulation.Cities.Layout.LotPlanner.FindViaPath(ground, network, map, rules, options, profile, level, 0, out _);
+            return Distance(viaPath) < Distance(onStreet) ? viaPath : onStreet;
+        }
+
+        if (network.Count > 0)
+            for (int level = 0; level < PlacementPolicy.StreetLevels; level++)
+            {
+                var lot = Street(level);
+                if (lot is { Croft: > 0 } && level == 0 && Street(1) is { } bare && Distance(bare) + rules.CroftDetourCells < Distance(lot))
+                    return (bare.Origin, bare.Croft);
+                if (lot is { } found) return (found.Origin, found.Croft);
+            }
+
+        var shape = footprint.Select(c => c.Cell).ToList();
+        var (door, facing) = LivingWorld.Simulation.Cities.Layout.LotGeometry.DoorOf(footprint);
+        var doorstep = new CellCoord(door.X + facing.X, door.Y + facing.Y);
+        for (int loose = 0; loose < 3; loose++)
+        {
+            var guard = loose < 2 && network.Count > 0 ? new GroundGuard(network.Set, ground.Passages, doorstep) : null;
+            var found = ReferenceScan(ground.Occupied, bounds, shape, map, loose, guard)
                 ?? OverflowPlacer.ResolveOverflowPositionGiven(
-                    occupied, bounds, id, shape, map.Width, map.Height, 1, out _, PlacementPolicy.For(map, level));
-            if (found is not null) return found;
+                    ground.Occupied, bounds, building.Id, shape, map.Width, map.Height, 1, out _, PlacementPolicy.For(map, loose), guard);
+            if (found is { } at) return (at, 0);
         }
         return null;
     }
 
     private static CellCoord? ReferenceScan(
         HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> shape, LivingWorld.Domain.Geography.Map.WorldMap map,
-        int level)
+        int level, GroundGuard? guard)
     {
         int gap = level == 0 ? CityOccupancy.MinGap : 0;
         for (int y = bounds.Origin.Y; y < bounds.Origin.Y + bounds.Height; y++)
@@ -797,7 +893,9 @@ public class OptimizationEquivalenceTests
                     .Any(dx => Enumerable.Range(-gap, 2 * gap + 1)
                         .Any(dy => occupied.Contains(new CellCoord(c.X + dx, c.Y + dy)))));
                 bool onWater = level < 2 && candidate.Any(c => map.TryGetCell(c, out var cell) && cell.HasWater);
-                if (candidate.All(bounds.Contains) && !touching && !onWater)
+                var water = level < 2 ? map.Cells.Where(c => c.HasWater).Select(c => c.Coord).ToHashSet() : null;
+                bool guarded = guard is null || guard.Allows(shape, new CellCoord(x, y), occupied, water);
+                if (candidate.All(bounds.Contains) && !touching && !onWater && guarded)
                     return new CellCoord(x, y);
             }
 

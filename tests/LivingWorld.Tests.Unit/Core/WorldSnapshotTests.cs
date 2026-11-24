@@ -105,7 +105,8 @@ public class WorldSnapshotTests
             nextExtraordinaryConstructId: 1,
             animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
             plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules);
+            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default); // AD-180: o tempo do dia entra no snapshot
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
@@ -117,6 +118,35 @@ public class WorldSnapshotTests
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
         var city = world.ActiveCities().Single();
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        // AD-141: invenção ligada com um design e quem o sabe, para o mutador ter folha em Invention e InventionRules.
+        var invention = new LivingWorld.Simulation.Invention.InventionLedger();
+        var piece = LivingWorld.Simulation.Invention.DesignSearch.NaturalPiece(LivingWorld.Domain.Invention.InventionRules.Default.Materials[0]);
+        var design = LivingWorld.Domain.Invention.Design.Create([piece], world.Npcs[0].Id.Value, 1, 0, 0, LivingWorld.Domain.Invention.DesignOrigin.Invented);
+        invention.Designs.Add(design);
+        invention.Known.Add(new LivingWorld.Domain.Invention.KnownDesign(world.Npcs[0].Id.Value, design.Id, 1000, LivingWorld.Domain.Invention.DesignOrigin.Invented, 1));
+        // AD-147: o que alguém leva, o problema de carregar e um design de carregar, para o mutador ter folha nas listas novas.
+        invention.Carried.Add(new LivingWorld.Domain.Invention.CarriedLoad(world.Npcs[0].Id.Value, 2, 1));
+        invention.CarryMinds.Add(new LivingWorld.Simulation.Invention.InventionMind(world.Npcs[0].Id.Value, 100, 0, 0, 0,
+            LivingWorld.Domain.Invention.FailureMode.None, null, 0, NeedMl: 2000));
+        invention.CarryDesigns.Add(design.Id);
+        world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
+        // AD-142: cérebro ligado (experimento), para o mutador ter folha em BrainRules.
+        world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        world.UsePlayers(LivingWorld.Domain.Population.PlayerRules.Default with { Abandonment = LivingWorld.Domain.Population.AbandonmentPolicy.DeclareDead }); // AD-196: regra padrão some do snapshot
+        world.RestorePossession(new LivingWorld.Simulation.Players.PossessionLedger { Suspicions = [new() { Observer = 1, Body = 2, Value = 10, Tick = 3 }] }); // AD-197f: livro vazio some do snapshot
+        // AD-150: crime ligado com uma mágoa, para o mutador ter folha em Crime e CrimeRules.
+        var crime = new LivingWorld.Simulation.Crime.CrimeLedger();
+        crime.InsertGrudge(new LivingWorld.Simulation.Crime.Grudge { Holder = 1, Target = 2, Motive = "ofensa", Intensity = 40, Tick = 3 });
+        world.UseCrime(LivingWorld.Domain.Crime.CrimeRules.Default, crime);
+        // AD-155: um empréstimo no livro do crédito, para o mutador ter folha em Credit.
+        var credit = new LivingWorld.Simulation.Economy.Credit.CreditLedger();
+        credit.Add(new LivingWorld.Simulation.Economy.Credit.Loan { Lender = 1, Borrower = 2, Principal = 10, Balance = 11, Installment = 1 });
+        world.RestoreCredit(credit);
+        // AD-183: um feito no livro da honra, para o mutador ter folha em Honor.
+        world.RestoreHonor(new LivingWorld.Simulation.Population.Naming.HonorLedger
+        {
+            Records = [new() { Npc = 1, Family = "Galmor", City = city.Id.Value, Honor = 5, Tick = 3 }],
+        });
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.

@@ -22,11 +22,16 @@ public sealed class TickLoopService(
     SimulationHost simulationHost,
     RealtimeGateway gateway,
     SavedWorldLibrary library,
-    BufferingWorldEventSink sink) : IHostedService
+    BufferingWorldEventSink sink,
+    LivingWorld.Api.Visual.Observable.PresentationNameResolver names,
+    LivingWorld.Simulation.Players.PlayerService players,
+    LivingWorld.Api.Players.PlayerCommandGateway playerGateway) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
+    private ScopeProjectionFrame? _lastFrame; // AD-172: o NPC que não mudou reaproveita o registro do tick anterior
     private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
     private CancellationTokenSource? _cts;
+    private long _cycles;
     private Task? _loopTask;
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -52,7 +57,9 @@ public sealed class TickLoopService(
         {
             RunOneCycle();
 
-            double delaySeconds = 1.0 / Math.Max(simulationHost.TicksPerSecond, 0.01);
+            // AD-197c: a velocidade do laço é a do ritmo em vigor (tempo real: 20 ticks por segundo; rápido: a do admin)
+            double tps = simulationHost.IsPaused ? simulationHost.TicksPerSecond : simulationHost.LastPlan.TicksPerSecond;
+            double delaySeconds = 1.0 / Math.Max(tps, 0.01);
             try { await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token); }
             catch (OperationCanceledException) { }
         }
@@ -75,9 +82,16 @@ public sealed class TickLoopService(
         }
 
         var world = worldHost.Current;
-        worldHost.Clock.Tick(world);
-        PublishDeltas(world);
-        if (world.CurrentDate.TotalHours % 24 == 0)
+        // AD-197c: o ritmo do mundo escolhe o Δ (fino com jogador, uma hora sem ninguém ou acelerado); o fim do pulo de tempo e a troca
+        // de Δ vão para o registro do jogador e para o disco, como os comandos. O save diário só na virada da hora 0
+        int recorded = players.Log.Count;
+        var plan = simulationHost.Cycle(players, () => playerGateway.Log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs));
+        foreach (var record in players.Log.Since(recorded)) playerGateway.Log.Append(record);
+        // no tempo real (20 ticks por segundo) a projeção sai no máximo ~5 vezes por segundo real e sempre na hora cheia
+        long every = Math.Max(1, (long)Math.Round(plan.TicksPerSecond / 5));
+        if (world.CurrentDate.MillisecondOfHour == 0 || ++_cycles % every == 0)
+            PublishDeltas(world);
+        if (world.CurrentDate.MillisecondOfHour == 0 && world.CurrentDate.TotalHours % 24 == 0)
             library.Save(world);
     }
 
@@ -90,6 +104,15 @@ public sealed class TickLoopService(
         long tick = world.CurrentDate.TotalHours;
 
         var subscribed = gateway.SubscribedScopeKeys;
+        if (subscribed.Count == 0) // sem assinante, nenhuma projeção (AD-170: custo por NPC-tick igual)
+        {
+            _lastInteriors.Clear();
+            _lastStates.Clear();
+            _lastFrame = null;
+            return;
+        }
+        // AD-172: uma leitura do tick para todos os escopos (limites, quem está onde, índices do observável).
+        ScopeProjectionFrame? frame = null;
         foreach (var scopeKey in subscribed)
         {
             if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
@@ -102,7 +125,8 @@ public sealed class TickLoopService(
                 continue;
 
             var scope = ParseScope(scopeKey);
-            var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));
+            frame ??= new ScopeProjectionFrame(world, names.For(world.PeriodId), _lastFrame);
+            var state = LivingScopeProjector.Build(frame, scope, sink.EventsAt(tick));
             var before = _lastStates.TryGetValue(scopeKey, out var previous)
                 ? previous
                 : LivingScopeState.Empty;
@@ -112,9 +136,13 @@ public sealed class TickLoopService(
             gateway.Publish(scope, delta);
         }
 
+        if (frame is not null) _lastFrame = frame;
         if (_lastInteriors.Count > 0)
             foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
                 _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova
+        if (_lastStates.Count > 0)
+            foreach (var gone in _lastStates.Keys.Where(key => !subscribed.Contains(key)).ToList())
+                _lastStates.Remove(gone); // AD-172: idem para Cidade e Mundo (a base velha daria avanço de processo errado)
     }
 
     /// <summary>Delta de interior: diferença das ocupações entre dois ticks, publicada só quando mudou.</summary>

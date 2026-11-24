@@ -16,4 +16,5 @@ public sealed record Animal(
     bool IsAlive,
     string? VectorDisease,
     LazyNeed Energy,
-    long? DeathTick = null);
+    long? DeathTick = null,
+    long? LastBirthTick = null);

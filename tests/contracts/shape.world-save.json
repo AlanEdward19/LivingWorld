@@ -1,0 +1,6 @@
+{
+  "atMs": "number",
+  "name": "string",
+  "savedAtUtc": "string",
+  "worldId": "string"
+}

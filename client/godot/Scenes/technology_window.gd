@@ -1,6 +1,7 @@
 extends PanelContainer
 ## Tecnologias que a cultura de um NPC descobriu (`GET /cultures/{id}/technologies`). Sem nome: o motor só entrega o vetor
 ## (ADR-0013), então cada tecnologia aparece pela chave e pelos eixos ritmo/carga/alcance em barras.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal closed()
 signal warning(text: String)
@@ -115,7 +116,7 @@ func _tech_node(tech: Dictionary, scale: float) -> Control:
 	head.add_theme_color_override("font_color", Color("ffe9a6"))
 	box.add_child(head)
 	var detail := "%s · descoberta em %s · adotada por %d cidade%s" % [
-		String(tech.category), date_of.call(int(tech.discoveredAtTick)), int(tech.adoptedByCities), "" if int(tech.adoptedByCities) == 1 else "s"]
+		String(tech.category), date_of.call(WorldTime.hours_of(tech, "discoveredAtMs")), int(tech.adoptedByCities), "" if int(tech.adoptedByCities) == 1 else "s"]
 	var info := Label.new()
 	info.text = detail
 	info.modulate = Color(1, 1, 1, 0.8)

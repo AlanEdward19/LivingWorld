@@ -22,6 +22,11 @@ public sealed class AttributeStrengthProductionTests
 
     private static readonly ResourceType Timber = new(1);
 
+    /// <summary>AD-179 (reescrito): mede a força que acelera a fila (um tick da receita por passo do sistema, sem ninguém no lote).
+    /// Com a regra nova a obra só anda pelas horas de uma turma no lote, e a força multiplica as horas de quem trabalha lá
+    /// (SiteWorkTests); aqui a regra fica desligada de propósito.</summary>
+    private static readonly CityLayoutRules QueueOnly = CityLayoutRules.Default with { Streets = StreetRules.Default with { BuildNeedsCrew = false } };
+
     [Fact]
     public void Strength_two_multiplies_production_by_skill_times_two_versus_control()
     {
@@ -131,7 +136,7 @@ public sealed class AttributeStrengthProductionTests
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
-            economyRules: rules, economyCatalog: catalog,
+            bodyRules: LivingWorld.Domain.Population.Body.BodyRules.Default with { Growth = LivingWorld.Domain.Population.Body.GrowthRules.Static }, economyRules: rules, economyCatalog: catalog,
             extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
             extraordinaryCarriers: [state]);
         var workplace = new Workplace(
@@ -160,7 +165,8 @@ public sealed class AttributeStrengthProductionTests
             migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 0.5,
             foundingResourceThreshold: 0.5, foundingRouteThreshold: 0.5, foundingDefensibilityThreshold: 0.5,
             foundingLeadershipThreshold: 0.5, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5)
-            .Value!;
+            .Value! with
+        { Layout = QueueOnly };
         var catalog = new CityCatalog(new Dictionary<int, BuildingRecipe>
         {
             [1] = BuildingRecipe.Create(

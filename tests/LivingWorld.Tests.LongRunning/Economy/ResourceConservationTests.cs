@@ -36,7 +36,13 @@ public class ResourceConservationTests
 
     private static long TotalStocked(WorldState world, ResourceType resource) =>
         world.Workplaces.Sum(w => w.Stock.GetValueOrDefault(resource)) +
-        world.Households.Sum(h => h.Stock.GetValueOrDefault(resource));
+        world.Households.Sum(h => h.Stock.GetValueOrDefault(resource))
+        // AD-135: o celeiro e a semente guardada do campo sazonal também são estoque do alimento
+        + world.CropBatches.Where(c => c.CropResourceId == resource.Id).Sum(c => c.Barn + c.SeedReserve)
+        // AD-157b: com a carga pessoal ligada, a comida e a água que a pessoa levou de casa estão com ela (voltam à despensa)
+        + (world.Invention?.CarriedTotal(resource.Id) ?? 0)
+        // AD-168: o espólio no chão de quem morreu longe de casa também é estoque do mundo
+        + (world.Invention?.GroundTotal(resource.Id) ?? 0);
 
     [Fact]
     public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_1_month_for_every_resource()

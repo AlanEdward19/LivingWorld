@@ -55,7 +55,8 @@ public sealed class Household
     public Household(
         HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members,
         IReadOnlyDictionary<ResourceType, long>? stock = null, CityId city = default, CityId? pendingRelocationCity = null,
-        BuildingId? dwelling = null, int rentArrearsMonths = 0, long? evictedAtTick = null)
+        BuildingId? dwelling = null, int rentArrearsMonths = 0, long? evictedAtTick = null,
+        long foodStallRetryTick = 0, int foodStallEmptyVisits = 0)
     {
         if (!members.Contains(head))
             throw new ArgumentException("Head precisa estar entre os Members", nameof(head));
@@ -69,6 +70,31 @@ public sealed class Household
         Dwelling = dwelling;
         RentArrearsMonths = rentArrearsMonths;
         EvictedAtTick = evictedAtTick;
+        FoodStallRetryTick = foodStallRetryTick;
+        FoodStallEmptyVisits = foodStallEmptyVisits;
+    }
+
+    /// <summary>AD-148: quem da casa achou a banca de comida vazia volta só a partir deste tick (0 = sem espera).</summary>
+    public long FoodStallRetryTick { get; private set; }
+
+    /// <summary>AD-148: idas seguidas que acharam a banca vazia; a espera dobra a cada uma e zera na primeira compra de comida.</summary>
+    public int FoodStallEmptyVisits { get; private set; }
+
+    /// <summary>A banca não tinha comida: espera <paramref name="baseHours"/> e o dobro a cada ida vazia seguida, até
+    /// <paramref name="maxHours"/>.</summary>
+    public void FoundFoodStallEmpty(long now, int baseHours, int maxHours)
+    {
+        FoodStallEmptyVisits++;
+        long wait = baseHours;
+        for (int i = 1; i < FoodStallEmptyVisits && wait < maxHours; i++) wait *= 2;
+        FoodStallRetryTick = now + Math.Min(wait, maxHours);
+    }
+
+    /// <summary>Comprou comida: a lembrança da banca vazia some.</summary>
+    public void BoughtFood()
+    {
+        FoodStallEmptyVisits = 0;
+        FoodStallRetryTick = 0;
     }
 
     public void LiveIn(BuildingId building) => Dwelling = building;

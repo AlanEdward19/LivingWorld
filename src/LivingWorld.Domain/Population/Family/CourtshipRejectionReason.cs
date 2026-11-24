@@ -10,4 +10,11 @@ public enum CourtshipRejectionReason
     Incesto,
     ForaDaFaixaEtaria,
     SemAfinidade,
+
+    /// <summary>Quer o outro, mas sem trabalho nem economias o casal não tem como montar casa e a prudência adia (AD-145).</summary>
+    SemMeios,
+
+    /// <summary>Os dois se querem, mas o mesmo nome de família sem ascendente comum conhecido pesa como sinal de parentesco
+    /// (AD-183; <c>NameBondRules.SameFamilyCourtshipFactor</c>).</summary>
+    MesmoNome,
 }

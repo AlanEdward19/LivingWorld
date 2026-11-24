@@ -82,7 +82,7 @@ public sealed partial class WorldState
     /// <summary>Parâmetros cenário-driven do utility AI/necessidades —
     /// decaimento, limiar de urgência, histerese. Entra no hash canônico: desligar/mudar o
     /// utility AI muda o mundo.</summary>
-    [Canonical] public NeedsRules NeedsRules { get; }
+    [Canonical] public NeedsRules NeedsRules { get; internal set; } // AD-191: ablação no relatório do menu
 
     /// <summary>Eficiência de recuperação por tipo de lugar de descanso.
     /// <see cref="RestPlaceCatalog.GroundEfficiency"/> é o destino in-place de
@@ -108,7 +108,7 @@ public sealed partial class WorldState
     /// <summary>Todo peso/limiar/duração/flag de relações e famílias — mesmo grupo de
     /// <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: cenário-driven, entra no hash canônico
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
-    [Canonical] public FamilyRules FamilyRules { get; }
+    [Canonical] public FamilyRules FamilyRules { get; internal set; } // AD-191: o relatório do menu troca para ablação
 
     /// <summary>Parâmetros cenário-driven do corpo mínimo causal —
     /// distribuição de Height/Weight/MuscleMass. <see cref="BodyRules.Enabled"/> falso
@@ -242,6 +242,12 @@ public sealed partial class WorldState
     /// <summary>Regras de clima do cenário (weather-drought); desligado por padrão (todo ano vale 1000).</summary>
     [Canonical] public ClimateRules ClimateRules { get; }
 
+    /// <summary>Ano agrícola (AD-135); desligado por padrão em mundo montado à mão (lote diário antigo).</summary>
+    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; internal set; } // AD-191: o relatório do menu troca para ablação
+
+    /// <summary>Água de rio, lago ou fonte perto de casa (AD-135); desligado por padrão em mundo montado à mão.</summary>
+    [Canonical] public LivingWorld.Domain.Economy.NaturalWaterRules NaturalWaterRules { get; internal set; } // AD-191: ablação no relatório do menu
+
     /// <summary>Anos de safra recentes por região, ordenados por região e ano (os antigos saem sozinhos).</summary>
     [Canonical] public IReadOnlyList<ClimateYear> ClimateYears => _climateYears;
     private readonly List<ClimateYear> _climateYears;
@@ -311,7 +317,12 @@ public sealed partial class WorldState
     [Volatile, Ephemeral] public HistoryIndex HistoryIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
-    private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
+    private readonly NpcWakeQueue _npcWakes = new();
+    private readonly List<long> _dueNpcWakeIds = [];
+
+    /// <summary>Despertar pendente de cada NPC, em ordem de id (AD-129): fila própria, fora de
+    /// <see cref="PendingEvents"/>. Decide quem acorda e quando, por isso é canônico.</summary>
+    [Canonical] public IReadOnlyList<PendingNpcWake> PendingNpcWakes => _npcWakes.Snapshot();
 
     /// <summary>NPCs que acordam neste tick — derivado, fora do hash canônico.</summary>
     [Volatile, Ephemeral] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
@@ -340,7 +351,10 @@ public sealed partial class WorldState
     /// coleção canônica, sem lista paralela: não há iteração ordenada por id sequencial fazendo
     /// sentido para um par (quem precisar de determinismo ordena por
     /// <c>(From.Value, To.Value)</c> na hora, ex. <c>RelationshipSystem</c>/hash).</summary>
-    [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationships;
+    [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationshipOrder;
+
+    // Ordem de criação das relações, estável a remoções: é a ordem do snapshot e do hash (ver OrderedRelationships).
+    private readonly OrderedRelationships _relationshipOrder = new();
 
     // Índice derivado de _relationships: alvos (To) de cada From, ordenados por To. Permite ler as
     // relações de um NPC em O(grau) em vez de varrer o dicionário inteiro (crescia ~O(n²) com os anos).
@@ -348,6 +362,9 @@ public sealed partial class WorldState
 
     // Carimbo de versão das relações de cada dono (derivado): invalida só os caches daquele dono.
     private readonly Dictionary<NpcId, RelationshipAxesStamp> _relationshipStampByFrom = [];
+
+    // Paralelo a _relationshipTargetsByFrom (mesmo índice = mesma relação). Derivado, fora do snapshot e dos hashes.
+    private readonly Dictionary<NpcId, List<Relationship>> _relationshipsByFrom = [];
 
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
@@ -500,7 +517,9 @@ public sealed partial class WorldState
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null,
+        LivingWorld.Domain.Economy.NaturalWaterRules? naturalWaterRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -518,6 +537,8 @@ public sealed partial class WorldState
         FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         CityRules = cityRules ?? CityRules.Disabled;
+        // AD-176: o chão das cidades nasce vazio (sem trilha) com o mundo; o snapshot restaura o guardado em UseGround
+        Ground = CityRules.EffectiveLayout().Streets.Enabled ? new LivingWorld.Simulation.Cities.Streets.GroundLedger(map.Width, map.Height, CurrentDate.TotalHours) : null;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
@@ -545,6 +566,10 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        // AD-180: o tempo nasce vazio com o mundo (o primeiro dia é gerado no primeiro tick); o snapshot restaura em UseWeather
+        Weather = ClimateRules.WeatherOn() ? new LivingWorld.Simulation.Climate.WeatherLedger() : null;
+        AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
@@ -567,6 +592,7 @@ public sealed partial class WorldState
         _workplaces = [];
         _workplaceById = [];
         _relationships = [];
+        _relationshipOrder.Map = _relationships;
         _cities = [];
         _cityById = [];
         _buildings = [];
@@ -672,7 +698,9 @@ public sealed partial class WorldState
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null,
+        LivingWorld.Domain.Economy.NaturalWaterRules? naturalWaterRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -707,9 +735,11 @@ public sealed partial class WorldState
         FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
+        _relationshipOrder.Map = _relationships;
         foreach (var (key, relationship) in _relationships)
         {
-            IndexRelationshipTarget(key);
+            _relationshipOrder.Append(key, relationship);
+            IndexRelationshipTarget(key, relationship);
             AttachRelationshipStamp(key, relationship);
         }
         _cities = (cities ?? []).ToList();
@@ -728,6 +758,8 @@ public sealed partial class WorldState
         _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = nextCropBatchId;
         CityRules = cityRules ?? CityRules.Disabled;
+        // AD-176: o chão das cidades nasce vazio (sem trilha) com o mundo; o snapshot restaura o guardado em UseGround
+        Ground = CityRules.EffectiveLayout().Streets.Enabled ? new LivingWorld.Simulation.Cities.Streets.GroundLedger(map.Width, map.Height, CurrentDate.TotalHours) : null;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
@@ -755,6 +787,10 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        // AD-180: o tempo nasce vazio com o mundo (o primeiro dia é gerado no primeiro tick); o snapshot restaura em UseWeather
+        Weather = ClimateRules.WeatherOn() ? new LivingWorld.Simulation.Climate.WeatherLedger() : null;
+        AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;

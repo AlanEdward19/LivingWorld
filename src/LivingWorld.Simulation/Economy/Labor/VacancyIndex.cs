@@ -12,6 +12,7 @@ public sealed class VacancyIndex
     private readonly Dictionary<int, Workplace?> _firstOpenByLocationType;
     private readonly Dictionary<(int LocationTypeId, CityId City), Workplace?> _firstOpenByLocationTypeAndCity;
     private readonly Dictionary<WorkplaceId, List<Npc>> _employeesByWorkplace;
+    private bool _presenceNeedsWork;
 
     private VacancyIndex(
         Dictionary<int, (int Open, int Total)> slotsByLocationType,
@@ -48,7 +49,8 @@ public sealed class VacancyIndex
         var present = new List<Npc>(employees.Count);
         foreach (var npc in employees)
         {
-            if (npc.IsAlive && npc.CurrentLocation == workplace.Location)
+            if (npc.IsAlive && npc.CurrentLocation == workplace.Location
+                && (!_presenceNeedsWork || npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Work))
                 present.Add(npc);
         }
         return present;
@@ -85,6 +87,9 @@ public sealed class VacancyIndex
             employeesByWorkplace[wp.Id] = list;
         }
 
-        return new VacancyIndex(slotsByType, firstByType, firstByTypeAndCity, employeesByWorkplace);
+        return new VacancyIndex(slotsByType, firstByType, firstByTypeAndCity, employeesByWorkplace)
+        {
+            _presenceNeedsWork = world.EconomyRules.PresenceNeedsWork, // AD-148: a fila do mercado na fazenda não lavra
+        };
     }
 }

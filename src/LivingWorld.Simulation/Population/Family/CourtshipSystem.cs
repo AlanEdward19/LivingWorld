@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Body;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
@@ -24,6 +25,12 @@ public sealed class CourtshipSystem : ISimulationSystem
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Yearly;
 
+    /// <summary>Ascendência por pessoa, só durante um tick (derivada): o tabu de parentesco a consulta para cada par.</summary>
+    private readonly Dictionary<long, HashSet<long>> _lineage = [];
+
+    /// <summary>Posses vagas por cidade nesta rodada (AD-158): nada casa durante o <see cref="Tick"/>, só no fim do namoro.</summary>
+    private readonly Dictionary<CityId, int> _vacant = [];
+
     public void Tick(WorldState world, TickContext ctx)
     {
         var familyRules = world.FamilyRules;
@@ -31,6 +38,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         var lifeStageRules = world.LifeStageRules;
         var now = world.CurrentDate;
         Dictionary<NpcId, HashSet<NpcId>>? acquaintances = null;
+        _lineage.Clear();
+        _vacant.Clear();
 
         foreach (var seeker in world.Npcs
                      .Where(n => IsSeekerEligible(n, world, lifeStageRules, now))
@@ -45,15 +54,15 @@ public sealed class CourtshipSystem : ISimulationSystem
 
             if (familyRules.NeutralDriftEnabled)
             {
-                TryNeutralDriftPairing(world, ctx, seeker, candidates, populationRules, now, familyRules);
+                TryNeutralDriftPairing(world, ctx, seeker, candidates, populationRules, now, familyRules, _lineage);
                 continue;
             }
 
-            var best = PickBestByAttraction(world, seeker, candidates, familyRules, populationRules, now);
+            var best = PickBestByAttraction(world, seeker, candidates, familyRules, populationRules, now, _lineage, _vacant);
             if (best is null)
                 continue;
 
-            TryStartOrReject(world, ctx, seeker, best, populationRules, now, familyRules);
+            TryStartOrReject(world, ctx, seeker, best, populationRules, now, familyRules, _lineage, _vacant);
         }
     }
 
@@ -93,6 +102,16 @@ public sealed class CourtshipSystem : ISimulationSystem
             return;
         }
 
+        // AD-158: no fim do namoro a posse vaga pode ter ido a outro casal; sem do que viver, não casam
+        if (!Holdings.HasLivelihood(world, a, b))
+        {
+            ctx.LogEvent(WorldEventKind.CourtshipRejected,
+                $"{CourtshipRejectionReason.SemMeios}|{a.Id.Value}|{b.Id.Value}", sourceSystem: "CourtshipSystem");
+            a.EndCourtship();
+            b.EndCourtship();
+            return;
+        }
+
         ctx.LogEvent(WorldEventKind.CourtshipSucceeded, OrderedPairPayload(a.Id, b.Id), sourceSystem: "CourtshipSystem");
         MarriageSystem.Marry(world, ctx, a, b);
         a.EndCourtship();
@@ -109,6 +128,44 @@ public sealed class CourtshipSystem : ISimulationSystem
             return CourtshipRejectionReason.ForaDaFaixaEtaria;
 
         return null;
+    }
+
+    /// <summary>Recusa no mundo (AD-136): além do 1º grau e da idade, o tabu de parentesco do cenário pela genealogia.</summary>
+    internal static CourtshipRejectionReason? Reject(
+        WorldState world, Npc a, Npc b, WorldDate now, PopulationRules populationRules, Dictionary<long, HashSet<long>>? lineage)
+    {
+        if (Reject(a, b, now, populationRules) is { } reason) return reason;
+        return Kinship.IsTaboo(world, a, b, lineage) ? CourtshipRejectionReason.Incesto : null;
+    }
+
+    /// <summary>O quanto <paramref name="evaluator"/> quer <paramref name="target"/> (AD-136, achado 24): cada um avalia o
+    /// que o outro tem — saúde, posição, habilidade, a fertilidade da idade, a afinidade de língua, o próprio vínculo com ele e
+    /// a aparência — e quem é ambicioso pesa mais a posição. Assimétrico: os dois só namoram se cada um quiser o outro.</summary>
+    public static double Preference(
+        Npc evaluator, Npc target, Relationship? evaluatorToTarget, FamilyRules rules, PopulationRules populationRules, WorldDate now)
+    {
+        double totalWeight = 0, weightedSum = 0;
+        foreach (var factor in AttractionFactors)
+        {
+            double weight = rules.AttractionWeight(factor);
+            if (weight == 0) continue;
+            if (factor == AttractionFactor.Appearance && (evaluator.Appearance is null || target.Appearance is null)) continue;
+            if (factor == AttractionFactor.Status) weight *= 0.5 + evaluator.Personality.Ambition / HundredScale;
+            double value = factor switch
+            {
+                AttractionFactor.Age => IndividualAgeFactor(target, populationRules, now) * AgeFit(evaluator, target, rules.Unions, now),
+                AttractionFactor.Health => target.Health / HundredScale,
+                AttractionFactor.Status => StatusFactor(target),
+                AttractionFactor.Skill => SkillFactor(target),
+                AttractionFactor.CulturalAffinity => CulturalAffinityOf(evaluator, target),
+                AttractionFactor.ExistingRelationship => SideOf(evaluatorToTarget, rules.Bonds is not null),
+                AttractionFactor.Appearance => Appearance.Similarity(evaluator.Appearance!, target.Appearance!),
+                _ => 0.0,
+            };
+            weightedSum += weight * value;
+            totalWeight += weight;
+        }
+        return totalWeight == 0 ? 0 : weightedSum / totalWeight;
     }
 
     public static double AttractionScore(
@@ -132,7 +189,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             if (factor == AttractionFactor.Appearance && (a.Appearance is null || b.Appearance is null))
                 continue;
 
-            double normalized = NormalizeFactor(factor, a, b, aToB, bToA, populationRules, now);
+            double normalized = NormalizeFactor(factor, a, b, aToB, bToA, populationRules, now, rules.Bonds is not null);
             weightedSum += weight * normalized;
             totalWeight += weight;
         }
@@ -158,16 +215,17 @@ public sealed class CourtshipSystem : ISimulationSystem
         List<Npc> candidates,
         PopulationRules populationRules,
         WorldDate now,
-        FamilyRules familyRules)
+        FamilyRules familyRules,
+        Dictionary<long, HashSet<long>> lineage)
     {
         var eligible = candidates
-            .Where(c => Reject(seeker, c, now, populationRules) is null)
+            .Where(c => Reject(world, seeker, c, now, populationRules, lineage) is null)
             .OrderBy(c => c.Id.Value)
             .ToList();
         if (eligible.Count == 0)
             return;
 
-        int index = (int)(ctx.Rng($"courtship-drift-{seeker.Id.Value}-{now.TotalHours}").NextDouble() * eligible.Count);
+        int index = (int)(ctx.OneShot($"courtship-drift-{seeker.Id.Value}-{now.TotalHours}").NextDouble() * eligible.Count);
         if (index >= eligible.Count)
             index = eligible.Count - 1;
 
@@ -181,9 +239,11 @@ public sealed class CourtshipSystem : ISimulationSystem
         Npc candidate,
         PopulationRules populationRules,
         WorldDate now,
-        FamilyRules familyRules)
+        FamilyRules familyRules,
+        Dictionary<long, HashSet<long>> lineage,
+        Dictionary<CityId, int> vacant)
     {
-        var reject = Reject(seeker, candidate, now, populationRules);
+        var reject = Reject(world, seeker, candidate, now, populationRules, lineage);
         if (reject is { } reason)
         {
             ctx.LogEvent(
@@ -194,16 +254,46 @@ public sealed class CourtshipSystem : ISimulationSystem
 
         var aToB = world.Relationships.GetValueOrDefault(new RelationshipKey(seeker.Id, candidate.Id));
         var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
-        double score = AttractionScore(seeker, candidate, aToB, bToA, familyRules, populationRules, now);
-        if (score < familyRules.CourtshipThreshold)
+        // cada um tem de querer o outro (AD-136); AD-183: cada um pesa o nome do outro (fama da linhagem) e, se a regra manda, o
+        // mesmo nome de família sem ascendente comum conhecido, como na escolha
+        long tick = now.TotalHours;
+        double wants = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * RegardSignal(world, candidate, tick);
+        double wanted = Preference(candidate, seeker, bToA, familyRules, populationRules, now) * RegardSignal(world, seeker, tick);
+        double seekerThreshold = ThresholdOf(world, seeker), candidateThreshold = ThresholdOf(world, candidate);
+        double name = familyRules.Names.NameSignalOnAcceptance ? NameSignal(world, seeker, candidate, familyRules, lineage) : 1;
+        if (wants * name < seekerThreshold || wanted * name < candidateThreshold)
+        {
+            var why = wants >= seekerThreshold && wanted >= candidateThreshold
+                ? CourtshipRejectionReason.MesmoNome : CourtshipRejectionReason.SemAfinidade;
+            ctx.LogEvent(
+                WorldEventKind.CourtshipRejected,
+                $"{why}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
+            return;
+        }
+        wants *= name;
+        wanted *= name;
+
+        // AD-145: os dois se querem, mas cada um pesa se o casal tem com o que montar casa (trabalho, economias)
+        if (wants * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant) < seekerThreshold
+            || wanted * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant) < candidateThreshold)
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
-                $"{CourtshipRejectionReason.SemAfinidade}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
+                $"{CourtshipRejectionReason.SemMeios}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
             return;
         }
 
         StartCourtship(world, ctx, seeker, candidate, familyRules);
+    }
+
+    /// <summary>Exigência para aceitar um par (AD-139): a do cenário, menor no jovem no pico do impulso da adolescência
+    /// (escolha precipitada).</summary>
+    internal static double ThresholdOf(WorldState world, Npc npc)
+    {
+        double threshold = world.FamilyRules.CourtshipThreshold;
+        var rules = Endocrine.Rules(world);
+        if (!rules.Enabled || rules.PrecipitousCourtship <= 0) return threshold;
+        return threshold * (1 - rules.PrecipitousCourtship * Endocrine.AdolescentDrive(world, npc, world.CurrentDate.TotalHours));
     }
 
     private static void StartCourtship(WorldState world, TickContext ctx, Npc a, Npc b, FamilyRules familyRules)
@@ -216,34 +306,65 @@ public sealed class CourtshipSystem : ISimulationSystem
         ctx.ScheduleEvent(dueDate.TotalHours, SystemName, OrderedPairPayload(a.Id, b.Id));
     }
 
+    /// <summary>AD-183: o nome do outro na preferência, ×(1 + peso × nome), nome = boa fama menos má fama vistas (−1..1), cada uma
+    /// com a da linhagem na cidade. Ninguém quer casar na casa do ladrão; a casa do fundador é bom partido.</summary>
+    internal static double RegardSignal(WorldState world, Npc target, long now)
+    {
+        double gain = world.FamilyRules.Names.ReputationCourtshipGain;
+        if (gain <= 0 || (world.Honor is null && (!world.CrimeOn || world.Crime!.Records.Count == 0))) return 1;
+        return Math.Max(0, 1 + gain * LivingWorld.Simulation.Population.Naming.Honor.RegardOf(world, target, now));
+    }
+
+    /// <summary>AD-178: multiplicador da preferência quando os dois levam o mesmo nome de família sem ascendente comum conhecido.</summary>
+    internal static double NameSignal(WorldState world, Npc a, Npc b, FamilyRules rules, Dictionary<long, HashSet<long>>? lineage)
+    {
+        double factor = rules.Names.SameFamilyCourtshipFactor;
+        if (factor >= 1 || !LivingWorld.Simulation.Population.Naming.NameBonds.SameLineage(a, b)) return 1;
+        return Kinship.SharesKnownAncestor(world, a, b, lineage) ? 1 : factor;
+    }
+
+    /// <summary>O melhor para o pretendente (pela preferência dele) entre os que o aceitariam; sem ninguém que o aceite, o
+    /// que ele mais quer (a recusa fica registrada). Candidato vetado (parentesco, idade) não bloqueia os válidos.</summary>
     private static Npc? PickBestByAttraction(
         WorldState world,
         Npc seeker,
         List<Npc> candidates,
         FamilyRules familyRules,
         PopulationRules populationRules,
-        WorldDate now)
+        WorldDate now,
+        Dictionary<long, HashSet<long>> lineage,
+        Dictionary<CityId, int> vacant)
     {
-        Npc? best = null;
-        double bestScore = double.NegativeInfinity;
-        bool hasCompatibleCandidate = candidates.Any(c => Reject(seeker, c, now, populationRules) is null);
+        Npc? best = null, bestAccepting = null;
+        double bestScore = double.NegativeInfinity, bestAcceptingScore = double.NegativeInfinity;
+        Npc? firstRejected = null;
+        double seekerRegard = RegardSignal(world, seeker, now.TotalHours); // AD-183: o nome do pretendente, visto por todos
 
         foreach (var candidate in candidates.OrderBy(c => c.Id.Value))
         {
-            // Um irmão ou parceiro fora da janela não pode bloquear todos os vínculos válidos.
-            // Sem alternativa válida, preserva a rejeição nomeada observável do melhor candidato.
-            if (hasCompatibleCandidate && Reject(seeker, candidate, now, populationRules) is not null) continue;
+            if (Reject(world, seeker, candidate, now, populationRules, lineage) is not null)
+            {
+                firstRejected ??= candidate;
+                continue;
+            }
             var aToB = world.Relationships.GetValueOrDefault(new RelationshipKey(seeker.Id, candidate.Id));
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
-            double score = AttractionScore(seeker, candidate, aToB, bToA, familyRules, populationRules, now);
-            if (score > bestScore || (score == bestScore && best is not null && candidate.Id.Value < best.Id.Value))
-            {
-                bestScore = score;
-                best = candidate;
-            }
+            // AD-178: o mesmo nome de família, onde a genealogia não alcança, é tomado por sinal de parentesco
+            double nameSignal = NameSignal(world, seeker, candidate, familyRules, lineage);
+            double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now) * nameSignal
+                * RegardSignal(world, candidate, now.TotalHours);
+            if (score > bestScore) (bestScore, best) = (score, candidate);
+            // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
+            double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant);
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * nameSignal * seekerRegard
+                    * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
+                    >= ThresholdOf(world, candidate)
+                && ready > bestAcceptingScore)
+                (bestAcceptingScore, bestAccepting) = (ready, candidate);
         }
 
-        return best;
+        // Sem alternativa válida, preserva a rejeição nomeada observável do primeiro candidato vetado.
+        return bestAccepting ?? best ?? firstRejected;
     }
 
     private static Dictionary<NpcId, HashSet<NpcId>> IndexAcquaintances(WorldState world)
@@ -265,6 +386,13 @@ public sealed class CourtshipSystem : ISimulationSystem
         Dictionary<NpcId, HashSet<NpcId>> acquaintances)
     {
         var result = new List<Npc>();
+        if (world.FamilyRules.Bonds is { } bonds)
+        {
+            foreach (var partnerId in ProspectsOf(world, seekerId, bonds, acquaintances).OrderBy(id => id.Value))
+                if (world.FindNpc(partnerId) is { } prospect && IsCandidateEligible(prospect, world, lifeStageRules, now)) result.Add(prospect);
+            return result;
+        }
+
         if (!acquaintances.TryGetValue(seekerId, out var known)) return result;
         foreach (var partnerId in known.OrderBy(id => id.Value))
         {
@@ -272,6 +400,48 @@ public sealed class CourtshipSystem : ISimulationSystem
             if (candidate is not null && IsCandidateEligible(candidate, world, lifeStageRules, now)) result.Add(candidate);
         }
         return result;
+    }
+
+    /// <summary>De quem um solteiro sabe (AD-128): quem ele conhece, quem os parentes e os amigos dele conhecem (é assim que
+    /// se é apresentado) e, numa comunidade em que todo mundo se conhece de vista, todos os moradores.</summary>
+    private static HashSet<NpcId> ProspectsOf(
+        WorldState world, NpcId seekerId, SocialBondRules bonds, Dictionary<NpcId, HashSet<NpcId>> acquaintances)
+    {
+        var prospects = new HashSet<NpcId>();
+        if (world.FindNpc(seekerId) is not { } seeker) return prospects;
+
+        acquaintances.TryGetValue(seekerId, out var known);
+        if (known is not null) prospects.UnionWith(known);
+
+        void Introduce(NpcId? through)
+        {
+            if (through is { } id && acquaintances.TryGetValue(id, out var theirs)) prospects.UnionWith(theirs);
+        }
+
+        Introduce(seeker.MotherId);
+        Introduce(seeker.FatherId);
+        if (known is not null)
+            foreach (var friendId in known)
+                if (world.Relationships.TryGetValue(new RelationshipKey(seekerId, friendId), out var tie) && tie.Affection >= bonds.IntroductionAffection)
+                    Introduce(friendId);
+
+        var neighbors = CommunityOf(world, seeker.City, bonds.CommunitySize);
+        if (neighbors is not null) prospects.UnionWith(neighbors);
+        prospects.Remove(seekerId);
+        return prospects;
+    }
+
+    /// <summary>Vivos da cidade, ou <c>null</c> se ela passa do tamanho em que todos se conhecem. Memo do último pedido.</summary>
+    private static List<NpcId>? CommunityOf(WorldState world, CityId city, int communitySize)
+    {
+        var members = new List<NpcId>();
+        foreach (var npc in world.AliveNpcIndex.Alive)
+        {
+            if (npc.City != city) continue;
+            if (members.Count >= communitySize) return null;
+            members.Add(npc.Id);
+        }
+        return members;
     }
 
     private static bool IsSeekerEligible(Npc npc, WorldState world, LifeStageRules lifeStageRules, WorldDate now) =>
@@ -292,13 +462,21 @@ public sealed class CourtshipSystem : ISimulationSystem
         return stage is LifeStage.Adult or LifeStage.Elder;
     }
 
+    /// <summary>Livre para cortejar (AD-136): sem cônjuge, ou viúvo depois do luto do cenário; e, depois de uma separação,
+    /// passado o tempo que a norma pede para unir-se de novo.</summary>
     private static bool IsSingle(Npc npc, WorldState world)
     {
+        var rules = world.FamilyRules.Unions;
+        var now = world.CurrentDate;
+        if (npc.Union is { } union && union.CourtFromTick > now.TotalHours) return false;
         if (npc.Spouse is not { } spouseId)
             return true;
 
         var spouse = world.FindNpc(spouseId);
-        return spouse is not { IsAlive: true };
+        if (spouse is { IsAlive: true }) return false;
+        if (spouse?.DeathDate is not { } widowed) return true;
+        int mourning = npc.Sex == Sex.Female ? rules.WidowMourningMonths : rules.WidowerMourningMonths;
+        return now.TotalHours - widowed.TotalHours >= (long)mourning * now.Calendar.HoursPerMonth;
     }
 
     private static bool IsFertilityCompatible(Npc a, Npc b, PopulationRules rules, WorldDate now)
@@ -306,7 +484,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         if (a.Sex == b.Sex)
             return false;
 
-        return rules.IsFertileAge(a.AgeYears(now)) && rules.IsFertileAge(b.AgeYears(now));
+        // idade de casar por sexo (AD-130): a mulher na janela fértil; o homem sem teto
+        return rules.IsMarriageableAge(a.Sex, a.AgeYears(now)) && rules.IsMarriageableAge(b.Sex, b.AgeYears(now));
     }
 
     private static double NormalizeFactor(
@@ -316,7 +495,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         Relationship? aToB,
         Relationship? bToA,
         PopulationRules populationRules,
-        WorldDate now)
+        WorldDate now,
+        bool bondsByFamiliarity)
     {
         return factor switch
         {
@@ -325,7 +505,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             AttractionFactor.Status => (StatusFactor(a) + StatusFactor(b)) / 2.0,
             AttractionFactor.Skill => (SkillFactor(a) + SkillFactor(b)) / 2.0,
             AttractionFactor.CulturalAffinity => CulturalAffinityOf(a, b),
-            AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA),
+            AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA, bondsByFamiliarity),
             AttractionFactor.Appearance => Appearance.Similarity(a.Appearance!, b.Appearance!),
             _ => 0.0,
         };
@@ -337,22 +517,31 @@ public sealed class CourtshipSystem : ISimulationSystem
 
     private static double PairAgeFactor(Npc a, Npc b, PopulationRules rules, WorldDate now)
     {
-        double fa = IndividualAgeFactor(a.AgeYears(now), rules);
-        double fb = IndividualAgeFactor(b.AgeYears(now), rules);
+        double fa = IndividualAgeFactor(a, rules, now);
+        double fb = IndividualAgeFactor(b, rules, now);
         return (fa + fb) / 2.0;
     }
 
-    private static double IndividualAgeFactor(int ageYears, PopulationRules rules)
+    /// <summary>Atração pela idade = fertilidade relativa da idade, por sexo (AD-130): a da mulher cai depois dos 30 e
+    /// zera na menopausa; a do homem fica alta até os 40 e cai devagar na velhice.</summary>
+    private static double IndividualAgeFactor(Npc npc, PopulationRules rules, WorldDate now)
     {
-        if (!rules.IsFertileAge(ageYears))
+        int ageYears = npc.AgeYears(now);
+        if (!rules.IsMarriageableAge(npc.Sex, ageYears))
             return 0.0;
 
-        int min = rules.FertilityMinAge;
-        int max = rules.FertilityMaxAge;
-        int mid = (min + max) / 2;
-        int halfSpan = Math.Max(1, (max - min) / 2);
-        double distance = Math.Abs(ageYears - mid);
-        return Math.Clamp(1.0 - distance / halfSpan, 0.0, 1.0);
+        double exactAge = (now.TotalHours - npc.BirthDate.TotalHours) / (double)now.Calendar.HoursPerYear;
+        return rules.Fertility.RelativeFertility(npc.Sex, exactAge);
+    }
+
+    /// <summary>Quão perto da idade que o avaliador procura o outro está (AD-136): o homem procura alguém uns anos mais
+    /// nova, a mulher alguém uns anos mais velho, e o interesse cai em linha até a tolerância do cenário.</summary>
+    private static double AgeFit(Npc evaluator, Npc target, UnionRules rules, WorldDate now)
+    {
+        double hoursPerYear = now.Calendar.HoursPerYear;
+        double gap = (evaluator.BirthDate.TotalHours - target.BirthDate.TotalHours) / hoursPerYear; // > 0: o outro é mais velho
+        double wanted = evaluator.Sex == Sex.Male ? -rules.PreferredAgeGapYears : rules.PreferredAgeGapYears;
+        return Math.Clamp(1 - Math.Abs(gap - wanted) / rules.AgeToleranceYears, 0, 1);
     }
 
     private static double StatusFactor(Npc npc)
@@ -380,12 +569,29 @@ public sealed class CourtshipSystem : ISimulationSystem
         return sum / KnownSkillTypesForScoring.Length;
     }
 
-    private static double ExistingRelationshipFactor(Relationship? aToB, Relationship? bToA)
+    /// <summary>Com <see cref="FamilyRules.Bonds"/> (AD-128) confiança e afeto deixam de saturar em 100 para qualquer colega.
+    /// Quem é da mesma comunidade ou foi apresentado vale o que o par saturado valia antes (0,5: conhecido de vista e de
+    /// fama), e a amizade de verdade soma até o dobro. O cortejo começa pela atração; o vínculo se faz durante ele.</summary>
+    private static double SideOf(Relationship? rel, bool bondsByFamiliarity)
     {
-        static double SideAverage(Relationship? rel)
+        if (rel is null)
+            return bondsByFamiliarity ? 0.5 : 0.0;
+        if (bondsByFamiliarity)
+            return 0.5 + 0.5 * Math.Min(1.0, (rel.Trust + rel.Affection) / (2 * HundredScale));
+        double sum = 0;
+        foreach (var axis in RelationshipAxes)
+            sum += rel.Get(axis) / HundredScale;
+        return sum / RelationshipAxes.Length;
+    }
+
+    private static double ExistingRelationshipFactor(Relationship? aToB, Relationship? bToA, bool bondsByFamiliarity)
+    {
+        double SideAverage(Relationship? rel)
         {
             if (rel is null)
-                return 0.0;
+                return bondsByFamiliarity ? 0.5 : 0.0;
+            if (bondsByFamiliarity)
+                return 0.5 + 0.5 * Math.Min(1.0, (rel.Trust + rel.Affection) / (2 * HundredScale));
 
             double sum = 0;
             foreach (var axis in RelationshipAxes)

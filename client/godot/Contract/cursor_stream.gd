@@ -4,6 +4,7 @@ extends RefCounted
 ## classe; nenhum deles interpreta HTTP/WS. O cliente nunca palpita estado: lacuna => replay.
 
 const ShapeValidator := preload("res://Contract/shape_validator.gd")
+const Cost := preload("res://Contract/frame_cost.gd")
 
 signal snapshot_received(envelope: Dictionary)
 signal delta_applied(envelope: Dictionary)
@@ -23,6 +24,11 @@ var state := "idle" ## idle | online | offline | denied
 ## Espera injetável: os testes substituem por um registro sem relógio.
 var sleeper: Callable = Callable()
 var validate_shapes := true
+## AD-189: no jogo, a conferência do delta contra o contrato custava ~0,9 ms por quadro com o mundo rodando; confere os
+## primeiros deltas de cada assinatura e depois 1 a cada `delta_check_every` (os testes deixam 1: todo delta).
+var delta_check_every := 1
+const DELTA_CHECK_FIRST := 20
+var _deltas_seen := 0
 
 var _channel
 var _generation := 0
@@ -93,6 +99,7 @@ func _open_channel(generation: int) -> void:
 func _accept_snapshot(envelope: Dictionary) -> bool:
 	if validate_shapes and not _shape_ok(envelope):
 		return false
+	_deltas_seen = 0 # snapshot novo: os primeiros deltas voltam a ser todos conferidos
 	cursor = envelope.cursor
 	snapshot_received.emit(envelope)
 	return true
@@ -113,7 +120,9 @@ func _delta_shape_ok(envelope: Dictionary) -> bool:
 	var shape = ShapeValidator.load_shape(DELTA_SHAPE_BY_SCOPE.get(scope_kind, ""))
 	if shape == null:
 		return true
+	var started := Time.get_ticks_usec()
 	var errors := ShapeValidator.validate(envelope, shape)
+	Cost.add("shape", started)
 	if errors.is_empty():
 		return true
 	contract_error.emit(errors)
@@ -130,7 +139,9 @@ func _on_message(generation: int, data: Variant) -> void:
 
 
 func _on_delta(generation: int, envelope: Dictionary) -> void:
-	if validate_shapes and not _delta_shape_ok(envelope):
+	_deltas_seen += 1
+	var check := delta_check_every <= 1 or _deltas_seen <= DELTA_CHECK_FIRST or _deltas_seen % delta_check_every == 0
+	if validate_shapes and check and not _delta_shape_ok(envelope):
 		return # delta fora do contrato: descarta; a lacuna de sequência dispara o replay no próximo
 	var from_seq: int = int(envelope.fromCursor.sequence)
 	var to_seq: int = int(envelope.toCursor.sequence)
@@ -141,12 +152,14 @@ func _on_delta(generation: int, envelope: Dictionary) -> void:
 		await _replay(generation) # lacuna: o delta recebido é descartado, o replay o traz de volta
 		return
 	cursor = envelope.toCursor
+	var started := Time.get_ticks_usec()
 	delta_applied.emit(envelope)
+	Cost.add("apply", started)
 
 
 func _replay(generation: int) -> void:
-	var path := "/visual/replay?%s&sinceTick=%d&sinceSequence=%d" % [
-		_scope_query(), int(cursor.get("tick", 0)), int(cursor.get("sequence", 0))]
+	var path := "/visual/replay?%s&sinceMs=%d&sinceSequence=%d" % [
+		_scope_query(), int(cursor.get("atMs", 0)), int(cursor.get("sequence", 0))]
 	var response: Dictionary = await transport.request("GET", path)
 	if generation != _generation:
 		return
@@ -173,8 +186,8 @@ func _on_channel_closed(generation: int) -> void:
 		await sleeper.call(delay)
 		if generation != _generation:
 			return
-		var path := "/visual/replay?%s&sinceTick=%d&sinceSequence=%d" % [
-			_scope_query(), int(cursor.get("tick", 0)), int(cursor.get("sequence", 0))]
+		var path := "/visual/replay?%s&sinceMs=%d&sinceSequence=%d" % [
+			_scope_query(), int(cursor.get("atMs", 0)), int(cursor.get("sequence", 0))]
 		var response: Dictionary = await transport.request("GET", path)
 		if generation != _generation:
 			return

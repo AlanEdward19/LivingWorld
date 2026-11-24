@@ -1,6 +1,4 @@
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -27,6 +25,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scheduling;
 using LivingWorld.Simulation.Serialization;
@@ -76,8 +75,8 @@ public static class WorldSnapshot
     internal static string CanonicalHashFromEntityParts(WorldState world) =>
         Snapshot.IncrementalHasher.Compute(world, useCache: true);
 
-    public static string VolatileHash(WorldState world) =>
-        Hash(BuildJson(world, static p => p.GetCustomAttribute<VolatileAttribute>() is not null));
+    /// <summary>SHA-256 do objeto <c>{"Nome":valor,...}</c> das propriedades voláteis em ordem de nome (efêmeras inclusive).</summary>
+    public static string VolatileHash(WorldState world) => WorldJsonCapture.VolatileHashOf(world);
 
     public static WorldState Deserialize(string json) => FromNode(JsonNode.Parse(json)!.AsObject());
 
@@ -92,8 +91,8 @@ public static class WorldSnapshot
         SnapshotStringInterning.Resolve(node);
 
         var calendar = node["Calendar"].Deserialize<WorldCalendar>(JsonOptions)!;
-        var totalHours = node["CurrentDate"]!["TotalHours"]!.Deserialize<long>();
-        var currentDate = new WorldDate(calendar, totalHours);
+        // ADR-0050: save antigo (só horas) entra como o começo da hora; o conversor lê também o resto dentro da hora
+        var currentDate = WorldDate.FromMilliseconds(calendar, node["CurrentDate"].Deserialize<WorldDate>(JsonOptions).TotalMilliseconds);
         var seed = node["Seed"]!.Deserialize<ulong>();
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
@@ -103,6 +102,10 @@ public static class WorldSnapshot
         var lifeStageRules = node["LifeStageRules"].Deserialize<LifeStageRules>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
+        var npcWakes = node.TryGetPropertyValue("PendingNpcWakes", out var npcWakesNode) && npcWakesNode is not null
+            ? npcWakesNode.Deserialize<List<PendingNpcWake>>(JsonOptions)!
+            : [];
+        pendingEvents = ExtractLegacyNpcWakes(pendingEvents, npcWakes);
         var nextEventId = node["NextEventId"]!.Deserialize<long>();
         var nextHistoryEventId = node.TryGetPropertyValue("NextHistoryEventId", out var nextHistoryNode)
             && nextHistoryNode is not null
@@ -279,6 +282,14 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("ClimateRules", out var climateRulesNode) && climateRulesNode is not null
                 ? climateRulesNode.Deserialize<ClimateRules>(JsonOptions)!
                 : ClimateRules.Disabled;
+        var agricultureRules =
+            node.TryGetPropertyValue("AgricultureRules", out var agricultureNode) && agricultureNode is not null
+                ? agricultureNode.Deserialize<LivingWorld.Domain.Economy.AgricultureRules>(JsonOptions)!
+                : LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        var naturalWaterRules =
+            node.TryGetPropertyValue("NaturalWaterRules", out var naturalWaterNode) && naturalWaterNode is not null
+                ? naturalWaterNode.Deserialize<LivingWorld.Domain.Economy.NaturalWaterRules>(JsonOptions)!
+                : LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         var theftRules =
             node.TryGetPropertyValue("TheftRules", out var theftRulesNode) && theftRulesNode is not null
                 ? theftRulesNode.Deserialize<TheftRules>(JsonOptions)!
@@ -321,9 +332,57 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog, agricultureRules, naturalWaterRules);
         rehydrated.AssignPeriod(periodId);
+        rehydrated.UseInvention(
+            node.TryGetPropertyValue("InventionRules", out var inventionRulesNode) && inventionRulesNode is not null
+                ? inventionRulesNode.Deserialize<LivingWorld.Domain.Invention.InventionRules>(JsonOptions) : null,
+            node.TryGetPropertyValue("Invention", out var inventionNode) && inventionNode is not null
+                ? inventionNode.Deserialize<LivingWorld.Simulation.Invention.InventionLedger>(JsonOptions) : null);
+        rehydrated.UseCrime( // AD-150: ausente = mundo antigo (sem briga nem corte, herança toda ao cônjuge)
+            node.TryGetPropertyValue("CrimeRules", out var crimeRulesNode) && crimeRulesNode is not null
+                ? crimeRulesNode.Deserialize<LivingWorld.Domain.Crime.CrimeRules>(JsonOptions) : null,
+            node.TryGetPropertyValue("Crime", out var crimeNode) && crimeNode is not null
+                ? crimeNode.Deserialize<LivingWorld.Simulation.Crime.CrimeLedger>(JsonOptions) : null);
+        rehydrated.RestoreHonor( // AD-183: ausente = ninguém fez nada de que se fale
+            node.TryGetPropertyValue("Honor", out var honorNode) && honorNode is not null
+                ? honorNode.Deserialize<LivingWorld.Simulation.Population.Naming.HonorLedger>(JsonOptions) : null);
+        rehydrated.RestoreCredit( // AD-155: ausente = nunca houve crédito
+            node.TryGetPropertyValue("Credit", out var creditNode) && creditNode is not null
+                ? creditNode.Deserialize<LivingWorld.Simulation.Economy.Credit.CreditLedger>(JsonOptions) : null);
+        rehydrated.RestorePossession( // AD-197f: ausente = ninguém estranhou ninguém
+            node.TryGetPropertyValue("Possession", out var possessionNode) && possessionNode is not null
+                ? possessionNode.Deserialize<LivingWorld.Simulation.Players.PossessionLedger>(JsonOptions) : null);
+        rehydrated.UsePlayers( // AD-196: ausente = regras padrão do jogador
+            node.TryGetPropertyValue("PlayerRules", out var playerRulesNode) && playerRulesNode is not null
+                ? playerRulesNode.Deserialize<LivingWorld.Domain.Population.PlayerRules>(JsonOptions) : null);
+        rehydrated.UseBrain( // AD-142: ausente = experimento desligado
+            node.TryGetPropertyValue("BrainRules", out var brainRulesNode) && brainRulesNode is not null
+                ? brainRulesNode.Deserialize<LivingWorld.Domain.Cognition.BrainRules>(JsonOptions) : null);
+        rehydrated.UseGround( // AD-176: ausente = mundo antigo (o chão começa sem trilha)
+            node.TryGetPropertyValue("Ground", out var groundNode) && groundNode is not null
+                ? groundNode.Deserialize<LivingWorld.Simulation.Cities.Streets.GroundLedger>(JsonOptions) : null);
+        rehydrated.UseWeather( // AD-180: ausente = mundo antigo ou tempo desligado (o tempo nasce no próximo dia)
+            node.TryGetPropertyValue("Weather", out var weatherNode) && weatherNode is not null
+                ? weatherNode.Deserialize<LivingWorld.Simulation.Climate.WeatherLedger>(JsonOptions) : null);
+        rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
+    }
+
+    /// <summary>Snapshot anterior ao AD-129 guarda os despertares como <see cref="ScheduledEvent"/> de
+    /// <see cref="NpcWakeScheduler.SystemName"/> (payload = id do NPC). Eles viram <see cref="PendingNpcWake"/> com a
+    /// mesma sequência (o id do evento) e saem do scheduler; payload ilegível era ignorado ao vencer e é descartado.</summary>
+    private static List<ScheduledEvent> ExtractLegacyNpcWakes(List<ScheduledEvent> pendingEvents, List<PendingNpcWake> npcWakes)
+    {
+        if (!pendingEvents.Exists(static e => e.SystemName == NpcWakeScheduler.SystemName)) return pendingEvents;
+
+        var others = new List<ScheduledEvent>(pendingEvents.Count);
+        foreach (var evt in pendingEvents)
+        {
+            if (evt.SystemName != NpcWakeScheduler.SystemName) others.Add(evt);
+            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, evt.TargetMs, evt.Id));
+        }
+        return others;
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
@@ -343,12 +402,6 @@ public static class WorldSnapshot
     internal static bool OmitsNull(PropertyInfo prop) =>
         prop.GetCustomAttribute<System.Text.Json.Serialization.JsonIgnoreAttribute>()?.Condition
             == System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-
-    private static string Hash(JsonObject json)
-    {
-        var bytes = Encoding.UTF8.GetBytes(json.ToJsonString(JsonOptions));
-        return Convert.ToHexStringLower(SHA256.HashData(bytes));
-    }
 
     /// <summary>Exposto para os testes de cobertura/classificação por reflexão.</summary>
     public static IReadOnlyList<PropertyInfo> ReflectedProperties => Properties;

@@ -27,8 +27,9 @@ public sealed class Workplace
     /// <see cref="Location"/> é a origem do footprint desse prédio.</summary>
     public BuildingId? Building { get; private set; }
 
-    /// <summary>Dono da oficina (estate-inheritance): quem herda o espólio dele herda também a oficina. Só entra por
-    /// autoria do cenário ou por herança; <c>null</c> é oficina sem dono (comum, da cidade).</summary>
+    /// <summary>Dono da oficina (estate-inheritance, AD-144): recebe o lucro acima da reserva de giro, e quem herda o espólio
+    /// dele herda também a oficina. Entra pela regra de fundação (o mestre do ofício), por autoria do cenário ou por herança;
+    /// <c>null</c> é oficina sem dono (terra comum, obra da cidade), cujo excedente vai ao tesouro da cidade.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public NpcId? Owner { get; private set; }
 
@@ -50,8 +51,13 @@ public sealed class Workplace
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
-        NpcId? owner = null)
+        NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null,
+        IReadOnlyList<WorkplaceStake>? partners = null, bool closed = false, bool rationedSale = false)
     {
+        Closed = closed;
+        RationedSale = rationedSale;
+        _partners = partners is null ? [] : partners.Where(p => p.Basis > 0).OrderBy(p => p.Npc.Value).ToList();
+        _board = board is null ? [] : board.Where(d => d.Owed > 0).OrderBy(d => d.Npc.Value).ToList();
         Id = id;
         LocationType = locationType;
         Location = location;
@@ -63,6 +69,74 @@ public sealed class Workplace
         City = city;
         Building = building;
         Owner = owner;
+        PayrollFailed = payrollFailed;
+    }
+
+    /// <summary>A última folha não fechou (AD-128): enquanto for verdade, quem trabalha aqui procura outro emprego e ninguém
+    /// novo entra. Oficina recém-aberta nasce sem a marca, então contrata mesmo sem caixa: só perde gente se não pagar.</summary>
+    public bool PayrollFailed { get; private set; }
+
+    public void SetPayrollFailed(bool failed) => PayrollFailed = failed;
+
+    /// <summary>Fechada por falência (AD-155): o estoque foi vendido, o caixa foi aos credores e a gente saiu. Não contrata, não
+    /// paga folha e a cidade não a cobre; o prédio segue de quem ficou com ele (o dono, ou o credor que tinha a garantia), que
+    /// pode reabrir com capital novo. Falso fica fora do snapshot (o de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Closed { get; private set; }
+
+    /// <summary>AD-182 (08c item 148): o celeiro desta venda solta menos do que ela pediria (carestia): o vendedor reparte, cada
+    /// compra de comida leva no máximo a ração de poucos dias da casa (<c>AgricultureRules.DearthSaleDays</c>). Falso fica fora do
+    /// snapshot.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RationedSale { get; private set; }
+
+    public void SetRationedSale(bool rationed) => RationedSale = rationed;
+
+    public void SetClosed(bool closed)
+    {
+        Closed = closed;
+        if (closed) PayrollFailed = true;
+    }
+
+    private readonly List<BoardDebt> _board;
+
+    /// <summary>Caderneta das refeições dadas pelo empregador (AD-151): o que cada pessoa comeu do estoque daqui e ainda não foi
+    /// descontado do salário, em moeda, em ordem de id. Nulo quando vazia (snapshot de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<BoardDebt>? Board => _board.Count == 0 ? null : _board;
+
+    public long BoardOwedBy(NpcId npc)
+    {
+        int i = BoardIndex(npc);
+        return i >= 0 ? _board[i].Owed : 0;
+    }
+
+    /// <summary>Soma (ou, negativo, abate) o que <paramref name="npc"/> deve de refeições; zero sai da caderneta.</summary>
+    public void AddBoard(NpcId npc, long amount)
+    {
+        if (amount == 0) return;
+        int i = BoardIndex(npc);
+        long owed = (i >= 0 ? _board[i].Owed : 0) + amount;
+        if (owed < 0) throw new InvalidOperationException("Board: abatimento maior que a dívida");
+        if (i >= 0)
+        {
+            if (owed == 0) _board.RemoveAt(i);
+            else _board[i] = new BoardDebt(npc, owed);
+        }
+        else if (owed > 0) _board.Insert(~i, new BoardDebt(npc, owed));
+    }
+
+    private int BoardIndex(NpcId npc)
+    {
+        int lo = 0, hi = _board.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            long v = _board[mid].Npc.Value;
+            if (v == npc.Value) return mid;
+            if (v < npc.Value) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
     }
 
     /// <summary>Falha quando <see cref="Employees"/> já está no teto de
@@ -82,6 +156,25 @@ public sealed class Workplace
     public void JoinCity(CityId city) => City = city;
 
     public void AssignOwner(NpcId? owner) => Owner = owner;
+
+    private readonly List<WorkplaceStake> _partners;
+
+    /// <summary>Sócios que puseram dinheiro na abertura (AD-152) e a cota de cada um no lucro, em décimos de milésimo
+    /// (<see cref="WorkplaceStake.Whole"/> = tudo); o dono leva o resto. Nulo quando não há sócio (snapshot de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<WorkplaceStake>? Partners => _partners.Count == 0 ? null : _partners;
+
+    /// <summary>Troca as cotas inteiras (abertura, ou a cota de um sócio morto que passa aos herdeiros): soma por pessoa, ordem de id,
+    /// cota zero sai. Recusa somar mais que o todo.</summary>
+    public void SetPartners(IEnumerable<WorkplaceStake> stakes)
+    {
+        var merged = stakes.Where(s => s.Basis > 0).GroupBy(s => s.Npc.Value)
+            .Select(g => new WorkplaceStake(g.First().Npc, g.Sum(s => s.Basis))).OrderBy(s => s.Npc.Value).ToList();
+        if (merged.Sum(s => (long)s.Basis) > WorkplaceStake.Whole)
+            throw new InvalidOperationException("Partners: cotas somam mais que o todo");
+        _partners.Clear();
+        _partners.AddRange(merged);
+    }
 
     /// <summary>Soma até o limite de <see cref="EconomyRules.CapacityOf"/>; devolve as unidades
     /// perdidas por excesso de capacidade — nunca descartadas em silêncio, o chamador
@@ -108,3 +201,12 @@ public sealed class Workplace
         return result;
     }
 }
+
+/// <summary>Cota de um sócio no lucro de uma oficina (AD-152), em décimos de milésimo do todo.</summary>
+public readonly record struct WorkplaceStake(NpcId Npc, int Basis)
+{
+    public const int Whole = 10_000;
+}
+
+/// <summary>Uma linha da caderneta de refeições (AD-151): quem comeu e quanto deve, em moeda.</summary>
+public readonly record struct BoardDebt(NpcId Npc, long Owed);

@@ -1,17 +1,18 @@
 {
-  "actionStartedAtTick": "number",
+  "actionStartedAtMs": "number",
   "actionTarget?": {
     "id": "string",
     "kind": "string"
   },
   "ageYears": "number",
   "beliefs": "[]",
+  "childIds": "[]",
   "city": {
     "value": "string"
   },
   "cognitionTrace": [
     {
-      "tick": "number",
+      "atMs": "number",
       "trace": {
         "blockingFactors": [
           "string"
@@ -65,6 +66,19 @@
   "employer?": {
     "value": "number"
   },
+  "employment?": {
+    "buildingId?": {
+      "value": "number"
+    },
+    "id": {
+      "value": "number"
+    },
+    "locationTypeId": "number",
+    "name?": "string",
+    "ownerId?": {
+      "value": "number"
+    }
+  },
   "fatherId?": {
     "value": "number"
   },
@@ -76,6 +90,9 @@
   },
   "health": "number",
   "household?": {
+    "value": "number"
+  },
+  "householdBuildingId?": {
     "value": "number"
   },
   "hunger": "number",

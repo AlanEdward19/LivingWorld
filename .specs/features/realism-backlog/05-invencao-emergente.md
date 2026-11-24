@@ -1,0 +1,93 @@
+# Invenção emergente: tecnologia, veículos, robôs (não começado; pede desenho antes de código)
+
+## O que o dono pediu (palavras dele)
+
+- "Queria puxar também a possibilidade de inventarem tecnologia, veículos (aéreos, terrestres, aquáticos), robôs etc."
+- "Lembrando que tudo no livingworld é determinístico e totalmente simulation driven, em nada escrito. Então o npc desenvolve tudo e tem a concepção da ideia (que pode ser reproduzível depois). Incluindo aparência do que foi inventado e a animação utilizada (material e forma que foi feito influencia na aparência)."
+- "Levar em consideração métodos anticoncepcionais caso alguém tenha-os inventado."
+
+## O que existe hoje
+
+- `Emergence/TechDiscoverySystem`: uma cidade sob pressão (por exemplo trajeto longo ao mercado) descobre uma "tecnologia" representada por um vetor; culturas isoladas divergem; a adoção se espalha por vínculos entre cidades. Ainda não foi auditado quanto disso é lista fixa. A seed 1 para de inventar depois da primeira tecnologia (pressão cai abaixo do limiar).
+- `Objects/ObjectUse`: objetos que dão conforto ou duração a ações.
+- O cliente é Godot (ADR-0022); a aparência do que é inventado hoje não deriva de nada.
+
+## O que precisa ser decidido num documento de desenho (TDD + ADR) antes de implementar
+
+1. **Representação de uma invenção sem catálogo.** Proposta a avaliar: uma invenção é uma composição de primitivas (materiais com propriedades físicas, formas, mecanismos como alavanca, roda, vela, engrenagem, mola, combustão, circuito; fontes de energia) mais a função que cumpre. O espaço é gerado, não listado.
+2. **O que faz uma composição funcionar.** Regras físicas simples e determinísticas (peso, resistência, flutuação, sustentação, atrito, energia disponível) decidem se o artefato cumpre a função e com que desempenho. Um barco flutua porque a forma e o material dão empuxo, não porque existe a entrada "barco".
+3. **Quem inventa e por quê.** Um NPC, não a cidade: necessidade sentida, habilidade, abertura e curiosidade, conhecimento prévio (o que já existe ao redor é pré-requisito), tempo livre, recursos, acaso semeado. Tentativa e erro com custo de material e tempo; a maioria falha.
+4. **A ideia como coisa transmissível.** O inventor guarda a concepção; ensina, vende ou esconde; outros copiam vendo o artefato; a ideia se perde se ninguém a aprender. Reprodução exige as habilidades e os materiais.
+5. **Árvore que emerge.** Sem pré-requisitos escritos: metalurgia antes de motor porque o motor precisa de peças que só a metalurgia faz.
+6. **Veículos** (terrestres, aquáticos, aéreos) como invenções que mudam o custo de deslocamento no mapa, com consumo, capacidade e risco.
+7. **Robôs e automação**: artefatos que executam trabalho; mexe em emprego, produção e, no limite, em quem é agente no mundo. Precisa de decisão própria.
+8. **Aparência e animação derivadas.** O cliente Godot monta o visual a partir da composição (material dá cor e textura, forma dá malha, mecanismo dá movimento). Nada desenhado à mão por invenção. Precisa de protótipo no cliente.
+9. **Efeito social**: quem adota primeiro, resistência, desigualdade, armas, contracepção (ver 02), medicina (liga com saúde).
+10. **Custo e estado**: quantas invenções o mundo guarda, como entram no snapshot, custo por NPC-tick.
+
+## Critérios mensuráveis propostos
+
+- Duas culturas isoladas com as mesmas necessidades chegam a soluções diferentes que funcionam.
+- Nenhuma invenção aparece sem os pré-requisitos materiais e de conhecimento presentes no mundo.
+- Uma invenção perdida (todos os que sabiam morreram) deixa de ser produzida.
+- Mesmo mundo, mesma seed: mesma história de invenções.
+- O cliente desenha um artefato nunca visto só com os dados da composição.
+
+## Estado (2026-11-13)
+
+Desenho aprovado (ADR-0045, `.specs/features/emergent-invention/design.md`). **Fatia 1 juntada (AD-141, `2b34fb64`)**: materiais brutos, `Design` como composição de partes, avaliador físico só com inteiros, NPC que inventa por frustração de vau, ensino, cópia, lápide, `GET /designs`, malha no Godot. Doc em `docs/domain/invention.md`. Em 20 seeds × 100 anos: 24 invenções (todas as seeds), 40% das travessias de água feitas na embarcação, 0% de sobreposição de designs entre seeds.
+
+## Falta fazer (tudo que a fatia 1 deixou de fora está aqui; nada some)
+
+Fatia 2 (AD-143, branch próprio, 2026-11-13): os 7 itens entraram (carga, venda + produção pela receita na
+`ProductionSystem`, material de estoque, pesca, cópia por evento, lápide com relatos, pessoa 0). Sobrou desta fatia:
+- 2a. ~~Decidido no AD-149~~: a casa vai mais vezes (a reposição volta a disparar), não manda mais gente; o corte é ~0,1% da
+  comida ([household-provisioning](../../../docs/domain/household-provisioning.md)). Original: A carga a pé corta a compra de quem mora do outro lado da água e a fome sobe (20×100: mortes de fome
+  670 → 1131; sem o corte, 858). Ninguém da casa ajuda a carregar nem a compra se divide em várias idas
+  pensadas. Dono (2026-11-13): "faz o que achar mais realista", depois do inventário pessoal (item 12).
+- 3a. Nenhum material do cenário padrão circula na economia (não há recurso madeira): o caminho
+  "despensa/mercado" (`MaterialSpec.ResourceId`) só roda em cenário que declare o vínculo.
+- 4a. Peixe entra como o recurso de comida (estraga como grão) e as horas de pesca não tiram tempo da rotina.
+- 5a. Só a chegada remando mostra a peça; a peça exposta no mercado e a pesca não são vistas.
+- 6a. Sem história ligada (padrão) não há fato nem relato: a lápide fica com 0 relatos e o rumor não age;
+  a lembrança da pessoa (`EpisodicMemory.Other` é pessoa) ainda não aponta para o design.
+- 7a. (troca de contrato aprovada pelo dono em 2026-11-13) Raiz não trocada: os ids seguem começando em 0 (numerar a partir de 1 colidia com testes que criam pessoas
+  com id 1 e 2 à mão e mudava `/npcs/0`). A pessoa 0 já lembra (intake lê "ninguém" como -1), mas como `Other` de
+  uma lembrança 0 ainda quer dizer "ninguém": rancor e reforço com a pessoa 0 não funcionam.
+
+Fatias seguintes:
+8. Sonda de terra (rolar e deslizar com eixo: trenó, carroça) e, depois, de ar. **Terra feita (AD-153,
+   [invention-land](../../../docs/domain/invention-land.md))**: `PhysicsEvaluator.Haul`, veículo pelo problema de carregar, compra
+   por terra corta no que se leva. 20×100: veículo em 12 seeds (52 invenções, 2.214 peças; seeds 21–40: 12), 0% de sobreposição, 46.574 idas
+   com veículo levando 324 t além do corpo (arrasto, patim e roda), fome 4,9% → 6,0% (seeds 21–40: 4,3% → 3,8%; 40 seeds +6%). Ficou de fora:
+   - 8a. Tração animal (não há rebanho): só gente puxa. 8b. Terreno (`TerrainType`) e estrada não entram na resistência.
+   - 8c. Puxar não muda a velocidade de caminhada. 8d. Outros consumidores: parte do ceifeiro e celeiro, estoque de obra da
+     cidade e frete entre oficinas (`InputSupplySystem` move sem viagem), material da invenção, `Npc.CarriedResourceId`.
+   - 8e. Estabilidade: carrinho de mão (uma roda equilibrada pela pessoa) tomba; rampa. 8f. Dividir a carga com quem vai junto.
+   - 8g. Campos da sonda (modo, carga, atrito, força) fora da API: pedem aprovação. 8h. Sonda de ar.
+   - 8i. O veículo vadeia como quem anda (o mapa não tem profundidade). 8j. Gasta só pelo tempo, não pelo uso.
+9. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente (`test_technologies.gd`) e as métricas de civilização, remover o bloco `Emergence`, regravar goldens.
+10. Contracepção e remédio como invenção; robô em ADR próprio.
+11. Animação por junção e pose de uso no cliente Godot.
+12. **O que a pessoa leva consigo** (pedido do dono, 2026-11-13): "se a pessoa pudesse carregar coisas com ela (tipo
+    um inventário), levar lanche, água em garrafa/cantil caso fosse inventado. uma mochila, bolsos, etc". Carga pessoal
+    com teto de peso e volume: de mão nua quase nada; recipiente (cantil, cesto, bolsa, mochila) é `Design` avaliado
+    pela física (estanque, volume, peso), inventado e copiado como o resto. A pessoa bebe e come do que leva, e decide
+    o que levar ao sair. Liga com 2a (carga por viagem) e com a sede do AD-145 ([08](08-a-investigar.md), item 37).
+    **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
+    copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
+    `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
+    - 12a. ~~ligada no AD-157b~~ com a refeição de rotina ([meal-routine](../../../docs/domain/meal-routine.md)): 40×15 pareado, fome
+      crítica 10,3 → 9,3 h/pa (ruído ±2,2), sede 512 → 156, trabalho +2,5%; 20×100 0 extinções, pop 181,9 → 180,6. Sobra: custo (08c 110).
+    - 12b. ~~resolvido no AD-149~~: a casa com recipiente que segue cortada tenta superá-lo e a lâmina pode ir amarrada; 20×100 com a carga
+      ligada: tira em 18 de 20 seeds (29 designs, 536 peças); com ela desligada (padrão) a frustração é pouca e não há tira (13a). Original: Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
+    - 12c. ~~resolvido no AD-157~~: o recipiente sai com quem arrumou a carga (`InventionLedger.Held`) e volta com ela; quem sai depois
+      leva o que ficou. Original: a carga era do melhor recipiente da casa e vários saíam com o mesmo.
+    - 12d. Sem tampa: estanque basta para levar água; derramar ao andar não existe.
+    - 12e. Só a compra cortada gera o problema por padrão (voltar para comer só com a despensa em casa).
+    - 12f. Carga em `/npcs/{id}` não exposta (só `GET /designs/{id}`: `function`, `holds`); AD-157: nem o recipiente que a pessoa leva.
+    - 13a. ~~resolvido com a carga ligada (AD-157b)~~: 20×100, recipiente nas 20 seeds, com tira em 5 (7 designs, 19 peças), 1,57 mi
+      idas com recipiente, 2,5 mi refeições do que levavam. Sobra: ninguém conta quantas saídas levam a peça com tira (08c 113).
+    - 12g. `Npc.CarriedResourceId` (transporte do processo de recursos) segue à parte; juntar com `Carried`.
+
+Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).

@@ -23,7 +23,7 @@ public static class HouseholdRedistribution
         foreach (var child in survivors)
         {
             household.RemoveMember(child.Id);
-            if (TryFindRelativeHousehold(world, child, lifeStageRules, now) is { } targetId)
+            if (LeastBurdenedRelativeHousehold(world, child, lifeStageRules, now) is { } targetId)
             {
                 var target = world.FindHousehold(targetId)!;
                 target.AddMember(child.Id);
@@ -45,18 +45,19 @@ public static class HouseholdRedistribution
                 && lifeStageRules.LifeStageOf(npc.AgeYears(now)) is LifeStage.Adult or LifeStage.Elder;
         });
 
-    internal static HouseholdId? TryFindRelativeHousehold(
+    /// <summary>Órfãos se repartem entre os parentes (AD-136): cada criança vai para a casa de parente com menos gente
+    /// naquele momento (desempate pela ordem de parentesco), então irmãos podem ir para casas diferentes, como acontecia.</summary>
+    internal static HouseholdId? LeastBurdenedRelativeHousehold(
         WorldState world, Npc child, LifeStageRules lifeStageRules, WorldDate now)
     {
+        Household? best = null;
         foreach (var relativeId in CandidateRelativeIds(child, world, lifeStageRules, now))
         {
-            var relative = world.FindNpc(relativeId);
-            if (relative is not { IsAlive: true, Household: { } householdId }) continue;
-            if (world.FindHousehold(householdId) is null) continue;
-            return householdId;
+            if (world.FindNpc(relativeId) is not { IsAlive: true, Household: { } householdId }) continue;
+            if (world.FindHousehold(householdId) is not { } home) continue;
+            if (best is null || home.Members.Count < best.Members.Count) best = home;
         }
-
-        return null;
+        return best?.Id;
     }
 
     private static IEnumerable<NpcId> CandidateRelativeIds(

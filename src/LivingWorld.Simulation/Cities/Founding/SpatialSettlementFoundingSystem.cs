@@ -44,6 +44,8 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                     continue; // já agendado (mesmo cluster ou um que o sobrepõe), não reagenda
                 if (!FoundingConcentration.ClearsThreshold(cluster.Population, rules))
                     continue; // prédios sem (ou com poucos) residentes reais nunca fundam nada
+                if (!FarByRoad(world, city, cluster))
+                    continue; // AD-176: perto pelo caminho do trabalho e do mercado, o aglomerado continua parte da mãe
 
                 string payload = $"{city.Id.Value}|{string.Join(",", cluster.Buildings.Select(b => b.Id.Value))}";
                 ctx.ScheduleEvent(ctx.CurrentTick + rules.OrganizationTicks, SystemName, payload);
@@ -111,9 +113,15 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         if (centroid.X < 0 || centroid.Y < 0 || centroid.X >= world.Map.Width || centroid.Y >= world.Map.Height)
             return; // centroide fora do mapa -- dropado silenciosamente, nunca força uma cidade fora do mundo
 
+        // AD-183: quem lidera a saída funda; o costume da cultura decide se a cidade leva o nome dele
+        var founder = world.FamilyRules.Names.FounderHonor
+            ? Population.Naming.Founders.Pick(world, Population.Naming.Founders.Leaving(world, motherCityId, clusterBounds), ctx.CurrentTick) : null;
+        var (cityName, nameCustom) = world.FamilyRules.Names.FounderHonor
+            ? CityNameGenerator.GenerateDaughter(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity, founder)
+            : (CityNameGenerator.Generate(world, CityNameGenerator.FoundingCulture(world, motherCity), motherCity), "");
         var newCity = new City(
             world.NextCityId(), centroid, ctx.CurrentTick, motherCityId, AggregatePopulationPool.Empty,
-            name: CityNameGenerator.Generate(world));
+            name: cityName, founderId: founder?.Id.Value);
         world.AddCity(newCity);
         // Dotação de fundação: a cidade nova recebe metade do caixa da mãe (só muda de dono, nada é cunhado).
         var dotation = new Money(motherCity.Treasury.Amount / 2);
@@ -165,6 +173,35 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                 member.JoinCity(newCity.Id);
             }
         }
+        if (world.FamilyRules.Names.FounderHonor) Population.Naming.Founders.Record(world, ctx, newCity, motherCity, founder, nameCustom);
+    }
+
+    /// <summary>AD-176: a causa da fundação é o caminho, não a geometria. O aglomerado que nasceu longe por falta de lote perto só
+    /// vira cidade-filha se, pela rota real, quem está nele (os vivos dentro da caixa, os mesmos da concentração) gasta em média ao
+    /// menos <see cref="StreetRules.FoundingCommuteHours"/> para chegar ao que a mãe dá — o largo (feira, poço, igreja) ou o
+    /// mercado mais perto, o que for mais perto — mais o trabalho, se ele fica fora do aglomerado. Sem a rua de verdade, vale só a
+    /// geometria de antes.</summary>
+    internal static bool FarByRoad(WorldState world, City mother, OverflowClusterFinder.Cluster cluster)
+    {
+        if (!world.StreetsOn) return true;
+        var markets = Economy.Market.MarketIndex.BuildForTick(world);
+        var food = new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.FoodResourceId);
+        var water = new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId);
+        double total = 0;
+        int people = 0;
+        foreach (var npc in world.AliveNpcIndex.Alive.OrderBy(n => n.Id.Value))
+        {
+            if (!cluster.Bounds.Contains(npc.CurrentLocation)) continue;
+            var at = npc.CurrentLocation; // quem está no aglomerado agora (a casa gravada pode ser a de antes)
+            double services = Streets.StreetRoutes.CostOf(world, at, mother.Location).Cost;
+            if (markets.NearestSelling(at, food, water) is { } market && !cluster.Bounds.Contains(market.Location))
+                services = Math.Min(services, Streets.StreetRoutes.CostOf(world, at, market.Location).Cost);
+            double work = npc.Employer is { } e && world.FindWorkplace(e) is { } place && !cluster.Bounds.Contains(place.Location)
+                ? Streets.StreetRoutes.CostOf(world, at, place.Location).Cost : 0;
+            total += services + work;
+            people++;
+        }
+        return people > 0 && total / people >= world.StreetRules.FoundingCommuteHours;
     }
 
     private static void ScheduleAdjacentDaughterMerges(WorldState world, TickContext ctx, CityRules rules)

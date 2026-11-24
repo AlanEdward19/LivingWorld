@@ -89,3 +89,32 @@ static func _material_for(part: Dictionary, variation: int) -> Material:
 	material.albedo_color = color
 	material.roughness = 0.9
 	return material
+
+
+## Design inventado (AD-141, `GET /designs/{id}`): uma malha por parte, na forma e no tamanho que o servidor mediu; a cor, a
+## rugosidade (1 − acabamento) e o metálico (condutividade alta) vêm do material. Nada desenhado à mão por invenção.
+## Cilindro e cápsula com `axis` "x" deitam ao longo do comprimento (a malha do Godot nasce em pé).
+static func build_design(design: Dictionary) -> Node3D:
+	var looks := {}
+	for look in design.get("materials", []):
+		looks[int(look.id)] = look
+	var root := Node3D.new()
+	root.name = "design_%d" % int(design.get("id", 0))
+	for part in design.get("parts", []):
+		var node := MeshInstance3D.new()
+		node.mesh = _mesh_for(part)
+		node.material_override = _material_from_look(looks.get(int(part.material), {}))
+		var offset: Array = part.offset
+		node.position = Vector3(float(offset[0]), float(offset[1]), float(offset[2]))
+		if String(part.get("axis", "")) == "x":
+			node.rotation = Vector3(0.0, 0.0, PI / 2.0)
+		root.add_child(node)
+	return root
+
+
+static func _material_from_look(look: Dictionary) -> Material:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(String(look.get("color", "#808080")))
+	material.roughness = clampf(1.0 - float(look.get("finish", 0.1)), 0.0, 1.0)
+	material.metallic = 1.0 if float(look.get("conductivity", 0.0)) >= 0.5 else 0.0
+	return material

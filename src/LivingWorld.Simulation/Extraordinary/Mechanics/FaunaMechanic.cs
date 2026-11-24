@@ -115,10 +115,10 @@ public sealed class FaunaDominateSystem : ISimulationSystem
     {
         if (!world.Extraordinary.Enabled) return;
 
-        foreach (var carrierState in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value))
+        foreach (var (carrierState, carrier) in world.LivingCarriers().ToList()) // AD-156: só vivos, ordem de id
         {
             if (carrierState is not { IsManifested: true }) continue;
-            if (world.FindNpc(carrierState.CarrierId) is not { IsAlive: true } carrier) continue;
+            if (!carrier.IsAlive) continue;
 
             foreach (var descriptor in world.Extraordinary.Descriptors
                          .Where(item => carrierState.PowerIds.Contains(item.Id, StringComparer.Ordinal))

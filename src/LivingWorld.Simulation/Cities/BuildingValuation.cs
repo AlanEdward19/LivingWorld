@@ -73,17 +73,32 @@ public static class BuildingValuation
 
         var world = context.World;
         double location = 1.0;
-        var position = building.Position ?? BuildingPlacementResolver.Resolve(building, context.City, world, context.Bounds)?.Position;
-        if (position is { } at)
+        var lot = BuildingPlacementResolver.ResolveLot(building, context.City, world, context.Bounds);
+        if (lot is { Position: var at })
         {
             location += pricing.CentralityWeight * Centrality(context, at)
                 + pricing.AmenityWeight * Amenities(world, building, pricing.AmenityRadius, at) / AmenityCap
-                + pricing.WaterfrontWeight * (Waterfront(world, at) ? 1 : 0);
+                + pricing.WaterfrontWeight * (Waterfront(world, at) ? 1 : 0)
+                // AD-173: o quintal (horta, bichos, espaço para ampliar) é terra a mais, e vale
+                + world.CityRules.EffectiveLayout().CroftValuePerCell * CroftCellCount(building, at, lot.Value.Croft);
+            // AD-192: o lugar sujo (colado, sem escoamento, água longe ou suja) vale menos — e o aluguel e a diária que saem dele
+            if (world.StreetRules.QuarterInValue && building.Position is not null)
+                location -= world.StreetRules.QuarterValuePenalty * Quarter.PlaceSqualor(world, building);
         }
 
         double pressure = recipe.Lodging is not null ? context.LodgingPressure : context.LabourPressure;
         double demand = Math.Max(0.0, 1.0 + pricing.DemandSensitivity * (pressure - 1.0));
         return Math.Clamp(location * demand, pricing.MinMultiplier, pricing.MaxMultiplier);
+    }
+
+    /// <summary>Células do quintal de trás do lote (fundo × largura da planta).</summary>
+    internal static int CroftCellCount(Building building, LivingWorld.Domain.Geography.CellCoord origin, int croftDepth)
+    {
+        if (croftDepth <= 0) return 0;
+        var footprint = BuildingFootprintGenerator.Generate(building);
+        var cells = footprint.Select(c => c.Cell).ToArray();
+        var (_, facing) = Layout.LotGeometry.DoorOf(footprint);
+        return Layout.LotGeometry.CroftOf(cells, cells.ToHashSet(), facing, croftDepth).Length;
     }
 
     /// <summary>Valor do imóvel; 0 para tipo sem <c>Pricing</c>.</summary>

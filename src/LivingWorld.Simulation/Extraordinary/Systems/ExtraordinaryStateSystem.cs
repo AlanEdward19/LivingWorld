@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scheduling;
 
@@ -35,9 +36,9 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
 
         ControlMechanic.ApplyPossessionResistance(world, ctx);
 
-        foreach (var carrier in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
+        foreach (var (carrier, npc) in world.LivingCarriers().ToList()) // AD-156: só vivos, ordem de id
         {
-            if (world.FindNpc(carrier.CarrierId) is not { IsAlive: true } npc) continue;
+            if (!npc.IsAlive) continue;
             var resolved = Resolve(world, npc, carrier.PowerIds);
             if (carrier.IsManifested && !resolved.IsManifested)
             {
@@ -63,42 +64,71 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
     {
         if (string.IsNullOrWhiteSpace(evt.Payload)) return;
         var parts = evt.Payload.Split('|', StringSplitOptions.TrimEntries);
+        // AD-156: início agendado de poder herdado ("onset|npc|poder")
+        if (parts.Length == 3 && parts[0] == PowerGeneticsMechanic.OnsetPrefix && long.TryParse(parts[1], out long heir))
+        {
+            if (world.FindNpc(new NpcId(heir)) is { IsAlive: true } npc && PowerGenome.Find(world, parts[2]) is { } locus
+                && PowerGeneticsMechanic.Expresses(world, npc, locus))
+            {
+                // AD-162: a puberdade atrasou pela fome; o poder espera por ela, revisto a cada mês
+                if (PowerGeneticsMechanic.AwaitsPuberty(world, npc, locus, ctx.CurrentTick))
+                    ctx.ScheduleEvent(ctx.CurrentTick + world.Calendar.HoursPerMonth, SystemName, evt.Payload);
+                else AcquireGenetic(world, ctx, npc, parts[2], causeEventId: null);
+            }
+            return;
+        }
         if (parts.Length != 4 || parts[0] != "acquire" || !long.TryParse(parts[1], out long npcValue))
             return;
 
         var npcId = new NpcId(npcValue);
         string powerId = parts[2];
         string trigger = parts[3];
-        var npc = world.FindNpc(npcId);
+        var target = world.FindNpc(npcId);
         var descriptor = world.Extraordinary.Descriptors.FirstOrDefault(
             candidate => string.Equals(candidate.Id, powerId, StringComparison.Ordinal));
         var acquisitionRule = descriptor?.AcquisitionRules.FirstOrDefault(
             rule => MatchesTrigger(rule, trigger));
-        if (npc is null || !npc.IsAlive || descriptor is null || acquisitionRule is null
-            || !PassesAcquisitionRate(acquisitionRule, npc, powerId, evt.Id, ctx))
+        if (target is null || !target.IsAlive || descriptor is null || acquisitionRule is null
+            || !PassesGenotypeGate(world, target, powerId)
+            || !PassesAcquisitionRate(acquisitionRule, target, powerId, evt.Id, ctx))
         {
             ctx.LogEvent(WorldEventKind.ExtraordinaryAcquisitionFailed, $"{npcValue}|{powerId}|{trigger}", sourceSystem: SystemName);
             return;
         }
 
-        var existing = world.CarrierOf(npcId);
+        Acquire(world, ctx, target, powerId, $"event:{trigger}", causeEventId: null);
+    }
+
+    /// <summary>Poder herdado que chega à idade de início (AD-156): entra como aquisição de origem genética.</summary>
+    internal static void AcquireGenetic(WorldState world, TickContext ctx, Npc npc, string powerId, long? causeEventId) =>
+        Acquire(world, ctx, npc, powerId, "genetic:onset", causeEventId);
+
+    private static void Acquire(WorldState world, TickContext ctx, Npc npc, string powerId, string origin, long? causeEventId)
+    {
+        var existing = world.CarrierOf(npc.Id);
         if (existing?.PowerIds.Contains(powerId, StringComparer.Ordinal) == true) return;
 
         var powerIds = (existing?.PowerIds ?? []).Append(powerId)
             .Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         var resolved = Resolve(world, npc, powerIds);
         world.UpsertExtraordinaryCarrier(resolved);
+        PowerGeneticsMechanic.RefreshMetabolism(world, npc, ctx.CurrentTick);
         long acquiredId = ctx.LogEvent(
-            WorldEventKind.ExtraordinaryAcquired, $"{npcValue}|{powerId}|event:{trigger}",
-            sourceSystem: SystemName);
+            WorldEventKind.ExtraordinaryAcquired, $"{npc.Id.Value}|{powerId}|{origin}",
+            sourceSystem: SystemName, causeEventId: causeEventId);
         if (resolved.IsManifested && existing?.IsManifested != true)
         {
             ctx.LogEvent(
-                WorldEventKind.ExtraordinaryManifested, $"{npcValue}|{powerId}|condition",
+                WorldEventKind.ExtraordinaryManifested, $"{npc.Id.Value}|{powerId}|condition",
                 sourceSystem: SystemName, causeEventId: acquiredId);
             LogCulturalResponses(world, ctx, npc, resolved.PowerIds);
         }
     }
+
+    /// <summary>O gatilho do ambiente só desperta quem tem o genótipo, quando o poder declara isso (AD-156).</summary>
+    private static bool PassesGenotypeGate(WorldState world, Npc npc, string powerId) =>
+        !PowerInheritanceRules.Resolve(world.Extraordinary.InheritanceRules).For(powerId).TriggerRequiresGenotype
+        || PowerGenome.Find(world, powerId) is { } locus && PowerGeneticsMechanic.HasAffectedGenotype(world, npc, locus);
 
     public static Result<ExtraordinaryCarrierState> GrantAuthored(
         WorldState world, TickContext ctx, NpcId npcId, string powerId)
@@ -116,6 +146,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             .Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         var resolved = Resolve(world, npc, ids);
         world.UpsertExtraordinaryCarrier(resolved);
+        PowerGeneticsMechanic.RefreshMetabolism(world, npc, ctx.CurrentTick);
         ctx.LogEvent(WorldEventKind.ExtraordinaryAcquired, $"{npcId.Value}|{powerId}|authoring:web", sourceSystem: SystemName);
         return Result<ExtraordinaryCarrierState>.Ok(resolved);
     }
@@ -131,6 +162,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         ExtraordinaryCarrierState? resolved = ids.Count == 0 ? null : Resolve(world, npc, ids);
         if (resolved is null) world.RemoveExtraordinaryCarrier(npcId);
         else world.UpsertExtraordinaryCarrier(resolved);
+        PowerGeneticsMechanic.RefreshMetabolism(world, npc, ctx.CurrentTick);
         ctx.LogEvent(WorldEventKind.ExtraordinaryRevoked, $"{npcId.Value}|{powerId}|authoring:web", sourceSystem: SystemName);
         return Result<ExtraordinaryCarrierState?>.Ok(resolved);
     }
@@ -185,7 +217,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
     {
         if (!TryParseRateRule(rule, out double baseRate, out _)) return true;
         double chance = Math.Clamp(baseRate * npc.RateGene.Value, 0, 1);
-        return ctx.Rng($"extraordinary-acquisition-{npc.Id.Value}-{powerId}-{eventId}").NextDouble() < chance;
+        return ctx.OneShot($"extraordinary-acquisition-{npc.Id.Value}-{powerId}-{eventId}").NextDouble() < chance;
     }
 
     private static bool TryParseRateRule(string rule, out double rate, out string trigger)

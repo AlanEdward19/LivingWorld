@@ -1,0 +1,221 @@
+using LivingWorld.Api.World;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Players;
+
+namespace LivingWorld.Api.Players;
+
+/// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente. <c>Mode</c> só com <c>Incarnate</c> (posse plena é
+/// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>. AD-197c: <c>UntilHour</c>
+/// (hora do dia) com <c>Sleep</c>; sem ela, dormir acelerando. AD-197d: <c>Interaction</c> (door, stock, stall, bed, person, house),
+/// <c>TargetId</c>, <c>Verb</c>, <c>ResourceId</c> e <c>Quantity</c> com <c>Interact</c>.</summary>
+public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
+    LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
+    int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
+    long? Quantity = null);
+
+/// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
+/// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
+/// <c>LastWakeReason</c>: o que encerrou o último (golpe, fogo, fome, sede, chamado, hora, descansado, outro jogador, comando).</summary>
+public sealed record PlayerTimeView(
+    string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
+    string? LastWakeReason);
+
+/// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
+public sealed record PlayerReply(int Status, object? Body, string? Error)
+{
+    public bool Ok => Status == StatusCodes.Status200OK;
+}
+
+/// <summary>Fila única de aplicação dos comandos de jogador por branch (ADR-0048, AD-197a): todo comando, venha da rota HTTP ou do
+/// canal persistente, é aplicado sob a mesma trava do laço do relógio (<see cref="SavedWorldLibrary.Gate"/>), no limite entre
+/// ticks, na ordem em que chega à trava; o aceito vai para o registro do hospedeiro e para o disco antes da resposta. Sob pausa do
+/// admin todo comando é recusado com 409 sem mudar o mundo (aprovado pelo dono em 2026-11-23).</summary>
+public sealed class PlayerCommandGateway(
+    WorldHost host, SimulationHost simulation, PlayerService players, SavedWorldLibrary library, PlayerLogStore log,
+    LivingWorld.Simulation.Llm.ConversationSessionStore? conversations = null)
+{
+    public const string PausedError = "conflict: mundo pausado pelo admin";
+
+    /// <summary>Só para o par de mutação do teste: falso desliga a recusa sob pausa (o teste da pausa tem de reprovar).</summary>
+    public bool EnforcePause { get; set; } = true;
+
+    public PlayerLogStore Log => log;
+
+    public PlayerReply Execute(string playerId, PlayerCommandRequest command)
+    {
+        lock (library.Gate)
+        {
+            if (EnforcePause && simulation.IsPaused) return new PlayerReply(StatusCodes.Status409Conflict, null, PausedError);
+            var world = host.Current;
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
+            var before = players.Log.Last;
+            var reply = command.Kind switch
+            {
+                PlayerCommandKind.Incarnate => Map(players.Incarnate(world, new NpcId(command.NpcId ?? -1), playerId, command.Mode),
+                    _ => new { npcId = command.NpcId, playerId }),
+                PlayerCommandKind.Move => Map(players.Move(world, playerId, command.Dx, command.Dy),
+                    _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Strike => Map(players.Strike(world, playerId, new NpcId(command.NpcId ?? -1)),
+                    _ => new { playerId, targetId = command.NpcId }),
+                PlayerCommandKind.Persuade => Map(players.Persuade(world, playerId), _ => new { playerId }),
+                PlayerCommandKind.Act => Map(players.Act(world, playerId, command.Action, command.PowerId),
+                    _ => new { playerId, Action = command.Action?.ToString() }),
+                PlayerCommandKind.Sleep when command.UntilHour is { } bad && (bad < 0 || bad >= world.Calendar.HoursPerDay) =>
+                    new PlayerReply(StatusCodes.Status400BadRequest, null, "untilHour: fora das horas do dia"),
+                PlayerCommandKind.Sleep => Map(players.Sleep(world, playerId,
+                        command.UntilHour is { } hour ? PlayerService.NextHourOfDayMs(world, hour) : null),
+                    _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Accelerate => Map(players.Accelerate(world, playerId), _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
+                    ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
+                    : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
+                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
+                    command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
+                PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
+                    npc => new { npcId = npc.Id.Value, playerId, disappearedAtTick = npc.DisappearedAtTick }),
+                _ => new PlayerReply(StatusCodes.Status400BadRequest, null, "comando: não é de jogador"),
+            };
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
+            return reply;
+        }
+    }
+
+    /// <summary>Grava no disco o que o registro ganhou depois de <paramref name="before"/> (um comando pode registrar dois: o fim do
+    /// pulo de tempo e o próprio comando).</summary>
+    private void AppendSince(PlayerCommandRecord? before)
+    {
+        int from = before is null ? 0 : (int)before.Sequence + 1;
+        foreach (var record in players.Log.Since(from)) log.Append(record);
+    }
+
+    /// <summary>AD-197c: o tempo como o jogador o vê: o ritmo em vigor, se pode pular o tempo, o pulo em curso e o que o acordou.</summary>
+    public PlayerTimeView Time(string playerId)
+    {
+        lock (library.Gate) return TimeOf(host.Current, playerId);
+    }
+
+    private PlayerTimeView TimeOf(LivingWorld.Simulation.Core.WorldState world, string playerId)
+    {
+        var plan = simulation.LastPlan;
+        var skip = players.Skip?.PlayerId == playerId ? players.Skip : null;
+        return new PlayerTimeView(
+            plan.Mode.ToString(), plan.DeltaMs, world.Players.Time.TimeScale, PlayerService.PlayersPresent(world),
+            simulation.AutoRhythm && PlayerService.CanSkip(world, playerId) && !simulation.IsPaused,
+            skip is not null, skip?.Sleeping == true, skip?.UntilMs, players.LastWakeReason);
+    }
+
+    /// <summary>Avanço do admin (<c>step</c>, <c>advance-year</c>) pelo registro do jogador (AD-197c): o replay roda os mesmos ticks.</summary>
+    public PlayerReply Advance(string actor, long ticks, int deltaMs)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
+            var before = players.Log.Last;
+            var reply = Map(players.Advance(world, host.Clock, actor, ticks, deltaMs), _ => new { ticks, deltaMs });
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
+            return reply;
+        }
+    }
+
+    /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela). AD-197d: <c>buildingId</c> do prédio
+    /// em cuja planta o corpo está (nulo na rua).</summary>
+    private static object PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId) =>
+        PlayerCommands.ControlledBy(world, playerId) is { } npc
+            ? new
+            {
+                playerId,
+                npcId = npc.Id.Value,
+                x = npc.CurrentLocation.X,
+                y = npc.CurrentLocation.Y,
+                buildingId = npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
+                floor = PlayerGround.FloorOf(npc),
+                readyInMs = Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
+                fx = (npc.Fine?.X ?? npc.CurrentLocation.X * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+                fy = (npc.Fine?.Y ?? npc.CurrentLocation.Y * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+                speedMps = WalkSpeed(world, npc),
+                cellMeters = world.Players.CellM,
+            }
+            : new
+            {
+                playerId,
+                npcId = -1L,
+                x = 0,
+                y = 0,
+                buildingId = (long?)null,
+                floor = 0,
+                readyInMs = 0L,
+                fx = 0.0,
+                fy = 0.0,
+                speedMps = 0.0,
+                cellMeters = world.Players.CellM
+            };
+
+    /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo.</summary>
+    private static double WalkSpeed(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc)
+    {
+        var at = npc.CurrentLocation;
+        int hx = Math.Sign(npc.Fine?.HeadingX ?? 0), hy = Math.Sign(npc.Fine?.HeadingY ?? 0);
+        var ahead = hx == 0 && hy == 0 ? new LivingWorld.Domain.Geography.CellCoord(at.X + 1, at.Y)
+            : new LivingWorld.Domain.Geography.CellCoord(at.X + hx, at.Y + hy);
+        return world.Map.TryGetCell(ahead, out _) ? PlayerWalk.SpeedMps(world, npc, at, ahead) : world.Players.WalkMps;
+    }
+
+    /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>
+    private object Interacted(LivingWorld.Simulation.Core.WorldState world, string playerId, InteractionResult done)
+    {
+        long? session = null;
+        if (done is { Kind: "person", Verb: "talk" } && conversations is not null && world.FindNpc(new NpcId(done.Id)) is { } other)
+        {
+            var ctx = new LivingWorld.Simulation.Scheduling.TickContext(world, new WorldRngRegistry(world.Seed),
+                new LivingWorld.Simulation.Scheduling.EventScheduler());
+            session = conversations.StartConversation(other, world.NeedsRules, LivingWorld.Simulation.Llm.ConversationAvailabilityPolicy.PlayerRules,
+                null, ctx, LivingWorld.Api.Conversation.ConversationEndpoints.ExpireAfterTicks).Session?.SessionId;
+        }
+        return new { done.Kind, done.Id, done.Verb, done.Quantity, done.Value, sessionId = session, pose = PoseOf(world, playerId) };
+    }
+
+    /// <summary>AD-197d: o que o corpo do jogador alcança agora (a oferta do motor); nulo sem corpo.</summary>
+    public IReadOnlyList<InteractionOffer>? Reach(string playerId)
+    {
+        lock (library.Gate) return PlayerService.Reach(host.Current, playerId);
+    }
+
+    /// <summary>O que a pessoa presa vê e sente (posse plena, AD-197e), só para quem a possui; nulo se não há posse plena.</summary>
+    public CaptiveView? Captive(string playerId)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            return PlayerCommands.ControlledBy(world, playerId) is { } npc ? PossessionWill.View(world, npc, world.CurrentDate.TotalHours) : null;
+        }
+    }
+
+    /// <summary>Troca a duração do tick do mundo (ADR-0050) pela mesma fila e pelo mesmo registro dos comandos: o replay reproduz a
+    /// sequência de Δ. Quem pede é o admin (<paramref name="actor"/>).</summary>
+    public PlayerReply SetTickDelta(string actor, int deltaMs)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
+            var before = players.Log.Last;
+            var reply = Map(players.SetTickDelta(world, actor, deltaMs), _ => new { tickDeltaMs = deltaMs });
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
+            return reply;
+        }
+    }
+
+    private static PlayerReply Map<T>(Result<T> result, Func<T, object> ok)
+    {
+        if (result.IsSuccess) return new PlayerReply(StatusCodes.Status200OK, ok(result.Value!), null);
+        string error = result.Error!;
+        if (error.StartsWith(PlayerCommands.NotFound, StringComparison.Ordinal)) return new PlayerReply(StatusCodes.Status404NotFound, null, error);
+        if (error.StartsWith(PlayerCommands.Conflict, StringComparison.Ordinal)) return new PlayerReply(StatusCodes.Status409Conflict, null, error);
+        return new PlayerReply(StatusCodes.Status400BadRequest, null, error);
+    }
+}

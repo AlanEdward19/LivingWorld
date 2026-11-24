@@ -2,83 +2,68 @@ using LivingWorld.Domain.Extraordinary;
 
 namespace LivingWorld.Tests.Unit.Extraordinary;
 
-/// <summary>Fase 16.2 T6 (suporta EVO-10): regra de cenário da herança de poder com
-/// defaults documentados quando o cenário omite a declaração.</summary>
+/// <summary>AD-156: a genética do poder como dado de cenário (substitui os pesos dos três caminhos antigos).</summary>
 public sealed class PowerInheritanceRulesTests
 {
-    [Fact]
-    public void Default_uses_documented_uniform_path_weights_and_inheritance_chance()
+    [Theory]
+    [InlineData(PowerInheritanceMode.Dominant)]
+    [InlineData(PowerInheritanceMode.Recessive)]
+    [InlineData(PowerInheritanceMode.XLinkedRecessive)]
+    [InlineData(PowerInheritanceMode.XLinkedDominant)]
+    public void Founder_frequency_reproduces_the_declared_manifest_fraction_at_hardy_weinberg(PowerInheritanceMode mode)
     {
-        var rules = PowerInheritanceRules.Default;
+        var genetics = new PowerGenetics(mode, Penetrance: 1);
+        double q = genetics.FounderFrequency(0.02);
+        double female = mode is PowerInheritanceMode.Recessive or PowerInheritanceMode.XLinkedRecessive ? q * q : 1 - (1 - q) * (1 - q);
+        double male = mode switch
+        {
+            PowerInheritanceMode.XLinkedRecessive or PowerInheritanceMode.XLinkedDominant => q,
+            _ => female,
+        };
 
-        Assert.Equal(PowerInheritanceRules.DefaultInheritanceChance, rules.InheritanceChance);
-        Assert.Equal(PowerInheritanceRules.UniformPathWeight, rules.BothWeight);
-        Assert.Equal(PowerInheritanceRules.UniformPathWeight, rules.OneOfWeight);
-        Assert.Equal(PowerInheritanceRules.UniformPathWeight, rules.MixedWeight);
-        Assert.Equal(1.0, rules.BothWeight + rules.OneOfWeight + rules.MixedWeight, precision: 10);
+        Assert.Equal(0.02, (female + male) / 2, 12);
     }
 
     [Fact]
-    public void Resolve_null_uses_documented_defaults_and_never_fails()
+    public void Incomplete_penetrance_raises_the_genotype_frequency_to_keep_the_manifest_fraction()
     {
-        var rules = PowerInheritanceRules.Resolve(declared: null);
+        double full = new PowerGenetics(Penetrance: 1).FounderFrequency(0.02);
+        double half = new PowerGenetics(Penetrance: 0.5).FounderFrequency(0.02);
 
-        Assert.Same(PowerInheritanceRules.Default, rules);
-        Assert.Equal(1.0, rules.InheritanceChance);
-        Assert.Equal(1.0 / 3.0, rules.BothWeight);
-        Assert.Equal(1.0 / 3.0, rules.OneOfWeight);
-        Assert.Equal(1.0 / 3.0, rules.MixedWeight);
+        Assert.True(half > full);
     }
 
     [Fact]
-    public void Resolve_keeps_explicit_scenario_declaration()
+    public void Declared_allele_frequency_wins_over_the_prevalence()
     {
-        var declared = PowerInheritanceRules.Create(0.4, 2, 1, 1).Value!;
-
-        var rules = PowerInheritanceRules.Resolve(declared);
-
-        Assert.Same(declared, rules);
-        Assert.Equal(0.4, rules.InheritanceChance);
-        Assert.Equal(2, rules.BothWeight);
-        Assert.Equal(1, rules.OneOfWeight);
-        Assert.Equal(1, rules.MixedWeight);
+        Assert.Equal(0.3, new PowerGenetics(AlleleFrequency: 0.3).FounderFrequency(0.5));
     }
 
     [Fact]
-    public void Create_accepts_valid_parameters()
+    public void Undeclared_power_uses_the_scenario_default_and_declared_power_its_own()
     {
-        var result = PowerInheritanceRules.Create(0.5, 1, 1, 1);
+        var own = new PowerGenetics(PowerInheritanceMode.Recessive);
+        var rules = new PowerInheritanceRules(new PowerGenetics(Penetrance: 0.4),
+            new Dictionary<string, PowerGenetics> { ["x"] = own });
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(0.5, result.Value!.InheritanceChance);
+        Assert.Equal((own, 0.4), (rules.For("x"), rules.For("y").Penetrance));
+    }
+
+    [Fact]
+    public void Missing_rules_resolve_to_the_documented_default()
+    {
+        Assert.Same(PowerInheritanceRules.Default, PowerInheritanceRules.Resolve(null));
     }
 
     [Theory]
-    [InlineData(-0.01)]
-    [InlineData(1.01)]
-    public void Create_rejects_inheritance_chance_out_of_range(double chance)
+    [InlineData(-0.1, 0.9, 1e-5)]
+    [InlineData(0.1, 1.5, 1e-5)]
+    [InlineData(0.1, 0.9, 2.0)]
+    public void Out_of_range_genetics_is_rejected(double frequency, double penetrance, double mutation)
     {
-        var result = PowerInheritanceRules.Create(chance, 1, 1, 1);
+        var rules = new PowerInheritanceRules(
+            new PowerGenetics(AlleleFrequency: frequency, Penetrance: penetrance, MutationRate: mutation));
 
-        Assert.False(result.IsSuccess);
-    }
-
-    [Theory]
-    [InlineData(-0.01, 1, 1)]
-    [InlineData(1, -0.01, 1)]
-    [InlineData(1, 1, -0.01)]
-    public void Create_rejects_negative_path_weight(double both, double oneOf, double mixed)
-    {
-        var result = PowerInheritanceRules.Create(0.5, both, oneOf, mixed);
-
-        Assert.False(result.IsSuccess);
-    }
-
-    [Fact]
-    public void Create_rejects_path_weights_that_sum_to_zero()
-    {
-        var result = PowerInheritanceRules.Create(0.5, 0, 0, 0);
-
-        Assert.False(result.IsSuccess);
+        Assert.NotNull(rules.Validate());
     }
 }

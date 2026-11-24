@@ -175,6 +175,20 @@ func test_variation_lightens_the_color_by_a_fixed_step_and_unknown_ids_build_not
 	eq(factory.build("nao-existe", 0), null, "id fora do catálogo não constrói nada")
 
 
+func test_an_invented_design_builds_one_mesh_per_part_colored_by_its_material() -> void:
+	var design := {"id": 7, "materials": [{"id": 1, "color": "#8b5a2b", "finish": 0.3, "grain": 0.8, "conductivity": 0.1}],
+		"parts": [
+			{"shape": "cylinder", "size": [0.25, 6.0], "offset": [0.0, 0.25, 0.0], "axis": "x", "material": 1},
+			{"shape": "cylinder", "size": [0.25, 6.0], "offset": [0.0, 0.25, 0.5], "axis": "x", "material": 1},
+			{"shape": "box", "size": [1.5, 0.03, 0.25], "offset": [0.0, 0.52, 0.9], "axis": "", "material": 1}]}
+	var node: Node3D = ObjectFactory.build_design(design)
+	eq(node.get_child_count(), 3, "uma malha por parte")
+	var look := node.get_child(0).material_override as StandardMaterial3D
+	eq(look.albedo_color, Color("#8b5a2b"), "cor do material")
+	near([look.roughness, node.get_child(0).rotation.z], [0.7, PI / 2.0], "rugosidade = 1 − acabamento; cilindro deitado")
+	node.free()
+
+
 func near(actual: Array, expected: Array, message: String) -> void:
 	var ok := actual.size() == expected.size()
 	for i in mini(actual.size(), expected.size()):

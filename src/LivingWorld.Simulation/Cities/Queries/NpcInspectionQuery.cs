@@ -82,7 +82,13 @@ public static class NpcInspectionQuery
             CognitionTrace: CognitionTraceOf(world, npc.Id),
             Rest: RestPresentation.Of(world, npc),
             Food: FoodPresentation.Of(world, npc),
-            Appearance: npc.Appearance);
+            Appearance: npc.Appearance,
+            ChildIds: world.Npcs.Where(child => child.IsAlive && (child.MotherId == npc.Id || child.FatherId == npc.Id))
+                .Select(child => child.Id).OrderBy(child => child.Value).ToList(),
+            HouseholdBuildingId: npc.Household is { } home ? world.FindHousehold(home)?.Dwelling : null,
+            Employment: npc.Employer is { } employer && world.FindWorkplace(employer) is { } workplace
+                ? new NpcEmploymentDto(workplace.Id, workplace.LocationType.Id, workplace.Building, workplace.Owner)
+                : null);
     }
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>
@@ -114,7 +120,8 @@ public static class NpcInspectionQuery
             Memories: [],
             PowerIds: PowerIdsOf(world, summary.Id),
             CurrentScope: new NpcScope(NpcScopeKind.World, null),
-            CognitionTrace: CognitionTraceOf(world, summary.Id));
+            CognitionTrace: CognitionTraceOf(world, summary.Id),
+            ChildIds: []);
     }
 
     /// <summary>DTO mínimo pra um id ainda no pool agregado — mesmo espírito de placeholder
@@ -135,7 +142,8 @@ public static class NpcInspectionQuery
             Memories: [],
             PowerIds: PowerIdsOf(world, id),
             CurrentScope: new NpcScope(NpcScopeKind.City, city.Id),
-            CognitionTrace: CognitionTraceOf(world, id));
+            CognitionTrace: CognitionTraceOf(world, id),
+            ChildIds: []);
     }
 
     private static IReadOnlyList<TraceEntry> CognitionTraceOf(WorldState world, NpcId id) =>
@@ -145,7 +153,7 @@ public static class NpcInspectionQuery
         world.CarrierOf(id)?.PowerIds
         ?? [];
 
-    private static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch
+    internal static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch
     {
         ActionType.Work when npc.Employer is { } workplace => new("workplace", workplace.Value.ToString()),
         ActionType.Sleep when npc.Household is { } household => new("household", household.Value.ToString()),

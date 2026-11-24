@@ -54,9 +54,9 @@ public class NpcWakeSchedulerAttentionTests
 
         NpcWakeScheduler.ScheduleAttentionWakes(world, ctx, evt, AttentionRules.Default, now);
 
-        var due = world.Scheduler.PeekDue(now + 1);
-        Assert.Contains(due, e => e.SystemName == NpcWakeScheduler.SystemName && e.Payload == "1");
-        Assert.DoesNotContain(due, e => e.Payload == "2");
+        var due = world.PeekDueNpcWakes(now + 1);
+        Assert.Contains(1L, due);
+        Assert.DoesNotContain(2L, due);
     }
 
     [Fact]
@@ -74,9 +74,8 @@ public class NpcWakeSchedulerAttentionTests
         NpcWakeScheduler.ScheduleAttentionWakes(world, ctx, evt, AttentionRules.Default, now);
         NpcWakeScheduler.ScheduleAttentionWakes(world, ctx, evt, AttentionRules.Default, now);
 
-        var due = world.Scheduler.PeekDue(now + 1)
-            .Where(e => e.SystemName == NpcWakeScheduler.SystemName && e.Payload == "1")
-            .ToList();
+        // A fila guarda um despertar por NPC; o segundo agendamento invalida o primeiro (que segue no balde até vencer).
+        var due = world.PeekDueNpcWakes(now + 1).Where(id => id == 1).ToList();
         Assert.Single(due);
     }
 
@@ -95,9 +94,7 @@ public class NpcWakeSchedulerAttentionTests
 
         NpcWakeScheduler.ScheduleAttentionWakes(world, ctx, evt, AttentionRules.Default, now);
 
-        var due = world.Scheduler.PeekDue(now + 1)
-            .Where(e => e.SystemName == NpcWakeScheduler.SystemName && e.Payload == "1");
-        Assert.Empty(due);
+        Assert.Null(world.PendingWakeTickOf(1));
         Assert.Null(npc.IntentStatus);
     }
 

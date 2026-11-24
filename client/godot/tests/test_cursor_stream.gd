@@ -49,7 +49,7 @@ func test_gap_triggers_replay_and_discards_delta() -> void:
 	transport.channels[0].push(Fx.delta(2, 3)) # lacuna: o cliente está em 0
 
 	eq(transport.count_calls("GET /visual/replay"), 1, "uma chamada de replay")
-	check(transport.calls.any(func(c): return "sinceSequence=0" in c and "sinceTick=10" in c), "replay parte do último cursor aplicado")
+	check(transport.calls.any(func(c): return "sinceSequence=0" in c and "sinceMs=36000000" in c), "replay parte do último cursor aplicado")
 	eq(Fx.sequences(applied), [1, 2], "o delta fora de ordem não foi aplicado diretamente")
 	eq(int(stream.cursor.sequence), 2)
 

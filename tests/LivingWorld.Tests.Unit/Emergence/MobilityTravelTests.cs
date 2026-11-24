@@ -78,11 +78,26 @@ public class MobilityTravelTests
         var (off, clockOff) = ScenarioRunner.Create(5, emergenceRules: Rules with { PaceBonusPctPerPoint = 0 });
         ForceAdoption(on);
         ForceAdoption(off);
-        clockOn.Run(on, on.Calendar.HoursPerYear * 10);
-        clockOff.Run(off, off.Calendar.HoursPerYear * 10);
+        // Dois mundos independentes: lado a lado em vez de um depois do outro.
+        Parallel.Invoke(() => clockOn.Run(on, on.Calendar.HoursPerYear * 10), () => clockOff.Run(off, off.Calendar.HoursPerYear * 10));
 
         Assert.NotEqual(Trace(on), Trace(off));
         Assert.NotEqual(WorldSnapshot.CanonicalHash(on), WorldSnapshot.CanonicalHash(off));
+    }
+
+    /// <summary>AD-167: o bônus fica guardado por cidade, mas uma tecnologia nova (ou adotada) o refaz na hora.</summary>
+    [Fact]
+    public void Pace_bonus_memo_follows_a_new_adoption()
+    {
+        var (world, _) = ScenarioRunner.Create(5, emergenceRules: Rules);
+        var city = world.ActiveCities().First().Id;
+        world.AddTechnology(new Technology(
+            world.Npcs.First().Culture, EmergenceRules.MobilityCategory, new TechnologyVector([1, 0, 0]), 0, city, null, [city]));
+        int before = Mobility.BonusPct(world, city);
+
+        ForceAdoption(world);
+
+        Assert.Equal((Rules.PaceBonusPctPerPoint, 7 * Rules.PaceBonusPctPerPoint), (before, Mobility.BonusPct(world, city)));
     }
 
     private static (WorldState World, Npc Npc) CommuterFarFromWork()

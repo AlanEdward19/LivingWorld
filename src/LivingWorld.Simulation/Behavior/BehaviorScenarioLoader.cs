@@ -65,9 +65,15 @@ public static class BehaviorScenarioLoader
         if (!TryGetDouble(root, "HomelessSleepEfficiency", out var homelessSleepEfficiency))
             return Result<NeedsRules>.Fail("HomelessSleepEfficiency: campo obrigatório ausente ou inválido");
 
+        // Opcional: sem o campo, três semanas (o corpo humano não morre de fome em quatro dias).
+        double starvationHours = root.ContainsKey("StarvationSurvivalHours") && TryGetDouble(root, "StarvationSurvivalHours", out var declared)
+            ? declared
+            : NeedsRules.DefaultStarvationSurvivalHours;
+
         return NeedsRules.Create(
             hungerDecay, thirstDecay, sleepDecay, socialDecay,
-            urgencyThreshold, maxActionSelectionSteps, hysteresisEnabled, continuityBonus, homelessSleepEfficiency);
+            urgencyThreshold, maxActionSelectionSteps, hysteresisEnabled, continuityBonus, homelessSleepEfficiency,
+            starvationHours);
     }
 
     private static Result<RestPlaceCatalog> ParseRestPlaceCatalog(JsonObject root, double groundEfficiency)

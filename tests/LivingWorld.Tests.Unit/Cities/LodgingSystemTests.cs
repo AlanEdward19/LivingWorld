@@ -261,14 +261,16 @@ public class LodgingSystemTests
         var pricing = recipe.Pricing! with { AmenityWeight = 0, WaterfrontWeight = 0 };
         var centralRecipe = recipe with { Pricing = pricing };
         double demand = 1 + pricing.DemandSensitivity * (context.LodgingPressure - 1);
-        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, building, centralRecipe));
+        // AD-192: o lugar sujo vale menos (fator de local − penalidade × sujeira do lugar); os termos de antes seguem exatos
+        double q = world.StreetRules.QuarterValuePenalty * LivingWorld.Simulation.Cities.Quarter.PlaceSqualor(world, building);
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 - q) * demand), BuildingValuation.ValueOf(context, building, centralRecipe));
         long vacancies = world.Workplaces.Where(w => w.City == context.City.Id).Sum(w => (long)w.MaxVacancies);
         Assert.Equal(LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, context.City.Id) / (double)vacancies, context.LabourPressure);
         long need = world.Households.Count(h => h.City == context.City.Id && (h.Dwelling is null || h.Dwelling == Inn(world).Id));
         Assert.Equal(need / 3.0, context.LodgingPressure);
         int amenities = Math.Min(5, world.Workplaces.Count(w => Math.Max(Math.Abs(w.Location.X - building.Position!.Value.X), Math.Abs(w.Location.Y - building.Position.Value.Y)) <= 30));
         var amenityRecipe = recipe with { Pricing = pricing with { AmenityWeight = 1 } };
-        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 + amenities / 5.0) * demand), BuildingValuation.ValueOf(context, building, amenityRecipe));
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 + amenities / 5.0 - q) * demand), BuildingValuation.ValueOf(context, building, amenityRecipe));
         CellCoord? water = null;
         for (int x = 0; x < world.Map.Width && water is null; x++)
             for (int y = 0; y < world.Map.Height; y++)
@@ -276,7 +278,8 @@ public class LodgingSystemTests
         Assert.NotNull(water);
         var waterside = new Building(new BuildingId(99998), context.City.Id, InnTypeId, 0, water);
         var waterfrontRecipe = recipe with { Pricing = pricing with { CentralityWeight = 0, WaterfrontWeight = 1 } };
-        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, waterside, waterfrontRecipe));
+        double qw = world.StreetRules.QuarterValuePenalty * LivingWorld.Simulation.Cities.Quarter.PlaceSqualor(world, waterside);
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 - qw) * demand), BuildingValuation.ValueOf(context, waterside, waterfrontRecipe));
     }
 
     [Fact]
@@ -581,9 +584,13 @@ public class LodgingSystemTests
 
     private static Npc Traveller(WorldState world, long wallet)
     {
-        var household = Tenant(world, 0, wallet);
-        var npc = world.FindNpc(household.Head)!;
+        // AD-173: com a vila em lotes ao longo da rua, a casa 0 pode ficar colada na hospedagem; o viajante é o da casa mais longe.
         var inn = Inn(world);
+        var ordered = world.Households.OrderBy(h => h.Id.Value).ToList();
+        int far = ordered.IndexOf(ordered.OrderByDescending(h => Math.Max(Math.Abs(h.Location.X - inn.Position!.Value.X), Math.Abs(h.Location.Y - inn.Position.Value.Y)))
+            .ThenBy(h => h.Id.Value).First());
+        var household = Tenant(world, far, wallet);
+        var npc = world.FindNpc(household.Head)!;
         npc.MoveTo(new CellCoord(inn.Position!.Value.X, inn.Position.Value.Y + 1), tick: 0); // colado na hospedagem, longe de casa
         return npc;
     }

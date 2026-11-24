@@ -45,6 +45,11 @@ public static partial class ScenarioRunner
     /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
     /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
     /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal).</summary>
+    /// <summary>Preço de encomenda do ferro de ferramenta (AD-144): ~20× o piso do trigo, a ordem da razão entre ferramenta
+    /// pronta e grão por quilo na Inglaterra do séc. XIV (estimativa sem fonte firme). Fixo: o ferro não tem consumo-base, e
+    /// preço que reage a custo e demanda é a fatia 8. A 5 (o valor antigo) o desgaste da vila não pagava nem um ferreiro.</summary>
+    public const long ForgeToolPrice = 20;
+
     private static void SeedDefaultWorkplaces(WorldState world, City city, int vacancyMultiplier = 1)
     {
         int mult = Math.Max(1, vacancyMultiplier);
@@ -54,7 +59,7 @@ public static partial class ScenarioRunner
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
         var (farmLocation, farmBuilding) = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 80 * mult,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 160 * mult, // AD-140: todo adulto lavra; 80 deixava dezenas sem trabalho
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 },
             city: city.Id, building: farmBuilding));
@@ -62,7 +67,7 @@ public static partial class ScenarioRunner
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(2), forgeLocation, maxVacancies: 40 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id,
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = ForgeToolPrice }, city: city.Id,
             building: forgeBuilding));
     }
 
@@ -72,7 +77,7 @@ public static partial class ScenarioRunner
             new BuildingId(world.NextBuildingId), city.Id, buildingTypeId, world.CurrentDate.TotalHours);
         long population = CityPopulationQuery.Population(world, city.Id);
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-        var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
+        var resolved = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) // AD-173: porta para a rua
             ?? throw new InvalidOperationException("No free cell is available for a default workplace building.");
 
         var building = new Building(
@@ -102,5 +107,6 @@ public static partial class ScenarioRunner
 
         foreach (var npc in world.Npcs)
             npc.CreditWallet(new Money(50));
+        CropSystem.SeedFirstAgriculturalYear(world); // AD-135: trigo semeado no outono anterior e celeiro até a safra
     }
 }

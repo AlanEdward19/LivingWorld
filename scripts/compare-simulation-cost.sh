@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Uso: bash scripts/compare-simulation-cost.sh <checkout-base> [diretório-saída]
+# LW_AFTER_ENV="VAR=1 ..." vale só no braço novo (ex.: a mesma árvore com e sem uma flag, AD-142); o resto do ambiente
+# (LW_MEASURE_POP, LW_MEASURE_SCALE_ONLY) vale nos dois.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 BASE="${1:?informe checkout base}"
@@ -11,7 +13,10 @@ for round in 1 2 3; do
   for arm in before after; do
     TARGET="$CURRENT"
     [ "$arm" = before ] && TARGET="$BASE"
-    (cd "$TARGET" && LW_MEASURE_OUT="$OUT_DIR/$arm-$round.txt" bash scripts/test.sh --project longrunning --filter MeasureHarness) >"$OUT_DIR/$arm-$round.log" 2>&1
+    EXTRA=""
+    [ "$arm" = after ] && EXTRA="${LW_AFTER_ENV:-}"
+    # shellcheck disable=SC2086
+    (cd "$TARGET" && env $EXTRA LW_MEASURE_OUT="$OUT_DIR/$arm-$round.txt" bash scripts/test.sh --project longrunning --filter MeasureHarness) >"$OUT_DIR/$arm-$round.log" 2>&1
   done
 done
 python3 - "$OUT_DIR" <<'PYCODE'

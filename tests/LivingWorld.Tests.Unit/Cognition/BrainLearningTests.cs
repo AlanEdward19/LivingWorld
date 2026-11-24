@@ -1,0 +1,227 @@
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Cognition;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+
+namespace LivingWorld.Tests.Unit.Cognition;
+
+/// <summary>AD-142: o NPC aprende pela experiência dele (alívio contra o que a ação costuma dar), dentro dos limites; nasce com a
+/// média dos pais e segregação; a criação puxa para quem criou. Nenhuma ação tem tratamento por nome.</summary>
+public class BrainLearningTests
+{
+    private static readonly BrainRules Rules = BrainRules.Default;
+
+    private static (WorldState World, Npc Npc) Adult()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        world.UseBrain(Rules);
+        var npc = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).First();
+        return (world, npc);
+    }
+
+    private static void Choose(Npc npc, ActionType action, UtilityGroup driver)
+    {
+        Span<double> groups = stackalloc double[BrainState.Groups];
+        groups[(int)driver] = 80;
+        groups[(int)UtilityGroup.Personality] = 20;
+        BrainMechanic.Remember(npc, action, groups);
+    }
+
+    private static short Gain(Npc npc, ActionType action, UtilityGroup group) => npc.Brain!.GainOf(action, (int)group);
+
+    [Fact]
+    public void Relief_above_what_the_action_usually_gives_strengthens_the_groups_that_chose_it()
+    {
+        var (world, npc) = Adult();
+        Choose(npc, ActionType.Buy, UtilityGroup.Pressure); // AD-160b: o impulso do corpo (Base) não aprende
+        BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 20); // AD-160: a primeira vez forma a expectativa
+        Choose(npc, ActionType.Buy, UtilityGroup.Pressure);
+        BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 120);
+
+        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Pressure) > 0);
+        Assert.Equal(0, Gain(npc, ActionType.Buy, UtilityGroup.Base));
+    }
+
+    /// <summary>AD-160: sem expectativa não há surpresa. Antes a expectativa começava em zero e toda ação que alivia parecia melhor
+    /// do que o esperado: o ganho de Comer subia em todo NPC (sonda `brain-trace`).</summary>
+    [Fact]
+    public void The_first_time_an_action_is_lived_only_forms_the_expectation()
+    {
+        var (world, npc) = Adult();
+        Choose(npc, ActionType.Eat, UtilityGroup.Base);
+        BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 90);
+
+        Assert.All(npc.Brain!.Gains, g => Assert.Equal(0, g));
+        Assert.Equal(90, npc.Brain.ActionMeans[(int)ActionType.Eat]);
+    }
+
+    [Fact]
+    public void Without_the_rule_the_ad142_expectation_starts_at_zero_and_relief_always_looks_better()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        world.UseBrain(BrainRules.Ad142);
+        var npc = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).First();
+        Choose(npc, ActionType.Eat, UtilityGroup.Base);
+        BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 90);
+
+        Assert.True(Gain(npc, ActionType.Eat, UtilityGroup.Base) > 0);
+    }
+
+    [Fact]
+    public void Relief_below_expectation_weakens_the_groups_that_chose_it()
+    {
+        var (world, npc) = Adult();
+        for (int i = 0; i < 20; i++)
+        {
+            Choose(npc, ActionType.Eat, UtilityGroup.Comfort);
+            BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 60); // a expectativa sobe até ~60
+        }
+        short before = Gain(npc, ActionType.Eat, UtilityGroup.Comfort);
+        Choose(npc, ActionType.Eat, UtilityGroup.Comfort);
+        BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 0);
+
+        Assert.True(Gain(npc, ActionType.Eat, UtilityGroup.Comfort) < before);
+    }
+
+    [Fact]
+    public void No_experience_ever_takes_a_group_below_half_or_above_double()
+    {
+        var (world, npc) = Adult();
+        for (int i = 0; i < 2000; i++)
+        {
+            Choose(npc, ActionType.Eat, UtilityGroup.Base);
+            BrainMechanic.Learn(world, npc, ActionType.Eat, reward: i % 2 == 0 ? -5000 : 5000);
+        }
+
+        Assert.All(npc.Brain!.Gains, g => Assert.InRange(g, Rules.MinGain, Rules.MaxGain));
+    }
+
+    /// <summary>AD-160b: o corpo é o corpo. No AD-142 o ganho de Comer e Comprar na base derivava com a experiência (a vila comia
+    /// mais; no AD-160, comprava menos e morria mais de fome).</summary>
+    [Fact]
+    public void The_body_drive_never_learns_and_never_inherits()
+    {
+        var (world, npc) = Adult();
+        for (int i = 0; i < 50; i++)
+        {
+            Choose(npc, ActionType.Eat, UtilityGroup.Base);
+            BrainMechanic.Learn(world, npc, ActionType.Eat, reward: i * 40);
+        }
+        var parent = BrainState.Neutral();
+        System.Array.Fill(parent.Gains, (short)400);
+        var child = BrainMechanic.Inherit(Rules, parent, parent, new WorldRng(3), heritability: 0.9);
+
+        Assert.All(Enumerable.Range(0, BrainState.Actions), a => Assert.Equal(0, npc.Brain!.GainOf((ActionType)a, (int)UtilityGroup.Base)));
+        Assert.All(Enumerable.Range(0, BrainState.Actions), a => Assert.Equal(0, child.GainOf((ActionType)a, (int)UtilityGroup.Base)));
+    }
+
+    [Fact]
+    public void Learning_slows_with_age()
+    {
+        Assert.True(Rules.LearningRate(10) > Rules.LearningRate(45) && Rules.LearningRate(45) > Rules.LearningRate(70));
+    }
+
+    [Fact]
+    public void Filling_an_empty_pantry_while_hungry_rewards_more_than_while_fed()
+    {
+        var hungry = new BrainMechanic.Felt(Needs: 200, Valence: 0, PantryDays: 0, SurvivalDeficit: 90);
+        var fed = hungry with { SurvivalDeficit = 10 };
+        var after = hungry with { PantryDays = 3 };
+
+        Assert.True(BrainMechanic.Reward(hungry, after, 2) > BrainMechanic.Reward(fed, after with { SurvivalDeficit = 10 }, 2));
+    }
+
+    [Fact]
+    public void An_npc_who_went_hungry_and_bought_values_buying_more_than_a_sibling_who_never_did()
+    {
+        var (world, npc) = Adult();
+        var sibling = world.Npcs.Where(n => n.IsAlive && n.Id != npc.Id).OrderBy(n => n.Id.Value).First();
+        sibling.SetBrain(BrainState.Neutral());
+        var hungry = new BrainMechanic.Felt(Needs: 150, Valence: 0, PantryDays: 0, SurvivalDeficit: 95);
+        var fed = hungry with { SurvivalDeficit = 10 };
+        // AD-160: os dois compravam de barriga cheia (a expectativa de Comprar é baixa); só ele passou fome e comprou
+        foreach (var who in new[] { npc, sibling })
+            for (int i = 0; i < 5; i++)
+            {
+                Choose(who, ActionType.Buy, UtilityGroup.Pressure);
+                BrainMechanic.Learn(world, who, ActionType.Buy, BrainMechanic.Reward(fed, fed with { PantryDays = 4 }, 2));
+            }
+        for (int i = 0; i < 5; i++)
+        {
+            Choose(npc, ActionType.Buy, UtilityGroup.Pressure);
+            BrainMechanic.Learn(world, npc, ActionType.Buy, BrainMechanic.Reward(hungry, hungry with { PantryDays = 4 }, 2));
+        }
+
+        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Pressure) > sibling.Brain!.GainOf(ActionType.Buy, (int)UtilityGroup.Pressure));
+    }
+
+    [Fact]
+    public void Remembered_shares_add_up_to_the_whole_choice()
+    {
+        var (_, npc) = Adult();
+        Span<double> groups = stackalloc double[BrainState.Groups];
+        groups[0] = 70; groups[2] = -20; groups[4] = 10;
+        BrainMechanic.Remember(npc, ActionType.Work, groups);
+
+        Assert.Equal(ActionType.Work, npc.Brain!.PendingAction);
+        Assert.InRange(Enumerable.Range(0, BrainState.Groups).Sum(g => Math.Abs(npc.Brain.ShareOf(g))), 990, 1010); // AD-160: byte por grupo
+    }
+
+    [Fact]
+    public void Children_inherit_gains_correlated_with_the_parents()
+    {
+        var rng = new WorldRng(11);
+        double sxy = 0, sxx = 0, syy = 0;
+        for (int family = 0; family < 200; family++)
+        {
+            var mother = BrainState.Neutral();
+            var father = BrainState.Neutral();
+            for (int i = 0; i < mother.Gains.Length; i++)
+            {
+                mother.Gains[i] = (short)((rng.NextDouble() * 2 - 1) * 400);
+                father.Gains[i] = (short)((rng.NextDouble() * 2 - 1) * 400);
+            }
+            var child = BrainMechanic.Inherit(Rules, mother, father, rng, heritability: 0.5);
+            const int g = (int)UtilityGroup.Personality; // AD-160b: o grupo Base fica em zero
+            double parents = (mother.Gains[g] + father.Gains[g]) / 2.0;
+            sxy += parents * child.Gains[g]; sxx += parents * parents; syy += (double)child.Gains[g] * child.Gains[g];
+        }
+
+        Assert.True(sxy / Math.Sqrt(sxx * syy) > 0.3);
+    }
+
+    [Fact]
+    public void Siblings_raised_together_end_up_closer_than_siblings_raised_apart()
+    {
+        var (world, _) = Adult();
+        var npcs = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).Take(4).ToList();
+        var (a, b, carerA, carerB) = (npcs[0], npcs[1], npcs[2], npcs[3]);
+        carerA.SetBrain(BrainState.Neutral());
+        carerB.SetBrain(BrainState.Neutral());
+        for (int i = 0; i < carerA.Brain!.Gains.Length; i++) { carerA.Brain.Gains[i] = 600; carerB.Brain!.Gains[i] = -400; }
+
+        double Distance(Npc x, Npc y) => x.Brain!.Gains.Zip(y.Brain!.Gains, (p, q) => Math.Abs(p - q)).Sum();
+        a.SetBrain(BrainState.Neutral()); b.SetBrain(BrainState.Neutral());
+        for (int s = 0; s < 180; s++) { BrainMechanic.Rear(Rules, a, [carerA]); BrainMechanic.Rear(Rules, b, [carerB]); }
+        double apart = Distance(a, b);
+        a.SetBrain(BrainState.Neutral()); b.SetBrain(BrainState.Neutral());
+        for (int s = 0; s < 180; s++) { BrainMechanic.Rear(Rules, a, [carerA]); BrainMechanic.Rear(Rules, b, [carerA]); }
+
+        Assert.True(Distance(a, b) < apart);
+    }
+
+    [Fact]
+    public void Neural_sandbox_policy_is_a_pure_function_of_weights_and_inputs()
+    {
+        var first = NeuralPolicySandbox.Random(new WorldRng(5));
+        var second = NeuralPolicySandbox.Random(new WorldRng(5));
+        var ctx = BrainGainTests.Ctx(30, 60, 20, food: 2, wallet: 10, Affect.Calm);
+
+        Assert.Equal(first.Decide(ctx), second.Decide(ctx));
+        Assert.True(Enum.IsDefined(first.Decide(ctx)));
+    }
+}

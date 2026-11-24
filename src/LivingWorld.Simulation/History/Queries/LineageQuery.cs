@@ -28,7 +28,10 @@ public static class LineageQuery
                 ?? FindFactTick(world, current.Id, WorldEventKind.Starvation)
                 ?? FindFactTick(world, current.Id, WorldEventKind.Dehydration)
                 ?? FindFactTick(world, current.Id, WorldEventKind.Exhaustion)
-                ?? FindFactTick(world, current.Id, WorldEventKind.MaternalDeath);
+                ?? FindFactTick(world, current.Id, WorldEventKind.MaternalDeath)
+                ?? FindFactTick(world, current.Id, WorldEventKind.Disease)
+                ?? FindFactTick(world, current.Id, WorldEventKind.Accident)
+                ?? FindFactTick(world, current.Id, WorldEventKind.OldAge);
 
             if (deathTick is long deadAt && HasPostDeathSkeletonEvent(world, current.Id, deadAt))
                 return Result<Lineage>.Fail("post_death_event");

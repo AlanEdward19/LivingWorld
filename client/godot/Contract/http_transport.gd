@@ -3,8 +3,9 @@ extends Node
 ## Único ponto do cliente que conhece URL, sockets e bytes.
 
 const Channel := preload("res://Contract/channel.gd")
+const Cost := preload("res://Contract/frame_cost.gd")
 
-var base_url := "http://localhost:5214"
+var base_url := OS.get_environment("LW_API_URL") if OS.get_environment("LW_API_URL") != "" else "http://localhost:5214" ## LW_API_URL: medida de FPS numa porta própria
 
 var _channels: Array = []
 
@@ -18,7 +19,9 @@ class WsChannel extends "res://Contract/channel.gd":
 		match peer.get_ready_state():
 			WebSocketPeer.STATE_OPEN:
 				while peer.get_available_packet_count() > 0:
+					var started := Time.get_ticks_usec()
 					var parsed = JSON.parse_string(peer.get_packet().get_string_from_utf8())
+					Cost.add("parse", started)
 					if parsed != null:
 						message.emit(parsed)
 			WebSocketPeer.STATE_CLOSED:
@@ -29,6 +32,12 @@ class WsChannel extends "res://Contract/channel.gd":
 	func close() -> void:
 		_announced_close = true
 		peer.close()
+
+	func send(data) -> bool:
+		return is_open() and peer.send_text(JSON.stringify(data)) == OK
+
+	func is_open() -> bool:
+		return peer.get_ready_state() == WebSocketPeer.STATE_OPEN
 
 
 ## Cabeçalhos de toda requisição: JSON, token de admin (se houver em LW_ADMIN_TOKEN) e os extras (ex.: X-Admin-Actor).
@@ -60,8 +69,14 @@ func request(method: String, path: String, body: Variant = null, extra_headers: 
 	return {"status": int(done[1]), "body": JSON.parse_string(text) if text != "" else null, "text": text}
 
 
-func open_channel(path: String):
+## `extra_headers` vão no aperto de mão (o canal do jogador leva `Authorization: Bearer`, AD-197a).
+func open_channel(path: String, extra_headers: Dictionary = {}):
 	var channel := WsChannel.new()
+	if not extra_headers.is_empty():
+		var handshake := PackedStringArray()
+		for name in extra_headers:
+			handshake.append("%s: %s" % [name, extra_headers[name]])
+		channel.peer.handshake_headers = handshake
 	channel.peer.inbound_buffer_size = 1 << 25 # o snapshot do mundo passa dos 64 KiB padrão
 	channel.peer.max_queued_packets = 4096
 	channel.peer.connect_to_url(base_url.replace("http", "ws") + path)

@@ -100,6 +100,13 @@ func test_minimap_maps_cells_and_requests_pan() -> void:
 	map._gui_input(click)
 	eq(requested.size(), 1, "clicar pede a navegação")
 	check(requested[0].distance_to(Vector3(5, 0, 7)) < 0.01, "para a célula clicada")
+	# AD-188: com o mundo rodando chegam ~40 deltas/s; os pontos das pessoas são refeitos no máximo 4×/s
+	store.npc_changed.emit(1, Vector2i.ZERO, Vector2i.ONE, 0)
+	check(map._npcs_dirty, "gente andou: pendente")
+	map._process(0.1)
+	check(map._npcs_dirty, "antes de 0,25 s não redesenha")
+	map._process(0.2)
+	check(not map._npcs_dirty, "depois redesenha uma vez")
 	map.free()
 
 
@@ -124,12 +131,14 @@ func _app_with(transport) -> Node:
 func _online_transport() -> Object:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": [{"actionType": 2, "label": "Trabalhando"}]})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 30, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 30 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /npcs?", {"status": 200, "body": {"items": [{"id": {"value": 7}, "name": "Ana"}], "total": 1}})
 	var world := Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}}],
 		"activeEvents": [], "portals": [], "layers": {"Terrain": {"isModeled": false, "payload": null}},
-		"livingState": {"npcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}, "currentAction": 2}]}}, "World")
+		"livingState": {"npcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}, "currentAction": 2,
+			"observable": {"name": "Ana", "sex": "Female", "ageYears": 31, "lifeStage": "Adult", "professionId": 1,
+				"heightCm": 165, "growthFraction": 1.0, "emotions": {}, "mourning": false, "carried": []}}]}}, "World")
 	world.scope.kind = 0
 	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": world})
 	return transport
@@ -141,8 +150,9 @@ func test_loading_overlay_until_first_snapshot_and_names_load() -> void:
 
 	eq(app.loading.visible, false, "o carregamento some depois do primeiro snapshot")
 	await app._load_names()
-	eq(app.store.names.get(7), "Ana", "nomes vêm de GET /npcs")
+	eq(app.store.names.get(7), "Ana", "nomes vêm do escopo (observable.name)")
 	eq(app.world_view.npc_nodes[7].display_name, "Ana", "o NPC na cena recebe o nome")
+	eq(transport.count_calls("GET /npcs?"), 0, "nenhuma paginação de GET /npcs para nomes")
 	app.queue_free()
 
 
@@ -168,7 +178,7 @@ func test_hover_text_comes_from_store_and_server_labels() -> void:
 func test_delta_events_become_toasts_with_server_text() -> void:
 	var app = await _app_with(_online_transport())
 
-	app._on_delta(Fx.delta(0, 1, {"events": [{"tick": 5, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
+	app._on_delta(Fx.delta(0, 1, {"events": [{"atMs": 5 * 3600000, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
 
 	eq(app.toasts.visible_texts(), ["Nasceu uma criança"], "o texto do aviso vem do servidor")
 	app.queue_free()
@@ -200,7 +210,7 @@ func test_loading_visible_until_first_snapshot() -> void:
 		attempts.append(1)
 		return {"status": 0, "body": null} if attempts.size() < 2 else {"status": 200, "body": _online_transport().routes["GET /visual/subscribe?scope=World"].body})
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	var app := App.new()
 	tree.root.add_child(app)
 	var seen: Array = []

@@ -37,7 +37,7 @@ public class CivilizationObserverTests
         CivilizationRunner.Run(root.ToJsonString(), 2, 6, afterYear: (world, sample) =>
         {
             var alive = world.Npcs.Where(n => n.IsAlive).Select(n => n.AgeYears(world.CurrentDate)).ToList();
-            var deathAges = world.Npcs.Where(n => n.DeathDate is { } d && d.TotalHours > previousTick && d.TotalHours <= sample.Tick)
+            var deathAges = world.Npcs.Where(n => !n.Emigrated && n.DeathDate is { } d && d.TotalHours > previousTick && d.TotalHours <= sample.Tick)
                 .Select(n => n.AgeYears(world.CurrentDate)).ToList();
             previousTick = sample.Tick;
             if (deathAges.Count == 0) return;

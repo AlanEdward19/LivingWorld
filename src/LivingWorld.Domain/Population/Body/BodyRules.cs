@@ -28,6 +28,16 @@ public sealed record BodyRules(
     double MuscleMassMax,
     bool Enabled)
 {
+    /// <summary>Crescimento por idade e sexo, músculo por uso e nanismo nutricional (AD-134). Snapshot ou cenário sem o campo
+    /// herda o padrão de época; <see cref="GrowthRules.Static"/> volta ao corpo de adulto desde o nascimento.</summary>
+    public GrowthRules Growth { get; init; } = GrowthRules.Default;
+
+    /// <summary>Herança de vitalidade, gene de taxa e estatura com segregação mendeliana (AD-134).</summary>
+    public QuantitativeGeneticsRules Genetics { get; init; } = QuantitativeGeneticsRules.Default;
+
+    /// <summary>Doenças genéticas mendelianas (AD-139); <see cref="HeritableDisorderRules.None"/> desliga.</summary>
+    public HeritableDisorderRules Disorders { get; init; } = HeritableDisorderRules.Default;
+
     /// <summary>Faixa derivada de clamp para Height (mean ± 4σ, piso fisiológico 0.5 m) —
     /// BodyRules não declara HeightMin/Max explícitos; geração usa estes limites.</summary>
     public double HeightMin => Math.Max(0.5, HeightMean - 4.0 * HeightStdDev);

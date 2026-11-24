@@ -138,6 +138,8 @@ public class TradeLedgerTests
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
 
         Buy(world, buyer);
+        long firstValue = world.TradesOf(shop.Id, 0, 0).Single(e => e.ResourceId == 1).Value; // AD-148: a 2ª ida já acha a meta cheia
+        world.FindHousehold(buyer.Household!.Value)!.Withdraw(new ResourceType(1), 1); // come uma: a segunda ida tem o que repor
         Buy(world, buyer);
         new TradeLedgerSystem().Tick(world, ctx);
 
@@ -146,7 +148,6 @@ public class TradeLedgerTests
         Assert.False(world.Relationships.ContainsKey(new RelationshipKey(buyer.Id, absent.Id)));
         Assert.False(world.Relationships.ContainsKey(new RelationshipKey(buyer.Id, other.Id)));
         var trade = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Trade);
-        long firstValue = world.TradesOf(shop.Id, 0, 0).Single(e => e.ResourceId == 1).Value / 2; // duas compras de trigo no dia
         Assert.Equal($"{buyer.Id.Value}|{attendant.Id.Value}|{shop.Id.Value}|1|{firstValue}", trade.Payload);
     }
 

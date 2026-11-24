@@ -32,6 +32,15 @@ public sealed record RateGene(double Value)
     /// <summary>Gene do recém-nascido: <c>mãe*0,5 + pai*0,5 + mutação</c> (Assunção A1),
     /// clampado a um piso positivo — nunca herda o valor de habilidade, só a predisposição de
     /// taxa.</summary>
+    /// <summary>Gene do filho com segregação mendeliana (AD-134): média dos pais + N(0, <paramref name="segregationStdDev"/>),
+    /// que mantém a variância da população entre gerações; piso positivo.</summary>
+    public static RateGene Inherit(RateGene mother, RateGene father, WorldRng rng, QuantitativeGeneticsRules genetics)
+    {
+        if (!genetics.Mendelian) return Inherit(mother, father, rng);
+        double value = QuantitativeGenetics.Inherit(mother.Value, father.Value, genetics.RateGeneSegregationStdDev, rng);
+        return new RateGene(Math.Max(value, MinValue));
+    }
+
     public static RateGene Inherit(RateGene mother, RateGene father, WorldRng rng)
     {
         double blended = mother.Value * 0.5 + father.Value * 0.5;

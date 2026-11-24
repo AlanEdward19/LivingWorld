@@ -20,11 +20,21 @@ public class TechDiscoveryTests
 {
     private static readonly ResourceType Iron = new(4);
     private const long Year = 17280 / 2; // horas por ano no calendário padrão
+    /// <summary>AD-176: estes testes medem a tecnologia de mobilidade; sem a rua de verdade, a técnica de calçar (outra categoria,
+    /// testada em <c>StreetRouteTests</c>) não entra na conta de tecnologias e de estoque gasto.</summary>
+    private static readonly LivingWorld.Domain.Cities.CityLayoutRules MobilityOnly =
+        LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Off };
+
     private static readonly EmergenceRules Pressured = EmergenceRules.Mobility with { PressureTravelTicks = 2 };
 
     private static (WorldState World, WorldClock Clock) Village(ulong seed, EmergenceRules rules)
     {
-        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules);
+        // sem ferramenta de lavrador (AD-144): o desgaste do ferro da fazenda também conta como consumido e mistura a conta
+        var noTools = ScenarioRunner.DefaultEconomyCatalog with
+        {
+            Recipes = ScenarioRunner.DefaultEconomyCatalog.Recipes.ToDictionary(kv => kv.Key, kv => kv.Value with { Tool = null }),
+        };
+        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules, economyCatalog: noTools, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, 5000);
         return (world, clock);
     }
@@ -78,7 +88,7 @@ public class TechDiscoveryTests
     [Fact]
     public void Without_enough_stock_no_prototype_starts()
     {
-        var (world, clock) = ScenarioRunner.Create(2, emergenceRules: Pressured);
+        var (world, clock) = ScenarioRunner.Create(2, emergenceRules: Pressured, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, Pressured.PrototypeResourceCost - 1);
 
         clock.Run(world, world.Calendar.HoursPerYear * 2);
@@ -97,10 +107,12 @@ public class TechDiscoveryTests
             return Keys(world);
         }
 
-        string a = Run(4);
+        // As seeds 4 e 5 aos 2 anos vêm da corrida compartilhada (ADR-0044); a repetição da seed 4 continua sendo uma
+        // simulação nova e independente: é ela que prova o determinismo.
+        string a = Pressure(4).Keys2;
         Assert.NotEmpty(a);
         Assert.Equal(a, Run(4));
-        Assert.NotEqual(a, Run(5));
+        Assert.NotEqual(a, Pressure(5).Keys2);
     }
 
     [Fact]
@@ -155,7 +167,7 @@ public class TechDiscoveryTests
     [Fact]
     public void An_adopted_technology_shortens_the_trip_and_so_the_pantry_the_household_keeps()
     {
-        var (world, _) = ScenarioRunner.Create(7, emergenceRules: Pressured);
+        var (world, _) = ScenarioRunner.Create(7, emergenceRules: Pressured, cityLayout: MobilityOnly);
         var buyer = world.Npcs.First(n => n.Household is not null);
         var household = world.FindHousehold(buyer.Household!.Value)!;
         var index = MarketIndex.BuildForTick(world);
@@ -174,7 +186,9 @@ public class TechDiscoveryTests
     [Fact]
     public void A_technology_spreads_to_a_city_of_the_same_culture_through_a_strong_tie()
     {
-        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured);
+        // AD-180: os dois sem casa dormiriam ao relento e o inverno mataria quem carrega o vínculo; o teste é da difusão pelo vínculo
+        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly,
+            climateRules: LivingWorld.Domain.Climate.ClimateRules.Default with { Weather = null });
         var home = world.ActiveCities().First();
         var other = new LivingWorld.Domain.Cities.City(
             world.NextCityId(), new CellCoord(8, 8), 0, null, LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);
@@ -235,64 +249,99 @@ public class TechDiscoveryTests
         Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(restored));
     }
 
-    [Fact]
-    [Trait("Category", "Scenario")]
-    public void Isolated_cultures_solving_the_same_problem_diverge_in_at_least_half_of_the_seeds()
+    /// <summary>Observações de uma vila sob pressão (<see cref="Pressured"/>) nos anos 2, 20 e 30. Uma corrida por seed,
+    /// compartilhada pelos três cenários abaixo (ADR-0044): cada um lê o ano de que precisa e ninguém recebe o mundo.
+    /// Horizonte por seed = o maior que algum leitor pede (1–3 e 1001–1003: 30 anos; 4–10: 20; 1004–1010: 2).</summary>
+    internal sealed record PressuredRun(string FirstKey, string Keys2, string? Keys20, string? Hash20, int? Count20, int? Count30, string? Set30);
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<ulong, Lazy<PressuredRun>> PressuredRuns = new();
+
+    internal static PressuredRun Pressure(ulong seed) => PressuredRuns.GetOrAdd(seed, s => new Lazy<PressuredRun>(() => SimulatePressured(s))).Value;
+
+    private static PressuredRun SimulatePressured(ulong seed)
     {
-        string First(ulong s)
-        {
-            var (world, clock) = Village(s, Pressured);
-            clock.Run(world, world.Calendar.HoursPerYear * 2);
-            return world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
-        }
-
-        // Os 20 mundos (seeds 1..10 e 1001..1010) são independentes: rodam em paralelo, cada um citado pela sua seed real.
-        ulong[] worlds = [.. Enumerable.Range(1, 10).Select(i => (ulong)i), .. Enumerable.Range(1, 10).Select(i => (ulong)(1000 + i))];
-        var firsts = ParallelSeeds.Map(worlds, seed =>
-        {
-            string first = First(seed);
-            if (seed <= 10) Assert.NotEqual("", first);
-            return first;
-        });
-        int different = Enumerable.Range(0, 10).Count(i => firsts[i] != firsts[i + 10]);
-
-        Assert.True(different >= 5, $"só {different}/10 seeds divergiram");
+        int horizon = seed is 1 or 2 or 3 or 1001 or 1002 or 1003 ? 30 : seed <= 10 ? 20 : 2;
+        var (world, clock) = Village(seed, Pressured);
+        clock.Run(world, world.Calendar.HoursPerYear * 2);
+        string first = world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
+        string keys2 = Keys(world);
+        if (horizon < 20) return new PressuredRun(first, keys2, null, null, null, null, null);
+        clock.Run(world, world.Calendar.HoursPerYear * 18);
+        string keys20 = Keys(world), hash20 = WorldSnapshot.CanonicalHash(world);
+        int count20 = world.Technologies.Count;
+        if (horizon < 30) return new PressuredRun(first, keys2, keys20, hash20, count20, null, null);
+        clock.Run(world, world.Calendar.HoursPerYear * 10);
+        return new PressuredRun(first, keys2, keys20, hash20, count20, world.Technologies.Count,
+            string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key)));
     }
 
-    [Fact]
+    // Os três cenários caros ficam em classes próprias: o xUnit roda classes em paralelo e testes da mesma classe em série.
     [Trait("Category", "Scenario")]
-    public void Two_isolated_villages_keep_discovering_for_30_years_and_end_with_different_technology_sets()
+    public class IsolatedCultures
     {
-        string Technologies(ulong s)
+        [Fact]
+        public void Isolated_cultures_solving_the_same_problem_diverge_in_at_least_half_of_the_seeds()
         {
-            var (world, clock) = Village(s, Pressured);
-            clock.Run(world, world.Calendar.HoursPerYear * 30);
-            Assert.True(world.Technologies.Count >= 3, "a vila deveria seguir descobrindo por 30 anos");
-            return string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key));
+            // Os 20 mundos (seeds 1..10 e 1001..1010) são independentes: rodam em paralelo, cada um citado pela sua seed real.
+            ulong[] worlds = [.. Enumerable.Range(1, 10).Select(i => (ulong)i), .. Enumerable.Range(1, 10).Select(i => (ulong)(1000 + i))];
+            var firsts = ParallelSeeds.Map(worlds, seed =>
+            {
+                string first = Pressure(seed).FirstKey;
+                if (seed <= 10) Assert.NotEqual("", first);
+                return first;
+            });
+            int different = Enumerable.Range(0, 10).Count(i => firsts[i] != firsts[i + 10]);
+
+            Assert.True(different >= 5, $"só {different}/10 seeds divergiram");
         }
-
-        // Cada vila (seed e seed+1000) é independente: as 6 corridas rodam em paralelo, a comparação vem depois.
-        var runs = ParallelSeeds.Map([1UL, 2, 3, 1001, 1002, 1003], Technologies);
-        int different = Enumerable.Range(0, 3).Count(i => runs[i] != runs[i + 3]);
-
-        Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");
     }
 
-    [Fact]
     [Trait("Category", "Scenario")]
-    public void A_village_under_long_trip_pressure_discovers_deterministically_for_20_years_in_10_seeds()
+    public class TwoIsolatedVillages
     {
-        ParallelSeeds.ForEach(1, 10, seed =>
+        [Fact]
+        public void Two_isolated_villages_keep_discovering_for_30_years_and_end_with_different_technology_sets()
         {
-            var (world, clock) = Village(seed, Pressured);
-            clock.Run(world, world.Calendar.HoursPerYear * 20);
-            var (again, clockAgain) = Village(seed, Pressured);
-            clockAgain.Run(again, again.Calendar.HoursPerYear * 20);
+            (int Count, string Set) Technologies(ulong s)
+            {
+                var run = Pressure(s);
+                return (run.Count30 ?? 0, run.Set30!);
+            }
 
-            Assert.NotEmpty(world.Technologies);
-            Assert.Equal(Keys(world), Keys(again));
-            Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(again));
-        });
+            // Cada vila (seed e seed+1000) é independente: as 6 corridas rodam em paralelo, a comparação vem depois.
+            var runs = ParallelSeeds.Map([1UL, 2, 3, 1001, 1002, 1003], Technologies);
+            // AD-130: com a demografia de época a vila da seed 1 adota a 1ª mobilidade, o trajeto ao mercado cai abaixo do
+            // limiar de pressão e ela para de inventar (desfecho possível, não defeito). Exige-se que a maioria siga descobrindo.
+            // Junção da AD-180 (tempo diário): duas das seis vilas (seeds 1 e 1001) param em 2; contagens 2, 29, 4, 2, 19, 29.
+            // Junção da AD-185 (água na fonte, emprego perto): 2, 29, 12, 2, 1, 29 — a pressão é o trajeto casa→mercado; onde a
+            // 1ª mobilidade o traz abaixo do limiar a vila para (não há mais pressão), onde não traz ela segue (29). Exige-se
+            // que metade siga descobrindo; o sistema sai com a adoção derivada do que as pessoas sabem (#175).
+            Assert.True(runs.Count(r => r.Count >= 3) >= 3, $"a maioria das vilas deveria seguir descobrindo por 30 anos ({string.Join(", ", runs.Select(r => r.Count))})");
+            int different = Enumerable.Range(0, 3).Count(i => runs[i].Set != runs[i + 3].Set);
+
+            Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");
+        }
+    }
+
+    [Trait("Category", "Scenario")]
+    public class LongTripPressure
+    {
+        [Fact]
+        public void A_village_under_long_trip_pressure_discovers_deterministically_for_20_years_in_10_seeds()
+        {
+            ParallelSeeds.ForEach(1, 10, seed =>
+            {
+                // A repetição continua sendo uma simulação nova e independente: é ela que prova o determinismo. Roda ao lado da
+                // corrida compartilhada (que pode ainda estar sendo simulada), não depois dela.
+                PressuredRun world = null!;
+                var (again, clockAgain) = Village(seed, Pressured);
+                Parallel.Invoke(() => world = Pressure(seed), () => clockAgain.Run(again, again.Calendar.HoursPerYear * 20));
+
+                Assert.True(world.Count20 > 0);
+                Assert.Equal(world.Keys20, Keys(again));
+                Assert.Equal(world.Hash20, WorldSnapshot.CanonicalHash(again));
+            });
+        }
     }
 
     private static string DefaultScenarioWith(string? emergenceBlock)

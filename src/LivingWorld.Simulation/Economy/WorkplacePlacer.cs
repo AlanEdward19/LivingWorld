@@ -23,7 +23,7 @@ public static class WorkplacePlacer
             // em vez de inventar uma cidade que o JSON não declarou.
             var legacy = new Workplace(
                 world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
-                workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices);
+                workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, owner: workplace.Owner);
             world.AddWorkplace(legacy);
             return Result<Workplace>.Ok(legacy);
         }
@@ -50,7 +50,7 @@ public static class WorkplacePlacer
         else
         {
             var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
-            var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+            var resolved = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true); // AD-173: porta para a rua
             if (resolved is null)
                 return Result<Workplace>.Fail("Workplaces: nenhuma célula livre para posicionar o edifício autorado");
             position = resolved.Value.Position;
@@ -62,7 +62,7 @@ public static class WorkplacePlacer
         world.AddBuilding(building);
         var placed = new Workplace(
             world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
-            employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id, building: building.Id);
+            employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id, building: building.Id, owner: workplace.Owner);
         world.AddWorkplace(placed);
         return Result<Workplace>.Ok(placed);
     }

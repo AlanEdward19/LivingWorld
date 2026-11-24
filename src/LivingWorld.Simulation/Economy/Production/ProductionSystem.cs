@@ -54,6 +54,31 @@ public sealed class ProductionSystem : ISimulationSystem
             // um sem produção declarada (mercado, guarda, etc).
             ApplySpoilage(workplace, rules, ctx);
         }
+
+        // AD-143: quem sabe um design trabalha na encomenda (a receita gerada do design) com as horas livres do dia
+        LivingWorld.Simulation.Invention.DesignWorkshop.Advance(world, ctx);
+
+        // a despensa da casa também estraga (AD-135), na mesma taxa do recurso, cobrada uma vez por mês (30 dias de perda)
+        if (rules.SpoilagePerDayByResource.Count > 0 && world.CurrentDate.Day == 0)
+        {
+            foreach (var household in world.Households.OrderBy(h => h.Id.Value))
+                SpoilHousehold(household, rules, ctx, world.CurrentDate.Calendar.DaysPerMonth);
+            LivingWorld.Simulation.Invention.Leavings.Spoil(world, ctx, rules, world.CurrentDate.Calendar.DaysPerMonth); // AD-168: no chão também
+        }
+    }
+
+    private void SpoilHousehold(LivingWorld.Domain.Population.Family.Household household, EconomyRules rules, TickContext ctx, int days)
+    {
+        _stockBuffer.Clear();
+        _stockBuffer.AddRange(household.Stock);
+        foreach (var (resource, amount) in _stockBuffer)
+        {
+            if (!rules.SpoilagePerDayByResource.TryGetValue(resource.Id, out var rate) || rate <= 0 || amount <= 0) continue;
+            double monthly = 1 - DeterministicMath.Exp(days * DeterministicMath.Log(1 - Math.Min(rate, 0.999999)));
+            long spoiled = Math.Min(amount, CropSystem.RoundStochastic(amount * monthly, ctx, "household-spoilage", household.Id.Value * 64 + resource.Id, ctx.CurrentTick));
+            if (spoiled <= 0 || !household.Withdraw(resource, spoiled).IsSuccess) continue;
+            ctx.LogEvent(WorldEventKind.ResourceLost, $"{household.Id.Value}|{resource.Id}|{spoiled}", sourceSystem: "ProductionSystem");
+        }
     }
 
     private static void Produce(
@@ -61,6 +86,9 @@ public sealed class ProductionSystem : ISimulationSystem
         SkillsRules? skillsRules, VacancyIndex vacancyIndex)
     {
         var presentWorkers = vacancyIndex.PresentWorkersAt(workplace);
+        // encomenda (AD-144): o artesão da folha faz a peça encomendada em alguma hora do dia, não só se estiver parado na
+        // oficina na hora da produção; a sonda da seed 7 achou ferreiros na folha e 14 de 720 dias com alguém na forja
+        if (presentWorkers.Count == 0 && ToolMechanic.MakesToOrder(world, recipe)) presentWorkers = ToolMechanic.Hands(world, workplace);
         if (presentWorkers.Count == 0) return;
 
         if (recipe.RequiresCellResource is { } requiredResource
@@ -68,6 +96,8 @@ public sealed class ProductionSystem : ISimulationSystem
             return;
 
         int effectiveWorkers = Math.Min(presentWorkers.Count, recipe.MaxWorkersPerCycle);
+        double toolFactor = ToolMechanic.OutputFactor(workplace, recipe, effectiveWorkers);
+        ToolMechanic.Wear(world, ctx, workplace, recipe, effectiveWorkers);
 
         // Escala pra baixo pelo insumo mais escasso — nunca debita além do que o próprio
         // estoque do Workplace tem.
@@ -92,8 +122,7 @@ public sealed class ProductionSystem : ISimulationSystem
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
-            if (resourceId == rules.FoodResourceId
-                && world.ProcessRecipes.Any(item => item.Kind == ProcessKind.Plant))
+            if (resourceId == rules.FoodResourceId && CropSystem.FieldsFeedFood(world))
                 continue;
 
             var resource = new ResourceType(resourceId);
@@ -101,7 +130,13 @@ public sealed class ProductionSystem : ISimulationSystem
             double climate = resourceId == rules.FoodResourceId
                 ? world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0
                 : 1.0;
-            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate);
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate * toolFactor);
+            // ferramenta se faz por encomenda (AD-144): a oficina não enche o depósito além do que os clientes usam
+            if (world.EconomyCatalog.IsTool(resourceId))
+            {
+                produced = Math.Min(produced, Math.Max(0, ToolMechanic.OrderBook(world, workplace.City, resourceId) - workplace.Stock.GetValueOrDefault(resource)));
+                if (produced <= 0) continue;
+            }
             world.RecordResourceProduced(resource, produced); // conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
@@ -121,12 +156,13 @@ public sealed class ProductionSystem : ISimulationSystem
         foreach (var npc in presentWorkers)
         {
             if (!skillsRules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) continue;
-            sum += npc.Skills.Get(skillType);
+            // quem trabalha no que combina com ele rende mais (AD-136)
+            sum += (1.0 + npc.Skills.Get(skillType) / skillsRules.Cap) * VocationMechanic.OutputFit(skillsRules, npc);
             mapped++;
         }
         if (mapped == 0) return 1.0;
 
-        return 1.0 + (sum / mapped) / skillsRules.Cap;
+        return sum / mapped;
     }
 
     /// <summary>Segundo multiplicador de <c>attribute.strength</c> sobre a taxa de
@@ -151,7 +187,7 @@ public sealed class ProductionSystem : ISimulationSystem
 
         double sum = 0;
         for (int i = 0; i < count; i++)
-            sum += BodyMechanic.WorkCapacityMultiplier(world, presentWorkers[i]);
+            sum += BodyMechanic.WorkCapacityMultiplier(world, presentWorkers[i]) * world.OntogenyRules.FineMotorWorkFactor(presentWorkers[i].Development); // AD-163
         return sum / count;
     }
 
@@ -165,7 +201,8 @@ public sealed class ProductionSystem : ISimulationSystem
         foreach (var (resource, amount) in _stockBuffer)
         {
             if (!rules.SpoilagePerDayByResource.TryGetValue(resource.Id, out var rate) || rate <= 0) continue;
-            long spoiled = (long)(amount * rate);
+            // arredondamento sem viés: com taxa anual realista (fração de unidade por dia) o estoque pequeno também perde
+            long spoiled = CropSystem.RoundStochastic(amount * rate, ctx, "spoilage", workplace.Id.Value * 64 + resource.Id, ctx.CurrentTick);
             if (spoiled <= 0) continue;
 
             workplace.Withdraw(resource, Math.Min(spoiled, amount));

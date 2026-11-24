@@ -35,5 +35,26 @@ public sealed record ScopeTickDelta(
             [], [], [], [], [], [], [], [])
     { }
 
+    // AD-170 (ADR-0047 etapa 2): o observável do escopo, só o que mudou. Clima vem nulo quando não mudou.
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.BuildingStateVisual> BuildingStateUpserts { get; init; } = [];
+    public IReadOnlyList<long> BuildingStateRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.CropVisual> CropUpserts { get; init; } = [];
+    public IReadOnlyList<long> CropRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.AnimalVisual> AnimalUpserts { get; init; } = [];
+    public IReadOnlyList<long> AnimalRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.FaunaGroupVisual> FaunaGroupUpserts { get; init; } = [];
+    public IReadOnlyList<string> FaunaGroupRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.LeavingVisual> LeavingUpserts { get; init; } = [];
+    public IReadOnlyList<long> LeavingRemoved { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.ObjectVisual> ObjectUpserts { get; init; } = [];
+    public IReadOnlyList<long> ObjectRemoved { get; init; } = [];
+    public LivingWorld.Api.Visual.Observable.ScopeClimateVisual? Climate { get; init; }
+    // AD-176: rua de verdade por célula, só o que mudou (superfície, faixa de uso, obra, condição)
+    public IReadOnlyList<LivingWorld.Simulation.Cities.StreetCellView> RoadUpserts { get; init; } = [];
+    public IReadOnlyList<CellCoord> RoadRemoved { get; init; } = [];
+    // AD-193: obra em andamento, só a que mudou (fração, turma, quem está no lote, parada); a que acabou ou foi abandonada sai
+    public IReadOnlyList<LivingWorld.Api.Visual.Observable.WorkSiteVisual> WorkUpserts { get; init; } = [];
+    public IReadOnlyList<long> WorkRemoved { get; init; } = [];
+
     public static ScopeTickDelta Empty(long tick) => new(tick, [], [], [], [], [], [], [], [], [], []);
 }

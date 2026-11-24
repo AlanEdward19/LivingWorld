@@ -11,7 +11,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 
 /// <summary>REALISM-32 / Design Risk: foresight empty dictionary is shared — no per-call
 /// allocation on the common path (SelectByUtility without active foresight).</summary>
-[Collection(ScalePerformanceCollection.Name)]
+// Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 public sealed class ForesightHotPathAllocTests
 {
     [Fact]

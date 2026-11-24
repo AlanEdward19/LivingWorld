@@ -47,17 +47,36 @@ func test_far_zoom_in_world_turns_npcs_into_bubbles() -> void:
 	actor.free()
 
 
-func test_settlement_ground_is_paved_only_inside_a_city() -> void:
+func test_city_ground_is_the_map_terrain_outside_engine_streets_and_lots() -> void:
+	# AD-177: nada de "cidade inteira = rua" nem quintal em volta de todo prédio; o chão da cidade é o terreno do mapa
 	var store := Store.new()
 	store.kind = "City"
-	store.city = {"bounds": Rect2i(0, 0, 3, 2)}
-	store.buildings = {1: {"footprint": [{"cell": Vector2i(1, 1), "material": 0}]}}
+	store.city = {"id": "c1", "bounds": Rect2i(0, 0, 4, 2)}
+	for x in 4:
+		for y in 2:
+			store.terrain[Vector2i(x, y)] = 1
+	store.buildings = {1: {"id": 1, "cell": Vector2i.ZERO, "footprint": [{"cell": Vector2i(1, 1), "material": 0}], "lot": {}}}
 	var view := WorldView.new()
-	view.store = store
-	var cells: Dictionary = view._settlement_cells()
-	eq(cells.size(), 6, "toda a área do assentamento")
-	eq(cells[Vector2i(1, 1)], WorldView.YARD_COLOR, "sob o prédio: terra batida")
-	eq(cells[Vector2i(0, 0)], WorldView.STREET_COLOR, "fora dos prédios: rua de pedra")
+	view.bind(store, ActionLabels.new())
+	view.terrain.rebuild(store)
+	var index := 0
+	for cell in store.terrain:
+		var shade := 0.94 + float((cell.x * 7 + cell.y * 13) % 5) * 0.03
+		check(view.terrain._base[index][0].is_equal_approx(WorldView.TERRAIN_COLORS[0] * shade),
+			"dentro da cidade o chão tem a cor do terreno do mapa em %s" % cell)
+		index += 1
+	view.ground.rebuild()
+	eq(view.ground.road_pieces, 0, "sem camada Roads: nenhuma rua")
+	eq(view.ground.lot_pieces, 0, "prédio sem lote: nenhum quintal")
+	eq(view.ground.entity_at(Vector2i(0, 0)), {}, "em volta do prédio: terreno comum")
+	eq(view.ground.entity_at(Vector2i(3, 0)), {}, "fora dos lotes: terreno comum, não rua")
+	store.roads = {Vector2i(3, 0): {"cell": Vector2i(3, 0), "city": "c1", "surface": 1, "users": 4, "main": false, "square": false, "extra": {}}}
+	view.ground.rebuild()
+	check(view.ground.road_pieces > 0, "com a camada: a rua aparece")
+	eq(view.ground.entity_at(Vector2i(3, 0)).get("kind", ""), "street", "e só onde o motor disse")
+	eq(view.ground.entity_at(Vector2i(2, 0)), {}, "a célula do lado continua terreno")
 	store.kind = "World"
-	eq(view._settlement_cells().size(), 0, "no mapa-múndi o chão segue natural")
+	view.ground.rebuild()
+	eq(view.ground.drawn_roads.size(), 1, "no mapa-múndi as ruas das cidades também aparecem")
+	eq(view.ground.lot_pieces, 0, "e lote só no escopo cidade")
 	view.free()

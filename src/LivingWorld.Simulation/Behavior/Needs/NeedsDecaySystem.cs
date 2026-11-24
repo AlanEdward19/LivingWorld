@@ -53,17 +53,20 @@ public sealed class NeedsDecaySystem : ISimulationSystem
             NpcDeath.Apply(world, ctx, npc, WorldEventKind.Dehydration);
     }
 
-    /// <summary>Sono em 0 por mais que o tempo de 100 a 0 tira 2 de saúde por hora; saúde 0 é morte por
-    /// exaustão. O sono restaurado (necessidade &gt; 0) interrompe a perda — a saúde volta pelos meios de sempre.</summary>
+    /// <summary>Sono em 0 por mais que o tempo de 100 a 0 tira 2 de saúde por hora, até o piso da exaustão. O sono restaurado (necessidade &gt; 0) interrompe a perda — a saúde volta pelos meios de sempre.</summary>
+    /// <summary>Saúde abaixo da qual a falta de sono, sozinha, não leva ninguém.</summary>
+    public const int ExhaustionHealthFloor = 10;
+
     private static void HandleExhaustion(WorldState world, TickContext ctx, Npc npc, NeedsRules rules, long now)
     {
         if (rules.SleepDecayPerHour <= 0) return;
         long graceTicks = (long)Math.Ceiling(100.0 / rules.SleepDecayPerHour);
         if (npc.SleepNeed.TicksAtZero(now) < graceTicks) return;
 
-        npc.SetHealth(npc.Health - 2);
-        if (npc.Health <= 0)
-            NpcDeath.Apply(world, ctx, npc, WorldEventKind.Exhaustion);
+        // Não há registro de gente morta só por falta de sono: a privação debilita (e a saúde baixa pesa no risco mensal
+        // de morte), mas não mata por si. Antes a saúde ia a zero em ~5 dias (conferência AD-133).
+        if (npc.Health > ExhaustionHealthFloor)
+            npc.SetHealth(Math.Max(ExhaustionHealthFloor, npc.Health - 2));
     }
 
     /// <summary>Fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
@@ -74,8 +77,11 @@ public sealed class NeedsDecaySystem : ISimulationSystem
     {
         if (npc.HungerAt(now) > 0)
         {
-            if (npc.HungerZeroSinceTick is not null)
+            if (npc.HungerZeroSinceTick is { } since)
+            {
                 npc.ClearHungerZeroSince();
+                LivingWorld.Simulation.Cognition.LifeEventIntake.OnHungerEpisodeEnded(world, npc, since, now); // AD-138: fome passada
+            }
             return;
         }
 
@@ -87,8 +93,17 @@ public sealed class NeedsDecaySystem : ISimulationSystem
 
         if (rules.HungerDecayPerHour <= 0) return;
 
-        long survivalTicks = (long)Math.Ceiling(100.0 / rules.HungerDecayPerHour);
-        if (now - npc.HungerZeroSinceTick.Value >= survivalTicks)
+        if (now - npc.HungerZeroSinceTick.Value >= StarvationTicksFor(world, npc, rules, now))
             NpcDeath.Apply(world, ctx, npc, WorldEventKind.Starvation);
+    }
+
+    /// <summary>Jejum que mata: o do cenário vezes o fator da idade (AD-134: criança e idoso aguentam menos). Só calculado
+    /// com a fome já em zero.</summary>
+    public static long StarvationTicksFor(WorldState world, Npc npc, NeedsRules rules, long now)
+    {
+        long ticks = rules.StarvationTicks;
+        if (!rules.Physiology.Enabled || ticks == long.MaxValue) return ticks;
+        double age = Math.Max(0, now - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        return Math.Max(1, (long)(ticks * rules.Physiology.StarvationSurvivalFactorByAge.At(age)));
     }
 }

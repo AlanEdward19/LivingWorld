@@ -110,7 +110,7 @@ public sealed record ExtraordinaryScenarioData
     public double Prevalence { get; init; }
     public IReadOnlyList<PowerDescriptor> Descriptors { get; private set; }
     public IReadOnlyList<ExtraordinaryCulturalResponseRule> CulturalResponses { get; init; }
-    /// <summary>Herança de poder (16.2). Null → <see cref="PowerInheritanceRules.Default"/>.</summary>
+    /// <summary>Genética dos poderes (AD-156). Null → <see cref="PowerInheritanceRules.Default"/>; nulo no snapshot sem poderes.</summary>
     public PowerInheritanceRules? InheritanceRules { get; init; }
 
     public ExtraordinaryScenarioData(

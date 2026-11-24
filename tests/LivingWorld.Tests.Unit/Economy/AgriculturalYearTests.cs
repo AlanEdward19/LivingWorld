@@ -1,0 +1,241 @@
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+
+namespace LivingWorld.Tests.Unit.Economy;
+
+/// <summary>AD-135: o ano agrícola. A colheita cai numa janela curta de verão, nada nasce no inverno, a semente fica guardada,
+/// o celeiro abastece a venda e a habilidade de quem semeia entra no rendimento. O braço de controle é o lote diário antigo.</summary>
+public sealed class AgriculturalYearTests
+{
+    private const int HoursPerMonth = 30 * 24;
+
+    private static long[] FoodProducedByMonth(AgricultureRules? rules, ulong seed, int months)
+    {
+        var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: rules);
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var produced = new long[months];
+        long last = 0;
+        for (int m = 0; m < months; m++)
+        {
+            clock.Run(world, HoursPerMonth);
+            long now = world.ResourceProduced.GetValueOrDefault(food);
+            produced[m] = now - last;
+            last = now;
+        }
+
+        return produced;
+    }
+
+    private static double ShareInBestTwoMonths(long[] produced)
+    {
+        long total = produced.Sum(), best = 0;
+        for (int m = 0; m + 1 < produced.Length; m++) best = Math.Max(best, produced[m] + produced[m + 1]);
+        return total == 0 ? 0 : (double)best / total;
+    }
+
+    [Fact]
+    public void Seasonal_harvest_puts_most_of_the_year_food_in_a_two_month_window()
+    {
+        var produced = FoodProducedByMonth(AgricultureRules.Default, seed: 3, months: 12);
+
+        Assert.True(ShareInBestTwoMonths(produced) > 0.8, string.Join(",", produced));
+    }
+
+    [Fact]
+    public void Daily_crop_control_spreads_food_over_the_whole_year()
+    {
+        var produced = FoodProducedByMonth(AgricultureRules.Disabled, seed: 3, months: 12);
+
+        Assert.True(ShareInBestTwoMonths(produced) < 0.3, string.Join(",", produced));
+    }
+
+    [Fact]
+    public void Nothing_is_harvested_in_winter()
+    {
+        var produced = FoodProducedByMonth(AgricultureRules.Default, seed: 5, months: 12);
+
+        Assert.Equal(0, produced[0] + produced[1] + produced[2]);
+    }
+
+    [Fact]
+    public void The_harvest_refills_the_seed_reserve_and_the_barn()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        clock.Run(world, 9L * HoursPerMonth); // até o começo do outono, antes de semear
+
+        var field = Assert.Single(world.CropBatches, c => c.Status != CropStatus.Harvested);
+        Assert.True(field.LastHarvest > 0);
+        Assert.True(field.SeedReserve > 0);
+        Assert.True(field.Barn > 0);
+    }
+
+    [Fact]
+    public void Skilled_farmers_sow_a_field_with_more_yield_potential_than_unskilled_ones()
+    {
+        double PotentialPerSeed(double skill)
+        {
+            var (world, clock) = ScenarioRunner.Create(11);
+            var agriculture = ScenarioRunner.DefaultSkillsRules.SkillByProfession[1];
+            foreach (var npc in world.Npcs.Where(n => n.Profession.Id == 1))
+                npc.GainSkill(agriculture, skill - npc.Skills.Get(agriculture), 100);
+            clock.Run(world, 11L * HoursPerMonth); // passa a semeadura de outono
+            var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+            return field.EffectiveSeedMilli / 1000.0 / field.LastSeedSown;
+        }
+
+        Assert.True(PotentialPerSeed(100) > PotentialPerSeed(0));
+    }
+
+    [Fact]
+    public void Reapers_take_part_of_the_harvest_home()
+    {
+        // AD-176: seeds somadas (uma só, a 8 meses, já invertia por ruído de trajetória com a rota real: 266 × 272);
+        // AD-182: com a venda repartida na carestia, três seeds voltaram a inverter por ruído (806 × 820), então são oito
+        long HomeFoodAfterHarvest(double share) => new ulong[] { 19, 20, 21, 22, 23, 24, 25, 26 }.Sum(seed =>
+        {
+            // AD-185: sem a ida à água, que muda o dia de todos e embaralha a trajetória (o teste é da parte do ceifeiro)
+            var (world, clock) = ScenarioRunner.Create(seed, agricultureRules: AgricultureRules.Default with { ReaperShare = share },
+                naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
+            // AD-180: a chuva para a ceifa; aos 8 meses (fim de agosto) a ceifa ainda está pela metade em ano chuvoso: conta no fim dela
+            // junção da AD-180: uma foto só no fim (9 meses) invertia por ruído (2252 × 2330); soma-se a despensa das casas dia a
+            // dia durante a ceifa (meses 8 e 9), que é quando a parte em espécie entra
+            clock.Run(world, 7L * HoursPerMonth);
+            var food = new ResourceType(world.EconomyRules.FoodResourceId);
+            long total = 0;
+            for (long day = 0; day < 2L * HoursPerMonth / world.Calendar.HoursPerDay; day++)
+            {
+                clock.Run(world, world.Calendar.HoursPerDay);
+                total += world.Households.Sum(h => h.Stock.GetValueOrDefault(food));
+            }
+            return total;
+        });
+
+        long half = HomeFoodAfterHarvest(0.5), none = HomeFoodAfterHarvest(0);
+        Assert.True(half > none * 1.02, $"metade {half} nada {none}");
+    }
+
+    [Fact]
+    public void An_empty_barn_is_rationed_until_the_next_harvest()
+    {
+        var (world, _) = ScenarioRunner.Create(23);
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+
+        // começo do ano, lavoura semeada: faltam ~7 meses e meio para a colheita esperada
+        Assert.InRange(CropSystem.DaysToNextHarvest(world, world.AgricultureRules, field), 200, 230);
+    }
+
+    [Fact]
+    public void A_crop_still_ripening_before_the_expected_month_does_not_open_the_barn_as_if_harvest_were_days_away()
+    {
+        // AD-140: em julho a lavoura em pé contava meio mês e o celeiro saía três vezes mais rápido, esvaziando antes da ceifa
+        var (world, clock) = ScenarioRunner.Create(23);
+        var rules = world.AgricultureRules;
+        clock.Run(world, (long)rules.EarliestRipeningMonth * HoursPerMonth);
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        Assert.Equal(rules.EarliestRipeningMonth, world.CurrentDate.Month);
+        Assert.True(rules.ExpectedHarvestMonth > rules.EarliestRipeningMonth);
+        Assert.Equal(CropStatus.Growing, field.Status);
+
+        Assert.InRange(CropSystem.DaysToNextHarvest(world, rules, field), 40, 50);
+    }
+
+    [Fact]
+    public void Monthly_barn_loss_compounds_to_the_annual_rate()
+    {
+        double monthly = CropSystem.MonthlyRate(0.15);
+        double kept = 1;
+        for (int m = 0; m < 12; m++) kept *= 1 - monthly;
+
+        Assert.Equal(0.85, kept, 6);
+    }
+
+    [Fact]
+    public void A_household_pantry_spoils_between_ten_and_thirty_percent_a_year()
+    {
+        var (world, _) = ScenarioRunner.Create(13);
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var household = world.Households.OrderBy(h => h.Id.Value).First();
+        household.Withdraw(food, household.Stock.GetValueOrDefault(food));
+        household.Deposit(food, 100_000);
+        var system = new ProductionSystem();
+
+        for (int day = 0; day < 360; day++)
+        {
+            world.CurrentDate = world.CurrentDate.AddHours(24);
+            system.Tick(world, new TickContext(world, world.Rng, world.Scheduler));
+        }
+
+        Assert.InRange(household.Stock.GetValueOrDefault(food), 70_000, 90_000);
+    }
+
+    /// <summary>AD-149: a terra é finita. A vila demarcada na fundação semeia até a terra que tem, por mais bocas que haja.</summary>
+    [Fact]
+    public void A_field_is_never_sown_beyond_its_land()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        Assert.True(field.ArableSeed > 0);
+        field.SetArable(2_000);
+
+        clock.Run(world, 11L * HoursPerMonth); // passa a semeadura de outono
+
+        Assert.InRange(field.LastSeedSown, 1, 2_000);
+    }
+
+    [Fact]
+    public void The_land_takes_hands_while_each_one_still_reaps_its_bread()
+    {
+        var ag = AgricultureRules.Default;
+        long land = 30_000; // 60 braços semeiam tudo
+
+        Assert.True(ag.LandTakesAnotherHand(land, 10));
+        Assert.True(ag.LandTakesAnotherHand(land, 60)); // a capina ainda paga o pão
+        Assert.False(ag.LandTakesAnotherHand(land, 200));
+        Assert.True(ag.LandTakesAnotherHand(0, 10_000)); // sem limite de terra (antigo): sempre
+        double first = ag.LandIntensity(land, 90) - ag.LandIntensity(land, 60);
+        double second = ag.LandIntensity(land, 120) - ag.LandIntensity(land, 90);
+        Assert.True(first > second && second > 0); // retorno decrescente
+        Assert.True(ag.LandIntensity(land, 100_000) < 1 + ag.HandIntensityGain);
+    }
+
+    [Fact]
+    public void A_farm_with_little_land_does_not_hire_hands_it_cannot_feed()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        world.CropBatches.Single(c => c.Status != CropStatus.Harvested).SetArable(500); // um braço semeia tudo
+        var farm = world.Workplaces.Single(w => w.LocationType.Id == CropSystem.DefaultFarmLocationTypeId);
+
+        clock.Run(world, 3L * 24);
+
+        Assert.Single(farm.Employees);
+    }
+
+    /// <summary>AD-149 (backlog 08 item 41): na ceifa a vila toda vai ao campo — a fazenda toma os adultos do ofício sem trabalho
+    /// enquanto a lavoura está madura e, passada a ceifa, solta quem a terra não paga. Sem a regra, ceifa só a lotação do ano.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void At_harvest_the_whole_village_reaps_and_goes_home_after(bool wholeVillage)
+    {
+        var (world, clock) = ScenarioRunner.Create(7, agricultureRules: AgricultureRules.Default with { WholeVillageReaps = wholeVillage });
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        field.SetArable(5_000); // dez braços semeiam tudo; a capina paga até 13
+        var farm = world.Workplaces.Single(w => w.LocationType.Id == CropSystem.DefaultFarmLocationTypeId);
+        int yearRound = 0, atHarvest = 0, after = -1;
+        bool harvested = false;
+        for (int day = 0; day < 400 && after < 0; day++)
+        {
+            clock.Run(world, 24);
+            if (field.Status == CropStatus.Mature) { harvested = true; atHarvest = Math.Max(atHarvest, farm.Employees.Count); }
+            else if (harvested && day % 5 == 0) after = farm.Employees.Count;
+            else if (!harvested) yearRound = Math.Max(yearRound, farm.Employees.Count);
+        }
+
+        Assert.True(harvested && yearRound <= 13, $"{yearRound}");
+        if (wholeVillage) Assert.True(atHarvest > yearRound + 10 && after <= 13, $"{yearRound} {atHarvest} {after}");
+        else Assert.True(atHarvest <= 13, $"{atHarvest}");
+    }
+}

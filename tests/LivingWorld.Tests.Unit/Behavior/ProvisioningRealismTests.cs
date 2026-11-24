@@ -30,12 +30,14 @@ public class ProvisioningRealismTests
         priceSensitivity: 0, demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
 
     private static (WorldState World, Workplace Shop, Npc Buyer, Household Home) Build(
-        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0, bool shopProducesWater = true)
+        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0, bool shopProducesWater = true,
+        bool topUp = false)
     {
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), familyRules: ScenarioRunner.DefaultFamilyRules,
+            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(),
+            familyRules: topUp ? ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured } : ScenarioRunner.DefaultFamilyRules,
             economyCatalog: new EconomyCatalog(
                 shopProducesWater
                     ? new Dictionary<int, ProductionRecipe>
@@ -185,6 +187,58 @@ public class ProvisioningRealismTests
         Assert.Equal(ActionType.Buy, decision.Action);
     }
 
+    /// <summary>AD-182 (08c item 149): o jovem que ficou só em casa, com moeda e a despensa vazia, conversava sozinho (solidão no
+    /// zero, peso de personalidade) contra a compra até morrer de fome; a compra que serve a fome crítica agora também põe o teto.</summary>
+    private static (ActionType Before, ActionType After) StarvingLonerWithMoney()
+    {
+        var (world, _, npc, _) = Build(npcAt: new CellCoord(5, 5), homeAt: new CellCoord(5, 5), wallet: 100, pantry: 0);
+        npc.SetHunger(0, 0);
+        npc.SetThirst(60, 0);
+        npc.SetSocial(0, 0);
+        var sociable = new Personality(100, 100, 50, 50, 100, 50, 50, 100, 50, 50);
+        var context = DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable };
+        var old = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyCountsPurchase = false } };
+        return (BehaviorDecisionSystem.SelectByUtility(context, old, world.EconomyRules, continuityAction: ActionType.Socialize).Action,
+            BehaviorDecisionSystem.SelectByUtility(context, world.NeedsRules, world.EconomyRules, continuityAction: ActionType.Socialize).Action);
+    }
+
+    [Fact]
+    public void A_starving_lonely_person_with_money_and_an_empty_pantry_goes_to_buy_instead_of_talking()
+    {
+        Assert.Equal(ActionType.Buy, StarvingLonerWithMoney().After);
+    }
+
+    [Fact]
+    public void Before_ad182_the_starving_lonely_person_with_money_kept_talking()
+    {
+        Assert.Equal(ActionType.Socialize, StarvingLonerWithMoney().Before);
+    }
+
+    /// <summary>AD-147 (backlog 08, item 47): o solteiro sozinho em casa, muito sociável e com a solidão no máximo, conversava de hora
+    /// em hora (peso de personalidade até 3× e o vínculo) contra a sede no zero, com água na despensa, até morrer.</summary>
+    [Fact]
+    public void Critical_thirst_with_water_at_home_beats_the_wish_to_talk_of_a_very_sociable_lonely_person()
+    {
+        var (world, _, npc, home) = Build(npcAt: new CellCoord(5, 5), homeAt: new CellCoord(5, 5), wallet: 0, pantry: 10);
+        npc.SetThirst(5, 0);
+        npc.SetHunger(60, 0);
+        npc.SetSocial(0, 0);
+        var sociable = new Personality(100, 100, 50, 50, 100, 50, 50, 100, 50, 50);
+        var context = DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable };
+
+        var off = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyOverridesLeisure = false } };
+        var before = BehaviorDecisionSystem.SelectByUtility(context, off, world.EconomyRules, continuityAction: ActionType.Socialize);
+        var rules = world.NeedsRules; // AD-148: ligado por padrão
+        var thirsty = BehaviorDecisionSystem.SelectByUtility(context, rules, world.EconomyRules, continuityAction: ActionType.Socialize);
+        npc.SetThirst(60, 0);
+        var calm = BehaviorDecisionSystem.SelectByUtility(DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable },
+            rules, world.EconomyRules, continuityAction: ActionType.Socialize);
+
+        Assert.Equal(ActionType.Socialize, before.Action); // a causa: desligado, conversa contra a sede no zero
+        Assert.Equal(ActionType.Eat, thirsty.Action);
+        Assert.Equal(ActionType.Socialize, calm.Action); // sem emergência do corpo, a personalidade decide como antes
+    }
+
     [Fact]
     public void Restocking_needs_at_least_the_price_of_one_unit_in_the_wallet()
     {
@@ -270,6 +324,63 @@ public class ProvisioningRealismTests
         Assert.Equal(0, buyer.Wallet.Amount);
         Assert.Equal(1, home.Stock.GetValueOrDefault(Water));
         Assert.Equal(0, home.Stock.GetValueOrDefault(Wheat));
+    }
+
+    [Fact]
+    public void A_purchase_tops_the_pantry_up_to_the_target_instead_of_piling_on_top_of_it()
+    {
+        // AD-145: a casa ao lado do rio já tem água; ir comprar comida não traz mais água, e a comida só completa a meta
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: Market, wallet: 500, pantry: 0, topUp: true);
+        home.Deposit(Water, 300);
+        home.Deposit(Wheat, 3);
+
+        Buy(world, buyer);
+
+        Assert.Equal(300, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(10, home.Stock.GetValueOrDefault(Wheat)); // meta mínima de compra (10), não 3 + 10
+    }
+
+    [Fact]
+    public void Nobody_heads_to_market_for_what_they_cannot_pay_when_the_rest_of_the_pantry_is_full()
+    {
+        // AD-145: água cheia (o rio enche), comida acabando e carteira abaixo do preço da comida (4): a ida não traria nada
+        var (world, _, buyer, home) = Build(npcAt: Far, homeAt: Far, wallet: 3, pantry: 0, topUp: true);
+        home.Deposit(Water, 300);
+
+        Assert.False(BehaviorDecisionSystem.NeedsRestocking(world, buyer, MarketIndex.BuildForTick(world)));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_purchase_that_succeeds_still_lets_a_critically_thirsty_buyer_drink_from_home(bool topUp)
+    {
+        // AD-146: carteira abaixo do preço da comida (4), só paga uma água (3); a compra dá certo e antes encerrava o plano sem beber,
+        // e a pessoa voltava a comprar de duas em duas horas até morrer de sede com água em casa
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: new CellCoord(5, 5), wallet: 3, pantry: 0, topUp: topUp);
+        home.Deposit(Water, 2);
+        buyer.SetThirst(0, 0);
+        buyer.SetHunger(0, 0);
+
+        Buy(world, buyer);
+
+        Assert.Equal(0, buyer.Wallet.Amount); // a compra aconteceu
+        Assert.True(buyer.ThirstAt(0) > 0, $"sede {buyer.ThirstAt(0)} depois de comprar com água em casa");
+        Assert.Equal(2, home.Stock.GetValueOrDefault(Water)); // 2 + 1 comprada − 1 bebida
+    }
+
+    [Fact]
+    public void A_purchase_without_critical_need_does_not_consume_the_pantry()
+    {
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: new CellCoord(5, 5), wallet: 3, pantry: 0);
+        home.Deposit(Water, 2);
+        buyer.SetThirst(60, 0);
+        buyer.SetHunger(60, 0);
+
+        Buy(world, buyer);
+
+        Assert.Equal(3, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(60, buyer.ThirstAt(0));
     }
 
     [Theory]

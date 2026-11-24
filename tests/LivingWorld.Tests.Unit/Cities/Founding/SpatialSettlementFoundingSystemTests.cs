@@ -105,6 +105,23 @@ public class SpatialSettlementFoundingSystemTests
     }
 
     [Fact]
+    public void Tick_does_not_schedule_when_the_cluster_is_near_by_road_to_what_the_mother_city_offers()
+    {
+        // AD-176: a causa é o caminho; com o limiar de horas acima da viagem real, o mesmo aglomerado não funda
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10) with
+        {
+            Layout = CityLayoutRules.Default with { Streets = StreetRules.Default with { FoundingCommuteHours = 1_000 } },
+        };
+        var world = MakeWorld(rules, seed: 901);
+        var (_, overflow) = SeedOneOverflowBuilding(world);
+        world.AddNpc(MakeNpc(world, 1, overflow.Position!.Value));
+
+        new SpatialSettlementFoundingSystem().Tick(world, MakeCtx(world));
+
+        Assert.Empty(world.PendingEvents);
+    }
+
+    [Fact]
     public void Tick_does_not_schedule_when_the_cluster_has_buildings_but_no_residents()
     {
         var rules = MakeRules(foundingConcentrationThreshold: 0.5);
@@ -277,6 +294,38 @@ public class SpatialSettlementFoundingSystemTests
         var newCity = world.Cities.Single(c => c.Id != motherCity.Id);
         Assert.Equal(newCity.Id, household.City);
         Assert.Equal(newCity.Id, head.City);
+    }
+
+    /// <summary>AD-183: quem lidera a saída fica registrado como fundador, a fundação vai ao log com ele e o feito vira boa fama
+    /// dele (que respinga na linhagem).</summary>
+    [Fact]
+    public void HandleEvent_records_the_founder_logs_the_founding_and_honors_him()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var map = MapGenerator.Generate(911, width: 300, height: 300, regionSize: 300, TinyCatalog, TinyCostWeights, []).Value!;
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, 911, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules, cityRules: rules,
+            familyRules: ScenarioRunner.DefaultFamilyRules);
+        var (motherCity, overflow) = SeedOneOverflowBuilding(world);
+        var head = new Npc(new NpcId(1), "Tor Galmor", Sex.Male, world.CurrentDate.AddYears(-35), ScenarioRunner.DefaultCulture,
+            overflow.Position!.Value, motherId: null, fatherId: null, household: null, health: 80, personality: NeutralPersonality,
+            profession: ProfessionType.None, currentLocation: overflow.Position!.Value, city: motherCity.Id);
+        world.AddNpc(head);
+        world.AddHousehold(new Household(new HouseholdId(1), overflow.Position!.Value, head.Id, [head.Id], city: motherCity.Id));
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var sink = new RecordingSink();
+
+        system.HandleEvent(world, new TickContext(world, world.Rng, world.Scheduler, sink), Assert.Single(world.PendingEvents));
+
+        var newCity = world.Cities.Single(c => c.Id != motherCity.Id);
+        var founding = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.SettlementFounded);
+        Assert.Equal(head.Id.Value, newCity.FounderId);
+        Assert.StartsWith($"{newCity.Id.Value}|{motherCity.Id.Value}|{head.Id.Value}|", founding.Payload);
+        Assert.Equal(world.FamilyRules.Names.HonorForFounding,
+            LivingWorld.Simulation.Population.Naming.Honor.OwnOf(world, head.Id.Value, world.CurrentDate.TotalHours), 3);
     }
 
     /// <summary>Repro da fundação a partir de overflow: a posição corrente identifica a família

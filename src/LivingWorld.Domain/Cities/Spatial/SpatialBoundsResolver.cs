@@ -21,9 +21,11 @@ public static class SpatialBoundsResolver
     public static (CityBounds Bounds, bool IsDerived) ResolveCity(
         City city, long population, int mapWidth, int mapHeight,
         IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
-        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null) =>
+        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null, int chainReachCells = 0, bool anchorLoneBuilding = false,
+        bool absorbAll = false) =>
         CityBoundsResolver.Resolve(
-            city, population, mapWidth, mapHeight, ownedBuildingFootprintBoxes, absorptionRingCells, otherCityBoundsToAvoid);
+            city, population, mapWidth, mapHeight, ownedBuildingFootprintBoxes, absorptionRingCells, otherCityBoundsToAvoid, chainReachCells,
+            anchorLoneBuilding, absorbAll);
 
     public static CityBounds ResolveBuilding(Building building)
     {

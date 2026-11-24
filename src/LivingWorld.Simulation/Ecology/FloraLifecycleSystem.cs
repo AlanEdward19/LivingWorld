@@ -63,7 +63,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
                 || world.FloraMutationVersion != _floraVersion
                 || world.TemperatureAdjustmentsVersion != _temperatureVersion
                 || tick < _validFrom || tick >= _validUntil
-                || world.Extraordinary.Enabled
+                || FloraMechanic.PowersCanTouchFlora(world)
                 || !ReproductionIsNoOp(world))
                 return false;
 
@@ -90,7 +90,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         public void Rebuild(WorldState world, long tick)
         {
             _valid = false;
-            if (world.Extraordinary.Enabled || !ReproductionIsNoOp(world))
+            if (FloraMechanic.PowersCanTouchFlora(world) || !ReproductionIsNoOp(world))
                 return;
 
             var rulesBySpecies = IndexRules(world);
@@ -156,7 +156,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         string? lastSpecies = null;
         PlantSpeciesRules? lastRules = null;
 
-        bool powersActive = world.Extraordinary.Enabled;
+        // AD-156: as fontes de poder da hora uma vez por tick (antes: todos os portadores, mortos inclusive, por planta)
+        var sources = FloraMechanic.PowersCanTouchFlora(world) ? FloraMechanic.ActiveSources(world) : null;
         var snapshot = world.Flora.ToArray();
         int removed = 0;
 
@@ -177,7 +178,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
                 continue;
 
             double baseRate = BaseGrowthRate(temperature.At(plant.Position), rules);
-            double multiplier = powersActive ? FloraMechanic.GrowthRateMultiplier(world, plant) : 1;
+            double multiplier = sources is null ? 1 : FloraMechanic.Multiplier(sources, world, plant);
             int delta = (int)Math.Floor(baseRate * multiplier);
             if (delta == 0)
                 continue;
@@ -228,8 +229,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (rules.ReproduceProbability <= 0)
                 continue;
 
-            double roll = ctx.StreamFor("flora-reproduce", unchecked(plant.Id.Value * 1_000_000L + tick))
-                .NextDouble();
+            double roll = ctx.DrawFor("flora-reproduce", unchecked(plant.Id.Value * 1_000_000L + tick));
             if (roll >= rules.ReproduceProbability)
                 continue;
 
@@ -238,8 +238,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (freeCells.Count == 0)
                 continue;
 
-            int index = (int)(ctx.StreamFor("flora-sprout-pos", unchecked(plant.Id.Value * 1_000_000L + tick))
-                .NextDouble()
+            int index = (int)(ctx.DrawFor("flora-sprout-pos", unchecked(plant.Id.Value * 1_000_000L + tick))
                 * freeCells.Count);
             if (index >= freeCells.Count) index = freeCells.Count - 1;
             var sproutPos = freeCells[index];

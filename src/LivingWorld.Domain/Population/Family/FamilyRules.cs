@@ -32,13 +32,32 @@ public sealed record FamilyRules(
     bool NeutralDriftEnabled,
     bool VitalityMortalitySelectionEnabled,
     int MaxCohabitationGroupSize = int.MaxValue,
-    double PersonalityHeritability = 0.0)
+    double PersonalityHeritability = 0.0,
+    SocialBondRules? Bonds = null)
 {
     /// <summary>Ponto médio do eixo de <see cref="Relationship"/>/<c>Vitality</c>/<c>Upbringing</c>
     /// (escala <c>[0,100]</c>) usado como centro das fórmulas de <see cref="EffectiveVitalityMultiplier"/>
     /// e <see cref="ApplyUpbringingWeight"/> — constante de algoritmo, não conteúdo de cenário
     /// (mesmo espírito de <see cref="RateGene"/>.Spread).</summary>
     private const double MidpointValue = 50.0;
+
+    /// <summary>Vida conjugal (AD-136): desgaste, traição, separação, luto e tabu de parentesco. Padrão: <see
+    /// cref="UnionRules.Medieval"/>; snapshot sem o campo abre com ele.</summary>
+    public UnionRules Unions { get; init; } = UnionRules.Medieval;
+
+    /// <summary>O que o nome faz (AD-178): xará e linhagem na ajuda, no luto, no legado, no namoro e na fama. Padrão ligado;
+    /// snapshot sem o campo abre com ele.</summary>
+    public NameBondRules Names { get; init; } = NameBondRules.Default;
+
+    /// <summary>AD-182 (08c item 151): com o ciclo hormonal ligado, a fome que impede a concepção é a do corpo da mulher (amenorreia da
+    /// subnutrição, <c>Endocrine</c>), não a despensa do dia: o piso de comida em casa (<see cref="ConceptionResourceFloor"/>) deixa de
+    /// valer. Antes a casa que mandava comida a parente (AD-166) ficava abaixo de 5 unidades no fechamento do mês e o casal não
+    /// concebia (natalidade 0,988×). Falso = o de antes (o piso vale sempre).</summary>
+    public bool ConceptionFloorReadsBody { get; init; } = true;
+
+    /// <summary>Freios preventivos da pressão da população (AD-145). Nulo = desligado (padrão; omitido do snapshot e do hash).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public PopulationPressureRules? Pressure { get; init; }
 
     public static Result<FamilyRules> Create(
         IReadOnlyDictionary<(RelationshipEventType Type, RelationshipAxis Axis), double> relationshipDeltas,
@@ -63,7 +82,8 @@ public sealed record FamilyRules(
         bool neutralDriftEnabled,
         bool vitalityMortalitySelectionEnabled,
         int maxCohabitationGroupSize = int.MaxValue,
-        double personalityHeritability = 0.0)
+        double personalityHeritability = 0.0,
+        SocialBondRules? bonds = null)
     {
         foreach (var type in Enum.GetValues<RelationshipEventType>())
             foreach (var axis in Enum.GetValues<RelationshipAxis>())
@@ -124,13 +144,16 @@ public sealed record FamilyRules(
         if (!(personalityHeritability >= 0 && personalityHeritability <= 1))
             return Result<FamilyRules>.Fail("PersonalityHeritability: deve estar entre 0 e 1");
 
+        if (bonds?.Validate() is { } bondsError)
+            return Result<FamilyRules>.Fail(bondsError);
+
         return Result<FamilyRules>.Ok(new FamilyRules(
             relationshipDeltas, decayPerDay, contactLossThresholdDays, neutralAxisValue, attractionWeights,
             courtshipThreshold, courtshipDurationDays, marriageInitialStock, conceptionHealthFloor,
             conceptionRelationshipFloor, conceptionResourceFloor, maternalDeathRisk, infantDeathRisk,
             vitalityMotherWeight, vitalityFatherWeight, vitalityMutationStdDev, vitalityMortalityWeight,
             upbringingWealthWeight, environmentalWealthChannelEnabled, neutralDriftEnabled,
-            vitalityMortalitySelectionEnabled, maxCohabitationGroupSize, personalityHeritability));
+            vitalityMortalitySelectionEnabled, maxCohabitationGroupSize, personalityHeritability, bonds));
     }
 
     /// <summary>Delta declarado para o par (evento, eixo). Sem entrada correspondente
@@ -152,7 +175,7 @@ public sealed record FamilyRules(
 
     /// <summary>Multiplicador de mortalidade a partir de <c>Vitality</c> — <c>Vitality</c> acima
     /// do meio da escala reduz o multiplicador, abaixo aumenta; nunca produz saída negativa
-    /// (Error Handling do design). Chamado por <c>MortalityPlanner</c>/<c>MortalitySystem</c>
+    /// (Error Handling do design). Chamado por <c>MortalitySystem</c>
     /// quando <see cref="VitalityMortalitySelectionEnabled"/> é verdadeiro; com a flag
     /// desligada, <c>MortalitySystem</c> passa <c>1.0</c> direto sem chamar este método (split
     /// de <see cref="NeutralDriftEnabled"/>, que hoje controla só escolha de parceiro).</summary>
@@ -207,5 +230,9 @@ public sealed record FamilyRules(
         UpbringingWealthWeight: 0.0,
         EnvironmentalWealthChannelEnabled: false,
         NeutralDriftEnabled: false,
-        VitalityMortalitySelectionEnabled: true);
+        VitalityMortalitySelectionEnabled: true)
+    {
+        Unions = UnionRules.Disabled,
+        Names = NameBondRules.Off,
+    };
 }

@@ -19,6 +19,54 @@ using Microsoft.EntityFrameworkCore;
 if (args.Length == 6 && args[0] == "civ-report")
     return CivilizationReportCommand.Run(args[1], ulong.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), args[5]);
 
+// Demografia do cenário padrão de código (AD-130): `dotnet <dll> demography-report <seed-inicial> <seeds> <anos> <aquecimento>`.
+if (args.Length == 5 && args[0] == "demography-report")
+    return DemographyReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Traço neutro (AD-163, 08 item 2): `dotnet <dll> trait-drift <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "trait-drift")
+    return TraitDriftCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
+// Vida interior (AD-138): `dotnet <dll> cognition-report <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "cognition-report")
+    return CognitionReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
+// Mortes de fome e sede de um cenário JSON (AD-135): `dotnet <dll> scenario-deaths <cenario.json> <seed-inicial> <seeds> <anos>`.
+if (args.Length == 5 && args[0] == "scenario-deaths")
+    return ScenarioDeathsCommand.Run(args[1], ulong.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Mortes de fome com a situação da casa (AD-140): `dotnet <dll> starvation-trace <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "starvation-trace")
+    return StarvationTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
+// Sonda das mortes de sede (AD-147): `dotnet <dll> thirst-trace <seed> <anos>`.
+if (args.Length == 3 && args[0] == "thirst-trace")
+    return ThirstTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));
+
+// Sonda do cérebro (AD-160): `dotnet <dll> brain-trace <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "brain-trace")
+    return BrainTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
+// Sonda do abastecimento das casas (AD-148): `dotnet <dll> provision-trace <seed> <ano-inicial> <ano-final>`.
+if (args.Length == 4 && args[0] == "provision-trace")
+    return ProvisionTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
+// Exercício do espólio (AD-182, 08c item 155): `dotnet <dll> leavings-exercise <seed-inicial> <seeds> <anos> <horas>`.
+if (args.Length == 5 && args[0] == "leavings-exercise")
+    return LeavingsExerciseCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Sonda de uma pessoa (AD-182): `dotnet <dll> person-trace <seed> <npc> <anos>`.
+if (args.Length == 4 && args[0] == "person-trace")
+    return PersonTraceCommand.Run(ulong.Parse(args[1]), long.Parse(args[2]), int.Parse(args[3]));
+
+// Sonda da quebra de colheita (AD-166): `dotnet <dll> famine-trace <seed> <anos>`.
+if (args.Length == 3 && args[0] == "famine-trace")
+    return FamineTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));
+
+// Traço mensal da comida do cenário padrão (AD-135): `dotnet <dll> food-trace <seed> <anos>`.
+if (args.Length is 3 or 4 && args[0] == "food-trace")
+    return FoodTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), args.Length == 4 ? args[3] : null);
+
 // Sensor da issue #91: usa o mesmo carregador dos mundos criados pelo menu.
 if (args.Length == 3 && args[0] == "catalog-history-hash")
 {
@@ -90,6 +138,7 @@ if (args.Length == 3 && args[0] == "eventlog-digest")
 if (args.Length == 3 && args[0] == "player-hash")
 {
     var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]));
+    world.UsePlayers(LivingWorld.Workers.Ad196.Rules); // LW_AD196=off: o desaparecimento do AD-111
     var sink = new BufferingWorldEventSink();
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
     clock.Run(world, 96);
@@ -99,8 +148,9 @@ if (args.Length == 3 && args[0] == "player-hash")
     players.Act(world, "alan", LivingWorld.Domain.Behavior.ActionType.Idle);
     clock.Run(world, 48);
     players.Logout(world, "alan");
+    long? disappeared = npc.DisappearedAtTick; // depois alguém pode reencontrá-lo (PlayerSearchSystem): o tick fica o da saída
     clock.Run(world, long.Parse(args[2]));
-    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{npc.DisappearedAtTick}");
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{disappeared}");
     return 0;
 }
 
@@ -116,6 +166,11 @@ if (args.Length == 3 && args[0] == "disease-hash")
     return 0;
 }
 
+// AD-180: diagnóstico do tempo — `weather-diag calib <anos>` (gerador sozinho, calibração do índice da safra) ou
+// `weather-diag world <seed>` (um ano do mundo de código, por mês, contra a fonte).
+if (args.Length == 3 && args[0] == "weather-diag")
+    return LivingWorld.Workers.WeatherDiagCommand.Run(args[1], args[2]);
+
 // Hash canônico de uma vila com clima ligado (anos de safra por região): o teste de dois processos exige o mesmo hash.
 // `dotnet <dll> climate-hash <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "climate-hash")
@@ -127,10 +182,14 @@ if (args.Length == 3 && args[0] == "climate-hash")
 }
 
 // Hash canônico de uma vila com furto ligado (desespero, temperamento, sorteio, descoberta): o teste de dois processos exige o
-// mesmo hash. `dotnet <dll> theft-hash <seed> <ticks>`.
+// mesmo hash e os mesmos furtos (contados todos, vistos ou não). `dotnet <dll> theft-hash <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "theft-hash")
 {
-    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25));
+    // AD-135: vila dura sem rio por perto (a água de graça tiraria o desespero que leva ao furto); AD-140: e sem dízimo, que
+    // financia a esmola e tiraria o desespero do primeiro ano
+    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25),
+        naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Disabled,
+        economyRules: ScenarioRunner.DefaultEconomyRules with { SurplusDrawShare = 0 });
     int thefts = 0;
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: new TheftCounter(() => thefts++));
     clock.Run(world, long.Parse(args[2]));
@@ -320,6 +379,6 @@ internal sealed class TheftCounter(Action onTheft) : LivingWorld.Simulation.Core
 {
     public void Record(LivingWorld.Simulation.Core.WorldEvent evt)
     {
-        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftDiscovered) onTheft();
+        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftCommitted) onTheft(); // AD-150: todo furto (o descoberto é raro: precisa de quem viu)
     }
 }

@@ -159,9 +159,25 @@ public sealed partial class WorldState
             changed = true;
         }
 
+        // Horizonte dos livros: o agregado mensal mais velho que a retenção sai. Sem isso o livro crescia com a idade do
+        // mundo, não com o que ele tem hoje (#157).
+        long oldestMonth = today / daysPerMonth - (long)LedgerHistoryYears * Calendar.MonthsPerYear;
+        if (_tradeLedger.RemoveAll(e => e.Monthly && e.Period < oldestMonth) > 0) changed = true;
+
         if (!changed) return;
         _tradeLedger.Sort(TradeOrder);
         CanonicalHashCache.MarkPropertyDirty(nameof(TradeLedger));
+    }
+
+    /// <summary>Anos de livro (comércio e tesouro) que o mundo guarda em agregados mensais.</summary>
+    public const int LedgerHistoryYears = 10;
+
+    /// <summary>Tira do livro do tesouro os meses mais velhos que <see cref="LedgerHistoryYears"/>.</summary>
+    public void CompactTreasuryLedger(long today)
+    {
+        long oldestMonth = today / Calendar.DaysPerMonth - (long)LedgerHistoryYears * Calendar.MonthsPerYear;
+        if (_treasuryLedger.RemoveAll(e => e.Month < oldestMonth) > 0)
+            CanonicalHashCache.MarkPropertyDirty(nameof(TreasuryLedger));
     }
 
     /// <summary>Agregados diários da oficina no intervalo de dias (inclusive), em ordem de dia e recurso. O que já foi
