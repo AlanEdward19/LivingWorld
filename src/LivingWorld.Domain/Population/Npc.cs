@@ -896,6 +896,18 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>AD-197k: a posição fina do corpo conduzido pelo jogador dentro da grade (milésimos de célula, absolutos), o rumo em que
+    /// anda (milésimos, −1000..1000) e o instante dela. A célula, a parede, a porta e a ocupação seguem vindo da grade
+    /// (<see cref="CurrentLocation"/>). Omitida enquanto nula (quem nunca andou solto).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FinePose? Fine { get; private set; }
+
+    public void SetFine(FinePose? pose)
+    {
+        Fine = pose;
+        TouchCanonical();
+    }
+
     public void SetSocial(int social, long tick = 0)
     {
         SocialNeed = SocialNeed.WithValue(social, tick);

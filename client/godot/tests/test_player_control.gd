@@ -23,6 +23,7 @@ func _hud_with_channel() -> Array:
 		var body: Variant = {"npcId": 7, "playerId": "p-1"}
 		match String(command.command):
 			"move": body = {"playerId": "p-1", "npcId": 7, "x": 5 + int(command.dx), "y": 5 + int(command.dy)}
+			"walk": body = {"playerId": "p-1", "npcId": 7, "x": 5, "y": 5, "fx": 5.5, "fy": 5.5, "speedMps": 1.4, "cellMeters": 1.5}
 			"reach": body = {"offers": OFFERS}
 			"interact": body = {"kind": command.kind, "id": command.id, "verb": command.verb, "quantity": 1, "value": 4,
 				"sessionId": 77 if command.verb == "talk" else null, "pose": {"playerId": "p-1", "npcId": 7, "x": 5, "y": 5}}
@@ -85,20 +86,36 @@ func test_wasd_is_relative_to_where_the_camera_looks_and_goes_as_a_step_intent_t
 	eq(hud.intent_for(Vector2i(0, -1)), Vector2i(1, 0), "olhando para +x, W anda para +x")
 	eq(hud.intent_for(Vector2i(-1, 0)), Vector2i(0, -1), "e A para a esquerda do olhar")
 
-	var seen: Array = []
-	hud.predicted.connect(func(d: Vector2i): seen.append(["prevê", d]))
-	hud.confirmed.connect(func(x: int, y: int): seen.append(["motor", Vector2i(x, y)]))
-	var key := InputEventKey.new()
-	key.keycode = KEY_W
-	key.pressed = true
-	hud._unhandled_input(key)
-	for i in 4:
-		await tree.process_frame
+	eq(hud.step_seconds > 0.0, true)
+	await hud.step(1, 0) # o passo de uma célula (comando `move`) segue valendo
 	var channel = transport.channels.back()
 	var move: Dictionary = channel.sent.back()
 	eq([move.command, int(move.dx), int(move.dy)], ["move", 1, 0], "intenção pelo canal persistente, não posição")
-	eq(seen, [["prevê", Vector2i(1, 0)], ["motor", Vector2i(6, 5)]], "prevê já e corrige pela posição do motor")
-	check(hud.latency_median_ms() >= 0.0 and hud.latencies.size() >= 1, "latência medida do comando à confirmação")
+
+	# AD-197k: o passo solto: rumo contínuo pelo olhar, previsão já e correção pela posição fina do motor
+	hud.heading = func() -> Vector2: return Vector2(0, -1)
+	eq(hud.walk_direction(Vector2i(0, -1)), Vector2(0, -1), "W: o rumo do olhar")
+	check(hud.walk_direction(Vector2i(1, -1)).distance_to(Vector2(1, -1).normalized()) < 0.001, "W+D: diagonal contínua")
+	hud.set_process(false) # o teste faz o papel do quadro (sem teclas de verdade apertadas)
+	var fines: Array = []
+	hud.settled.connect(func(p: Vector2): fines.append(["motor", p]))
+	hud.glided.connect(func(p: Vector2): fines.append(["prevê", p]))
+	hud.glide(Vector2(1, 0), 0.016)
+	for i in 4:
+		await tree.process_frame
+	var walk: Dictionary = channel.sent.back()
+	eq([walk.command, int(walk.dx), int(walk.dy)], ["walk", 1000, 0], "o rumo vai em milésimos pelo canal")
+	eq(fines.back(), ["motor", Vector2(5.5, 5.5)], "a posição fina do motor manda")
+	check(is_equal_approx(hud.speed_cells, 1.4 / 1.5), "células por segundo pela velocidade do corpo (%s)" % hud.speed_cells)
+	hud.glide(Vector2(1, 0), 0.5)
+	check(fines.back()[0] == "prevê" and fines.back()[1].x > 5.5, "anda já na tela, antes da resposta")
+	for i in 4:
+		await tree.process_frame
+	hud.glide(Vector2.ZERO, 0.016)
+	for i in 4:
+		await tree.process_frame
+	eq([int(channel.sent.back().dx), int(channel.sent.back().dy)], [0, 0], "soltou a tecla: o rumo para")
+	check(hud.latency_median_ms() >= 0.0 and hud.latencies.size() >= 2, "latência medida do comando à confirmação")
 	eq(transport.count_calls("POST /players"), 0, "nada por HTTP com o canal aberto")
 	hud.queue_free()
 
@@ -201,8 +218,20 @@ func test_in_the_app_the_crosshair_strike_pace_and_resource_names_follow_the_eng
 	var entries: Array = PlayerHud.menu_entries(OFFERS, app.player_hud.resource_name_of)
 	eq(entries[0].text, "Banca: Comprar pão (4)", "o nome real do recurso no menu")
 
-	app.rig.set_cursor_captured(true)
-	eq(app.rig.cursor_captured, true, "Z prende o cursor no modo jogador")
+	eq(app.rig.cursor_captured, true, "AD-197k: no modo jogador o cursor já entra preso (o mouse olha sem botão)")
+	app.player_hud.show_menu([])
+	eq(app.rig.cursor_captured, false, "o menu de interações solta o cursor")
+	app.player_hud.close_menu()
+	eq(app.rig.cursor_captured, true, "fechado, prende de novo")
+	var z := InputEventKey.new()
+	z.keycode = KEY_Z
+	z.pressed = true
+	app.rig._unhandled_input(z)
+	eq(app.rig.cursor_captured, false, "Z solta para os menus")
+	app.rig._unhandled_input(z)
+	eq(app.rig.cursor_captured, true, "e Z prende de novo")
+	app.player_hud.settled.emit(Vector2(3.25, 1.5))
+	check(node.position.distance_to(Vector3(3.25, node.position.y, 1.5)) < 0.001 and node.driven, "o boneco anda pela posição fina")
 	await app.player_hud.logout()
 	eq([app.rig.mode, app.crosshair.visible, app.rig.cursor_captured], [app.rig.ISO, false, false], "saiu: isométrica, sem mira, cursor solto")
 	app.queue_free()

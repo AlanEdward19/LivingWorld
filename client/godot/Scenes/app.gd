@@ -564,6 +564,9 @@ func incarnate(id: int) -> void:
 	if await player_hud.incarnate(id, registry.person_name(id)):
 		selected_npc = id
 		follow(Registry.ref(Registry.PERSON, id))
+		var body = world_view.npc_nodes.get(id)
+		if body != null:
+			body.driven = true
 		rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
 		var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
 		if detail.ok and detail.body is Dictionary:
@@ -572,8 +575,25 @@ func incarnate(id: int) -> void:
 
 ## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
 func player_released() -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.driven = false
 	unfollow()
 	rig.set_mode(rig.ISO)
+
+
+## AD-197k: a posição fina do corpo (prevista ou a do motor) move o boneco do jogador.
+func _on_player_fine(at: Vector2) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.driven = true
+		node.set_fine(at)
+
+
+## AD-197k: menu de interações ou conversa abertos soltam o cursor; fechados (ainda no modo jogador), prendem de novo.
+func _on_player_menu(open: bool) -> void:
+	if rig.mode != rig.ISO:
+		rig.set_cursor_captured(not open)
 
 
 var _predicted_from := Vector2i.ZERO ## a célula de antes do passo previsto (a recusa volta para ela)
