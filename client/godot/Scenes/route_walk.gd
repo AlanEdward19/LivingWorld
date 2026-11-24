@@ -23,6 +23,7 @@ var position := Vector3.ZERO
 var heading := Vector3.ZERO
 var start_offset := Vector3.ZERO
 var done := false
+var taper := 0.0 ## 0 nas pontas e 1 no meio (o desvio de AD-197r some nas pontas: chega e sai do lugar exato)
 
 
 ## Monta a caminhada; false se não dá para andar (menos de duas células ou chegada antes da saída).
@@ -66,8 +67,8 @@ func step(tick: float) -> void:
 	var f := clampf((d - along[cursor]) / segment, 0.0, 1.0) if segment > 0.0 else 1.0
 	heading = b - a
 	position = a.lerp(b, f)
+	taper = clampf(minf(d, total - d) / 0.5, 0.0, 1.0) if total > 0.0 else 0.0
 	if total > 0.0 and heading.length_squared() > 0.0001:
-		var taper := clampf(minf(d, total - d) / 0.5, 0.0, 1.0)
 		position += Vector3(-heading.z, 0, heading.x).normalized() * LANE * taper
 	if d < BLEND:
 		position += start_offset * (1.0 - d / BLEND)

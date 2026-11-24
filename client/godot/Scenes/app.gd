@@ -587,6 +587,7 @@ func player_released() -> void:
 	if node != null:
 		node.driven = false
 		node.set_self(false)
+		node.set_first_person(false)
 	unfollow()
 	rig.set_mode(rig.ISO)
 	set_player_mode(false)
@@ -648,6 +649,10 @@ func _on_camera_mode(mode: String) -> void:
 	if crosshair != null:
 		crosshair.visible = mode != rig.ISO
 	set_player_mode(mode != rig.ISO and player_hud != null and player_hud.is_active)
+	if player_hud != null and player_hud.is_active: # AD-197r: o olho fica na altura da cabeça; na 1ª pessoa a própria cabeça não se desenha
+		var own = world_view.npc_nodes.get(player_hud.npc_id)
+		if own != null:
+			own.set_first_person(mode == rig.FIRST)
 
 
 ## AD-197p: no modo jogador some o que é do espectador (inspetor e lista à direita, acontecimentos, minimapa, avisos de

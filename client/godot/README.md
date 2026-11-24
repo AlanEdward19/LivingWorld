@@ -92,6 +92,8 @@ AD-197j (passo no tempo do corpo, escada, golpe animado, mira, cursor preso), co
 `bench` 169,2 → 169,1, `benchbig` 138,1 → 138,1, `benchrun` 59,2 → 58,5 FPS (ruído); 3ª pessoa 64,2.
 AD-197k (passo solto, olhar sem botão), contra `21c793fe` (medianas): `stress` 115,6 → 115,9, `bench` 176,7 → 176,1,
 `benchbig` 138,7 → 138,8, `benchrun` 60,2 → 59,8 FPS; 3ª pessoa 67,5. Passo solto: mediana 0,575 m/s; `walk` 0,086 ms no canal.
+AD-197r (câmera em passagem estreita, olhos pelo corpo, pessoas sem se sobrepor só no desenho), contra `e7727571` (medianas de 3): `stress` 115,5 → 115,6,
+`bench` 171,0 → 169,3, `benchbig` 136,2 → 136,8, `benchrun` 59,2 → 58,8; 3ª pessoa pareada (`tools/bench-third-paired.sh`, mesmo corpo) 118,8 → 118,7. `npc_avoid` 0,10 ms/quadro.
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
