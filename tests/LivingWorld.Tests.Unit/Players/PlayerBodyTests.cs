@@ -38,7 +38,7 @@ public class PlayerBodyTests
     [Fact]
     public void A_step_before_the_body_finishes_the_last_one_is_refused_and_walking_spends_energy()
     {
-        var (arm, npc, service) = Body(1, rules: PlayerRules.Default with { StepSleepPerHour = 600 }); // energia visível no inteiro
+        var (arm, npc, service) = Body(1, rules: PlayerRules.Default with { StepSleepPerHour = 100_000 }); // energia visível no inteiro (o passo leva ~1 s, ADR-0052)
         var w = arm.World;
         var (from, to) = OpenPair(w, npc);
         Place(w, npc, from);

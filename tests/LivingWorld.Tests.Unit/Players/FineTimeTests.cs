@@ -36,10 +36,11 @@ public class FineTimeTests
         Assert.NotNull(walker);
         var origin = walker!.CurrentLocation;
         var poses = new List<(long Ms, LivingWorld.Domain.Geography.CellCoord Cell)>();
-        while (walker.CurrentAction == ActionType.Travel && walker.CurrentLocation == origin && poses.Count < 6 * 60)
+        // ADR-0052: com 1,5 m por célula a viagem leva segundos, não horas: a pose é lida a cada 250 ms de mundo
+        while (walker.CurrentAction == ActionType.Travel && walker.CurrentLocation == origin && poses.Count < 6 * 60 * 240)
         {
             poses.Add((arm.World.CurrentDate.TotalMilliseconds, TravelPose.CellAt(arm.World, walker, arm.World.CurrentDate.TotalMilliseconds)));
-            arm.Clock.Tick(arm.World, Minute);
+            arm.Clock.Tick(arm.World, 250);
         }
 
         var cells = poses.Select(p => p.Cell).Distinct().ToList();
@@ -53,10 +54,16 @@ public class FineTimeTests
         var fine = Village(92, initialPopulation: 40);
         var hourly = Village(92, initialPopulation: 40);
 
-        fine.Clock.Run(fine.World, 6 * 60, Minute);
+        // ADR-0052: com 1,5 m por célula a viagem leva segundos e a ação seguinte logo a troca: olha-se a cada minuto, não só no fim
+        bool inside = false;
+        for (int i = 0; i < 6 * 60; i++)
+        {
+            fine.Clock.Tick(fine.World, Minute);
+            inside |= fine.World.Npcs.Any(n => n.ActionPhaseMs != 0);
+        }
         hourly.Clock.Run(hourly.World, 6);
 
-        Assert.Equal((true, 0), (fine.World.Npcs.Any(n => n.ActionPhaseMs != 0), hourly.World.Npcs.Count(n => n.ActionPhaseMs != 0)));
+        Assert.Equal((true, 0), (inside, hourly.World.Npcs.Count(n => n.ActionPhaseMs != 0)));
     }
 
     [Fact]

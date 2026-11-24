@@ -37,7 +37,8 @@ public static partial class ScenarioRunner
     private static readonly CostWeights DefaultCostWeights = new(
         // O grid procedural cresceu para materializar casas/workplaces; 1h por célula fazia uma
         // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
-        Base: 0.05, AltitudeWeight: 0.05,
+        // ADR-0052: a escala única (1,5 m por célula, 1,4 m/s): uma célula de terreno leve em ~1,07 s; a subida escala junto
+        Base: LivingWorld.Domain.Geography.WorldScale.CellBaseHours, AltitudeWeight: LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
         TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
 
     public static readonly CultureId DefaultCulture = new(1);
