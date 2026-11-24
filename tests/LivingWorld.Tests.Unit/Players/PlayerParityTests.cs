@@ -152,7 +152,7 @@ public class PlayerParityTests
     {
         var live = Village(13, initialPopulation: 40);
         string snapshot = WorldSnapshot.Serialize(live.World);
-        long start = live.World.CurrentDate.TotalHours;
+        long start = live.World.CurrentDate.TotalMilliseconds;
         var players = new PlayerService(live.Sink);
         var adults = live.World.Npcs.Where(n => n.IsAlive && n.Employer is not null).Take(2).ToList();
 
@@ -169,13 +169,13 @@ public class PlayerParityTests
         live.Clock.Run(live.World, 48);
         Assert.True(players.Logout(live.World, "ana").IsSuccess);
         live.Clock.Run(live.World, 24);
-        long end = live.World.CurrentDate.TotalHours;
+        long end = live.World.CurrentDate.TotalMilliseconds;
 
         var replayed = PlayerReplay.Run(snapshot, players.Log.Records, new WorldClock(ScenarioRunner.DefaultSystems(), sink: new AllEvents()),
             new AllEvents(), end);
 
         Assert.Equal(7, players.Log.Records.Count);
-        Assert.Equal(start, players.Log.Records[0].Tick);
+        Assert.Equal(start, players.Log.Records[0].AtMs);
         Assert.Equal(WorldSnapshot.CanonicalHash(live.World), WorldSnapshot.CanonicalHash(replayed));
     }
 

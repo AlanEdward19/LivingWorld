@@ -1,7 +1,8 @@
 # ADR-0050: mundo em tempo real com duração de tick variável
 
 - **Status**: aceito (dono, 2026-11-23: opção (b); padrão sem jogador rápido no ritmo do admin; contrato em versão nova).
-  Migração não começou (AD-197a só desenhou).
+  AD-197b fez a unidade em milissegundos, o Δ variável no relógio, o contrato v2 e o cliente ([time-in-milliseconds](../domain/time-in-milliseconds.md));
+  falta o modo fino com jogador (AD-197c).
 - **Data**: 2026-11-23
 - **Decisores**: dono do projeto; rascunho por agente
 
@@ -63,3 +64,7 @@ decorrido) e a decisão é por despertar agendado (`NpcWakeScheduler`), não var
 2. Sem jogador: rápido, no ritmo do admin; configurável por mundo.
 3. Contrato: versão nova (`openapi.v2`), campos em tick passam a segundos na versão nova; sem campos irmãos. O cliente Godot
    migra na mesma fatia; a versão antiga não é mantida em paralelo.
+4. **Milissegundos em vez de segundos** (2026-11-23, durante a AD-197b): o tempo de mundo é guardado em **milissegundos inteiros**,
+   para o tick fino de ~50 ms com jogador caber no motor (escolhido contra "segundo inteiro como mínimo"). Onde este ADR diz
+   segundos (`TotalSeconds`, Δ em segundos, campos do contrato em segundos), vale ms: `WorldDate.TotalMilliseconds`, Δ em ms
+   (divide 3.600.000), contrato v2 com `atMs`, `…AtMs`, `…Ms`, `tickDeltaMs`.

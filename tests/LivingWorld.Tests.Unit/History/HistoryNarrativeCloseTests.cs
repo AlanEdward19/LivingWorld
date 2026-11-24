@@ -42,9 +42,9 @@ public class HistoryNarrativeCloseTests
 
             Kill(world, w[0], ctx);
             Kill(world, w[1], ctx);
-            convertedBefore = world.Scheduler.HasDue(ctx.CurrentTick) ? 1 : 0;
+            convertedBefore = world.Scheduler.HasDue(ctx.CurrentMs) ? 1 : 0;
             Kill(world, w[2], ctx);
-            Assert.True(world.Scheduler.HasDue(ctx.CurrentTick));
+            Assert.True(world.Scheduler.HasDue(ctx.CurrentMs));
 
             FactToReportConversionScheduler.Convert(world, ctx, fact.Id, w[0].City);
             var report = world.FindCity(w[0].City)!.CanonSlots.Single();

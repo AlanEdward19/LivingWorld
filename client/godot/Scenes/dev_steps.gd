@@ -450,16 +450,16 @@ static func _demo(app: Node, which: String) -> void:
 		"crencas":
 			app.narrative.mode = "beliefs"; app.narrative.subject_name = "Alfa"; app.narrative.is_open = true; app.narrative.visible = true
 			app.narrative._title.text = "O que Alfa acredita"
-			app.narrative._render(ok.call([{"reportId": 1, "distortedMagnitude": 0.83, "distortedTick": 300, "seed": "A praga foi castigo dos vizinhos do norte", "distanceFromFact": 0.62},
-				{"reportId": 2, "distortedMagnitude": 0.41, "distortedTick": 900, "seed": "O rei morreu de fome", "distanceFromFact": 0.15}]))
+			app.narrative._render(ok.call([{"reportId": 1, "distortedMagnitude": 0.83, "distortedAtMs": 300 * 3600000, "seed": "A praga foi castigo dos vizinhos do norte", "distanceFromFact": 0.62},
+				{"reportId": 2, "distortedMagnitude": 0.41, "distortedAtMs": 900 * 3600000, "seed": "O rei morreu de fome", "distanceFromFact": 0.15}]))
 		"relatos":
 			app.narrative.mode = "reports"; app.narrative.is_open = true; app.narrative.visible = true
 			app.narrative._title.text = "Relatos que circulam"
 			app.narrative._render(ok.call([{"reportId": 1, "originFactId": 5, "medium": "Song", "confidence": 0.82}, {"reportId": 2, "originFactId": 8, "medium": "Book", "confidence": 0.25}]))
 		"tecnologias":
 			app.technology.is_open = true; app.technology.visible = true
-			app.technology._render(ok.call([{"category": "mobilidade", "vector": [2, 4, 6], "key": "2.4.6", "discoveredAtTick": 500, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1},
-				{"category": "mobilidade", "vector": [3, 4, 6], "key": "3.4.6", "discoveredAtTick": 800, "isVariation": true, "variationOfKey": "2.4.6", "adoptedByCities": 3}]))
+			app.technology._render(ok.call([{"category": "mobilidade", "vector": [2, 4, 6], "key": "2.4.6", "discoveredAtMs": 500 * 3600000, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1},
+				{"category": "mobilidade", "vector": [3, 4, 6], "key": "3.4.6", "discoveredAtMs": 800 * 3600000, "isVariation": true, "variationOfKey": "2.4.6", "adoptedByCities": 3}]))
 		"tesouro":
 			app.economy.mode = "treasury"; app.economy.is_open = true; app.economy.visible = true; app.economy._title.text = "Tesouro de Alfa"
 			app.economy._render(ok.call({"cityId": "x", "balance": 1902, "fromDay": 0, "toDay": 359, "months": [{"month": 0, "revenue": 46, "spending": 0}, {"month": 1, "revenue": 52, "spending": 30}, {"month": 2, "revenue": 40, "spending": 80}]}))

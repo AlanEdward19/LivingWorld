@@ -52,7 +52,7 @@ public class CropLifecycleTests
 
     private static void Finish(WorldState world, ResourceProcess process)
     {
-        world.CurrentDate = new WorldDate(Calendar, process.CompletesAtTick);
+        world.CurrentDate = WorldDate.FromHours(Calendar, process.CompletesAtTick);
         new ResourceProcessSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
     }
 
@@ -91,7 +91,7 @@ public class CropLifecycleTests
         var (world, npc, household) = Farm();
         var planted = CropSystem.Plant(world, npc, 0, 1, waterRequired: 2).Value!;
         Finish(world, planted);
-        world.CurrentDate = new WorldDate(Calendar, 4);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 4);
 
         var harvested = CropSystem.Harvest(world, npc, 4, 10);
 
@@ -109,7 +109,7 @@ public class CropLifecycleTests
         Assert.True(watered.IsSuccess);
         Finish(world, watered.Value!);
 
-        world.CurrentDate = new WorldDate(Calendar, 3);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 3);
         var harvested = CropSystem.Harvest(world, npc, 3, quantity: 10);
         Assert.True(harvested.IsSuccess);
         Finish(world, harvested.Value!);
@@ -167,7 +167,7 @@ public class CropLifecycleTests
             new Dictionary<ResourceType, long>(), new Money(0), new Dictionary<ResourceType, long>()));
         world.AddCropBatch(new CropBatch(
             world.NextCropBatchIdAndAdvance(), 1, plot, 0, 0, waterRequired: 0, waterDelivered: 0, CropStatus.Mature));
-        world.CurrentDate = new WorldDate(Calendar, 24);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 24);
 
         new CropSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
@@ -206,7 +206,7 @@ public class CropLifecycleTests
         var scope = new VisualScope(VisualScopeKind.World, "");
 
         var before = LivingScopeProjector.Build(world, scope);
-        world.CurrentDate = new WorldDate(Calendar, 3);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 3);
         var after = LivingScopeProjector.Build(world, scope);
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(3, before, after));
 

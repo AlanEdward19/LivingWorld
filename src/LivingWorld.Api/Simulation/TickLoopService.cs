@@ -23,7 +23,8 @@ public sealed class TickLoopService(
     RealtimeGateway gateway,
     SavedWorldLibrary library,
     BufferingWorldEventSink sink,
-    LivingWorld.Api.Visual.Observable.PresentationNameResolver names) : IHostedService
+    LivingWorld.Api.Visual.Observable.PresentationNameResolver names,
+    LivingWorld.Simulation.Players.PlayerService players) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
     private ScopeProjectionFrame? _lastFrame; // AD-172: o NPC que não mudou reaproveita o registro do tick anterior
@@ -77,9 +78,10 @@ public sealed class TickLoopService(
         }
 
         var world = worldHost.Current;
-        worldHost.Clock.Tick(world);
+        // ADR-0050: Δ em vigor no registro (uma hora salvo troca pedida pelo admin); o save diário só na virada da hora 0
+        worldHost.Clock.Tick(world, players.Log.TickDeltaMs);
         PublishDeltas(world);
-        if (world.CurrentDate.TotalHours % 24 == 0)
+        if (world.CurrentDate.MillisecondOfHour == 0 && world.CurrentDate.TotalHours % 24 == 0)
             library.Save(world);
     }
 

@@ -64,7 +64,7 @@ public class WaterLogisticsTests
 
     private static void Finish(WorldState world, ResourceProcess process)
     {
-        world.CurrentDate = new WorldDate(Calendar, process.CompletesAtTick);
+        world.CurrentDate = WorldDate.FromHours(Calendar, process.CompletesAtTick);
         new ResourceProcessSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
     }
 
@@ -116,7 +116,7 @@ public class WaterLogisticsTests
         var source = new CellCoord(1, 0);
         long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, source);
 
-        world.CurrentDate = new WorldDate(Calendar, ticksNeeded - 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, ticksNeeded - 1);
         Assert.Equal(new CellCoord(0, 0), npc.CurrentLocation);
         Assert.False(WaterLogistics.Collect(world, npc, world.CurrentDate.TotalHours).IsSuccess);
 
@@ -189,7 +189,7 @@ public class WaterLogisticsTests
         var (world, npc, _) = Build(withWater: true);
         npc.MoveTo(new CellCoord(1, 0), 0);
         var collect = WaterLogistics.Collect(world, npc, 0).Value!;
-        world.CurrentDate = new WorldDate(Calendar, 0);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 0);
         var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         npc.JoinCity(city.Id);
@@ -215,7 +215,7 @@ public class WaterLogisticsTests
         var scope = new VisualScope(VisualScopeKind.World, "");
 
         var before = LivingScopeProjector.Build(world, scope);
-        world.CurrentDate = new WorldDate(Calendar, 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 1);
         var after = LivingScopeProjector.Build(world, scope);
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(1, before, after));
 

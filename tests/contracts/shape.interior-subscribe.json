@@ -3,9 +3,9 @@
     "number"
   ],
   "cursor": {
+    "atMs": "number",
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "sequence": "number"
   },
   "mode": "number",
   "payload": {

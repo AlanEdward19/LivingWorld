@@ -1,6 +1,7 @@
 extends RefCounted
 ## Obras em andamento do escopo Cidade (AD-193): `livingState.works` no retrato e `workUpserts`/`workRemoved` no delta. Só guarda o
 ## que o motor diz (fração, turma, quem está no lote, o que falta, por que parou); nenhuma regra de obra aqui.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 const HALT_TEXT := {
 	"tempo": "chuva forte, neve ou chão congelado no lote: hoje ninguém trabalha nem conta hora",
@@ -35,7 +36,7 @@ static func parse(raw: Dictionary) -> Dictionary:
 		"hours_total": int(raw.get("hoursTotal", 0)), "hours_left": int(raw.get("hoursLeft", 0)),
 		"hours_crew": int(raw.get("hoursByCrew", 0)), "hours_helpers": int(raw.get("hoursByHelpers", 0)),
 		"haul_left": int(raw.get("haulHoursLeft", 0)), "paid": int(raw.get("paid", 0)), "spent": int(raw.get("spent", 0)),
-		"offer_pm": int(raw.get("offerPm", 1000)), "started": int(raw.get("startedTick", 0)), "last_worked": int(raw.get("lastWorkedTick", 0)),
+		"offer_pm": int(raw.get("offerPm", 1000)), "started": WorldTime.hours_of(raw, "startedAtMs"), "last_worked": WorldTime.hours_of(raw, "lastWorkedAtMs"),
 		"materials": materials,
 	}
 

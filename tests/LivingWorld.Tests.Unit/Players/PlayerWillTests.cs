@@ -169,7 +169,7 @@ public class PlayerWillTests
             service.Act(w, "alan", i % 2 == 0 ? ActionType.Socialize : ActionType.Idle);
             arm.Clock.Run(w, 7);
         }
-        long end = w.CurrentDate.TotalHours;
+        long end = w.CurrentDate.TotalMilliseconds;
 
         var replayed = PlayerReplay.Run(snapshot, service.Log.Records,
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: new BufferingWorldEventSink()), new BufferingWorldEventSink(), end);

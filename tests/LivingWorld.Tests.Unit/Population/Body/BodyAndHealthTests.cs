@@ -294,11 +294,11 @@ public class BodyAndHealthTests
     public void Nursing_makes_the_mothers_hunger_fall_faster()
     {
         var (world, mother, _, _) = NursingFamily();
-        double before = mother.HungerNeed.DecayRatePerTick;
+        double before = mother.HungerNeed.DecayRatePerHour;
 
         Lactation.RefreshHungerCost(world, mother, world.CurrentDate.TotalHours);
 
-        Assert.True(mother.HungerNeed.DecayRatePerTick > before * 1.2);
+        Assert.True(mother.HungerNeed.DecayRatePerHour > before * 1.2);
     }
 
     [Fact]

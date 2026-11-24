@@ -17,7 +17,7 @@ const Validator := preload("res://Contract/shape_validator.gd")
 func test_route_departed_tick_is_the_start_and_entering_mid_trip_lands_on_the_route() -> void:
 	var app = await S.city_app(tree)
 	var walker := S.walk_payload(9, S.xy([[0, 3], [1, 3], [2, 3], [3, 3], [4, 3]]), 15, 20)
-	walker["routeDepartedTick"] = 10
+	walker["routeDepartedAtMs"] = 10 * 3600000
 	walker["observable"] = O.observable("Caio")
 	app.world_view.npcs.clock.tick = 15.0
 	app.stream.delta_applied.emit(S.delta(15, {"npcUpserts": [walker]}))
@@ -30,7 +30,7 @@ func test_route_departed_tick_is_the_start_and_entering_mid_trip_lands_on_the_ro
 func test_route_over_cells_walk_on_the_roof_of_the_building_below() -> void:
 	var app = await S.city_app(tree)
 	var walker := S.walk_payload(9, S.xy([[0, 1], [1, 1], [2, 1], [3, 1]]), 0, 30)
-	walker["routeDepartedTick"] = 0
+	walker["routeDepartedAtMs"] = 0
 	walker["routeOver"] = [1, 2, 99]
 	walker["observable"] = O.observable("Caio")
 	eq(Validator.validate(walker.routeOver, Validator.load_shape("visual-delta").payload.npcUpserts[0]["routeOver?"]), [], "forma")
@@ -66,7 +66,7 @@ func test_lot_access_geometry_state_and_neighbour_are_drawn_and_listed() -> void
 
 
 func test_event_motive_shows_in_title_and_sheet_but_never_in_record_only() -> void:
-	var raw := {"eventId": 5, "kind": 30, "label": "Herança repartida", "tick": 3, "involved": {"subjectId": 7, "otherId": 8,
+	var raw := {"eventId": 5, "kind": 30, "label": "Herança repartida", "atMs": 3 * 3600000, "involved": {"subjectId": 7, "otherId": 8,
 		"motive": "xara", "recordOnly": false}}
 	var event := Parse.event(raw, 0)
 	eq(event.involved.motive, "xara")
@@ -75,7 +75,7 @@ func test_event_motive_shows_in_title_and_sheet_but_never_in_record_only() -> vo
 	registry.remember_event(event)
 	var sheet := Describe.event(registry, 5, func(_t): return "dia 1")
 	check("Motivo: leva o nome de quem morreu" in String(sheet.text), sheet.text)
-	var hidden := Parse.event({"eventId": 6, "kind": 31, "label": "x", "tick": 3, "involved": {"motive": "ciume", "recordOnly": true, "caseId": 2}}, 0)
+	var hidden := Parse.event({"eventId": 6, "kind": 31, "label": "x", "atMs": 3 * 3600000, "involved": {"motive": "ciume", "recordOnly": true, "caseId": 2}}, 0)
 	check(not "ciúme" in registry.event_title(hidden), "registro só de crime não mostra motivo")
 	eq(Registry.motive_text("algo-novo"), "algo novo", "motivo desconhecido vai como veio")
 

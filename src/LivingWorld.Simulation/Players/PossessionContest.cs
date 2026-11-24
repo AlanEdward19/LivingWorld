@@ -1,6 +1,7 @@
 using System.Globalization;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
@@ -86,7 +87,8 @@ public static class PossessionContest
     {
         if (!On(world)) return;
         long now = ctx.CurrentTick;
-        npc.SetWill(new WillContest(now, Resistance(world, npc, now), now, Controlled: true, LastCheckTick: now));
+        long nowMs = WorldMillis.FromHours(now);
+        npc.SetWill(new WillContest(nowMs, Resistance(world, npc, now), nowMs, Controlled: true, LastCheckMs: nowMs));
     }
 
     /// <summary>A posse acabou (saída, expulsão): o cansaço fica e recupera solto; sem cansaço não sobra nada para guardar (a posse
@@ -97,14 +99,15 @@ public static class PossessionContest
         double left = Resistance(world, npc, tick);
         npc.SetWill(left >= Willpower(world, npc, tick) && npc.Will.LastPersuadedTick < 0
             ? null
-            : new WillContest(npc.Will.SinceTick, left, tick, Controlled: false));
+            : new WillContest(npc.Will.SinceMs, left, WorldMillis.FromHours(tick), Controlled: false));
     }
 
     internal static void Shift(WorldState world, Npc npc, long tick, double delta, bool persuaded = false)
     {
         if (npc.Will is not { Controlled: true } contest) return;
         double now = Math.Clamp(Resistance(world, npc, tick) + delta, 0, 100);
-        npc.SetWill(contest with { Resistance = now, AtTick = tick, LastPersuadedTick = persuaded ? tick : contest.LastPersuadedTick });
+        long tickMs = WorldMillis.FromHours(tick);
+        npc.SetWill(contest with { Resistance = now, AtMs = tickMs, LastPersuadedMs = persuaded ? tickMs : contest.LastPersuadedMs });
     }
 
     /// <summary>Quem possui tenta convencer a pessoa a ceder: tira resistência (amabilidade dela), uma vez por hora.</summary>
@@ -135,6 +138,6 @@ public static class PossessionContest
                 string.Create(CultureInfo.InvariantCulture, $"{npc.Id.Value}|{now - since}|{resistance:0}|{control:0}"), PossessionSystem.SystemName);
             return;
         }
-        npc.SetWill(contest with { Struggle = struggle, LastCheckTick = now });
+        npc.SetWill(contest with { Struggle = struggle, LastCheckMs = WorldMillis.FromHours(now) });
     }
 }

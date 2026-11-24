@@ -120,7 +120,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
                 continue;
 
             var energy = animal.Energy;
-            if (Math.Abs(energy.DecayRatePerTick - rules.HungerDecayPerTick) > double.Epsilon)
+            if (Math.Abs(energy.DecayRatePerHour - rules.HungerDecayPerTick) > double.Epsilon)
                 energy = energy.WithDecayRate(rules.HungerDecayPerTick, tick);
 
             if (energy.ValueAt(tick) > 0)

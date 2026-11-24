@@ -50,7 +50,7 @@ public class RealtimeGatewayEndpointTests
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/visual/replay?scope=City&refId=1&mode=Spectator&sinceTick=0&sinceSequence=0");
+        var response = await client.GetAsync("/visual/replay?scope=City&refId=1&mode=Spectator&sinceMs=0&sinceSequence=0");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var deltas = await response.Content.ReadFromJsonAsync<List<object>>();
@@ -63,7 +63,7 @@ public class RealtimeGatewayEndpointTests
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/visual/replay?scope=World&mode=Player&sinceTick=0&sinceSequence=0");
+        var response = await client.GetAsync("/visual/replay?scope=World&mode=Player&sinceMs=0&sinceSequence=0");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -77,7 +77,7 @@ public class RealtimeGatewayEndpointTests
 
         var client = _factory.CreateClient();
         await client.GetAsync("/visual/subscribe?scope=World&mode=Spectator");
-        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceTick=0&sinceSequence=0");
+        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceMs=0&sinceSequence=0");
 
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
     }

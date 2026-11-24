@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using LivingWorld.Domain.Shared;
+
 namespace LivingWorld.Domain.Population;
 
 /// <summary>Como o controlador conduz o corpo (AD-197e, decisão do dono de 2026-11-23). A mesma base serve para o jogador que
@@ -24,6 +27,23 @@ public sealed record CaptiveMind(long SinceTick, int Objections = 0, int Distres
 /// solta, recupera até a força de vontade dela. <see cref="SinceTick"/> é o começo da posse atual (a força do controle cresce com
 /// ela); <see cref="Struggle"/> conta as checagens seguidas em que a vontade passou do controle (expulsa ao chegar ao limite);
 /// <see cref="LastPersuadedTick"/> limita a persuasão a uma por hora; <see cref="LastCheckTick"/> é a última checagem de expulsão
-/// (feita quando o possuído desperta). Lido preguiçosamente, sem passo por tick.</summary>
-public sealed record WillContest(long SinceTick, double Resistance, long AtTick, bool Controlled, int Struggle = 0, long LastPersuadedTick = -1,
-    long LastCheckTick = -1);
+/// (feita quando o possuído desperta). Lido preguiçosamente, sem passo por tick. ADR-0050: os instantes são guardados em ms
+/// (<c>…Ms</c>; no save e no hash, com os nomes e as horas de antes na hora cheia, e "nunca" = a hora -1); as leituras do
+/// motor são por hora (<c>…Tick</c>, piso).</summary>
+public sealed record WillContest(
+    [property: JsonPropertyName("SinceTick"), JsonConverter(typeof(HourCompatibleMillisJsonConverter))] long SinceMs,
+    double Resistance,
+    [property: JsonPropertyName("AtTick"), JsonConverter(typeof(HourCompatibleMillisJsonConverter))] long AtMs,
+    bool Controlled,
+    int Struggle = 0,
+    [property: JsonPropertyName("LastPersuadedTick"), JsonConverter(typeof(HourCompatibleMillisJsonConverter))] long LastPersuadedMs = WillContest.Never,
+    [property: JsonPropertyName("LastCheckTick"), JsonConverter(typeof(HourCompatibleMillisJsonConverter))] long LastCheckMs = WillContest.Never)
+{
+    /// <summary>"Nunca": a hora -1 em ms (no save, -1 como antes).</summary>
+    public const long Never = -WorldMillis.PerHour;
+
+    [JsonIgnore] public long SinceTick => WorldMillis.ToHourFloor(SinceMs);
+    [JsonIgnore] public long AtTick => WorldMillis.ToHourFloor(AtMs);
+    [JsonIgnore] public long LastPersuadedTick => WorldMillis.ToHourFloor(LastPersuadedMs);
+    [JsonIgnore] public long LastCheckTick => WorldMillis.ToHourFloor(LastCheckMs);
+}
