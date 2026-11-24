@@ -254,9 +254,8 @@ static func covering(from: Vector3, body: Vector3, boxes: Array) -> Dictionary:
 	var out := {}
 	for entry in boxes:
 		var box: AABB = entry[1]
-		if box.has_point(body) or box.has_point(from):
-			continue
-		if box.intersects_segment(from, body) != null:
+		# o prédio em que o corpo está (ou em que a câmera ficou) também abre: de dentro, a parede e o telhado cobririam tudo
+		if box.has_point(body) or box.has_point(from) or box.intersects_segment(from, body) != null:
 			out[entry[0]] = true
 	return out
 

@@ -125,6 +125,7 @@ func _init() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size.x = 560
 	_status.modulate = Color(1, 1, 1, 0.8)
+	_status.visible = false
 	box.add_child(_status)
 	refresh_labels()
 
@@ -724,6 +725,7 @@ func _sync_buttons() -> void:
 func _set_status(text: String) -> void:
 	status_text = text
 	_status.text = text
+	_status.visible = text != "" # AD-197p: sem linha vazia no HUD compacto
 
 
 func _incarnate_error(response: Dictionary) -> String:

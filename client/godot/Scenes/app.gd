@@ -269,6 +269,8 @@ func _on_events(events: Array) -> void:
 		ids.append(int(event.id))
 	if timeline != null:
 		timeline.refresh()
+		if player_mode:
+			timeline.visible = false # AD-197p: a lista de acontecimentos é do espectador
 	director.on_events(ids)
 	FrameCost.add("events", started) # AD-189: diagnóstico do bench
 
@@ -674,14 +676,25 @@ func set_player_mode(on: bool) -> void:
 			timeline.visible = _timeline_was_visible
 	if tooltip != null and on:
 		tooltip.visible = false
+	if world_view != null and world_view.events != null:
+		world_view.events.visible = not on # AD-197p: os marcadores de acontecimento (alfinetes) são do espectador
 	if help_label != null:
 		help_label.text = AppUi.PLAYER_HELP if on else AppUi.HELP
 	if on:
 		toasts.clear_events()
 	# AD-197p: o HUD do jogador vai para o canto, sem a coluna da lista à esquerda nem o inspetor à direita; os avisos, discretos,
 	# centralizados acima do rodapé (não cobrem a mira nem se sobrepõem a painel)
-	player_hud.offset_left = 12 if on else 310
-	player_hud.offset_right = -12 if on else -316
+	if on:
+		player_hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		player_hud.offset_left = 12
+		player_hud.offset_top = 60
+		player_hud.offset_right = 12
+		player_hud.offset_bottom = 60
+	else:
+		player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		player_hud.offset_left = 310
+		player_hud.offset_right = -316
+		player_hud.offset_top = 60
 	toasts.compact = on
 	if on:
 		toasts.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
