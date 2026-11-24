@@ -3,7 +3,8 @@ namespace LivingWorld.Workers;
 /// <summary>AD-196, só para os relatórios: <c>LW_AD196=off</c> volta o desaparecimento e a volta ao AD-111 (vínculo de parente
 /// sempre 100, procura de 30 dias para todos, sem luto nem reencontro na psique, encarnação no log do mundo, sem política de
 /// abandono nem poder pelo jogador). AD-197f: <c>LW_AD197F=off|nowill|nostrange|noreact</c> desliga a posse como disputa de
-/// vontade, o estranhamento ou a reação (uma regra por vez, ou todas). O mundo sem jogador não muda com as chaves.</summary>
+/// vontade, o estranhamento ou a reação (uma regra por vez, ou todas). AD-197c: <c>LW_AD197C=off</c> deixa o Δ fino andar só o
+/// relógio (decisão, ação e rota de hora em hora, como na AD-197b). O mundo sem jogador não muda com as chaves.</summary>
 public static class Ad196
 {
     public static LivingWorld.Domain.Population.PlayerRules? Rules
@@ -20,9 +21,12 @@ public static class Ad196
                 "noreact" => possession with { Reaction = false },
                 _ => possession,
             };
-            return possession == LivingWorld.Domain.Population.PossessionRules.Default
+            var time = Environment.GetEnvironmentVariable("LW_AD197C") == "off"
+                ? LivingWorld.Domain.Population.TimeRules.Default with { FineDecisions = false }
+                : LivingWorld.Domain.Population.TimeRules.Default;
+            return possession == LivingWorld.Domain.Population.PossessionRules.Default && time == LivingWorld.Domain.Population.TimeRules.Default
                 ? null
-                : LivingWorld.Domain.Population.PlayerRules.Default with { Possession = possession };
+                : LivingWorld.Domain.Population.PlayerRules.Default with { Possession = possession, Time = time };
         }
     }
 }

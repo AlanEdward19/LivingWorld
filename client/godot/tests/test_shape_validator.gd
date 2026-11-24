@@ -16,12 +16,12 @@ func test_rejects_missing_and_mistyped_fields() -> void:
 
 	eq(ShapeValidator.validate(good, shape), [], "resposta fiel ao contrato é aceita")
 
+	var key: String = shape.keys().filter(func(k): return not String(k).ends_with("?"))[0] # o primeiro obrigatório
 	var missing := good.duplicate(true)
-	missing.erase(shape.keys()[0])
+	missing.erase(key)
 	check(not ShapeValidator.validate(missing, shape).is_empty(), "campo ausente é rejeitado")
 
 	var wrong := good.duplicate(true)
-	var key: String = shape.keys()[0]
 	wrong[key] = [] if not (shape[key] is Array) else "texto"
 	check(not ShapeValidator.validate(wrong, shape).is_empty(), "tipo diferente é rejeitado")
 

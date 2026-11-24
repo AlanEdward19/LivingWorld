@@ -28,7 +28,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// bloqueia no local atual em vez de teleportar.</summary>
 [LivingCapability("BEHAVIOR", Events = [WorldEventKind.TheftDiscovered], Consumers = ["map.npc.action"])]
 [RunsAfter(typeof(NeedsDecaySystem))]
-public sealed partial class BehaviorDecisionSystem : ISimulationSystem
+public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
 {
     public const string SystemName = "behavior-decision";
 
@@ -82,6 +82,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var rules = world.NeedsRules;
         var catalog = world.ActionCatalog;
         long now = ctx.CurrentTick;
+        long nowMs = world.CurrentDate.TotalMilliseconds; // AD-197c: no passo fino, ação começa e termina dentro da hora
+        bool fine = world.FineTime;
         var marketIndex = MarketIndex.BuildForTick(world);
         var laborIndex = LaborValueIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
@@ -130,7 +132,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             long startedBefore = npc.ActionStartedAtTick;
             bool justCompleted = TryCompleteAction(
-                world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
+                world, npc, rules, catalog, now, nowMs, marketIndex, ctx, occupancy,
                 cityPopulationCache, cityBoundsCache);
             SettleCarried(world, npc, now); // AD-147: devolve em casa; longe, bebe do que leva se a sede é crítica
 
@@ -142,7 +144,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 chosen = delegated;
                 if (justCompleted || chosen != npc.CurrentAction)
                 {
-                    npc.SetCurrentAction(chosen, now);
+                    StartAction(npc, chosen, now, nowMs, fine);
                     ctx.LogEvent(
                         WorldEventKind.ExtraordinaryEffectApplied,
                         $"{npc.Id.Value}|possessed-action|{chosen}", sourceSystem: SystemName);
@@ -286,7 +288,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         if (buySource == 1) world.PurchaseTally.BuyByUtility++;
                         else world.PurchaseTally.BuyByRestock++;
                     }
-                    npc.SetCurrentAction(chosen, now);
+                    StartAction(npc, chosen, now, nowMs, fine);
                     if (chosen == ActionType.UsePower && pendingPower is not null)
                         npc.PendingPowerInvocation = pendingPower;
                     if (chosen is ActionType.Buy or ActionType.Eat)
@@ -325,7 +327,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         && MaterializationSystem.HasFullCosmeticDetail(world, npc);
 
     private static bool TryCompleteAction(
-        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
+        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now, long nowMs,
         MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
         Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
@@ -344,7 +346,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             long ticksNeeded = Mobility.TravelTicks(
                 world, npc, npc.CurrentLocation, destination,
                 BodyMechanic.MovementCostMultiplier(world, npc));
-            if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
+            if (Underway(nowMs, npc.ActionStartedAtMs, ticksNeeded)) return false; // AD-197c: em ms (= horas na hora cheia)
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 
             // AD-141: quem atravessou água a pé sente o tempo perdido; quem foi na embarcação da casa, não
@@ -356,7 +358,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             return true;
         }
 
-        if (now - npc.ActionStartedAtTick < LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)) return false;
+        if (Underway(nowMs, npc.ActionStartedAtMs, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog))) return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
@@ -380,6 +382,18 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             LivingWorld.Simulation.Cities.Streets.SiteWork.Clock(world, ctx, npc, startedAt, now); // AD-179, AD-184 (ajudante)
         if (learn) BrainLearnOnCompletion(world, npc, action, felt, startedAt, now, ctx);
         return true;
+    }
+
+    /// <summary>AD-197c: a ação começada em <paramref name="startedMs"/> ainda não cumpriu <paramref name="hours"/> horas. Na hora cheia
+    /// é a conta de antes em horas (<c>now - início &lt; duração</c>).</summary>
+    internal static bool Underway(long nowMs, long startedMs, long hours) =>
+        hours >= long.MaxValue / WorldMillis.PerHour || nowMs - startedMs < hours * WorldMillis.PerHour;
+
+    /// <summary>AD-197c: no passo fino a ação começa no instante do tick (dentro da hora); de hora em hora, na hora cheia, como antes.</summary>
+    private static void StartAction(Npc npc, ActionType action, long now, long nowMs, bool fine)
+    {
+        if (fine) npc.SetCurrentActionAtMs(action, nowMs);
+        else npc.SetCurrentAction(action, now);
     }
 
     private static BrainMechanic.Felt FeltNow(WorldState world, Npc npc, long now) =>

@@ -163,6 +163,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	var calendar: Dictionary = await api.world_calendar()
 	if calendar.ok:
 		day_cycle.set_calendar(calendar.body)
+		player_hud.hours_per_day = int(day_cycle.hours_per_day) # AD-197c: a hora de acordar vai até o fim do dia do mundo
 	await clock_panel.refresh()
 	await _load_world_info()
 	await stream.subscribe("World")
@@ -183,6 +184,8 @@ func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), float(status.ticksPerSecond), bool(status.isPaused))
 	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
+	if player_hud.is_active: # AD-197c: o ritmo e os controles de dormir e acelerar, como o motor os diz
+		player_hud.refresh_time()
 	if not bool(status.isPaused):
 		admin_window.note_running()
 	pause_label.text = admin_window.pause_banner(status)

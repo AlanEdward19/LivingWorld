@@ -2,7 +2,7 @@
 
 O tempo do mundo é guardado em **milissegundos inteiros** (decisão do dono, 2026-11-23: o tick fino de ~50 ms com jogador tem de
 caber no motor). Cada tick avança **Δ** ms. Sem jogador (e hoje em produção) Δ = 3.600.000 (uma hora); o modo fino com jogador é a
-AD-197c. Ver também [time-and-ticks.md](time-and-ticks.md).
+AD-197c ([real-time-rhythm](real-time-rhythm.md)). Ver também [time-and-ticks.md](time-and-ticks.md).
 
 ## Regras do relógio
 - `WorldDate.TotalMilliseconds` é o estado; `TotalHours` (piso, também antes da época), `Hour`, `Day`, `Month`, `Year` são
@@ -46,22 +46,20 @@ AD-197c. Ver também [time-and-ticks.md](time-and-ticks.md).
 ## Determinismo e replay
 Mesma seed + mesmas entradas + **mesma sequência de Δ** = mesmo mundo. A troca de Δ vai para o `PlayerSessionLog` (`TickDelta`, no
 instante) e o `players.log`; base nova com Δ ≠ 1 h começa com ele (sequência -1). `PlayerReplay` roda cada trecho com o Δ em vigor,
-parando nas horas cheias como o hospedeiro. Avanço do admin (`step`, `advance-year`) ainda não entra no registro: com o motor desta
-fatia isso não muda o mundo (ver abaixo); na AD-197c tem de entrar.
+parando nas horas cheias como o hospedeiro. AD-197c: o avanço do admin (`step`, `advance-year`) e o pulo de tempo do jogador também
+entram no registro ([real-time-rhythm](real-time-rhythm.md)).
 
-## Δ menor: onde o mundo é o mesmo e onde deixará de ser
-Provado (`TickDeltaEquivalenceTests`): o mesmo mundo sem entradas, em ticks de 1 h ou de 1 min, 15 min e 50 ms, chega ao **mesmo
-hash canônico**. Não é truque: tudo que decide ainda conta em horas e só roda na hora cheia, e o que já é ms dá a mesma conta na hora
-cheia. Deixará de ser igual quando a decisão ficar fina (AD-197c), por construção:
+## Δ menor: onde o mundo é o mesmo e onde deixa de ser
+Com a decisão fina desligada (`LW_AD197C=off`), o mesmo mundo sem entradas, em ticks de 1 h ou de 1 min, 15 min e 50 ms, chega ao
+**mesmo hash canônico** (`TickDeltaEquivalenceTests`). Com ela ligada (AD-197c, o padrão) deixa de ser igual, por construção:
 1. **Despertar com granulação diferente**: a necessidade cruzando o limiar às 3h24 acorda o NPC às 3h24 com Δ fino e às 4h com
    Δ = 1 h; a escolha é feita com outras necessidades e outro estado de quem está em volta.
 2. **RNG por chave de tempo**: sorteios com chave de tick/hora (`OneShot`, `StreamFor`) mudam de chave se a decisão acontece em
    outro instante.
 3. **Ordem entre evento e sistema horário**: evento agendado dentro da hora dispara antes dos sistemas daquela hora.
-4. **Ação e rota em horas inteiras**: `ActionStartedAtTick`, `DurationHours`, `TravelTicks` ainda são horas; o fim de ação e a
-   chegada caem na hora cheia com qualquer Δ (igual por construção, mas grosso).
+4. **Ação com fase**: a ação começa dentro da hora (`ActionPhaseMs`) e termina no instante certo (AD-197c).
 
-## Ainda em horas (fatia seguinte)
-Decisão (`BehaviorDecisionSystem` é `Hourly`), início e duração de ação, pernas de rota e chegada do motor, campos de tick dos
-sistemas de cidade, obra, lavoura, saúde, crime, história (`WorldEvent.Tick`), `ctx.CurrentTick` em geral. São da escala de hora e só
-rodam na hora cheia, então estão certos com qualquer Δ; passam a ms quando um consumidor fino precisar (AD-197c).
+## Ainda em horas
+Duração de ação (`DurationHours`) e perna de rota (`TravelTicks`) seguem horas inteiras (a fase em ms dá o início e o fim no instante
+certo); campos de tick dos sistemas de cidade, obra, lavoura, saúde, crime, história (`WorldEvent.Tick`), `ctx.CurrentTick` em geral.
+São da escala de hora e só rodam na hora cheia; passam a ms quando um consumidor fino precisar.

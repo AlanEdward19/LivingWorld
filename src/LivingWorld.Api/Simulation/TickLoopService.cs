@@ -24,12 +24,14 @@ public sealed class TickLoopService(
     SavedWorldLibrary library,
     BufferingWorldEventSink sink,
     LivingWorld.Api.Visual.Observable.PresentationNameResolver names,
-    LivingWorld.Simulation.Players.PlayerService players) : IHostedService
+    LivingWorld.Simulation.Players.PlayerService players,
+    LivingWorld.Api.Players.PlayerCommandGateway playerGateway) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
     private ScopeProjectionFrame? _lastFrame; // AD-172: o NPC que não mudou reaproveita o registro do tick anterior
     private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
     private CancellationTokenSource? _cts;
+    private long _cycles;
     private Task? _loopTask;
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -55,7 +57,9 @@ public sealed class TickLoopService(
         {
             RunOneCycle();
 
-            double delaySeconds = 1.0 / Math.Max(simulationHost.TicksPerSecond, 0.01);
+            // AD-197c: a velocidade do laço é a do ritmo em vigor (tempo real: 20 ticks por segundo; rápido: a do admin)
+            double tps = simulationHost.IsPaused ? simulationHost.TicksPerSecond : simulationHost.LastPlan.TicksPerSecond;
+            double delaySeconds = 1.0 / Math.Max(tps, 0.01);
             try { await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token); }
             catch (OperationCanceledException) { }
         }
@@ -78,9 +82,15 @@ public sealed class TickLoopService(
         }
 
         var world = worldHost.Current;
-        // ADR-0050: Δ em vigor no registro (uma hora salvo troca pedida pelo admin); o save diário só na virada da hora 0
-        worldHost.Clock.Tick(world, players.Log.TickDeltaMs);
-        PublishDeltas(world);
+        // AD-197c: o ritmo do mundo escolhe o Δ (fino com jogador, uma hora sem ninguém ou acelerado); o fim do pulo de tempo e a troca
+        // de Δ vão para o registro do jogador e para o disco, como os comandos. O save diário só na virada da hora 0
+        int recorded = players.Log.Count;
+        var plan = simulationHost.Cycle(players, () => playerGateway.Log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs));
+        foreach (var record in players.Log.Since(recorded)) playerGateway.Log.Append(record);
+        // no tempo real (20 ticks por segundo) a projeção sai no máximo ~5 vezes por segundo real e sempre na hora cheia
+        long every = Math.Max(1, (long)Math.Round(plan.TicksPerSecond / 5));
+        if (world.CurrentDate.MillisecondOfHour == 0 || ++_cycles % every == 0)
+            PublishDeltas(world);
         if (world.CurrentDate.MillisecondOfHour == 0 && world.CurrentDate.TotalHours % 24 == 0)
             library.Save(world);
     }

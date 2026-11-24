@@ -12,6 +12,7 @@ namespace LivingWorld.Simulation.Core;
 public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int maxIterationsPerTick = 1000, IWorldEventSink? sink = null)
 {
     private readonly Dictionary<string, ISimulationSystem> _byName = systems.ToDictionary(s => s.Name);
+    private readonly IRunsBetweenHours[] _betweenHours = systems.OfType<IRunsBetweenHours>().ToArray();
 
     public IReadOnlyList<ISimulationSystem> Systems => systems;
     public int MaxIterationsPerTick => maxIterationsPerTick;
@@ -40,11 +41,11 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
         if (!WorldMillis.IsValidTickDelta(deltaMs))
             throw new ArgumentOutOfRangeException(nameof(deltaMs), deltaMs, "Δ precisa dividir a hora (1 a 3.600.000 ms)");
         int intoHour = world.CurrentDate.MillisecondOfHour;
+        world.TickDeltaMs = deltaMs;
         world.CurrentDate = world.CurrentDate.AddMilliseconds(Math.Min(deltaMs, WorldMillis.PerHour - intoHour));
         if (world.CurrentDate.MillisecondOfHour != 0)
         {
-            if (world.Scheduler.HasDue(world.CurrentDate.TotalMilliseconds))
-                DispatchDueEvents(world, new TickContext(world, world.Rng, world.Scheduler, sink));
+            TickInsideHour(world);
             return;
         }
 
@@ -72,6 +73,26 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
         }
 
         DispatchDueEvents(world, ctx);
+    }
+
+    /// <summary>Tick dentro da hora: despacha os eventos vencidos e, com o passo fino (AD-197c), acorda quem tem despertar vencido
+    /// agora e roda para ele os sistemas de <see cref="IRunsBetweenHours"/> (a decisão). Sem nada vencido, só o relógio anda.</summary>
+    private void TickInsideHour(WorldState world)
+    {
+        long nowMs = world.CurrentDate.TotalMilliseconds;
+        TickContext? ctx = null;
+        if (world.FineTime && _betweenHours.Length > 0)
+        {
+            NpcWakeScheduler.PrepareWakeBatch(world, nowMs);
+            if (world.NpcWakeBatch.Count > 0)
+            {
+                ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+                foreach (var system in _betweenHours)
+                    system.Tick(world, ctx);
+            }
+        }
+        if (world.Scheduler.HasDue(nowMs))
+            DispatchDueEvents(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler, sink));
     }
 
     private void DispatchDueEvents(WorldState world, TickContext ctx)

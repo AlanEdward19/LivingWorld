@@ -503,6 +503,51 @@ func test_a_server_without_sessions_keeps_the_local_mode() -> void:
 	hud.free()
 
 
+## AD-197c: o ritmo do tempo e os controles de dormir e acelerar aparecem só quando o motor diz que valem (quem joga sozinho).
+func test_time_controls_follow_what_the_engine_says() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 1, "canSkip": false, "skipping": false, "sleeping": false})
+	var hidden: bool = not hud.sleep_until_button.visible and not hud.accelerate_button.visible and not hud.wake_button.visible
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 12, "canSkip": true, "skipping": false, "sleeping": false})
+	var shown: bool = hud.sleep_until_button.visible and hud.sleep_fast_button.visible and hud.accelerate_button.visible
+
+	eq([hidden, shown, hud.rhythm_label.text], [true, true, "Tempo real 1:12"])
+	hud.free()
+
+
+func test_sleep_posts_the_hour_and_the_engine_reason_for_waking_becomes_a_notice() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/sleep", {"status": 200, "body": {"rhythm": "Accelerated", "tickDeltaMs": 3600000, "timeScale": 1,
+		"playersPresent": 1, "canSkip": false, "skipping": true, "sleeping": true, "untilMs": 30 * 3600000}})
+	var hud := _hud(transport, true)
+	await hud.incarnate(7, "Ana")
+
+	await hud.sleep(6)
+	var asleep: Array = [transport.bodies["POST /players/p-1/sleep"], hud.wake_button.visible, hud.wake_button.text, hud.rhythm_label.text]
+	hud.apply_time({"rhythm": "RealTime", "timeScale": 1, "canSkip": true, "skipping": false, "sleeping": false, "lastWakeReason": "golpe"})
+
+	eq(asleep, [[{"untilHour": 6}], true, "Acordar", "Tempo acelerado"])
+	eq([hud.wake_button.visible, hud.status_text], [false, "Você acordou com um golpe."])
+	hud.free()
+
+
+func test_a_refused_skip_with_another_player_warns() -> void:
+	var transport := _transport()
+	transport.on("POST /players/p-1/accelerate", {"status": 409, "body": {"error": "conflict: só quem joga sozinho pula o tempo"}})
+	var hud := _hud(transport)
+	var warnings: Array = []
+	hud.warning.connect(func(text): warnings.append(text))
+	await hud.incarnate(7, "Ana")
+
+	await hud.accelerate()
+
+	eq(warnings, ["Só quem joga sozinho pode pular o tempo agora."])
+	hud.free()
+
+
 class SlowIncarnate extends "res://tests/fake_transport.gd":
 	signal release()
 	var arrived := 0
