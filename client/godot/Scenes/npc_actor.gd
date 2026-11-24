@@ -526,7 +526,18 @@ func _refresh_label() -> void:
 		return
 	var label := _get_label()
 	label.text = ("%s\n%s" % [display_name, label_text]) if display_name != "" else label_text
-	label.visible = _selected or _hovered
+	label.visible = (_selected or _hovered) and not is_self
+
+
+## AD-197p: o corpo do próprio jogador: sem nome, ação nem anel sobre ele (quem joga já sabe quem é).
+var is_self := false
+
+
+func set_self(value: bool) -> void:
+	is_self = value
+	if _ring != null:
+		_ring.visible = (_selected or _hovered) and not is_self
+	_refresh_label()
 
 
 func label_visible() -> bool:
@@ -609,14 +620,14 @@ func clear_route() -> void:
 func set_selected(selected: bool) -> void:
 	_selected = selected
 	if _ring != null or selected or _hovered:
-		_get_ring().visible = selected or _hovered
+		_get_ring().visible = (selected or _hovered) and not is_self
 	_refresh_label()
 
 
 func set_hovered(hovered: bool) -> void:
 	_hovered = hovered
 	if _ring != null or hovered or _selected:
-		_get_ring().visible = _selected or hovered
+		_get_ring().visible = (_selected or hovered) and not is_self
 	_refresh_label()
 
 
