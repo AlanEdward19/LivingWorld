@@ -533,6 +533,11 @@ func _refresh_label() -> void:
 var is_self := false
 
 
+## AD-197r: na 1ª pessoa a câmera fica na altura dos olhos, dentro da cabeça: a própria cabeça (e o chapéu) não se desenha.
+func set_first_person(on: bool) -> void:
+	_head.visible = not on
+
+
 func set_self(value: bool) -> void:
 	is_self = value
 	if _ring != null:
@@ -564,6 +569,24 @@ func set_spread(offset: Vector3) -> void:
 			position = _to
 	else:
 		_to = Grid.to_world(cell) + spread
+
+
+var avoid := Vector3.ZERO ## AD-197r: desvio (só desenho) de quem anda ao redor de quem está parado; some nas pontas do trecho
+var avoid_goal := Vector3.ZERO
+
+
+## Rumo de quem anda agora (para onde desviar do lado): o da rota, ou o do passo; ZERO parado.
+func heading_now() -> Vector3:
+	if walk != null and not walk.done:
+		return walk.heading
+	return _to - _from if _t < 1.0 else Vector3.ZERO
+
+
+## O ponto do trecho sem o desvio (para onde a rota/o passo o levaria): base do desvio de AD-197r.
+func base_position() -> Vector3:
+	if walk != null and not walk.done:
+		return walk.position
+	return _from.lerp(_to, _t)
 
 
 var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
@@ -635,16 +658,18 @@ func set_hovered(hovered: bool) -> void:
 func advance_motion(dt: float) -> void:
 	if frozen:
 		return
+	if avoid != avoid_goal:
+		avoid = avoid.lerp(avoid_goal, minf(1.0, dt * 10.0))
 	if walk != null:
 		walk.step(world_tick)
-		position = walk.position
+		position = walk.position + avoid * walk.taper
 		if not far_lod and walk.heading.length_squared() > 0.0001:
 			rotation.y = lerp_angle(rotation.y, atan2(walk.heading.x, walk.heading.z), minf(1.0, dt * 10.0))
 		return
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)
 		var heading := _to - _from
-		position = _from.lerp(_to, _t)
+		position = _from.lerp(_to, _t) + avoid * sin(PI * _t)
 		if heading.length() > 0.5: # passo de verdade: desvia para a direita no meio e volta ao lugar no fim
 			position += Vector3(-heading.z, 0, heading.x).normalized() * VEER * sin(PI * _t)
 		if heading.length() > 0.01 and not far_lod:
