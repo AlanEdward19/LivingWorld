@@ -98,19 +98,41 @@ public static class PlayerCommands
     public static Npc? ControlledBy(WorldState world, string playerId) =>
         world.Npcs.FirstOrDefault(n => n.IsAlive && n.ControllerId == playerId);
 
-    /// <summary>AD-197e: um passo na direção pedida (−1..1 em cada eixo): intenção, não posição. Vale a mesma regra do passo que a
-    /// rota antiga <c>/visual/player/move</c> aplicava (dentro do mapa, uma célula); a posição contínua e o custo do passo pelo corpo
-    /// vêm com o tempo real (ADR-0050).</summary>
+    /// <summary>AD-197e/197d: um passo na direção pedida (−1..1 em cada eixo): intenção, não posição. Parte de onde o corpo está agora
+    /// (a pose: no meio da rota, se viajava) e o motor valida o chão (<see cref="PlayerGround.Step"/>: dentro do mapa, sem parede, entre
+    /// fora e dentro só pela porta, sem gente na célula). Andar é tomar o rumo: a viagem do motor para ali e, sem ação pedida, o corpo
+    /// fica à toa onde o jogador o deixou (<see cref="TakeTheWheel"/>). A recusa não muda o mundo.</summary>
     public static Result<Unit> Move(WorldState world, TickContext ctx, NpcId npcId, string playerId, int dx, int dy)
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
         if (dx is < -1 or > 1 || dy is < -1 or > 1 || (dx == 0 && dy == 0)) return Result<Unit>.Fail("move: direção inválida");
-        var target = new LivingWorld.Domain.Geography.CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
-        var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target);
+        var from = PlayerGround.PoseOf(world, npc);
+        var target = new LivingWorld.Domain.Geography.CellCoord(from.X + dx, from.Y + dy);
+        var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target, from);
         if (!valid.IsSuccess) return valid;
+        TakeTheWheel(world, npc);
         npc.MoveTo(target, ctx.CurrentTick);
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>AD-197d: o jogador conduz o corpo com as próprias pernas: a viagem em curso para onde ele está (a pose), a planta do
+    /// prédio onde o motor o pôs é deixada (a posição passa a ser a célula do mundo) e, sem ação pedida, ele fica à toa em vez de o
+    /// motor o mandar de volta para a rota.</summary>
+    internal static void TakeTheWheel(WorldState world, Npc npc)
+    {
+        var pose = PlayerGround.PoseOf(world, npc);
+        if (npc.CurrentAction == ActionType.Travel)
+        {
+            npc.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds);
+            if (pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
+        }
+        if (npc.Interior is not null)
+        {
+            if (pose.X != int.MinValue && pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
+            npc.ExitBuilding();
+        }
+        if (npc.ControlledAction is null) npc.SetControlledAction(ActionType.Idle);
     }
 
     /// <summary>AD-197e: golpe no alvo ao alcance (a mesma célula ou a vizinha) pelo mesmo caminho da briga de qualquer NPC

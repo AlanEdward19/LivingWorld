@@ -136,7 +136,7 @@ builder.Services.AddSingleton(playerService);
 // ADR-0048 (AD-197a): sessão do jogador por token do hospedeiro (quando ela é exigida: PlayerAuthPolicy, AD-197e)
 var playerTokens = new LivingWorld.Api.Players.PlayerSessionTokens(TimeProvider.System);
 var playerGateway = new LivingWorld.Api.Players.PlayerCommandGateway(
-    worldHost, simulationHost, playerService, savedWorlds, new LivingWorld.Api.Players.PlayerLogStore(savedWorlds.WorldsDirectory));
+    worldHost, simulationHost, playerService, savedWorlds, new LivingWorld.Api.Players.PlayerLogStore(savedWorlds.WorldsDirectory), sessions);
 builder.Services.AddSingleton(playerTokens);
 builder.Services.AddSingleton(playerGateway);
 builder.Services.AddSingleton(simulationHost);

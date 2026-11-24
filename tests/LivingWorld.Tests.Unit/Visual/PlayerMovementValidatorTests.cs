@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Visibility;
 namespace LivingWorld.Tests.Unit.Visual;
 
 /// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
-/// inválido"): <see cref="PlayerMovementValidator"/> — só aceita passo pra célula adjacente
+/// inválido"): <see cref="PlayerMovementValidator"/> — só aceita passo pra célula adjacente (e, AD-197d, sem parede nem gente)
 /// existente no mapa, com NPC vivo; nunca muta o mundo (validação roda antes do <c>MoveTo</c>).</summary>
 public class PlayerMovementValidatorTests
 {
@@ -21,6 +21,11 @@ public class PlayerMovementValidatorTests
     public void Validate_succeeds_for_an_adjacent_cell()
     {
         var (world, npc) = MakeWorldWithNpc();
+        // AD-197d: o chão conta (parede, porta): parte de uma célula aberta com a vizinha aberta
+        var open = world.Map.Cells.Select(c => c.Coord).First(c => c.X + 1 < world.Map.Width
+            && LivingWorld.Simulation.Players.PlayerGround.At(world, c) is null
+            && LivingWorld.Simulation.Players.PlayerGround.At(world, new CellCoord(c.X + 1, c.Y)) is null);
+        npc.MoveTo(open, world.CurrentDate.TotalHours);
         var adjacent = new CellCoord(npc.CurrentLocation.X + 1, npc.CurrentLocation.Y);
 
         var result = PlayerMovementValidator.Validate(world, npc, adjacent);

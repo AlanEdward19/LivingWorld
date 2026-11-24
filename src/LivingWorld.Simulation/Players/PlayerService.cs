@@ -13,7 +13,9 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.DeltaMs"/>); <see cref="Sleep"/> e <see cref="Accelerate"/> pulam o tempo de quem joga sozinho
 /// (<see cref="PlayerCommandRecord.UntilMs"/>: dormir até o instante; nulo, acelerar); <see cref="Wake"/> encerra o pulo (o motivo em
 /// <see cref="PlayerCommandRecord.Reason"/>).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake }
+/// AD-197d: <see cref="Interact"/> é interagir com o que está perto (<see cref="PlayerCommandRecord.Interaction"/>,
+/// <see cref="PlayerCommandRecord.Verb"/>, alvo em <see cref="PlayerCommandRecord.TargetId"/>, recurso e quantidade).
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -25,7 +27,8 @@ public sealed record PlayerCommandRecord(
     [property: JsonPropertyName("Tick"), JsonConverter(typeof(HourCompatibleMillisJsonConverter))] long AtMs,
     long Sequence, string PlayerId, PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null,
     string? PowerId = null, PossessionMode? Mode = null, int? Dx = null, int? Dy = null, long? TargetId = null,
-    bool Refused = false, string? Reason = null, int? DeltaMs = null, long? Ticks = null, long? UntilMs = null);
+    bool Refused = false, string? Reason = null, int? DeltaMs = null, long? Ticks = null, long? UntilMs = null,
+    string? Interaction = null, string? Verb = null, int? ResourceId = null, long? Quantity = null);
 
 /// <summary>Registro de sessões do hospedeiro (AD-196): quem encarnou, agiu, andou, golpeou e saiu, na ordem em que o mundo
 /// aplicou. Fica fora do snapshot e do hash (não é fato do mundo); reaplicar o registro a partir do snapshot do começo reproduz o
@@ -144,6 +147,27 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>AD-197d: interagir com o que está perto (<see cref="PlayerInteractions"/>). A recusa da vontade (ordem contra o que a
+    /// pessoa valoriza) também vai ao registro, como a do golpe.</summary>
+    public Result<InteractionResult> Interact(WorldState world, string playerId, string kind, long id, string verb, int? resourceId = null,
+        long? quantity = null)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<InteractionResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerInteractions.Interact(world, Context(world), npc, kind, id, verb, resourceId, quantity);
+        bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
+        if (result.IsSuccess || refused)
+            Record(world, playerId, PlayerCommandKind.Interact, npc.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Interact, TargetId: id, Refused: refused,
+                    Reason: refused ? result.Error : null, Interaction: kind, Verb: verb, ResourceId: resourceId, Quantity: quantity));
+        return result;
+    }
+
+    /// <summary>AD-197d: o que o corpo do jogador alcança agora e o que pode fazer ali (só lê).</summary>
+    public static IReadOnlyList<InteractionOffer>? Reach(WorldState world, string playerId) =>
+        PlayerCommands.ControlledBy(world, playerId) is { } npc ? PlayerInteractions.Offers(world, npc) : null;
+
     /// <summary>AD-197f: convencer a pessoa possuída a ceder (posse comum).</summary>
     public Result<Unit> Persuade(WorldState world, string playerId)
     {
@@ -204,6 +228,8 @@ public static class PlayerReplay
                 PlayerCommandKind.Sleep => service.Sleep(world, record.PlayerId, record.UntilMs).IsSuccess,
                 PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
+                PlayerCommandKind.Interact => service.Interact(world, record.PlayerId, record.Interaction!, record.TargetId!.Value,
+                    record.Verb!, record.ResourceId, record.Quantity).IsSuccess,
                 _ => service.Logout(world, record.PlayerId).IsSuccess,
             };
             if (applied == record.Refused) throw new InvalidOperationException($"replay divergiu no comando {record.Sequence}");

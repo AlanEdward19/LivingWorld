@@ -21,6 +21,8 @@ public static class SignificanceCalculator
             [WorldEventKind.PossessionSuspected] = 0.3,
             [WorldEventKind.PossessionConcluded] = 0.7,
             [WorldEventKind.PossessionConfronted] = 0.6,
+            [WorldEventKind.HouseSold] = 0.6, // AD-197d
+            [WorldEventKind.ChildAbandoned] = 0.8,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
             [WorldEventKind.Dehydration] = 0.75,

@@ -10,7 +10,8 @@ namespace LivingWorld.Api.Players;
 /// <c>GET /players/ws</c> com <c>Authorization: Bearer {token}</c> (401 sem sessão válida) abre um WebSocket do próprio ASP.NET Core.
 /// Cada mensagem do cliente é um comando com número de sequência — <c>{"seq":1,"command":"incarnate","npcId":7}</c>,
 /// <c>{"seq":2,"command":"action","action":"Eat","powerId":null}</c>, <c>{"seq":3,"command":"move","dx":1,"dy":0}</c> (AD-197e), <c>{"seq":4,"command":"strike","npcId":9}</c>,
-/// <c>{"seq":5,"command":"logout"}</c>, <c>{"seq":6,"command":"ping"}</c>
+/// <c>{"seq":5,"command":"logout"}</c>, <c>{"seq":6,"command":"ping"}</c>, AD-197d: <c>{"seq":7,"command":"reach"}</c> e
+/// <c>{"seq":8,"command":"interact","kind":"stall","id":3,"verb":"buy","resourceId":1,"quantity":2}</c>
 /// — e a resposta vem pelo mesmo canal: <c>{"seq":1,"ok":true,"status":200,"body":{...}}</c> ou
 /// <c>{"seq":2,"ok":false,"status":409,"error":"..."}</c>. Os comandos passam pela mesma fila das rotas HTTP
 /// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). As rotas HTTP continuam valendo.</summary>
@@ -91,6 +92,10 @@ public static class PlayerChannelEndpoints
                 "sleep" => new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: node?["untilHour"]?.GetValue<int>()),
                 "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate),
                 "wake" => new PlayerCommandRequest(PlayerCommandKind.Wake),
+                // AD-197d: interagir com o que está perto, pela oferta do motor ("reach" lista o que se alcança)
+                "interact" when node?["kind"] is { } kind && node?["id"] is { } id && node?["verb"] is { } verb =>
+                    new PlayerCommandRequest(PlayerCommandKind.Interact, Interaction: kind.GetValue<string>(), TargetId: id.GetValue<long>(),
+                        Verb: verb.GetValue<string>(), ResourceId: node?["resourceId"]?.GetValue<int>(), Quantity: node?["quantity"]?.GetValue<long>()),
                 _ => null,
             };
         }
@@ -99,6 +104,10 @@ public static class PlayerChannelEndpoints
             return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "campo com tipo errado" };
         }
         if (command == "ping") return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = "pong" };
+        if (command == "reach")
+            return gateway.Reach(playerId) is { } offers
+                ? new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = JsonSerializer.SerializeToNode(new { offers }, Wire) }
+                : new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 404, ["error"] = $"{PlayerCommands.NotFound} jogador não controla nenhum NPC" };
         if (request is null) return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "comando desconhecido ou incompleto" };
 
         var reply = gateway.Execute(playerId, request);

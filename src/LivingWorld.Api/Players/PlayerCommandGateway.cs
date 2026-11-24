@@ -8,10 +8,12 @@ namespace LivingWorld.Api.Players;
 
 /// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente. <c>Mode</c> só com <c>Incarnate</c> (posse plena é
 /// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>. AD-197c: <c>UntilHour</c>
-/// (hora do dia) com <c>Sleep</c>; sem ela, dormir acelerando.</summary>
+/// (hora do dia) com <c>Sleep</c>; sem ela, dormir acelerando. AD-197d: <c>Interaction</c> (door, stock, stall, bed, person, house),
+/// <c>TargetId</c>, <c>Verb</c>, <c>ResourceId</c> e <c>Quantity</c> com <c>Interact</c>.</summary>
 public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
-    int? UntilHour = null);
+    int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
+    long? Quantity = null);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -31,7 +33,8 @@ public sealed record PlayerReply(int Status, object? Body, string? Error)
 /// ticks, na ordem em que chega à trava; o aceito vai para o registro do hospedeiro e para o disco antes da resposta. Sob pausa do
 /// admin todo comando é recusado com 409 sem mudar o mundo (aprovado pelo dono em 2026-11-23).</summary>
 public sealed class PlayerCommandGateway(
-    WorldHost host, SimulationHost simulation, PlayerService players, SavedWorldLibrary library, PlayerLogStore log)
+    WorldHost host, SimulationHost simulation, PlayerService players, SavedWorldLibrary library, PlayerLogStore log,
+    LivingWorld.Simulation.Llm.ConversationSessionStore? conversations = null)
 {
     public const string PausedError = "conflict: mundo pausado pelo admin";
 
@@ -68,6 +71,8 @@ public sealed class PlayerCommandGateway(
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
+                PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
+                    command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
                 PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
                     npc => new { npcId = npc.Id.Value, playerId, disappearedAtTick = npc.DisappearedAtTick }),
                 _ => new PlayerReply(StatusCodes.Status400BadRequest, null, "comando: não é de jogador"),
@@ -115,11 +120,33 @@ public sealed class PlayerCommandGateway(
         }
     }
 
-    /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela).</summary>
+    /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela). AD-197d: <c>buildingId</c> do prédio
+    /// em cuja planta o corpo está (nulo na rua).</summary>
     private static object PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId) =>
         PlayerCommands.ControlledBy(world, playerId) is { } npc
-            ? new { playerId, npcId = npc.Id.Value, x = npc.CurrentLocation.X, y = npc.CurrentLocation.Y }
-            : new { playerId, npcId = -1L, x = 0, y = 0 };
+            ? new { playerId, npcId = npc.Id.Value, x = npc.CurrentLocation.X, y = npc.CurrentLocation.Y,
+                buildingId = PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value }
+            : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null };
+
+    /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>
+    private object Interacted(LivingWorld.Simulation.Core.WorldState world, string playerId, InteractionResult done)
+    {
+        long? session = null;
+        if (done is { Kind: "person", Verb: "talk" } && conversations is not null && world.FindNpc(new NpcId(done.Id)) is { } other)
+        {
+            var ctx = new LivingWorld.Simulation.Scheduling.TickContext(world, new WorldRngRegistry(world.Seed),
+                new LivingWorld.Simulation.Scheduling.EventScheduler());
+            session = conversations.StartConversation(other, world.NeedsRules, LivingWorld.Simulation.Llm.ConversationAvailabilityPolicy.PlayerRules,
+                null, ctx, LivingWorld.Api.Conversation.ConversationEndpoints.ExpireAfterTicks).Session?.SessionId;
+        }
+        return new { done.Kind, done.Id, done.Verb, done.Quantity, done.Value, sessionId = session, pose = PoseOf(world, playerId) };
+    }
+
+    /// <summary>AD-197d: o que o corpo do jogador alcança agora (a oferta do motor); nulo sem corpo.</summary>
+    public IReadOnlyList<InteractionOffer>? Reach(string playerId)
+    {
+        lock (library.Gate) return PlayerService.Reach(host.Current, playerId);
+    }
 
     /// <summary>O que a pessoa presa vê e sente (posse plena, AD-197e), só para quem a possui; nulo se não há posse plena.</summary>
     public CaptiveView? Captive(string playerId)

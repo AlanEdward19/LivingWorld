@@ -1,4 +1,4 @@
-# Posse: disputa de vontade, estranhamento e reação [Estado: AD-197e/197f entregues; ritual e posse por poder em issue]
+# Posse: disputa de vontade, estranhamento e reação [Estado: AD-197e/197f/197d entregues; ritual e posse por poder em issue]
 
 Decisões do dono (2026-11-23): pelo admin a pessoa vira personagem do jogador e não recusa (posse plena); sem admin ela recusa o
 que vai contra os vínculos **e os valores** dela, "tem que ser mais forte que o controle", cansa, pode ser persuadida, pode
@@ -44,4 +44,6 @@ possessão dentro do jogo, inclusive de um personagem de jogador. ADR-0049.
   jogador declare o que sabe (memória acessível) e que a conversa e a ação revelem lacunas; depende da conversa (Fase 11).
 - **Posse por poder** na mesma disputa: ligar `possessed-action` e `PossessionResisted` (Fase 16) ao `PossessionContest`.
 - **Mente presa: conversa e pensamento no chat** (#207).
-- **Outras ordens contra a vontade** (vender a casa, abandonar filho): fatia de interagir (AD-197d), mesma regra.
+- ~~Outras ordens contra a vontade~~: feito na AD-197d (`OrderHarm`, `PossessionContest.OrderWeight`/`RefusesOrder`, `PlayerOrders`):
+  o peso sai do que a ordem faz (quem fere e quanto, se tira a casa), sem lista por ação; vender a casa e abandonar o filho
+  dependente recusam pela mesma disputa (ADR-0051).

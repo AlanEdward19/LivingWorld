@@ -1,11 +1,23 @@
 extends Node3D
-## Câmera do espectador, componente trocável: hoje isométrica ortográfica; 1ª e 3ª pessoa entram
-## na fase do jogador implementando a mesma interface (pan/orbit/zoom_by/follow/release).
+## Câmera do espectador, componente trocável: isométrica ortográfica para espectador e admin; com personagem encarnado,
+## perspectiva em 3ª pessoa (padrão) ou 1ª pessoa (tecla C), o mouse olha (AD-197d, ADR-0049/0051). Mesma interface
+## (pan/orbit/zoom_by/follow/release); `look` e `heading` só valem nos modos do jogador.
 ## NÃO conhece transporte: navegar nunca fala com o servidor. Só pede troca de escopo por sinal.
 
 signal scope_requested(kind: String, ref_id: String)
 
 const ISO_PITCH := deg_to_rad(-35.264)
+const ISO := "iso"
+const THIRD := "third"
+const FIRST := "first"
+const THIRD_DISTANCE := 4.5 ## metros atrás do personagem (uma célula = 1 unidade)
+const EYE_HEIGHT := 1.6 ## olhos na 1ª pessoa; a 3ª mira um pouco acima do ombro
+const MIN_PITCH := deg_to_rad(-70.0)
+const MAX_PITCH := deg_to_rad(35.0)
+const LOOK_SPEED := 0.004 ## rad por pixel do mouse
+
+var mode := ISO
+var pitch := deg_to_rad(-15.0) ## olhar do jogador (só 1ª/3ª pessoa)
 
 var target := Vector3(15, 0, 15)
 var yaw := deg_to_rad(45.0)
@@ -43,8 +55,52 @@ func _init() -> void:
 func _apply() -> void:
 	position = target
 	rotation = Vector3(0, yaw, 0)
-	_pivot.rotation = Vector3(ISO_PITCH, 0, 0)
-	camera.size = zoom_size
+	if mode == ISO:
+		_pivot.rotation = Vector3(ISO_PITCH, 0, 0)
+		camera.size = zoom_size
+		return
+	_pivot.rotation = Vector3(pitch, 0, 0)
+	_pivot.position = Vector3(0, EYE_HEIGHT, 0)
+	camera.position = Vector3(0, 0, THIRD_DISTANCE if mode == THIRD else 0.0)
+
+
+## Troca o modo da câmera: ISO (espectador e admin), THIRD ou FIRST (personagem encarnado).
+func set_mode(value: String) -> void:
+	if value == mode:
+		return
+	mode = value
+	if mode == ISO:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.position = Vector3(0, 0, 80)
+		camera.near = 0.05
+		_pivot.position = Vector3.ZERO
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		camera.fov = 70.0
+		camera.near = 0.05
+		pitch = clampf(pitch, MIN_PITCH, MAX_PITCH)
+	_apply()
+
+
+## C alterna 1ª e 3ª pessoa (só encarnado).
+func toggle_person() -> void:
+	if mode != ISO:
+		set_mode(FIRST if mode == THIRD else THIRD)
+
+
+## Mouse olha: giro livre, inclinação limitada (não vira de cabeça para baixo).
+func look(relative: Vector2) -> void:
+	if mode == ISO:
+		return
+	yaw = wrapf(yaw - relative.x * LOOK_SPEED, -PI, PI)
+	pitch = clampf(pitch - relative.y * LOOK_SPEED, MIN_PITCH, MAX_PITCH)
+	_apply()
+
+
+## Para onde a câmera olha no chão (x, z), unitário: WASD anda relativo a isto.
+func heading() -> Vector2:
+	var forward := Vector3.FORWARD.rotated(Vector3.UP, yaw)
+	return Vector2(forward.x, forward.z).normalized()
 
 
 ## Movimento em coordenadas de tela (x direita, y para baixo), convertido pelo giro atual.
@@ -130,11 +186,15 @@ func _process(delta: float) -> void:
 		if target.distance_to(_goal) < 0.02:
 			_goal_active = false
 	if following != null and is_instance_valid(following):
-		target = target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
+		# no modo do jogador a câmera cola no corpo (o corpo já anda suave pela previsão); na isométrica, segue devagar
+		target = following.position if mode != ISO else target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
 		_apply()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if mode != ISO:
+		_player_input(event)
+		return
 	if event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_RIGHT or event.button_mask & MOUSE_BUTTON_MASK_MIDDLE):
 		if Input.is_key_pressed(KEY_SHIFT):
 			orbit(-event.relative.x * 0.008)
@@ -155,3 +215,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_S, KEY_DOWN: pan(Vector2(0, 30))
 			KEY_A, KEY_LEFT: pan(Vector2(-30, 0))
 			KEY_D, KEY_RIGHT: pan(Vector2(30, 0))
+
+
+## Encarnado: o mouse olha (com o botão direito, ou sempre com o cursor preso), C troca 1ª/3ª pessoa; WASD, E e o clique são do
+## personagem (player_hud e app), não da câmera.
+func _player_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
+		look(event.relative)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
+		toggle_person()
