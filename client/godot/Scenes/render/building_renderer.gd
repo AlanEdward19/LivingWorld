@@ -72,15 +72,23 @@ func lit_count(id: int) -> int:
 
 
 func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
+	var was_faded := faded.has(int(info.id)) # AD-197s: redesenhar (a pessoa nova mudou o estado do prédio) não pode apagar a translucidez
 	remove(int(info.id))
+	if was_faded:
+		faded[int(info.id)] = true
+	var node := _draw(info, state)
+	if xray or was_faded or opened.has(int(info.id)):
+		_fade(int(info.id), FADE if was_faded else 0.0)
+	return node
+
+
+func _draw(info: Dictionary, state: Dictionary) -> Node3D:
 	var work: Dictionary = work_of.call(int(info.id))
 	dressed[int(info.id)] = signature(state, work)
 	if not work.is_empty() and not info.footprint.is_empty():
 		var site := Site.make(info, work, Grid.floor_height())
 		add_child(site)
 		nodes[int(info.id)] = site
-		if xray:
-			_fade(int(info.id), 0.0)
 		return site
 	var drawn := info
 	if info.footprint.is_empty():
@@ -91,8 +99,6 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var node := make_building(drawn, state)
 	add_child(node)
 	nodes[int(info.id)] = node
-	if xray:
-		_fade(int(info.id), 0.0)
 	return node
 
 
@@ -101,8 +107,24 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
 const XRAY := 0.88 ## raio-x (AD-177): paredes de todos os prédios translúcidas
 const XRAY_ROOF := 0.96 ## e o telhado quase some
+const ROOF_OPEN := 0.97 ## AD-197s: o telhado do prédio em que o jogador está (3ª pessoa de cima) quase some
 var faded: Dictionary = {} ## id -> true (translúcidos agora)
+var opened: Dictionary = {} ## AD-197s: id -> true (o corpo do jogador está dentro: telhado aberto)
 var xray := false
+
+
+## AD-197s: prédios em que o corpo do jogador está: o telhado some para a câmera olhar de cima.
+func set_opened(ids: Dictionary) -> void:
+	var changed := {}
+	for id in opened:
+		if not ids.has(id):
+			changed[id] = true
+	for id in ids:
+		if not opened.has(id):
+			changed[id] = true
+	opened = ids.duplicate()
+	for id in changed:
+		_fade(id, FADE if faded.has(id) else 0.0)
 
 
 ## Raio-x: todos os prédios translúcidos (telhado quase sumido) para ver ruas, lotes e quem anda entre as casas.
@@ -152,6 +174,8 @@ func _fade(id: int, amount: float) -> void:
 		var value := amount
 		if xray:
 			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
+		if opened.has(id) and child.name.begins_with("Roof"):
+			value = maxf(value, ROOF_OPEN)
 		(child as GeometryInstance3D).transparency = value
 		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua
@@ -336,6 +360,9 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	body.add_child(shape)
 	root.add_child(body)
 	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + 0.9, span.y)))
+	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
+	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
+	root.set_meta("shell", AABB(Vector3(min_cell.x - 0.2, 0, min_cell.y - 0.2), Vector3(span.x + 0.4, maxf(height + 0.9, roof_top + 0.1), span.y + 0.4)))
 	return root
 
 
