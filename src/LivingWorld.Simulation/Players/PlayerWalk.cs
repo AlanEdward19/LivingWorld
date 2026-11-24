@@ -15,28 +15,19 @@ namespace LivingWorld.Simulation.Players;
 /// Andar gasta sono na medida do tempo andado. Determinístico: tudo é inteiro em milésimos e o tempo é o do mundo.</summary>
 public static class PlayerWalk
 {
-    /// <summary>Velocidade do corpo agora indo de <paramref name="from"/> para <paramref name="to"/> (vizinha), em m/s: a distância entre
-    /// as duas (ADR-0052: <see cref="PlayerRules.CellM"/> metros por célula, √2 na diagonal) no tempo que a viagem de qualquer NPC leva
-    /// entre elas (<see cref="PlayerCommands.PaceMs"/>: caminho, terreno, corpo e saúde, carga, chão do dia, cansaço). O mesmo corpo
-    /// atravessa a mesma distância no mesmo tempo que o NPC.</summary>
+    /// <summary>Velocidade do corpo agora indo de <paramref name="from"/> para <paramref name="to"/> (vizinha), em m/s.</summary>
     public static double SpeedMps(WorldState world, Npc npc, CellCoord from, CellCoord to)
     {
-        // o trecho à frente (até Lookahead células no rumo, dentro do mapa), não uma célula só: a viagem do NPC paga o mínimo de um
-        // segundo por viagem, não por célula, e a rota de um trecho é a mesma que ele faria
-        int dx = Math.Sign(to.X - from.X), dy = Math.Sign(to.Y - from.Y), k = 1;
-        while (k < Lookahead && Open(world, new CellCoord(from.X + dx * (k + 1), from.Y + dy * (k + 1)))) k++;
-        var far = new CellCoord(from.X + dx * k, from.Y + dy * k);
-        double meters = k * world.Players.CellM * (dx != 0 && dy != 0 ? 1.41421356237309515 : 1.0);
-        return meters / Math.Max(0.001, PlayerCommands.PaceMs(world, npc, from, far) / 1000.0);
+        // a referência é a passada no chão mais fácil do mapa (o terreno de menor peso): o fator diz quanto este chão, este corpo, esta
+        // carga, este tempo e este cansaço alongam o passo
+        var weights = world.Map.Cost.TerrainWeight;
+        double easiest = weights.Count == 0 ? 1.0 : Math.Max(0.01, weights.Values.Min());
+        double reference = world.Map.Cost.Base * easiest * WorldMillis.PerHour * (from.X != to.X && from.Y != to.Y ? 1.41421356237309515 : 1.0);
+        // a rua calçada encurta a viagem longa (menos desvio, chão firme), mas ninguém anda mais que um passo largo: piso de 0,8
+        // (1,4 m/s → no máximo 1,75 m/s)
+        double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / Math.Max(1.0, reference));
+        return world.Players.WalkMps / factor;
     }
-
-    /// <summary>Chão aberto à frente (dentro do mapa, sem prédio nem água): o trecho que mede o passo não atravessa casa nem rio, que a
-    /// rota do NPC contornaria pagando o desvio.</summary>
-    private static bool Open(WorldState world, CellCoord cell) =>
-        world.Map.TryGetCell(cell, out var c) && !c.HasWater && PlayerGround.At(world, cell) is null;
-
-    /// <summary>Células do trecho à frente que medem a velocidade.</summary>
-    public const int Lookahead = 8;
 
     public static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, int dx, int dy)
     {

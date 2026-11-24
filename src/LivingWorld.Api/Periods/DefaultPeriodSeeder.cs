@@ -170,9 +170,9 @@ public static class DefaultPeriodSeeder
             ["ResourceIds"] = new JsonArray(),
             ["CostWeights"] = new JsonObject
             {
-                // ADR-0052: a escala única da grade (1,5 m por célula, 1,4 m/s), a mesma da vila de código
-                ["Base"] = LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
-                ["AltitudeWeight"] = LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
+                // AD-179: a escala da vila de código (célula de ~30 min a pé); 1,0 fazia cada célula valer horas
+                ["Base"] = 0.05,
+                ["AltitudeWeight"] = 0.05,
                 ["TerrainWeight"] = new JsonObject { ["1"] = 1.0, ["2"] = 1.5, ["3"] = 3.0 },
             },
             ["Settlements"] = new JsonArray(new JsonObject

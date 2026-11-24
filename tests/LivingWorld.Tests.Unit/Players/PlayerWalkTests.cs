@@ -97,30 +97,6 @@ public class PlayerWalkTests
         Assert.True(median is >= 0.5 and <= 2.0, line);
     }
 
-    /// <summary>ADR-0052: com a escala única, o NPC (a viagem, <c>Mobility.TravelMs</c>) e o jogador (o passo solto, célula a célula) com o
-    /// mesmo corpo atravessam a mesma distância no mesmo tempo, em ≥18 de 20 sementes (±10%: a rota do NPC pode cortar pela rua).</summary>
-    [Fact]
-    public void An_npc_and_the_player_with_the_same_body_cross_the_same_distance_in_the_same_time()
-    {
-        int same = 0;
-        var lines = new List<string>();
-        for (ulong seed = 1; seed <= 20; seed++)
-        {
-            var (arm, npc, _) = Body(seed);
-            var w = arm.World;
-            var start = OpenRun(w, npc, 8);
-            Place(w, npc, start);
-            npc.SetSleep(100, w.CurrentDate.TotalHours); // descansado: a viagem do NPC não conta cansaço
-            var end = new CellCoord(start.X + 8, start.Y);
-            double npcMs = LivingWorld.Simulation.Emergence.Mobility.TravelMs(w, npc, start, end,
-                LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(w, npc));
-            double playerMs = 8 * w.Players.CellM / PlayerWalk.SpeedMps(w, npc, start, new CellCoord(start.X + 1, start.Y)) * 1000;
-            lines.Add(FormattableString.Invariant($"{seed}: npc {npcMs:0} ms, jogador {playerMs:0} ms"));
-            if (Math.Abs(npcMs - playerMs) <= 0.1 * npcMs) same++;
-        }
-        Assert.True(same >= 18, string.Join("; ", lines));
-    }
-
     [Fact]
     public void A_free_walk_stops_at_a_wall_and_does_not_go_through_it()
     {
