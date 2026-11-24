@@ -541,8 +541,29 @@ func set_first_person(on: bool) -> void:
 func set_self(value: bool) -> void:
 	is_self = value
 	if _ring != null:
-		_ring.visible = (_selected or _hovered) and not is_self
+		_ring.visible = _ring_shown()
 	_refresh_label()
+
+
+## AD-197s2: o corpo do jogador visto de cima dentro de casa (3ª pessoa sobre o telhado) leva um anel discreto para se achar no meio da gente.
+var marked := false
+
+
+func set_marked(on: bool) -> void:
+	if on == marked:
+		return
+	marked = on
+	if _ring != null or on:
+		_get_ring().visible = _ring_shown()
+
+
+func _ring_shown() -> bool:
+	return ((_selected or _hovered) and not is_self) or marked
+
+
+## AD-197s2: na 1ª pessoa quem está colado no olho não se desenha (só o desenho; o motor não muda).
+func set_eye_hidden(on: bool) -> void:
+	visible = not on
 
 
 func label_visible() -> bool:
@@ -643,14 +664,14 @@ func clear_route() -> void:
 func set_selected(selected: bool) -> void:
 	_selected = selected
 	if _ring != null or selected or _hovered:
-		_get_ring().visible = (selected or _hovered) and not is_self
+		_get_ring().visible = _ring_shown()
 	_refresh_label()
 
 
 func set_hovered(hovered: bool) -> void:
 	_hovered = hovered
 	if _ring != null or hovered or _selected:
-		_get_ring().visible = (_selected or hovered) and not is_self
+		_get_ring().visible = _ring_shown()
 	_refresh_label()
 
 
