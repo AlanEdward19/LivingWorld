@@ -109,6 +109,7 @@ class NpcDetailPanel extends PanelContainer:
 	var labels
 	var name_of: Callable = func(id: int) -> String: return "NPC %d" % id
 	var profession_name_of: Callable = func(id: int) -> String: return "ofício nº %d" % id
+	var skill_name_of: Callable = func(id: int) -> String: return "habilidade %d" % id ## AD-197p: o app liga o catálogo do período
 	var detail: Dictionary = {} ## última ficha mostrada (o inspetor monta os links a partir dela)
 	signal presented(id: int, detail: Dictionary)
 	var npc_id := -1
@@ -280,8 +281,9 @@ class NpcDetailPanel extends PanelContainer:
 		var skills: Dictionary = npc.get("skills", {}).get("values", {})
 		if not skills.is_empty():
 			var parts: Array[String] = []
+			# AD-197p: a chave é o id da habilidade (o nome vem do catálogo do período) e o valor já é o nível 0–100, não uma fração
 			for key in skills:
-				parts.append("%s %d%%" % [key, int(float(skills[key]) * 100.0)])
+				parts.append("%s %d" % [skill_name_of.call(int(key)), roundi(float(skills[key]))])
 			lines.append("Habilidades: " + ", ".join(parts))
 		var personality: Dictionary = npc.get("personality", {})
 		var traits: Array = personality.keys()
