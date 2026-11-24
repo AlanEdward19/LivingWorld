@@ -86,6 +86,8 @@ Piso do ADR-0047 e histórico das medidas: [docs/desempenho.md](docs/desempenho.
 AD-193: o canteiro sobe pela obra do motor (`works`), sem regressão (`benchrun` mediana 60,3 → 60,7 FPS; motor 1.000 NPCs 0,99–1,01×).
 AD-194: pilha pelo material no lote da casa e eventos de obra do log; pareado (cliente 2e0852ed → entrega) `bench` 162,7 → 163,1,
 `benchbig` 131,1 → 130,6, `benchrun` 58,6 → 58,4 FPS (medianas), sem regressão.
+AD-197d (câmera 3ª/1ª pessoa, WASD por intenção, menu de interações do motor), pareado contra `29ba981f` (medianas): `stress` 115,7 → 115,7,
+`bench` 170,0 → 170,2, `benchbig` 138,6 → 138,0, `benchrun` 57,3 → 59,1 FPS; `benchrun` em 3ª pessoa (passo `third`) 64,3 FPS. Canal: `move` 0,12 ms (p95 0,14).
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
