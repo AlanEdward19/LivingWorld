@@ -29,9 +29,17 @@ public sealed partial class WorldState
 
     internal sealed class PosePathCache
     {
+        /// <summary>AD-197l: o próximo instante em que a pose de cada viajante troca de célula, para a perna e o índice em que foi
+        /// calculada; antes dele a pose é a mesma e não se refaz (derivado da perna canônica).</summary>
+        public Dictionary<long, PoseStep> Steps { get; } = new();
+        public AliveNpcIndex? Index;
+
         public (long Obstacles, int Surfaces, bool Ford) Stamp;
         public Dictionary<(LivingWorld.Domain.Geography.CellCoord, LivingWorld.Domain.Geography.CellCoord), IReadOnlyList<LivingWorld.Domain.Geography.CellCoord>> Paths { get; } = new();
     }
+
+    internal readonly record struct PoseStep(long StartMs, LivingWorld.Domain.Geography.CellCoord From, LivingWorld.Domain.Geography.CellCoord To,
+        long EndMs, long NextMs);
 
     /// <summary>Declara as regras do jogador (cenário, teste) ou restaura do snapshot. O padrão volta a nulo.</summary>
     public void UsePlayers(LivingWorld.Domain.Population.PlayerRules? rules)
