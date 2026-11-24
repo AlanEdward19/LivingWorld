@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -261,6 +261,12 @@ static func run(app: Node, steps: Array) -> void:
 					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas e prédios de teste, colocados em grade. Isto não é o mundo do jogo."
 					app.banner.visible = true
 				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
+			"third", "first": # só medida (AD-197d): câmera do modo jogador (3ª/1ª pessoa) colada num morador, sem encarnar
+				var ids: Array = app.world_view.npc_nodes.keys()
+				ids.sort()
+				if not ids.is_empty():
+					app.rig.follow(app.world_view.npc_nodes[ids[0]])
+				app.rig.set_mode(app.rig.THIRD if name == "third" else app.rig.FIRST)
 			"unsub": # só medida (AD-188): para de receber deltas (separa o custo do cliente do da máquina dividida com o servidor)
 				app.stream.close()
 			"rain": # só medida/captura (AD-188): tempo sintético local (`rain:heavy|moderate|light`, `rain:snow`); o motor não muda

@@ -20,6 +20,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.PossessionSuspected] = "Alguém comenta que uma pessoa anda estranha",
             [WorldEventKind.PossessionConcluded] = "Alguém acredita que uma pessoa está possuída",
             [WorldEventKind.PossessionConfronted] = "Alguém reagiu a uma possessão",
+            [WorldEventKind.HouseSold] = "Uma família vendeu a casa em que morava",
+            [WorldEventKind.ChildAbandoned] = "Uma criança foi abandonada por quem a criava",
             [WorldEventKind.Death] = "Um habitante faleceu",
             [WorldEventKind.Starvation] = "A fome causou uma morte",
             [WorldEventKind.Dehydration] = "A sede causou uma morte",

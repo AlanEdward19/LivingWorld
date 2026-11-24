@@ -602,7 +602,7 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Registra a compra que fechou: soma ao agregado do dia da oficina, e o comprador passa a ter relação de
     /// negócio com quem atende (Trade). O primeiro contato do par vira evento, na hora seguinte, pelo
     /// <c>TradeLedgerSystem</c>. Sem atendente presente, só o livro.</summary>
-    private static void NoteTrade(WorldState world, Npc buyer, Workplace market, ResourceType resource, long quantity, long value)
+    internal static void NoteTrade(WorldState world, Npc buyer, Workplace market, ResourceType resource, long quantity, long value)
     {
         long hours = world.CurrentDate.TotalHours;
         world.RecordTrade(market.Id, resource, hours / world.CurrentDate.Calendar.HoursPerDay, quantity, value);

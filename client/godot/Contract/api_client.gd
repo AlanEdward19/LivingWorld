@@ -218,6 +218,31 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 	return _checked("/players/move", {"status": response.status, "body": response.body}, "")
 
 
+## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.
+func player_strike(player_id: String, npc_id: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "strike", "npcId": npc_id}, "POST", "/players/%s/strike" % player_id.uri_encode(), {"npcId": npc_id})
+	return _checked("/players/strike", {"status": response.status, "body": response.body}, "")
+
+
+## AD-197d: o que o corpo alcança agora e o que dá para fazer ali (`{offers:[{kind,id,label,verbs,x,y,resources}]}`), do motor.
+func player_reach(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "reach"}, "GET", "/players/%s/reach" % player_id.uri_encode(), null)
+	return _checked("/players/reach", {"status": response.status, "body": response.body}, "player-reach")
+
+
+## AD-197d: interagir com uma oferta (porta, estoque, banca, cama, pessoa, casa); a recusa da vontade vem 409 com o motivo.
+func player_interact(player_id: String, kind: String, id: int, verb: String, resource_id: int = -1, quantity: int = -1) -> Dictionary:
+	var body := {"kind": kind, "id": id, "verb": verb}
+	if resource_id >= 0:
+		body["resourceId"] = resource_id
+	if quantity > 0:
+		body["quantity"] = quantity
+	var command := body.duplicate()
+	command["command"] = "interact"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/interact" % player_id.uri_encode(), body)
+	return _checked("/players/interact", {"status": response.status, "body": response.body}, "player-interact")
+
+
 ## AD-197c: o tempo como o jogador o vê (`GET /players/{id}/time`): o ritmo (Fast, RealTime, Accelerated, Manual), se ele pode
 ## pular o tempo agora (só quem joga sozinho), o pulo em curso e o que o acordou. O cliente só mostra o que o motor diz.
 func player_time(player_id: String) -> Dictionary:

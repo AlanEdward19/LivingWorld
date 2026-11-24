@@ -79,4 +79,7 @@ static func handle(app, event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.alt_pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 		app.reading.cycle(event.position, 1 if event.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1) # Alt+roda: igual ao Tab
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		app._pick(event.position, event.double_click)
+		if app.player_hud != null and app.player_hud.is_active and app.rig.mode != app.rig.ISO:
+			app.strike_at(app.aim_point()) # AD-197j: encarnado, o clique bate no NPC sob a mira (o centro da tela)
+		else:
+			app._pick(event.position, event.double_click)

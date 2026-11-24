@@ -83,16 +83,39 @@ public static class PossessionContest
     }
 
     /// <summary>Peso (0..100) de uma ordem de ferir <paramref name="target"/> contra os valores e os vínculos da pessoa.</summary>
-    public static double HarmWeight(WorldState world, Npc npc, Npc target) =>
-        Math.Max(PossessionWill.CareFor(world, npc, target), npc.Personality.Altruism * Rules(world).AltruismHarmWeight);
+    public static double HarmWeight(WorldState world, Npc npc, Npc target) => OrderWeight(world, npc, OrderHarm.Hurt(target));
+
+    /// <summary>AD-197d: peso (0..100) de uma ordem qualquer contra o que a pessoa valoriza, pelo que ela faz e não pelo nome da ação:
+    /// o maior entre o cuidado com cada pessoa ferida vezes o quanto a ordem a fere (vínculo × lealdade, <see cref="PossessionWill"/>),
+    /// o altruísmo dela na medida do pior dano a alguém (quem ajuda a todos recusa ferir qualquer um) e, se a ordem tira a casa
+    /// dela, o apego à segurança (aversão a risco) na medida de <see cref="PossessionRules.HomeValue"/>.</summary>
+    public static double OrderWeight(WorldState world, Npc npc, OrderHarm harm)
+    {
+        var rules = Rules(world);
+        double weight = 0, worst = 0;
+        foreach (var (person, severity) in harm.Harmed)
+        {
+            weight = Math.Max(weight, PossessionWill.CareFor(world, npc, person) * severity);
+            worst = Math.Max(worst, severity);
+        }
+        weight = Math.Max(weight, npc.Personality.Altruism * rules.AltruismHarmWeight * worst);
+        if (harm.LosesHome) weight = Math.Max(weight, npc.Personality.RiskAversion * rules.HomeValue);
+        return Math.Clamp(weight, 0, 100);
+    }
 
     /// <summary>A pessoa recusa ferir <paramref name="target"/> agora? (Só na posse comum; a plena nunca recusa.)</summary>
-    public static bool Refuses(WorldState world, Npc npc, Npc target, long tick)
+    public static bool Refuses(WorldState world, Npc npc, Npc target, long tick) => RefusesOrder(world, npc, OrderHarm.Hurt(target), tick);
+
+    /// <summary>AD-197d: a pessoa recusa a ordem agora? Na posse plena nunca. Sem a disputa de vontade (AD-197e) pesa só o vínculo;
+    /// com ela, peso a partir de <see cref="PlayerRules.RefuseHarmCare"/> (o limiar de 60 do dono) e resistência × peso / 100 acima
+    /// de <see cref="PossessionRules.RefuseFactor"/> × controle.</summary>
+    public static bool RefusesOrder(WorldState world, Npc npc, OrderHarm harm, long tick)
     {
         var rules = world.Players;
-        if (!rules.Enabled) return false;
-        if (!rules.Possession.WillContest) return PossessionWill.CareFor(world, npc, target) >= rules.RefuseHarmCare; // AD-197e
-        double weight = HarmWeight(world, npc, target);
+        if (!rules.Enabled || npc.ControlMode == PossessionMode.Full) return false;
+        if (!rules.Possession.WillContest) // AD-197e: só o vínculo
+            return harm.Harmed.Any(h => PossessionWill.CareFor(world, npc, h.Person) * h.Severity >= rules.RefuseHarmCare);
+        double weight = OrderWeight(world, npc, harm);
         return weight >= rules.RefuseHarmCare
             && Resistance(world, npc, tick) * weight / 100 > rules.Possession.RefuseFactor * Control(world, npc, tick);
     }
@@ -192,4 +215,12 @@ public static class PossessionContest
         ctx.LogEvent(WorldEventKind.PossessionExpelled,
             string.Create(CultureInfo.InvariantCulture, $"{npc.Id.Value}|{now - since}|{resistance:0}|{control:0}"), PossessionSystem.SystemName);
     }
+}
+
+/// <summary>AD-197d: o que uma ordem faz às pessoas e à vida da pessoa possuída: quem ela fere e quanto (0..1) e se tira a casa dela.
+/// O peso contra os valores sai daqui (<see cref="PossessionContest.OrderWeight"/>), sem lista de ações.</summary>
+public sealed record OrderHarm(IReadOnlyList<(Npc Person, double Severity)> Harmed, bool LosesHome = false)
+{
+    /// <summary>Ferir alguém com as próprias mãos (golpe): o dano inteiro nele.</summary>
+    public static OrderHarm Hurt(Npc target) => new([(target, 1.0)]);
 }

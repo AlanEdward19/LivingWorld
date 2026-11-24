@@ -882,6 +882,20 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>AD-197j: instante (ms) em que o corpo conduzido pelo jogador termina o passo em curso e pode dar o próximo. Omitido
+    /// enquanto 0 (quem nunca foi conduzido passo a passo).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long StepReadyAtMs { get; private set; }
+
+    /// <summary>AD-197j: o passo dado agora termina em <paramref name="readyAtMs"/> e gasta <paramref name="sleepCost"/> do sono
+    /// (energia) além do desgaste de sempre.</summary>
+    public void Step(long readyAtMs, double sleepCost, long nowMs)
+    {
+        StepReadyAtMs = readyAtMs;
+        if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
     public void SetSocial(int social, long tick = 0)
     {
         SocialNeed = SocialNeed.WithValue(social, tick);

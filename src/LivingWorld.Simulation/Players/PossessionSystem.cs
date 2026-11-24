@@ -10,7 +10,8 @@ namespace LivingWorld.Simulation.Players;
 /// (<see cref="PossessionWitness"/>): nada por tick, nada agendado; sem posse, nada roda. Este sistema só declara a capacidade e
 /// seus eventos para o catálogo.</summary>
 [LivingCapability("POSSESSION",
-    Events = [WorldEventKind.PossessionExpelled, WorldEventKind.PossessionSuspected, WorldEventKind.PossessionConcluded, WorldEventKind.PossessionConfronted],
+    Events = [WorldEventKind.PossessionExpelled, WorldEventKind.PossessionSuspected, WorldEventKind.PossessionConcluded, WorldEventKind.PossessionConfronted,
+        WorldEventKind.HouseSold, WorldEventKind.ChildAbandoned],
     Consumers = ["timeline.knowledge"])]
 public sealed class PossessionSystem : ISimulationSystem
 {

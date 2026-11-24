@@ -5,6 +5,12 @@ const WorldTime := preload("res://Contract/world_time.gd")
 
 signal released()
 signal warning(text: String)
+## AD-197d: previsão e correção do passo (o cliente anda já e corrige pela posição do motor), a conversa aberta pelo motor.
+signal predicted(delta: Vector2i)
+signal confirmed(x: int, y: int)
+signal rejected()
+signal conversation_opened(npc_id: int, name: String, session_id: int)
+signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
 const PAUSED_NOTE := "Mundo pausado: suas ações só andam quando o tempo voltar."
@@ -276,35 +282,237 @@ func act(action: String, power_id: String = "") -> void:
 		_sync_buttons()
 
 
-## AD-197e: WASD/setas andam um passo com o personagem pelo comando `move` (a rota antiga /visual/player/move saiu). O motor
-## valida e responde a posição; aqui só se pede.
+## AD-197d: WASD/setas andam com o personagem relativo à câmera (W para onde ela olha), uma célula por passo pelo comando `move`
+## (intenção, não posição); segurar a tecla anda no passo do corpo. O cliente prevê o passo e corrige pela posição que o motor
+## responde; a recusa (parede, porta, alguém no caminho) volta o corpo. A latência de cada comando fica medida.
 const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vector2i(0, 1), KEY_DOWN: Vector2i(0, 1),
 	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
+const STEP_INTERVAL := 0.35 ## s entre passos com a tecla segurada (andar; o motor ainda não limita a velocidade, ver issue)
+var heading: Callable = func() -> Vector2: return Vector2(0, -1) ## para onde a câmera olha no chão (x, z); o app liga o rig
+var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## AD-197j: o app liga o catálogo de recursos
+var step_seconds := STEP_INTERVAL ## AD-197j: quanto o último passo durou no corpo (o motor diz `readyInMs`), em segundos reais
 var _stepping := false
+var _cooldown := 0.0
+var latencies: Array[float] = [] ## ms do pedido à resposta do motor, os últimos 64
+var offers: Array = [] ## a última oferta do motor (E)
+var menu: VBoxContainer ## as interações que o motor ofereceu; nada além delas
+
+
+## Teclas apertadas (W para frente, D para a direita) viram uma direção de grade pelo olhar da câmera, nas 8 direções.
+func intent_for(keys: Vector2i) -> Vector2i:
+	if keys == Vector2i.ZERO:
+		return Vector2i.ZERO
+	var forward: Vector2 = heading.call()
+	var right := Vector2(-forward.y, forward.x)
+	var world := forward * float(-keys.y) + right * float(keys.x)
+	var octant := roundi(world.angle() / (PI / 4.0))
+	var snapped := Vector2.RIGHT.rotated(octant * PI / 4.0)
+	return Vector2i(roundi(snapped.x), roundi(snapped.y))
+
+
+func _held_keys() -> Vector2i:
+	var keys := Vector2i.ZERO
+	for code in STEP_KEYS:
+		if Input.is_key_pressed(code):
+			keys += STEP_KEYS[code]
+	return keys.clamp(Vector2i(-1, -1), Vector2i(1, 1))
+
+
+func _process(delta: float) -> void:
+	_cooldown = maxf(0.0, _cooldown - delta)
+	if not is_active or _stepping or _cooldown > 0.0:
+		return
+	var direction := intent_for(_held_keys())
+	if direction != Vector2i.ZERO:
+		step(direction.x, direction.y)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_active and event is InputEventKey and event.pressed and STEP_KEYS.has(event.keycode):
+	if not is_active:
+		return
+	if event is InputEventKey and event.pressed and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled()
-		var direction: Vector2i = STEP_KEYS[event.keycode]
-		step(direction.x, direction.y)
+		if not event.echo:
+			var direction := intent_for(STEP_KEYS[event.keycode])
+			step(direction.x, direction.y)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		get_viewport().set_input_as_handled()
+		if menu != null and menu.visible:
+			close_menu()
+		else:
+			open_interactions()
 
 
 ## Um passo; um pedido por vez (tecla segurada não enfileira passos que o motor ainda não respondeu).
 func step(dx: int, dy: int) -> void:
-	if not is_active or _stepping:
+	if not is_active or _stepping or (dx == 0 and dy == 0):
 		return
 	_stepping = true
+	_cooldown = step_seconds
+	predicted.emit(Vector2i(dx, dy))
+	var started := Time.get_ticks_usec()
 	var response: Dictionary = await api.player_move(player_id, dx, dy)
+	_note_latency(started)
 	_stepping = false
 	if not is_active:
 		return
+	if response.ok and response.body is Dictionary:
+		_pace(response.body)
+		confirmed.emit(int(response.body.get("x", 0)), int(response.body.get("y", 0)))
+		return
+	rejected.emit()
 	if response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	elif response.status == 409:
 		warning.emit("Mundo pausado: o passo só anda quando o tempo voltar.")
-	elif not response.ok and response.status != 400:
+	elif response.status != 400:
 		warning.emit("Não foi possível andar (erro %d)." % response.status)
+
+
+## AD-197j: o próximo passo só depois do tempo do corpo (`readyInMs` de mundo, na escala do relógio): a tecla segurada anda nesse ritmo.
+func _pace(pose: Dictionary) -> void:
+	var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	var seconds := float(pose.get("readyInMs", 0)) / 1000.0 / maxf(scale, 0.001)
+	if seconds > 0.0:
+		step_seconds = seconds
+		_cooldown = seconds
+
+
+func _note_latency(started: int) -> void:
+	latencies.append((Time.get_ticks_usec() - started) / 1000.0)
+	if latencies.size() > 64:
+		latencies.pop_front()
+
+
+## Mediana da latência dos últimos comandos (ms), 0 sem medida.
+func latency_median_ms() -> float:
+	if latencies.is_empty():
+		return 0.0
+	var sorted := latencies.duplicate()
+	sorted.sort()
+	return sorted[sorted.size() / 2]
+
+
+const KIND_TEXT := {"door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
+	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
+const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
+	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar"}
+
+
+## E: pede ao motor o que o corpo alcança e mostra só isso (uma linha por coisa e verbo; por recurso, na despensa e na banca).
+func open_interactions() -> void:
+	if not is_active or _busy:
+		return
+	_busy = true
+	var started := Time.get_ticks_usec()
+	var response: Dictionary = await api.player_reach(player_id)
+	_note_latency(started)
+	_busy = false
+	if not is_active:
+		return
+	if not response.ok or not (response.body is Dictionary):
+		if response.status == 404:
+			_lost("Você não controla mais %s." % npc_name)
+		return
+	offers = response.body.get("offers", [])
+	show_menu(menu_entries(offers, resource_name_of))
+
+
+## As linhas do menu, todas tiradas da oferta: {text, kind, id, verb, resource}; o nome do recurso vem do catálogo do servidor.
+static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
+	var entries: Array = []
+	for offer in from:
+		var kind := String(offer.get("kind", ""))
+		var title := String(offer.get("label", "")) if kind == "person" else String(KIND_TEXT.get(kind, kind))
+		for verb in offer.get("verbs", []):
+			var resources: Array = offer.get("resources", [])
+			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():
+				for item in resources:
+					if int(item.get("quantity", 0)) <= 0:
+						continue
+					var price := int(item.get("price", 0))
+					var resource_text: String = name_of.call(int(item.resourceId)) if name_of.is_valid() else "recurso %d" % int(item.resourceId)
+					entries.append({"text": "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
+						" (%d)" % price if price > 0 else ""], "kind": kind, "id": int(offer.id), "verb": String(verb),
+						"resource": int(item.resourceId)})
+			else:
+				entries.append({"text": "%s: %s" % [title, VERB_TEXT.get(String(verb), String(verb))], "kind": kind,
+					"id": int(offer.id), "verb": String(verb), "resource": -1})
+	return entries
+
+
+func show_menu(entries: Array) -> void:
+	if menu == null:
+		menu = VBoxContainer.new()
+		add_child(menu)
+	for child in menu.get_children():
+		child.queue_free()
+	if entries.is_empty():
+		var none := Label.new()
+		none.text = "Nada ao alcance."
+		menu.add_child(none)
+	for entry in entries:
+		var button := Button.new()
+		button.text = entry.text
+		button.pressed.connect(func(): interact(entry))
+		menu.add_child(button)
+	menu.visible = true
+
+
+func close_menu() -> void:
+	if menu != null:
+		menu.visible = false
+
+
+## Pede a interação ao motor; a recusa da pessoa possuída (409 com o motivo) vira aviso, e a conversa aceita abre o chat.
+func interact(entry: Dictionary) -> void:
+	if not is_active or _busy:
+		return
+	close_menu()
+	_busy = true
+	var started := Time.get_ticks_usec()
+	var response: Dictionary = await api.player_interact(player_id, entry.kind, entry.id, entry.verb, entry.get("resource", -1))
+	_note_latency(started)
+	_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var pose = response.body.get("pose")
+		if pose is Dictionary:
+			_pace(pose)
+			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
+		if response.body.get("sessionId") != null:
+			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
+		_set_status(String(entry.get("text", "")))
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou (erro %d)." % response.status)
+
+
+func _offer_label(entry: Dictionary) -> String:
+	for offer in offers:
+		if String(offer.get("kind", "")) == entry.kind and int(offer.get("id", -1)) == int(entry.id):
+			return String(offer.get("label", ""))
+	return ""
+
+
+## Clique: golpe no NPC sob a mira; o motor decide alcance e vontade.
+func strike(target: int) -> void:
+	if not is_active or _busy or target < 0 or target == npc_id:
+		return
+	_busy = true
+	var started := Time.get_ticks_usec()
+	struck.emit(target) # o braço desce já (previsão); o motor diz se acertou
+	var response: Dictionary = await api.player_strike(player_id, target)
+	_note_latency(started)
+	_busy = false
+	if not is_active or response.ok:
+		return
+	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+	warning.emit(error.trim_prefix("conflict: recusa: ") if error != "" else "O golpe não saiu (erro %d)." % response.status)
 
 
 func logout() -> void:
