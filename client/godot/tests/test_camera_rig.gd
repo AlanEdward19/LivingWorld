@@ -192,3 +192,152 @@ func test_eye_height_comes_from_the_body_height_in_engine_scale() -> void:
 	rig.set_mode(rig.THIRD)
 	check(rig._pivot.position.y > rig.eye_height() and rig._pivot.position.y < rig.eye_height() * 1.5, "a 3ª mira logo acima do ombro, coerente com o corpo")
 	rig.free()
+
+
+# --- AD-197s: a 3ª pessoa nasce com o corpo à vista; a 1ª pessoa não atravessa parede -----------------------------------
+
+## Casa de 5x5 células, andar de 3 unidades (+0,9 de telhado na caixa); a casca soma beiral e cumeeira.
+func _house(id: int, at: Vector3, floors: int = 1) -> Array:
+	var raw := AABB(at, Vector3(5, 3.0 * floors + 0.9, 5))
+	return [id, raw, AABB(raw.position - Vector3(0.2, 0, 0.2), raw.size + Vector3(0.4, 0.2, 0.4))]
+
+
+func _camera_inside_any_shell(rig, boxes: Array) -> bool:
+	var spot: Vector3 = _camera_world(rig).origin
+	for entry in boxes:
+		if CameraRig.shell_of(entry).has_point(spot):
+			return true
+	return false
+
+
+func _body_rig(boxes: Array, body_at: Vector3, yaw: float) -> Array:
+	var rig := CameraRig.new()
+	var body := Node3D.new()
+	rig.add_child(body)
+	body.position = body_at
+	var seen := {}
+	var open := {}
+	rig.see_through.connect(func(ids: Dictionary): seen.assign(ids))
+	rig.opened.connect(func(ids: Dictionary): open.assign(ids))
+	rig.blockers = func() -> Array: return boxes
+	rig.pitch = deg_to_rad(-15.0)
+	rig.yaw = yaw
+	return [rig, body, seen, open]
+
+
+## Causa 1: com o corpo dentro de casa (olho dentro da caixa) o braço terminava dentro das paredes ou do telhado. Agora a câmera
+## sobe para fora da casca, olha o corpo de cima, e o prédio abre (telhado some), em qualquer direção de olhar e em qualquer andar.
+func test_body_inside_a_house_is_seen_from_above_the_roof_in_every_direction_and_floor() -> void:
+	for floors in [1, 3]:
+		for body_cell in [Vector3(2.5, 0.0, 2.5), Vector3(0.5, 0.0, 0.5), Vector3(4.5, 0.0, 2.5)]:
+			for floor_up in range(floors):
+				var boxes := [_house(7, Vector3.ZERO, floors), _house(8, Vector3(6, 0, 0), floors)]
+				var at: Vector3 = body_cell + Vector3(0, floor_up * 3.0, 0)
+				for yaw in [0.0, PI / 2.0, PI, -PI / 2.0, 0.7]:
+					var made := _body_rig(boxes, at, yaw)
+					var rig = made[0]
+					rig.set_mode(rig.THIRD)
+					rig.follow(made[1])
+					var label := "andares %s, corpo %s, giro %s" % [floors, at, snappedf(yaw, 0.01)]
+					check(not _camera_inside_any_shell(rig, boxes), "a câmera fica fora de toda casca (%s; %s)" % [label, _camera_world(rig).origin])
+					var cam := _camera_world(rig)
+					var body_center: Vector3 = rig.target + Vector3(0, rig.eye_height() * 0.55, 0)
+					check((-cam.basis.z).dot((body_center - cam.origin).normalized()) > cos(deg_to_rad(20.0)), "o corpo está no centro do enquadramento (%s)" % label)
+					check(made[3].has(7), "o prédio do corpo abre (%s)" % label)
+					check(made[2].has(7), "e fica na translucidez (%s)" % label)
+					rig.free()
+
+
+## A vertical nunca é passada: o enquadramento de cima olha o corpo sem virar a câmera de cabeça para baixo.
+func test_view_from_above_never_passes_the_vertical() -> void:
+	var boxes := [_house(7, Vector3.ZERO, 3)]
+	for pitch in [-70.0, -15.0, 0.0, 35.0]:
+		var made := _body_rig(boxes, Vector3(2.5, 0.0, 2.5), 0.3)
+		var rig = made[0]
+		rig.pitch = deg_to_rad(pitch)
+		rig.set_mode(rig.THIRD)
+		rig.follow(made[1])
+		var forward: Vector3 = -_camera_world(rig).basis.z
+		check(forward.y > -1.0 and forward.y < 0.0 and forward.y >= -sin(deg_to_rad(84.0)) - 0.001, "olha para baixo sem passar da vertical (pitch %s: %s)" % [pitch, forward.y])
+		rig.free()
+
+
+## Causa 2: o corpo da pessoa nova só chega ao desenho depois: o rig ficava num ponto sem corpo (dentro do prédio) e só ajustava
+## ao correr o tempo. Agora `follow` já vai ao enquadramento: no quadro em que o corpo chega, nada de câmera dentro de parede.
+func test_body_that_arrives_later_gets_the_framing_on_the_very_first_frame() -> void:
+	var boxes := [_house(7, Vector3.ZERO)]
+	var made := _body_rig(boxes, Vector3(2.5, 0.0, 2.5), 0.0)
+	var rig = made[0]
+	rig.target = Vector3(2.5, 0.0, 4.5) # o ponto resolvido da ficha: dentro da casa, sem corpo
+	rig.set_mode(rig.THIRD)
+	rig.follow(null)
+	rig._process(0.016) # quadros sem corpo não movem nem quebram nada
+	check(_camera_world(rig).origin.y > rig.AWAIT_LIFT, "sem corpo a câmera espera no alto (%s), não dentro da casa" % _camera_world(rig).origin)
+	rig.follow(made[1]) # o corpo chegou no delta
+	check(not _camera_inside_any_shell(rig, boxes), "no mesmo quadro em que o corpo chega a câmera já está fora das paredes (%s)" % _camera_world(rig).origin)
+	check(made[3].has(7) and made[2].has(7), "e o prédio já abriu")
+	rig.free()
+
+
+## Troca de modo com o corpo já seguido (C: 1ª -> 3ª) também vai direto, sem passar pela posição antiga.
+func test_switching_to_third_person_inside_a_house_goes_straight_to_the_framing() -> void:
+	var boxes := [_house(7, Vector3.ZERO)]
+	var made := _body_rig(boxes, Vector3(2.5, 0.0, 2.5), 1.0)
+	var rig = made[0]
+	rig.set_mode(rig.FIRST)
+	rig.follow(made[1])
+	rig.set_mode(rig.THIRD)
+	check(not _camera_inside_any_shell(rig, boxes), "ao voltar para a 3ª pessoa a câmera sai das paredes de uma vez")
+	rig.free()
+
+
+## Causa 3: o olho do corpo fora de casa mas a câmera, 3 atrás, caía no beiral do telhado vizinho (a caixa não o incluía): a
+## casca do prédio (beiral, cumeeira) é o que vale. Corpo na rua, beiral e telhado alto atrás dele.
+func test_camera_keeps_out_of_the_eaves_and_the_ridge_of_the_neighbour() -> void:
+	var raw := AABB(Vector3(0, 0, 0), Vector3(4, 2.4, 4))
+	var shell := AABB(Vector3(-0.2, 0, -0.2), Vector3(4.4, 3.6, 4.4)) # cumeeira de um telhado alto (templo: pitch 1,4), acima da caixa
+	var boxes := [[5, raw, shell]]
+	var made := _body_rig(boxes, Vector3(-1.5, 0.0, 2.0), PI / 2.0) # a câmera fica em +x (para a casa) e sobe: passaria por cima da caixa, não da cumeeira
+	var rig = made[0]
+	rig.pitch = 0.0
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	var cam := _camera_world(rig).origin
+	check(not shell.has_point(cam), "fora da casca (%s)" % cam)
+	rig.free()
+
+
+func test_roof_lift_and_containing_only_count_the_box_the_eye_is_in() -> void:
+	var boxes := [_house(1, Vector3.ZERO), _house(2, Vector3(10, 0, 0))]
+	check(CameraRig.roof_lift(Vector3(2.5, 1.4, 2.5), boxes) > 2.0, "dentro: sobe acima da casca")
+	eq(CameraRig.roof_lift(Vector3(7.5, 1.4, 2.5), boxes), 0.0, "fora de qualquer caixa: nada")
+	eq(CameraRig.containing(Vector3(2.5, 1.0, 2.5), boxes), {1: true})
+	eq(CameraRig.containing(Vector3(-0.1, 1.0, 2.5), boxes), {})
+
+
+## 1ª pessoa: o corte do plano próximo cobre a cabeça, e o olho do lado de fora não encosta na parede.
+func test_first_person_eye_never_touches_a_wall() -> void:
+	var rig := CameraRig.new()
+	rig.set_mode(rig.FIRST)
+	check(rig.camera.near >= 0.1 and rig.camera.near <= 0.2, "near da 1ª pessoa cobre a cabeça (%s)" % rig.camera.near)
+	rig.set_mode(rig.THIRD)
+	check(is_equal_approx(rig.camera.near, rig.NEAR_THIRD), "e a 3ª pessoa volta ao near curto")
+	rig.free()
+	var wall := [[1, AABB(Vector3(0, 0, 0), Vector3(4, 3.9, 4))]]
+	var close := Vector3(-0.03, 1.07, 2.0) # fora, a 3 cm da parede
+	var pushed: Vector3 = CameraRig.push_out(close, wall)
+	check(not wall[0][1].has_point(pushed) and (0.0 - pushed.x) >= CameraRig.EYE_CLEAR - 0.001, "recua até a folga (%s)" % pushed)
+	eq(CameraRig.push_out(Vector3(-1.0, 1.07, 2.0), wall), Vector3(-1.0, 1.07, 2.0), "longe da parede: não mexe")
+	eq(CameraRig.push_out(Vector3(2.0, 1.07, 2.0), wall), Vector3(2.0, 1.07, 2.0), "dentro do prédio (o corpo mora lá): não mexe")
+	eq(CameraRig.push_out(Vector3(-0.03, 5.0, 2.0), wall), Vector3(-0.03, 5.0, 2.0), "acima do telhado: não mexe")
+
+
+func test_first_person_rig_applies_the_eye_push_next_to_a_wall() -> void:
+	var boxes := [[1, AABB(Vector3(0, 0, 0), Vector3(4, 3.9, 4))]]
+	var made := _body_rig(boxes, Vector3(-0.03, 0.0, 2.0), 0.0)
+	var rig = made[0]
+	rig.set_mode(rig.FIRST)
+	rig.follow(made[1])
+	var cam := _camera_world(rig).origin
+	check(cam.x <= -CameraRig.EYE_CLEAR + 0.001, "o olho está a pelo menos a folga da parede (%s)" % cam.x)
+	rig.free()
