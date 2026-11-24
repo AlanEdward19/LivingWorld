@@ -26,8 +26,8 @@ public sealed record TimeRules
     /// <summary>Período real do tick fino, em ms reais (20 ticks por segundo). O Δ de mundo é este × <see cref="TimeScale"/>.</summary>
     public int FineTickRealMs { get; init; } = 50;
 
-    /// <summary>Ticks por segundo quando o tempo é acelerado (sono acelerado, jogador sozinho parado): uma hora de mundo por tick.</summary>
-    public double AcceleratedTicksPerSecond { get; init; } = 8;
+    /// <summary>Horas de mundo por segundo real quando o tempo é acelerado (sono acelerado, jogador sozinho parado; uma hora por tick).</summary>
+    public double AcceleratedHoursPerSecond { get; init; } = 8;
 
     /// <summary>Decisão, ação e rota dos NPCs com granulação fina quando Δ é menor que a hora (AD-197c).</summary>
     public bool FineDecisions { get; init; } = true;

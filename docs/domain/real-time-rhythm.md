@@ -11,7 +11,7 @@ Dados de cenário por mundo, `{"Players": {"Time": {...}}}` (`TimeRules`), sem n
 | `TimeScale` | 1 | mundo/real com jogador; Δ = `FineTickRealMs` × escala, no divisor da hora mais próximo (1:1 → 50 ms; 1:12 → 600 ms) |
 | `IdleRhythm` | `Fast` | sem jogador: `Fast` (1 h por tick, na velocidade do admin) ou `RealTime` |
 | `FineTickRealMs` | 50 | período real do tick fino (20 ticks/s) |
-| `AcceleratedTicksPerSecond` | 8 | pulo de tempo: 1 h por tick a esta velocidade |
+| `AcceleratedHoursPerSecond` | 8 | pulo de tempo: 1 h por tick a esta velocidade |
 | `FineDecisions` | true | `LW_AD197C=off`: o Δ fino só anda o relógio (AD-197b) |
 | `CriticalNeedDeficit`, `BurnTemperatureC`, `CallerAffection` | 80, 50 °C, 30 | o que acorda quem dorme acelerado |
 
@@ -31,6 +31,8 @@ o registro do jogador (`TickDelta`), como na AD-197b. `/simulation/status` traz 
 - **Rota**: `TravelPose.CellAt(npc, ms)` dá a célula do viajante pela fração do tempo entre saída e chegada, ao longo da rota real
   (`StreetRoutes.PathOf`); calculada, não guardada (ADR-0050, decisão 2). Consumidor: o alcance do golpe do jogador
   (`TravelPose.Reach`), e o cliente anda o boneco pela mesma rota e pelos mesmos instantes.
+- **Agendador**: evento que vence dentro da hora fica numa árvore por (instante, Id) da sua hora (O(log k)); o da hora cheia segue na
+  lista. A fila de despertar guarda o piso do instante mais cedo fora da hora cheia de cada balde.
 - **Tocado pelo jogador acorda já**: `Act` acorda o corpo conduzido e o golpe acorda o alvo no próximo tick fino.
 
 ## Pulo de tempo de quem joga sozinho (`PlayerService`, `SkipWatch`)

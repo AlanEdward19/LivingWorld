@@ -26,6 +26,7 @@ public class FineTimeCostHarness
         {
             double best = double.MaxValue, hourlyBest = double.MaxValue;
             long wakesInside = 0;
+            int pending = 0, pendingInside = 0;
             for (int run = 0; run < 3; run++)
             {
                 var (world, clock) = ScaleScenarioFixture.CreateWorld(42, Population);
@@ -38,6 +39,8 @@ public class FineTimeCostHarness
                 clock.Run(world, WorldMillis.PerHour / Delta, Delta);
                 best = Math.Min(best, (Process.GetCurrentProcess().TotalProcessorTime - cpu).TotalMicroseconds);
                 wakesInside = world.WakeCounters.Wakes - started;
+                pending = world.PendingEvents.Count; // eventos do agendador pendentes ao fim da hora e quantos vencem dentro da hora
+                pendingInside = world.PendingEvents.Count(e => e.TargetMs % WorldMillis.PerHour != 0);
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 cpu = Process.GetCurrentProcess().TotalProcessorTime;
                 clock.Tick(copy);
@@ -46,7 +49,7 @@ public class FineTimeCostHarness
             double perRealSecond = best / 3600.0; // escala 1:1: a hora de mundo é uma hora real
             sb.AppendLine($"fine{Population} decisions={(fine ? "on" : "off")} deltaMs={Delta} cpuMicrosPerWorldHour={best:F0} "
                 + $"cpuMicrosPerRealSecond={perRealSecond:F1} coreFraction={perRealSecond / 1e6:P3} wakes={wakesInside} "
-                + $"hourlyTickCpuMicros={hourlyBest:F0} ratioToOneHourTick={best / Math.Max(1, hourlyBest):F2}");
+                + $"pendingEvents={pending} pendingInsideHour={pendingInside} hourlyTickCpuMicros={hourlyBest:F0} ratioToOneHourTick={best / Math.Max(1, hourlyBest):F2}");
         }
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-fine-time.txt"), sb.ToString());
     }

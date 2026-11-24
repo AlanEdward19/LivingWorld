@@ -1,7 +1,7 @@
-using LivingWorld.Domain.Shared;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Mechanics;

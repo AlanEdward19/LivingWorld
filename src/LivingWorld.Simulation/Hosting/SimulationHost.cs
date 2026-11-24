@@ -90,7 +90,7 @@ public sealed class SimulationHost(WorldHost host)
         if (ManualDeltaMs is { } manual) return new RhythmPlan(RhythmMode.Manual, manual, TicksPerSecond);
         var time = world.Players.Time;
         if (Accelerated || players.Skip is not null)
-            return new RhythmPlan(RhythmMode.Accelerated, WorldMillis.HourTick, Math.Max(TicksPerSecond, time.AcceleratedTicksPerSecond));
+            return new RhythmPlan(RhythmMode.Accelerated, WorldMillis.HourTick, Math.Max(TicksPerSecond, time.AcceleratedHoursPerSecond));
         var real = new RhythmPlan(RhythmMode.RealTime, time.FineDeltaMs(), 1000.0 / Math.Max(1, time.FineTickRealMs));
         if (PlayerService.PlayersPresent(world) > 0) return real;
         return time.IdleRhythm == IdleRhythm.RealTime ? real : new RhythmPlan(RhythmMode.Fast, WorldMillis.HourTick, TicksPerSecond);
