@@ -199,6 +199,32 @@ func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
+## AD-197q: de onde dá para sair como pessoa nova (`{cities:[{cityId,name,aggregateCount,detailedCount}]}`), do motor.
+func player_origins() -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/origins", null, _player_headers())
+	return _checked("/players/origins", {"status": response.status, "body": response.body}, "player-origins")
+
+
+## AD-197q: uma amostra nova do agregado da cidade (`filter`: sex, minAge, maxAge, professionId, count). Cada pedido é registrado
+## pelo motor; 409 com o motivo quando o agregado está vazio ou ninguém passa no filtro.
+func player_candidates(player_id: String, city_id: String, filter: Dictionary = {}) -> Dictionary:
+	var body := filter.duplicate()
+	body["cityId"] = city_id
+	var command := body.duplicate()
+	command["command"] = "candidates"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/candidates" % player_id.uri_encode(), body)
+	return _checked("/players/candidates", {"status": response.status, "body": response.body}, "player-candidates")
+
+
+## AD-197q: entrar como o candidato `npc_id` da amostra `sample`: o motor materializa a pessoa e a encarna.
+func player_create(player_id: String, city_id: String, npc_id: int, sample: int) -> Dictionary:
+	var body := {"cityId": city_id, "npcId": npc_id, "sample": sample}
+	var command := body.duplicate()
+	command["command"] = "create"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/create" % player_id.uri_encode(), body)
+	return _checked("/players/create", {"status": response.status, "body": response.body}, "player-create")
+
+
 ## `action` = nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); "" devolve a escolha ao motor. `power_id` (AD-196)
 ## vai só com UsePower: o poder que o NPC porta (o servidor recusa com 400 o que ele não porta).
 func player_action(player_id: String, action: String, power_id: String = "") -> Dictionary:

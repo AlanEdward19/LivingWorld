@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -73,6 +73,17 @@ static func run(app: Node, steps: Array) -> void:
 				await app.incarnate(int(arg))
 			"act":
 				await app.player_hud.act(arg)
+			"creator": # AD-197q: abre o criador de personagem (cidades e primeira amostra do motor)
+				await app.open_creator()
+			"creatorpick": # AD-197q: `creatorpick:N` entra como o N-ésimo candidato que a vontade deixa (0 = o primeiro)
+				var open_cards: Array = app.creator.cards.filter(func(c): return not c.button.disabled)
+				if int(arg) < open_cards.size():
+					var card: Dictionary = open_cards[int(arg)]
+					var who: String = ""
+					for c in app.creator.sample.get("candidates", []):
+						if int(c.npcId) == int(card.npc_id):
+							who = String(c.name)
+					await app.creator.choose(int(card.npc_id), who)
 			"admin":
 				app.admin_window.open()
 				app.admin_window.reason_input.text = arg

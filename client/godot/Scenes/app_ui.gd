@@ -16,6 +16,7 @@ const AdminWindow := preload("res://Scenes/admin_window.gd")
 const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
+const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const CameraRig := preload("res://Scenes/camera_rig.gd")
@@ -107,6 +108,11 @@ static func _top_bar(app, ui: Control) -> void:
 		console_button.text = "Console (F8)"
 		console_button.pressed.connect(func(): app._toggle_admin())
 		bar.add_child(console_button)
+	var creator_button := Button.new() # AD-197q: entrar como pessoa nova, tirada do agregado de uma cidade pelo motor
+	creator_button.text = "Pessoa nova"
+	creator_button.tooltip_text = "Entrar no mundo como alguém da população de uma cidade"
+	creator_button.pressed.connect(func(): app.open_creator())
+	bar.add_child(creator_button)
 	app.help_button = Button.new()
 	app.help_button.text = " ? "
 	app.help_button.tooltip_text = "Dicas e atalhos"
@@ -249,8 +255,12 @@ static func _windows(app, ui: Control) -> void:
 	app.technology = TechnologyWindow.new()
 	app.technology.api = app.api
 	app.technology.date_of = app._date_text
+	app.creator = CharacterCreator.new()
+	app.creator.api = app.api
+	app.creator.hud = app.player_hud
+	app.creator.entered.connect(app._on_created)
 	app.router.host = ui
-	for window in [app.brain_panel, app.narrative, app.admin_window, app.economy, app.technology]:
+	for window in [app.brain_panel, app.narrative, app.admin_window, app.economy, app.technology, app.creator]:
 		window.warning.connect(func(text: String): app.toasts.push(text))
 		ui.add_child(window)
 		app.router.register(window)
