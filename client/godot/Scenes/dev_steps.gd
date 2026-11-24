@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -78,7 +78,14 @@ static func run(app: Node, steps: Array) -> void:
 				await app.player_hud.act(arg)
 			"creator": # AD-197q: abre o criador de personagem (cidades e primeira amostra do motor)
 				await app.open_creator()
+			"creatorset": # AD-197t: `creatorset:name=Ana,age=29,role=child,family=0,money=90,height=1.65,look.skinTone=30,outfit=3` preenche o criador
+				await _creator_set(app, arg)
+			"creatorcreate": # AD-197t: cria a pessoa montada e entra
+				await app.creator.designer.refresh()
+				await app.creator.designer.create()
 			"creatorpick": # AD-197q: `creatorpick:N` entra como o N-ésimo candidato que a vontade deixa (0 = o primeiro)
+				if app.creator.mode != "sample":
+					await app.creator.set_mode("sample")
 				var open_cards: Array = app.creator.cards.filter(func(c): return not c.button.disabled)
 				if int(arg) < open_cards.size():
 					var card: Dictionary = open_cards[int(arg)]
@@ -538,3 +545,38 @@ static func _demo(app: Node, which: String) -> void:
 		"vendas":
 			app.economy.mode = "trades"; app.economy.is_open = true; app.economy.visible = true; app.economy._title.text = "Vendas de local 0"
 			app.economy._render(ok.call({"workplaceId": 0, "fromDay": 0, "toDay": 29, "days": [{"day": 3, "resourceId": 1, "quantity": 30, "value": 30, "purchases": 2}, {"day": 4, "resourceId": 2, "quantity": 20, "value": 20, "purchases": 1}]}))
+
+
+## AD-197t: preenche o criador (`campo=valor` separados por vírgula): name, sex (0 sortear, 1 mulher, 2 homem), age, profession (índice),
+## role (newcomer, child, sibling, spouse, relative), family (índice da lista), origin (índice), money, health, height, outfit (índice),
+## look.<gene> e trait.<traço>. Espera a prévia do motor ao fim.
+static func _creator_set(app: Node, text: String) -> void:
+	var designer = app.creator.designer
+	for pair in text.split(",", false):
+		var key: String = pair.get_slice("=", 0)
+		var value: String = pair.get_slice("=", 1)
+		match key:
+			"name":
+				designer.name_edit.text = value
+			"sex":
+				designer.sex_select.select(int(value))
+			"profession":
+				designer.profession_select.select(int(value))
+			"role":
+				for i in designer.ROLES.size():
+					if designer.ROLES[i][0] == value:
+						designer.role_select.select(i)
+				designer._refill_families()
+			"family":
+				designer.family_select.select(int(value))
+			"origin":
+				designer.origin_select.select(int(value))
+			"outfit":
+				designer.outfit_select.select(int(value))
+			"age", "money", "health":
+				designer.set_field(key, float(value))
+			"height":
+				designer.set_field("heightM", float(value))
+			_:
+				designer.set_field(key, float(value))
+	await designer.refresh()

@@ -19,7 +19,8 @@ namespace LivingWorld.Simulation.Players;
 /// AD-197q: <see cref="Sample"/> é pedir uma amostra do agregado ao criador de personagem (<see cref="PlayerCommandRecord.CityId"/>,
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create }
+/// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -33,7 +34,8 @@ public sealed record PlayerCommandRecord(
     string? PowerId = null, PossessionMode? Mode = null, int? Dx = null, int? Dy = null, long? TargetId = null,
     bool Refused = false, string? Reason = null, int? DeltaMs = null, long? Ticks = null, long? UntilMs = null,
     string? Interaction = null, string? Verb = null, int? ResourceId = null, long? Quantity = null,
-    Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null);
+    Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
+    CharacterSpec? Spec = null);
 
 /// <summary>Registro de sessões do hospedeiro (AD-196): quem encarnou, agiu, andou, golpeou e saiu, na ordem em que o mundo
 /// aplicou. Fica fora do snapshot e do hash (não é fato do mundo); reaplicar o registro a partir do snapshot do começo reproduz o
@@ -240,6 +242,28 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>AD-197t: monta a pessoa que o jogador criou (nome, idade, traços, cidade, família ou chegada, dinheiro, aparência) e a
+    /// encarna. O motor valida tudo antes: recusa (409) não muda o mundo nem vai ao registro, salvo a da vontade (como a de encarnar).</summary>
+    public Result<Npc> Character(WorldState world, string playerId, CharacterSpec spec)
+    {
+        if (string.IsNullOrWhiteSpace(playerId)) return Result<Npc>.Fail("playerId: obrigatório");
+        var resolved = CharacterBuilder.Resolve(world, playerId, spec);
+        bool refused = !resolved.IsSuccess && resolved.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
+        if (!resolved.IsSuccess && !refused) return Result<Npc>.Fail(resolved.Error!);
+        if (refused)
+        {
+            Record(world, playerId, PlayerCommandKind.Character, null,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Character, Refused: true, Reason: resolved.Error, Spec: spec));
+            return Result<Npc>.Fail(resolved.Error!);
+        }
+        EndSkipOnCommand(world, playerId);
+        var result = CharacterBuilder.Create(world, Context(world), playerId, spec);
+        if (result.IsSuccess)
+            Record(world, playerId, PlayerCommandKind.Character, result.Value!.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Character, Spec: spec));
+        return result;
+    }
+
     /// <summary>Troca a duração do tick do mundo a partir de agora (ADR-0050): Δ em ms, que divide a hora. Quem pede é o hospedeiro
     /// (admin; na AD-197c, a troca de modo com jogador presente); vai para o registro para o replay reproduzir a mesma sequência de Δ.</summary>
     public Result<Unit> SetTickDelta(WorldState world, string requestedBy, int deltaMs)
@@ -286,6 +310,7 @@ public static class PlayerReplay
                     record.Filter ?? CharacterFilter.None, record.Count ?? CharacterCreation.DefaultCount, record.SampleNumber).IsSuccess,
                 PlayerCommandKind.Create => service.Create(world, record.PlayerId, new CityId(record.CityId!.Value),
                     new NpcId(record.NpcId!.Value), record.SampleNumber!.Value).IsSuccess,
+                PlayerCommandKind.Character => service.Character(world, record.PlayerId, record.Spec!).IsSuccess,
                 PlayerCommandKind.Interact => service.Interact(world, record.PlayerId, record.Interaction!, record.TargetId!.Value,
                     record.Verb!, record.ResourceId, record.Quantity).IsSuccess,
                 _ => service.Logout(world, record.PlayerId).IsSuccess,

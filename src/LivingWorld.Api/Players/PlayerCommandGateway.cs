@@ -14,7 +14,8 @@ namespace LivingWorld.Api.Players;
 public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
-    long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null);
+    long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
+    CharacterSpec? Spec = null);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -33,7 +34,7 @@ public sealed record PlayerReply(int Status, object? Body, string? Error)
 /// canal persistente, é aplicado sob a mesma trava do laço do relógio (<see cref="SavedWorldLibrary.Gate"/>), no limite entre
 /// ticks, na ordem em que chega à trava; o aceito vai para o registro do hospedeiro e para o disco antes da resposta. Sob pausa do
 /// admin todo comando é recusado com 409 sem mudar o mundo (aprovado pelo dono em 2026-11-23).</summary>
-public sealed class PlayerCommandGateway(
+public sealed partial class PlayerCommandGateway(
     WorldHost host, SimulationHost simulation, PlayerService players, SavedWorldLibrary library, PlayerLogStore log,
     LivingWorld.Simulation.Llm.ConversationSessionStore? conversations = null)
 {
@@ -83,6 +84,14 @@ public sealed class PlayerCommandGateway(
                 PlayerCommandKind.Create => Map(players.Create(world, playerId, new CityId(command.CityId ?? Guid.Empty),
                     new NpcId(command.NpcId ?? -1), command.SampleNumber ?? -1),
                     npc => new { npcId = npc.Id.Value, playerId, cityId = npc.City.Value }),
+                PlayerCommandKind.Character when command.Spec is null => new PlayerReply(StatusCodes.Status400BadRequest, null, "spec: obrigatório"),
+                PlayerCommandKind.Character => Map(players.Character(world, playerId, command.Spec!),
+                    npc => new
+                    {
+                        npcId = npc.Id.Value, playerId, cityId = npc.City.Value,
+                        character = CharacterView(world, npc, command.Spec!.Role ?? new CharacterRole(), npc.Wallet.Amount,
+                            command.Spec.Role?.RelativeId is { } relative ? world.FindNpc(new NpcId(relative)) : null),
+                    }),
                 PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
                     npc => new { npcId = npc.Id.Value, playerId, disappearedAtTick = npc.DisappearedAtTick }),
                 _ => new PlayerReply(StatusCodes.Status400BadRequest, null, "comando: não é de jogador"),

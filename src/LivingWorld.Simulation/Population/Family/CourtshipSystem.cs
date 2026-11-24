@@ -464,7 +464,7 @@ public sealed class CourtshipSystem : ISimulationSystem
 
     /// <summary>Livre para cortejar (AD-136): sem cônjuge, ou viúvo depois do luto do cenário; e, depois de uma separação,
     /// passado o tempo que a norma pede para unir-se de novo.</summary>
-    private static bool IsSingle(Npc npc, WorldState world)
+    internal static bool IsSingle(Npc npc, WorldState world)
     {
         var rules = world.FamilyRules.Unions;
         var now = world.CurrentDate;

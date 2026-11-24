@@ -83,6 +83,7 @@ public static class CausalPolicy
         WorldEventKind.AuthoringCommandApplied, WorldEventKind.AuthoringCommandRejected,
         WorldEventKind.AuthoredImmigration, WorldEventKind.AuthoredWorkplaceFounded,
         WorldEventKind.PlayerIncarnated, WorldEventKind.PlayerDisappeared,
+        WorldEventKind.CharacterArrived, WorldEventKind.CharacterJoinedFamily, // AD-197t: o criador de personagem é comando externo
         WorldEventKind.Returned, // AD-196: a volta é decisão de quem conduz (o jogador ou o motor que o reassume)
         WorldEventKind.PossessionExpelled, WorldEventKind.PossessionSuspected, WorldEventKind.PossessionConcluded, // AD-197f: a conduta e a vontade
         WorldEventKind.PossessionConfronted,
