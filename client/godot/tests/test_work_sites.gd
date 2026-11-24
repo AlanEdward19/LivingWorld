@@ -22,7 +22,7 @@ static func footprint(door := true) -> Array:
 
 static func work_view(progress: float) -> Dictionary:
 	return {"id": WORK, "kind": "casa", "location": {"x": 4, "y": 0}, "progress": progress, "stalled": false, "crew": 1, "helpers": 1,
-		"offerPm": 1100, "startedTick": 2}
+		"offerPm": 1100, "startedAtMs": 2 * 3600000}
 
 
 static func canteiro(progress: float, with_work := true) -> Dictionary:
@@ -37,7 +37,7 @@ static func work(progress: float, extra := {}) -> Dictionary:
 	var body := {"id": WORK, "kind": "casa", "cityId": "city-a", "location": {"x": 4, "y": 0}, "progress": progress,
 		"buildingId": CANTEIRO, "buildingTypeId": -1, "stalled": false, "payer": "casa", "ownerId": 8, "householdId": 3,
 		"crew": [8], "helpers": [7], "onSite": [7], "hoursTotal": 480, "hoursLeft": int(480 * (1.0 - progress)), "hoursByCrew": 40,
-		"hoursByHelpers": 60, "haulHoursLeft": 0, "paid": 90, "spent": 30, "offerPm": 1100, "startedTick": 2, "lastWorkedTick": 4,
+		"hoursByHelpers": 60, "haulHoursLeft": 0, "paid": 90, "spent": 30, "offerPm": 1100, "startedAtMs": 2 * 3600000, "lastWorkedAtMs": 4 * 3600000,
 		"materials": []}
 	body.merge(extra, true)
 	return body
@@ -63,7 +63,7 @@ static func city_app(tree: SceneTree, snapshot := city()) -> Node:
 
 static func delta(tick: int, payload: Dictionary) -> Dictionary:
 	var envelope := O.delta(payload)
-	envelope.payload.tick = tick
+	envelope.payload.atMs = tick * 3600000
 	return envelope
 
 
@@ -152,7 +152,7 @@ func test_whoever_works_on_the_lot_faces_the_site_with_a_hammer() -> void:
 	check(actor.site_work, "o motor diz que a Ana trabalha na obra")
 	check(actor.face_point != Vector3.INF, "vira para o canteiro")
 	app.stream.delta_applied.emit(delta(11, {"npcUpserts": [{"id": {"value": 7}, "location": {"x": 3, "y": 3}, "currentAction": 2,
-		"city": {"value": "city-a"}, "actionStartedAtTick": 11, "actionTarget": {"kind": "workplace", "id": "4"}}]}))
+		"city": {"value": "city-a"}, "actionStartedAtMs": 11 * 3600000, "actionTarget": {"kind": "workplace", "id": "4"}}]}))
 	check(not actor.site_work, "de volta ao ofício: a ferramenta do ofício")
 
 
@@ -171,7 +171,7 @@ func test_the_day_lost_comes_from_the_world_log_not_from_the_state() -> void:
 	app.store.events_arrived.connect(func(events): seen.append_array(events))
 	app.stream.delta_applied.emit(delta(11, {"workUpserts": [work(0.3, {"halt": "tempo"})]}))
 	eq(seen.size(), 0, "o estado sozinho não inventa evento")
-	app.stream.delta_applied.emit(delta(12, {"events": [{"tick": 12, "kind": 0, "label": "Uma obra perdeu o dia pelo tempo",
+	app.stream.delta_applied.emit(delta(12, {"events": [{"atMs": 12 * 3600000, "kind": 0, "label": "Uma obra perdeu o dia pelo tempo",
 		"location": {"x": 4, "y": 0}, "eventId": 77, "involved": {"workId": WORK, "cityId": "city-a", "outcome": "casa", "motive": "chuva"}}]}))
 	eq(seen.size(), 1, "o evento do log chega")
 	var event: Dictionary = app.registry.events.get(77, {})

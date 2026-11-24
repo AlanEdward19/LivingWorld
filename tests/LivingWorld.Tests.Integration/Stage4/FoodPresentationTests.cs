@@ -70,7 +70,7 @@ public class FoodPresentationTests
     public void Inspection_names_prepared_food_and_raw_vs_prepared_state()
     {
         var (world, npc) = Eater(new Dictionary<ResourceType, long> { [Bread] = 1 });
-        world.CurrentDate = new WorldDate(Calendar, 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 1);
 
         var food = NpcInspectionQuery.Inspect(world, npc.Id).Value!.Food;
 
@@ -98,7 +98,7 @@ public class FoodPresentationTests
     public void Scope_projection_emits_eat_prepared_process_with_progress()
     {
         var (world, npc) = Eater(new Dictionary<ResourceType, long> { [Bread] = 1 });
-        world.CurrentDate = new WorldDate(Calendar, 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 1);
         var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         npc.JoinCity(city.Id);
@@ -123,7 +123,7 @@ public class FoodPresentationTests
         var scope = new VisualScope(VisualScopeKind.City, city.Id.ToString());
 
         var before = LivingScopeProjector.Build(world, scope);
-        world.CurrentDate = new WorldDate(Calendar, 1);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 1);
         var after = LivingScopeProjector.Build(world, scope);
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(1, before, after));
 

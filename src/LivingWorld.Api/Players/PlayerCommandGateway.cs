@@ -37,7 +37,7 @@ public sealed class PlayerCommandGateway(
         {
             if (EnforcePause && simulation.IsPaused) return new PlayerReply(StatusCodes.Status409Conflict, null, PausedError);
             var world = host.Current;
-            log.BeforeCommand(library.CurrentId.ToString("D"), world);
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
             var before = players.Log.Last;
             var reply = command.Kind switch
             {
@@ -71,6 +71,21 @@ public sealed class PlayerCommandGateway(
         {
             var world = host.Current;
             return PlayerCommands.ControlledBy(world, playerId) is { } npc ? PossessionWill.View(world, npc, world.CurrentDate.TotalHours) : null;
+        }
+    }
+
+    /// <summary>Troca a duração do tick do mundo (ADR-0050) pela mesma fila e pelo mesmo registro dos comandos: o replay reproduz a
+    /// sequência de Δ. Quem pede é o admin (<paramref name="actor"/>).</summary>
+    public PlayerReply SetTickDelta(string actor, int deltaMs)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
+            var before = players.Log.Last;
+            var reply = Map(players.SetTickDelta(world, actor, deltaMs), _ => new { tickDeltaMs = deltaMs });
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) log.Append(accepted);
+            return reply;
         }
     }
 

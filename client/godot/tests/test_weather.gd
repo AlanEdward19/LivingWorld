@@ -51,7 +51,7 @@ func test_rain_falls_with_intensity_and_lod_and_hud_shows_the_day() -> void:
 	check("tempestade" in app.weather_label.text and "sente 1 °C" in app.weather_label.text and "vento 15 m/s" in app.weather_label.text
 		and "lama" in app.weather_label.text and "onda de frio" in app.weather_label.text, app.weather_label.text)
 	check("07:45" in app.weather_label.tooltip_text and "16:15" in app.weather_label.tooltip_text, app.weather_label.tooltip_text)
-	app._update_time_label({"tick": 5, "year": 1, "isPaused": false})
+	app._update_time_label({"atMs": 5 * 3600000, "year": 1, "isPaused": false})
 	check("6 °C" in app.time_label.text, "temperatura da hora: " + app.time_label.text)
 	eq([app.day_cycle.sunrise, app.day_cycle.sunset], [7.75, 16.25], "sol do motor")
 	app.stream.delta_applied.emit(O.delta({"climate": climate({"precipitation": "snow", "intensity": "light", "storm": false})}))

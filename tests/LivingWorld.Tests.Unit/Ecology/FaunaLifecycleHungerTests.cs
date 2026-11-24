@@ -33,7 +33,7 @@ public sealed class FaunaLifecycleHungerTests
         // AD-135: o sistema roda uma vez por dia; a energia continua decaindo por hora (taxa por tick)
         clock.Run(world, 24);
         Assert.Equal(100, world.Fauna.Single().Energy.ValueAt(world.CurrentDate.TotalHours));
-        Assert.Equal(1, world.Fauna.Single().Energy.DecayRatePerTick);
+        Assert.Equal(1, world.Fauna.Single().Energy.DecayRatePerHour);
 
         clock.Run(world, 24);
         Assert.Equal(76, world.Fauna.Single().Energy.ValueAt(world.CurrentDate.TotalHours));

@@ -5,23 +5,38 @@ namespace LivingWorld.Tests.Unit.Scheduling;
 public class EventSchedulerTests
 {
     [Fact]
-    public void Event_scheduled_for_tick_T_is_due_exactly_at_tick_T()
+    public void Event_scheduled_for_instant_T_is_due_from_T_until_the_end_of_its_hour()
     {
         var scheduler = new EventScheduler();
-        scheduler.Schedule(new ScheduledEvent(1, TargetTick: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(1, TargetMs: 10, SystemName: "sys"));
 
-        Assert.False(scheduler.HasDue(9));
-        Assert.True(scheduler.HasDue(10));
-        Assert.False(scheduler.HasDue(11));
+        // ADR-0050: vence no primeiro tick que chega a ele (com Δ grande, o tick pode passar dele dentro da mesma hora); uma hora
+        // depois, o evento esquecido continua sem disparar, como antes.
+        Assert.Equal((false, true, true, false),
+            (scheduler.HasDue(9), scheduler.HasDue(10), scheduler.HasDue(11), scheduler.HasDue(3_600_001)));
+    }
+
+    [Fact]
+    public void Due_events_inside_the_hour_pop_in_instant_order_and_leave_the_later_ones()
+    {
+        var scheduler = new EventScheduler();
+        scheduler.Schedule(new ScheduledEvent(Id: 1, TargetMs: 900, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 2, TargetMs: 60, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 3, TargetMs: 3_600_000, SystemName: "sys"));
+
+        string first = string.Join(',', scheduler.PopDue(1200).Select(e => e.Id));
+        string rest = string.Join(',', scheduler.PopDue(3_600_000).Select(e => e.Id));
+
+        Assert.Equal("2,1|3", $"{first}|{rest}");
     }
 
     [Fact]
     public void Two_events_same_tick_pop_in_ascending_id_order_regardless_of_insertion_order()
     {
         var scheduler = new EventScheduler();
-        scheduler.Schedule(new ScheduledEvent(Id: 5, TargetTick: 10, SystemName: "sys"));
-        scheduler.Schedule(new ScheduledEvent(Id: 2, TargetTick: 10, SystemName: "sys"));
-        scheduler.Schedule(new ScheduledEvent(Id: 8, TargetTick: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 5, TargetMs: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 2, TargetMs: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 8, TargetMs: 10, SystemName: "sys"));
 
         var due = scheduler.PopDue(10);
 
@@ -32,7 +47,7 @@ public class EventSchedulerTests
     public void Cancel_removes_pending_event_before_it_fires()
     {
         var scheduler = new EventScheduler();
-        scheduler.Schedule(new ScheduledEvent(1, TargetTick: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(1, TargetMs: 10, SystemName: "sys"));
 
         var cancelled = scheduler.Cancel(1);
 
@@ -51,7 +66,7 @@ public class EventSchedulerTests
     public void PopDue_removes_events_so_they_do_not_fire_twice()
     {
         var scheduler = new EventScheduler();
-        scheduler.Schedule(new ScheduledEvent(1, TargetTick: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(1, TargetMs: 10, SystemName: "sys"));
 
         scheduler.PopDue(10);
 
@@ -63,9 +78,9 @@ public class EventSchedulerTests
     public void Snapshot_orders_by_tick_then_id()
     {
         var scheduler = new EventScheduler();
-        scheduler.Schedule(new ScheduledEvent(Id: 3, TargetTick: 20, SystemName: "sys"));
-        scheduler.Schedule(new ScheduledEvent(Id: 1, TargetTick: 10, SystemName: "sys"));
-        scheduler.Schedule(new ScheduledEvent(Id: 2, TargetTick: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 3, TargetMs: 20, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 1, TargetMs: 10, SystemName: "sys"));
+        scheduler.Schedule(new ScheduledEvent(Id: 2, TargetMs: 10, SystemName: "sys"));
 
         var snapshot = scheduler.Snapshot();
 
@@ -79,7 +94,7 @@ public class EventSchedulerTests
         const int n = 100_000;
         var scheduler = new EventScheduler();
         for (int id = n; id >= 1; id--) // ids em ordem inversa: a inserção ordena
-            scheduler.Schedule(new ScheduledEvent(id, TargetTick: id, SystemName: "sys"));
+            scheduler.Schedule(new ScheduledEvent(id, TargetMs: id, SystemName: "sys"));
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
         int cancelled = 0;
@@ -92,6 +107,6 @@ public class EventSchedulerTests
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"{cancelled} cancelamentos levaram {watch.Elapsed}");
         var remaining = scheduler.Snapshot();
         Assert.Equal(n / 2, remaining.Count);
-        Assert.Equal(remaining.OrderBy(e => e.TargetTick).ThenBy(e => e.Id).Select(e => e.Id), remaining.Select(e => e.Id));
+        Assert.Equal(remaining.OrderBy(e => e.TargetMs).ThenBy(e => e.Id).Select(e => e.Id), remaining.Select(e => e.Id));
     }
 }

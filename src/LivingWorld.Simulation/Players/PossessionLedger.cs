@@ -8,7 +8,18 @@ public sealed class Suspicion
     public long Observer { get; set; }
     public long Body { get; set; }
     public double Value { get; set; }
-    public long Tick { get; set; }
+    /// <summary>Desde quando (ADR-0050: guardado em ms; no save e no hash, <c>Tick</c> em horas na hora cheia).</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("Tick")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(LivingWorld.Domain.Shared.HourCompatibleMillisJsonConverter))]
+    public long AtMs { get; set; }
+
+    /// <summary>A hora do calendário de <see cref="AtMs"/> (piso), a unidade dos sistemas de fronteira.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long Tick
+    {
+        get => LivingWorld.Domain.Shared.WorldMillis.ToHourFloor(AtMs);
+        set => AtMs = LivingWorld.Domain.Shared.WorldMillis.FromHours(value);
+    }
     public bool Rumored { get; set; }
     public bool Concluded { get; set; }
     public bool Vigil { get; set; }

@@ -117,7 +117,7 @@ public class PlayerPossessionTests
         Assert.True(moved);
         Assert.NotEqual(start, npc.CurrentLocation);
         arm.Clock.Run(w, 5);
-        long end = w.CurrentDate.TotalHours;
+        long end = w.CurrentDate.TotalMilliseconds;
 
         Assert.Contains(service.Log.Records, r => r.Refused && r.Kind == PlayerCommandKind.Strike);
         var replayed = PlayerReplay.Run(snapshot, service.Log.Records,

@@ -3,9 +3,9 @@
     "number"
   ],
   "cursor": {
+    "atMs": "number",
     "scopeKey": "string",
-    "sequence": "number",
-    "tick": "number"
+    "sequence": "number"
   },
   "mode": "number",
   "payload": {
@@ -257,7 +257,7 @@
             "offerPm": "number",
             "progress": "number",
             "stalled": "boolean",
-            "startedTick": "number"
+            "startedAtMs": "number"
           }
         }
       ],
@@ -359,6 +359,7 @@
       ],
       "events": [
         {
+          "atMs": "number",
           "eventId": "number",
           "involved": {
             "amount?": "number",
@@ -386,8 +387,7 @@
           "location?": {
             "x": "number",
             "y": "number"
-          },
-          "tick": "number"
+          }
         }
       ],
       "faunaGroups": [
@@ -409,6 +409,7 @@
       ],
       "leavings": [
         {
+          "atMs": "number",
           "carrierId?": "number",
           "deadId": "number",
           "designId?": "number",
@@ -421,13 +422,12 @@
             "x": "number",
             "y": "number"
           },
-          "tick": "number",
           "units": "number"
         }
       ],
       "npcs": [
         {
-          "actionStartedAtTick": "number",
+          "actionStartedAtMs": "number",
           "actionTarget?": {
             "id": "string",
             "kind": "string"
@@ -519,8 +519,8 @@
               "y": "number"
             }
           ],
-          "routeArrivalTick?": "number",
-          "routeDepartedTick?": "number",
+          "routeArrivalAtMs?": "number",
+          "routeDepartedAtMs?": "number",
           "routeOver?": [
             "number"
           ]
@@ -617,7 +617,7 @@
           "householdId?": "number",
           "id": "number",
           "kind": "string",
-          "lastWorkedTick": "number",
+          "lastWorkedAtMs": "number",
           "location": {
             "x": "number",
             "y": "number"
@@ -641,7 +641,7 @@
           "progress": "number",
           "spent": "number",
           "stalled": "boolean",
-          "startedTick": "number",
+          "startedAtMs": "number",
           "typeName?": "string"
         }
       ]

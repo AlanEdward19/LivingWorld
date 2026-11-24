@@ -9,8 +9,13 @@ namespace LivingWorld.Api.Simulation;
 
 public sealed record SetSpeedRequest(double TicksPerSecond);
 
+/// <summary>Duração do tick do mundo em milissegundos de mundo (ADR-0050): divide a hora (1 a 3.600.000; 50 serve).</summary>
+public sealed record SetTickDeltaRequest(int DeltaMs);
+
+/// <summary><see cref="AtMs"/> é o instante do mundo em milissegundos (ADR-0050); <see cref="TickDeltaMs"/>, a duração do tick em
+/// vigor.</summary>
 public sealed record SimulationStatusResponse(
-    bool IsPaused, double TicksPerSecond, long Tick, long Year,
+    bool IsPaused, double TicksPerSecond, long AtMs, long Year, int TickDeltaMs,
     string? PausedBy = null, string? PauseReason = null, long? PausedAtTick = null, long? PauseMaxTicks = null);
 
 /// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP. Pausa, retomada, velocidade, passo e avanço de ano
@@ -53,6 +58,18 @@ public static class SimulationControlEndpoints
             return Results.Ok();
         });
 
+        // ADR-0050: troca a duração do tick (Δ) do mundo; vai para o registro do jogador para o replay
+        app.MapPost("/simulation/tick-delta", (HttpContext http, IConfiguration config, AdminAuditStore audit, SetTickDeltaRequest request,
+            LivingWorld.Api.Players.PlayerCommandGateway gateway, WorldHost worldHost) =>
+        {
+            if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            var reply = gateway.SetTickDelta(access.Actor, request.DeltaMs);
+            if (!reply.Ok) return Results.BadRequest(reply.Error);
+            audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.tick-delta", "world",
+                $"deltaMs={request.DeltaMs}");
+            return Results.Ok(reply.Body);
+        });
+
         app.MapPost("/simulation/step", (HttpContext http, IConfiguration config, AdminAuditStore audit, SimulationHost host, WorldHost worldHost, TickLoopService loop, SavedWorldLibrary library) =>
         {
             if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -83,12 +100,13 @@ public static class SimulationControlEndpoints
             }
         });
 
-        app.MapGet("/simulation/status", (SimulationHost host, WorldHost worldHost) =>
+        app.MapGet("/simulation/status", (SimulationHost host, WorldHost worldHost, LivingWorld.Simulation.Players.PlayerService players) =>
             Results.Ok(new SimulationStatusResponse(
                 host.IsPaused,
                 host.TicksPerSecond,
-                worldHost.Current.CurrentDate.TotalHours,
+                worldHost.Current.CurrentDate.TotalMilliseconds,
                 worldHost.Current.CurrentDate.Year,
+                players.Log.TickDeltaMs,
                 host.IsPaused ? host.AdminPause?.Actor : null,
                 host.IsPaused ? host.AdminPause?.Reason : null,
                 host.IsPaused ? host.AdminPause?.PausedAtTick : null,

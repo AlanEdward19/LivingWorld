@@ -12,6 +12,7 @@
   "name": "string",
   "recentEvents": [
     {
+      "atMs": "number",
       "eventId": "number",
       "involved": {
         "amount": "number",
@@ -39,14 +40,13 @@
       "location": {
         "x": "number",
         "y": "number"
-      },
-      "tick": "number"
+      }
     }
   ],
   "state": {
     "buildingTypeId": "number",
     "cityId": "string",
-    "completedAtTick": "number",
+    "completedAtMs": "number",
     "floors": "number",
     "fullStock": "[]",
     "id": "number",

@@ -1,10 +1,11 @@
 {
+  "atMs": "number",
   "isPaused": "boolean",
-  "pauseMaxTicks?": "number",
+  "pauseMaxMs?": "number",
   "pauseReason?": "string",
-  "pausedAtTick?": "number",
+  "pausedAtMs?": "number",
   "pausedBy?": "string",
-  "tick": "number",
+  "tickDeltaMs": "number",
   "ticksPerSecond": "number",
   "year": "number"
 }

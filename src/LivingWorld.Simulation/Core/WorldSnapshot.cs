@@ -91,8 +91,8 @@ public static class WorldSnapshot
         SnapshotStringInterning.Resolve(node);
 
         var calendar = node["Calendar"].Deserialize<WorldCalendar>(JsonOptions)!;
-        var totalHours = node["CurrentDate"]!["TotalHours"]!.Deserialize<long>();
-        var currentDate = new WorldDate(calendar, totalHours);
+        // ADR-0050: save antigo (só horas) entra como o começo da hora; o conversor lê também o resto dentro da hora
+        var currentDate = WorldDate.FromMilliseconds(calendar, node["CurrentDate"].Deserialize<WorldDate>(JsonOptions).TotalMilliseconds);
         var seed = node["Seed"]!.Deserialize<ulong>();
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
@@ -380,7 +380,7 @@ public static class WorldSnapshot
         foreach (var evt in pendingEvents)
         {
             if (evt.SystemName != NpcWakeScheduler.SystemName) others.Add(evt);
-            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, evt.TargetTick, evt.Id));
+            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, evt.TargetMs, evt.Id));
         }
         return others;
     }

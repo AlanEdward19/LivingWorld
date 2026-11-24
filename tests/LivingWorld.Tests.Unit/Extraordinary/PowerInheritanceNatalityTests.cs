@@ -48,8 +48,8 @@ public sealed class PowerInheritanceNatalityTests
         var acquired = Assert.Single(scene.Sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryAcquired);
         var needs = scene.World.NeedsRules;
         Assert.Equal(($"{baby.Id.Value}|power-a|genetic:onset", needs.ThirstDecayPerHour * Certain.ThirstMultiplier),
-            (acquired.Payload, baby.ThirstNeed.DecayRatePerTick));
-        Assert.Equal(needs.HungerDecayPerHour * Certain.HungerMultiplier, baby.HungerNeed.DecayRatePerTick, 12);
+            (acquired.Payload, baby.ThirstNeed.DecayRatePerHour));
+        Assert.Equal(needs.HungerDecayPerHour * Certain.HungerMultiplier, baby.HungerNeed.DecayRatePerHour, 12);
     }
 
     [Fact]

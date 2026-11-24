@@ -65,10 +65,10 @@ public static class AdminEndpoints
             return Results.Ok(hits.Value);
         });
 
-        admin.MapGet("/audit", (HttpContext http, IConfiguration config, AdminAuditStore audit, long? fromTick) =>
+        admin.MapGet("/audit", (HttpContext http, IConfiguration config, AdminAuditStore audit, long? fromMs) =>
         {
             if (Authorize(http, config) is null) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            return Results.Ok(audit.Read(BranchId.Root, fromTick ?? 0));
+            return Results.Ok(audit.Read(BranchId.Root, LivingWorld.Api.Realtime.WireMillis.HoursFrom(fromMs ?? 0)));
         });
     }
 

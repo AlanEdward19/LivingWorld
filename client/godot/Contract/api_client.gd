@@ -2,6 +2,7 @@ extends RefCounted
 ## Rotas HTTP não-streaming da API (relógio, lista de NPCs, ficha, catálogo, resumos). Toda resposta
 ## com forma congelada em tests/contracts/shape.*.json é validada aqui; cenas e painéis só recebem
 ## `{ok, status, body}` e nunca montam rota nem leem código HTTP.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 const ShapeValidator := preload("res://Contract/shape_validator.gd")
 const JsonRaw := preload("res://Contract/json_raw.gd")
@@ -239,7 +240,7 @@ func admin_create_workplace(actor: String, body: Dictionary) -> Dictionary:
 
 
 func admin_pause(actor: String, reason: String, max_ticks: int) -> Dictionary:
-	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxTicks": max_ticks}, "admin-pause")
+	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxMs": WorldTime.ms(max_ticks)}, "admin-pause")
 
 
 func admin_resume(actor: String) -> Dictionary:
@@ -255,7 +256,7 @@ func admin_search(actor: String, query: String, kind: String) -> Dictionary:
 
 
 func admin_audit(actor: String, from_tick: int) -> Dictionary:
-	return await _fetch("/admin/audit?fromTick=%d" % from_tick, "admin-audit", {"X-Admin-Actor": actor})
+	return await _fetch("/admin/audit?fromMs=%d" % WorldTime.ms(from_tick), "admin-audit", {"X-Admin-Actor": actor})
 
 
 # --- economia (só leitura) ------------------------------------------------------------------

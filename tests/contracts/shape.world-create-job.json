@@ -4,10 +4,10 @@
   "failed": "boolean",
   "jobId": "string",
   "result?": {
+    "atMs": "number",
     "initialScope": "string",
     "name": "string",
     "npcCount": "number",
-    "tick": "number",
     "worldId": "string"
   },
   "running": "boolean",

@@ -131,7 +131,7 @@ func _app_with(transport) -> Node:
 func _online_transport() -> Object:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": [{"actionType": 2, "label": "Trabalhando"}]})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 30, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 30 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	transport.on("GET /npcs?", {"status": 200, "body": {"items": [{"id": {"value": 7}, "name": "Ana"}], "total": 1}})
 	var world := Fx.snapshot(0, {
 		"width": 2, "height": 2, "cities": [], "externalNpcs": [{"id": {"value": 7}, "location": {"x": 1, "y": 1}}],
@@ -178,7 +178,7 @@ func test_hover_text_comes_from_store_and_server_labels() -> void:
 func test_delta_events_become_toasts_with_server_text() -> void:
 	var app = await _app_with(_online_transport())
 
-	app._on_delta(Fx.delta(0, 1, {"events": [{"tick": 5, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
+	app._on_delta(Fx.delta(0, 1, {"events": [{"atMs": 5 * 3600000, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
 
 	eq(app.toasts.visible_texts(), ["Nasceu uma criança"], "o texto do aviso vem do servidor")
 	app.queue_free()
@@ -210,7 +210,7 @@ func test_loading_visible_until_first_snapshot() -> void:
 		attempts.append(1)
 		return {"status": 0, "body": null} if attempts.size() < 2 else {"status": 200, "body": _online_transport().routes["GET /visual/subscribe?scope=World"].body})
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 0 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
 	var app := App.new()
 	tree.root.add_child(app)
 	var seen: Array = []
