@@ -15,7 +15,6 @@
 - **Foco do produto (vale para toda entrega):** realismo da simulação, ótima UX/experiência do usuário e
   **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
   NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
-
 - **Issues do GitHub — OBRIGATÓRIO (várias pessoas no projeto):** use `gh api` (REST); `gh issue view/edit`
   usam GraphQL e falham na nuvem. (1) **Toda feature tem issue**; se não existir, crie antes de começar.
   (2) **Só pegue issue sem ninguém atuando**: `gh api repos/AlanEdward19/LivingWorld/issues/<n> -q
