@@ -34,12 +34,18 @@ var _links: MultiMeshInstance3D
 var _link_clock := 0.0
 var link_pairs: Array = [] ## [[a, b]] desenhados agora (testável)
 var cell_members: Dictionary = {} ## célula -> [ids] (quem divide a célula se espalha dentro dela)
-const SPREAD_RADIUS := 0.3
-const RING := 8
+const PERSONAL := 0.6 ## AD-197r: distância mínima entre dois corpos parados desenhados (a largura do boneco com os braços)
+const AVOID_RADIUS := 0.7 ## quem anda contorna o parado que passa a menos disto
+const AVOID_MAX := 0.8
+const STILL_EVERY := 16 ## quadros entre refazer o índice de quem está parado
+const STEER_EVERY := 8 ## cada pessoa andando reavalia o desvio a cada tantos quadros (escalonado por id)
+var _ids: Array = [] ## ids na hora de refazer o índice (a fatia de cada quadro)
+var _still: Dictionary = {} ## (célula de 0,5) -> [posições de quem está parado e desenhado]
 
 
-## Lugar de cada um numa célula dividida: sozinho no centro; em grupo, num anel de até 8 vagas iguais (a preferida é id % vagas, conflito
-## vai para a próxima livre, na ordem dos ids: estável enquanto o grupo é o mesmo); acima de 8, um anel interno.
+## Lugar de cada um numa célula dividida, SÓ no desenho (a célula é a do motor): sozinho no centro; em grupo, até 6 num anel que deixa
+## `PERSONAL` entre vizinhos; acima disso, o centro e anéis hexagonais (6, 12, 18...) também a `PERSONAL` ou mais. A vaga preferida é
+## `id % vagas`; conflito vai para a próxima livre, na ordem dos ids: estável enquanto o grupo é o mesmo. Nada aleatório.
 static func spread_offsets(ids: Array) -> Dictionary:
 	var out := {}
 	if ids.size() <= 1:
@@ -48,19 +54,91 @@ static func spread_offsets(ids: Array) -> Dictionary:
 		return out
 	var sorted := ids.duplicate()
 	sorted.sort()
+	var count := sorted.size()
 	var taken := {}
-	for i in sorted.size():
-		var id: int = sorted[i]
-		var ring := i / RING
-		var slots := mini(sorted.size() - ring * RING, RING) # vagas iguais no anel: dois ficam em lados opostos
-		var slot := posmod(id, slots)
-		while taken.has(ring * RING + slot):
-			slot = (slot + 1) % slots
-		taken[ring * RING + slot] = true
-		var angle := TAU * float(slot) / slots + ring * PI / RING
-		var radius := SPREAD_RADIUS / float(ring + 1)
-		out[id] = Vector3(cos(angle), 0, sin(angle)) * radius
+	for id in sorted:
+		var slot := posmod(int(id), count)
+		while taken.has(slot):
+			slot = (slot + 1) % count
+		taken[slot] = true
+		out[id] = slot_point(count, slot)
 	return out
+
+
+## Posição da vaga `slot` de um grupo de `count`: anel único até 6; depois centro + anéis de 6, 12, 18... (hexagonal).
+static func slot_point(count: int, slot: int) -> Vector3:
+	if count <= 6:
+		var radius := PERSONAL * 0.5 / sin(PI / count)
+		var angle := TAU * float(slot) / count + PI / 6.0 * (count % 2)
+		return Vector3(cos(angle), 0, sin(angle)) * radius
+	if slot == 0:
+		return Vector3.ZERO
+	var ring := 1
+	var first := 1
+	while slot >= first + 6 * ring:
+		first += 6 * ring
+		ring += 1
+	var in_ring := 6 * ring
+	var theta := TAU * float(slot - first) / in_ring
+	return Vector3(cos(theta), 0, sin(theta)) * (PERSONAL * ring)
+
+
+static func _key(x: float, z: float) -> Vector2i:
+	return Vector2i(floori(x / AVOID_RADIUS), floori(z / AVOID_RADIUS))
+
+
+## AD-197r: quem anda contorna quem está parado (só no desenho). Índice de parados refeito a cada STILL_EVERY quadros; cada pessoa
+## andando reavalia a cada STEER_EVERY quadros (uma fatia por quadro): o desvio é lateral, do lado oposto ao do obstáculo, e some nas pontas
+## do trecho (chega no lugar exato). O estado do motor não é tocado.
+func _separate() -> void:
+	if _frame % STILL_EVERY == 0:
+		_still.clear()
+		_ids = nodes.keys()
+		for id in _ids:
+			var actor = nodes[id]
+			if actor.driven or not (actor._t < 1.0 or (actor.walk != null and not actor.walk.done)):
+				_still.get_or_add(_key(actor.position.x, actor.position.z), []).append(Vector4(actor.position.x, 0.0, actor.position.z, float(id)))
+	if _still.is_empty():
+		return
+	var i := _frame % STEER_EVERY # uma fatia dos moradores por quadro (sem varrer todos todo quadro)
+	var count := _ids.size()
+	while i < count:
+		var id: int = _ids[i]
+		var actor = nodes.get(id)
+		i += STEER_EVERY
+		if actor == null:
+			continue
+		if actor.driven or not (actor._t < 1.0 or (actor.walk != null and not actor.walk.done)):
+			if actor.avoid_goal != Vector3.ZERO:
+				actor.avoid_goal = Vector3.ZERO
+			continue
+		actor.avoid_goal = steer_away(actor.base_position(), actor.heading_now(), _still, id)
+
+
+## Desvio lateral de quem anda: `base` é o ponto do trecho SEM o desvio, `heading` o rumo. Cada parado perto do caminho (um alcance à frente,
+## `AVOID_RADIUS` atrás e dos lados) pede para passar com `AVOID_RADIUS` de folga, do lado oposto ao dele (no meio da linha, pela direita).
+## Alimentação à frente, sem realimentar a posição desenhada: o mesmo caminho dá o mesmo desvio. ZERO se ninguém está perto.
+static func steer_away(base: Vector3, heading: Vector3, still: Dictionary, self_id: int = -1) -> Vector3:
+	if heading.length_squared() < 0.0001:
+		return Vector3.ZERO
+	var ahead := Vector3(heading.x, 0, heading.z).normalized()
+	var right := Vector3(-ahead.z, 0, ahead.x)
+	var key := _key(base.x, base.z)
+	var best := 0.0
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			for other in still.get(key + Vector2i(dx, dz), []):
+				if int(other.w) == self_id: # a própria posição de antes de sair não é obstáculo
+					continue
+				var rel := Vector3(other.x - base.x, 0, other.z - base.z)
+				var along := rel.dot(ahead)
+				var lat := rel.dot(right)
+				if along < -AVOID_RADIUS or along > AVOID_RADIUS or absf(lat) >= AVOID_RADIUS:
+					continue
+				var need := (1.0 if lat <= 0.0 else -1.0) * (AVOID_RADIUS - absf(lat))
+				if absf(need) > absf(best):
+					best = need
+	return right * clampf(best, -AVOID_MAX, AVOID_MAX)
 
 
 func _join(id: int, cell: Vector2i) -> void:
@@ -369,6 +447,10 @@ func refresh_links() -> void:
 
 func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: bool, bubble_zoom: bool) -> void:
 	_frame += 1
+	if not bubble_zoom and not (far_zoom and nodes.size() > 150):
+		var steered := Time.get_ticks_usec()
+		_separate()
+		FrameCost.add("npc_avoid", steered)
 	if store != null:
 		clock.observe(int(store.last_tick))
 	clock.advance(delta)
