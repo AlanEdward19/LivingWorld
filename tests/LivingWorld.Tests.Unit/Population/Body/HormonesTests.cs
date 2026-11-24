@@ -195,7 +195,7 @@ public class HormonesTests
             c, ActionType.Work, world.NeedsRules, world.EconomyRules, null, default, ForesightMechanic.EmptyPreviews);
 
         Assert.Equal(ActionType.Idle, routine);
-        Assert.True(Work(withCramps) < Work(withCramps with { Inner = withCramps.Inner!.Value with { Hormones = default } }));
+        Assert.True(Work(withCramps) < Work(withCramps with { Inner = withCramps.Inner! with { Hormones = default } }));
         Assert.Equal((0.0, 0.0), (Endocrine.CrampWithdrawal(world, woman, calm), Endocrine.SnapshotOf(world, woman, calm).CrampWork));
     }
 

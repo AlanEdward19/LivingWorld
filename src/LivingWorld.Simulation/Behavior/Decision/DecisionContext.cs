@@ -55,8 +55,8 @@ public sealed record DecisionContext(
 
 /// <summary>Vida interior que pesa na decisão (AD-138). Nulo no contexto quando o NPC está calmo e sem lembrança de fome — o
 /// caso comum —, para não aumentar a alocação de cada decisão.</summary>
-/// AD-197l: struct no contexto (sem objeto por decisão).
-public readonly record struct InnerLifeSnapshot(
+/// AD-197l: segue objeto (como struct, cada leitura de humor, fome e hormônio na pontuação copiava o valor inteiro).
+public sealed record InnerLifeSnapshot(
     LivingWorld.Domain.Cognition.Affect Mood, double FamineMemory,
     LivingWorld.Simulation.Population.Body.HormonalSnapshot Hormones = default);
 
