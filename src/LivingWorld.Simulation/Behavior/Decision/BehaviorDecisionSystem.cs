@@ -72,6 +72,12 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
     // AD-142: grupos da ação em conta e da vencedora, reaproveitados (o tick é serial)
     private readonly double[] _brainGroups = new double[2 * BrainState.Groups];
 
+    // AD-197l: relações da decisão reaproveitadas de NPC em NPC (o tick é serial e o contexto sem rastro vive só na decisão)
+    private readonly LazyRelationshipFacts _relations = new(null!, default);
+
+    // AD-197m: o contexto da decisão sem rastro, reaproveitado de NPC em NPC (Reset reescreve todos os campos)
+    private readonly DecisionContext _context = new(default, 0, default, default, null, [], [], [], [], default!, null);
+
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -173,8 +179,10 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var provision = ProvisionViewFor(world, npc, marketIndex); // AD-148
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
-                            foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),
+                        DecisionContextBuilder.Build(world, npc, now, recordTrace ? null : _relations, // AD-197l: sem rastro, não sai da decisão
+                            provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
+                            foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty,
+                            reuseContext: recordTrace ? null : _context), // AD-197m: idem o contexto inteiro
                         rules,
                         world.EconomyRules,
                         continuityAction,

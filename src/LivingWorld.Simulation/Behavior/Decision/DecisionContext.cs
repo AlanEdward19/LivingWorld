@@ -39,6 +39,79 @@ public sealed record DecisionContext(
     float SiteOffer = 0,
     bool CanEarn = true)
 {
+    // AD-197m: as propriedades têm set interno para a decisão reaproveitar o mesmo contexto de NPC em NPC no tick (Reset); por fora,
+    // o contexto segue imutável (só leitura e `with`).
+    public NpcId NpcId { get; internal set; } = NpcId;
+    public long Tick { get; internal set; } = Tick;
+    public NeedsSnapshot Needs { get; internal set; } = Needs;
+    public BodySnapshot Body { get; internal set; } = Body;
+    public HouseholdSnapshot? Household { get; internal set; } = Household;
+    public IReadOnlyList<NpcMemory> RelevantMemories { get; internal set; } = RelevantMemories;
+    public IReadOnlyList<string> RelevantBeliefs { get; internal set; } = RelevantBeliefs;
+    public IReadOnlyList<RelationshipFact> KnownRelationships { get; internal set; } = KnownRelationships;
+    public IReadOnlyList<PowerOpportunity> PowerOpportunities { get; internal set; } = PowerOpportunities;
+    public Personality Personality { get; internal set; } = Personality;
+    public ActionType? CurrentAction { get; internal set; } = CurrentAction;
+    public IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews { get; internal set; } = ForesightPreviews;
+    public long WalletAmount { get; internal set; } = WalletAmount;
+    public double ProvisionTargetDays { get; internal set; } = ProvisionTargetDays;
+    public LivingWorld.Simulation.Objects.ObjectComfort Comfort { get; internal set; } = Comfort;
+    public InnerLifeSnapshot? Inner { get; internal set; } = Inner;
+    public long FoodUnitPrice { get; internal set; } = FoodUnitPrice;
+    public bool ShopperOut { get; internal set; } = ShopperOut;
+    public bool FoodStallKnownEmpty { get; internal set; } = FoodStallKnownEmpty;
+    public float SiteOffer { get; internal set; } = SiteOffer;
+    public bool CanEarn { get; internal set; } = CanEarn;
+
+    /// <summary>AD-197m: reaproveita o contexto para outra decisão do mesmo tick (o tick é serial e o contexto sem rastro não sai da
+    /// decisão). Mesma ordem dos parâmetros do construtor.</summary>
+    internal DecisionContext Reset(
+        NpcId npcId,
+        long tick,
+        NeedsSnapshot needs,
+        BodySnapshot body,
+        HouseholdSnapshot? household,
+        IReadOnlyList<NpcMemory> relevantMemories,
+        IReadOnlyList<string> relevantBeliefs,
+        IReadOnlyList<RelationshipFact> knownRelationships,
+        IReadOnlyList<PowerOpportunity> powerOpportunities,
+        Personality personality,
+        ActionType? currentAction,
+        IReadOnlyDictionary<ActionType, ResolutionResult>? foresightPreviews,
+        long walletAmount,
+        double provisionTargetDays,
+        LivingWorld.Simulation.Objects.ObjectComfort comfort,
+        InnerLifeSnapshot? inner,
+        long foodUnitPrice,
+        bool shopperOut,
+        bool foodStallKnownEmpty,
+        float siteOffer,
+        bool canEarn)
+    {
+        NpcId = npcId;
+        Tick = tick;
+        Needs = needs;
+        Body = body;
+        Household = household;
+        RelevantMemories = relevantMemories;
+        RelevantBeliefs = relevantBeliefs;
+        KnownRelationships = knownRelationships;
+        PowerOpportunities = powerOpportunities;
+        Personality = personality;
+        CurrentAction = currentAction;
+        ForesightPreviews = foresightPreviews;
+        WalletAmount = walletAmount;
+        ProvisionTargetDays = provisionTargetDays;
+        Comfort = comfort;
+        Inner = inner;
+        FoodUnitPrice = foodUnitPrice;
+        ShopperOut = shopperOut;
+        FoodStallKnownEmpty = foodStallKnownEmpty;
+        SiteOffer = siteOffer;
+        CanEarn = canEarn;
+        return this;
+    }
+
     /// <summary>AD-148: ir comprar comida adianta: a carteira paga uma unidade no mercado mais perto (preço desconhecido = paga,
     /// como antes) e a casa não acabou de achar a banca vazia.</summary>
     public bool CanPayFood => (FoodUnitPrice <= 0 || WalletAmount >= FoodUnitPrice) && !FoodStallKnownEmpty;
@@ -55,6 +128,7 @@ public sealed record DecisionContext(
 
 /// <summary>Vida interior que pesa na decisão (AD-138). Nulo no contexto quando o NPC está calmo e sem lembrança de fome — o
 /// caso comum —, para não aumentar a alocação de cada decisão.</summary>
+/// AD-197l: segue objeto (como struct, cada leitura de humor, fome e hormônio na pontuação copiava o valor inteiro).
 public sealed record InnerLifeSnapshot(
     LivingWorld.Domain.Cognition.Affect Mood, double FamineMemory,
     LivingWorld.Simulation.Population.Body.HormonalSnapshot Hormones = default);
@@ -68,7 +142,8 @@ public readonly record struct BodySnapshot(
     double WorkCapacityMultiplier,
     double MovementCostMultiplier);
 
-public sealed record HouseholdSnapshot(
+/// <summary>AD-197l: struct no contexto (sem objeto por decisão); as visões do domicílio são as do próprio domicílio.</summary>
+public readonly record struct HouseholdSnapshot(
     HouseholdId Id,
     IReadOnlyDictionary<ResourceType, long> Stock,
     IReadOnlyList<NpcId> Members);

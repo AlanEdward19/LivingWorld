@@ -11,6 +11,17 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IReadOnlyList<RelationshipFact>
 {
     private RelationshipFact[]? _facts;
+    private WorldState world = world;
+    private NpcId owner = owner;
+
+    /// <summary>AD-197l: reaproveita a instância para a próxima decisão do tick (o contexto sem rastro não sobrevive à decisão).</summary>
+    public LazyRelationshipFacts Reset(WorldState forWorld, NpcId forOwner)
+    {
+        world = forWorld;
+        owner = forOwner;
+        _facts = null;
+        return this;
+    }
 
     private RelationshipFact[] Facts => _facts ??= DecisionContextBuilder.MaterializeKnownRelationships(world, owner);
 

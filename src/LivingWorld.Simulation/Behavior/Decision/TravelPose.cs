@@ -69,28 +69,55 @@ public static class TravelPose
         if (!world.FineTime)
         {
             if (index.HasPoses) index.ClearPoses();
+            index.StopTrackingTravellers();
             return;
         }
         long now = world.CurrentDate.TotalMilliseconds;
-        MarketIndex? markets = null;
-        foreach (var npc in index.Alive)
+        var cache = world.PosePaths;
+        if (!ReferenceEquals(cache.Index, index) || cache.Steps.Count > 4096)
         {
-            if (npc.CurrentAction != ActionType.Travel)
-            {
-                if (index.HasPoses) index.SetPose(npc, null);
-                continue;
-            }
+            cache.Steps.Clear(); // índice novo (mundo reaberto): as poses são postas de novo
+            cache.Index = index;
+        }
+        MarketIndex? markets = null;
+        foreach (var npc in index.Travellers()) // AD-197l: só quem viaja, sem varrer os vivos
+        {
             if (npc.TravelLegTo is null)
             {
                 // AD-197i: quem já viajava quando o mundo passou ao passo fino (saiu de hora em hora, sem perna) ganha a perna agora,
-                // do estado canônico deste instante (destino e caminho em ms desde a saída); gravada, vale também depois de reabrir
+                // do estado canônico deste instante (destino e caminho em ms desde a saída); gravada, vale também depois de reabrir.
+                // Sem destino fora daqui (ou andando por poder): perna parada no lugar, para não refazer a conta a cada tick
                 markets ??= MarketIndex.BuildForTick(world);
-                // sem destino fora daqui (ou andando por poder): perna parada no lugar, para não refazer a conta a cada tick
                 var leg = BehaviorDecisionSystem.TravelLegFresh(world, npc, markets) ?? (npc.CurrentLocation, npc.ActionStartedAtMs);
                 npc.SetTravelLeg(leg.To, leg.EndMs);
             }
-            index.SetPose(npc, Along(world, npc, npc.TravelLegTo!.Value, npc.TravelLegEndMs, now));
+            var to = npc.TravelLegTo!.Value;
+            long startMs = npc.ActionStartedAtMs, endMs = npc.TravelLegEndMs;
+            long id = npc.Id.Value;
+            // AD-197l: antes do próximo instante de troca a célula é a mesma: nada a refazer
+            if (cache.Steps.TryGetValue(id, out var step) && now < step.NextMs && step.StartMs == startMs && step.EndMs == endMs
+                && step.From == npc.CurrentLocation && step.To == to)
+                continue;
+            var (cell, next) = Step(world, npc, to, endMs, now);
+            index.SetPose(npc, cell);
+            cache.Steps[id] = new WorldState.PoseStep(startMs, npc.CurrentLocation, to, endMs, next);
         }
+        index.PrunePoses();
+    }
+
+    /// <summary>A célula de agora (a mesma de <see cref="Along"/>) e o primeiro instante em que ela muda.</summary>
+    private static (CellCoord Cell, long NextMs) Step(WorldState world, Npc npc, CellCoord to, long endMs, long atMs)
+    {
+        long startMs = npc.ActionStartedAtMs;
+        if (to == npc.CurrentLocation || endMs <= startMs) return (npc.CurrentLocation, long.MaxValue);
+        if (atMs <= startMs) return (npc.CurrentLocation, startMs + 1);
+        if (atMs >= endMs) return (to, long.MaxValue);
+        var path = PathOf(world, npc.CurrentLocation, to);
+        if (path.Count < 2) return (path.Count == 0 ? npc.CurrentLocation : path[0], endMs);
+        long span = endMs - startMs, segments = path.Count - 1;
+        long index = Math.Clamp(segments * (atMs - startMs) / span, 0, segments);
+        long next = index >= segments ? endMs : startMs + ((index + 1) * span + segments - 1) / segments;
+        return (path[(int)index], Math.Min(next, endMs));
     }
 
     /// <summary>Distância de Chebyshev (em células) entre as poses de dois NPCs agora.</summary>
