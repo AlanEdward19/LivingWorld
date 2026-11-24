@@ -1,11 +1,16 @@
 {
+  "accelerated?": "boolean",
   "atMs": "number",
   "isPaused": "boolean",
+  "loopTicksPerSecond?": "number",
   "pauseMaxMs?": "number",
   "pauseReason?": "string",
   "pausedAtMs?": "number",
   "pausedBy?": "string",
+  "playersPresent?": "number",
+  "rhythm?": "string",
   "tickDeltaMs": "number",
   "ticksPerSecond": "number",
+  "timeScale?": "number",
   "year": "number"
 }

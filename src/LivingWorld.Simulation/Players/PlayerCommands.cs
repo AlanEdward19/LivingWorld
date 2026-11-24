@@ -65,7 +65,15 @@ public static class PlayerCommands
         if (action == ActionType.UsePower && !Carries(world, npc, powerId))
             return Result<Unit>.Fail("powerId: o NPC não porta esse poder");
         npc.SetControlledAction(action, powerId);
+        WakeNow(world, npc); // AD-197c: o corpo conduzido obedece no próximo tick fino, não na hora cheia
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>AD-197c (ADR-0050, decisão 2): quem é tocado pelo jogador é despertado pelo evento, no próximo tick fino. De hora em
+    /// hora nada muda (o despertar de sempre).</summary>
+    internal static void WakeNow(WorldState world, Npc npc)
+    {
+        if (world.FineTime && npc.IsAlive) world.ReplaceNpcWakeAtMs(npc.Id.Value, world.CurrentDate.TotalMilliseconds + 1);
     }
 
     /// <summary>AD-197f: o controlador pediu <paramref name="action"/> e quem convive compara com o costume da pessoa.</summary>
@@ -125,7 +133,8 @@ public static class PlayerCommands
         if (PossessedByPower(world, npc) is { } taken) return taken;
         if (world.FindNpc(targetId) is not { IsAlive: true } target || target.Id == npc.Id)
             return Result<Unit>.Fail($"{NotFound} alvo ausente ou morto");
-        if (Math.Max(Math.Abs(target.CurrentLocation.X - npc.CurrentLocation.X), Math.Abs(target.CurrentLocation.Y - npc.CurrentLocation.Y)) > 1)
+        // AD-197c: no passo fino o alcance é o da pose de agora (quem passa pela rua no meio da viagem está ao alcance)
+        if (LivingWorld.Simulation.Behavior.Decision.TravelPose.Reach(world, npc, target) > 1)
             return Result<Unit>.Fail("strike: alvo fora do alcance");
         if (!world.CrimeOn) return Result<Unit>.Fail("strike: violência desligada no cenário");
 
@@ -143,6 +152,7 @@ public static class PlayerCommands
         LivingWorld.Simulation.Crime.Violence.Fight(world, ctx, npc, target, "jogador",
             ctx.OneShot($"player-strike-{npc.Id.Value}-{target.Id.Value}-{tick}"));
         PossessionWitness.OnStrike(world, ctx, npc, target); // AD-197f: quem convive estranha
+        WakeNow(world, target); // AD-197c: quem apanha reage já, não na hora cheia
         return Result<Unit>.Ok(Unit.Value);
     }
 

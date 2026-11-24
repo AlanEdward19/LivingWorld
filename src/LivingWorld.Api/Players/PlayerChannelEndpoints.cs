@@ -87,6 +87,10 @@ public static class PlayerChannelEndpoints
                 "persuade" => new PlayerCommandRequest(PlayerCommandKind.Persuade),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
+                // AD-197c: dormir (até a hora do dia "untilHour", ou acelerando), acelerar parado e acordar: só quem joga sozinho
+                "sleep" => new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: node?["untilHour"]?.GetValue<int>()),
+                "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate),
+                "wake" => new PlayerCommandRequest(PlayerCommandKind.Wake),
                 _ => null,
             };
         }

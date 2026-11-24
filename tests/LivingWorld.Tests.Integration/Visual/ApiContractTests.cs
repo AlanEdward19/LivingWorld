@@ -222,6 +222,12 @@ public class ApiContractTests
             Optional(shape!, "pauseReason", "string");
             Optional(shape!, "pausedAtMs", "number");
             Optional(shape!, "pauseMaxMs", "number");
+            // AD-197c: o ritmo do relógio é acréscimo (servidor anterior não o traz)
+            Optional(shape!, "rhythm", "string");
+            Optional(shape!, "loopTicksPerSecond", "number");
+            Optional(shape!, "timeScale", "number");
+            Optional(shape!, "playersPresent", "number");
+            Optional(shape!, "accelerated", "boolean");
         }
         AssertMatchesContract($"shape.{name}.json", shape!);
     }
