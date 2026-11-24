@@ -301,8 +301,11 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
             if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
             if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
-            NpcWakeScheduler.RescheduleAfterHour(
-                world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
+            if (fine) // AD-197h: a chegada no instante do caminho em ms
+                NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, TravelArrivalMs(world, npc, marketIndex), stage);
+            else
+                NpcWakeScheduler.RescheduleAfterHour(
+                    world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
         }
     }
 
@@ -343,10 +346,14 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 return advance.Reached;
             }
 
-            long ticksNeeded = Mobility.TravelTicks(
-                world, npc, npc.CurrentLocation, destination,
-                BodyMechanic.MovementCostMultiplier(world, npc));
-            if (Underway(nowMs, npc.ActionStartedAtMs, ticksNeeded)) return false; // AD-197c: em ms (= horas na hora cheia)
+            if (world.FineTime)
+            {
+                // AD-197h: no passo fino a viagem dura o caminho em ms (um trajeto curto leva minutos)
+                if (nowMs - npc.ActionStartedAtMs < Mobility.TravelMs(world, npc, npc.CurrentLocation, destination,
+                        BodyMechanic.MovementCostMultiplier(world, npc))) return false;
+            }
+            else if (Underway(nowMs, npc.ActionStartedAtMs, Mobility.TravelTicks(
+                world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)))) return false; // AD-197c: em ms
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 
             // AD-141: quem atravessou água a pé sente o tempo perdido; quem foi na embarcação da casa, não
@@ -358,7 +365,10 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
             return true;
         }
 
-        if (Underway(nowMs, npc.ActionStartedAtMs, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog))) return false;
+        if (world.FineTime
+                ? nowMs - npc.ActionStartedAtMs < LivingWorld.Simulation.Objects.ObjectUse.DurationMs(world, npc, action, catalog) // AD-197h
+                : Underway(nowMs, npc.ActionStartedAtMs, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)))
+            return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.

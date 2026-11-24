@@ -34,6 +34,20 @@ public sealed partial class BehaviorDecisionSystem
         return npc.ActionStartedAtTick + ticksNeeded;
     }
 
+    /// <summary>AD-197h: instante (ms) em que a viagem em curso chega, no passo fino: a saída (com a fase) mais o caminho em ms
+    /// (<see cref="Mobility.TravelMs"/>, a mesma conta de <see cref="TryCompleteAction"/>). Nulo como <see cref="TravelArrivalTick"/>.</summary>
+    internal static long? TravelArrivalMs(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        if (npc.CurrentAction != ActionType.Travel) return null;
+        long now = world.CurrentDate.TotalHours;
+        var departed = _departure;
+        bool known = departed.Npc == npc.Id.Value && departed.Tick == now && departed.From == npc.CurrentLocation && departed.Purpose == npc.TravelPurpose;
+        var destination = known ? departed.Destination : TravelDestinationOf(world, npc, marketIndex) ?? npc.CurrentLocation;
+        if (destination == npc.CurrentLocation) return null;
+        if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
+        return npc.ActionStartedAtMs + Mobility.TravelMs(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+    }
+
     /// <summary>Necessidade urgente que faz o NPC largar a rotina: fome, sede e sono sempre; solidão só
     /// quando crítica — quem se sente um pouco sozinho no meio do turno continua a rotina do dia
     /// (e socializa na janela dela), como qualquer pessoa.</summary>

@@ -55,6 +55,47 @@ public static class Mobility
         return ticks == 0 ? 0 : Math.Max(1, Apply(weather ? Weathered(world, origin, destination, ticks, route) : ticks, BonusPct(world, npc.City)));
     }
 
+    /// <summary>AD-197h: a mesma duração de <see cref="TravelTicks"/> no passo fino, em milissegundos e sem arredondar para a hora: o custo
+    /// do caminho (rota real, água, mapa) × corpo × carga, alongado pelo chão do dia e encurtado pela tecnologia da cidade. Um trajeto
+    /// curto leva minutos. Ao menos um segundo entre lugares distintos; 0 no mesmo lugar.</summary>
+    public static long TravelMs(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier)
+    {
+        if (origin == destination) return 0;
+        double body = Math.Max(0.1, bodyMultiplier * LoadFactor(world, npc));
+        double hours;
+        LivingWorld.Simulation.Cities.Streets.StreetRoute? route = null;
+        if (world.StreetsOn)
+        {
+            route = LivingWorld.Simulation.Cities.Streets.StreetRoutes.Get(world, origin, destination);
+            double cost = route.Cost;
+            if (route.Water > 0 && world.InventionOn)
+            {
+                int craft = npc.Household is { } h ? world.Invention!.BestCraftSpeed(h.Value, world.InventionRules!) : 0;
+                cost += LivingWorld.Simulation.Invention.WaterCrossing.ExtraCost(world.Map, world.InventionRules!, route.Water, craft);
+            }
+            hours = Math.Max(0, cost) * body;
+        }
+        else
+        {
+            double cost = LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, origin, destination);
+            if (world.InventionOn && LivingWorld.Simulation.Invention.WaterCrossing.CellsBetween(world.Map, origin, destination) is int water and > 0)
+            {
+                int craft = npc.Household is { } h ? world.Invention!.BestCraftSpeed(h.Value, world.InventionRules!) : 0;
+                cost += LivingWorld.Simulation.Invention.WaterCrossing.ExtraCost(world.Map, world.InventionRules!, water, craft);
+            }
+            hours = Math.Max(0, cost) * body;
+        }
+        if (LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, origin, out var row))
+        {
+            int soft = route is null ? LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPm(world, origin, destination)
+                : LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPmOf(world, route, origin, destination);
+            hours *= LivingWorld.Simulation.Climate.WeatherNow.TravelFactor(world, row, soft);
+        }
+        int bonus = BonusPct(world, npc.City);
+        if (bonus != 0) hours = hours * 100 / (100 + bonus);
+        return Math.Max(WorldMillis.PerSecond, (long)Math.Ceiling(hours * WorldMillis.PerHour));
+    }
+
     /// <summary>AD-187: <c>TravelTicks(..., weather: false) &gt; threshold</c> (a pergunta "é longe?"), sem buscar a rota quando o piso
     /// do custo já passa do limite: o tempo só cresce com o custo, e a água a pé só soma. Com embarcação da casa (remar pode poupar
     /// tempo) ou o piso abaixo do limite, a conta inteira de sempre.</summary>
