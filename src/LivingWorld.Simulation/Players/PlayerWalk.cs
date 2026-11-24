@@ -23,7 +23,9 @@ public static class PlayerWalk
         var weights = world.Map.Cost.TerrainWeight;
         double easiest = weights.Count == 0 ? 1.0 : Math.Max(0.01, weights.Values.Min());
         double reference = world.Map.Cost.Base * easiest * WorldMillis.PerHour * (from.X != to.X && from.Y != to.Y ? 1.41421356237309515 : 1.0);
-        double factor = Math.Max(0.25, PlayerCommands.PaceMs(world, npc, from, to) / Math.Max(1.0, reference));
+        // a rua calçada encurta a viagem longa (menos desvio, chão firme), mas ninguém anda mais que um passo largo: piso de 0,8
+        // (1,4 m/s → no máximo 1,75 m/s)
+        double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / Math.Max(1.0, reference));
         return world.Players.WalkMps / factor;
     }
 
