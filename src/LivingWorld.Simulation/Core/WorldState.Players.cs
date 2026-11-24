@@ -24,6 +24,15 @@ public sealed partial class WorldState
     /// o mundo que anda de hora em hora segue a conta de antes, byte a byte.</summary>
     internal bool FineTime => TickDeltaMs < WorldMillis.PerHour && Players.Time.FineDecisions;
 
+    /// <summary>AD-197h: rotas já traçadas para a pose de viagem do passo fino, por par de lugares; derivado, fora do hash.</summary>
+    internal PosePathCache PosePaths { get; } = new();
+
+    internal sealed class PosePathCache
+    {
+        public (long Obstacles, int Surfaces, bool Ford) Stamp;
+        public Dictionary<(LivingWorld.Domain.Geography.CellCoord, LivingWorld.Domain.Geography.CellCoord), IReadOnlyList<LivingWorld.Domain.Geography.CellCoord>> Paths { get; } = new();
+    }
+
     /// <summary>Declara as regras do jogador (cenário, teste) ou restaura do snapshot. O padrão volta a nulo.</summary>
     public void UsePlayers(LivingWorld.Domain.Population.PlayerRules? rules)
     {

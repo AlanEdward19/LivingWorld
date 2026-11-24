@@ -60,6 +60,6 @@ Com a decisão fina desligada (`LW_AD197C=off`), o mesmo mundo sem entradas, em 
 4. **Ação com fase**: a ação começa dentro da hora (`ActionPhaseMs`) e termina no instante certo (AD-197c).
 
 ## Ainda em horas
-Duração de ação (`DurationHours`) e perna de rota (`TravelTicks`) seguem horas inteiras (a fase em ms dá o início e o fim no instante
-certo); campos de tick dos sistemas de cidade, obra, lavoura, saúde, crime, história (`WorldEvent.Tick`), `ctx.CurrentTick` em geral.
-São da escala de hora e só rodam na hora cheia; passam a ms quando um consumidor fino precisar.
+Duração de ação (`DurationHours`) e perna de rota (`TravelTicks`) seguem horas inteiras de hora em hora; no passo fino valem as
+versões em ms (AD-197h, [real-time-rhythm](real-time-rhythm.md)). Campos de tick dos sistemas de cidade, obra, lavoura, saúde,
+crime, história (`WorldEvent.Tick`) e `ctx.CurrentTick` em geral são da escala de hora e só rodam na hora cheia.
