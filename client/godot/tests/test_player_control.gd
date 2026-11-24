@@ -235,3 +235,11 @@ func test_in_the_app_the_crosshair_strike_pace_and_resource_names_follow_the_eng
 	await app.player_hud.logout()
 	eq([app.rig.mode, app.crosshair.visible, app.rig.cursor_captured], [app.rig.ISO, false, false], "saiu: isométrica, sem mira, cursor solto")
 	app.queue_free()
+
+
+func test_invented_items_show_with_the_engine_label_and_verbs_only() -> void:
+	var entries: Array = PlayerHud.menu_entries([
+		{"kind": "item", "id": 41, "label": "recipiente", "verbs": ["take"], "x": 1, "y": 1, "resources": []},
+		{"kind": "item", "id": 42, "label": "veículo", "verbs": ["return"], "x": 1, "y": 1, "resources": []}])
+	eq(entries.map(func(e): return e.text), ["recipiente: Pegar", "veículo: Devolver"], "o nome e o verbo vêm da oferta do motor")
+	eq([entries[0].kind, entries[0].id, entries[0].verb], ["item", 41, "take"], "a escolha vai ao motor como está na oferta")

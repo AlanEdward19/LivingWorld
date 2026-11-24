@@ -463,6 +463,35 @@ public sealed class InventionLedger
         return default;
     }
 
+    /// <summary>AD-197n: as peças inventadas em uso de uma casa que se levam (recipiente, função 1) ou se puxam (veículo de terra, 2), em
+    /// ordem de id; e quem está com cada uma (−1 = em casa: a pessoa 0 existe).</summary>
+    internal List<(CraftedItem Item, byte Function, long HolderId)> UsableOf(long householdId)
+    {
+        var found = new List<(CraftedItem, byte, long)>();
+        foreach (var item in Items)
+        {
+            if (item.HouseholdId != householdId || item.ForSale || InLeaving(item.Id)) continue;
+            byte function = FunctionOf(item.DesignId);
+            if (function is not (1 or 2)) continue;
+            long holder = -1;
+            if (Held is { Count: > 0 } held) foreach (var h in held) if (h.ItemId == item.Id) holder = h.NpcId;
+            found.Add((item, function, holder));
+        }
+        found.Sort((a, b) => a.Item1.Id.CompareTo(b.Item1.Id));
+        return found;
+    }
+
+    /// <summary>AD-197n: o veículo de terra que a pessoa puxa (o item que ela levou, se é veículo que funciona); padrão = nenhum.</summary>
+    internal Hauler HaulerHeldBy(long npcId, InventionRules rules)
+    {
+        long id = HeldBy(npcId);
+        if (id == 0) return default;
+        foreach (var item in Items)
+            if (item.Id == id && FunctionOf(item.DesignId) == 2 && FindDesign(item.DesignId) is { } design && HaulageOf(design, rules) is { Works: true } h)
+                return new Hauler(h.CapacityG * item.QualityPm / 1000, h.Mode, design.Id);
+        return default;
+    }
+
     /// <summary>O item que a pessoa levou; 0 = nenhum.</summary>
     internal long HeldBy(long npcId)
     {
