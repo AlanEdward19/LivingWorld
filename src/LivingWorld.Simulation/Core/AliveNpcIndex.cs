@@ -18,6 +18,11 @@ public sealed class AliveNpcIndex
     private readonly Dictionary<long, Npc> _posed = new(); // AD-197l: quem tem pose, para soltar sem varrer os vivos
     private readonly List<Npc> _unpose = [];
 
+    // AD-197l: os viajantes em ordem de id, mantidos pelo aviso do NPC só enquanto o passo fino precisa deles (de hora em hora o aviso
+    // fica desligado e nada é mantido)
+    private readonly SortedDictionary<long, Npc> _travellers = new();
+    private bool _tracking;
+
     private AliveNpcIndex(List<Npc> alive)
     {
         _alive = alive;
@@ -90,6 +95,44 @@ public sealed class AliveNpcIndex
         _byPose.Clear();
     }
 
+    /// <summary>AD-197l: quem viaja agora, em ordem de id. Liga o acompanhamento na primeira vez (uma varredura dos vivos); depois o
+    /// NPC avisa ao começar ou deixar de viajar.</summary>
+    public IReadOnlyCollection<Npc> Travellers()
+    {
+        {
+            if (!_tracking)
+            {
+                _tracking = true;
+                _travellers.Clear();
+                foreach (var npc in _alive)
+                {
+                    npc.TravelObserver = OnTravelChanged;
+                    if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel) _travellers[npc.Id.Value] = npc;
+                }
+            }
+            return _travellers.Values;
+        }
+    }
+
+    /// <summary>Os viajantes estão sendo acompanhados (passo fino).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool TrackingTravellers => _tracking;
+
+    /// <summary>Desliga o acompanhamento dos viajantes (de volta de hora em hora).</summary>
+    public void StopTrackingTravellers()
+    {
+        if (!_tracking) return;
+        _tracking = false;
+        _travellers.Clear();
+        foreach (var npc in _alive) npc.TravelObserver = null;
+    }
+
+    private void OnTravelChanged(Npc npc)
+    {
+        if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel && npc.IsAlive) _travellers[npc.Id.Value] = npc;
+        else _travellers.Remove(npc.Id.Value);
+    }
+
     /// <summary>AD-197l: solta a pose de quem já não viaja com perna (chegou, mudou de ação), olhando só quem tem pose.</summary>
     public void PrunePoses()
     {
@@ -137,6 +180,11 @@ public sealed class AliveNpcIndex
     {
         AddToBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = OnMoved;
+        if (_tracking)
+        {
+            npc.TravelObserver = OnTravelChanged;
+            if (npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Travel) _travellers[npc.Id.Value] = npc;
+        }
         npc.HealthObserver = OnHealthChanged;
         if (npc.Health <= EndangeredHealth) EndangeredCount++;
     }
@@ -146,6 +194,8 @@ public sealed class AliveNpcIndex
         SetPose(npc, null);
         RemoveFromBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = null;
+        npc.TravelObserver = null;
+        _travellers.Remove(npc.Id.Value);
         npc.HealthObserver = null;
         if (npc.Health <= EndangeredHealth) EndangeredCount--;
     }

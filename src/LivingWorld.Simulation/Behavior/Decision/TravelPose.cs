@@ -69,6 +69,7 @@ public static class TravelPose
         if (!world.FineTime)
         {
             if (index.HasPoses) index.ClearPoses();
+            index.StopTrackingTravellers();
             return;
         }
         long now = world.CurrentDate.TotalMilliseconds;
@@ -79,9 +80,8 @@ public static class TravelPose
             cache.Index = index;
         }
         MarketIndex? markets = null;
-        foreach (var npc in index.Alive)
+        foreach (var npc in index.Travellers()) // AD-197l: só quem viaja, sem varrer os vivos
         {
-            if (npc.CurrentAction != ActionType.Travel) continue;
             if (npc.TravelLegTo is null)
             {
                 // AD-197i: quem já viajava quando o mundo passou ao passo fino (saiu de hora em hora, sem perna) ganha a perna agora,

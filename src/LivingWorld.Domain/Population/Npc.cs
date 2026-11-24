@@ -31,6 +31,10 @@ public sealed class Npc
     [JsonIgnore]
     public Action<Npc, CellCoord>? LocationObserver { get; set; }
 
+    /// <summary>AD-197l: avisa quem acompanha os viajantes (índice dos vivos, só no passo fino) quando o NPC começa ou deixa de viajar.</summary>
+    [JsonIgnore]
+    public Action<Npc>? TravelObserver { get; set; }
+
     /// <summary>Notifica <c>(npc, saúdeAnterior)</c> quando <see cref="SetHealth"/> muda a saúde — único
     /// caminho de mutação, o que permite ao índice de vivos contar quem está em perigo sem varrer o mundo.</summary>
     [JsonIgnore]
@@ -916,7 +920,9 @@ public sealed class Npc
 
     public void SetCurrentAction(ActionType action, long tick)
     {
+        bool wasTravelling = CurrentAction == ActionType.Travel;
         CurrentAction = action;
+        if (TravelObserver is not null && wasTravelling != (action == ActionType.Travel)) TravelObserver(this);
         ActionStartedAtTick = tick;
         ActionPhaseMs = 0;
         TravelLegEndMs = 0;

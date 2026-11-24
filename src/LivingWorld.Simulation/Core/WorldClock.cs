@@ -43,7 +43,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
         int intoHour = world.CurrentDate.MillisecondOfHour;
         world.TickDeltaMs = deltaMs;
         world.CurrentDate = world.CurrentDate.AddMilliseconds(Math.Min(deltaMs, WorldMillis.PerHour - intoHour));
-        if (world.FineTime || world.AliveNpcIndex.HasPoses) // AD-197h: quem viaja está na célula da rota (de hora em hora, nada)
+        if (world.FineTime || world.AliveNpcIndex.HasPoses || world.AliveNpcIndex.TrackingTravellers) // AD-197h: quem viaja está na célula da rota (de hora em hora, nada)
             LivingWorld.Simulation.Behavior.Decision.TravelPose.Refresh(world);
         if (world.CurrentDate.MillisecondOfHour != 0)
         {
