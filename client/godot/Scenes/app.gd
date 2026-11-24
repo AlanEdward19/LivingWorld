@@ -64,6 +64,7 @@ var brain_panel
 var conversation
 var narrative
 var player_hud
+var creator ## AD-197q: criador de personagem pelo motor
 var admin_window
 var family_builder
 var economy
@@ -569,16 +570,39 @@ func _toggle_brain() -> void:
 ## Encarna o NPC (atalho I): o servidor decide se pode; a câmera passa a segui-lo.
 func incarnate(id: int) -> void:
 	if await player_hud.incarnate(id, registry.person_name(id)):
-		selected_npc = id
-		follow(Registry.ref(Registry.PERSON, id))
-		var body = world_view.npc_nodes.get(id)
-		if body != null:
-			body.driven = true
-			body.set_self(true) # AD-197p: sem nome, ação nem anel sobre o próprio corpo
-		rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
-		var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
-		if detail.ok and detail.body is Dictionary:
-			player_hud.set_powers(detail.body.get("powerIds", []))
+		await _drive(id)
+
+
+## AD-197q: abre o criador de personagem (a pessoa nova sai do agregado de uma cidade, pelo motor).
+func open_creator() -> void:
+	if player_hud.is_active:
+		toasts.push("Você já controla alguém: saia do personagem antes de entrar como pessoa nova.")
+		return
+	creator.reveal()
+	router.opened(creator) # AD-197q: encaixada na área central, abaixo da barra (não no canto, por cima da trilha)
+	await creator.open()
+
+
+## AD-197q: entrou como pessoa nova: a cidade dela, o corpo que o motor materializou e a 3ª pessoa, como ao encarnar.
+func _on_created(id: int, name: String, city_id: String) -> void:
+	store.names[id] = name
+	if session.world_ref != ["City", city_id]:
+		await enter_scope("City", city_id)
+	await _drive(id)
+
+
+## O corpo encarnado: a câmera o segue em 3ª pessoa e o HUD mostra os poderes que ele porta.
+func _drive(id: int) -> void:
+	selected_npc = id
+	follow(Registry.ref(Registry.PERSON, id))
+	var body = world_view.npc_nodes.get(id)
+	if body != null:
+		body.driven = true
+		body.set_self(true) # AD-197p: sem nome, ação nem anel sobre o próprio corpo
+	rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
+	var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
+	if detail.ok and detail.body is Dictionary:
+		player_hud.set_powers(detail.body.get("powerIds", []))
 
 
 ## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
@@ -587,6 +611,7 @@ func player_released() -> void:
 	if node != null:
 		node.driven = false
 		node.set_self(false)
+		node.set_first_person(false)
 	unfollow()
 	rig.set_mode(rig.ISO)
 	set_player_mode(false)
@@ -596,6 +621,8 @@ func player_released() -> void:
 func _on_player_fine(at: Vector2) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
+		if not node.driven:
+			node.set_self(true) # AD-197q: a pessoa nova chega ao desenho depois de entrar (corpo materializado agora)
 		node.driven = true
 		node.set_fine(at)
 
@@ -648,6 +675,10 @@ func _on_camera_mode(mode: String) -> void:
 	if crosshair != null:
 		crosshair.visible = mode != rig.ISO
 	set_player_mode(mode != rig.ISO and player_hud != null and player_hud.is_active)
+	if player_hud != null and player_hud.is_active: # AD-197r: o olho fica na altura da cabeça; na 1ª pessoa a própria cabeça não se desenha
+		var own = world_view.npc_nodes.get(player_hud.npc_id)
+		if own != null:
+			own.set_first_person(mode == rig.FIRST)
 
 
 ## AD-197p: no modo jogador some o que é do espectador (inspetor e lista à direita, acontecimentos, minimapa, avisos de

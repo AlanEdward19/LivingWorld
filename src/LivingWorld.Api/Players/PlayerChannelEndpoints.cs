@@ -98,6 +98,14 @@ public static class PlayerChannelEndpoints
                 "interact" when node?["kind"] is { } kind && node?["id"] is { } id && node?["verb"] is { } verb =>
                     new PlayerCommandRequest(PlayerCommandKind.Interact, Interaction: kind.GetValue<string>(), TargetId: id.GetValue<long>(),
                         Verb: verb.GetValue<string>(), ResourceId: node?["resourceId"]?.GetValue<int>(), Quantity: node?["quantity"]?.GetValue<long>()),
+                // AD-197q: criador de personagem — amostra do agregado (registrada) e entrar como um dos candidatos
+                "candidates" when node?["cityId"] is { } city && PlayerEndpoints.TryParseFilter(node?["sex"]?.GetValue<string>(),
+                        node?["minAge"]?.GetValue<int>(), node?["maxAge"]?.GetValue<int>(), node?["professionId"]?.GetValue<int>(), out var filter) =>
+                    new PlayerCommandRequest(PlayerCommandKind.Sample, CityId: Guid.Parse(city.GetValue<string>()), Filter: filter,
+                        Count: node?["count"]?.GetValue<int>()),
+                "create" when node?["cityId"] is { } city && node?["npcId"] is { } id && node?["sample"] is { } sample =>
+                    new PlayerCommandRequest(PlayerCommandKind.Create, id.GetValue<long>(), CityId: Guid.Parse(city.GetValue<string>()),
+                        SampleNumber: sample.GetValue<long>()),
                 _ => null,
             };
         }

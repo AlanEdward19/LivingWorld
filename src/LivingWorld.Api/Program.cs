@@ -158,6 +158,7 @@ builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateReposi
 builder.Services.AddScoped<AdminAuditStore>();
 
 var app = builder.Build();
+playerGateway.Names = app.Services.GetRequiredService<LivingWorld.Api.Visual.Observable.PresentationNameResolver>(); // AD-197q
 
 // UX pass 3: repositório de períodos começa vazio em todo processo novo — sem isso, o wizard de
 // "criar mundo" não teria nenhum template real pra oferecer (ver DefaultPeriodSeeder.cs).

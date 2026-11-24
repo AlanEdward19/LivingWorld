@@ -1,0 +1,5 @@
+{
+  "cityId": "string",
+  "npcId": "number",
+  "playerId": "string"
+}

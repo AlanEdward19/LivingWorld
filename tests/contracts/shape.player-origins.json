@@ -1,0 +1,10 @@
+{
+  "cities": [
+    {
+      "aggregateCount": "number",
+      "cityId": "string",
+      "detailedCount": "number",
+      "name": "string"
+    }
+  ]
+}

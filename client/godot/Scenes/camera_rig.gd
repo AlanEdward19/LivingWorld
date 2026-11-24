@@ -8,12 +8,18 @@ signal scope_requested(kind: String, ref_id: String)
 signal mode_changed(mode: String) ## AD-197j: o app mostra a mira no centro e solta o cursor ao voltar à isométrica
 signal see_through(ids: Dictionary) ## AD-197p: prédios entre a câmera da 3ª pessoa e o corpo (o app os deixa translúcidos)
 
+const Grid := preload("res://Scenes/grid.gd")
+
 const ISO_PITCH := deg_to_rad(-35.264)
 const ISO := "iso"
 const THIRD := "third"
 const FIRST := "first"
-const THIRD_DISTANCE := 4.5 ## metros atrás do personagem (uma célula = 1 unidade)
-const EYE_HEIGHT := 1.6 ## olhos na 1ª pessoa; a 3ª mira um pouco acima do ombro
+const THIRD_DISTANCE := 3.0 ## unidades atrás do personagem (4,5 m na escala do motor, 1,5 m/célula; AD-197r)
+## AD-197r: a altura dos olhos sai do corpo (a altura em cm que o motor dá vira a escala do boneco), não de constante:
+## olhos a 94% da altura, na escala do motor (adulto mediano de 1,70 m -> 1,6 m -> ~1,07 unidade; criança fica mais baixa).
+const ADULT_HEIGHT_CM := 170.0
+const EYE_RATIO := 0.94
+const SHOULDER_M := 0.3 ## a 3ª pessoa mira um pouco acima do ombro: olho + isto (escala do corpo)
 const MIN_PITCH := deg_to_rad(-70.0)
 const MAX_PITCH := deg_to_rad(35.0)
 const LOOK_SPEED := 0.004 ## rad por pixel do mouse
@@ -40,6 +46,8 @@ const ARM_MARGIN := 0.25
 const ARM_RETURN := 3.0 ## por segundo: a volta é suave; a aproximação, imediata (nunca atravessa a parede)
 var blockers: Callable = Callable()
 var arm := THIRD_DISTANCE
+var lift := 0.0 ## AD-197r: quanto a 3ª pessoa sobe (olhando o corpo de cima) quando o caminho para trás está fechado
+var shoulder := 0.0 ## e quanto passa a ombro (deslocamento lateral), em unidades
 var _see_through: Dictionary = {}
 var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
 var camera: Camera3D
@@ -70,8 +78,32 @@ func _apply() -> void:
 		camera.size = zoom_size
 		return
 	_pivot.rotation = Vector3(pitch, 0, 0)
-	_pivot.position = Vector3(0, EYE_HEIGHT, 0)
-	camera.position = Vector3(0, 0, arm if mode == THIRD else 0.0)
+	if mode == THIRD:
+		_pivot.position = Vector3(0, eye_height() + shoulder_height() + lift, 0)
+		camera.position = Vector3(shoulder, 0, arm)
+		camera.rotation = Vector3(-atan2(lift, maxf(arm, 0.01)), 0, 0) # sobe olhando para o corpo, sem mudar para onde o mouse olha
+	else:
+		_pivot.position = Vector3(0, eye_height(), 0)
+		camera.position = Vector3.ZERO
+		camera.rotation = Vector3.ZERO
+
+
+## Escala do corpo seguido (a que a altura do motor deu ao boneco); sem corpo, o adulto mediano.
+func body_scale() -> float:
+	return following.scale.y if following != null and is_instance_valid(following) and following.scale.y > 0.0 else 1.0
+
+
+## Altura dos olhos em unidades da grade, pelo corpo (AD-197r).
+func eye_height() -> float:
+	return eye_height_for(body_scale() * ADULT_HEIGHT_CM)
+
+
+static func eye_height_for(height_cm: float) -> float:
+	return Grid.units(height_cm / 100.0 * EYE_RATIO)
+
+
+func shoulder_height() -> float:
+	return Grid.units(SHOULDER_M) * body_scale()
 
 
 ## Troca o modo da câmera: ISO (espectador e admin), THIRD ou FIRST (personagem encarnado).
@@ -81,12 +113,15 @@ func set_mode(value: String) -> void:
 	mode = value
 	if mode == ISO:
 		arm = THIRD_DISTANCE
+		lift = 0.0
+		shoulder = 0.0
 		if not _see_through.is_empty():
 			_see_through = {}
 			see_through.emit({})
 		set_cursor_captured(false)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.position = Vector3(0, 0, 80)
+		camera.rotation = Vector3.ZERO
 		camera.near = 0.05
 		_pivot.position = Vector3.ZERO
 	else:
@@ -219,20 +254,68 @@ func _process(delta: float) -> void:
 		_apply()
 
 
-## AD-197p: o braço é o menor caminho livre entre o olho (acima do ombro) e o ponto atrás dele; o que ainda cobrir o corpo fica
-## translúcido. Só as caixas desenhadas dos prédios; quem tem o olho dentro (o corpo dentro de casa) não conta.
+## AD-197p/197r: a 3ª pessoa escolhe o primeiro enquadramento livre (reto atrás; mais alto; mais alto e a ombro); sem nenhum livre,
+## fica o de caminho mais longo, sempre subindo para olhar o corpo de cima. O que ainda cobrir o corpo fica translúcido.
+## Só as caixas desenhadas dos prédios; quem tem o olho dentro (o corpo dentro de casa) não conta.
 func _spring_arm(delta: float) -> void:
 	if not blockers.is_valid():
 		return
 	var boxes: Array = blockers.call()
-	var eye := target + Vector3(0, EYE_HEIGHT, 0)
-	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
-	var free := free_arm(eye, back, THIRD_DISTANCE, boxes)
+	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
+	var plan := plan_third(eye, yaw, pitch, THIRD_DISTANCE, boxes, body_scale())
+	var free: float = plan.arm
 	arm = free if free < arm else minf(free, arm + (THIRD_DISTANCE - MIN_ARM) * ARM_RETURN * delta)
-	var seen := covering(eye + back * arm, target + Vector3(0, 0.9, 0), boxes)
+	var blend := clampf(delta * 8.0, 0.0, 1.0)
+	lift = lerpf(lift, plan.lift, blend)
+	shoulder = lerpf(shoulder, plan.shoulder, blend)
+	var seen := covering(third_spot(eye), target + Vector3(0, eye_height() * 0.55, 0), boxes)
 	if seen != _see_through:
 		_see_through = seen
 		see_through.emit(seen)
+
+
+## Onde a câmera da 3ª pessoa está agora (mundo): do olho, sobe `lift`, passa `shoulder` à direita e recua `arm` pelo olhar.
+func third_spot(eye: Vector3) -> Vector3:
+	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
+	var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
+	return eye + Vector3(0, lift, 0) + right * shoulder + back * arm
+
+
+const COMFORT := 0.6 ## fração do braço cheio que já basta para a vista ser boa (abaixo disso tenta subir e passar a ombro)
+
+
+## Enquadramentos tentados, na ordem: [subida em unidades da grade, ombro em unidades]. O corpo é escalado (criança sobe menos).
+static func third_options(scale: float) -> Array:
+	var up := Grid.units(1.0) * scale
+	var side := Grid.units(0.6) * scale
+	return [[0.0, 0.0], [up, 0.0], [up * 2.0, 0.0], [up * 2.0, side], [up * 2.0, -side], [up * 3.0, 0.0]]
+
+
+## Escolhe {arm, lift, shoulder} da 3ª pessoa: o primeiro enquadramento com caminho livre >= COMFORT do braço cheio e câmera fora de
+## qualquer caixa; senão o de maior caminho (empate: o menos deslocado), com a subida mínima de quem ficou colado ao corpo.
+static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0) -> Dictionary:
+	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
+	var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
+	var best := {"arm": -1.0, "lift": 0.0, "shoulder": 0.0}
+	for option in third_options(scale):
+		var origin: Vector3 = eye + Vector3(0, option[0], 0) + right * option[1]
+		var free := free_arm(origin, back, length, boxes)
+		if inside_any(origin + back * free, boxes):
+			free = MIN_ARM
+		if free >= length * COMFORT:
+			return {"arm": free, "lift": option[0], "shoulder": option[1]}
+		if free > float(best.arm) + 0.05:
+			best = {"arm": free, "lift": option[0], "shoulder": option[1]}
+	if float(best.arm) < length * COMFORT: # nada abriu: câmera curta e alta, olhando o corpo de cima (translúcido o que sobrar)
+		best.lift = maxf(float(best.lift), Grid.units(1.0) * scale * (1.0 + (length * COMFORT - float(best.arm)) / length))
+	return best
+
+
+static func inside_any(point: Vector3, boxes: Array) -> bool:
+	for entry in boxes:
+		if (entry[1] as AABB).has_point(point):
+			return true
+	return false
 
 
 ## Comprimento livre do braço: até a primeira caixa que o segmento olho → câmera cruza, menos uma folga; nunca menos que MIN_ARM.
