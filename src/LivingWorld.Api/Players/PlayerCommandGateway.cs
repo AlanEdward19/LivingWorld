@@ -14,7 +14,7 @@ namespace LivingWorld.Api.Players;
 public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
-    long? Quantity = null);
+    long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -43,6 +43,9 @@ public sealed class PlayerCommandGateway(
     public bool EnforcePause { get; set; } = true;
 
     public PlayerLogStore Log => log;
+
+    /// <summary>AD-197q: nomes do período (ofício) para os cartões do criador de personagem; sem ele, só os ids.</summary>
+    public LivingWorld.Api.Visual.Observable.PresentationNameResolver? Names { get; set; }
 
     public PlayerReply Execute(string playerId, PlayerCommandRequest command)
     {
@@ -75,6 +78,11 @@ public sealed class PlayerCommandGateway(
                 PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
                     command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
+                PlayerCommandKind.Sample => Map(players.Sample(world, playerId, new CityId(command.CityId ?? Guid.Empty),
+                    command.Filter ?? CharacterFilter.None, command.Count ?? CharacterCreation.DefaultCount), sample => SampleView(world, sample)),
+                PlayerCommandKind.Create => Map(players.Create(world, playerId, new CityId(command.CityId ?? Guid.Empty),
+                    new NpcId(command.NpcId ?? -1), command.SampleNumber ?? -1),
+                    npc => new { npcId = npc.Id.Value, playerId, cityId = npc.City.Value }),
                 PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
                     npc => new { npcId = npc.Id.Value, playerId, disappearedAtTick = npc.DisappearedAtTick }),
                 _ => new PlayerReply(StatusCodes.Status400BadRequest, null, "comando: não é de jogador"),
@@ -90,6 +98,59 @@ public sealed class PlayerCommandGateway(
     {
         int from = before is null ? 0 : (int)before.Sequence + 1;
         foreach (var record in players.Log.Since(from)) log.Append(record);
+    }
+
+    /// <summary>AD-197q: as cidades de onde dá para sair como pessoa nova: quantos o agregado de cada uma tem e quantos já são
+    /// detalhados. Só lê.</summary>
+    public object Origins()
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            var cities = world.ActiveCities()
+                .Select(c => new
+                {
+                    cityId = c.Id.Value,
+                    name = c.Name,
+                    aggregateCount = c.AggregatePool.Count,
+                    detailedCount = world.Npcs.Count(n => n.IsAlive && n.City == c.Id),
+                })
+                .OrderByDescending(c => c.aggregateCount).ThenBy(c => c.name, StringComparer.Ordinal)
+                .ToList();
+            return new { cities };
+        }
+    }
+
+    /// <summary>AD-197q: a amostra como o cliente a mostra (nomes do ofício e da cidade de nascimento resolvidos aqui).</summary>
+    private object SampleView(LivingWorld.Simulation.Core.WorldState world, CharacterSample sample)
+    {
+        var names = Names?.For(world.PeriodId);
+        string CityName(Guid id) => world.FindCity(new CityId(id))?.Name ?? "";
+        return new
+        {
+            cityId = sample.CityId,
+            cityName = CityName(sample.CityId),
+            sample = sample.Sample,
+            aggregateCount = sample.AggregateCount,
+            matching = sample.Matching,
+            candidates = sample.Candidates.Select(c => new
+            {
+                npcId = c.NpcId,
+                name = c.Name,
+                sex = c.Sex.ToString(),
+                ageYears = c.AgeYears,
+                professionId = c.ProfessionId,
+                profession = names?.Profession(c.ProfessionId) ?? "",
+                cultureId = c.CultureId,
+                wealth = c.Wealth,
+                health = c.Health,
+                personality = c.Personality,
+                bornInCityId = c.BornInCityId,
+                bornIn = CityName(c.BornInCityId),
+                yearsInCity = c.YearsInCity,
+                willPrevents = c.WillPrevents,
+            }).ToList(),
+        };
     }
 
     /// <summary>AD-197c: o tempo como o jogador o vê: o ritmo em vigor, se pode pular o tempo, o pulo em curso e o que o acordou.</summary>
