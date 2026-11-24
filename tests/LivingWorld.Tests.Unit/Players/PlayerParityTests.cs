@@ -66,6 +66,7 @@ public class PlayerParityTests
         var npc = copy.FindNpc(new NpcId(1))!;
         npc.Disappear(0);
         npc.Reappear();
+        npc.SetWill(null); // AD-197f: a disputa de vontade da posse comum só existe no braço do jogador
         return WorldSnapshot.CanonicalHash(copy);
     }
 
