@@ -90,4 +90,26 @@ public class FinePoseTests
 
         Assert.Equal((false, false), (anyHourly, anyAblated));
     }
+
+    /// <summary>AD-197i: quem saiu de hora em hora (sem perna) e ainda viaja quando o Δ passa ao passo fino aparece no caminho já
+    /// no tick seguinte, e a perna fica gravada (o mesmo mundo ao reabrir).</summary>
+    [Fact]
+    public void A_traveller_who_left_by_the_hour_shows_on_the_path_on_the_first_fine_tick()
+    {
+        var arm = Village(104, initialPopulation: 60);
+        List<Npc> travelling = [];
+        for (int i = 0; i < 24 * 7 && travelling.Count == 0; i++)
+        {
+            arm.Clock.Tick(arm.World);
+            travelling = arm.World.AliveNpcIndex.Alive.Where(n => n.CurrentAction == ActionType.Travel && n.TravelLegTo is null
+                && n.ActionStartedAtTick == arm.World.CurrentDate.TotalHours).ToList();
+        }
+        Assert.NotEmpty(travelling);
+
+        arm.Clock.Tick(arm.World, 10 * Minute);
+
+        var index = arm.World.AliveNpcIndex;
+        Assert.Contains(travelling, n => n.CurrentAction == ActionType.Travel && n.TravelLegTo is not null
+            && index.PoseOf(n) is { } cell && index.At(cell).Contains(n) && !index.At(n.CurrentLocation).Contains(n));
+    }
 }

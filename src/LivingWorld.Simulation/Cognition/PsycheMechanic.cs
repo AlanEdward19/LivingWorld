@@ -240,9 +240,13 @@ public static class PsycheMechanic
         var rules = world.NeedsRules.Psyche;
         if (!rules.Enabled) return 0;
         double best = 0;
-        foreach (var memory in psyche.Memories)
+        var memories = psyche.Memories; // AD-197i: por índice; o foreach da interface alocava um enumerador a cada decisão
+        for (int i = 0; i < memories.Count; i++)
+        {
+            var memory = memories[i];
             if (memory.Kind == kind && (other == 0 || memory.Other == other))
                 best = Math.Max(best, StrengthOf(rules, memory, tick, world.Calendar.HoursPerDay));
+        }
         return best;
     }
 
@@ -252,10 +256,14 @@ public static class PsycheMechanic
         if (other == 0 || npc.Psyche is not { Memories.Count: > 0 } psyche || !world.NeedsRules.Psyche.Enabled) return 0;
         var rules = world.NeedsRules.Psyche;
         double best = 0;
-        foreach (var memory in psyche.Memories)
+        var memories = psyche.Memories;
+        for (int i = 0; i < memories.Count; i++)
+        {
+            var memory = memories[i];
             if (memory.Other == other && memory.Kind is LifeEventKind.Betrayed or LifeEventKind.Robbed
                     or LifeEventKind.Violence or LifeEventKind.Abandoned)
                 best = Math.Max(best, StrengthOf(rules, memory, tick, world.Calendar.HoursPerDay));
+        }
         return best / 100.0;
     }
 
@@ -265,9 +273,13 @@ public static class PsycheMechanic
         if (npc.Psyche is not { Memories.Count: > 0 } psyche || !world.NeedsRules.Psyche.Enabled) return 0;
         var rules = world.NeedsRules.Psyche;
         double best = 0;
-        foreach (var memory in psyche.Memories)
+        var memories = psyche.Memories;
+        for (int i = 0; i < memories.Count; i++)
+        {
+            var memory = memories[i];
             if (memory.Kind is LifeEventKind.Betrayed or LifeEventKind.Robbed or LifeEventKind.Abandoned)
                 best = Math.Max(best, StrengthOf(rules, memory, tick, world.Calendar.HoursPerDay));
+        }
         return best / 100.0;
     }
 
@@ -292,13 +304,15 @@ public static class PsycheMechanic
         if (helper.Psyche is not { Memories.Count: > 0 } psyche || !world.NeedsRules.Psyche.Enabled) return 0;
         var rules = world.NeedsRules.Psyche;
         double direct = 0, any = 0;
-        foreach (var memory in psyche.Memories)
+        var memories = psyche.Memories;
+        for (int i = 0; i < memories.Count; i++)
         {
+            var memory = memories[i];
             if (memory.Kind != LifeEventKind.AidReceived) continue;
             double strength = StrengthOf(rules, memory, tick, world.Calendar.HoursPerDay);
             any = Math.Max(any, strength);
-            foreach (var member in household)
-                if (member.Id.Value == memory.Other) direct = Math.Max(direct, strength);
+            for (int j = 0; j < household.Count; j++)
+                if (household[j].Id.Value == memory.Other) direct = Math.Max(direct, strength);
         }
         return Math.Max(direct, 0.3 * any) / 100.0;
     }
