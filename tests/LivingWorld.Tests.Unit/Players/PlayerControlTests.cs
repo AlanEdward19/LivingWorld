@@ -1,6 +1,5 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
-using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
@@ -196,7 +195,7 @@ public class PlayerControlTests
     [Fact]
     public void A_log_with_steps_interactions_and_a_refused_order_replays_to_the_same_hash()
     {
-        var arm = Village(6);
+        var arm = PlayerOrdersTests.Family(6);
         var w = arm.World;
         var npc = PlayerOrdersTests.Parent(w);
         var child = PlayerOrdersTests.ChildOf(w, npc);

@@ -124,8 +124,14 @@ public sealed class PlayerCommandGateway(
     /// em cuja planta o corpo está (nulo na rua).</summary>
     private static object PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId) =>
         PlayerCommands.ControlledBy(world, playerId) is { } npc
-            ? new { playerId, npcId = npc.Id.Value, x = npc.CurrentLocation.X, y = npc.CurrentLocation.Y,
-                buildingId = PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value }
+            ? new
+            {
+                playerId,
+                npcId = npc.Id.Value,
+                x = npc.CurrentLocation.X,
+                y = npc.CurrentLocation.Y,
+                buildingId = PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value
+            }
             : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null };
 
     /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>

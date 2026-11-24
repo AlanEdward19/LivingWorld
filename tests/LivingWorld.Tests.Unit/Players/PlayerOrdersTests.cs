@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
+using LivingWorld.Simulation.Scenarios;
 using static LivingWorld.Tests.Unit.Players.PlayerAbsenceTests;
 
 namespace LivingWorld.Tests.Unit.Players;
@@ -13,6 +14,25 @@ namespace LivingWorld.Tests.Unit.Players;
 /// do golpe: o peso sai dos vínculos e dos valores dela; a posse plena nunca recusa.</summary>
 public class PlayerOrdersTests
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<ulong, string> Born = new();
+
+    /// <summary>A vila da semente depois de nascerem filhos (a população semeada não tem parentesco): roda de meio em meio ano até
+    /// haver quem more com um filho dependente; o mundo fica guardado (snapshot) e cada braço parte dele.</summary>
+    internal static Arm Family(ulong seed)
+    {
+        string snapshot = Born.GetOrAdd(seed, s =>
+        {
+            var arm = Village(s);
+            for (int i = 0; i < 12 && !arm.World.Npcs.Any(n => n.IsAlive && arm.World.Npcs.Any(c => PlayerOrders.DependentChild(arm.World, n, c))); i++)
+                arm.Clock.Run(arm.World, arm.World.Calendar.HoursPerYear / 2);
+            return WorldSnapshot.Serialize(arm.World);
+        });
+        var world = WorldSnapshot.Deserialize(snapshot);
+        var sink = new AllEvents();
+        return new Arm(world, new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink), sink,
+            new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler, sink));
+    }
+
     /// <summary>Um adulto que mora com um filho dependente.</summary>
     internal static Npc Parent(WorldState w) =>
         w.Npcs.Where(n => n.IsAlive && n.Household is not null
@@ -28,8 +48,12 @@ public class PlayerOrdersTests
     {
         npc.ImprintPersonality(npc.Personality with
         {
-            EmotionalStability = 70, Conscientiousness = 70, Impulsivity = 30,
-            Loyalty = attached ? 95 : 5, Altruism = attached ? 60 : 5, RiskAversion = attached ? 90 : 5,
+            EmotionalStability = 70,
+            Conscientiousness = 70,
+            Impulsivity = 30,
+            Loyalty = attached ? 95 : 5,
+            Altruism = attached ? 60 : 5,
+            RiskAversion = attached ? 90 : 5,
         });
         npc.SetHealth(100);
         long now = w.CurrentDate.TotalHours;
@@ -40,13 +64,14 @@ public class PlayerOrdersTests
 
     private static (Arm Arm, Npc Npc, Npc Child, PlayerService Service) Scene(ulong seed, bool attached, PossessionMode mode)
     {
-        var arm = Village(seed);
+        var arm = Family(seed);
         var w = arm.World;
         var npc = Parent(w);
         var child = ChildOf(w, npc);
         Temper(w, npc, child, attached);
         var home = w.FindHousehold(npc.Household!.Value)!;
         PlayerControlTests.Place(w, npc, home.Location);
+        PlayerControlTests.Place(w, child, home.Location); // o filho em casa, ao alcance
         // quem compra: uma casa da cidade sem teto, com dinheiro
         var buyer = w.Households.Where(h => h.Id != home.Id && h.City == home.City && w.FindNpc(h.Head) is { IsAlive: true })
             .OrderBy(h => h.Id.Value).First();
@@ -97,6 +122,7 @@ public class PlayerOrdersTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void A_parent_very_attached_to_the_child_refuses_to_abandon_it_and_a_detached_one_obeys_in_at_least_18_of_20_seeds()
     {
         int wins = 0;
@@ -106,6 +132,7 @@ public class PlayerOrdersTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void A_person_attached_to_home_and_family_refuses_to_sell_the_house_and_a_detached_one_sells_in_at_least_18_of_20_seeds()
     {
         int wins = 0;
@@ -115,6 +142,7 @@ public class PlayerOrdersTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Under_full_possession_she_never_refuses_and_keeps_the_objection()
     {
         for (ulong seed = 1; seed <= 20; seed++)
