@@ -104,7 +104,11 @@ var worldHost = new WorldHost(world, worldClock);
 // SimulationHost fica pronto no DI para pausa/velocidade/avanço e para o gateway realtime —
 // este host ainda não ticka automaticamente (decisão explícita: troca a origem do mundo por
 // persistência real primeiro, tick em tempo real fica para depois).
-var simulationHost = new SimulationHost(worldHost);
+var simulationHost = new SimulationHost(worldHost)
+{
+    // AD-197c: LW_AD197C=off desliga o ritmo automático (o Δ é o que o admin pede, como na AD-197b) e o pulo de tempo do jogador
+    AutoRhythm = builder.Configuration["LW_AD197C"] != "off",
+};
 
 // Gateway realtime lê o mesmo relógio do host canônico acima — nunca dirige tick nem escreve
 // no mundo (Publish só é chamado pelos projectors futuros com o resultado de uma leitura já

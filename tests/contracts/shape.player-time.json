@@ -1,0 +1,11 @@
+{
+  "canSkip": "boolean",
+  "lastWakeReason?": "string",
+  "playersPresent": "number",
+  "rhythm": "string",
+  "skipping": "boolean",
+  "sleeping": "boolean",
+  "tickDeltaMs": "number",
+  "timeScale": "number",
+  "untilMs?": "number"
+}

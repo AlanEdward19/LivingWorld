@@ -28,6 +28,21 @@ var _title: Label
 var _status: Label
 var _pause: Label
 var _busy := false
+## AD-197c: o tempo como o motor o diz (`GET /players/{id}/time`) e os controles de dormir e acelerar, que só aparecem quando o motor
+## diz que valem (quem joga sozinho, mundo andando). O que acorda (golpe, fogo, fome, sede, chamado) vem do motor.
+const RHYTHM_TEXT := {"Fast": "Tempo rápido", "Accelerated": "Tempo acelerado", "Manual": "Tempo fixado pelo admin"}
+const WAKE_TEXT := {"golpe": "Você acordou com um golpe.", "fogo": "Você acordou com o calor do fogo.", "fome": "A fome o acordou.",
+	"sede": "A sede o acordou.", "chamado": "Alguém o chamou.", "hora": "Chegou a hora marcada.", "descansado": "Você acordou descansado.",
+	"outro jogador": "Outro jogador chegou: o tempo voltou ao normal."}
+var time_view: Dictionary = {}
+var hours_per_day := 24
+var rhythm_label: Label
+var sleep_hour: SpinBox
+var sleep_until_button: Button
+var sleep_fast_button: Button
+var accelerate_button: Button
+var wake_button: Button
+var _last_wake := ""
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
 var has_session := false
 
@@ -67,12 +82,111 @@ func _init() -> void:
 	row.add_child(logout_button)
 	_powers_row = HFlowContainer.new()
 	box.add_child(_powers_row)
+	_build_time_row(box)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size.x = 560
 	_status.modulate = Color(1, 1, 1, 0.8)
 	box.add_child(_status)
 	refresh_labels()
+
+
+func _build_time_row(box: VBoxContainer) -> void:
+	var row := HFlowContainer.new()
+	box.add_child(row)
+	rhythm_label = Label.new()
+	rhythm_label.custom_minimum_size.x = 150
+	row.add_child(rhythm_label)
+	sleep_hour = SpinBox.new()
+	sleep_hour.min_value = 0
+	sleep_hour.max_value = hours_per_day - 1
+	sleep_hour.value = 6
+	sleep_hour.tooltip_text = "Hora do dia para acordar"
+	row.add_child(sleep_hour)
+	sleep_until_button = _time_button(row, "Dormir até a hora", func(): sleep(int(sleep_hour.value)))
+	sleep_fast_button = _time_button(row, "Dormir acelerando", func(): sleep(-1))
+	accelerate_button = _time_button(row, "Acelerar o tempo", func(): accelerate())
+	wake_button = _time_button(row, "Acordar", func(): wake())
+	apply_time({})
+
+
+func _time_button(row: HFlowContainer, text: String, action: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.pressed.connect(action)
+	row.add_child(button)
+	return button
+
+
+## O tempo visto pelo motor: o ritmo, e os controles só quando valem agora (dormir e acelerar: só quem joga sozinho; acordar: só
+## com o pulo em curso). O motivo de ter acordado vira aviso uma vez.
+func apply_time(view: Dictionary) -> void:
+	time_view = view
+	var rhythm := String(view.get("rhythm", ""))
+	if rhythm == "RealTime":
+		rhythm_label.text = "Tempo real 1:%s" % _scale_text(float(view.get("timeScale", 1.0)))
+	else:
+		rhythm_label.text = RHYTHM_TEXT.get(rhythm, "")
+	var skipping := bool(view.get("skipping", false))
+	var can_skip := bool(view.get("canSkip", false)) and not skipping and is_active
+	sleep_hour.max_value = hours_per_day - 1
+	sleep_hour.visible = can_skip
+	sleep_until_button.visible = can_skip
+	sleep_fast_button.visible = can_skip
+	accelerate_button.visible = can_skip
+	wake_button.visible = skipping and is_active
+	wake_button.text = "Acordar" if bool(view.get("sleeping", false)) else "Parar de acelerar"
+	var reason := String(view.get("lastWakeReason", "")) if view.get("lastWakeReason") != null else ""
+	if reason != _last_wake:
+		_last_wake = reason
+		if WAKE_TEXT.has(reason):
+			_set_status(WAKE_TEXT[reason])
+
+
+func _scale_text(scale: float) -> String:
+	return str(int(scale)) if is_equal_approx(scale, roundf(scale)) else "%.2f" % scale
+
+
+## Pede ao motor o tempo do jogador (o app chama junto com o relógio); inativo, não pede nada.
+func refresh_time() -> void:
+	if not is_active or _busy:
+		return
+	var response: Dictionary = await api.player_time(player_id)
+	if response.ok and response.body is Dictionary and is_active:
+		apply_time(response.body)
+
+
+## Dormir até a hora do dia `hour`, ou, com −1, acelerando até descansar. O motor recusa (409) com outro jogador no mundo.
+func sleep(hour: int) -> void:
+	await _time_command(func(): return await api.player_sleep(player_id, hour), "Dormindo.")
+
+
+func accelerate() -> void:
+	await _time_command(func(): return await api.player_accelerate(player_id), "Tempo acelerado: você fica parado vendo o mundo.")
+
+
+func wake() -> void:
+	await _time_command(func(): return await api.player_wake(player_id), "")
+
+
+func _time_command(request_fn: Callable, note: String) -> void:
+	if not is_active or _busy:
+		return
+	_busy = true
+	var response: Dictionary = await request_fn.call()
+	_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		apply_time(response.body)
+		if note != "":
+			_set_status(note)
+	elif response.status == 409:
+		warning.emit("Só quem joga sozinho pode pular o tempo agora.")
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		warning.emit("Não foi possível mudar o tempo (erro %d)." % response.status)
 
 
 ## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação).
@@ -248,6 +362,7 @@ func action_text(action: String) -> String:
 
 func _lost(text: String) -> void:
 	is_active = false
+	apply_time({})
 	current_action = ""
 	set_powers([])
 	_pause.visible = false

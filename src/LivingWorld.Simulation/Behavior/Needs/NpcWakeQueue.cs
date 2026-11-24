@@ -16,6 +16,10 @@ internal sealed class NpcWakeQueue
     private readonly Dictionary<long, Slot> _byNpc = new();
     private readonly Dictionary<long, List<Entry>> _byTick = new(); // hora de fecho → entradas
 
+    // AD-197c: piso do instante mais cedo de cada balde (só desce ao agendar; refeito ao coletar). O tick fino dentro da hora
+    // pergunta "alguém vence já?" sem percorrer o balde inteiro da hora seguinte.
+    private readonly Dictionary<long, long> _earliest = new();
+
     // Baldes já esvaziados: reaproveitar a lista (e a capacidade dela) evita uma lista nova por hora simulada.
     private readonly Stack<List<Entry>> _spare = new();
     private const int MaxSpareBuckets = 8;
@@ -33,6 +37,9 @@ internal sealed class NpcWakeQueue
             bucket = _spare.Count > 0 ? _spare.Pop() : [];
             _byTick[key] = bucket;
         }
+
+        ref long earliest = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_earliest, key, out bool had);
+        if (!had || ms < earliest) earliest = ms;
 
         var entry = new Entry(npcId, sequence);
         if (bucket.Count == 0 || bucket[^1].Sequence < sequence)
@@ -57,8 +64,10 @@ internal sealed class NpcWakeQueue
         npcIds.Clear();
         long key = WorldMillis.ToHourCeiling(nowMs);
         if (!_byTick.TryGetValue(key, out var bucket)) return;
+        if (_earliest.TryGetValue(key, out long floor) && floor > nowMs) return; // ninguém vence ainda nesta hora
 
         int pending = 0;
+        long nextEarliest = long.MaxValue;
         for (int i = bucket.Count - 1; i >= 0; i--)
         {
             var entry = bucket[i];
@@ -66,6 +75,7 @@ internal sealed class NpcWakeQueue
             if (slot.Ms > nowMs)
             {
                 pending++;
+                if (slot.Ms < nextEarliest) nextEarliest = slot.Ms;
                 continue;
             }
             _byNpc.Remove(entry.NpcId);
@@ -76,10 +86,12 @@ internal sealed class NpcWakeQueue
         {
             // ainda há quem acorde mais tarde nesta hora (Δ menor que a hora): fica só o que vale, na mesma ordem
             bucket.RemoveAll(e => !IsCurrent(e, out _));
+            _earliest[key] = nextEarliest;
             return;
         }
 
         _byTick.Remove(key);
+        _earliest.Remove(key);
         bucket.Clear();
         if (_spare.Count < MaxSpareBuckets) _spare.Push(bucket);
     }

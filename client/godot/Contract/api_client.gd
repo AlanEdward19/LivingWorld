@@ -218,6 +218,36 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 	return _checked("/players/move", {"status": response.status, "body": response.body}, "")
 
 
+## AD-197c: o tempo como o jogador o vê (`GET /players/{id}/time`): o ritmo (Fast, RealTime, Accelerated, Manual), se ele pode
+## pular o tempo agora (só quem joga sozinho), o pulo em curso e o que o acordou. O cliente só mostra o que o motor diz.
+func player_time(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/time" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/time", {"status": response.status, "body": response.body}, "player-time")
+
+
+## AD-197c: dormir até a hora do dia `until_hour` (0..horas do dia − 1) ou, com −1, acelerando até descansar.
+func player_sleep(player_id: String, until_hour: int = -1) -> Dictionary:
+	var command := {"command": "sleep"}
+	var body := {}
+	if until_hour >= 0:
+		command["untilHour"] = until_hour
+		body["untilHour"] = until_hour
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/sleep" % player_id.uri_encode(), body)
+	return _checked("/players/sleep", {"status": response.status, "body": response.body}, "player-time")
+
+
+## AD-197c: acelerar parado (o corpo fica à toa, o mundo corre e as necessidades caem).
+func player_accelerate(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "accelerate"}, "POST", "/players/%s/accelerate" % player_id.uri_encode(), null)
+	return _checked("/players/accelerate", {"status": response.status, "body": response.body}, "player-time")
+
+
+## AD-197c: encerrar o pulo de tempo (acordar).
+func player_wake(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "wake"}, "POST", "/players/%s/wake" % player_id.uri_encode(), null)
+	return _checked("/players/wake", {"status": response.status, "body": response.body}, "player-time")
+
+
 func player_logout(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "logout"}, "POST", "/players/%s/logout" % player_id.uri_encode(), null)
 	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
