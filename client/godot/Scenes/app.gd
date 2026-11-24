@@ -263,11 +263,14 @@ func _on_events(events: Array) -> void:
 		# obra de rua (AD-181) vem sem lugar: o marcador vai para as células da obra que o motor mandou nas ruas
 		var event := RoadBook.place_event(Parse.event(raw, _local_event_id), store.roads, store.finished_works)
 		registry.remember_event(event)
-		toasts.push(registry.event_title(event))
+		if not player_mode: # AD-197p: no modo jogador os acontecimentos não viram aviso sobre a cena
+			toasts.push(registry.event_title(event), true)
 		world_view.events.add(event)
 		ids.append(int(event.id))
 	if timeline != null:
 		timeline.refresh()
+		if player_mode:
+			timeline.visible = false # AD-197p: a lista de acontecimentos é do espectador
 	director.on_events(ids)
 	FrameCost.add("events", started) # AD-189: diagnóstico do bench
 
@@ -453,6 +456,9 @@ func nearest_npc(screen_position: Vector2, max_distance: float = 32.0) -> int:
 
 
 func _update_hover() -> void:
+	if player_mode: # AD-197p: a mira diz o que o E alcançaria; a dica grande do espectador não aparece
+		tooltip.visible = false
+		return
 	selection.update_hover()
 
 
@@ -567,6 +573,7 @@ func incarnate(id: int) -> void:
 		var body = world_view.npc_nodes.get(id)
 		if body != null:
 			body.driven = true
+			body.set_self(true) # AD-197p: sem nome, ação nem anel sobre o próprio corpo
 		rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
 		var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
 		if detail.ok and detail.body is Dictionary:
@@ -578,8 +585,10 @@ func player_released() -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
 		node.driven = false
+		node.set_self(false)
 	unfollow()
 	rig.set_mode(rig.ISO)
+	set_player_mode(false)
 
 
 ## AD-197k: a posição fina do corpo (prevista ou a do motor) move o boneco do jogador.
@@ -637,9 +646,91 @@ func _on_player_struck(_target: int) -> void:
 func _on_camera_mode(mode: String) -> void:
 	if crosshair != null:
 		crosshair.visible = mode != rig.ISO
+	set_player_mode(mode != rig.ISO and player_hud != null and player_hud.is_active)
+
+
+## AD-197p: no modo jogador some o que é do espectador (inspetor e lista à direita, acontecimentos, minimapa, avisos de
+## acontecimento, dica grande sob o cursor, atalhos do espectador); ficam o topo compacto do HUD, a mira com o nome curto do que o E
+## alcançaria (da oferta do motor) e as dicas do jogador. Ao sair, tudo volta como estava.
+var player_mode := false
+var _timeline_was_visible := false
+
+
+func set_player_mode(on: bool) -> void:
+	if on == player_mode:
+		player_hud.set_rpg(on)
+		return
+	player_mode = on
+	player_hud.set_rpg(on)
+	if side_panel != null:
+		side_panel.visible = not on
+	if list_panel != null and on:
+		list_panel.visible = false
+	if minimap != null:
+		minimap.visible = not on
+	if timeline != null:
+		if on:
+			_timeline_was_visible = timeline.visible
+			timeline.visible = false
+		else:
+			timeline.visible = _timeline_was_visible
+	if tooltip != null and on:
+		tooltip.visible = false
+	if world_view != null and world_view.events != null:
+		world_view.events.visible = not on # AD-197p: os marcadores de acontecimento (alfinetes) são do espectador
+	if help_label != null:
+		help_label.text = AppUi.PLAYER_HELP if on else AppUi.HELP
+	if on:
+		toasts.clear_events()
+	# AD-197p: o HUD do jogador vai para o canto, sem a coluna da lista à esquerda nem o inspetor à direita; os avisos, discretos,
+	# centralizados acima do rodapé (não cobrem a mira nem se sobrepõem a painel)
+	if on:
+		player_hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		player_hud.offset_left = 12
+		player_hud.offset_top = 60
+		player_hud.offset_right = 12
+		player_hud.offset_bottom = 60
+	else:
+		player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		player_hud.offset_left = 310
+		player_hud.offset_right = -316
+		player_hud.offset_top = 60
+	toasts.compact = on
+	if on:
+		toasts.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		toasts.offset_left = -260
+		toasts.offset_right = 260
+		toasts.offset_top = -130
+		toasts.offset_bottom = -40
+	else:
+		toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		toasts.offset_left = -420
+		toasts.offset_right = -12
+		toasts.offset_top = -260
+		toasts.offset_bottom = -48
 
 
 var crosshair: Label
+## AD-197p: as caixas desenhadas dos prédios perto do corpo ([id, AABB]), para o braço de mola da 3ª pessoa.
+func camera_blockers() -> Array:
+	var out: Array = []
+	if world_view == null or world_view.buildings == null or (stage != null and stage.active):
+		return out
+	var near: Vector3 = rig.target
+	for id in world_view.buildings.nodes:
+		var box: AABB = world_view.buildings.nodes[id].get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		var center := box.get_center()
+		var reach: float = rig.THIRD_DISTANCE + box.size.length() * 0.5 + 1.0
+		if absf(center.x - near.x) > reach or absf(center.z - near.z) > reach:
+			continue
+		out.append([id, box])
+	return out
+
+
+var side_panel: Control ## AD-197p: inspetor e ficha (lado direito do espectador)
+var help_label: Label ## AD-197p: rodapé de atalhos (espectador ou jogador)
 
 
 ## AD-197d: clique encarnado é golpe no NPC sob a mira (o motor valida o alcance).
