@@ -526,7 +526,8 @@ const KIND_TEXT := {"door": "Porta", "stock": "Despensa", "stall": "Banca", "bed
 	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
-	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar"}
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
+	"socialize": "Conversar", "idle": "Descansar"}
 
 
 ## E: pede ao motor o que o corpo alcança e mostra só isso (uma linha por coisa e verbo; por recurso, na despensa e na banca).
@@ -553,7 +554,7 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	var entries: Array = []
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
-		var title := String(offer.get("label", "")) if kind == "person" else String(KIND_TEXT.get(kind, kind))
+		var title := String(offer.get("label", "")) if kind in ["person", "item", "object"] else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor
 		for verb in offer.get("verbs", []):
 			var resources: Array = offer.get("resources", [])
 			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():
