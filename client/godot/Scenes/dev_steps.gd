@@ -287,6 +287,17 @@ static func run(app: Node, steps: Array) -> void:
 				if id >= 0:
 					await app.select_npc(id)
 					await app.incarnate(id)
+			"playhome": # só captura (AD-197s): encarna um morador e o põe no meio do prédio mais próximo (só o desenho; o motor não muda)
+				var home_id := _street_npc(app)
+				if home_id >= 0:
+					await app.select_npc(home_id)
+					await app.incarnate(home_id)
+					var body: Node3D = app.world_view.npc_nodes.get(home_id)
+					if body != null:
+						var inside := _nearest_box_center(app, body.position)
+						if inside != Vector3.INF:
+							body.position = inside
+							app.rig.follow(body)
 			"crowd": # só captura (AD-197r): câmera perto do ponto com mais gente a menos de 0,6 unidade umas das outras
 				var best_id := -1
 				var best_count := 0
@@ -303,6 +314,8 @@ static func run(app: Node, steps: Array) -> void:
 					print("crowd: ", best_count, " pessoas perto de ", app.world_view.npc_nodes[best_id].position)
 					app.rig.focus(app.world_view.npc_nodes[best_id].position)
 					app.rig.set_zoom(float(arg) if arg != "" else 4.0)
+			"camdump": # só diagnóstico (AD-197s): onde estão corpo e câmera, e em que caixas de prédio cada um está
+				print(camera_report(app))
 			"stacks": # só medida (AD-197r): quantas pessoas ficam a menos de 0,25 unidade de outra e o maior bolo (com onde e o que fazem)
 				print(stacks_report(app.world_view.npc_nodes))
 			"cam": # só captura (AD-197o): troca o modo da câmera (`cam:first|third|iso`) sem trocar quem ela segue
@@ -380,6 +393,38 @@ static func stacks_report(nodes: Dictionary, limit: float = 0.25) -> String:
 		detail = " maior=%d em %s ações=%s andando=%s" % [best.size(), first.position, best.map(func(i): return nodes[i].action),
 			best.map(func(i): return nodes[i].walk != null)]
 	return "stacks: npcs=%d sobrepostos=%d%s" % [nodes.size(), close.size(), detail]
+
+
+static func _nearest_box_center(app: Node, from: Vector3) -> Vector3:
+	var best := Vector3.INF
+	var best_distance := INF
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		var center := Vector3(box.get_center().x, 0.0, box.get_center().z)
+		if from.distance_to(center) < best_distance:
+			best_distance = from.distance_to(center)
+			best = center
+	return best
+
+
+static func camera_report(app: Node) -> String:
+	var rig = app.rig
+	var cam: Vector3 = rig.camera.global_position if rig.camera.is_inside_tree() else Vector3.INF
+	var body: Vector3 = rig.following.position if rig.following != null and is_instance_valid(rig.following) else Vector3.INF
+	var around: Array = []
+	for entry in app.camera_blockers():
+		var box: AABB = entry[1]
+		around.append("%s:%s%s%s" % [entry[0], "C" if box.has_point(cam) else "-", "B" if box.has_point(body + Vector3(0, 0.5, 0)) else "-", "F" if app.world_view.buildings.faded.has(entry[0]) else "-"])
+	var roofs: Array = []
+	for id in rig.seen_ids():
+		var node = app.world_view.buildings.nodes.get(id)
+		if node != null:
+			for child in node.find_children("Roof*", "GeometryInstance3D", true, false):
+				roofs.append(snappedf((child as GeometryInstance3D).transparency, 0.01))
+	around.append("vistos=%s abertos=%s faded=%s kind=%s stage=%s teto=%s" % [rig.seen_ids().keys(), app.world_view.buildings.opened.keys(), app.world_view.buildings.faded.keys(), app.store.kind, app.stage.active, roofs])
+	return "camdump: mode=%s following=%s body=%s cam=%s arm=%s lift=%s shoulder=%s caixas=%s" % [rig.mode, rig.following != null, body, cam, snappedf(rig.arm, 0.01), snappedf(rig.lift, 0.01), snappedf(rig.shoulder, 0.01), around]
 
 
 static func _street_npc(app: Node) -> int:

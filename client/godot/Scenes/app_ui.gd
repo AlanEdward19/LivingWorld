@@ -227,6 +227,7 @@ static func _side(app, ui: Control) -> void:
 	app.rig.mode_changed.connect(app._on_camera_mode)
 	app.rig.blockers = app.camera_blockers # AD-197p: braço de mola contra os prédios desenhados
 	app.rig.see_through.connect(func(ids: Dictionary): app.world_view.buildings.set_faded(ids))
+	app.rig.opened.connect(func(ids: Dictionary): app.world_view.buildings.set_opened(ids)) # AD-197s
 
 	app.list_panel = Panels.NpcListPanel.new()
 	app.list_panel.api = app.api
