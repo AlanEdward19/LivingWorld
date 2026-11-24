@@ -53,6 +53,17 @@ var sleep_fast_button: Button
 var accelerate_button: Button
 var wake_button: Button
 var _last_wake := ""
+## AD-197p: no modo jogador (3ª/1ª pessoa) o topo é compacto: nome, ritmo, menu e sair. As ordens (ações, poderes, dormir e
+## acelerar) ficam num menu que solta o cursor (Tab ou o botão); a mira mostra só o nome curto do que o E alcançaria, da oferta do motor.
+var rpg := false
+var orders: VBoxContainer
+var orders_button: Button
+var reach_hint: Label
+var _orders_open := false
+var _reach_pending := false
+var reach_clock := 0.0 ## segundos desde a última oferta pedida para a dica da mira
+var _reach_at := Vector2.INF ## onde o corpo estava na última oferta da dica
+const REACH_HINT_EVERY := 1.0 ## no máximo uma oferta por segundo, e só depois de o corpo andar
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
 var has_session := false
 
@@ -61,12 +72,24 @@ func _init() -> void:
 	visible = false
 	var box := VBoxContainer.new()
 	add_child(box)
-	var row := HFlowContainer.new() # faixa sob a barra do topo; quebra de linha se faltar largura
-	box.add_child(row)
+	var header := HFlowContainer.new() # AD-197p: nome, ritmo, menu e sair; o resto fica nas ordens
+	box.add_child(header)
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 18)
 	_title.custom_minimum_size.x = 150
-	row.add_child(_title)
+	header.add_child(_title)
+	rhythm_label = Label.new()
+	rhythm_label.custom_minimum_size.x = 120
+	header.add_child(rhythm_label)
+	orders_button = Button.new()
+	orders_button.text = "Ordens (Tab)"
+	orders_button.visible = false
+	orders_button.pressed.connect(func(): toggle_orders())
+	header.add_child(orders_button)
+	orders = VBoxContainer.new()
+	box.add_child(orders)
+	var row := HFlowContainer.new() # faixa sob a barra do topo; quebra de linha se faltar largura
+	orders.add_child(row)
 	_pause = Label.new()
 	_pause.text = PAUSED_NOTE
 	_pause.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -89,14 +112,20 @@ func _init() -> void:
 	logout_button = Button.new()
 	logout_button.text = "Sair do personagem"
 	logout_button.pressed.connect(func(): logout())
-	row.add_child(logout_button)
+	header.add_child(logout_button)
 	_powers_row = HFlowContainer.new()
-	box.add_child(_powers_row)
-	_build_time_row(box)
+	orders.add_child(_powers_row)
+	_build_time_row(orders)
+	reach_hint = Label.new()
+	reach_hint.visible = false
+	reach_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	reach_hint.add_theme_font_size_override("font_size", 14)
+	reach_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size.x = 560
 	_status.modulate = Color(1, 1, 1, 0.8)
+	_status.visible = false
 	box.add_child(_status)
 	refresh_labels()
 
@@ -104,9 +133,6 @@ func _init() -> void:
 func _build_time_row(box: VBoxContainer) -> void:
 	var row := HFlowContainer.new()
 	box.add_child(row)
-	rhythm_label = Label.new()
-	rhythm_label.custom_minimum_size.x = 150
-	row.add_child(rhythm_label)
 	sleep_hour = SpinBox.new()
 	sleep_hour.min_value = 0
 	sleep_hour.max_value = hours_per_day - 1
@@ -197,6 +223,54 @@ func _time_command(request_fn: Callable, note: String) -> void:
 		_lost("Você não controla mais %s." % npc_name)
 	else:
 		warning.emit("Não foi possível mudar o tempo (erro %d)." % response.status)
+
+
+## AD-197p: liga ou desliga o modo jogador (o app chama na troca de câmera e ao sair). Ligado, as ordens fecham e o topo fica compacto;
+## desligado, tudo como antes (o HUD do espectador que encarna pela isométrica).
+func set_rpg(on: bool) -> void:
+	rpg = on and is_active
+	orders_button.visible = rpg
+	if not rpg:
+		reach_hint.visible = false
+		reach_hint.text = ""
+	if _orders_open and not rpg:
+		_orders_open = false
+		menu_toggled.emit(false)
+	orders.visible = not rpg or _orders_open
+
+
+## Tab ou o botão: abre ou fecha as ordens (abertas, o cursor fica solto para clicar).
+func toggle_orders() -> void:
+	if not rpg:
+		return
+	_orders_open = not _orders_open
+	orders.visible = _orders_open
+	menu_toggled.emit(_orders_open)
+
+
+func orders_open() -> bool:
+	return _orders_open
+
+
+## A dica da mira: o nome curto da primeira coisa que o E alcançaria, tal como o motor a ofereceu (nada inventado aqui).
+func set_reach_hint(from: Array) -> void:
+	var entries := menu_entries(from, resource_name_of)
+	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
+	reach_hint.visible = rpg and reach_hint.text != ""
+
+
+## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo.
+func _refresh_reach_hint(delta: float) -> void:
+	reach_clock += delta
+	if not rpg or _busy or _reach_pending or reach_clock < REACH_HINT_EVERY or fine == Vector2.INF or fine.distance_to(_reach_at) < 0.5:
+		return
+	reach_clock = 0.0
+	_reach_at = fine
+	_reach_pending = true
+	var response: Dictionary = await api.player_reach(player_id)
+	_reach_pending = false
+	if rpg and response.ok and response.body is Dictionary:
+		set_reach_hint(response.body.get("offers", []))
 
 
 ## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação).
@@ -352,6 +426,7 @@ func _process(delta: float) -> void:
 	if not is_active:
 		return
 	glide(walk_direction(_held_keys()), delta)
+	_refresh_reach_hint(delta)
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
@@ -412,6 +487,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and rpg:
+		get_viewport().set_input_as_handled()
+		toggle_orders() # AD-197p: as ordens ficam num menu que solta o cursor
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		get_viewport().set_input_as_handled()
 		if menu != null and menu.visible:
@@ -650,6 +728,7 @@ func action_text(action: String) -> String:
 
 func _lost(text: String) -> void:
 	is_active = false
+	set_rpg(false)
 	apply_time({})
 	current_action = ""
 	set_powers([])
@@ -671,6 +750,7 @@ func _sync_buttons() -> void:
 func _set_status(text: String) -> void:
 	status_text = text
 	_status.text = text
+	_status.visible = text != "" # AD-197p: sem linha vazia no HUD compacto
 
 
 func _incarnate_error(response: Dictionary) -> String:

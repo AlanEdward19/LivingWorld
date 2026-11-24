@@ -29,6 +29,8 @@ const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
 const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · X: raio-x · P: planta · ? ou F1: todos os atalhos · Esc: pausa"
+## AD-197p: atalhos do modo jogador (3ª/1ª pessoa), no lugar dos do espectador.
+const PLAYER_HELP := "WASD: andar · Mouse: olhar · E: interagir · Clique: bater · Tab: ordens · C: 1ª/3ª pessoa · Z: soltar o cursor · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
 
 
@@ -139,6 +141,7 @@ static func _side(app, ui: Control) -> void:
 	side.offset_right = -8
 	side.offset_top = 64
 	ui.add_child(side)
+	app.side_panel = side
 	var inspector := Inspector.new()
 	inspector.reader = app.api
 	inspector.registry = app.registry
@@ -161,6 +164,7 @@ static func _side(app, ui: Control) -> void:
 	npc_panel.labels = app.labels
 	npc_panel.name_of = func(id: int) -> String: return app.registry.person_name(id)
 	npc_panel.profession_name_of = func(id: int) -> String: return app.registry.profession_name(id)
+	npc_panel.skill_name_of = func(id: int) -> String: return String(app.registry.skills.get(id, "habilidade %d" % id))
 	npc_panel.highlight.connect(func(id: int): app._highlight(id))
 	npc_panel.model_known.connect(app._apply_model)
 	npc_panel.follow_requested.connect(func(_id: int): app.follow_selected())
@@ -212,7 +216,17 @@ static func _side(app, ui: Control) -> void:
 	app.crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	app.crosshair.visible = false
 	ui.add_child(app.crosshair)
+	var hint: Label = app.player_hud.reach_hint # AD-197p: o nome curto do que o E alcançaria, logo abaixo da mira
+	hint.set_anchors_preset(Control.PRESET_CENTER)
+	hint.offset_left = -200
+	hint.offset_right = 200
+	hint.offset_top = 22
+	hint.offset_bottom = 44
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ui.add_child(hint)
 	app.rig.mode_changed.connect(app._on_camera_mode)
+	app.rig.blockers = app.camera_blockers # AD-197p: braço de mola contra os prédios desenhados
+	app.rig.see_through.connect(func(ids: Dictionary): app.world_view.buildings.set_faded(ids))
 
 	app.list_panel = Panels.NpcListPanel.new()
 	app.list_panel.api = app.api
@@ -316,6 +330,7 @@ static func _bottom(app, ui: Control) -> void:
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.add_theme_font_size_override("font_size", 13)
 	ui.add_child(help)
+	app.help_label = help
 	app.tooltip = PanelContainer.new()
 	app.tooltip.visible = false
 	app.tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE

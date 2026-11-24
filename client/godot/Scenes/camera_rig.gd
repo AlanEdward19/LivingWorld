@@ -6,6 +6,7 @@ extends Node3D
 
 signal scope_requested(kind: String, ref_id: String)
 signal mode_changed(mode: String) ## AD-197j: o app mostra a mira no centro e solta o cursor ao voltar à isométrica
+signal see_through(ids: Dictionary) ## AD-197p: prédios entre a câmera da 3ª pessoa e o corpo (o app os deixa translúcidos)
 
 const ISO_PITCH := deg_to_rad(-35.264)
 const ISO := "iso"
@@ -32,6 +33,14 @@ var scope_kind := "World"
 ## Injetada pelo app: ponto do mundo -> id da cidade sob ele ("" se nenhuma).
 var city_at: Callable = func(_point: Vector3) -> String: return ""
 
+## AD-197p: braço de mola da 3ª pessoa. `blockers` devolve os nós desenhados com a caixa (`meta box`) de cada prédio, qualquer que seja
+## o tamanho; a câmera chega perto do corpo quando a parede ou o telhado ficaria no meio e volta devagar quando o caminho abre.
+const MIN_ARM := 0.5
+const ARM_MARGIN := 0.25
+const ARM_RETURN := 3.0 ## por segundo: a volta é suave; a aproximação, imediata (nunca atravessa a parede)
+var blockers: Callable = Callable()
+var arm := THIRD_DISTANCE
+var _see_through: Dictionary = {}
 var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
 var camera: Camera3D
 var following: Node3D = null
@@ -62,7 +71,7 @@ func _apply() -> void:
 		return
 	_pivot.rotation = Vector3(pitch, 0, 0)
 	_pivot.position = Vector3(0, EYE_HEIGHT, 0)
-	camera.position = Vector3(0, 0, THIRD_DISTANCE if mode == THIRD else 0.0)
+	camera.position = Vector3(0, 0, arm if mode == THIRD else 0.0)
 
 
 ## Troca o modo da câmera: ISO (espectador e admin), THIRD ou FIRST (personagem encarnado).
@@ -71,6 +80,10 @@ func set_mode(value: String) -> void:
 		return
 	mode = value
 	if mode == ISO:
+		arm = THIRD_DISTANCE
+		if not _see_through.is_empty():
+			_see_through = {}
+			see_through.emit({})
 		set_cursor_captured(false)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.position = Vector3(0, 0, 80)
@@ -201,7 +214,50 @@ func _process(delta: float) -> void:
 	if following != null and is_instance_valid(following):
 		# no modo do jogador a câmera cola no corpo (o corpo já anda suave pela previsão); na isométrica, segue devagar
 		target = following.position if mode != ISO else target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
+		if mode == THIRD:
+			_spring_arm(delta)
 		_apply()
+
+
+## AD-197p: o braço é o menor caminho livre entre o olho (acima do ombro) e o ponto atrás dele; o que ainda cobrir o corpo fica
+## translúcido. Só as caixas desenhadas dos prédios; quem tem o olho dentro (o corpo dentro de casa) não conta.
+func _spring_arm(delta: float) -> void:
+	if not blockers.is_valid():
+		return
+	var boxes: Array = blockers.call()
+	var eye := target + Vector3(0, EYE_HEIGHT, 0)
+	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
+	var free := free_arm(eye, back, THIRD_DISTANCE, boxes)
+	arm = free if free < arm else minf(free, arm + (THIRD_DISTANCE - MIN_ARM) * ARM_RETURN * delta)
+	var seen := covering(eye + back * arm, target + Vector3(0, 0.9, 0), boxes)
+	if seen != _see_through:
+		_see_through = seen
+		see_through.emit(seen)
+
+
+## Comprimento livre do braço: até a primeira caixa que o segmento olho → câmera cruza, menos uma folga; nunca menos que MIN_ARM.
+static func free_arm(eye: Vector3, back: Vector3, length: float, boxes: Array) -> float:
+	var best := length
+	var far := eye + back * length
+	for entry in boxes:
+		var box: AABB = entry[1]
+		if box.has_point(eye):
+			continue
+		var hit = box.intersects_segment(eye, far)
+		if hit != null:
+			best = minf(best, eye.distance_to(hit) - ARM_MARGIN)
+	return clampf(best, MIN_ARM, length)
+
+
+## Prédios cujas caixas cortam a linha da câmera ao corpo (ids, para a translucidez).
+static func covering(from: Vector3, body: Vector3, boxes: Array) -> Dictionary:
+	var out := {}
+	for entry in boxes:
+		var box: AABB = entry[1]
+		# o prédio em que o corpo está (ou em que a câmera ficou) também abre: de dentro, a parede e o telhado cobririam tudo
+		if box.has_point(body) or box.has_point(from) or box.intersects_segment(from, body) != null:
+			out[entry[0]] = true
+	return out
 
 
 func _unhandled_input(event: InputEvent) -> void:
