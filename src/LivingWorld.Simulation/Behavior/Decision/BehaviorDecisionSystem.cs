@@ -301,8 +301,12 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
             if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
             if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
-            if (fine) // AD-197h: a chegada no instante do caminho em ms
-                NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, TravelArrivalMs(world, npc, marketIndex), stage);
+            if (fine) // AD-197h: a chegada no instante do caminho em ms; a perna fica no viajante para a pose de cada tick
+            {
+                var leg = TravelLegNow(world, npc, marketIndex);
+                if (leg is { } planned) npc.SetTravelLeg(planned.To, planned.EndMs);
+                NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, leg?.EndMs, stage);
+            }
             else
                 NpcWakeScheduler.RescheduleAfterHour(
                     world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);

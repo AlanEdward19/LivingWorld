@@ -54,7 +54,8 @@ public sealed class AliveNpcIndex
         return merged;
     }
 
-    /// <summary>Há alguma pose de viagem em vigor.</summary>
+    /// <summary>Há alguma pose de viagem em vigor. Fora do JSON: o hash volátil do índice fica o de antes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool HasPoses => _pose.Count > 0;
 
     /// <summary>A célula da pose de viagem do NPC, se houver (no passo fino, longe da origem).</summary>

@@ -20,6 +20,7 @@ public static class TravelPose
     private static CellCoord CellAt(WorldState world, Npc npc, long atMs, MarketIndex markets)
     {
         if (npc.CurrentAction != ActionType.Travel) return npc.CurrentLocation;
+        if (npc.TravelLegTo is { } planned) return Along(world, npc, planned, npc.TravelLegEndMs, atMs); // AD-197h: a perna gravada
         if (BehaviorDecisionSystem.TravelDestinationFor(world, npc, markets) is not { } to || to == npc.CurrentLocation)
             return npc.CurrentLocation;
         long? end = world.FineTime
@@ -27,8 +28,15 @@ public static class TravelPose
             : BehaviorDecisionSystem.TravelArrivalTick(world, npc, markets) is { } arrival ? arrival * WorldMillis.PerHour + npc.ActionPhaseMs : null;
         if (end is not { } endMs) return npc.CurrentLocation;
 
+        return Along(world, npc, to, endMs, atMs);
+    }
+
+    /// <summary>A célula da rota de <see cref="Npc.CurrentLocation"/> a <paramref name="to"/> na fração do tempo entre a saída e
+    /// <paramref name="endMs"/>.</summary>
+    private static CellCoord Along(WorldState world, Npc npc, CellCoord to, long endMs, long atMs)
+    {
         long startMs = npc.ActionStartedAtMs;
-        if (atMs <= startMs || endMs <= startMs) return npc.CurrentLocation;
+        if (to == npc.CurrentLocation || atMs <= startMs || endMs <= startMs) return npc.CurrentLocation;
         if (atMs >= endMs) return to;
         var path = PathOf(world, npc.CurrentLocation, to);
         if (path.Count == 0) return npc.CurrentLocation;
@@ -53,7 +61,8 @@ public static class TravelPose
     }
 
     /// <summary>AD-197h: põe no índice dos vivos a pose de agora de cada viajante (no passo fino) ou tira todas (de hora em hora). O
-    /// relógio chama antes de qualquer sistema do tick. Derivado do estado canônico (saída, destino, caminho em ms), fora do hash.</summary>
+    /// relógio chama antes de qualquer sistema do tick. Sai da perna gravada no viajante quando ele decidiu (destino e chegada,
+    /// canônicos), não de destino e caminho refeitos a cada tick: barato, e o mesmo depois de reabrir o mundo. Fora do hash.</summary>
     public static void Refresh(WorldState world)
     {
         var index = world.AliveNpcIndex;
@@ -63,16 +72,12 @@ public static class TravelPose
             return;
         }
         long now = world.CurrentDate.TotalMilliseconds;
-        MarketIndex? markets = null;
         foreach (var npc in index.Alive)
         {
-            if (npc.CurrentAction != ActionType.Travel)
-            {
-                if (index.HasPoses) index.SetPose(npc, null);
-                continue;
-            }
-            markets ??= MarketIndex.BuildForTick(world);
-            index.SetPose(npc, CellAt(world, npc, now, markets));
+            if (npc.CurrentAction == ActionType.Travel && npc.TravelLegTo is { } to)
+                index.SetPose(npc, Along(world, npc, to, npc.TravelLegEndMs, now));
+            else if (index.HasPoses)
+                index.SetPose(npc, null);
         }
     }
 

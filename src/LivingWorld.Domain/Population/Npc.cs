@@ -86,6 +86,22 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int ActionPhaseMs { get; private set; }
 
+    /// <summary>AD-197h: a perna da viagem em curso no passo fino: para onde vai e quando chega (ms), gravada quando o viajante decide.
+    /// A pose no caminho sai dela, sem refazer destino e caminho a cada tick. Fora do JSON de hora em hora.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long TravelLegEndMs { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CellCoord? TravelLegTo { get; private set; }
+
+    public void SetTravelLeg(CellCoord to, long endMs)
+    {
+        if (TravelLegTo == to && TravelLegEndMs == endMs) return;
+        TravelLegTo = to;
+        TravelLegEndMs = endMs;
+        TouchCanonical();
+    }
+
     /// <summary>Instante (ms) em que a ação em curso começou.</summary>
     [JsonIgnore]
     public long ActionStartedAtMs => ActionStartedAtTick * LivingWorld.Domain.Shared.WorldMillis.PerHour + ActionPhaseMs;
@@ -564,7 +580,8 @@ public sealed class Npc
         LivingWorld.Domain.Cognition.BrainState? brain = null,
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
-        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0)
+        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
+        long travelLegEndMs = 0, CellCoord? travelLegTo = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -593,6 +610,8 @@ public sealed class Npc
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
         ActionPhaseMs = actionPhaseMs;
+        TravelLegEndMs = travelLegEndMs;
+        TravelLegTo = travelLegTo;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -886,6 +905,8 @@ public sealed class Npc
         CurrentAction = action;
         ActionStartedAtTick = tick;
         ActionPhaseMs = 0;
+        TravelLegEndMs = 0;
+        TravelLegTo = null;
         if (action != ActionType.Travel)
             TravelPurpose = null;
         if (action != ActionType.UsePower)

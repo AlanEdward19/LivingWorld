@@ -36,7 +36,10 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>AD-197h: instante (ms) em que a viagem em curso chega, no passo fino: a saída (com a fase) mais o caminho em ms
     /// (<see cref="Mobility.TravelMs"/>, a mesma conta de <see cref="TryCompleteAction"/>). Nulo como <see cref="TravelArrivalTick"/>.</summary>
-    internal static long? TravelArrivalMs(WorldState world, Npc npc, MarketIndex marketIndex)
+    internal static long? TravelArrivalMs(WorldState world, Npc npc, MarketIndex marketIndex) => TravelLegNow(world, npc, marketIndex)?.EndMs;
+
+    /// <summary>AD-197h: destino e chegada (ms) da viagem em curso, calculados agora.</summary>
+    internal static (CellCoord To, long EndMs)? TravelLegNow(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (npc.CurrentAction != ActionType.Travel) return null;
         long now = world.CurrentDate.TotalHours;
@@ -45,7 +48,8 @@ public sealed partial class BehaviorDecisionSystem
         var destination = known ? departed.Destination : TravelDestinationOf(world, npc, marketIndex) ?? npc.CurrentLocation;
         if (destination == npc.CurrentLocation) return null;
         if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
-        return npc.ActionStartedAtMs + Mobility.TravelMs(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+        return (destination, npc.ActionStartedAtMs
+            + Mobility.TravelMs(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)));
     }
 
     /// <summary>Necessidade urgente que faz o NPC largar a rotina: fome, sede e sono sempre; solidão só

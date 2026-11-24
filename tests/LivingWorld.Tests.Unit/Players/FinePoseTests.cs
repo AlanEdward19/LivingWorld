@@ -2,7 +2,6 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
-using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Crime;
 using static LivingWorld.Tests.Unit.Players.PlayerAbsenceTests;
 
