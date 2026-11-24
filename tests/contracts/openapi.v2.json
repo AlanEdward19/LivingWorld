@@ -571,6 +571,48 @@
         ],
         "type": "object"
       },
+      "PlayerInteractRequest": {
+        "properties": {
+          "id": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "resourceId": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "verb": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "verb"
+        ],
+        "type": "object"
+      },
       "PlayerMoveRequest": {
         "properties": {
           "dx": {
@@ -2171,6 +2213,38 @@
         ]
       }
     },
+    "/players/{playerId}/interact": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerInteractRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/players/{playerId}/logout": {
       "post": {
         "parameters": [
@@ -2227,6 +2301,28 @@
     },
     "/players/{playerId}/persuade": {
       "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/reach": {
+      "get": {
         "parameters": [
           {
             "in": "path",
