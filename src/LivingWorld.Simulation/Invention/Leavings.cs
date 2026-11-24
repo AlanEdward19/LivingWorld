@@ -192,6 +192,10 @@ public static class Leavings
     {
         var ledger = world.Invention!;
         if (ledger.Leavings is not { Count: > 0 } list) return;
+        bool carries = false; // AD-197i: quem não traz nada (o caso comum) não aloca lambda nem lista
+        foreach (var l in list)
+            if (l.CarrierId == npc.Id.Value) { carries = true; break; }
+        if (!carries) return;
         foreach (var l in list.Where(l => l.CarrierId == npc.Id.Value).ToList())
         {
             ledger.PutLeaving(l with { ItemId = 0, CarrierId = -1 });

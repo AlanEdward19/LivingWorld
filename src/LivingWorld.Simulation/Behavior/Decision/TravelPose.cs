@@ -72,12 +72,24 @@ public static class TravelPose
             return;
         }
         long now = world.CurrentDate.TotalMilliseconds;
+        MarketIndex? markets = null;
         foreach (var npc in index.Alive)
         {
-            if (npc.CurrentAction == ActionType.Travel && npc.TravelLegTo is { } to)
-                index.SetPose(npc, Along(world, npc, to, npc.TravelLegEndMs, now));
-            else if (index.HasPoses)
-                index.SetPose(npc, null);
+            if (npc.CurrentAction != ActionType.Travel)
+            {
+                if (index.HasPoses) index.SetPose(npc, null);
+                continue;
+            }
+            if (npc.TravelLegTo is null)
+            {
+                // AD-197i: quem já viajava quando o mundo passou ao passo fino (saiu de hora em hora, sem perna) ganha a perna agora,
+                // do estado canônico deste instante (destino e caminho em ms desde a saída); gravada, vale também depois de reabrir
+                markets ??= MarketIndex.BuildForTick(world);
+                // sem destino fora daqui (ou andando por poder): perna parada no lugar, para não refazer a conta a cada tick
+                var leg = BehaviorDecisionSystem.TravelLegFresh(world, npc, markets) ?? (npc.CurrentLocation, npc.ActionStartedAtMs);
+                npc.SetTravelLeg(leg.To, leg.EndMs);
+            }
+            index.SetPose(npc, Along(world, npc, npc.TravelLegTo!.Value, npc.TravelLegEndMs, now));
         }
     }
 
