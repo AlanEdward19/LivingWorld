@@ -16,6 +16,14 @@ public sealed partial class WorldState
     internal LivingWorld.Domain.Population.PlayerRules Players =>
         PlayerRules ?? LivingWorld.Domain.Population.PlayerRules.Default;
 
+    /// <summary>AD-197c: Δ (ms) do tick em curso, posto pelo relógio antes de qualquer sistema rodar. Não é estado do mundo: a sequência
+    /// de Δ é entrada (registro do jogador), como os comandos; fora do snapshot e do hash.</summary>
+    internal int TickDeltaMs { get; set; } = WorldMillis.PerHour;
+
+    /// <summary>AD-197c: o tick é fino (Δ menor que a hora) e o cenário quer decisão, ação e rota finas. Com Δ = 1 h é sempre falso:
+    /// o mundo que anda de hora em hora segue a conta de antes, byte a byte.</summary>
+    internal bool FineTime => TickDeltaMs < WorldMillis.PerHour && Players.Time.FineDecisions;
+
     /// <summary>Declara as regras do jogador (cenário, teste) ou restaura do snapshot. O padrão volta a nulo.</summary>
     public void UsePlayers(LivingWorld.Domain.Population.PlayerRules? rules)
     {

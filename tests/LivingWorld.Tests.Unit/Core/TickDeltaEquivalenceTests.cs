@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
@@ -11,17 +12,21 @@ namespace LivingWorld.Tests.Unit.Core;
 /// em ticks de um minuto, de 15 minutos e de 50 ms, chega ao mesmo estado. Nesta fatia isso vale para o mundo inteiro, e não por truque:
 /// tudo que decide (sistemas de fronteira, decisão por despertar, eventos) ainda calcula em horas e só roda na hora cheia, e o
 /// que já é em milissegundos (relógio, fila de eventos, despertar, necessidades) dá a mesma conta na hora cheia. As divergências
-/// esperadas quando a decisão passar a ser fina (AD-197c) estão em docs/domain/time-in-seconds.md.</summary>
+/// esperadas quando a decisão passar a ser fina (AD-197c) estão em docs/domain/time-in-milliseconds.md. AD-197c: a igualdade vale
+/// agora só com a decisão fina desligada (<c>LW_AD197C=off</c>, <see cref="TimeRules.FineDecisions"/> falso): ligada, o Δ fino decide
+/// dentro da hora e o mundo diverge por construção (<c>FineTimeTests</c>).</summary>
 public class TickDeltaEquivalenceTests
 {
+    private static readonly PlayerRules ClockOnly = PlayerRules.Default with { Time = TimeRules.Default with { FineDecisions = false } };
+
     [Theory]
     [InlineData(60_000, 48)]
     [InlineData(900_000, 48)]
     [InlineData(50, 3)] // o tick fino do jogador (~50 ms): 216 mil ticks
     public void A_village_run_by_the_hour_and_by_a_smaller_delta_reaches_the_same_canonical_world(int delta, int hours)
     {
-        var hourly = Village(71, initialPopulation: 40);
-        var fine = Village(71, initialPopulation: 40);
+        var hourly = Village(71, ClockOnly, initialPopulation: 40);
+        var fine = Village(71, ClockOnly, initialPopulation: 40);
 
         hourly.Clock.Run(hourly.World, hours);
         fine.Clock.Run(fine.World, (long)hours * (WorldMillis.PerHour / delta), delta);

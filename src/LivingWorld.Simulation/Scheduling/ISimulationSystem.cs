@@ -18,3 +18,9 @@ public interface ISimulationSystem
     {
     }
 }
+
+/// <summary>AD-197c: sistema que também roda nos ticks finos dentro da hora (Δ menor que a hora), para quem tem despertar vencido
+/// naquele instante — a decisão dos NPCs. Os outros sistemas seguem só na fronteira do calendário.</summary>
+public interface IRunsBetweenHours : ISimulationSystem
+{
+}

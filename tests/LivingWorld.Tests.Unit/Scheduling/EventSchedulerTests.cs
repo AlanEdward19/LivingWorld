@@ -109,4 +109,26 @@ public class EventSchedulerTests
         Assert.Equal(n / 2, remaining.Count);
         Assert.Equal(remaining.OrderBy(e => e.TargetMs).ThenBy(e => e.Id).Select(e => e.Id), remaining.Select(e => e.Id));
     }
+
+    /// <summary>AD-197c: eventos de dentro da hora (passo fino) e da hora cheia no mesmo balde saem na ordem (instante, Id), com
+    /// cancelamento dos dois tipos, vencendo em ticks de 50 ms; 100 mil dentro da mesma hora cabem bem abaixo do teto.</summary>
+    [Fact]
+    public void Events_inside_the_hour_and_on_the_full_hour_leave_in_instant_then_id_order_and_a_hundred_thousand_fit()
+    {
+        const int n = 100_000;
+        var scheduler = new EventScheduler();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        for (int id = n; id >= 1; id--)
+            scheduler.Schedule(new ScheduledEvent(id, TargetMs: id % 10 == 0 ? 3_600_000 : 1 + (id * 37L % 3_599_998), SystemName: "sys"));
+        for (int id = 1; id <= n; id += 3) Assert.True(scheduler.Cancel(id));
+        var expected = scheduler.Snapshot().Select(e => e.Id).ToList();
+        var popped = new List<long>();
+        for (long now = 50; now <= 3_600_000; now += 50)
+            while (scheduler.HasDue(now)) { var due = scheduler.PopDue(now); popped.AddRange(due.Select(e => e.Id)); scheduler.Release(due); }
+        watch.Stop();
+
+        Assert.Equal(expected, popped);
+        Assert.Empty(scheduler.Snapshot());
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"levou {watch.Elapsed}");
+    }
 }

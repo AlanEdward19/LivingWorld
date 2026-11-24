@@ -61,6 +61,20 @@ public sealed record PlayerRules
     /// <summary>AD-197f: as regras da posse comum como disputa de vontade, do estranhamento e da reação. Nulo = o padrão.</summary>
     public PossessionRules Possession { get; init; } = PossessionRules.Default;
 
+    /// <summary>AD-197c: ritmo do relógio com e sem jogador, passo fino e sono acelerado. Nulo = o padrão.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TimeRules Time { get; init; } = TimeRules.Default;
+
+    /// <summary>A forma no JSON de <see cref="Time"/>: fora quando é o padrão, para que o mundo com regras de jogador declaradas tenha
+    /// os bytes (e o hash) de antes da AD-197c.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("Time")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public TimeRules? TimeOrDefault
+    {
+        get => Time == TimeRules.Default ? null : Time;
+        init => Time = value ?? TimeRules.Default;
+    }
+
     public static readonly PlayerRules Default = new();
 
     public static readonly PlayerRules Off = new() { Enabled = false };

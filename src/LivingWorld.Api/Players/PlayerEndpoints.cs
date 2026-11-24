@@ -12,6 +12,8 @@ public sealed record PlayerActionRequest(string? Action, string? PowerId = null)
 public sealed record PlayerMoveRequest(int Dx, int Dy);
 /// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
 public sealed record PlayerStrikeRequest(long NpcId);
+/// <summary>AD-197c: dormir até a hora do dia <c>UntilHour</c> (0 até horas do dia − 1) ou, sem ela, acelerando até descansar.</summary>
+public sealed record PlayerSleepRequest(int? UntilHour = null);
 /// <summary>Sessão nova (ADR-0048): <c>Authorization: Bearer {SessionToken}</c> nas rotas e no canal do jogador.</summary>
 public sealed record SessionResponse(string SessionToken, string PlayerId);
 
@@ -54,6 +56,17 @@ public static class PlayerEndpoints
         // AD-197f: convencer a pessoa possuída a ceder (posse comum): tira resistência, uma vez por hora
         app.MapPost("/players/{playerId}/persuade", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Persuade)));
+
+        // AD-197c: pular o tempo, só quem joga sozinho (409 com outro jogador ou sob pausa); o motor acorda por golpe, fogo, fome,
+        // sede ou alguém chamando. GET .../time diz o ritmo e se os controles valem agora
+        app.MapPost("/players/{playerId}/sleep", (HttpContext http, string playerId, PlayerSleepRequest? request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: request?.UntilHour)));
+        app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate)));
+        app.MapPost("/players/{playerId}/wake", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Wake)));
+        app.MapGet("/players/{playerId}/time", (HttpContext http, string playerId) =>
+            Identify(http, tokens, policy.Required, playerId) is { } refused ? refused : Results.Ok(gateway.Time(playerId)));
 
         // AD-197e: posse plena é do admin (X-Admin-Token) e do jogador da sessão; a pessoa vira personagem do jogador e fica presa
         app.MapPost("/players/{npcId:long}/possess", (HttpContext http, long npcId, IConfiguration config) =>

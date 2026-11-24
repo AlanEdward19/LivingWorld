@@ -2,7 +2,7 @@
 
 - **Status**: aceito (dono, 2026-11-23: opção (b); padrão sem jogador rápido no ritmo do admin; contrato em versão nova).
   AD-197b fez a unidade em milissegundos, o Δ variável no relógio, o contrato v2 e o cliente ([time-in-milliseconds](../domain/time-in-milliseconds.md));
-  falta o modo fino com jogador (AD-197c).
+  AD-197c fez o modo fino com jogador, o ritmo por mundo e o pulo de tempo ([real-time-rhythm](../domain/real-time-rhythm.md)).
 - **Data**: 2026-11-23
 - **Decisores**: dono do projeto; rascunho por agente
 

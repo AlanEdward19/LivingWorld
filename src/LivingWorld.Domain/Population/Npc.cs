@@ -81,6 +81,15 @@ public sealed class Npc
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
 
+    /// <summary>AD-197c: milissegundo da hora em que a ação começou (0 = na hora cheia, o de sempre; só o passo fino com jogador
+    /// começa ação dentro da hora). Omitido do snapshot quando 0: o mundo que anda de hora em hora tem os bytes de antes.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int ActionPhaseMs { get; private set; }
+
+    /// <summary>Instante (ms) em que a ação em curso começou.</summary>
+    [JsonIgnore]
+    public long ActionStartedAtMs => ActionStartedAtTick * LivingWorld.Domain.Shared.WorldMillis.PerHour + ActionPhaseMs;
+
     /// <summary>Intent de plano persistente — granularidade de
     /// <see cref="ActionType"/> + target opcional; sobrevive além da ação imediata.</summary>
     public ActionType? CurrentIntent { get; private set; }
@@ -555,7 +564,7 @@ public sealed class Npc
         LivingWorld.Domain.Cognition.BrainState? brain = null,
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
-        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null)
+        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -583,6 +592,7 @@ public sealed class Npc
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
+        ActionPhaseMs = actionPhaseMs;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -875,11 +885,20 @@ public sealed class Npc
     {
         CurrentAction = action;
         ActionStartedAtTick = tick;
+        ActionPhaseMs = 0;
         if (action != ActionType.Travel)
             TravelPurpose = null;
         if (action != ActionType.UsePower)
             PendingPowerInvocation = null;
         TouchCanonical();
+    }
+
+    /// <summary>AD-197c: a ação começa no instante <paramref name="atMs"/> (dentro da hora, no passo fino).</summary>
+    public void SetCurrentActionAtMs(ActionType action, long atMs)
+    {
+        long hour = LivingWorld.Domain.Shared.WorldMillis.ToHourFloor(atMs);
+        SetCurrentAction(action, hour);
+        ActionPhaseMs = (int)(atMs - hour * LivingWorld.Domain.Shared.WorldMillis.PerHour);
     }
 
     /// <summary>Inicia ou substitui o intent de plano — status sempre Active.</summary>

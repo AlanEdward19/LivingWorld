@@ -1,4 +1,7 @@
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Players;
 
 namespace LivingWorld.Simulation.Hosting;
 
@@ -61,6 +64,60 @@ public sealed class SimulationHost(WorldHost host)
         TicksPerSecond = ticksPerSecond;
     }
 
+    /// <summary>AD-197c: o hospedeiro escolhe o Δ e a velocidade do laço pelo ritmo do mundo (<see cref="RhythmPlan"/>). Falso
+    /// (<c>LW_AD197C=off</c>): o Δ é o que o admin pediu, como na AD-197b.</summary>
+    public bool AutoRhythm { get; set; } = true;
+
+    /// <summary>AD-197c: o admin acelerou o mundo (sempre pode, com ou sem jogador): uma hora por tick.</summary>
+    public bool Accelerated { get; private set; }
+
+    /// <summary>AD-197c: Δ fixado pelo admin (<c>POST /simulation/tick-delta</c>), acima do ritmo automático; nulo = automático.</summary>
+    public int? ManualDeltaMs { get; private set; }
+
+    /// <summary>O plano do último ciclo (modo, Δ e velocidade do laço).</summary>
+    public RhythmPlan LastPlan { get; private set; } = new(RhythmMode.Fast, WorldMillis.HourTick, 1.0);
+
+    public void SetAccelerated(bool on) => Accelerated = on;
+
+    public void SetManualDelta(int? deltaMs) => ManualDeltaMs = deltaMs;
+
+    /// <summary>O ritmo agora (ADR-0050, decisão 3): Δ fixado pelo admin; acelerado (admin, ou o pulo de quem joga sozinho): uma
+    /// hora por tick; com jogador: tempo real na escala do mundo (<see cref="TimeRules.TimeScale"/>); sem ninguém: o
+    /// <see cref="TimeRules.IdleRhythm"/> do mundo (padrão rápido, o ritmo do admin).</summary>
+    public RhythmPlan Plan(WorldState world, PlayerService players)
+    {
+        if (!AutoRhythm) return new RhythmPlan(RhythmMode.Manual, players.Log.TickDeltaMs, TicksPerSecond);
+        if (ManualDeltaMs is { } manual) return new RhythmPlan(RhythmMode.Manual, manual, TicksPerSecond);
+        var time = world.Players.Time;
+        if (Accelerated || players.Skip is not null)
+            return new RhythmPlan(RhythmMode.Accelerated, WorldMillis.HourTick, Math.Max(TicksPerSecond, time.AcceleratedHoursPerSecond));
+        var real = new RhythmPlan(RhythmMode.RealTime, time.FineDeltaMs(), 1000.0 / Math.Max(1, time.FineTickRealMs));
+        if (PlayerService.PlayersPresent(world) > 0) return real;
+        return time.IdleRhythm == IdleRhythm.RealTime ? real : new RhythmPlan(RhythmMode.Fast, WorldMillis.HourTick, TicksPerSecond);
+    }
+
+    /// <summary>Um ciclo do relógio (AD-197c): encerra o pulo de tempo que tem de acabar, troca o Δ se o ritmo mudou (as duas coisas
+    /// no registro do jogador, para o replay) e anda um tick. <paramref name="beforeRecord"/> é chamado antes de qualquer registro
+    /// (quem persiste fixa a base do registro antes de o mundo mudar).</summary>
+    public RhythmPlan Cycle(PlayerService players, Action? beforeRecord = null)
+    {
+        var world = host.Current;
+        if (AutoRhythm && players.SkipEnding(world) is { } reason)
+        {
+            beforeRecord?.Invoke();
+            players.EndSkip(world, reason);
+        }
+        var plan = Plan(world, players);
+        if (plan.DeltaMs != players.Log.TickDeltaMs)
+        {
+            beforeRecord?.Invoke();
+            players.SetTickDelta(world, "host", plan.DeltaMs);
+        }
+        host.Clock.Tick(world, plan.DeltaMs);
+        LastPlan = plan;
+        return plan;
+    }
+
     /// <summary>Avanço rápido: roda N ticks imediatamente, sem esperar tempo real e
     /// independente de pausa — é uma ação explícita do host, não o loop de tempo real.</summary>
     public void FastForward(long ticks) => host.Clock.Run(host.Current, ticks);
@@ -68,6 +125,13 @@ public sealed class SimulationHost(WorldHost host)
     /// <summary>Avança exatamente a duração de um ano do calendário do mundo atual.</summary>
     public void FastForwardOneYear() => FastForward(host.Current.Calendar.HoursPerYear);
 }
+
+/// <summary>Modo do relógio (AD-197c): rápido (uma hora por tick, sem jogador), tempo real (Δ fino na escala do mundo), acelerado
+/// (admin ou pulo de quem joga sozinho) ou manual (Δ fixado pelo admin, ou ritmo automático desligado).</summary>
+public enum RhythmMode { Fast, RealTime, Accelerated, Manual }
+
+/// <summary>Δ do tick e velocidade do laço (ticks por segundo real) de um ciclo.</summary>
+public readonly record struct RhythmPlan(RhythmMode Mode, int DeltaMs, double TicksPerSecond);
 
 /// <summary>Pausa global de admin (ADR-0015): estado do hospedeiro, fora do snapshot e do hash.</summary>
 public sealed record AdminPauseState(string Actor, string Reason, long PausedAtTick, long MaxTicks);

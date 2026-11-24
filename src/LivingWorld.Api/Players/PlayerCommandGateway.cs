@@ -7,9 +7,18 @@ using LivingWorld.Simulation.Players;
 namespace LivingWorld.Api.Players;
 
 /// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente. <c>Mode</c> só com <c>Incarnate</c> (posse plena é
-/// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>.</summary>
+/// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>. AD-197c: <c>UntilHour</c>
+/// (hora do dia) com <c>Sleep</c>; sem ela, dormir acelerando.</summary>
 public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
-    LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0);
+    LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
+    int? UntilHour = null);
+
+/// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
+/// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
+/// <c>LastWakeReason</c>: o que encerrou o último (golpe, fogo, fome, sede, chamado, hora, descansado, outro jogador, comando).</summary>
+public sealed record PlayerTimeView(
+    string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
+    string? LastWakeReason);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -50,10 +59,58 @@ public sealed class PlayerCommandGateway(
                 PlayerCommandKind.Persuade => Map(players.Persuade(world, playerId), _ => new { playerId }),
                 PlayerCommandKind.Act => Map(players.Act(world, playerId, command.Action, command.PowerId),
                     _ => new { playerId, Action = command.Action?.ToString() }),
-                _ => Map(players.Logout(world, playerId),
+                PlayerCommandKind.Sleep when command.UntilHour is { } bad && (bad < 0 || bad >= world.Calendar.HoursPerDay) =>
+                    new PlayerReply(StatusCodes.Status400BadRequest, null, "untilHour: fora das horas do dia"),
+                PlayerCommandKind.Sleep => Map(players.Sleep(world, playerId,
+                        command.UntilHour is { } hour ? PlayerService.NextHourOfDayMs(world, hour) : null),
+                    _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Accelerate => Map(players.Accelerate(world, playerId), _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
+                    ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
+                    : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
+                PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
                     npc => new { npcId = npc.Id.Value, playerId, disappearedAtTick = npc.DisappearedAtTick }),
+                _ => new PlayerReply(StatusCodes.Status400BadRequest, null, "comando: não é de jogador"),
             };
-            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) log.Append(accepted);
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
+            return reply;
+        }
+    }
+
+    /// <summary>Grava no disco o que o registro ganhou depois de <paramref name="before"/> (um comando pode registrar dois: o fim do
+    /// pulo de tempo e o próprio comando).</summary>
+    private void AppendSince(PlayerCommandRecord? before)
+    {
+        int from = before is null ? 0 : (int)before.Sequence + 1;
+        foreach (var record in players.Log.Since(from)) log.Append(record);
+    }
+
+    /// <summary>AD-197c: o tempo como o jogador o vê: o ritmo em vigor, se pode pular o tempo, o pulo em curso e o que o acordou.</summary>
+    public PlayerTimeView Time(string playerId)
+    {
+        lock (library.Gate) return TimeOf(host.Current, playerId);
+    }
+
+    private PlayerTimeView TimeOf(LivingWorld.Simulation.Core.WorldState world, string playerId)
+    {
+        var plan = simulation.LastPlan;
+        var skip = players.Skip?.PlayerId == playerId ? players.Skip : null;
+        return new PlayerTimeView(
+            plan.Mode.ToString(), plan.DeltaMs, world.Players.Time.TimeScale, PlayerService.PlayersPresent(world),
+            simulation.AutoRhythm && PlayerService.CanSkip(world, playerId) && !simulation.IsPaused,
+            skip is not null, skip?.Sleeping == true, skip?.UntilMs, players.LastWakeReason);
+    }
+
+    /// <summary>Avanço do admin (<c>step</c>, <c>advance-year</c>) pelo registro do jogador (AD-197c): o replay roda os mesmos ticks.</summary>
+    public PlayerReply Advance(string actor, long ticks, int deltaMs)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
+            var before = players.Log.Last;
+            var reply = Map(players.Advance(world, host.Clock, actor, ticks, deltaMs), _ => new { ticks, deltaMs });
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
             return reply;
         }
     }
@@ -84,7 +141,7 @@ public sealed class PlayerCommandGateway(
             log.BeforeCommand(library.CurrentId.ToString("D"), world, players.Log.TickDeltaMs);
             var before = players.Log.Last;
             var reply = Map(players.SetTickDelta(world, actor, deltaMs), _ => new { tickDeltaMs = deltaMs });
-            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) log.Append(accepted);
+            if (players.Log.Last is { } accepted && !ReferenceEquals(accepted, before)) AppendSince(before);
             return reply;
         }
     }
