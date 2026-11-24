@@ -8,7 +8,6 @@ const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
-const FLOOR_HEIGHT := 1.0
 const WALL_HEIGHT := 0.9
 const WALL_STONE := 0
 const WALL_WOOD := 1
@@ -44,14 +43,14 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		var level := int(floor_layout.level)
 		var node := Node3D.new()
 		node.name = "Floor_%d" % level
-		node.position.y = level * FLOOR_HEIGHT
+		node.position.y = level * Grid.floor_height()
 		for entry in floor_layout.cells:
 			_add_cell(node, entry, level)
 		add_child(node)
 		floor_nodes[level] = node
 	roof = Node3D.new()
 	roof.name = "Roof"
-	roof.position.y = floor_count * FLOOR_HEIGHT
+	roof.position.y = floor_count * Grid.floor_height()
 	var seen := {}
 	_compute_center(info)
 	for entry in info.layout[0].cells if info.layout.size() > 0 else []:
@@ -138,8 +137,8 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 
 
 func _register_point(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
-	var level := int(parent.get_parent().position.y / FLOOR_HEIGHT) if parent.get_parent() is Node3D else 0
-	object_points.append({"id": piece_id, "level": level, "position": Grid.to_world(cell, level * FLOOR_HEIGHT + 0.35)})
+	var level := int(parent.get_parent().position.y / Grid.floor_height()) if parent.get_parent() is Node3D else 0
+	object_points.append({"id": piece_id, "level": level, "position": Grid.to_world(cell, level * Grid.floor_height() + 0.35)})
 
 
 ## Peças do andar visível (para a seleção): [{id, level, position}].
@@ -250,7 +249,7 @@ func set_occupants(occupants: Array) -> void:
 		if actor.action != action or actor.use_pose != String(use.pose):
 			actor.set_action(action, _labels, String(use.pose))
 		actor.enable_bed(not use.active) # a cama do catálogo substitui a do NPC
-		actor.position = use.position if use.active else Grid.to_world(cell, level * FLOOR_HEIGHT)
+		actor.position = use.position if use.active else Grid.to_world(cell, level * Grid.floor_height())
 		actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():

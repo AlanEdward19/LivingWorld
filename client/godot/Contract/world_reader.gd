@@ -134,12 +134,13 @@ func cached_design(id: int) -> Variant:
 
 ## Identidade do mundo e catálogo do período em uma chamada: {period_id, axes, catalog} (catálogo vazio se não há período).
 func world_identity() -> Dictionary:
-	var out := {"period_id": "", "axes": [], "catalog": {}}
+	var out := {"period_id": "", "axes": [], "catalog": {}, "scale": {}}
 	var info: Dictionary = await world_info()
 	if not info.ok:
 		return out
 	out.period_id = String(info.body.get("periodId", ""))
 	out.axes = info.body.get("technologyAxes", [])
+	out.scale = info.body.get("scale", {}) if info.body.get("scale") is Dictionary else {} # ADR-0052
 	if out.period_id == "":
 		return out
 	var catalog: Dictionary = await period_catalog(out.period_id)
