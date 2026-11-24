@@ -46,6 +46,14 @@ public static class PossessionWitness
         Observe(world, ctx, body, Math.Max(world.Players.Possession.StrikeDeviation, PossessionContest.HarmWeight(world, body, target)));
     }
 
+    /// <summary>AD-197d: o corpo cumpriu uma ordem contra o que a pessoa valoriza (vender a casa, abandonar o filho): desvio na medida
+    /// do peso dela, como o golpe.</summary>
+    internal static void OnOrder(WorldState world, TickContext ctx, Npc body, double weight)
+    {
+        if (!On(world)) return;
+        Observe(world, ctx, body, Math.Max(world.Players.Possession.StrikeDeviation, weight));
+    }
+
     private static double Belief(WorldState world) =>
         Math.Clamp(world.Players.Possession.Belief ?? (world.Extraordinary.Enabled ? 1.0 : 0.5), 0.05, 1.0);
 

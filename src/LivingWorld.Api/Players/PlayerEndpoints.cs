@@ -12,6 +12,9 @@ public sealed record PlayerActionRequest(string? Action, string? PowerId = null)
 public sealed record PlayerMoveRequest(int Dx, int Dy);
 /// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
 public sealed record PlayerStrikeRequest(long NpcId);
+/// <summary>AD-197d: interagir com o que está perto (<c>GET /players/{playerId}/reach</c> diz o quê): <c>Kind</c> (door, stock, stall,
+/// bed, person, house), <c>Id</c>, <c>Verb</c>; <c>ResourceId</c> e <c>Quantity</c> no estoque e na banca.</summary>
+public sealed record PlayerInteractRequest(string Kind, long Id, string Verb, int? ResourceId = null, long? Quantity = null);
 /// <summary>AD-197c: dormir até a hora do dia <c>UntilHour</c> (0 até horas do dia − 1) ou, sem ela, acelerando até descansar.</summary>
 public sealed record PlayerSleepRequest(int? UntilHour = null);
 /// <summary>Sessão nova (ADR-0048): <c>Authorization: Bearer {SessionToken}</c> nas rotas e no canal do jogador.</summary>
@@ -52,6 +55,16 @@ public static class PlayerEndpoints
 
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
+
+        // AD-197d: interagir com o que está perto, pela oferta do motor; a recusa da vontade é 409 com o motivo
+        app.MapPost("/players/{playerId}/interact", (HttpContext http, string playerId, PlayerInteractRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Interact,
+                Interaction: request.Kind, TargetId: request.Id, Verb: request.Verb, ResourceId: request.ResourceId, Quantity: request.Quantity)));
+        app.MapGet("/players/{playerId}/reach", (HttpContext http, string playerId) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            return gateway.Reach(playerId) is { } offers ? Results.Ok(new { offers }) : Results.NotFound(new { error = "not_found: jogador não controla nenhum NPC" });
+        });
 
         // AD-197f: convencer a pessoa possuída a ceder (posse comum): tira resistência, uma vez por hora
         app.MapPost("/players/{playerId}/persuade", (HttpContext http, string playerId) =>

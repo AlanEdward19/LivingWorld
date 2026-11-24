@@ -55,3 +55,7 @@ conteúdo de ADR para dentro dele.
 | [0045](ADR-0045-invencao-por-composicao-fisica.md) | Invenção por composição física, concebida pelo NPC (substitui o vetor de eixos da cidade) | aceito |
 | [0046](ADR-0046-cerebro-com-ganhos-sinapticos-aprendidos.md) | Cérebro legível com ganhos sinápticos herdados e aprendidos sobre a utilidade | aceito |
 | [0047](ADR-0047-cliente-godot-orientado-a-entidades.md) | Cliente Godot orientado a entidades sobre uma projeção do observável | aceito |
+| [0048](ADR-0048-identidade-do-jogador-e-ordem-de-aplicacao.md) | Identidade do jogador por sessão e ordem única de aplicação | aceito |
+| [0049](ADR-0049-modo-jogador-em-terceira-e-primeira-pessoa.md) | Modo jogador em 3ª/1ª pessoa com controle direto (emenda o 0047) | aceito |
+| [0050](ADR-0050-mundo-em-tempo-real-com-duracao-de-tick-variavel.md) | Mundo em tempo real com duração de tick variável | aceito |
+| [0051](ADR-0051-camera-e-controle-do-modo-jogador.md) | Câmera, controle e interação do modo jogador (emenda o 0047) | aceito |

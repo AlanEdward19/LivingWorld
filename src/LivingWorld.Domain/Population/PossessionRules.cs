@@ -68,6 +68,25 @@ public sealed record PossessionRules
     /// <summary>Quem conclui sem se importar e com propensão à violência a partir disto ataca o corpo (briga e justiça de sempre).</summary>
     public double ViolentPropensity { get; init; } = 1.5;
 
+    // --- ordens contra o que a pessoa valoriza (AD-197d) ---
+    // Nulos no JSON enquanto valem o padrão: o mundo com regras de jogador declaradas guarda os bytes (e o hash) de antes.
+
+    /// <summary>O quanto perder a casa fere cada um que mora nela (0..1), na conta do cuidado com cada um.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? HomeLossHarm { get; init; }
+
+    /// <summary>Peso da aversão a risco (o apego à segurança do teto) quando a ordem tira a casa da pessoa (aversão 90 → 72).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? HomeValueWeight { get; init; }
+
+    /// <summary>Sem preço do imóvel no cenário (<c>Pricing</c>), a parte da carteira do chefe que a casa compradora oferece (0..1).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? HouseOfferShare { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double HomeLoss => HomeLossHarm ?? 0.8;
+    [System.Text.Json.Serialization.JsonIgnore] public double HomeValue => HomeValueWeight ?? 0.8;
+    [System.Text.Json.Serialization.JsonIgnore] public double OfferShare => HouseOfferShare ?? 0.5;
+
     public static readonly PossessionRules Default = new();
 
     public static readonly PossessionRules Off = new() { WillContest = false, Strangeness = false, Reaction = false };

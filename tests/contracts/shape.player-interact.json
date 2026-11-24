@@ -1,0 +1,17 @@
+{
+  "id": "number",
+  "kind": "string",
+  "pose": {
+    "buildingId?": "number",
+    "floor?": "number",
+    "npcId": "number",
+    "playerId": "string",
+    "readyInMs?": "number",
+    "x": "number",
+    "y": "number"
+  },
+  "quantity": "number",
+  "sessionId?": "number",
+  "value": "number",
+  "verb": "string"
+}

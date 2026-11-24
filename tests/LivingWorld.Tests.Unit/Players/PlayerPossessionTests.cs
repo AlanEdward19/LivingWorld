@@ -113,7 +113,8 @@ public class PlayerPossessionTests
         Assert.True(service.Strike(w, "alan", stranger.Id).IsSuccess);
         arm.Clock.Run(w, 2);
         var start = npc.CurrentLocation;
-        bool moved = service.Move(w, "alan", 1, 0).IsSuccess || service.Move(w, "alan", -1, 0).IsSuccess;
+        bool moved = new[] { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1) } // AD-197d: parede e gente barram
+            .Any(d => service.Move(w, "alan", d.Item1, d.Item2).IsSuccess);
         Assert.True(moved);
         Assert.NotEqual(start, npc.CurrentLocation);
         arm.Clock.Run(w, 5);

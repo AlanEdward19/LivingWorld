@@ -1,4 +1,4 @@
-# Controle direto de RPG (3ª/1ª pessoa, WASD, interagir, golpe) [Estado: desenho, nada implementado]
+# Controle direto de RPG (3ª/1ª pessoa, WASD, interagir, golpe) [Estado: AD-197d e AD-197j entregues (ADR-0051 proposto); posição contínua em issue]
 
 Decisões do dono (2026-11-23): câmera em 3ª/1ª pessoa, WASD ou setas, interagir, bater com clique; com jogador o mundo inteiro
 roda em tempo real (proporção configurável por mundo, padrão 1:1); avançar horas só o admin ou o jogador sozinho. Regra do
@@ -39,6 +39,19 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
    do jogador. Meta: ≤1,02× por NPC-tick com Δ = 1 h; com jogador, o tick fino dentro do orçamento de quadro do servidor; FPS
    do cliente sem regressão no `bench.sh`.
 
+## Entregue na AD-197d (ADR-0051)
+- **Câmera**: 3ª pessoa ao encarnar, C troca para a 1ª, mouse olha; sair volta à isométrica (`camera_rig.gd`).
+- **Passo**: WASD relativo ao olhar → `move {dx, dy}`; o motor valida o chão (`PlayerGround`: parede pela planta na grade do mundo,
+  porta pela soleira, gente pela pose, canto de parede) e toma o rumo (`TakeTheWheel`); o cliente prevê e corrige.
+- **Interagir**: `reach` (oferta do motor) e `interact {kind, id, verb, resourceId?, quantity?}` (`PlayerInteractions`): porta,
+  despensa, banca, cama, pessoa (conversar, bater, abandonar o filho), casa (vender). Ordens contra o que a pessoa valoriza:
+  `PlayerOrders` pela disputa do AD-197f. Golpe no clique pelo `strike`.
+- **AD-197j**: passo no tempo do corpo (`PlayerCommands.PaceMs` = `Mobility.TravelMs` × corpo × carga × chão, mais lento cansado;
+  antes do fim, recusa; gasta sono); escada e andares de cima pelo `Interior`; fonte (beber, encher), lavoura (trabalhar),
+  espólio (recolher) e furto de despensa, banca, lavoura e espólio alheios pelo `Theft`; cliente com golpe animado, Z prende o
+  cursor, mira no centro, nomes de recurso. Abandono sem outro povoado deixa sem teto (`UnionDissolution`).
+- **Fora (issues)**: posição contínua entre células (uma célula custa ~3 min de mundo a pé); objeto inventado na oferta.
+
 ## Critérios (a escrever ao ativar, `rules/eval-criteria.md`)
 - Mesmo registro (entradas, Δ, acelerações) reaplicado do snapshot dá o mesmo hash; entrada contra parede não move.
 - Velocidade cai com carga, ferimento e cansaço (par na mesma seed, direção em ≥18/20).
@@ -54,5 +67,5 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
 ## Decisões do dono (2026-11-23)
 1. Posse: pelo admin, sem recusa (a pessoa fica presa e pode ser ouvida); sem admin, recusa o que fere muito o que ela valoriza.
 2. `/visual/player/{id}/move` removida; o passo é o `move` (feito).
-3. Tecla da 1ª pessoa e padrão 3ª pessoa (recomendado, a confirmar na AD-197d).
+3. Tecla da 1ª pessoa (C) e padrão 3ª pessoa: feito na AD-197d, aceite pendente no ADR-0051.
 4. O sono acelerado é interrompido por golpe, fogo, fome/sede crítica e alguém chamando (AD-197c).

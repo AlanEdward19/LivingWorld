@@ -64,10 +64,30 @@ public class PlayerLatencyHarness
             Assert.Contains("\"ok\":true", Encoding.UTF8.GetString(buffer, 0, received.Count), StringComparison.Ordinal);
         }
 
+        // AD-197d: o passo (intenção validada no chão do motor, ida e volta alternadas) e a oferta de interações, do comando à resposta
+        var moveMs = new List<double>();
+        var reachMs = new List<double>();
+        for (int i = 0; i < Warmup + Samples; i++)
+        {
+            long start = Stopwatch.GetTimestamp();
+            string move = $$"""{"seq":{{i}},"command":"move","dx":{{(i % 2 == 0 ? 1 : -1)}},"dy":0}""";
+            await socket.SendAsync(Encoding.UTF8.GetBytes(move), WebSocketMessageType.Text, true, CancellationToken.None);
+            var reply = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            if (i >= Warmup) moveMs.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            Assert.Contains("\"status\":", Encoding.UTF8.GetString(buffer, 0, reply.Count), StringComparison.Ordinal);
+            start = Stopwatch.GetTimestamp();
+            await socket.SendAsync(Encoding.UTF8.GetBytes($$"""{"seq":{{i}},"command":"reach"}"""), WebSocketMessageType.Text, true, CancellationToken.None);
+            reply = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            if (i >= Warmup) reachMs.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            Assert.Contains("\"ok\":true", Encoding.UTF8.GetString(buffer, 0, reply.Count), StringComparison.Ordinal);
+        }
+
         var (hMed, hP95) = Stats(httpMs);
         var (wMed, wP95) = Stats(wsMs);
+        var (mMed, mP95) = Stats(moveMs);
+        var (rMed, rP95) = Stats(reachMs);
         string line = FormattableString.Invariant(
-            $"httpMedianMs={hMed:0.000} httpP95Ms={hP95:0.000} wsMedianMs={wMed:0.000} wsP95Ms={wP95:0.000} samples={Samples}");
+            $"httpMedianMs={hMed:0.000} httpP95Ms={hP95:0.000} wsMedianMs={wMed:0.000} wsP95Ms={wP95:0.000} wsMoveMedianMs={mMed:0.000} wsMoveP95Ms={mP95:0.000} wsReachMedianMs={rMed:0.000} wsReachP95Ms={rP95:0.000} samples={Samples}");
         if (Environment.GetEnvironmentVariable("LW_MEASURE_OUT") is { Length: > 0 } path) File.WriteAllText(path, line + "\n");
         Assert.True(wMed > 0 && hMed > 0, line);
     }

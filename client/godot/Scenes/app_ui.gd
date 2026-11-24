@@ -178,12 +178,30 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.player_id = app.player_id if app.player_id != "" else PlayerProfile.load_or_create()
 	app.player_hud.session_enabled = true # AD-197a: sessão por token e canal persistente; o id local fica só como reserva
 	app.player_hud.warning.connect(func(text: String): app.toasts.push(text))
-	app.player_hud.released.connect(func(): app.unfollow())
+	app.player_hud.released.connect(func(): app.player_released())
 	app.player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	app.player_hud.offset_left = 310
 	app.player_hud.offset_right = -316
 	app.player_hud.offset_top = 60
 	ui.add_child(app.player_hud)
+	# AD-197d/197j: WASD relativo ao olhar da câmera; o passo previsto e corrigido pelo motor; golpe, nomes e mira
+	app.player_hud.heading = app.rig.heading
+	app.player_hud.predicted.connect(app._on_player_predicted)
+	app.player_hud.confirmed.connect(app._on_player_confirmed)
+	app.player_hud.rejected.connect(app._on_player_rejected)
+	app.player_hud.conversation_opened.connect(func(id: int, name: String, session: int): app.conversation.attach(id, name, session))
+	app.player_hud.struck.connect(app._on_player_struck)
+	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
+	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
+	app.crosshair.text = "+"
+	app.crosshair.add_theme_font_size_override("font_size", 28)
+	app.crosshair.set_anchors_preset(Control.PRESET_CENTER)
+	app.crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	app.crosshair.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	app.crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	app.crosshair.visible = false
+	ui.add_child(app.crosshair)
+	app.rig.mode_changed.connect(app._on_camera_mode)
 
 	app.list_panel = Panels.NpcListPanel.new()
 	app.list_panel.api = app.api

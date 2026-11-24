@@ -1,6 +1,6 @@
 # ADR-0049: modo jogador em 3ª/1ª pessoa com controle direto (emenda o ADR-0047)
 
-- **Status**: proposto (a decisão de produto é do dono, 2026-11-23; este registro traz consequências e contrato)
+- **Status**: aceito pelo dono em 2026-11-24 (detalhado pelo ADR-0051)
 - **Data**: 2026-11-23 (reescrito na AD-197a: mundo em tempo real, ADR-0050)
 - **Decisores**: dono do projeto (decisão); rascunho por agente
 

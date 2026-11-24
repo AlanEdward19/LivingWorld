@@ -53,7 +53,7 @@ gerados por código em `Scenes/menu/ui_sounds.gd`, no barramento Master (volume 
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · **E se…?** simula a decisão com outros estímulos (nada é gravado) · Esc fecha |
 | Conversar | T (ou botão Conversar na ficha) pede a conversa; o NPC pode recusar (ocupado, hostil, indisponível) · Enter envia · Esc encerra |
 | Narrativas | botão Biografia na ficha do NPC · botão Crônica na ficha da cidade (mês/ano/década) · R lista os relatos que circulam, com a confiança de cada um · botão O que a cidade acredita (crenças distorcidas e a distância do fato) · Esc fecha |
-| Jogar | I (ou botão Encarnar) toma o NPC selecionado; a faixa do topo pede a ação (só as que o motor aceita), "Deixar o motor decidir" ou Sair; sair faz o personagem desaparecer, não congelar; se o cliente reiniciou com o personagem ainda ativo, o HUD oferece "Sair do personagem anterior". `playerId` local em `user://player.cfg` (sem login ainda) |
+| Jogar | I (ou botão Encarnar) toma o NPC selecionado e a câmera passa à **3ª pessoa** (C alterna 1ª/3ª, mouse com botão direito olha, **Z** prende o cursor; a mira é o centro da tela); **WASD/setas** andam relativos ao olhar (intenção `move` pelo canal; o motor valida parede, porta e gente; o cliente prevê e corrige); o passo leva o tempo que o motor diz (corpo, carga, cansaço); **E** abre só o que o motor oferece ao alcance (porta, escada, despensa, banca, lavoura, fonte, espólio, cama, pessoa, a própria casa; furto onde vale); **clique** bate no NPC sob a mira; a faixa do topo pede a ação, "Deixar o motor decidir" ou Sair (volta à isométrica). Recusa da pessoa possuída aparece com o motivo do motor |
 | Console de admin | só com `LW_ADMIN_TOKEN` (o lançador já define): F8 ou botão Console · abas Mundo (pausa com motivo e teto, retomar, velocidade), Busca (abre a ficha) e Auditoria · a barra do topo avisa todos quando o mundo está pausado |
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
 | Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
@@ -86,6 +86,10 @@ Piso do ADR-0047 e histórico das medidas: [docs/desempenho.md](docs/desempenho.
 AD-193: o canteiro sobe pela obra do motor (`works`), sem regressão (`benchrun` mediana 60,3 → 60,7 FPS; motor 1.000 NPCs 0,99–1,01×).
 AD-194: pilha pelo material no lote da casa e eventos de obra do log; pareado (cliente 2e0852ed → entrega) `bench` 162,7 → 163,1,
 `benchbig` 131,1 → 130,6, `benchrun` 58,6 → 58,4 FPS (medianas), sem regressão.
+AD-197d (câmera 3ª/1ª pessoa, WASD por intenção, menu de interações do motor), pareado contra `29ba981f` (medianas): `stress` 115,7 → 115,7,
+`bench` 170,0 → 170,2, `benchbig` 138,6 → 138,0, `benchrun` 57,3 → 59,1 FPS; `benchrun` em 3ª pessoa (passo `third`) 64,3 FPS. Canal: `move` 0,12 ms (p95 0,14).
+AD-197j (passo no tempo do corpo, escada, golpe animado, mira, cursor preso), contra `8ea77bfb` (medianas): `stress` 116,0 → 115,7,
+`bench` 169,2 → 169,1, `benchbig` 138,1 → 138,1, `benchrun` 59,2 → 58,5 FPS (ruído); 3ª pessoa 64,2.
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).

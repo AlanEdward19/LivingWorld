@@ -286,6 +286,21 @@ internal static class Theft
         return best;
     }
 
+    /// <summary>AD-197j: o alvo que quem furta escolheu (o jogador, ao lado dele): a despensa de uma casa, o estoque de uma oficina ou um
+    /// espólio no chão, levando o que um furto leva (a comida de alguns dias da casa de quem furta, ou poucas unidades do resto).</summary>
+    internal static TheftTarget Chosen(WorldState world, Npc thief, Household? house, Workplace? shop, int resourceId, CellCoord where)
+    {
+        var resource = new ResourceType(resourceId);
+        long stock = house?.Stock.GetValueOrDefault(resource) ?? shop!.Stock.GetValueOrDefault(resource);
+        long want = resourceId == world.EconomyRules.FoodResourceId
+            ? world.TheftRules.FoodDaysTaken * (long)Math.Max(1, HomeSize(world, thief)) : world.TheftRules.GoodsUnitsTaken;
+        long units = Math.Min(stock, want);
+        long value = units * PriceOf(world, thief.City, resourceId);
+        return house is not null
+            ? new TheftTarget(TheftTargetKind.House, world.FindNpc(house.Head), house, null, resourceId, units, 0, value, where)
+            : new TheftTarget(TheftTargetKind.Stall, null, null, shop, resourceId, units, 0, value, where);
+    }
+
     private static int HomeSize(WorldState world, Npc npc) =>
         npc.Household is { } id && world.FindHousehold(id) is { } h ? h.Members.Count : 1;
 

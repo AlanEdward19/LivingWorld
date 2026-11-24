@@ -80,6 +80,16 @@ public static class UnionDissolution
             $"{leaver.Id.Value}|{stayer.Id.Value}|{Label(mode)}|{destination.Id.Value}", sourceSystem: UnionSystem.SystemName);
     }
 
+    /// <summary>AD-197d: quem abandona a casa sem união a desfazer (o pai ou a mãe sem cônjuge ali) sai sozinho e sem nada, como no
+    /// abandono da união: casa própria, a caminho de outro povoado se o mundo tiver um.</summary>
+    internal static Household Desert(WorldState world, TickContext ctx, Npc leaver)
+    {
+        var home = leaver.Household is { } id ? world.FindHousehold(id) : null;
+        var destination = Destination(world, ctx, leaver, home, alone: true, UnionEndMode.Abandonment);
+        Move(world, ctx, leaver, home, destination);
+        return destination;
+    }
+
     /// <summary>Para onde vai quem sai: casa da mãe, do pai ou de um irmão adulto na mesma cidade; senão casa própria (no
     /// abandono, sempre casa própria, a caminho de outro povoado se o mundo tiver um).</summary>
     private static Household Destination(WorldState world, TickContext ctx, Npc leaver, Household? home, bool alone, UnionEndMode mode)
@@ -102,8 +112,12 @@ public static class UnionDissolution
             {
                 household.BeginRelocation(away.Id);
                 leaver.SetCurrentAction(ActionType.Travel, ctx.CurrentTick);
+                return household;
             }
         }
+        // AD-197j: sem outro povoado para onde ir, quem abandona fica sem teto (dorme onde estiver até achar vaga), não numa "casa
+        // nova" na mesma célula da que deixou
+        if (mode == UnionEndMode.Abandonment && alone) household.Evict(ctx.CurrentTick);
         return household;
     }
 
