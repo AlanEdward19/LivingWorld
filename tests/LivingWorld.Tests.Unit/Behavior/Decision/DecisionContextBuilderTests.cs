@@ -110,9 +110,9 @@ public class DecisionContextBuilderTests
         var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
 
         Assert.NotNull(ctx.Household);
-        Assert.Equal(householdId, ctx.Household!.Id);
-        Assert.Equal(7, ctx.Household.Stock[food]);
-        Assert.Equal([memberA, memberB], ctx.Household.Members);
+        Assert.Equal(householdId, ctx.Household!.Value.Id);
+        Assert.Equal(7, ctx.Household!.Value.Stock[food]);
+        Assert.Equal([memberA, memberB], ctx.Household!.Value.Members);
     }
 
     [Fact]

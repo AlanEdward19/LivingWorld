@@ -91,6 +91,28 @@ public class FinePoseTests
         Assert.Equal((false, false), (anyHourly, anyAblated));
     }
 
+    /// <summary>AD-197l: a pose refeita só na troca de célula é, tick a tick, a mesma da conta direta pelo tempo.</summary>
+    [Fact]
+    public void The_pose_refreshed_only_on_cell_change_matches_the_direct_pose_every_tick()
+    {
+        var arm = Village(105, initialPopulation: 60);
+        int compared = 0, differing = 0;
+        for (int i = 0; i < 6 * 60 * 6; i++)
+        {
+            arm.Clock.Tick(arm.World, 10_000);
+            long now = arm.World.CurrentDate.TotalMilliseconds;
+            foreach (var npc in arm.World.AliveNpcIndex.Alive)
+            {
+                if (npc.CurrentAction != ActionType.Travel || npc.TravelLegTo is null) continue;
+                compared++;
+                var indexed = arm.World.AliveNpcIndex.PoseOf(npc) ?? npc.CurrentLocation;
+                if (indexed != TravelPose.CellAt(arm.World, npc, now)) differing++;
+            }
+        }
+
+        Assert.Equal((true, 0), (compared > 100, differing));
+    }
+
     /// <summary>AD-197i: quem saiu de hora em hora (sem perna) e ainda viaja quando o Δ passa ao passo fino aparece no caminho já
     /// no tick seguinte, e a perna fica gravada (o mesmo mundo ao reabrir).</summary>
     [Fact]
