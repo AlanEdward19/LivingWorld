@@ -102,6 +102,7 @@ public static partial class PlayerInteractions
             ("stairs", _) => Climb(world, npc, offer, verb == "up" ? 1 : -1),
             (_, "steal") => Steal(world, ctx, npc, offer, resourceId),
             ("object", _) => Use(world, npc, offer, verb),
+            ("item", _) => Carry(world, npc, offer, verb),
             ("workshop" or "field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
                 ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
             ("water", _) => Water(world, npc, offer, verb),
