@@ -1,4 +1,4 @@
-# Posse: disputa de vontade, estranhamento e reação [Estado: AD-197e/197f entregues; ritual e posse por poder em issue]
+# Posse: disputa de vontade, estranhamento e reação [Estado: AD-197e/197f/197g entregues; ritual #208, saber da pessoa #209]
 
 Decisões do dono (2026-11-23): pelo admin a pessoa vira personagem do jogador e não recusa (posse plena); sem admin ela recusa o
 que vai contra os vínculos **e os valores** dela, "tem que ser mais forte que o controle", cansa, pode ser persuadida, pode
@@ -14,8 +14,11 @@ possessão dentro do jogo, inclusive de um personagem de jogador. ADR-0049.
 ## Disputa de vontade (posse comum) — `PossessionContest`
 - **Vontade** (0..100) = (0,45 estabilidade emocional + 0,35 conscienciosidade + 0,20 (100 − impulsividade)) × mente (medo ou
   luto tiram até 40%) × corpo (saúde: 50% a 100%).
-- **Controle do jogador** = 40 + 30 × min(1, horas de posse / 168): perícia naquele corpo. **Por poder** (Fase 16, possessão
-  extraordinária): mesma conta, com o controle tirado da confiabilidade do descritor do poder (issue abaixo).
+- **Controle do jogador** = 40 + 30 × min(1, horas de posse / 168): perícia naquele corpo. **Por poder** (AD-197g):
+  (1 − risco do descritor) × (40 + 30 × min(1, custo + horas/168)), com risco e custo que `PowerOpportunity` já deriva
+  (`Guaranteed` 0,1; `ResolutionCheck` 0,5 + 0,1 por modo de falha; 1 por declaração de custo). O sorteio por vigor de antes
+  (REALISM-33/34) só vale com `LW_AD197F=nowill|off`. Personagem de jogador possuído por poder resiste pela mesma regra e não
+  obedece ao jogador enquanto a outra vontade conduz o corpo.
 - **Resistência** começa na vontade (menos o cansaço de uma posse anterior), cai 0,5/h × controle/40 sob controle, sobe 1/h
   solta; persuasão (`persuade`, 1 por hora) tira 8 × (0,5 + amabilidade/200); apoio de quem conclui a possessão devolve 15.
 - **Ordem de ferir** pesa max(cuidado com o alvo, 0,8 × altruísmo): quem ajuda a todos recusa ferir qualquer um. Com peso ≥ 60
@@ -42,6 +45,5 @@ possessão dentro do jogo, inclusive de um personagem de jogador. ADR-0049.
   quê), ofício de curandeiro/sacerdote e uma ação de tratar que, como o apoio, mexa na resistência e no controle; nada fixo.
 - **Conhecimento que o possuidor não tem**: estranhar o que a pessoa saberia (nomes, ofício, caminho de casa) pede que o
   jogador declare o que sabe (memória acessível) e que a conversa e a ação revelem lacunas; depende da conversa (Fase 11).
-- **Posse por poder** na mesma disputa: ligar `possessed-action` e `PossessionResisted` (Fase 16) ao `PossessionContest`.
 - **Mente presa: conversa e pensamento no chat** (#207).
 - **Outras ordens contra a vontade** (vender a casa, abandonar filho): fatia de interagir (AD-197d), mesma regra.
