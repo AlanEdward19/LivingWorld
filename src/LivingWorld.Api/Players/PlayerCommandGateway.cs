@@ -1,8 +1,8 @@
 using LivingWorld.Api.World;
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Hosting;
-using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Players;
 
 namespace LivingWorld.Api.Players;
@@ -140,8 +140,20 @@ public sealed class PlayerCommandGateway(
                 speedMps = WalkSpeed(world, npc),
                 cellMeters = world.Players.CellM,
             }
-            : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null, floor = 0, readyInMs = 0L, fx = 0.0, fy = 0.0, speedMps = 0.0,
-                cellMeters = world.Players.CellM };
+            : new
+            {
+                playerId,
+                npcId = -1L,
+                x = 0,
+                y = 0,
+                buildingId = (long?)null,
+                floor = 0,
+                readyInMs = 0L,
+                fx = 0.0,
+                fy = 0.0,
+                speedMps = 0.0,
+                cellMeters = world.Players.CellM
+            };
 
     /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo.</summary>
     private static double WalkSpeed(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc)
