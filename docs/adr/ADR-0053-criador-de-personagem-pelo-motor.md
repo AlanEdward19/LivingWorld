@@ -16,7 +16,7 @@ sortear sem viciar a semente, como o replay reproduz o que o jogador viu e o que
    a `MaterializationSystem.MaterializeOne` de sempre, então o candidato mostrado é exatamente a pessoa que entra. Sorteios por
    chave fixa por id (`OneShot`: sexo, idade, aniversário, personalidade, ofício), sem stream guardado.
 2. **Amostragem condicionada pelo agregado** (vale para toda materialização): riqueza e saúde por cabeça do pool (como antes);
-   ofício pela distribuição dos adultos detalhados da cidade (catálogo só se não há nenhum); cultura predominante deles; quem é mais
+   idade pela pirâmide dos adultos detalhados da cidade (a de um deles, sorteado; uniforme só sem nenhum); ofício pela distribuição dos adultos detalhados da cidade (catálogo só se não há nenhum); cultura predominante deles; quem é mais
    velho que a cidade fundada por outra nasceu na cidade-mãe (`BirthLocation`). Família: **nenhum parente inventado** — mãe, pai,
    cônjuge e casa ficam nulos e os parentes, se existem, seguem no agregado (ele não modela famílias).
 3. **Amostra**: `CharacterCreation.Candidates(cidade, número, filtro, N)` filtra o pool inteiro (sexo, faixa de idade, ofício)
@@ -32,7 +32,7 @@ sortear sem viciar a semente, como o replay reproduz o que o jogador viu e o que
    jogador já encarnado 409; a recusa da vontade é 409 e vai ao registro (como a de encarnar).
 6. **Contrato** (só acréscimos, v2): `GET /players/origins`, `POST /players/{id}/candidates`, `POST /players/{id}/create`;
    no canal, `candidates` e `create`. **Cliente**: tela "Pessoa nova" (cidade, filtro, outra amostra, cartões do motor, entrar);
-   entrou, assina a cidade e vai à 3ª pessoa. Nenhum atributo montado no cliente.
+   encaixada na área central abaixo da barra; entrou, assina a cidade e vai à 3ª pessoa (HUD da AD-197p). Nenhum atributo montado no cliente.
 
 ## Alternativas consideradas
 - Montar atributos no cliente (estilo RPG) — cria gente do nada e viola a conservação; o dono decidiu "pelo motor".
@@ -45,5 +45,5 @@ sortear sem viciar a semente, como o replay reproduz o que o jogador viu e o que
   mesmos candidatos e o mesmo hash; a materialização de sempre fica mais coerente (ofício e cultura da cidade).
 - **Negativas / trade-offs**: a prévia percorre o pool inteiro por pedido (sob demanda, fora do tick); a pessoa nova chega sem
   parentes detalhados; com a vontade forte, alguns candidatos não deixam entrar.
-- **Follow-ups**: agregado com famílias e histórico (fome, guerra) para materializar parentes e memórias; sorteio de idade pela
-  pirâmide da cidade em vez de uniforme.
+- **Follow-ups**: agregado com famílias e histórico (fome, guerra) para materializar parentes e memórias (issue aberta pela
+  coordenação).
