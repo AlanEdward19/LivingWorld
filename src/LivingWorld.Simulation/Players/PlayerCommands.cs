@@ -59,6 +59,7 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (action is { } chosen && !Choosable.Contains(chosen)) return Result<Unit>.Fail("action: fora do que o jogador pode escolher");
         if (action == ActionType.UsePower && !world.Players.Enabled) return Result<Unit>.Fail("action: fora do que o jogador pode escolher");
         if (action == ActionType.UsePower && !Carries(world, npc, powerId))
@@ -78,10 +79,18 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         return PossessionContest.Persuade(world, npc, ctx.CurrentTick)
             ? Result<Unit>.Ok(Unit.Value)
             : Result<Unit>.Fail("persuade: sem disputa de vontade agora (posse plena, regra desligada ou já tentou nesta hora)");
     }
+
+    /// <summary>AD-197g: o personagem do jogador possuído por poder não obedece a ele enquanto a outra vontade conduz o corpo; ele
+    /// resiste pela mesma regra de qualquer pessoa (<see cref="PossessionContest"/>).</summary>
+    private static Result<Unit>? PossessedByPower(WorldState world, Npc npc) =>
+        LivingWorld.Simulation.Extraordinary.Mechanics.ControlMechanic.IsPossessed(world, npc)
+            ? Result<Unit>.Fail($"{Refused} outra vontade conduz o corpo de {npc.Name}")
+            : null;
 
     private static bool Carries(WorldState world, Npc npc, string? powerId) =>
         !string.IsNullOrWhiteSpace(powerId)
@@ -97,6 +106,7 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (dx is < -1 or > 1 || dy is < -1 or > 1 || (dx == 0 && dy == 0)) return Result<Unit>.Fail("move: direção inválida");
         var target = new LivingWorld.Domain.Geography.CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
         var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target);
@@ -112,6 +122,7 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (world.FindNpc(targetId) is not { IsAlive: true } target || target.Id == npc.Id)
             return Result<Unit>.Fail($"{NotFound} alvo ausente ou morto");
         if (Math.Max(Math.Abs(target.CurrentLocation.X - npc.CurrentLocation.X), Math.Abs(target.CurrentLocation.Y - npc.CurrentLocation.Y)) > 1)
