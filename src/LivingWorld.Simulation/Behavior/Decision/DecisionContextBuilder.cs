@@ -27,7 +27,7 @@ public static class DecisionContextBuilder
     /// da decisão).</summary>
     internal static DecisionContext Build(
         WorldState world, Npc npc, long tick, LazyRelationshipFacts? reuse, LlmRules? llmRules = null, double provisionTargetDays = 2.0,
-        long foodUnitPrice = 0, bool shopperOut = false, bool foodStallKnownEmpty = false)
+        long foodUnitPrice = 0, bool shopperOut = false, bool foodStallKnownEmpty = false, DecisionContext? reuseContext = null)
     {
         var needs = new NeedsSnapshot(
             npc.HungerAt(tick),
@@ -41,30 +41,25 @@ public static class DecisionContextBuilder
         var beliefs = BuildBeliefSlice(world, npc);
         var relationships = reuse?.Reset(world, npc.Id) ?? new LazyRelationshipFacts(world, npc.Id); // AD-197l: a da decisão sem rastro
 
-        return new DecisionContext(
-            npc.Id,
-            tick,
-            needs,
-            body,
-            household,
-            RelevantMemories: memories,
-            RelevantBeliefs: beliefs,
-            KnownRelationships: relationships,
-            PowerOpportunities: PowerOpportunityProvider.ApplicableTo(world, npc, tick),
-            npc.Personality,
-            npc.CurrentAction,
-            ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick),
-            WalletAmount: npc.Wallet.Amount,
-            ProvisionTargetDays: provisionTargetDays,
-            Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc),
-            Inner: BuildInnerLife(world, npc, tick),
-            FoodUnitPrice: foodUnitPrice,
-            ShopperOut: shopperOut,
-            FoodStallKnownEmpty: foodStallKnownEmpty,
-            // AD-179: a obra que chama o diarista. AD-187: em float, que cabe na folga do fim do objeto (o double somava 8 bytes a
-            // cada decisão do mundo, quase sempre para guardar zero)
-            SiteOffer: (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc),
-            CanEarn: npc.Wallet.Amount >= 1 || CanEarn(world, npc)); // só pesa sem moeda (IncomeNeed): o caminho comum não procura obra
+        // mesma ordem de avaliação dos argumentos de antes (opportunities, previsões e obra leem o mundo)
+        var powers = PowerOpportunityProvider.ApplicableTo(world, npc, tick);
+        var personality = npc.Personality;
+        var current = npc.CurrentAction;
+        var previews = ForesightMechanic.PreviewsFor(world, npc.Id, tick);
+        long wallet = npc.Wallet.Amount;
+        var comfort = LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc);
+        var inner = BuildInnerLife(world, npc, tick);
+        // AD-179: a obra que chama o diarista. AD-187: em float, que cabe na folga do fim do objeto (o double somava 8 bytes a
+        // cada decisão do mundo, quase sempre para guardar zero)
+        float siteOffer = (float)LivingWorld.Simulation.Cities.Streets.SiteWork.OfferFor(world, npc);
+        bool canEarn = npc.Wallet.Amount >= 1 || CanEarn(world, npc); // só pesa sem moeda (IncomeNeed): o caminho comum não procura obra
+
+        // AD-197m: a decisão sem rastro reaproveita o mesmo contexto de NPC em NPC no tick
+        return reuseContext is not null
+            ? reuseContext.Reset(npc.Id, tick, needs, body, household, memories, beliefs, relationships, powers, personality, current, previews,
+                wallet, provisionTargetDays, comfort, inner, foodUnitPrice, shopperOut, foodStallKnownEmpty, siteOffer, canEarn)
+            : new DecisionContext(npc.Id, tick, needs, body, household, memories, beliefs, relationships, powers, personality, current, previews,
+                wallet, provisionTargetDays, comfort, inner, foodUnitPrice, shopperOut, foodStallKnownEmpty, siteOffer, canEarn);
     }
 
     /// <summary>AD-191 (2ª rodada): o trabalho pode render algo a quem decide — emprego, a obra em que é diarista ou a obra que o chama.
