@@ -15,6 +15,8 @@ public sealed class AliveNpcIndex
     // testemunha e encontro (tudo que pergunta "quem está aqui?") o veem no caminho. Vazio de hora em hora: At é o de sempre.
     private readonly Dictionary<long, CellCoord> _pose = new();
     private readonly Dictionary<CellCoord, List<Npc>> _byPose = new();
+    private readonly Dictionary<long, Npc> _posed = new(); // AD-197l: quem tem pose, para soltar sem varrer os vivos
+    private readonly List<Npc> _unpose = [];
 
     private AliveNpcIndex(List<Npc> alive)
     {
@@ -70,19 +72,33 @@ public sealed class AliveNpcIndex
         {
             if (!had) return;
             _pose.Remove(id);
+            _posed.Remove(id);
             RemoveFrom(_byPose, npc, old);
             return;
         }
         if (had && old == at) return;
         if (had) RemoveFrom(_byPose, npc, old);
         _pose[id] = at;
+        _posed[id] = npc;
         AddTo(_byPose, npc, at);
     }
 
     public void ClearPoses()
     {
         _pose.Clear();
+        _posed.Clear();
         _byPose.Clear();
+    }
+
+    /// <summary>AD-197l: solta a pose de quem já não viaja com perna (chegou, mudou de ação), olhando só quem tem pose.</summary>
+    public void PrunePoses()
+    {
+        if (_posed.Count == 0) return;
+        _unpose.Clear();
+        foreach (var npc in _posed.Values)
+            if (!npc.IsAlive || npc.CurrentAction != LivingWorld.Domain.Behavior.ActionType.Travel || npc.TravelLegTo is null)
+                _unpose.Add(npc);
+        foreach (var npc in _unpose) SetPose(npc, null);
     }
 
     public static AliveNpcIndex RebuildFrom(WorldState world)
@@ -143,7 +159,11 @@ public sealed class AliveNpcIndex
 
     private void OnMoved(Npc npc, CellCoord previous)
     {
-        if (_pose.Count > 0 && _pose.Remove(npc.Id.Value, out var posed)) RemoveFrom(_byPose, npc, posed); // chegou: a pose acaba
+        if (_pose.Count > 0 && _pose.Remove(npc.Id.Value, out var posed)) // chegou: a pose acaba
+        {
+            _posed.Remove(npc.Id.Value);
+            RemoveFrom(_byPose, npc, posed);
+        }
         RemoveFromBucket(npc, previous);
         AddToBucket(npc, npc.CurrentLocation);
     }

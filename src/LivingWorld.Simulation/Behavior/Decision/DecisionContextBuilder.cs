@@ -20,6 +20,13 @@ public static class DecisionContextBuilder
 
     public static DecisionContext Build(
         WorldState world, Npc npc, long tick, LlmRules? llmRules = null, double provisionTargetDays = 2.0,
+        long foodUnitPrice = 0, bool shopperOut = false, bool foodStallKnownEmpty = false) =>
+        Build(world, npc, tick, null, llmRules, provisionTargetDays, foodUnitPrice, shopperOut, foodStallKnownEmpty);
+
+    /// <summary>AD-197l: com <paramref name="reuse"/>, as relações da decisão reaproveitam a instância (o contexto sem rastro não sai
+    /// da decisão).</summary>
+    internal static DecisionContext Build(
+        WorldState world, Npc npc, long tick, LazyRelationshipFacts? reuse, LlmRules? llmRules = null, double provisionTargetDays = 2.0,
         long foodUnitPrice = 0, bool shopperOut = false, bool foodStallKnownEmpty = false)
     {
         var needs = new NeedsSnapshot(
@@ -32,7 +39,7 @@ public static class DecisionContextBuilder
         var household = BuildHouseholdSlice(world, npc);
         var memories = BuildMemorySlice(world, npc, needs, llmRules);
         var beliefs = BuildBeliefSlice(world, npc);
-        var relationships = new LazyRelationshipFacts(world, npc.Id);
+        var relationships = reuse?.Reset(world, npc.Id) ?? new LazyRelationshipFacts(world, npc.Id); // AD-197l: a da decisão sem rastro
 
         return new DecisionContext(
             npc.Id,

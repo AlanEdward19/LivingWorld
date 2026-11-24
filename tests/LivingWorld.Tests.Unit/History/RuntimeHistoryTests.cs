@@ -85,7 +85,7 @@ public class RuntimeHistoryTests
         var withMoney = ctx with
         {
             WalletAmount = 100,
-            Household = ctx.Household! with { Stock = new Dictionary<ResourceType, long>() },
+            Household = ctx.Household!.Value with { Stock = new Dictionary<ResourceType, long>() },
         };
         Assert.Equal(40, Score(withMoney) - Score(withMoney with { RelevantBeliefs = [] }), precision: 8);
 
@@ -94,7 +94,7 @@ public class RuntimeHistoryTests
         Assert.Equal(0, Score(broke) - Score(broke with { RelevantBeliefs = [] }), precision: 8);
         var stocked = withMoney with
         {
-            Household = ctx.Household! with
+            Household = ctx.Household!.Value with
             {
                 Stock = new Dictionary<ResourceType, long>
                 {
