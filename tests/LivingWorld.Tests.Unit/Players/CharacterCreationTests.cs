@@ -1,11 +1,11 @@
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
-using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.Unit.Players;
