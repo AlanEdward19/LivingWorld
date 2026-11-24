@@ -23,6 +23,9 @@ public class PlayerPossessionTests
             && n.FatherId != npc.Id && npc.MotherId != n.Id && npc.FatherId != n.Id
             && !w.Relationships.ContainsKey(new RelationshipKey(npc.Id, n.Id)));
         long now = w.CurrentDate.TotalHours;
+        // AD-197f: temperamento fixo (vontade média, pouco altruísmo), para o teste medir só o vínculo
+        npc.ImprintPersonality(npc.Personality with { EmotionalStability = 60, Conscientiousness = 60, Impulsivity = 40, Altruism = 20, Loyalty = 50 });
+        npc.SetHealth(100);
         w.GetOrCreateRelationship(new RelationshipKey(npc.Id, beloved.Id), now).CopyAxesFrom(Relationship.FromAxes(95, 95, 50, 0, now));
         beloved.MoveTo(npc.CurrentLocation, now);
         stranger.MoveTo(npc.CurrentLocation, now);

@@ -51,6 +51,10 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
 
+        // AD-197f: convencer a pessoa possuída a ceder (posse comum): tira resistência, uma vez por hora
+        app.MapPost("/players/{playerId}/persuade", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Persuade)));
+
         // AD-197e: posse plena é do admin (X-Admin-Token) e do jogador da sessão; a pessoa vira personagem do jogador e fica presa
         app.MapPost("/players/{npcId:long}/possess", (HttpContext http, long npcId, IConfiguration config) =>
         {
