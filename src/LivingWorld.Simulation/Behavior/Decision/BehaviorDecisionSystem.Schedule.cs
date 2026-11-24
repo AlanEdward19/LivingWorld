@@ -52,6 +52,17 @@ public sealed partial class BehaviorDecisionSystem
             + Mobility.TravelMs(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)));
     }
 
+    /// <summary>AD-197i: a perna calculada só do estado canônico (sem a memória da última saída do processo): para quem já viajava
+    /// quando o mundo passou ao passo fino.</summary>
+    internal static (CellCoord To, long EndMs)? TravelLegFresh(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        if (npc.CurrentAction != ActionType.Travel) return null;
+        if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation) return null;
+        if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
+        return (destination, npc.ActionStartedAtMs
+            + Mobility.TravelMs(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc)));
+    }
+
     /// <summary>Necessidade urgente que faz o NPC largar a rotina: fome, sede e sono sempre; solidão só
     /// quando crítica — quem se sente um pouco sozinho no meio do turno continua a rotina do dia
     /// (e socializa na janela dela), como qualquer pessoa.</summary>

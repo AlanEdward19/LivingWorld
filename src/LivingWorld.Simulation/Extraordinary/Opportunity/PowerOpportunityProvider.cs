@@ -31,8 +31,7 @@ public static class PowerOpportunityProvider
         if (!world.Extraordinary.Enabled)
             return Array.Empty<PowerOpportunity>();
 
-        var carrier = world.ExtraordinaryCarriers
-            .FirstOrDefault(c => c.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id); // AD-197i: busca binária na lista ordenada, sem lambda nem varredura a cada decisão
         if (carrier is null)
             return Array.Empty<PowerOpportunity>();
 

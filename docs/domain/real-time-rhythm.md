@@ -34,6 +34,7 @@ o registro do jogador (`TickDelta`), como na AD-197b. `/simulation/status` traz 
   hora). A cada tick fino o relógio põe a pose de cada viajante (`TravelPose.Refresh`: fração do tempo ao longo da rota real,
   caminho guardado por par) no índice dos vivos, e `AliveNpcIndex.At` o conta na célula do caminho, não na origem: percepção,
   testemunha (`Justice`), encontro (crime, companhia, ensino) e o alcance do golpe o veem lá. `CurrentLocation` segue a origem.
+  Quem já viajava quando o Δ passou ao passo fino (sem perna) ganha a perna no primeiro tick fino, do estado canônico (AD-197i).
 - **Agendador**: evento que vence dentro da hora fica numa árvore por (instante, Id) da sua hora (O(log k)); o da hora cheia segue na
   lista. A fila de despertar guarda o piso do instante mais cedo fora da hora cheia de cada balde.
 - **Tocado pelo jogador acorda já**: `Act` acorda o corpo conduzido e o golpe acorda o alvo no próximo tick fino.
