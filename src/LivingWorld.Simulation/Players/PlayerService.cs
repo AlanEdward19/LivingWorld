@@ -9,7 +9,7 @@ namespace LivingWorld.Simulation.Players;
 
 /// <summary><see cref="TickDelta"/> (ADR-0050) não é comando de jogador: é a troca da duração do tick do mundo, que entra no mesmo
 /// registro porque o replay precisa da mesma sequência de Δ para dar o mesmo mundo.</summary>
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, TickDelta }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -81,9 +81,11 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
     public Result<Unit> Incarnate(WorldState world, NpcId npcId, string playerId, PossessionMode mode = PossessionMode.Common)
     {
         var result = PlayerCommands.Incarnate(world, Context(world), npcId, playerId, mode);
-        if (result.IsSuccess)
+        bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal); // AD-197f
+        if (result.IsSuccess || refused)
             Record(world, playerId, PlayerCommandKind.Incarnate, npcId.Value,
-                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Incarnate, Mode: mode == PossessionMode.Full ? mode : null));
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Incarnate, Mode: mode == PossessionMode.Full ? mode : null,
+                    Refused: refused, Reason: refused ? result.Error : null));
         return result;
     }
 
@@ -92,6 +94,7 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         var result = PlayerCommands.Act(world, npc.Id, playerId, action, powerId);
+        if (result.IsSuccess) PlayerCommands.Witness(world, Context(world), npc.Id, action); // AD-197f: quem convive compara com o costume
         if (result.IsSuccess)
             Record(world, playerId, PlayerCommandKind.Act, npc.Id.Value,
                 new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Act, Action: action, PowerId: powerId));
@@ -119,6 +122,16 @@ public sealed class PlayerService(IWorldEventSink sink, PlayerSessionLog? log = 
             Record(world, playerId, PlayerCommandKind.Strike, npc.Id.Value,
                 new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Strike, TargetId: target.Value, Refused: refused,
                     Reason: refused ? result.Error : null));
+        return result;
+    }
+
+    /// <summary>AD-197f: convencer a pessoa possuída a ceder (posse comum).</summary>
+    public Result<Unit> Persuade(WorldState world, string playerId)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        var result = PlayerCommands.Persuade(world, Context(world), npc.Id, playerId);
+        if (result.IsSuccess) Record(world, playerId, PlayerCommandKind.Persuade, npc.Id.Value);
         return result;
     }
 
@@ -163,6 +176,7 @@ public static class PlayerReplay
                 PlayerCommandKind.Act => service.Act(world, record.PlayerId, record.Action, record.PowerId).IsSuccess,
                 PlayerCommandKind.Move => service.Move(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0).IsSuccess,
                 PlayerCommandKind.Strike => service.Strike(world, record.PlayerId, new NpcId(record.TargetId!.Value)).IsSuccess,
+                PlayerCommandKind.Persuade => service.Persuade(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.TickDelta => service.SetTickDelta(world, record.PlayerId, record.DeltaMs!.Value).IsSuccess,
                 _ => service.Logout(world, record.PlayerId).IsSuccess,
             };

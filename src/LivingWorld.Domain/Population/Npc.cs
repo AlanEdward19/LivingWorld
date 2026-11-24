@@ -147,6 +147,28 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CaptiveMind? Captive { get; private set; }
 
+    /// <summary>AD-197f: a disputa de vontade da posse comum (e o cansaço que fica depois dela); nulo = nunca disputou. Omitido
+    /// enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WillContest? Will { get; private set; }
+
+    public void SetWill(WillContest? will)
+    {
+        Will = will;
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197f: a vontade expulsou o controlador: o corpo volta à pessoa, que não some (ela está ali).</summary>
+    public void ReleaseController()
+    {
+        ControllerId = null;
+        ControlledAction = null;
+        ControlledPowerId = null;
+        ControlMode = null;
+        Captive = null;
+        TouchCanonical();
+    }
+
     /// <summary>AD-197e: posse plena começa (a pessoa fica presa) ou volta a comum.</summary>
     public void SetPossession(PossessionMode mode, long tick)
     {
@@ -533,7 +555,7 @@ public sealed class Npc
         LivingWorld.Domain.Cognition.BrainState? brain = null,
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
-        PossessionMode? controlMode = null, CaptiveMind? captive = null)
+        PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -575,6 +597,7 @@ public sealed class Npc
         PresumedDeadAtTick = presumedDeadAtTick;
         ControlMode = controlMode;
         Captive = captive;
+        Will = will;
         Development = development;
         NativeLanguage = nativeLanguage;
         Appearance = appearance;

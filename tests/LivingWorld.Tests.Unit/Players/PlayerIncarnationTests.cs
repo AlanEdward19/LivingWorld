@@ -54,6 +54,8 @@ public class PlayerIncarnationTests
         var after = NpcJson(npc);
         Assert.Equal("alan", after["ControllerId"]!.GetValue<string>());
         after.Remove("ControllerId");
+        Assert.NotNull(after["Will"]); // AD-197f: a posse comum começa a disputa de vontade da pessoa (estado real dela)
+        after.Remove("Will");
         Assert.Equal(before.ToJsonString(), after.ToJsonString());
     }
 

@@ -115,6 +115,7 @@ public static partial class ScenarioRunner
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
         new PlayerSearchSystem(),
+        new PossessionSystem(), // AD-197f: a disputa de vontade da posse comum (só eventos agendados)
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

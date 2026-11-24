@@ -388,4 +388,16 @@ public enum WorldEventKind
     /// <summary>Quem estava desaparecido voltou (AD-196): o jogador voltou a encarná-lo ou o motor o reassumiu — payload:
     /// <c>npcId|diasSumido|vinculosQueReagiram|como</c> (como: jogador, pool).</summary>
     Returned,
+
+    /// <summary>A vontade da pessoa expulsou quem a possuía (AD-197f) — payload: <c>npcId|horasDePosse|resistência|controle</c>.</summary>
+    PossessionExpelled,
+
+    /// <summary>Alguém estranhou a conduta de uma pessoa e comentou (AD-197f) — payload: <c>observadorId|corpoId|estranhamento</c>.</summary>
+    PossessionSuspected,
+
+    /// <summary>Alguém concluiu que uma pessoa está possuída (crença, não verdade; AD-197f) — payload: <c>observadorId|corpoId|estranhamento</c>.</summary>
+    PossessionConcluded,
+
+    /// <summary>Quem concluiu reagiu (AD-197f) — payload: <c>observadorId|corpoId|como</c> (como: apoio, vigilia, ataque).</summary>
+    PossessionConfronted,
 }

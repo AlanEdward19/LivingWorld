@@ -350,6 +350,9 @@ public static class WorldSnapshot
         rehydrated.RestoreCredit( // AD-155: ausente = nunca houve crédito
             node.TryGetPropertyValue("Credit", out var creditNode) && creditNode is not null
                 ? creditNode.Deserialize<LivingWorld.Simulation.Economy.Credit.CreditLedger>(JsonOptions) : null);
+        rehydrated.RestorePossession( // AD-197f: ausente = ninguém estranhou ninguém
+            node.TryGetPropertyValue("Possession", out var possessionNode) && possessionNode is not null
+                ? possessionNode.Deserialize<LivingWorld.Simulation.Players.PossessionLedger>(JsonOptions) : null);
         rehydrated.UsePlayers( // AD-196: ausente = regras padrão do jogador
             node.TryGetPropertyValue("PlayerRules", out var playerRulesNode) && playerRulesNode is not null
                 ? playerRulesNode.Deserialize<LivingWorld.Domain.Population.PlayerRules>(JsonOptions) : null);

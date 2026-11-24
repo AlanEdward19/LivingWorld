@@ -122,6 +122,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
                 continue;
             }
+            // AD-197f: a disputa de vontade da posse comum é checada quando o possuído desperta (sem evento agendado)
+            if (npc.Will is { Controlled: true }) LivingWorld.Simulation.Players.PossessionContest.OnWake(world, ctx, npc, now);
             bool possessed = ControlMechanic.IsPossessed(world, npc);
             if (!possessed)
                 EvaluateProfessionSwitch(world, ctx, npc, laborIndex, stage);

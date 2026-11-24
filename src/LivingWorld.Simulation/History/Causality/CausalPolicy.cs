@@ -84,6 +84,8 @@ public static class CausalPolicy
         WorldEventKind.AuthoredImmigration, WorldEventKind.AuthoredWorkplaceFounded,
         WorldEventKind.PlayerIncarnated, WorldEventKind.PlayerDisappeared,
         WorldEventKind.Returned, // AD-196: a volta é decisão de quem conduz (o jogador ou o motor que o reassume)
+        WorldEventKind.PossessionExpelled, WorldEventKind.PossessionSuspected, WorldEventKind.PossessionConcluded, // AD-197f: a conduta e a vontade
+        WorldEventKind.PossessionConfronted,
     ];
 
     private static readonly FrozenDictionary<WorldEventKind, CausalRole> Roles = Build();

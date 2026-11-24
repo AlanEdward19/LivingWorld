@@ -47,6 +47,7 @@ public sealed class PlayerCommandGateway(
                     _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Strike => Map(players.Strike(world, playerId, new NpcId(command.NpcId ?? -1)),
                     _ => new { playerId, targetId = command.NpcId }),
+                PlayerCommandKind.Persuade => Map(players.Persuade(world, playerId), _ => new { playerId }),
                 PlayerCommandKind.Act => Map(players.Act(world, playerId, command.Action, command.PowerId),
                     _ => new { playerId, Action = command.Action?.ToString() }),
                 _ => Map(players.Logout(world, playerId),

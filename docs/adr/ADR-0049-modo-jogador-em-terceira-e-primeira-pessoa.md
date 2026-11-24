@@ -43,6 +43,9 @@ setas, pode interagir com as coisas, bater com clique"; e, no mesmo dia, que com
    possui pode entrar na mente dela, vê-la, falar com ela e ouvir o pensamento dela no chat (só ele ouve). Sem admin ("posse
    comum") ela recusa ordens específicas contra o que valoriza muito (ex.: ferir a família de quem ela gosta muito).
 4. O sono acelerado é interrompido por golpe, fogo, fome/sede crítica e alguém chamando (AD-197c).
+5. (AD-197f) A posse comum é disputa de vontade: a pessoa recusa também o que vai contra os valores dela (limiar 60), cansa,
+   pode ser persuadida, expulsar ou impedir a posse; quem convive estranha a conduta, conclui e reage, nada fixo
+   (`.specs/features/player-possession/design.md`).
 
 ## Alternativas consideradas
 - **Manter isométrica com clique-para-andar** — rejeitada pelo dono.
