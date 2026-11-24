@@ -94,7 +94,7 @@ public class EventSchedulerTests
         const int n = 100_000;
         var scheduler = new EventScheduler();
         for (int id = n; id >= 1; id--) // ids em ordem inversa: a inserção ordena
-            scheduler.Schedule(new ScheduledEvent(id, TargetMs: id, SystemName: "sys"));
+            scheduler.Schedule(new ScheduledEvent(id, TargetMs: LivingWorld.Domain.Shared.WorldMillis.FromHours(id), SystemName: "sys")); // uma hora por evento, como os 100.000 ticks de antes
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
         int cancelled = 0;
