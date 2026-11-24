@@ -274,6 +274,13 @@ func update_fade(hovered: Dictionary) -> void:
 	if app.stage.active or app.store.kind != "City":
 		app.world_view.buildings.set_faded({})
 		return
+	if app.rig.mode != app.rig.ISO: # AD-197s: encarnado, quem cobre o corpo é a conta do braço de mola (não a das ortográficas, que apagava a dela)
+		var seen: Dictionary = app.rig.seen_ids()
+		if app.reading != null:
+			seen = seen.duplicate()
+			seen.merge(app.reading.pushed)
+		app.world_view.buildings.set_faded(seen)
+		return
 	var camera: Camera3D = app.rig.camera
 	var view_dir := -camera.global_transform.basis.z if camera.is_inside_tree() else Vector3(-0.5, -0.7, -0.5).normalized()
 	var covering: Dictionary = app.world_view.buildings.occluders(focus_points(hovered), view_dir)

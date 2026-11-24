@@ -7,6 +7,7 @@ extends Node3D
 signal scope_requested(kind: String, ref_id: String)
 signal mode_changed(mode: String) ## AD-197j: o app mostra a mira no centro e solta o cursor ao voltar à isométrica
 signal see_through(ids: Dictionary) ## AD-197p: prédios entre a câmera da 3ª pessoa e o corpo (o app os deixa translúcidos)
+signal opened(ids: Dictionary) ## AD-197s: prédios em que o corpo está (o telhado some de vez; a câmera olha de cima)
 
 const Grid := preload("res://Scenes/grid.gd")
 
@@ -23,6 +24,11 @@ const SHOULDER_M := 0.3 ## a 3ª pessoa mira um pouco acima do ombro: olho + ist
 const MIN_PITCH := deg_to_rad(-70.0)
 const MAX_PITCH := deg_to_rad(35.0)
 const LOOK_SPEED := 0.004 ## rad por pixel do mouse
+const NEAR_THIRD := 0.05
+const NEAR_FIRST := 0.1 ## AD-197s: ~ raio da cabeça (0,15 m): nada mais perto que isto atravessa o olho
+const EYE_CLEAR := 0.12 ## e o olho não chega mais perto que isto de uma parede por fora (unidades)
+const AWAIT_LIFT := 8.0 ## AD-197s: sem corpo para seguir (a pessoa nova chega no próximo delta) a 3ª pessoa fica no alto, nunca dentro de um prédio
+const MAX_DOWN := deg_to_rad(-83.0) ## AD-197s: olhando o corpo de cima, a câmera nunca passa da vertical
 
 var mode := ISO
 var pitch := deg_to_rad(-15.0) ## olhar do jogador (só 1ª/3ª pessoa)
@@ -49,6 +55,8 @@ var arm := THIRD_DISTANCE
 var lift := 0.0 ## AD-197r: quanto a 3ª pessoa sobe (olhando o corpo de cima) quando o caminho para trás está fechado
 var shoulder := 0.0 ## e quanto passa a ombro (deslocamento lateral), em unidades
 var _see_through: Dictionary = {}
+var _opened: Dictionary = {}
+var _snap := true ## AD-197s: o próximo enquadramento vai direto ao plano (corpo novo, modo novo): nenhum quadro na posição velha
 var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
 var camera: Camera3D
 var following: Node3D = null
@@ -79,12 +87,13 @@ func _apply() -> void:
 		return
 	_pivot.rotation = Vector3(pitch, 0, 0)
 	if mode == THIRD:
-		_pivot.position = Vector3(0, eye_height() + shoulder_height() + lift, 0)
+		var up := lift if following != null and is_instance_valid(following) else maxf(lift, AWAIT_LIFT)
+		_pivot.position = Vector3(0, eye_height() + shoulder_height() + up, 0)
 		camera.position = Vector3(shoulder, 0, arm)
-		camera.rotation = Vector3(-atan2(lift, maxf(arm, 0.01)), 0, 0) # sobe olhando para o corpo, sem mudar para onde o mouse olha
+		camera.rotation = Vector3(maxf(-atan2(up, maxf(arm, 0.01)), MAX_DOWN - pitch), 0, 0) # sobe olhando para o corpo, sem passar da vertical
 	else:
 		_pivot.position = Vector3(0, eye_height(), 0)
-		camera.position = Vector3.ZERO
+		camera.position = eye_push
 		camera.rotation = Vector3.ZERO
 
 
@@ -118,6 +127,9 @@ func set_mode(value: String) -> void:
 		if not _see_through.is_empty():
 			_see_through = {}
 			see_through.emit({})
+		if not _opened.is_empty():
+			_opened = {}
+			opened.emit({})
 		set_cursor_captured(false)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.position = Vector3(0, 0, 80)
@@ -128,12 +140,22 @@ func set_mode(value: String) -> void:
 		set_cursor_captured(true) # AD-197k (emenda do dono ao ADR-0051): o mouse olha só de mexer, sem botão
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		camera.fov = 70.0
-		camera.near = 0.05
+		camera.near = NEAR_FIRST if mode == FIRST else NEAR_THIRD
 		pitch = clampf(pitch, MIN_PITCH, MAX_PITCH)
+		_snap = true
+		eye_push = Vector3.ZERO
+		if mode == THIRD:
+			arm = THIRD_DISTANCE
+			lift = 0.0
+			shoulder = 0.0
+		if following != null and is_instance_valid(following):
+			target = following.position
+			_settle()
 	_apply()
 	mode_changed.emit(mode)
 
 
+var eye_push := Vector3.ZERO ## AD-197s: na 1ª pessoa, o quanto o olho recua para não encostar na parede (espaço do pivô)
 var cursor_captured := false ## AD-197k: preso ao entrar no modo jogador (o mouse olha sem botão); Z solta e prende de novo
 
 
@@ -232,6 +254,11 @@ func set_zoom(size: float) -> void:
 
 func follow(node: Node3D) -> void:
 	following = node
+	if node != null and mode != ISO: # AD-197s: corpo novo (encarnou, chegou no delta): vai direto ao enquadramento, sem quadro na posição velha
+		target = node.position
+		_snap = true
+		_settle()
+		_apply()
 
 
 func release() -> void:
@@ -249,14 +276,28 @@ func _process(delta: float) -> void:
 	if following != null and is_instance_valid(following):
 		# no modo do jogador a câmera cola no corpo (o corpo já anda suave pela previsão); na isométrica, segue devagar
 		target = following.position if mode != ISO else target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
-		if mode == THIRD:
-			_spring_arm(delta)
+		_settle(delta)
 		_apply()
 
 
-## AD-197p/197r: a 3ª pessoa escolhe o primeiro enquadramento livre (reto atrás; mais alto; mais alto e a ombro); sem nenhum livre,
-## fica o de caminho mais longo, sempre subindo para olhar o corpo de cima. O que ainda cobrir o corpo fica translúcido.
-## Só as caixas desenhadas dos prédios; quem tem o olho dentro (o corpo dentro de casa) não conta.
+## Prédios que cobrem o corpo agora (a conta da 3ª pessoa); o app os deixa translúcidos a cada quadro.
+func seen_ids() -> Dictionary:
+	return _see_through
+
+
+## Enquadramento do modo do jogador a cada quadro: 3ª pessoa (braço de mola) ou 1ª (olho afastado da parede). `delta` 0 = ir direto.
+func _settle(delta: float = 0.0) -> void:
+	if mode == THIRD:
+		_spring_arm(delta)
+	elif mode == FIRST and blockers.is_valid():
+		var eye := target + Vector3(0, eye_height(), 0)
+		var pushed := push_out(eye, blockers.call())
+		eye_push = (Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)).inverse() * (pushed - eye)
+
+
+## AD-197p/197r/197s: a 3ª pessoa escolhe o primeiro enquadramento livre (reto atrás; mais alto; mais alto e a ombro); sem nenhum livre,
+## fica o de caminho mais longo, sempre subindo para olhar o corpo de cima. Com o corpo dentro de um prédio, a câmera sobe para
+## fora dele (acima do telhado) e o prédio abre. O que ainda cobrir o corpo fica translúcido.
 func _spring_arm(delta: float) -> void:
 	if not blockers.is_valid():
 		return
@@ -264,14 +305,25 @@ func _spring_arm(delta: float) -> void:
 	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
 	var plan := plan_third(eye, yaw, pitch, THIRD_DISTANCE, boxes, body_scale())
 	var free: float = plan.arm
-	arm = free if free < arm else minf(free, arm + (THIRD_DISTANCE - MIN_ARM) * ARM_RETURN * delta)
-	var blend := clampf(delta * 8.0, 0.0, 1.0)
-	lift = lerpf(lift, plan.lift, blend)
-	shoulder = lerpf(shoulder, plan.shoulder, blend)
-	var seen := covering(third_spot(eye), target + Vector3(0, eye_height() * 0.55, 0), boxes)
+	if _snap:
+		_snap = false
+		arm = free
+		lift = plan.lift
+		shoulder = plan.shoulder
+	else:
+		arm = free if free < arm else minf(free, arm + (THIRD_DISTANCE - MIN_ARM) * ARM_RETURN * delta)
+		var blend := clampf(delta * 8.0, 0.0, 1.0)
+		lift = lerpf(lift, plan.lift, blend)
+		shoulder = lerpf(shoulder, plan.shoulder, blend)
+	var body_center := target + Vector3(0, eye_height() * 0.55, 0)
+	var seen := covering(third_spot(eye), body_center, boxes)
 	if seen != _see_through:
 		_see_through = seen
 		see_through.emit(seen)
+	var within := containing(body_center, boxes)
+	if within != _opened:
+		_opened = within
+		opened.emit(within)
 
 
 ## Onde a câmera da 3ª pessoa está agora (mundo): do olho, sobe `lift`, passa `shoulder` à direita e recua `arm` pelo olhar.
@@ -293,8 +345,18 @@ static func third_options(scale: float) -> Array:
 
 ## Escolhe {arm, lift, shoulder} da 3ª pessoa: o primeiro enquadramento com caminho livre >= COMFORT do braço cheio e câmera fora de
 ## qualquer caixa; senão o de maior caminho (empate: o menos deslocado), com a subida mínima de quem ficou colado ao corpo.
+## Cada entrada de `boxes` é [id, caixa] ou [id, caixa, casca]: a caixa diz onde o corpo está; a casca (caixa + beiral e cumeeira do
+## telhado) é o que a câmera não pode tocar. Corpo dentro de um prédio: câmera acima da casca (AD-197s), nunca dentro das paredes.
 static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0) -> Dictionary:
 	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
+	var room := roof_lift(eye, boxes)
+	if room > 0.0: # por cima do telhado e um pouco atrás (olhar inclinado, não a prumo), enquanto o ponto estiver livre de casca
+		var arm := MIN_ARM
+		for reach in [length * 0.5, 1.0]:
+			if not inside_any(eye + Vector3(0, room, 0) + back * reach, boxes):
+				arm = reach
+				break
+		return {"arm": arm, "lift": room, "shoulder": 0.0}
 	var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
 	var best := {"arm": -1.0, "lift": 0.0, "shoulder": 0.0}
 	for option in third_options(scale):
@@ -311,19 +373,42 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 	return best
 
 
-static func inside_any(point: Vector3, boxes: Array) -> bool:
+## Quanto subir (sobre o olho) para a câmera ficar acima da casca do prédio em que o olho está; 0 se o olho não está em prédio.
+static func roof_lift(eye: Vector3, boxes: Array) -> float:
+	var need := 0.0
+	for entry in boxes:
+		if (entry[1] as AABB).has_point(eye):
+			need = maxf(need, shell_of(entry).end.y + ARM_MARGIN - eye.y)
+	return need
+
+
+## A casca de uma entrada: a 3ª coluna se houver, senão a própria caixa.
+static func shell_of(entry: Array) -> AABB:
+	return entry[2] if entry.size() > 2 else entry[1]
+
+
+## Ids dos prédios (caixa) que contêm o ponto: o corpo está dentro deles.
+static func containing(point: Vector3, boxes: Array) -> Dictionary:
+	var out := {}
 	for entry in boxes:
 		if (entry[1] as AABB).has_point(point):
+			out[entry[0]] = true
+	return out
+
+
+static func inside_any(point: Vector3, boxes: Array) -> bool:
+	for entry in boxes:
+		if shell_of(entry).has_point(point):
 			return true
 	return false
 
 
-## Comprimento livre do braço: até a primeira caixa que o segmento olho → câmera cruza, menos uma folga; nunca menos que MIN_ARM.
+## Comprimento livre do braço: até a primeira casca que o segmento olho → câmera cruza, menos uma folga; nunca menos que MIN_ARM.
 static func free_arm(eye: Vector3, back: Vector3, length: float, boxes: Array) -> float:
 	var best := length
 	var far := eye + back * length
 	for entry in boxes:
-		var box: AABB = entry[1]
+		var box := shell_of(entry)
 		if box.has_point(eye):
 			continue
 		var hit = box.intersects_segment(eye, far)
@@ -332,13 +417,37 @@ static func free_arm(eye: Vector3, back: Vector3, length: float, boxes: Array) -
 	return clampf(best, MIN_ARM, length)
 
 
+## AD-197s: o olho da 1ª pessoa fora de um prédio não chega a EYE_CLEAR da parede: sai pelo lado mais próximo (dentro, não mexe).
+static func push_out(eye: Vector3, boxes: Array) -> Vector3:
+	var at := eye
+	for entry in boxes:
+		var box: AABB = entry[1]
+		if box.has_point(at) or at.y > box.end.y or at.y < box.position.y:
+			continue
+		var wide := AABB(box.position - Vector3(EYE_CLEAR, 0, EYE_CLEAR), box.size + Vector3(EYE_CLEAR * 2.0, 0, EYE_CLEAR * 2.0))
+		if not wide.has_point(at):
+			continue
+		var gaps := [at.x - box.position.x, box.end.x - at.x, at.z - box.position.z, box.end.z - at.z]
+		var side := 0 # a face de que o olho está por fora: a de menor folga (negativa)
+		for k in 4:
+			if gaps[k] < gaps[side]:
+				side = k
+		match side:
+			0: at.x = box.position.x - EYE_CLEAR
+			1: at.x = box.end.x + EYE_CLEAR
+			2: at.z = box.position.z - EYE_CLEAR
+			_: at.z = box.end.z + EYE_CLEAR
+	return at
+
+
 ## Prédios cujas caixas cortam a linha da câmera ao corpo (ids, para a translucidez).
 static func covering(from: Vector3, body: Vector3, boxes: Array) -> Dictionary:
 	var out := {}
 	for entry in boxes:
 		var box: AABB = entry[1]
+		var shell := shell_of(entry) # o beiral e a cumeeira também cobrem
 		# o prédio em que o corpo está (ou em que a câmera ficou) também abre: de dentro, a parede e o telhado cobririam tudo
-		if box.has_point(body) or box.has_point(from) or box.intersects_segment(from, body) != null:
+		if box.has_point(body) or shell.has_point(from) or shell.intersects_segment(from, body) != null:
 			out[entry[0]] = true
 	return out
 

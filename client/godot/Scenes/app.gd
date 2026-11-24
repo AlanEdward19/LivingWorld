@@ -595,10 +595,13 @@ func _on_created(id: int, name: String, city_id: String) -> void:
 func _drive(id: int) -> void:
 	selected_npc = id
 	follow(Registry.ref(Registry.PERSON, id))
+	# AD-197s: a pessoa recém-materializada só chega ao desenho no próximo delta: até lá a câmera do jogador fica no alto (sem corpo não
+	# há enquadramento), e `follow_director` a prende ao corpo, já no enquadramento certo, no quadro em que ele chegar
 	var body = world_view.npc_nodes.get(id)
 	if body != null:
 		body.driven = true
 		body.set_self(true) # AD-197p: sem nome, ação nem anel sobre o próprio corpo
+		rig.follow(body) # já com o corpo na mão: o enquadramento nasce nele
 	rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
 	var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
 	if detail.ok and detail.body is Dictionary:
@@ -623,6 +626,7 @@ func _on_player_fine(at: Vector2) -> void:
 	if node != null:
 		if not node.driven:
 			node.set_self(true) # AD-197q: a pessoa nova chega ao desenho depois de entrar (corpo materializado agora)
+			node.set_first_person(rig.mode == rig.FIRST) # AD-197s: e a própria cabeça some se já está na 1ª pessoa
 		node.driven = true
 		node.set_fine(at)
 
@@ -750,14 +754,15 @@ func camera_blockers() -> Array:
 		return out
 	var near: Vector3 = rig.target
 	for id in world_view.buildings.nodes:
-		var box: AABB = world_view.buildings.nodes[id].get_meta("box", AABB())
+		var node: Node = world_view.buildings.nodes[id]
+		var box: AABB = node.get_meta("box", AABB())
 		if box.size == Vector3.ZERO:
 			continue
 		var center := box.get_center()
 		var reach: float = rig.THIRD_DISTANCE + box.size.length() * 0.5 + 1.0
 		if absf(center.x - near.x) > reach or absf(center.z - near.z) > reach:
 			continue
-		out.append([id, box])
+		out.append([id, box, node.get_meta("shell", box.grow(0.2))]) # AD-197s: [id, caixa (onde o corpo está), casca (o que a câmera não toca)]
 	return out
 
 

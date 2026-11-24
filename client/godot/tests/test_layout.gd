@@ -73,6 +73,35 @@ func test_a_building_covering_the_selected_person_turns_translucent_and_back() -
 	app.queue_free()
 
 
+## AD-197s: encarnado, a translucidez é a do braço de mola; a conta ortográfica do espectador (que ignora o prédio em que o corpo está)
+## rodava a cada quadro e apagava a dela: o prédio do corpo ficava opaco na cara da câmera.
+func test_embodied_person_inside_a_building_keeps_it_open_every_frame() -> void:
+	var app = await T.make_app(tree, O.transport())
+	await app.enter_scope("City", "city-a")
+	await app.select_npc(7)
+	var ana: Node3D = app.world_view.npc_nodes[7]
+	var box: AABB = app.world_view.building_nodes[4].get_meta("box")
+	ana.position = Vector3(box.get_center().x, 0.0, box.get_center().z)
+	app.rig.set_mode(app.rig.THIRD)
+	app.rig.follow(ana)
+	for i in 3:
+		app.rig._process(0.016)
+		app.selection.update_fade({}) # o app chama isto todo quadro
+	check(app.world_view.buildings.is_faded(4), "o prédio do corpo continua aberto depois da conta do espectador")
+	check(app.world_view.buildings.opened.has(4), "e o telhado abre")
+	var roof: GeometryInstance3D = app.world_view.building_nodes[4].find_children("Roof*", "GeometryInstance3D", true, false)[0]
+	check(roof.transparency >= app.world_view.buildings.ROOF_OPEN - 0.001, "o telhado quase some (%s)" % roof.transparency)
+	# a pessoa nova muda o estado do prédio: ele é redesenhado e a translucidez e o telhado aberto têm de sobreviver ao desenho novo
+	app.world_view.buildings.upsert(app.store.buildings[4], {"function": "forge", "closed": true})
+	var redrawn: GeometryInstance3D = app.world_view.building_nodes[4].find_children("Roof*", "GeometryInstance3D", true, false)[0]
+	check(app.world_view.buildings.is_faded(4) and redrawn.transparency >= app.world_view.buildings.ROOF_OPEN - 0.001, "redesenhado, o prédio segue aberto (%s)" % redrawn.transparency)
+	app.rig.set_mode(app.rig.ISO)
+	app.selection.update_fade({})
+	check(not app.world_view.buildings.is_faded(4), "ao sair do personagem, volta ao normal")
+	eq(redrawn.transparency, 0.0)
+	app.queue_free()
+
+
 func test_croft_only_where_the_engine_sent_one_and_party_walls_have_no_gap() -> void:
 	# AD-177: quintal só com `lot.croft`; casa sem quintal e em parede-meia desenhadas como são (nada entre elas)
 	var store := Store.new()
