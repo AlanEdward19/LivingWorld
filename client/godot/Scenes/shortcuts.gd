@@ -4,6 +4,8 @@ extends RefCounted
 ## Esc pula as dicas ou fecha a ajuda; depois fecha a janela da frente, a conversa e sai do prédio; sem nada aberto,
 ## abre (ou fecha) o menu de pausa. Sair da cidade: botão "◀ Mapa do mundo" ou afastar a câmera.
 static func escape(app) -> void:
+	if app.rig != null and app.rig.cursor_captured: # AD-197k: Esc solta o cursor antes de qualquer menu
+		app.rig.set_cursor_captured(false)
 	if app.first_steps != null and app.first_steps.handle_escape():
 		return
 	if app.pause_menu != null and app.pause_menu.is_open():

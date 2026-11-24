@@ -218,6 +218,12 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 	return _checked("/players/move", {"status": response.status, "body": response.body}, "")
 
 
+## AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para); a resposta é a pose com a posição fina e a velocidade.
+func player_walk(player_id: String, dx: int, dy: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "walk", "dx": dx, "dy": dy}, "POST", "/players/%s/walk" % player_id.uri_encode(), {"dx": dx, "dy": dy})
+	return _checked("/players/walk", {"status": response.status, "body": response.body}, "")
+
+
 ## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.
 func player_strike(player_id: String, npc_id: int) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "strike", "npcId": npc_id}, "POST", "/players/%s/strike" % player_id.uri_encode(), {"npcId": npc_id})

@@ -2457,6 +2457,38 @@
         ]
       }
     },
+    "/players/{playerId}/walk": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/sessions": {
       "post": {
         "responses": {

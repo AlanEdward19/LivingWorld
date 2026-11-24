@@ -14,13 +14,13 @@ possuída são recusadas. Regra do projeto: o cliente só desenha o que o motor 
 ## Decisão
 1. **Câmera** (emenda o ADR-0047 só para quem tem personagem encarnado): ao encarnar, perspectiva em **3ª pessoa** (4,5 células
    atrás, olhos a 1,6), **C** alterna para a **1ª pessoa** e volta; o **mouse olha só de mexer, sem apertar botão** (cursor
-   preso no modo jogador; uma tecla solta o cursor para os menus), inclinação limitada a −70°..35°. Sair do personagem volta à isométrica. Espectador e admin não mudam.
+   preso no modo jogador; **Z** solta o cursor para os menus e prende de novo, AD-197k), inclinação limitada a −70°..35°. Sair do personagem volta à isométrica. Espectador e admin não mudam.
 2. **Andar**: WASD/setas relativos ao olhar da câmera, nas 8 direções da grade, como **intenção** `move {dx, dy}` pelo canal
    persistente (ADR-0048). O motor valida o chão (`PlayerGround`): dentro do mapa, sem parede (planta de cada prédio na grade do
    mundo), entre fora e dentro **só pela porta** (da soleira), sem gente na célula (pela pose: o viajante no ponto da rota, quem
    está num prédio na célula em que o motor o pôs), sem cortar canto de parede. Andar é tomar o rumo: a viagem do motor para e,
    sem ação pedida, o corpo fica à toa. O cliente **prevê** o passo e **corrige** pela posição que o motor responde; recusa volta.
-   Segurar a tecla anda um passo a cada 0,35 s (o motor ainda não limita a velocidade pelo corpo: issue).
+   AD-197k: o passo solto (`walk`) anda em frações de célula à velocidade do corpo; o `move` de uma célula segue valendo.
 3. **Interagir (E)**: o motor diz o que o corpo alcança (`reach` no canal, `GET /players/{playerId}/reach`): porta (entrar/sair),
    despensa da casa (pegar/guardar, pelas mãos e pelo estoque reais), banca (comprar/vender pela troca de mercado de sempre), cama
    (dormir), pessoa (conversar, bater e, com o filho dependente, abandonar), a própria casa (vender). O cliente mostra **só** isso;

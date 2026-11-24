@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
@@ -32,6 +33,7 @@ public static partial class PlayerInteractions
             if (floor > 0) verbs.Add("down");
             if (verbs.Count > 0) offers.Add(Offer("stairs", stair.Building.Id.Value, "", verbs, at));
         }
+        ObjectOffers(world, npc, at, inside, household, offers);
         if (floor > 0) return; // fonte, lavoura, espólio e casas alheias são do térreo
 
         bool steal = CanSteal(world, npc);
@@ -54,6 +56,18 @@ public static partial class PlayerInteractions
             if (verbs.Count > 0) offers.Add(Offer("field", farm.Id.Value, "", verbs, farm.Location, stock));
         }
 
+        // AD-197k: oficina sem preço (ferraria, olaria): trabalhar nela, ou furtar o que ela guarda (o furto de sempre)
+        foreach (var shop in world.Workplaces.OrderBy(w => w.Id.Value))
+        {
+            if (shop.Prices.Count > 0 || shop.LocationType.Id == Economy.Production.CropSystem.DefaultFarmLocationTypeId
+                || !Near(at, inside, shop.Location, shop.Building)) continue;
+            var stock = shop.Stock.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key.Id).Select(kv => new InteractionResource(kv.Key.Id, kv.Value, 0)).ToList();
+            var verbs = new List<string>();
+            if (npc.Employer == shop.Id) verbs.Add("work");
+            if (steal && Outsider(npc, shop) && stock.Count > 0) verbs.Add("steal");
+            if (verbs.Count > 0) offers.Add(Offer("workshop", shop.Id.Value, "", verbs, shop.Location, stock));
+        }
+
         if (WaterFetch.On(world))
             for (int dy = -1; dy <= 1; dy++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -73,6 +87,33 @@ public static partial class PlayerInteractions
                 if (Leavings.ClaimKind(world, leaving, npc) is not null) offers.Add(Offer("leaving", leaving.Id, "", ["collect"], cell));
                 else if (steal) offers.Add(Offer("leaving", leaving.Id, "", ["steal"], cell));
             }
+    }
+
+    /// <summary>AD-197k: a mobília do prédio onde o corpo está (a casa dele ou a oficina em que trabalha), pelo catálogo de objetos
+    /// (<see cref="Objects.ObjectUse"/>): cada objeto com ponto de uso para uma ação que o jogador pode pedir e que o corpo pode usar.
+    /// Usar é pedir essa ação ali; o motor resolve com o efeito do objeto, como para qualquer NPC. Id = prédio × 1000 + posição na mobília.</summary>
+    private static void ObjectOffers(WorldState world, Npc npc, CellCoord at, BuildingId? inside, Household? household, List<InteractionOffer> offers)
+    {
+        if (world.ObjectCatalog is not { } catalog || inside is not { } here || world.FindBuilding(here) is not { } building) return;
+        bool mine = household?.Dwelling == here || (npc.Employer is { } e && world.FindWorkplace(e)?.Building == here);
+        if (!mine) return;
+        var furnishing = catalog.FurnishingFor(building.BuildingTypeId);
+        for (int i = 0; i < furnishing.Count; i++)
+        {
+            if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
+            var verbs = descriptor.UsePoints.Where(p => p.Action is int a && PlayerCommands.Choosable.Contains((ActionType)a)
+                    && (ActionType)a != ActionType.UsePower && Objects.ObjectUse.Allows(descriptor, (ActionType)a, npc))
+                .Select(p => ((ActionType)p.Action!.Value).ToString().ToLowerInvariant()).Distinct().ToList();
+            if (verbs.Count > 0) offers.Add(Offer("object", here.Value * 1000 + i, descriptor.Id, verbs, at));
+        }
+    }
+
+    /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>
+    private static Result<InteractionResult> Use(WorldState world, Npc npc, InteractionOffer offer, string verb)
+    {
+        if (!Enum.TryParse<ActionType>(verb, ignoreCase: true, out var action)) return Fail("interact: ação desconhecida");
+        var asked = PlayerCommands.Act(world, npc.Id, npc.ControllerId!, action);
+        return asked.IsSuccess ? Done(offer, verb, 0, 0) : Fail(asked.Error!);
     }
 
     /// <summary>Uma célula como id de oferta (x na parte alta, y na baixa).</summary>

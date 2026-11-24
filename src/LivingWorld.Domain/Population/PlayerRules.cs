@@ -89,6 +89,22 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? TiredBelow { get; init; }
 
+    /// <summary>AD-197k: passo solto de um adulto descansado em chão plano (m/s); a mesma conta de corpo, carga e chão o escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? WalkMetersPerSecond { get; init; }
+
+    /// <summary>AD-197k: metros de uma célula para o passo solto (a escala do desenho: uma pessoa tem pouco mais de uma célula).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? CellMeters { get; init; }
+
+    /// <summary>AD-197k: até quanto tempo de mundo (ms) um rumo vale sem novo comando (o cliente manda o rumo a cada ~100 ms).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? WalkHoldMs { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? 1.4;
+    [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? 1.5;
+    [System.Text.Json.Serialization.JsonIgnore] public int WalkHold => WalkHoldMs ?? 300;
+
     [System.Text.Json.Serialization.JsonIgnore] public bool PaceOn => BodyPace ?? true;
     [System.Text.Json.Serialization.JsonIgnore] public double StepSleep => StepSleepPerHour ?? 3.0;
     [System.Text.Json.Serialization.JsonIgnore] public double Tired => TiredBelow ?? 50.0;
