@@ -28,9 +28,12 @@ o registro do jogador (`TickDelta`), como na AD-197b. `/simulation/status` traz 
   ação e chegada de viagem comparam em ms (`Underway`), o que na hora cheia é a conta de antes.
 - **Despertar em ms** (`NpcWakeScheduler.ComputeNextWakeMs`): fim de ação e chegada no instante exato, necessidade no instante em
   que cruza o limiar, virada da rotina na hora cheia, atrasado = +1 h (a cadência de antes).
-- **Rota**: `TravelPose.CellAt(npc, ms)` dá a célula do viajante pela fração do tempo entre saída e chegada, ao longo da rota real
-  (`StreetRoutes.PathOf`); calculada, não guardada (ADR-0050, decisão 2). Consumidor: o alcance do golpe do jogador
-  (`TravelPose.Reach`), e o cliente anda o boneco pela mesma rota e pelos mesmos instantes.
+- **Viagem e ação em ms** (AD-197h): `Mobility.TravelMs` (o caminho sem arredondar para a hora: um trajeto curto leva minutos) e
+  `ObjectUse.DurationMs` decidem a conclusão e o despertar; de hora em hora seguem `TravelTicks`/`DurationHours`.
+- **Rota e pose** (AD-197h): ao decidir, o viajante grava a perna (`Npc.TravelLegTo`, `TravelLegEndMs`, fora do JSON de hora em
+  hora). A cada tick fino o relógio põe a pose de cada viajante (`TravelPose.Refresh`: fração do tempo ao longo da rota real,
+  caminho guardado por par) no índice dos vivos, e `AliveNpcIndex.At` o conta na célula do caminho, não na origem: percepção,
+  testemunha (`Justice`), encontro (crime, companhia, ensino) e o alcance do golpe o veem lá. `CurrentLocation` segue a origem.
 - **Agendador**: evento que vence dentro da hora fica numa árvore por (instante, Id) da sua hora (O(log k)); o da hora cheia segue na
   lista. A fila de despertar guarda o piso do instante mais cedo fora da hora cheia de cada balde.
 - **Tocado pelo jogador acorda já**: `Act` acorda o corpo conduzido e o golpe acorda o alvo no próximo tick fino.

@@ -148,13 +148,18 @@ public static class NpcWakeScheduler
         {
             // AD-197c: a chegada e o fim da ação caem no instante certo (a fase da hora em que a viagem saiu)
             long? arrivalMs = travelArrivalTick is { } arrival ? arrival * WorldMillis.PerHour + npc.ActionPhaseMs : null;
-            world.ReplaceNpcWakeAtMs(npc.Id.Value,
-                ComputeNextWakeMs(npc, needsRules, catalog, world.CurrentDate.TotalMilliseconds, world, arrivalMs, lifeStage));
+            RescheduleAtMs(world, npc, needsRules, catalog, arrivalMs, lifeStage);
             return;
         }
         ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(
             npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick, lifeStage: lifeStage));
     }
+
+    /// <summary>AD-197h: reagenda no passo fino com a chegada já em ms (<c>TravelArrivalMs</c>).</summary>
+    public static void RescheduleAtMs(WorldState world, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long? travelArrivalMs,
+        LifeStage? lifeStage = null) =>
+        world.ReplaceNpcWakeAtMs(npc.Id.Value,
+            ComputeNextWakeMs(npc, needsRules, catalog, world.CurrentDate.TotalMilliseconds, world, travelArrivalMs, lifeStage));
 
     /// <summary>AD-197c: o mesmo despertar de <see cref="ComputeNextWakeTick"/> no passo fino, em milissegundos: fim de ação e
     /// chegada no instante exato (com a fase da hora em que começaram), necessidade no instante em que cruza o limiar, virada da
@@ -187,10 +192,8 @@ public static class NpcWakeScheduler
 
         bool arrivalPending = travelArrivalMs is { } pendingArrival && pendingArrival > nowMs;
         if (npc.CurrentAction is { } action && !arrivalPending)
-        {
-            long hours = LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog);
-            Consider(ref next, ref cause, hours >= long.MaxValue / H / 2 ? long.MaxValue : npc.ActionStartedAtMs + hours * H, WakeCause.ActionEnd);
-        }
+            Consider(ref next, ref cause, npc.ActionStartedAtMs + LivingWorld.Simulation.Objects.ObjectUse.DurationMs(world, npc, action, catalog),
+                WakeCause.ActionEnd); // AD-197h: a duração em ms (a mesma conta da conclusão)
         if (!waterBound)
             Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage) * H, WakeCause.RoutineBoundary);
         if (travelArrivalMs is { } arrival)

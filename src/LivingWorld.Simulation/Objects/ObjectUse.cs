@@ -81,6 +81,16 @@ public static class ObjectUse
         return bonus == 0.0 ? baseHours : Math.Max(1, (int)Math.Ceiling(baseHours / (1.0 + bonus)));
     }
 
+    /// <summary>AD-197h: a mesma duração no passo fino, em milissegundos e sem arredondar para a hora (a cama boa encurta o sono em
+    /// minutos, não em horas inteiras). Sem objeto, a hora do catálogo.</summary>
+    public static long DurationMs(WorldState world, Npc npc, ActionType action, ActionCatalog catalog)
+    {
+        long baseMs = (long)catalog.DurationOf(action) * LivingWorld.Domain.Shared.WorldMillis.PerHour;
+        if (world.ObjectCatalog is null) return baseMs;
+        double bonus = Bonus(world, npc, action, mustBeHome: true);
+        return bonus == 0.0 ? baseMs : Math.Max(LivingWorld.Domain.Shared.WorldMillis.PerSecond, (long)Math.Ceiling(baseMs / (1.0 + bonus)));
+    }
+
     /// <summary>Nível a que consumir 1 unidade do recurso restaura a necessidade (0–100): o do descritor do recurso no catálogo,
     /// ou 100 (a regra de sempre) sem catálogo, sem descritor ou sem o efeito (#47 fatia 4, ADR-0039). Nunca reduz a necessidade: o chamador usa max.</summary>
     public static int ConsumeLevel(WorldState world, LivingWorld.Domain.Geography.ResourceType resource, string target)
