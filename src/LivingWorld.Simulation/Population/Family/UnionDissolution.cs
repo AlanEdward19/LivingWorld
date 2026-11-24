@@ -112,8 +112,12 @@ public static class UnionDissolution
             {
                 household.BeginRelocation(away.Id);
                 leaver.SetCurrentAction(ActionType.Travel, ctx.CurrentTick);
+                return household;
             }
         }
+        // AD-197j: sem outro povoado para onde ir, quem abandona fica sem teto (dorme onde estiver até achar vaga), não numa "casa
+        // nova" na mesma célula da que deixou
+        if (mode == UnionEndMode.Abandonment && alone) household.Evict(ctx.CurrentTick);
         return household;
     }
 

@@ -83,14 +83,14 @@ public static class PlayerOrders
     }
 
     /// <summary>A recusa da vontade (posse comum), com o peso no motivo; nulo se ela obedece.</summary>
-    private static string? Refusal(WorldState world, TickContext ctx, Npc npc, OrderHarm harm, string what) =>
+    internal static string? Refusal(WorldState world, TickContext ctx, Npc npc, OrderHarm harm, string what) =>
         PossessionContest.RefusesOrder(world, npc, harm, ctx.CurrentTick)
             ? string.Create(CultureInfo.InvariantCulture,
                 $"{PlayerCommands.Refused} {npc.Name} {what} (peso {PossessionContest.OrderWeight(world, npc, harm):0})")
             : null;
 
     /// <summary>Obedecida: na posse plena a objeção fica com a pessoa presa; quem convive estranha na medida do peso.</summary>
-    private static void Objection(WorldState world, TickContext ctx, Npc npc, OrderHarm harm)
+    internal static void Objection(WorldState world, TickContext ctx, Npc npc, OrderHarm harm)
     {
         double weight = world.Players.Enabled ? PossessionContest.OrderWeight(world, npc, harm) : 0;
         if (npc.ControlMode == PossessionMode.Full)

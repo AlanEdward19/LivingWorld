@@ -10,6 +10,7 @@ signal predicted(delta: Vector2i)
 signal confirmed(x: int, y: int)
 signal rejected()
 signal conversation_opened(npc_id: int, name: String, session_id: int)
+signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
 const PAUSED_NOTE := "Mundo pausado: suas ações só andam quando o tempo voltar."
@@ -288,6 +289,8 @@ const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vect
 	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
 const STEP_INTERVAL := 0.35 ## s entre passos com a tecla segurada (andar; o motor ainda não limita a velocidade, ver issue)
 var heading: Callable = func() -> Vector2: return Vector2(0, -1) ## para onde a câmera olha no chão (x, z); o app liga o rig
+var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## AD-197j: o app liga o catálogo de recursos
+var step_seconds := STEP_INTERVAL ## AD-197j: quanto o último passo durou no corpo (o motor diz `readyInMs`), em segundos reais
 var _stepping := false
 var _cooldown := 0.0
 var latencies: Array[float] = [] ## ms do pedido à resposta do motor, os últimos 64
@@ -345,7 +348,7 @@ func step(dx: int, dy: int) -> void:
 	if not is_active or _stepping or (dx == 0 and dy == 0):
 		return
 	_stepping = true
-	_cooldown = STEP_INTERVAL
+	_cooldown = step_seconds
 	predicted.emit(Vector2i(dx, dy))
 	var started := Time.get_ticks_usec()
 	var response: Dictionary = await api.player_move(player_id, dx, dy)
@@ -354,6 +357,7 @@ func step(dx: int, dy: int) -> void:
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
+		_pace(response.body)
 		confirmed.emit(int(response.body.get("x", 0)), int(response.body.get("y", 0)))
 		return
 	rejected.emit()
@@ -363,6 +367,15 @@ func step(dx: int, dy: int) -> void:
 		warning.emit("Mundo pausado: o passo só anda quando o tempo voltar.")
 	elif response.status != 400:
 		warning.emit("Não foi possível andar (erro %d)." % response.status)
+
+
+## AD-197j: o próximo passo só depois do tempo do corpo (`readyInMs` de mundo, na escala do relógio): a tecla segurada anda nesse ritmo.
+func _pace(pose: Dictionary) -> void:
+	var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	var seconds := float(pose.get("readyInMs", 0)) / 1000.0 / maxf(scale, 0.001)
+	if seconds > 0.0:
+		step_seconds = seconds
+		_cooldown = seconds
 
 
 func _note_latency(started: int) -> void:
@@ -380,9 +393,11 @@ func latency_median_ms() -> float:
 	return sorted[sorted.size() / 2]
 
 
-const KIND_TEXT := {"door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa"}
+const KIND_TEXT := {"door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
+	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
-	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar"}
+	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar"}
 
 
 ## E: pede ao motor o que o corpo alcança e mostra só isso (uma linha por coisa e verbo; por recurso, na despensa e na banca).
@@ -401,23 +416,24 @@ func open_interactions() -> void:
 			_lost("Você não controla mais %s." % npc_name)
 		return
 	offers = response.body.get("offers", [])
-	show_menu(menu_entries(offers))
+	show_menu(menu_entries(offers, resource_name_of))
 
 
-## As linhas do menu, todas tiradas da oferta: {text, kind, id, verb, resource}.
-static func menu_entries(from: Array) -> Array:
+## As linhas do menu, todas tiradas da oferta: {text, kind, id, verb, resource}; o nome do recurso vem do catálogo do servidor.
+static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	var entries: Array = []
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
 		var title := String(offer.get("label", "")) if kind == "person" else String(KIND_TEXT.get(kind, kind))
 		for verb in offer.get("verbs", []):
 			var resources: Array = offer.get("resources", [])
-			if String(verb) in ["buy", "take"] and not resources.is_empty():
+			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():
 				for item in resources:
 					if int(item.get("quantity", 0)) <= 0:
 						continue
 					var price := int(item.get("price", 0))
-					entries.append({"text": "%s: %s recurso %d%s" % [title, VERB_TEXT[verb], int(item.resourceId),
+					var resource_text: String = name_of.call(int(item.resourceId)) if name_of.is_valid() else "recurso %d" % int(item.resourceId)
+					entries.append({"text": "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
 						" (%d)" % price if price > 0 else ""], "kind": kind, "id": int(offer.id), "verb": String(verb),
 						"resource": int(item.resourceId)})
 			else:
@@ -464,6 +480,7 @@ func interact(entry: Dictionary) -> void:
 	if response.ok and response.body is Dictionary:
 		var pose = response.body.get("pose")
 		if pose is Dictionary:
+			_pace(pose)
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
@@ -488,6 +505,7 @@ func strike(target: int) -> void:
 		return
 	_busy = true
 	var started := Time.get_ticks_usec()
+	struck.emit(target) # o braço desce já (previsão); o motor diz se acertou
 	var response: Dictionary = await api.player_strike(player_id, target)
 	_note_latency(started)
 	_busy = false

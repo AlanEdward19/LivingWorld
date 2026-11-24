@@ -130,9 +130,11 @@ public sealed class PlayerCommandGateway(
                 npcId = npc.Id.Value,
                 x = npc.CurrentLocation.X,
                 y = npc.CurrentLocation.Y,
-                buildingId = PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value
+                buildingId = npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
+                floor = PlayerGround.FloorOf(npc),
+                readyInMs = Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
             }
-            : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null };
+            : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null, floor = 0, readyInMs = 0L };
 
     /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>
     private object Interacted(LivingWorld.Simulation.Core.WorldState world, string playerId, InteractionResult done)

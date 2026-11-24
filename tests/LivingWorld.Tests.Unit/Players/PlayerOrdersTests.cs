@@ -94,6 +94,9 @@ public class PlayerOrdersTests
             return false;
         }
         Assert.NotEqual(child.Household, npc.Household);
+        // AD-197j: quem abandona vai para outro povoado ou fica sem teto, nunca para uma "casa nova" na mesma célula
+        var gone = arm.World.FindHousehold(npc.Household!.Value)!;
+        Assert.True(gone.IsHomeless || gone.PendingRelocationCity is not null);
         Assert.Contains(arm.Sink.Events, e => e.Kind == WorldEventKind.ChildAbandoned);
         return true;
     }

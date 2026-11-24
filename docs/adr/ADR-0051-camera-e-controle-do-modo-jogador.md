@@ -45,5 +45,6 @@ possuída são recusadas. Regra do projeto: o cliente só desenha o que o motor 
 - **Negativas / trade-offs**: dois eventos novos (`HouseSold`, `ChildAbandoned`), duas rotas e dois comandos no canal (acréscimos);
   o passo varre prédios e pessoas da cidade por comando (só com jogador; medido); a casa sem `Pricing` no cenário é vendida pela
   oferta da compradora (metade da carteira do chefe, escolha do modelo).
-- **Follow-ups**: velocidade e cansaço do passo pelo corpo; escadas e andares de cima; objetos e recursos avulsos (fonte, lavoura)
-  na oferta; animação de golpe e de andar em 1ª pessoa.
+- **Follow-ups**: feitos na AD-197j: passo no tempo do corpo (recusa antes do fim, gasta sono), escada e andares de cima, fonte,
+  lavoura, espólio e furto na oferta, golpe animado, Z prende o cursor, mira no centro. Em aberto: posição contínua entre células
+  (uma célula custa ~3 min de mundo a pé: a 1:1 o passo leva minutos reais) e objeto inventado na oferta.

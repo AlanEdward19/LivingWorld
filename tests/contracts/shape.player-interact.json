@@ -3,8 +3,10 @@
   "kind": "string",
   "pose": {
     "buildingId?": "number",
+    "floor?": "number",
     "npcId": "number",
     "playerId": "string",
+    "readyInMs?": "number",
     "x": "number",
     "y": "number"
   },

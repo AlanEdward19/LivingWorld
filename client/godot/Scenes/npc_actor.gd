@@ -683,6 +683,17 @@ func _reset_pose() -> void:
 		_shirt.emission = Color.BLACK
 
 
+const STRIKE_TIME := 0.35 ## s do golpe (AD-197j): o braço vai acima da cabeça e desce
+
+
+## AD-197j: o golpe que o motor aceitou (ou tentou): o braço da frente desce no alvo.
+func play_strike() -> void:
+	_strike_until = _clock + STRIKE_TIME
+
+
+var _strike_until := -1.0
+
+
 func _animate() -> void:
 	_reset_pose()
 	var phase := _clock * 7.0 + float(npc_id)
@@ -761,5 +772,9 @@ func _animate() -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
+	if _clock < _strike_until: # por cima da pose: o golpe
+		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
+		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)
+		_body.rotation.x = lerpf(-0.1, 0.25, k)
 	if _ring != null and (_selected or _hovered):
 		_ring.rotation.y = _clock * 1.5

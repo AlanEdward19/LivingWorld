@@ -28,7 +28,7 @@ public sealed record InteractionResult(string Kind, long Id, string Verb, long Q
 /// jogador já pede; a pessoa é a conversa (a disponibilidade de sempre e o laço de conversa), o golpe e, com o filho dependente, o
 /// abandono; a casa própria é a venda. As ordens contra o que a pessoa valoriza passam pela disputa de vontade
 /// (<see cref="PlayerOrders"/>). Toda interação é validada contra a oferta do mesmo instante: fora dela, recusa sem mudar o mundo.</summary>
-public static class PlayerInteractions
+public static partial class PlayerInteractions
 {
     public static IReadOnlyList<InteractionOffer> Offers(WorldState world, Npc npc)
     {
@@ -37,8 +37,10 @@ public static class PlayerInteractions
         var inside = PlayerGround.At(world, at)?.Building.Id;
         var household = npc.Household is { } h ? world.FindHousehold(h) : null;
 
+        int floor = PlayerGround.FloorOf(npc);
+        if (floor > 0) inside = npc.Interior!.Building;
         foreach (var building in world.Buildings.OrderBy(b => b.Id.Value))
-            if (PlayerGround.DoorOf(building) is { } door && building.CompletedAtTick <= world.CurrentDate.TotalHours)
+            if (floor == 0 && PlayerGround.DoorOf(building) is { } door && building.CompletedAtTick <= world.CurrentDate.TotalHours)
             {
                 if (at == door.Doorstep) offers.Add(Offer("door", building.Id.Value, "", ["enter"], door.Door));
                 else if (at == door.Door) offers.Add(Offer("door", building.Id.Value, "", ["exit"], door.Doorstep));
@@ -50,7 +52,7 @@ public static class PlayerInteractions
                 .Select(kv => new InteractionResource(kv.Key.Id, kv.Value, 0)).ToList();
             var verbs = new List<string>();
             if (!npc.IsCarrying && stock.Count > 0) verbs.Add("take");
-            if (npc.IsCarrying) verbs.Add("deposit");
+            if (npc.IsCarrying || Laden(world, npc)) verbs.Add("deposit");
             if (verbs.Count > 0) offers.Add(Offer("stock", household.Id.Value, "", verbs, household.Location, stock));
             var bed = world.BedOf(household.Id)?.Location ?? household.Location;
             if (Near(at, inside, bed, household.Dwelling)) offers.Add(Offer("bed", household.Id.Value, "", ["sleep"], bed));
@@ -67,6 +69,7 @@ public static class PlayerInteractions
                 var verbs = new List<string>();
                 if (goods.Any(g => g.Quantity > 0)) verbs.Add("buy");
                 if (npc.IsCarrying && stall.Prices.GetValueOrDefault(new ResourceType(npc.CarriedResourceId)) > 0) verbs.Add("sell");
+                if (CanSteal(world, npc) && Outsider(npc, stall) && goods.Any(g => g.Quantity > 0)) verbs.Add("steal");
                 if (verbs.Count > 0) offers.Add(Offer("stall", stall.Id.Value, "", verbs, stall.Location, goods));
             }
 
@@ -75,12 +78,13 @@ public static class PlayerInteractions
             if (other.Id == npc.Id || other.City != npc.City) continue;
             if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > 1) continue;
             var pose = PlayerGround.PoseOf(world, other);
-            if (Chebyshev(pose, at) > 1) continue;
+            if (Chebyshev(pose, at) > 1 || !PlayerGround.SameLevel(npc, other)) continue;
             var verbs = new List<string> { "talk" };
             if (world.CrimeOn) verbs.Add("strike");
             if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
             offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose));
         }
+        WorldOffers(world, npc, at, floor, inside, household, offers);
         return offers;
     }
 
@@ -95,8 +99,14 @@ public static class PlayerInteractions
         return (kind, verb) switch
         {
             ("door", _) => Walk(world, ctx, npc, offer),
+            ("stairs", _) => Climb(world, npc, offer, verb == "up" ? 1 : -1),
+            (_, "steal") => Steal(world, ctx, npc, offer, resourceId),
+            ("field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
+                ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
+            ("water", _) => Water(world, npc, offer, verb),
+            ("leaving", _) => Collect(world, ctx, npc, offer),
             ("stock", "take") => Take(world, npc, world.FindHousehold(new HouseholdId(id))!, resourceId, quantity, offer),
-            ("stock", _) => Deposit(npc, world.FindHousehold(new HouseholdId(id))!, offer),
+            ("stock", _) => Deposit(world, npc, world.FindHousehold(new HouseholdId(id))!, offer),
             ("stall", "buy") => Buy(world, npc, world.FindWorkplace(new WorkplaceId(id))!, resourceId, quantity ?? 1, offer),
             ("stall", _) => Sell(world, npc, world.FindWorkplace(new WorkplaceId(id))!, offer),
             ("bed", _) => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Sleep) is { IsSuccess: false } refused
@@ -119,11 +129,11 @@ public static class PlayerInteractions
     private static Result<InteractionResult> Walk(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer)
     {
         var to = new CellCoord(offer.X, offer.Y);
-        var step = PlayerGround.Step(world, npc, PlayerGround.PoseOf(world, npc), to);
+        var from = PlayerGround.PoseOf(world, npc);
+        var step = PlayerGround.Step(world, npc, from, to);
         if (!step.IsSuccess) return Fail(step.Error!);
-        PlayerCommands.TakeTheWheel(world, npc);
-        npc.MoveTo(to, ctx.CurrentTick);
-        return Done(offer, offer.Verbs[0], 0, 0);
+        var walked = PlayerCommands.Walk(world, ctx, npc, from, to); // a porta é um passo: no tempo do corpo
+        return walked.IsSuccess ? Done(offer, offer.Verbs[0], 0, 0) : Fail(walked.Error!);
     }
 
     private static Result<InteractionResult> Take(WorldState world, Npc npc, Household home, int? resourceId, long? quantity,
@@ -145,11 +155,13 @@ public static class PlayerInteractions
         return Done(offer, "take", n, 0);
     }
 
-    private static Result<InteractionResult> Deposit(Npc npc, Household home, InteractionOffer offer)
+    /// <summary>Guardar: o que vai nas mãos e a carga trazida (a água da fonte, o espólio recolhido), como em toda volta para casa.</summary>
+    private static Result<InteractionResult> Deposit(WorldState world, Npc npc, Household home, InteractionOffer offer)
     {
         long n = npc.CarriedQuantity;
-        var given = npc.GiveCarriedTo(home);
-        return given.IsSuccess ? Done(offer, "deposit", n, 0) : Fail(given.Error!);
+        if (npc.IsCarrying && npc.GiveCarriedTo(home) is { IsSuccess: false } given) return Fail(given.Error!);
+        if (Laden(world, npc)) LivingWorld.Simulation.Invention.PersonalCarry.Unpack(world, npc, home);
+        return Done(offer, "deposit", n, 0);
     }
 
     /// <summary>Comprar na banca: o mesmo caminho da compra de qualquer NPC (preço da banca, carteira, estoque, tesouro, entrega na

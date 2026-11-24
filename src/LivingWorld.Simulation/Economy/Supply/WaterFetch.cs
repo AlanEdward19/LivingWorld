@@ -423,6 +423,9 @@ public static class WaterFetch
 
     /// <summary>Na fonte: bebe até matar a sede e enche até a meta da casa, no que couber no peso a pé e no cântaro (ou no recipiente
     /// ou no veículo da casa). A água entra no mundo aqui (produzida) e fica na carga de quem a leva até chegar em casa.</summary>
+    /// <summary>AD-197j: encher na fonte quem chegou por conta própria (o jogador): a mesma conta da ida de água.</summary>
+    internal static void FillAt(WorldState world, Npc npc, Household home, long now) => Fill(world, npc, home, now);
+
     private static void Fill(WorldState world, Npc npc, Household home, long now)
     {
         var water = Water(world);

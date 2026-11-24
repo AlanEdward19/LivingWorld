@@ -5,6 +5,7 @@ extends Node3D
 ## NÃO conhece transporte: navegar nunca fala com o servidor. Só pede troca de escopo por sinal.
 
 signal scope_requested(kind: String, ref_id: String)
+signal mode_changed(mode: String) ## AD-197j: o app mostra a mira no centro e solta o cursor ao voltar à isométrica
 
 const ISO_PITCH := deg_to_rad(-35.264)
 const ISO := "iso"
@@ -70,6 +71,7 @@ func set_mode(value: String) -> void:
 		return
 	mode = value
 	if mode == ISO:
+		set_cursor_captured(false)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.position = Vector3(0, 0, 80)
 		camera.near = 0.05
@@ -80,6 +82,16 @@ func set_mode(value: String) -> void:
 		camera.near = 0.05
 		pitch = clampf(pitch, MIN_PITCH, MAX_PITCH)
 	_apply()
+	mode_changed.emit(mode)
+
+
+var cursor_captured := false ## AD-197j: Z prende o cursor (o mouse olha sem botão); a mira fica no centro da tela
+
+
+func set_cursor_captured(value: bool) -> void:
+	cursor_captured = value and mode != ISO
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if cursor_captured else Input.MOUSE_MODE_VISIBLE
 
 
 ## C alterna 1ª e 3ª pessoa (só encarnado).
@@ -217,10 +229,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_D, KEY_RIGHT: pan(Vector2(30, 0))
 
 
-## Encarnado: o mouse olha (com o botão direito, ou sempre com o cursor preso), C troca 1ª/3ª pessoa; WASD, E e o clique são do
+## Encarnado: o mouse olha (com o botão direito, ou sempre com o cursor preso por Z), C troca 1ª/3ª pessoa; WASD, E e o clique são do
 ## personagem (player_hud e app), não da câmera.
 func _player_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
+	if event is InputEventMouseMotion and (cursor_captured or event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
 		look(event.relative)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
 		toggle_person()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Z:
+		set_cursor_captured(not cursor_captured)

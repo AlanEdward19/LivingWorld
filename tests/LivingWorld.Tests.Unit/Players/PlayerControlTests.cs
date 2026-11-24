@@ -19,9 +19,12 @@ public class PlayerControlTests
     private static readonly CellCoord[] Around = [new(1, 0), new(-1, 0), new(0, 1), new(0, -1), new(1, 1), new(-1, -1), new(1, -1), new(-1, 1)];
 
     /// <summary>Encarna um adulto e o deixa parado, à toa, fora de prédio, em <paramref name="at"/>.</summary>
-    internal static (Arm Arm, Npc Npc, PlayerService Service) Body(ulong seed, Func<WorldState, Npc>? pick = null)
+    /// <summary>AD-197j: sem a cadência do corpo, para medir só o chão (passos seguidos no mesmo instante).</summary>
+    internal static readonly PlayerRules NoPace = PlayerRules.Default with { BodyPace = false };
+
+    internal static (Arm Arm, Npc Npc, PlayerService Service) Body(ulong seed, Func<WorldState, Npc>? pick = null, PlayerRules? rules = null)
     {
-        var arm = Village(seed);
+        var arm = Village(seed, rules ?? NoPace);
         var npc = (pick ?? Pick)(arm.World);
         var service = new PlayerService(arm.Sink);
         Assert.True(service.Incarnate(arm.World, npc.Id, "alan").IsSuccess);

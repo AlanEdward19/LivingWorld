@@ -32,6 +32,8 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
             var npc = npcs[i];
             // Só dormir e trabalhar põem alguém dentro: quem está fora fazendo outra coisa não tem o que resolver.
             if (npc.Interior is null && npc.CurrentAction is not (ActionType.Sleep or ActionType.Work)) continue;
+            // AD-197j: o jogador que subiu a escada fica no andar em que andou (só sai pelos próprios pés)
+            if (npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle && npc.Interior is { Floor.Value: > 0 }) continue;
 
             var target = TargetBuilding(world, npc);
             if (target is null)

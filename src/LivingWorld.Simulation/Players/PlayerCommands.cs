@@ -121,27 +121,51 @@ public static class PlayerCommands
         var target = new LivingWorld.Domain.Geography.CellCoord(from.X + dx, from.Y + dy);
         var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target, from);
         if (!valid.IsSuccess) return valid;
+        return Walk(world, ctx, npc, from, target);
+    }
+
+    /// <summary>AD-197j: o passo já validado no chão, no tempo do corpo: antes do fim do passo anterior é recusado (o mundo não muda);
+    /// dado, a posição muda (dentro do prédio, no andar em que está), o próximo passo só vem depois do tempo deste
+    /// (<see cref="PaceMs"/>) e andar gasta energia (sono) na medida desse tempo.</summary>
+    internal static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, LivingWorld.Domain.Geography.CellCoord from,
+        LivingWorld.Domain.Geography.CellCoord to)
+    {
+        long now = world.CurrentDate.TotalMilliseconds;
+        var rules = world.Players;
+        if (rules.PaceOn && now < npc.StepReadyAtMs)
+            return Result<Unit>.Fail(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"move: o corpo ainda está no passo anterior (faltam {npc.StepReadyAtMs - now} ms)"));
+        long pace = rules.PaceOn ? PaceMs(world, npc, from, to) : 0;
         TakeTheWheel(world, npc);
-        npc.MoveTo(target, ctx.CurrentTick);
+        npc.MoveTo(to, ctx.CurrentTick);
+        if (npc.Interior is { } inside && world.FindBuilding(inside.Building) is { Position: { } origin })
+            npc.MoveWithinBuilding(new LivingWorld.Domain.Geography.CellCoord(to.X - origin.X, to.Y - origin.Y));
+        if (rules.PaceOn) npc.Step(now + pace, rules.StepSleep * pace / (double)WorldMillis.PerHour, now);
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>AD-197d: o jogador conduz o corpo com as próprias pernas: a viagem em curso para onde ele está (a pose), a planta do
-    /// prédio onde o motor o pôs é deixada (a posição passa a ser a célula do mundo) e, sem ação pedida, ele fica à toa em vez de o
-    /// motor o mandar de volta para a rota.</summary>
+    /// <summary>AD-197j: quanto leva o passo de <paramref name="from"/> a <paramref name="to"/> para este corpo, pela mesma conta da viagem de
+    /// qualquer NPC (<see cref="LivingWorld.Simulation.Emergence.Mobility.TravelMs"/>: o caminho e o terreno, o corpo e a saúde, a carga,
+    /// o chão do dia), mais lento com sono abaixo de <see cref="PlayerRules.Tired"/> (até 1,5× com o sono em 0).</summary>
+    public static long PaceMs(WorldState world, Npc npc, LivingWorld.Domain.Geography.CellCoord from, LivingWorld.Domain.Geography.CellCoord to)
+    {
+        long ms = LivingWorld.Simulation.Emergence.Mobility.TravelMs(world, npc, from, to,
+            LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(world, npc));
+        double sleep = npc.SleepAt(world.CurrentDate.TotalHours);
+        double tired = 1 + Math.Max(0, world.Players.Tired - sleep) / Math.Max(1, world.Players.Tired) * 0.5;
+        return (long)Math.Ceiling(ms * tired);
+    }
+
+    /// <summary>AD-197d/197j: o jogador conduz o corpo com as próprias pernas: a viagem em curso para onde ele está (a pose); no térreo a
+    /// planta onde o motor o pôs é deixada (a posição passa a ser a célula do mundo), acima do térreo ele segue no andar; sem ação pedida,
+    /// fica à toa em vez de o motor o mandar de volta para a rota.</summary>
     internal static void TakeTheWheel(WorldState world, Npc npc)
     {
         var pose = PlayerGround.PoseOf(world, npc);
         if (npc.CurrentAction == ActionType.Travel)
-        {
             npc.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds);
-            if (pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
-        }
-        if (npc.Interior is not null)
-        {
-            if (pose.X != int.MinValue && pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
-            npc.ExitBuilding();
-        }
+        if (pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
+        if (npc.Interior is { Floor.Value: 0 }) npc.ExitBuilding();
         if (npc.ControlledAction is null) npc.SetControlledAction(ActionType.Idle);
     }
 

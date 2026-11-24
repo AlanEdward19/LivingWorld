@@ -585,7 +585,7 @@ func _on_player_predicted(delta: Vector2i) -> void:
 	if node == null:
 		return
 	_predicted_from = node.cell
-	node.move_to(node.cell + delta, player_hud.STEP_INTERVAL)
+	node.move_to(node.cell + delta, player_hud.step_seconds)
 
 
 func _on_player_confirmed(x: int, y: int) -> void:
@@ -599,6 +599,27 @@ func _on_player_rejected() -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null and node.cell != _predicted_from:
 		node.move_to(_predicted_from, 0.08)
+
+
+## AD-197j: a mira do modo jogador é o centro da tela.
+func aim_point() -> Vector2:
+	return get_viewport().get_visible_rect().size / 2.0
+
+
+## AD-197j: o golpe saiu: o braço do personagem desce (a mesma pose para quem olha de fora).
+func _on_player_struck(_target: int) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.play_strike()
+
+
+## AD-197j: a mira (uma cruz no centro) só no modo jogador.
+func _on_camera_mode(mode: String) -> void:
+	if crosshair != null:
+		crosshair.visible = mode != rig.ISO
+
+
+var crosshair: Label
 
 
 ## AD-197d: clique encarnado é golpe no NPC sob a mira (o motor valida o alcance).

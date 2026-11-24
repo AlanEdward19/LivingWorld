@@ -150,3 +150,59 @@ func test_a_refused_order_shows_the_engine_reason() -> void:
 	eq(warnings, ["Ana não abandona Rui (peso 97)"], "o motivo do motor aparece")
 	eq(hud.is_active, true, "a recusa não tira o personagem")
 	hud.queue_free()
+
+
+# --- AD-197j: no app (câmera, mira, golpe animado, passo no tempo do corpo, nomes de recurso) ---------------------------
+
+const App := preload("res://Scenes/app.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
+const Fx := preload("res://tests/fixtures.gd")
+
+
+func _app_transport() -> Object:
+	var transport := FakeTransport.new()
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	transport.on("POST /players/p-1/strike", {"status": 200, "body": {"playerId": "p-1", "targetId": 9}})
+	transport.on("POST /players/p-1/move", {"status": 200, "body": {"playerId": "p-1", "npcId": 7, "x": 2, "y": 1, "readyInMs": 1800}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtMs": 3600000}})
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
+	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
+		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
+		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
+	transport.on("GET /npcs/7", Fx.npc_inspect([]))
+	return transport
+
+
+func test_in_the_app_the_crosshair_strike_pace_and_resource_names_follow_the_engine() -> void:
+	var transport := _app_transport()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	app.player_hud.session_enabled = false
+	var node := NpcActor.new()
+	node.setup(7, Vector2i(1, 1), 0, app.labels)
+	app.add_child(node)
+	app.world_view.npc_nodes[7] = node
+
+	await app.incarnate(7)
+	eq(app.rig.mode, app.rig.THIRD, "encarnado: 3ª pessoa")
+	eq(app.crosshair.visible, true, "mira no centro no modo jogador")
+	eq(app.aim_point(), app.get_viewport().get_visible_rect().size / 2.0, "o golpe mira o centro da tela")
+	app.rig.yaw = 0.0
+	eq(app.player_hud.heading.call(), app.rig.heading(), "WASD segue o olhar da câmera do app")
+
+	app.player_hud.struck.emit(9)
+	check(node._strike_until > node._clock, "o braço do personagem desce no golpe")
+	await app.player_hud.step(1, 0)
+	check(is_equal_approx(app.player_hud.step_seconds, 1.8), "o próximo passo espera o tempo do corpo que o motor disse (%s)" % app.player_hud.step_seconds)
+	app.registry.resources[1] = "pão"
+	var entries: Array = PlayerHud.menu_entries(OFFERS, app.player_hud.resource_name_of)
+	eq(entries[0].text, "Banca: Comprar pão (4)", "o nome real do recurso no menu")
+
+	app.rig.set_cursor_captured(true)
+	eq(app.rig.cursor_captured, true, "Z prende o cursor no modo jogador")
+	await app.player_hud.logout()
+	eq([app.rig.mode, app.crosshair.visible, app.rig.cursor_captured], [app.rig.ISO, false, false], "saiu: isométrica, sem mira, cursor solto")
+	app.queue_free()
