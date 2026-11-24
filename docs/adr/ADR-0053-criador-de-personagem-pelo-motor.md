@@ -1,4 +1,4 @@
-# ADR-0052: criador de personagem pelo motor (amostra do agregado, registrada; entrar = materializar + encarnar)
+# ADR-0053: criador de personagem pelo motor (amostra do agregado, registrada; entrar = materializar + encarnar)
 
 - **Status**: aceito pelo dono em 2026-11-24 ("Sim, pelo motor")
 - **Data**: 2026-11-24

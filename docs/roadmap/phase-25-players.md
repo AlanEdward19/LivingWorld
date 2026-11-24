@@ -10,7 +10,7 @@ e quem convivia com ele dá falta, procura, chora, herda e ocupa a vaga que ele 
 > AD-196: offline = desaparecimento provado, abandono no cenário, volta tardia, poder, espectador, replay. Resto: #63. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
-1. *(entregue: AD-111 encarnar; AD-197q personagem novo, [ADR-0052](../adr/ADR-0052-criador-de-personagem-pelo-motor.md))* **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
+1. *(entregue: AD-111 encarnar; AD-197q personagem novo, [ADR-0053](../adr/ADR-0053-criador-de-personagem-pelo-motor.md))* **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
    casos a identidade sai da amostragem condicionada do LOD (Fase 8) — família, origem,
    profissão e histórico coerentes com o agregado de onde a pessoa veio. Entrar não cria
    gente do nada: materializar move, nunca cria.

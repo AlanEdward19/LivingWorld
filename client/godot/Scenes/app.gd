@@ -173,6 +173,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 ## Identidade do mundo (`GET /world/info`) e catálogo do período: nomes de ofício, habilidade, recurso e tipo de prédio.
 func _load_world_info() -> void:
 	var identity: Dictionary = await api.world_identity()
+	Grid.use_scale(identity.get("scale", {})) # ADR-0052: andar, porta e janela nas medidas do motor
 	period_id = identity.period_id
 	if identity.period_id != "" or not identity.axes.is_empty():
 		technology.axis_names = identity.axes

@@ -11,7 +11,6 @@ const Site := preload("res://Scenes/render/work_site.gd")
 const MATERIAL_WALL_STONE := 0
 const MATERIAL_WALL_WOOD := 1
 const MATERIAL_DOOR := 2
-const FLOOR_HEIGHT := 1.0
 const PLACEHOLDER_FOOTPRINT := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
 
 var nodes: Dictionary = {} ## id -> Node3D
@@ -77,7 +76,7 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var work: Dictionary = work_of.call(int(info.id))
 	dressed[int(info.id)] = signature(state, work)
 	if not work.is_empty() and not info.footprint.is_empty():
-		var site := Site.make(info, work, FLOOR_HEIGHT)
+		var site := Site.make(info, work, Grid.floor_height())
 		add_child(site)
 		nodes[int(info.id)] = site
 		if xray:
@@ -220,7 +219,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	root.name = "Building_%d" % info.id
 	root.set_meta("building_id", info.id)
 	var floors: int = info.floors
-	var height: float = floors * FLOOR_HEIGHT
+	var height: float = floors * Grid.floor_height()
 	var cells := {}
 	for entry in info.footprint:
 		cells[info.cell + entry.cell] = entry.material
@@ -248,15 +247,16 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[material])
 				_box(root, Vector3(1.04, 0.12, 1.04), Grid.to_world(cell, 0.06), trim) # rodapé
 				for level in range(1, floors):
-					_box(root, Vector3(1.03, 0.07, 1.03), Grid.to_world(cell, level * FLOOR_HEIGHT), trim) # friso entre andares
+					_box(root, Vector3(1.03, 0.07, 1.03), Grid.to_world(cell, level * Grid.floor_height()), trim) # friso entre andares
 				for dir in DIRS:
 					if cells.has(cell + dir):
 						continue
 					for level in floors:
 						if Scenery.cell_hash(cell, level * 4 + DIRS.find(dir) + 11) < 0.5:
 							var outward := Vector3(dir.x, 0, dir.y) * 0.505
-							var window := _box(root, Vector3(0.36 if dir.x == 0 else 0.04, 0.36, 0.36 if dir.y == 0 else 0.04),
-								Grid.to_world(cell, level * FLOOR_HEIGHT + 0.58) + outward, window_material)
+							var pane := Grid.units(Grid.window_meters) # ADR-0052: janela e peitoril em metros do motor
+							var window := _box(root, Vector3(pane if dir.x == 0 else 0.04, pane, pane if dir.y == 0 else 0.04),
+								Grid.to_world(cell, level * Grid.floor_height() + Grid.units(Grid.window_sill_meters) + pane / 2.0) + outward, window_material)
 							window.name = "Window"
 							windows.append(window)
 			MATERIAL_DOOR:
@@ -267,8 +267,10 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 						if door_at == Vector3.INF:
 							door_at = Grid.to_world(cell) + outward * 0.5
 							door_out = outward
-						var size := Vector3(0.56 if dir.x == 0 else 0.1, 0.78, 0.56 if dir.y == 0 else 0.1)
-						_box(root, size, Grid.to_world(cell, 0.39) + outward * 0.5, door).name = "Door"
+						var door_w := Grid.units(Grid.door_width_meters) # ADR-0052: porta em metros do motor
+						var door_h := Grid.units(Grid.door_meters)
+						var size := Vector3(door_w if dir.x == 0 else 0.1, door_h, door_w if dir.y == 0 else 0.1)
+						_box(root, size, Grid.to_world(cell, door_h / 2.0) + outward * 0.5, door).name = "Door"
 						_box(root, Vector3(0.9 if dir.x == 0 else 0.3, 0.06, 0.9 if dir.y == 0 else 0.3),
 							Grid.to_world(cell, 0.03) + outward * 0.78, step)
 						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)

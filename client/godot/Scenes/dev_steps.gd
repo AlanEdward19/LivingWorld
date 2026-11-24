@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -272,6 +272,13 @@ static func run(app: Node, steps: Array) -> void:
 					app.banner.text = "MEDIDA DE DESEMPENHO: pessoas e prédios de teste, colocados em grade. Isto não é o mundo do jogo."
 					app.banner.visible = true
 				await _bench(app, int(arg) if arg != "" else 500, name == "benchbig")
+			"playstreet": # só captura (AD-197o): encarna um morador que está na rua (o mesmo do passo "near")
+				var id := _street_npc(app)
+				if id >= 0:
+					await app.select_npc(id)
+					await app.incarnate(id)
+			"cam": # só captura (AD-197o): troca o modo da câmera (`cam:first|third|iso`) sem trocar quem ela segue
+				app.rig.set_mode({"first": app.rig.FIRST, "third": app.rig.THIRD}.get(arg, app.rig.ISO))
 			"third", "first": # só medida (AD-197d): câmera do modo jogador (3ª/1ª pessoa) colada num morador, sem encarnar
 				var ids: Array = app.world_view.npc_nodes.keys()
 				ids.sort()

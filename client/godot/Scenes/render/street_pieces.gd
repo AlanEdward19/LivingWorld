@@ -9,7 +9,6 @@ const Scenery := preload("res://Scenes/scenery.gd")
 const Style := preload("res://Scenes/render/street_style.gd")
 
 const WOOD := Color("7a5634")
-const FLOOR_HEIGHT := 1.0 ## mesma altura de andar do `building_renderer.gd`
 
 
 ## Superfície por cima do chão base: lajes ou pedrinhas (menos delas quando o calçamento está estragado) e tufos de capim.
@@ -87,7 +86,7 @@ static func access(add: Callable, building: Dictionary, via: Dictionary = {}) ->
 				add.call(face + out * (0.12 + 0.16 * i) + Vector3(0, rise / 2.0, 0), across * 0.4 + Vector3(absf(out.x), 0, absf(out.z)) * 0.16 + Vector3(0, rise, 0),
 					WOOD * (0.9 + 0.03 * i))
 		"roof":
-			var deck := FLOOR_HEIGHT * maxf(float(building.get("floors", 1)) - 0.5, 0.6)
+			var deck := Grid.floor_height() * maxf(float(building.get("floors", 1)) - 0.5, 0.6)
 			add.call(face + out * 0.6 + Vector3(0, deck, 0), across * 0.36 + Vector3(absf(out.x), 0, absf(out.z)) * 1.2 + Vector3(0, 0.05, 0),
 				Color(Style.ACCESS_STYLES.roof.plan))
 			for side in [-1.0, 1.0]:
@@ -105,7 +104,7 @@ static func access_path(add: Callable, building: Dictionary, via: Dictionary) ->
 	var cells: Array = lot.access_cells
 	var high := {}
 	for entry in via.get("footprint", []):
-		high[via.cell + entry.cell] = FLOOR_HEIGHT * maxf(float(via.get("floors", 1)), 1.0)
+		high[via.cell + entry.cell] = Grid.floor_height() * maxf(float(via.get("floors", 1)), 1.0)
 	var state := String(lot.get("access_state", ""))
 	var ground: Color = Color(Style.ACCESS_STYLES.alley.plan) if Style.access_of(lot) == "alley" else Style.access_state_color(state)
 	for i in cells.size():
