@@ -53,7 +53,7 @@ public class PlayerWalkTests
         var start = OpenRun(w, npc, 3);
         Place(w, npc, start);
         double mps = PlayerWalk.SpeedMps(w, npc, start, new CellCoord(start.X + 1, start.Y));
-        Assert.InRange(mps, 0.3, 3.0); // passo de gente, não de célula de 250 m
+        Assert.InRange(mps, 0.05, 3.0); // o chão deste par pode ser pesado (mata, morro): a medida de gente fica no teste da mediana
 
         Assert.True(service.Walk(w, "alan", 1000, 0).IsSuccess);
         long x0 = npc.Fine!.X;
@@ -70,6 +70,31 @@ public class PlayerWalkTests
         }
         Assert.Equal(new CellCoord(start.X + 1, start.Y), npc.CurrentLocation); // a célula segue a posição fina
         Assert.Equal(npc.CurrentLocation.X, npc.Fine!.CellX);
+    }
+
+    /// <summary>Medida (AD-197k): a velocidade do passo solto à porta de casa (o chão da vila), mediana de 20 sementes, em m/s.
+    /// <c>LW_MEASURE_OUT</c> grava o resultado.</summary>
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void The_free_walk_speed_at_the_doorstep_is_human_median_of_20_seeds()
+    {
+        var speeds = new List<double>();
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            var (arm, npc, _) = Body(seed);
+            var w = arm.World;
+            npc.SetSleep(90, w.CurrentDate.TotalHours);
+            var door = w.Buildings.Where(b => b.Position is not null && b.CompletedAtTick <= w.CurrentDate.TotalHours).OrderBy(b => b.Id.Value)
+                .Select(b => PlayerGround.DoorOf(b)!.Value).First(d => PlayerGround.At(w, d.Doorstep) is null && w.Map.TryGetCell(d.Doorstep, out _));
+            var away = new CellCoord(2 * door.Doorstep.X - door.Door.X, 2 * door.Doorstep.Y - door.Door.Y);
+            if (!w.Map.TryGetCell(away, out _)) continue;
+            speeds.Add(PlayerWalk.SpeedMps(w, npc, door.Doorstep, away));
+        }
+        speeds.Sort();
+        double median = speeds[speeds.Count / 2];
+        string line = FormattableString.Invariant($"walkMedianMps={median:0.000} walkMinMps={speeds[0]:0.000} walkMaxMps={speeds[^1]:0.000} seeds={speeds.Count}");
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_OUT") is { Length: > 0 } path) File.WriteAllText(path, line + "\n");
+        Assert.True(median is >= 0.5 and <= 2.0, line);
     }
 
     [Fact]
