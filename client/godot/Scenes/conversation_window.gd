@@ -95,9 +95,20 @@ func start(id: int, name: String) -> void:
 	if decision != "Accepted" or response.body.get("sessionId") == null:
 		warning.emit(String(REFUSALS.get(decision, "%s não pode conversar agora.")) % name)
 		return
+	_open(id, name, int(response.body.sessionId))
+
+
+## AD-197d: a conversa que o motor já abriu (interação "conversar" do jogador, tecla E): só a janela, sem novo pedido.
+func attach(id: int, name: String, session: int) -> void:
+	if is_open:
+		await end_conversation()
+	_open(id, name, session)
+
+
+func _open(id: int, name: String, session: int) -> void:
 	npc_id = id
 	npc_name = name
-	session_id = int(response.body.sessionId)
+	session_id = session
 	lines = []
 	waiting = false
 	is_open = true

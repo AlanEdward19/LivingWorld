@@ -75,6 +75,24 @@ public sealed record PlayerRules
         init => Time = value ?? TimeRules.Default;
     }
 
+    // --- AD-197j: o passo do corpo conduzido. Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
+
+    /// <summary>Falso desliga a cadência do passo pelo corpo (o passo vale na hora, como na AD-197d).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? BodyPace { get; init; }
+
+    /// <summary>Sono (energia) que uma hora de caminhada gasta além do desgaste de sempre: andar cansa.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? StepSleepPerHour { get; init; }
+
+    /// <summary>Abaixo deste sono o passo fica mais lento, até 1,5× com o sono em 0.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? TiredBelow { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public bool PaceOn => BodyPace ?? true;
+    [System.Text.Json.Serialization.JsonIgnore] public double StepSleep => StepSleepPerHour ?? 3.0;
+    [System.Text.Json.Serialization.JsonIgnore] public double Tired => TiredBelow ?? 50.0;
+
     public static readonly PlayerRules Default = new();
 
     public static readonly PlayerRules Off = new() { Enabled = false };

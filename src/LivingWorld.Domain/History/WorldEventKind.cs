@@ -400,4 +400,11 @@ public enum WorldEventKind
 
     /// <summary>Quem concluiu reagiu (AD-197f) — payload: <c>observadorId|corpoId|como</c> (como: apoio, vigilia, ataque).</summary>
     PossessionConfronted,
+
+    /// <summary>A pessoa vendeu a casa em que morava (AD-197d, ordem de quem a possui) — payload:
+    /// <c>vendedorId|casaVendedoraId|casaCompradoraId|prédioId|preço</c>. Quem vende fica sem teto, quem compra muda para lá.</summary>
+    HouseSold,
+
+    /// <summary>Um pai ou uma mãe abandonou o filho dependente (AD-197d, ordem de quem o possui) — payload: <c>paiId|filhoId|casaNovaId</c>.</summary>
+    ChildAbandoned,
 }

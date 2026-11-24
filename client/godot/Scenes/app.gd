@@ -564,9 +564,69 @@ func incarnate(id: int) -> void:
 	if await player_hud.incarnate(id, registry.person_name(id)):
 		selected_npc = id
 		follow(Registry.ref(Registry.PERSON, id))
+		rig.set_mode(rig.THIRD) # AD-197d: encarnado, 3ª pessoa (C troca para a 1ª); espectador e admin seguem na isométrica
 		var detail: Dictionary = await api.npc_detail(id) # AD-196: os poderes que o NPC porta viram botões do HUD
 		if detail.ok and detail.body is Dictionary:
 			player_hud.set_powers(detail.body.get("powerIds", []))
+
+
+## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
+func player_released() -> void:
+	unfollow()
+	rig.set_mode(rig.ISO)
+
+
+var _predicted_from := Vector2i.ZERO ## a célula de antes do passo previsto (a recusa volta para ela)
+
+
+## AD-197d: o passo anda já na tela (previsão) e o motor confirma ou corrige.
+func _on_player_predicted(delta: Vector2i) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node == null:
+		return
+	_predicted_from = node.cell
+	node.move_to(node.cell + delta, player_hud.step_seconds)
+
+
+func _on_player_confirmed(x: int, y: int) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	_predicted_from = Vector2i(x, y)
+	if node != null and node.cell != Vector2i(x, y):
+		node.move_to(Vector2i(x, y), 0.08) # o motor diz onde o corpo está: a previsão errada é corrigida
+
+
+func _on_player_rejected() -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null and node.cell != _predicted_from:
+		node.move_to(_predicted_from, 0.08)
+
+
+## AD-197j: a mira do modo jogador é o centro da tela.
+func aim_point() -> Vector2:
+	return get_viewport().get_visible_rect().size / 2.0
+
+
+## AD-197j: o golpe saiu: o braço do personagem desce (a mesma pose para quem olha de fora).
+func _on_player_struck(_target: int) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.play_strike()
+
+
+## AD-197j: a mira (uma cruz no centro) só no modo jogador.
+func _on_camera_mode(mode: String) -> void:
+	if crosshair != null:
+		crosshair.visible = mode != rig.ISO
+
+
+var crosshair: Label
+
+
+## AD-197d: clique encarnado é golpe no NPC sob a mira (o motor valida o alcance).
+func strike_at(screen_position: Vector2) -> void:
+	var hit: Dictionary = selection.hit_at(screen_position)
+	if not hit.is_empty() and String(hit.kind) == Registry.PERSON:
+		await player_hud.strike(int(hit.id))
 
 
 ## Pede a conversa com o NPC (atalho T); o servidor aceita ou recusa e a janela explica o motivo.

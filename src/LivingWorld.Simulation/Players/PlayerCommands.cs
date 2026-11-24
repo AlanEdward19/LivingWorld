@@ -59,6 +59,7 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (action is { } chosen && !Choosable.Contains(chosen)) return Result<Unit>.Fail("action: fora do que o jogador pode escolher");
         if (action == ActionType.UsePower && !world.Players.Enabled) return Result<Unit>.Fail("action: fora do que o jogador pode escolher");
         if (action == ActionType.UsePower && !Carries(world, npc, powerId))
@@ -86,10 +87,18 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         return PossessionContest.Persuade(world, npc, ctx.CurrentTick)
             ? Result<Unit>.Ok(Unit.Value)
             : Result<Unit>.Fail("persuade: sem disputa de vontade agora (posse plena, regra desligada ou já tentou nesta hora)");
     }
+
+    /// <summary>AD-197g: o personagem do jogador possuído por poder não obedece a ele enquanto a outra vontade conduz o corpo; ele
+    /// resiste pela mesma regra de qualquer pessoa (<see cref="PossessionContest"/>).</summary>
+    private static Result<Unit>? PossessedByPower(WorldState world, Npc npc) =>
+        LivingWorld.Simulation.Extraordinary.Mechanics.ControlMechanic.IsPossessed(world, npc)
+            ? Result<Unit>.Fail($"{Refused} outra vontade conduz o corpo de {npc.Name}")
+            : null;
 
     private static bool Carries(WorldState world, Npc npc, string? powerId) =>
         !string.IsNullOrWhiteSpace(powerId)
@@ -98,19 +107,66 @@ public static class PlayerCommands
     public static Npc? ControlledBy(WorldState world, string playerId) =>
         world.Npcs.FirstOrDefault(n => n.IsAlive && n.ControllerId == playerId);
 
-    /// <summary>AD-197e: um passo na direção pedida (−1..1 em cada eixo): intenção, não posição. Vale a mesma regra do passo que a
-    /// rota antiga <c>/visual/player/move</c> aplicava (dentro do mapa, uma célula); a posição contínua e o custo do passo pelo corpo
-    /// vêm com o tempo real (ADR-0050).</summary>
+    /// <summary>AD-197e/197d: um passo na direção pedida (−1..1 em cada eixo): intenção, não posição. Parte de onde o corpo está agora
+    /// (a pose: no meio da rota, se viajava) e o motor valida o chão (<see cref="PlayerGround.Step"/>: dentro do mapa, sem parede, entre
+    /// fora e dentro só pela porta, sem gente na célula). Andar é tomar o rumo: a viagem do motor para ali e, sem ação pedida, o corpo
+    /// fica à toa onde o jogador o deixou (<see cref="TakeTheWheel"/>). A recusa não muda o mundo.</summary>
     public static Result<Unit> Move(WorldState world, TickContext ctx, NpcId npcId, string playerId, int dx, int dy)
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (dx is < -1 or > 1 || dy is < -1 or > 1 || (dx == 0 && dy == 0)) return Result<Unit>.Fail("move: direção inválida");
-        var target = new LivingWorld.Domain.Geography.CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
-        var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target);
+        var from = PlayerGround.PoseOf(world, npc);
+        var target = new LivingWorld.Domain.Geography.CellCoord(from.X + dx, from.Y + dy);
+        var valid = LivingWorld.Simulation.Visibility.PlayerMovementValidator.Validate(world, npc, target, from);
         if (!valid.IsSuccess) return valid;
-        npc.MoveTo(target, ctx.CurrentTick);
+        return Walk(world, ctx, npc, from, target);
+    }
+
+    /// <summary>AD-197j: o passo já validado no chão, no tempo do corpo: antes do fim do passo anterior é recusado (o mundo não muda);
+    /// dado, a posição muda (dentro do prédio, no andar em que está), o próximo passo só vem depois do tempo deste
+    /// (<see cref="PaceMs"/>) e andar gasta energia (sono) na medida desse tempo.</summary>
+    internal static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, LivingWorld.Domain.Geography.CellCoord from,
+        LivingWorld.Domain.Geography.CellCoord to)
+    {
+        long now = world.CurrentDate.TotalMilliseconds;
+        var rules = world.Players;
+        if (rules.PaceOn && now < npc.StepReadyAtMs)
+            return Result<Unit>.Fail(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"move: o corpo ainda está no passo anterior (faltam {npc.StepReadyAtMs - now} ms)"));
+        long pace = rules.PaceOn ? PaceMs(world, npc, from, to) : 0;
+        TakeTheWheel(world, npc);
+        npc.MoveTo(to, ctx.CurrentTick);
+        if (npc.Interior is { } inside && world.FindBuilding(inside.Building) is { Position: { } origin })
+            npc.MoveWithinBuilding(new LivingWorld.Domain.Geography.CellCoord(to.X - origin.X, to.Y - origin.Y));
+        if (rules.PaceOn) npc.Step(now + pace, rules.StepSleep * pace / (double)WorldMillis.PerHour, now);
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>AD-197j: quanto leva o passo de <paramref name="from"/> a <paramref name="to"/> para este corpo, pela mesma conta da viagem de
+    /// qualquer NPC (<see cref="LivingWorld.Simulation.Emergence.Mobility.TravelMs"/>: o caminho e o terreno, o corpo e a saúde, a carga,
+    /// o chão do dia), mais lento com sono abaixo de <see cref="PlayerRules.Tired"/> (até 1,5× com o sono em 0).</summary>
+    public static long PaceMs(WorldState world, Npc npc, LivingWorld.Domain.Geography.CellCoord from, LivingWorld.Domain.Geography.CellCoord to)
+    {
+        long ms = LivingWorld.Simulation.Emergence.Mobility.TravelMs(world, npc, from, to,
+            LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(world, npc));
+        double sleep = npc.SleepAt(world.CurrentDate.TotalHours);
+        double tired = 1 + Math.Max(0, world.Players.Tired - sleep) / Math.Max(1, world.Players.Tired) * 0.5;
+        return (long)Math.Ceiling(ms * tired);
+    }
+
+    /// <summary>AD-197d/197j: o jogador conduz o corpo com as próprias pernas: a viagem em curso para onde ele está (a pose); no térreo a
+    /// planta onde o motor o pôs é deixada (a posição passa a ser a célula do mundo), acima do térreo ele segue no andar; sem ação pedida,
+    /// fica à toa em vez de o motor o mandar de volta para a rota.</summary>
+    internal static void TakeTheWheel(WorldState world, Npc npc)
+    {
+        var pose = PlayerGround.PoseOf(world, npc);
+        if (npc.CurrentAction == ActionType.Travel)
+            npc.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds);
+        if (pose != npc.CurrentLocation) npc.MoveTo(pose, world.CurrentDate.TotalHours);
+        if (npc.Interior is { Floor.Value: 0 }) npc.ExitBuilding();
+        if (npc.ControlledAction is null) npc.SetControlledAction(ActionType.Idle);
     }
 
     /// <summary>AD-197e: golpe no alvo ao alcance (a mesma célula ou a vizinha) pelo mesmo caminho da briga de qualquer NPC
@@ -120,6 +176,7 @@ public static class PlayerCommands
     {
         var npc = world.FindNpc(npcId);
         if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
         if (world.FindNpc(targetId) is not { IsAlive: true } target || target.Id == npc.Id)
             return Result<Unit>.Fail($"{NotFound} alvo ausente ou morto");
         // AD-197c: no passo fino o alcance é o da pose de agora (quem passa pela rua no meio da viagem está ao alcance)
