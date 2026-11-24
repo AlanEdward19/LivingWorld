@@ -79,6 +79,16 @@ public static partial class PlayerInteractions
                     break;
                 }
 
+        // AD-197n: recipientes e veículos inventados pela casa (os designs da invenção que ela fez): levar um é o que o NPC faz ao sair
+        // com ele (a carga, a água e a compra passam a caber nele; o veículo enche o barril na fonte); devolver, ao chegar
+        if (world.InventionOn && world.Invention is { } ledger && household is not null && Near(at, inside, household.Location, household.Dwelling))
+            foreach (var (item, function, holder) in ledger.UsableOf(household.Id.Value))
+            {
+                var verbs = holder == npc.Id.Value ? new List<string> { "return" } : holder < 0 ? ["take"] : [];
+                if (verbs.Count > 0)
+                    offers.Add(Offer("item", item.Id, function == 2 ? "veículo" : "recipiente", verbs, household.Location));
+            }
+
         if (world.InventionOn && world.InventionRules!.Leavings.Enabled && world.Invention?.Leavings is { Count: > 0 } leavings)
             foreach (var leaving in leavings.OrderBy(l => l.Id))
             {
@@ -114,6 +124,13 @@ public static partial class PlayerInteractions
         if (!Enum.TryParse<ActionType>(verb, ignoreCase: true, out var action)) return Fail("interact: ação desconhecida");
         var asked = PlayerCommands.Act(world, npc.Id, npc.ControllerId!, action);
         return asked.IsSuccess ? Done(offer, verb, 0, 0) : Fail(asked.Error!);
+    }
+
+    /// <summary>AD-197n: levar a peça inventada (sai com ela, como quem arruma a ida) ou devolvê-la à casa.</summary>
+    private static Result<InteractionResult> Carry(WorldState world, Npc npc, InteractionOffer offer, string verb)
+    {
+        world.Invention!.Hold(npc.Id.Value, verb == "take" ? offer.Id : 0);
+        return Done(offer, verb, 1, 0);
     }
 
     /// <summary>Uma célula como id de oferta (x na parte alta, y na baixa).</summary>

@@ -439,7 +439,9 @@ public static class WaterFetch
         long weight = room.WeightG;
         long volume = Math.Max(room.WetMl, world.NaturalWaterRules.Fetch.VesselMl);
         // o veículo de terra da casa leva um barril se a rota da casa até a fonte o comporta (AD-176)
-        if (inv.LandVehicles && world.Invention.BestHauler(home.Id.Value, inv) is { Exists: true } hauler && hauler.CapacityG > weight
+        // AD-197n: quem puxa o veículo da casa (o jogador que o levou) usa esse; os outros, o melhor da casa, como sempre
+        var pulled = world.Invention.HaulerHeldBy(npc.Id.Value, inv);
+        if (inv.LandVehicles && (pulled.Exists ? pulled : world.Invention.BestHauler(home.Id.Value, inv)) is { Exists: true } hauler && hauler.CapacityG > weight
             && LivingWorld.Simulation.Cities.Streets.StreetRoutes.CartFits(world, home.Location, npc.CurrentLocation))
         {
             weight = hauler.CapacityG;
