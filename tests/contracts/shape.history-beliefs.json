@@ -1,8 +1,8 @@
 [
   {
     "distanceFromFact": "number",
+    "distortedAtMs": "number",
     "distortedMagnitude": "number",
-    "distortedTick": "number",
     "reportId": "number",
     "seed": "string"
   }

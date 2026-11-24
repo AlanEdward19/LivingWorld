@@ -27,7 +27,7 @@ public class MemoryRecallTests
     private static WorldState BuildWorld(long nowTick = 100)
     {
         var (world, _) = ScenarioRunner.Create(seed: 1);
-        world.CurrentDate = new WorldDate(world.Calendar, nowTick);
+        world.CurrentDate = WorldDate.FromHours(world.Calendar, nowTick);
         return world;
     }
 

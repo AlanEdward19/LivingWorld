@@ -21,7 +21,7 @@ public class VisualGateTests
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/openapi/v1.json");
+        var response = await client.GetAsync("/openapi/v2.json");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadAsStringAsync();
@@ -58,7 +58,7 @@ public class VisualGateTests
         await client.GetAsync("/visual/subscribe?scope=World&mode=Spectator");
         await client.GetAsync($"/visual/subscribe?scope=City&refId={Guid.NewGuid()}&mode=Spectator");
         await client.GetAsync("/visual/subscribe?scope=Interior&refId=999999&mode=Spectator");
-        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceTick=0&sinceSequence=0");
+        await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceMs=0&sinceSequence=0");
 
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
     }

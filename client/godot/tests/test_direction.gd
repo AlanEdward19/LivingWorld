@@ -11,11 +11,11 @@ const NARRATED := "texto narrado que nunca pode aparecer"
 
 static func crime_events() -> Array:
 	return [
-		{"eventId": 41, "tick": 12, "kind": 9, "label": NARRATED, "location": {"x": 3, "y": 3},
+		{"eventId": 41, "atMs": 12 * 3600000, "kind": 9, "label": NARRATED, "location": {"x": 3, "y": 3},
 			"involved": {"authorId": 8, "victimId": 7, "caseId": 5, "outcome": "preso", "recordOnly": true}},
-		{"eventId": 42, "tick": 13, "kind": 8, "label": "Furto na feira", "location": {"x": 4, "y": 3},
+		{"eventId": 42, "atMs": 13 * 3600000, "kind": 8, "label": "Furto na feira", "location": {"x": 4, "y": 3},
 			"involved": {"authorId": 8, "victimId": 9, "caseId": 6, "outcome": "fugiu", "recordOnly": false}},
-		{"eventId": 43, "tick": 14, "kind": 2, "label": "Casamento", "location": null, "involved": {"subjectId": 7, "otherId": 8}},
+		{"eventId": 43, "atMs": 14 * 3600000, "kind": 2, "label": "Casamento", "location": null, "involved": {"subjectId": 7, "otherId": 8}},
 	]
 
 

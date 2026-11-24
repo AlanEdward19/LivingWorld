@@ -143,7 +143,7 @@ public class ResourceProcessCatalogTests
         Assert.True(started.IsSuccess);
         Assert.Equal(2, household.Stock[Wheat]);
 
-        world.CurrentDate = new WorldDate(Calendar, 2);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 2);
         new ResourceProcessSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
         Assert.Equal(ProcessStatus.Completed, started.Value!.Status);
@@ -176,7 +176,7 @@ public class ResourceProcessCatalogTests
         var (world, npc, household) = ResidentWithWheat();
         var process = ResourceProcessSystem.Start(world, npc, CookBread, now: 0).Value!;
         npc.Die(world.CurrentDate);
-        world.CurrentDate = new WorldDate(Calendar, 4);
+        world.CurrentDate = WorldDate.FromHours(Calendar, 4);
 
         new ResourceProcessSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 

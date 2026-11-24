@@ -46,8 +46,8 @@ public class FactToReportConversionSchedulerTests
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
 
-        Assert.True(world.Scheduler.HasDue(ctx.CurrentTick));
-        var pending = world.Scheduler.PeekDue(ctx.CurrentTick);
+        Assert.True(world.Scheduler.HasDue(ctx.CurrentMs));
+        var pending = world.Scheduler.PeekDue(ctx.CurrentMs);
         Assert.Contains(pending, e => e.SystemName == FactToReportConversionScheduler.SystemName);
     }
 
@@ -89,11 +89,11 @@ public class FactToReportConversionSchedulerTests
         world.AliveNpcIndex.OnDied(witnessA);
         var ctx = new TickContext(world, world.Rng, world.Scheduler, null);
         FactToReportConversionScheduler.OnWitnessDied(witnessA.Id, world, ctx);
-        Assert.False(world.Scheduler.HasDue(ctx.CurrentTick));
+        Assert.False(world.Scheduler.HasDue(ctx.CurrentMs));
 
         witnessB.Die(world.CurrentDate);
         world.AliveNpcIndex.OnDied(witnessB);
         FactToReportConversionScheduler.OnWitnessDied(witnessB.Id, world, ctx);
-        Assert.True(world.Scheduler.HasDue(ctx.CurrentTick));
+        Assert.True(world.Scheduler.HasDue(ctx.CurrentMs));
     }
 }

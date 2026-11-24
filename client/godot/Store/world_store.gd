@@ -1,6 +1,7 @@
 extends RefCounted
 ## Estado local do cliente: espelho do que o servidor projeta, reconstruível por snapshot + replay.
 ## Nenhuma regra de simulação aqui; só aplicar snapshot/deltas e avisar a cena.
+const WorldTime := preload("res://Contract/world_time.gd")
 
 signal reloaded(kind: String)
 signal npc_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int)
@@ -95,7 +96,7 @@ func weather_at(cell: Vector2i) -> Dictionary:
 func apply_snapshot(envelope: Dictionary) -> void:
 	kind = scope_name(envelope.scope.kind)
 	var cursor = envelope.get("cursor")
-	last_tick = int(cursor.get("tick", -1)) if cursor is Dictionary else -1
+	last_tick = WorldTime.hours_of(cursor, "atMs", -1) if cursor is Dictionary else -1
 	var payload = envelope.get("payload")
 	if payload == null:
 		npcs.clear()
@@ -247,7 +248,7 @@ func _observe(npc: Dictionary, visual: Dictionary, previous: Variant = null) -> 
 	var before: Dictionary = previous.get("obs", {}) if previous is Dictionary else {}
 	var before_target: Dictionary = previous.get("target", {}) if previous is Dictionary else {}
 	npc.obs = Parse.observable(visual.get("observable")) if visual.get("observable") is Dictionary else before
-	if previous is Dictionary and visual.get("actionStartedAtTick") == null:
+	if previous is Dictionary and visual.get("actionStartedAtMs") == null:
 		# AD-172: sem `actionStartedAtTick` o grupo (início, alvo, intenção) é o de antes
 		npc.target = previous.get("target", {})
 		npc.intent = int(previous.get("intent", -1))
@@ -257,11 +258,11 @@ func _observe(npc: Dictionary, visual: Dictionary, previous: Variant = null) -> 
 		npc.target = Parse.target(visual.get("actionTarget"))
 		npc.intent = int(visual.intent) if visual.get("intent") != null else -1
 		npc.intent_target = String(visual.intentTarget) if visual.get("intentTarget") != null else ""
-		npc.started = int(visual.actionStartedAtTick) if visual.get("actionStartedAtTick") != null else -1
+		npc.started = WorldTime.hours_of(visual, "actionStartedAtMs", -1)
 	npc.route = Parse.route(visual.get("route")) # AD-176: rota de quem viaja (ausente = não viaja)
-	npc.arrival = int(visual.routeArrivalTick) if visual.get("routeArrivalTick") != null and not npc.route.is_empty() else -1
+	npc.arrival = WorldTime.hours_of(visual, "routeArrivalAtMs", -1) if not npc.route.is_empty() else -1
 	# AD-185: saída explícita da viagem e os índices da rota que passam por cima (escada, laje, telhado)
-	npc.departed = int(visual.routeDepartedTick) if visual.get("routeDepartedTick") != null and not npc.route.is_empty() else -1
+	npc.departed = WorldTime.hours_of(visual, "routeDepartedAtMs", -1) if not npc.route.is_empty() else -1
 	npc.route_over = Parse.route_over(visual.get("routeOver"), npc.route.size())
 	if npc.obs.has("name") and String(npc.obs.name) != "":
 		names[int(npc.id)] = String(npc.obs.name)
@@ -402,7 +403,7 @@ func apply_delta(envelope: Dictionary) -> void:
 	for removed in delta.get("processRemoved", []):
 		sent[int(id_of(removed))] = true
 		processes_touched = processes.erase(int(id_of(removed))) or processes_touched
-	var tick_now := int(delta.get("tick", -1))
+	var tick_now := WorldTime.hours_of(delta, "atMs", -1)
 	if last_tick >= 0 and tick_now > last_tick:
 		processes_touched = Parse.advance_processes(processes, tick_now - last_tick, sent) or processes_touched
 	if tick_now >= 0:

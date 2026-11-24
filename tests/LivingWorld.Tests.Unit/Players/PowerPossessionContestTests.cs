@@ -2,7 +2,6 @@ using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Engine;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
@@ -36,7 +35,9 @@ public class PowerPossessionContestTests
             new ExtraordinaryAppearanceState(1, "", ""), null, world.CurrentDate.TotalHours));
         target.ImprintPersonality(target.Personality with
         {
-            EmotionalStability = stability, Conscientiousness = conscientiousness, Impulsivity = impulsivity,
+            EmotionalStability = stability,
+            Conscientiousness = conscientiousness,
+            Impulsivity = impulsivity,
         });
         target.SetHealth(100);
         sink.Events.Clear();

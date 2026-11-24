@@ -12,6 +12,7 @@
   "name": "string",
   "recentEvents": [
     {
+      "atMs": "number",
       "eventId": "number",
       "involved": {
         "amount": "number",
@@ -39,8 +40,7 @@
       "location": {
         "x": "number",
         "y": "number"
-      },
-      "tick": "number"
+      }
     }
   ],
   "state": {
@@ -54,7 +54,7 @@
       "seasonKey": "string",
       "temperatureC": "number"
     },
-    "foundedAtTick": "number",
+    "foundedAtMs": "number",
     "foundedFromCityId": "null",
     "founderId": "null",
     "founderName": "null",

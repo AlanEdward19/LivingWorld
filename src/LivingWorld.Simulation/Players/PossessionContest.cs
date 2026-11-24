@@ -1,6 +1,7 @@
 using System.Globalization;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
@@ -112,7 +113,8 @@ public static class PossessionContest
     internal static void Begin(WorldState world, Npc npc, long now)
     {
         if (!On(world) || npc.Will is { Controlled: true }) return;
-        npc.SetWill(new WillContest(now, Resistance(world, npc, now), now, Controlled: true, LastCheckTick: now));
+        long nowMs = WorldMillis.FromHours(now);
+        npc.SetWill(new WillContest(nowMs, Resistance(world, npc, now), nowMs, Controlled: true, LastCheckMs: nowMs));
     }
 
     /// <summary>A posse acabou (saída, expulsão): o cansaço fica e recupera solto; sem cansaço não sobra nada para guardar (a posse
@@ -123,14 +125,15 @@ public static class PossessionContest
         double left = Resistance(world, npc, tick);
         npc.SetWill(left >= Willpower(world, npc, tick) && npc.Will.LastPersuadedTick < 0
             ? null
-            : new WillContest(npc.Will.SinceTick, left, tick, Controlled: false));
+            : new WillContest(npc.Will.SinceMs, left, WorldMillis.FromHours(tick), Controlled: false));
     }
 
     internal static void Shift(WorldState world, Npc npc, long tick, double delta, bool persuaded = false)
     {
         if (npc.Will is not { Controlled: true } contest) return;
         double now = Math.Clamp(Resistance(world, npc, tick) + delta, 0, 100);
-        npc.SetWill(contest with { Resistance = now, AtTick = tick, LastPersuadedTick = persuaded ? tick : contest.LastPersuadedTick });
+        long tickMs = WorldMillis.FromHours(tick);
+        npc.SetWill(contest with { Resistance = now, AtMs = tickMs, LastPersuadedMs = persuaded ? tickMs : contest.LastPersuadedMs });
     }
 
     /// <summary>Quem possui tenta convencer a pessoa a ceder: tira resistência (amabilidade dela), uma vez por hora.</summary>
@@ -159,7 +162,7 @@ public static class PossessionContest
     {
         if (!Struggles(world, npc, now, out _, out _, out _)) return false;
         if (npc.ControllerId is null) End(world, npc, now);
-        else npc.SetWill(npc.Will! with { Struggle = 0, LastCheckTick = now }); // personagem de jogador: o jogador segue no corpo
+        else npc.SetWill(npc.Will! with { Struggle = 0, LastCheckMs = WorldMillis.FromHours(now) }); // personagem de jogador: o jogador segue no corpo
         if (world.NeedsRules.Psyche.Enabled)
             PsycheMechanic.Experience(world, npc, LivingWorld.Domain.Cognition.LifeEventKind.Possessed, 0, now, 0.3, world.Players.Possessed);
         return true;
@@ -178,7 +181,7 @@ public static class PossessionContest
         control = Control(world, npc, now);
         int struggle = resistance >= Rules(world).ExpelFactor * control ? contest.Struggle + 1 : 0;
         if (struggle >= Rules(world).ExpelChecks) return true;
-        npc.SetWill(contest with { Struggle = struggle, LastCheckTick = now });
+        npc.SetWill(contest with { Struggle = struggle, LastCheckMs = WorldMillis.FromHours(now) });
         return false;
     }
 
