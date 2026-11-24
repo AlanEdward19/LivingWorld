@@ -11,6 +11,10 @@ signal confirmed(x: int, y: int)
 signal rejected()
 signal conversation_opened(npc_id: int, name: String, session_id: int)
 signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
+## AD-197k: passo solto: o corpo anda já na tela pelo rumo e pela velocidade do motor e corrige pela posição fina que ele responde.
+signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
+signal settled(position: Vector2) ## posição fina do motor
+signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
 const PAUSED_NOTE := "Mundo pausado: suas ações só andam quando o tempo voltar."
@@ -320,21 +324,69 @@ func _held_keys() -> Vector2i:
 
 func _process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
-	if not is_active or _stepping or _cooldown > 0.0:
+	if not is_active:
 		return
-	var direction := intent_for(_held_keys())
-	if direction != Vector2i.ZERO:
-		step(direction.x, direction.y)
+	glide(walk_direction(_held_keys()), delta)
+
+
+## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
+const WALK_SEND := 0.1 ## s entre rumos enviados com a tecla segurada (o motor anda o corpo pelo tempo de mundo entre eles)
+var fine := Vector2.INF ## posição fina do corpo (células, absoluta): a do motor, mais a previsão desde a última resposta
+var speed_cells := 0.0 ## células por segundo real (m/s do motor / metros por célula, na escala do relógio)
+var _walk_dir := Vector2.ZERO
+var _walk_clock := 0.0
+var _walk_busy := false
+
+
+func walk_direction(keys: Vector2i) -> Vector2:
+	if keys == Vector2i.ZERO:
+		return Vector2.ZERO
+	var forward: Vector2 = heading.call()
+	var right := Vector2(-forward.y, forward.x)
+	return (forward * float(-keys.y) + right * float(keys.x)).normalized()
+
+
+## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
+func glide(direction: Vector2, delta: float) -> void:
+	if fine != Vector2.INF and direction != Vector2.ZERO and speed_cells > 0.0:
+		fine += direction * speed_cells * delta
+		glided.emit(fine)
+	_walk_clock += delta
+	var changed := direction != _walk_dir
+	if (changed or (direction != Vector2.ZERO and _walk_clock >= WALK_SEND)) and not _walk_busy:
+		_walk_clock = 0.0
+		_walk_dir = direction
+		send_walk(direction)
+
+
+func send_walk(direction: Vector2) -> void:
+	_walk_busy = true
+	var started := Time.get_ticks_usec()
+	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0))
+	_note_latency(started)
+	_walk_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		apply_pose(response.body)
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+
+
+## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
+func apply_pose(pose: Dictionary) -> void:
+	if pose.has("fx"):
+		fine = Vector2(float(pose.fx), float(pose.fy))
+		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(float(pose.get("cellMeters", 1.5)), 0.01) * scale
+		settled.emit(fine)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_active:
 		return
-	if event is InputEventKey and event.pressed and STEP_KEYS.has(event.keycode):
-		get_viewport().set_input_as_handled()
-		if not event.echo:
-			var direction := intent_for(STEP_KEYS[event.keycode])
-			step(direction.x, direction.y)
+	if event is InputEventKey and STEP_KEYS.has(event.keycode):
+		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		get_viewport().set_input_as_handled()
 		if menu != null and menu.visible:
@@ -458,11 +510,13 @@ func show_menu(entries: Array) -> void:
 		button.pressed.connect(func(): interact(entry))
 		menu.add_child(button)
 	menu.visible = true
+	menu_toggled.emit(true)
 
 
 func close_menu() -> void:
-	if menu != null:
+	if menu != null and menu.visible:
 		menu.visible = false
+		menu_toggled.emit(false)
 
 
 ## Pede a interação ao motor; a recusa da pessoa possuída (409 com o motivo) vira aviso, e a conversa aceita abre o chat.

@@ -53,6 +53,10 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/move", (HttpContext http, string playerId, PlayerMoveRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Move, Dx: request.Dx, Dy: request.Dy)));
 
+        // AD-197k: o passo solto (rumo em milésimos); o canal é o caminho de sempre, a rota serve a quem não o abre
+        app.MapPost("/players/{playerId}/walk", (HttpContext http, string playerId, PlayerMoveRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy)));
+
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
 

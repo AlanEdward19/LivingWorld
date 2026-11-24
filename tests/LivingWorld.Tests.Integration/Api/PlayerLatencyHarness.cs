@@ -65,6 +65,16 @@ public class PlayerLatencyHarness
         }
 
         // AD-197d: o passo (intenção validada no chão do motor, ida e volta alternadas) e a oferta de interações, do comando à resposta
+        var walkMs = new List<double>();
+        for (int i = 0; i < Warmup + Samples; i++) // AD-197k: o rumo do passo solto (a cada ~100 ms no cliente)
+        {
+            long start = Stopwatch.GetTimestamp();
+            string walk = $$"""{"seq":{{i}},"command":"walk","dx":{{(i % 2 == 0 ? 1000 : -1000)}},"dy":0}""";
+            await socket.SendAsync(Encoding.UTF8.GetBytes(walk), WebSocketMessageType.Text, true, CancellationToken.None);
+            var reply = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            if (i >= Warmup) walkMs.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            Assert.Contains("\"ok\":true", Encoding.UTF8.GetString(buffer, 0, reply.Count), StringComparison.Ordinal);
+        }
         var moveMs = new List<double>();
         var reachMs = new List<double>();
         for (int i = 0; i < Warmup + Samples; i++)
@@ -86,8 +96,9 @@ public class PlayerLatencyHarness
         var (wMed, wP95) = Stats(wsMs);
         var (mMed, mP95) = Stats(moveMs);
         var (rMed, rP95) = Stats(reachMs);
+        var (kMed, kP95) = Stats(walkMs);
         string line = FormattableString.Invariant(
-            $"httpMedianMs={hMed:0.000} httpP95Ms={hP95:0.000} wsMedianMs={wMed:0.000} wsP95Ms={wP95:0.000} wsMoveMedianMs={mMed:0.000} wsMoveP95Ms={mP95:0.000} wsReachMedianMs={rMed:0.000} wsReachP95Ms={rP95:0.000} samples={Samples}");
+            $"httpMedianMs={hMed:0.000} httpP95Ms={hP95:0.000} wsMedianMs={wMed:0.000} wsP95Ms={wP95:0.000} wsMoveMedianMs={mMed:0.000} wsMoveP95Ms={mP95:0.000} wsReachMedianMs={rMed:0.000} wsReachP95Ms={rP95:0.000} wsWalkMedianMs={kMed:0.000} wsWalkP95Ms={kP95:0.000} samples={Samples}");
         if (Environment.GetEnvironmentVariable("LW_MEASURE_OUT") is { Length: > 0 } path) File.WriteAllText(path, line + "\n");
         Assert.True(wMed > 0 && hMed > 0, line);
     }

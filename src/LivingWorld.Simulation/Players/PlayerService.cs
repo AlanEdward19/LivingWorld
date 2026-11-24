@@ -15,7 +15,8 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.Reason"/>).
 /// AD-197d: <see cref="Interact"/> é interagir com o que está perto (<see cref="PlayerCommandRecord.Interaction"/>,
 /// <see cref="PlayerCommandRecord.Verb"/>, alvo em <see cref="PlayerCommandRecord.TargetId"/>, recurso e quantidade).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact }
+/// AD-197k: <see cref="Walk"/> é o rumo do passo solto (<see cref="PlayerCommandRecord.Dx"/>/<see cref="PlayerCommandRecord.Dy"/> em milésimos).
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -164,6 +165,18 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para): o motor anda o corpo pelo rumo anterior até agora.</summary>
+    public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy);
+        if (result.IsSuccess)
+            Record(world, playerId, PlayerCommandKind.Walk, npc.Id.Value, new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Walk, Dx: dx, Dy: dy));
+        return result;
+    }
+
     /// <summary>AD-197d: o que o corpo do jogador alcança agora e o que pode fazer ali (só lê).</summary>
     public static IReadOnlyList<InteractionOffer>? Reach(WorldState world, string playerId) =>
         PlayerCommands.ControlledBy(world, playerId) is { } npc ? PlayerInteractions.Offers(world, npc) : null;
@@ -228,6 +241,7 @@ public static class PlayerReplay
                 PlayerCommandKind.Sleep => service.Sleep(world, record.PlayerId, record.UntilMs).IsSuccess,
                 PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
+                PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0).IsSuccess,
                 PlayerCommandKind.Interact => service.Interact(world, record.PlayerId, record.Interaction!, record.TargetId!.Value,
                     record.Verb!, record.ResourceId, record.Quantity).IsSuccess,
                 _ => service.Logout(world, record.PlayerId).IsSuccess,

@@ -1,5 +1,6 @@
 using LivingWorld.Api.World;
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Players;
@@ -71,6 +72,7 @@ public sealed class PlayerCommandGateway(
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
+                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
                     command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
                 PlayerCommandKind.Logout => Map(players.Logout(world, playerId),
@@ -133,8 +135,35 @@ public sealed class PlayerCommandGateway(
                 buildingId = npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
                 floor = PlayerGround.FloorOf(npc),
                 readyInMs = Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
+                fx = (npc.Fine?.X ?? npc.CurrentLocation.X * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+                fy = (npc.Fine?.Y ?? npc.CurrentLocation.Y * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+                speedMps = WalkSpeed(world, npc),
+                cellMeters = world.Players.CellM,
             }
-            : new { playerId, npcId = -1L, x = 0, y = 0, buildingId = (long?)null, floor = 0, readyInMs = 0L };
+            : new
+            {
+                playerId,
+                npcId = -1L,
+                x = 0,
+                y = 0,
+                buildingId = (long?)null,
+                floor = 0,
+                readyInMs = 0L,
+                fx = 0.0,
+                fy = 0.0,
+                speedMps = 0.0,
+                cellMeters = world.Players.CellM
+            };
+
+    /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo.</summary>
+    private static double WalkSpeed(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc)
+    {
+        var at = npc.CurrentLocation;
+        int hx = Math.Sign(npc.Fine?.HeadingX ?? 0), hy = Math.Sign(npc.Fine?.HeadingY ?? 0);
+        var ahead = hx == 0 && hy == 0 ? new LivingWorld.Domain.Geography.CellCoord(at.X + 1, at.Y)
+            : new LivingWorld.Domain.Geography.CellCoord(at.X + hx, at.Y + hy);
+        return world.Map.TryGetCell(ahead, out _) ? PlayerWalk.SpeedMps(world, npc, at, ahead) : world.Players.WalkMps;
+    }
 
     /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>
     private object Interacted(LivingWorld.Simulation.Core.WorldState world, string playerId, InteractionResult done)

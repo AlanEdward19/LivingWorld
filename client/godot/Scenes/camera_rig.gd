@@ -77,6 +77,7 @@ func set_mode(value: String) -> void:
 		camera.near = 0.05
 		_pivot.position = Vector3.ZERO
 	else:
+		set_cursor_captured(true) # AD-197k (emenda do dono ao ADR-0051): o mouse olha só de mexer, sem botão
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		camera.fov = 70.0
 		camera.near = 0.05
@@ -85,7 +86,7 @@ func set_mode(value: String) -> void:
 	mode_changed.emit(mode)
 
 
-var cursor_captured := false ## AD-197j: Z prende o cursor (o mouse olha sem botão); a mira fica no centro da tela
+var cursor_captured := false ## AD-197k: preso ao entrar no modo jogador (o mouse olha sem botão); Z solta e prende de novo
 
 
 func set_cursor_captured(value: bool) -> void:

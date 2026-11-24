@@ -189,8 +189,13 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.predicted.connect(app._on_player_predicted)
 	app.player_hud.confirmed.connect(app._on_player_confirmed)
 	app.player_hud.rejected.connect(app._on_player_rejected)
-	app.player_hud.conversation_opened.connect(func(id: int, name: String, session: int): app.conversation.attach(id, name, session))
+	app.player_hud.conversation_opened.connect(func(id: int, name: String, session: int):
+		app._on_player_menu(true)
+		app.conversation.attach(id, name, session))
 	app.player_hud.struck.connect(app._on_player_struck)
+	app.player_hud.glided.connect(app._on_player_fine)
+	app.player_hud.settled.connect(app._on_player_fine)
+	app.player_hud.menu_toggled.connect(app._on_player_menu)
 	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
@@ -251,6 +256,7 @@ static func _windows(app, ui: Control) -> void:
 		app.router.register(window)
 	app.conversation = ConversationWindow.new()
 	app.conversation.api = app.api
+	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar
 	app.conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
 	app.conversation.anchor_top = 1.0 # faixa fixa na base da tela
 	app.conversation.offset_left = 310

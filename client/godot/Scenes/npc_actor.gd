@@ -555,7 +555,26 @@ func set_spread(offset: Vector3) -> void:
 		_to = Grid.to_world(cell) + spread
 
 
+var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+
+
+## AD-197k: a posição fina (células, absoluta) do corpo do jogador; vira para onde anda.
+func set_fine(at: Vector2) -> void:
+	var to := Vector3(at.x * Grid.CELL, position.y, at.y * Grid.CELL)
+	var heading := to - position
+	if heading.length() > 0.001:
+		rotation.y = atan2(heading.x, heading.z)
+		_from = position
+		_to = to
+		_duration = 0.12
+		_t = 0.0 # a pose de andar enquanto se move
+	position = to
+	cell = Vector2i(floori(at.x), floori(at.y))
+
+
 func move_to(new_cell: Vector2i, duration: float) -> void:
+	if driven:
+		return
 	cell = new_cell
 	_from = position
 	_to = Grid.to_world(new_cell) + spread

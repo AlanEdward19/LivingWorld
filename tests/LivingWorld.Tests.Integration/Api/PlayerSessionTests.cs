@@ -217,7 +217,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/accelerate",
             "/players/{playerId}/action", "/players/{playerId}/interact", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
-            "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/wake"], routes); // rota nova sem cobertura reprova
+            "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
         var leaks = new List<string>();
@@ -234,7 +234,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
         using (var socket = await Channel(session.SessionToken))
             foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"move","dx":1,"dy":0}""",
                 $$"""{"seq":4,"command":"strike","npcId":{{other}}}""", """{"seq":6,"command":"sleep","untilHour":6}""",
-                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""",
+                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0}""",
                 """{"seq":7,"command":"accelerate"}""", """{"seq":8,"command":"wake"}""", """{"seq":5,"command":"logout"}""" })
                 if ((await Send(socket, command))["status"]!.GetValue<int>() != 409) leaks.Add("ws:" + command);
 

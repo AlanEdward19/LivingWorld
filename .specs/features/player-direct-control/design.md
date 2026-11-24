@@ -1,4 +1,4 @@
-# Controle direto de RPG (3ª/1ª pessoa, WASD, interagir, golpe) [Estado: AD-197d e AD-197j entregues (ADR-0051 proposto); posição contínua em issue]
+# Controle direto de RPG (3ª/1ª pessoa, WASD, interagir, golpe) [Estado: AD-197d, 197j e 197k entregues (ADR-0049 e ADR-0051 aceitos)]
 
 Decisões do dono (2026-11-23): câmera em 3ª/1ª pessoa, WASD ou setas, interagir, bater com clique; com jogador o mundo inteiro
 roda em tempo real (proporção configurável por mundo, padrão 1:1); avançar horas só o admin ou o jogador sozinho. Regra do
@@ -50,7 +50,10 @@ projeto: tudo real no motor. ADRs: 0048 (sessão e canal, aceito), 0049 (câmera
   antes do fim, recusa; gasta sono); escada e andares de cima pelo `Interior`; fonte (beber, encher), lavoura (trabalhar),
   espólio (recolher) e furto de despensa, banca, lavoura e espólio alheios pelo `Theft`; cliente com golpe animado, Z prende o
   cursor, mira no centro, nomes de recurso. Abandono sem outro povoado deixa sem teto (`UnionDissolution`).
-- **Fora (issues)**: posição contínua entre células (uma célula custa ~3 min de mundo a pé); objeto inventado na oferta.
+- **AD-197k**: passo solto (`walk {dx, dy}` em milésimos; `PlayerWalk`, `Npc.Fine` em milésimos de célula): velocidade em m/s pela
+  mesma conta (`PaceMs` relativo ao chão mais fácil × 1,4 m/s, célula de 1,5 m); a célula, a parede, a porta e a gente seguem da
+  grade. Cursor preso no modo jogador (Z solta e prende; menu, conversa e Esc soltam). Mobília pelo catálogo de objetos e oficina
+  sem preço na oferta. Escala em aberto: a viagem dos NPCs conta ~3 min por célula, o passo solto 1,5 m por célula (ADR-0051).
 
 ## Critérios (a escrever ao ativar, `rules/eval-criteria.md`)
 - Mesmo registro (entradas, Δ, acelerações) reaplicado do snapshot dá o mesmo hash; entrada contra parede não move.
