@@ -578,7 +578,8 @@ func open_creator() -> void:
 	if player_hud.is_active:
 		toasts.push("Você já controla alguém: saia do personagem antes de entrar como pessoa nova.")
 		return
-	router.opened(creator)
+	creator.reveal()
+	router.opened(creator) # AD-197q: encaixada na área central, abaixo da barra (não no canto, por cima da trilha)
 	await creator.open()
 
 

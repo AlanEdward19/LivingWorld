@@ -80,11 +80,17 @@ func _init() -> void:
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message.add_theme_color_override("font_color", Color("ffcf4a"))
 	box.add_child(_message)
+	var scroll := ScrollContainer.new() # a área central do roteador é baixa: os cartões rolam dentro da janela
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size.y = 220
+	box.add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 3
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
-	box.add_child(_grid)
+	scroll.add_child(_grid)
 
 
 func _age_box(prefix: String, value: int) -> SpinBox:
@@ -96,10 +102,15 @@ func _age_box(prefix: String, value: int) -> SpinBox:
 	return spin
 
 
-## Abre e pergunta ao motor de onde dá para sair; a cidade com mais gente no agregado vem primeiro.
-func open() -> void:
+## Fica aberta já (o roteador só encaixa janela aberta: abaixo da barra, na área central).
+func reveal() -> void:
 	is_open = true
 	visible = true
+
+
+## Abre e pergunta ao motor de onde dá para sair; a cidade com mais gente no agregado vem primeiro.
+func open() -> void:
+	reveal()
 	_request += 1
 	var mine := _request
 	var response: Dictionary = await api.player_origins()

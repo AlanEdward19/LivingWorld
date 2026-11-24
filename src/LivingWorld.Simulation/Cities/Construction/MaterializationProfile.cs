@@ -14,7 +14,7 @@ public sealed record MaterializationProfile(
     CultureId Culture, long Wealth, int Health, CellCoord BirthLocation, CityId? BornIn);
 
 /// <summary>O que o agregado de uma cidade diz de quem está nele (amostragem condicionada, <c>docs/domain/simulation-lod.md</c>):
-/// riqueza e saúde por cabeça do pool, a distribuição de ofícios e a cultura predominante dos adultos detalhados da cidade (a parte
+/// riqueza e saúde por cabeça do pool, a pirâmide de idades, a distribuição de ofícios e a cultura predominante dos adultos detalhados da cidade (a parte
 /// observada da mesma população), e de onde veio quem é mais velho que a cidade (a cidade-mãe, se ela foi fundada por outra).
 /// Calculado uma vez por pedido; ninguém guarda.</summary>
 public sealed class MaterializationPrior
@@ -25,6 +25,7 @@ public sealed class MaterializationPrior
     private readonly int _healthPerHead;
     private readonly (int Profession, int Count)[] _professions;
     private readonly int _professionTotal;
+    private readonly int[] _adultAges;
     private readonly CultureId _culture;
     private readonly int _cityAgeYears;
     private readonly City? _parent;
@@ -39,15 +40,20 @@ public sealed class MaterializationPrior
 
         var professions = new SortedDictionary<int, int>();
         var cultures = new SortedDictionary<int, int>();
+        var ages = new List<int>();
         foreach (var npc in world.Npcs)
         {
             if (!npc.IsAlive || npc.City != city.Id || npc.DisappearedAtTick is not null) continue;
-            if (npc.AgeYears(world.CurrentDate) < AdultYears) continue;
+            int age = npc.AgeYears(world.CurrentDate);
+            if (age < AdultYears) continue;
+            ages.Add(age);
             professions[npc.Profession.Id] = professions.GetValueOrDefault(npc.Profession.Id) + 1;
             cultures[npc.Culture.Id] = cultures.GetValueOrDefault(npc.Culture.Id) + 1;
         }
         _professions = professions.Select(p => (p.Key, p.Value)).ToArray();
         _professionTotal = _professions.Sum(p => p.Count);
+        ages.Sort();
+        _adultAges = [.. ages];
         _culture = cultures.Count > 0
             ? new CultureId(cultures.OrderByDescending(c => c.Value).ThenBy(c => c.Key).First().Key)
             : world.PopulationCatalog.CultureIds.Count > 0 ? new CultureId(world.PopulationCatalog.CultureIds.Order().First()) : default;
@@ -71,8 +77,7 @@ public sealed class MaterializationPrior
     {
         var rng = _world.Rng;
         var sex = rng.OneShot($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
-        int maxAge = Math.Max(AdultYears + 1, _world.PopulationRules.LifeTable.MaxLongevityYears - 1);
-        int ageYears = AdultYears + (int)(rng.OneShot($"materialize-age-{id.Value}").NextDouble() * (maxAge - AdultYears));
+        int ageYears = RollAge(rng.OneShot($"materialize-age-{id.Value}").NextDouble());
         long birthday = (long)(rng.OneShot($"materialize-birthday-{id.Value}").NextDouble() * _world.Calendar.HoursPerYear);
         var personality = Personality.RollFrom(rng.OneShot($"materialize-personality-{id.Value}"));
         var profession = RollProfession(rng.OneShot($"materialize-profession-{id.Value}"));
@@ -81,6 +86,15 @@ public sealed class MaterializationPrior
         var bornIn = olderThanCity && _parent is not null ? _parent : _city;
         return new MaterializationProfile(id, _city.Id, sex, ageYears, birthday, personality, profession, _culture,
             _wealthPerHead, _healthPerHead, bornIn.Location, olderThanCity && _parent is not null ? _parent.Id : _city.Id);
+    }
+
+    /// <summary>A idade sai da pirâmide dos adultos detalhados da cidade (a parte vista da mesma população: a idade de um deles,
+    /// sorteado); cidade sem adulto detalhado cai no sorteio uniforme de antes, de 18 à longevidade máxima.</summary>
+    private int RollAge(double draw)
+    {
+        if (_adultAges.Length > 0) return _adultAges[Math.Min((int)(draw * _adultAges.Length), _adultAges.Length - 1)];
+        int maxAge = Math.Max(AdultYears + 1, _world.PopulationRules.LifeTable.MaxLongevityYears - 1);
+        return AdultYears + (int)(draw * (maxAge - AdultYears));
     }
 
     /// <summary>O ofício sai da distribuição dos adultos detalhados da cidade (a parte vista da mesma população); cidade sem

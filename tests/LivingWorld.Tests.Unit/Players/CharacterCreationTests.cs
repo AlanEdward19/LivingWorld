@@ -63,6 +63,7 @@ public class CharacterCreationTests
         var w = arm.World;
         var adults = w.Npcs.Where(n => n.IsAlive && n.City == arm.City.Id && n.AgeYears(w.CurrentDate) >= MaterializationPrior.AdultYears).ToList();
         var professions = adults.Select(n => n.Profession.Id).ToHashSet();
+        var ages = adults.Select(n => n.AgeYears(w.CurrentDate)).ToHashSet();
         var culture = adults.GroupBy(n => n.Culture.Id).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).First().Key;
         long perHead = arm.City.AggregatePool.WealthSum / arm.City.AggregatePool.Count;
         var service = new PlayerService(arm.Sink);
@@ -76,6 +77,8 @@ public class CharacterCreationTests
         Assert.Equal(arm.City.Id, npc.City);
         Assert.Contains(npc.Profession.Id, professions); // ofício da população da cidade, não sorteio livre do catálogo
         Assert.Equal(culture, npc.Culture.Id);
+        Assert.Contains(npc.AgeYears(w.CurrentDate), ages); // idade pela pirâmide dos adultos da cidade, não uniforme até a longevidade
+        Assert.All(sample.Candidates, c => Assert.Contains(c.AgeYears, ages));
         Assert.Equal(perHead, npc.Wallet.Amount);
         // sem parente inventado: quem a pessoa tem segue no agregado
         Assert.Null(npc.Household);

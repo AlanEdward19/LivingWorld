@@ -137,6 +137,9 @@ func test_in_the_app_the_new_person_enters_the_city_of_origin_and_goes_straight_
 	app.player_hud.session_enabled = false
 
 	await app.open_creator()
+	var placed: Vector2 = app.creator.position
+	check(placed.y >= app.router.MARGIN_TOP and placed.x >= app.router.MARGIN_LEFT,
+		"encaixada na área central, abaixo da barra de cima (não no canto): %s" % placed)
 	await app.creator.choose(103, "Clara Dias")
 	for _i in 4:
 		await tree.process_frame
