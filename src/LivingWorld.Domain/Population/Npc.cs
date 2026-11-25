@@ -543,6 +543,17 @@ public sealed class Npc
     /// cref="AggregatePopulationPool"/> da cidade.</summary>
     public long? MaterializedAtTick { get; private set; }
 
+    /// <summary>AD-197t: tick em que chegou de fora como recém-chegado (migrante que o jogador montou no criador de personagem);
+    /// nulo = nasceu ou foi povoado aqui. Omitido do snapshot quando nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? ArrivedAtTick { get; private set; }
+
+    public void MarkArrived(long tick)
+    {
+        ArrivedAtTick = tick;
+        TouchCanonical();
+    }
+
     /// <summary>Ocupação de interior — <c>null</c> quando o NPC está em
     /// escopo World/City. Nunca substitui <see cref="CurrentLocation"/>/<see cref="City"/>: a
     /// localização global continua a mesma independente de estar dentro de um prédio.</summary>
@@ -585,7 +596,7 @@ public sealed class Npc
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
-        long travelLegEndMs = 0, CellCoord? travelLegTo = null)
+        long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -662,6 +673,7 @@ public sealed class Npc
         CourtingWith = courtingWith;
         City = city;
         MaterializedAtTick = materializedAtTick;
+        ArrivedAtTick = arrivedAtTick;
         Interior = interior;
         CarriedResourceId = carriedResourceId;
         CarriedQuantity = carriedQuantity;

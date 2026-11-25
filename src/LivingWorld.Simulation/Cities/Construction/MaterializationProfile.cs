@@ -72,15 +72,18 @@ public sealed class MaterializationPrior
     /// <summary>Saúde por cabeça do pool agora (0–100).</summary>
     public int HealthPerHead => _healthPerHead;
 
-    /// <summary>A pessoa que o id reservado <paramref name="id"/> vira ao materializar agora. Só lê.</summary>
-    public MaterializationProfile Profile(NpcId id)
+    /// <summary>A pessoa que o id reservado <paramref name="id"/> vira ao materializar agora. Só lê. <paramref name="salt"/> (AD-197t):
+    /// o criador de personagem sorteia o que o jogador não escolheu pela chave dele em vez do id (quem chega de fora não tem id
+    /// reservado); nulo, a chave é o id, como sempre.</summary>
+    public MaterializationProfile Profile(NpcId id, string? salt = null)
     {
         var rng = _world.Rng;
-        var sex = rng.OneShot($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
-        int ageYears = RollAge(rng.OneShot($"materialize-age-{id.Value}").NextDouble());
-        long birthday = (long)(rng.OneShot($"materialize-birthday-{id.Value}").NextDouble() * _world.Calendar.HoursPerYear);
-        var personality = Personality.RollFrom(rng.OneShot($"materialize-personality-{id.Value}"));
-        var profession = RollProfession(rng.OneShot($"materialize-profession-{id.Value}"));
+        string key = salt ?? id.Value.ToString();
+        var sex = rng.OneShot($"materialize-sex-{key}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
+        int ageYears = RollAge(rng.OneShot($"materialize-age-{key}").NextDouble());
+        long birthday = (long)(rng.OneShot($"materialize-birthday-{key}").NextDouble() * _world.Calendar.HoursPerYear);
+        var personality = Personality.RollFrom(rng.OneShot($"materialize-personality-{key}"));
+        var profession = RollProfession(rng.OneShot($"materialize-profession-{key}"));
         // quem é mais velho que a cidade nasceu antes dela: na cidade-mãe, se ela veio de outra
         bool olderThanCity = ageYears > _cityAgeYears;
         var bornIn = olderThanCity && _parent is not null ? _parent : _city;

@@ -14,6 +14,8 @@ const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a065
 ## Rampas dos genes de aparência do motor (#46 fatia 2), do mais claro ao mais escuro.
 const SKIN_RAMP: Array[Color] = [Color("f6dcc2"), Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30"), Color("4e2f1f")]
 const HAIR_RAMP: Array[Color] = [Color("e9dcae"), Color("d6b36a"), Color("a0652a"), Color("5a3a22"), Color("2b1b12")]
+const EYE_RAMP: Array[Color] = [Color("8fb4d8"), Color("6f9f8a"), Color("7d6b3a"), Color("4a2f1c"), Color("1c1410")] ## AD-197t: olhos, do claro ao escuro
+const OUTFIT_COLORS: Array[Color] = [Color("8a7a52"), Color("5a6a7a"), Color("8a3a3a"), Color("5a3a8a"), Color("e8e4d8"), Color("4a6a3a")] ## AD-197t: traje, na ordem de `Appearance.OutfitNames` do motor
 const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa, compartilhados entre todos os NPCs
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
@@ -32,7 +34,9 @@ var _anim_accum := 0.0
 var cell := Vector2i.ZERO
 var action := -1
 var pose := Anim.NEUTRAL_POSE
-var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre
+var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre. AD-197t: quem o jogador montou traz também eye_tone, face_shape e outfit
+var _eyes: Array[MeshInstance3D] = [] ## só em quem tem eye_tone (a pessoa montada no criador): não custa nós nos demais
+var _outfit_color: Variant = null ## cor do traje escolhido; vence a camisa do ofício
 var label_text := ""
 var display_name := ""
 
@@ -118,6 +122,31 @@ func apply_look(p_look: Dictionary) -> void:
 	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
 	var width := 0.85 + 0.4 * float(look.build) / 100.0
 	_torso.scale = Vector3(width, 1.0, width)
+	_apply_made_look()
+
+
+## AD-197t: o que só o criador de personagem manda: olhos, rosto (largura da cabeça) e traje. Quem não tem não cria nada.
+func _apply_made_look() -> void:
+	if look.has("face_shape"):
+		var wide := 0.88 + 0.3 * float(look.face_shape) / 100.0
+		_head.scale = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
+	if look.has("eye_tone"):
+		if _eyes.is_empty():
+			var mesh := _shared_mesh("eye", func():
+				var m := SphereMesh.new()
+				m.radius = 0.022
+				m.height = 0.044
+				m.radial_segments = 8
+				m.rings = 4
+				return m)
+			for side in [-1, 1]:
+				_eyes.append(_part(_head, mesh, _shared_mat(Color.BLACK), Vector3(side * 0.045, 0.02, 0.118)))
+		var eye_color := ramp_color(EYE_RAMP, int(look.eye_tone))
+		for eye in _eyes:
+			eye.material_override = _shared_mat(eye_color)
+	if look.has("outfit"):
+		_outfit_color = OUTFIT_COLORS[clampi(int(look.outfit), 0, OUTFIT_COLORS.size() - 1)]
+		_shirt.albedo_color = _outfit_color
 
 
 ## Materiais sem emissão variável são compartilhados entre todos os NPCs (menos memória e trocas de estado).
@@ -333,7 +362,7 @@ func _text(at: Vector3, size: int, color: Color) -> Label3D:
 func apply_model(catalog, profession: int, age_years: float) -> void:
 	var by_profession: Dictionary = catalog.profession_model(profession)
 	if by_profession.has("shirt"):
-		_shirt.albedo_color = Color(String(by_profession.shirt))
+		_shirt.albedo_color = _outfit_color if _outfit_color != null else Color(String(by_profession.shirt))
 	_set_hat(String(by_profession.get("hat", "none")))
 	var by_age: Dictionary = catalog.age_model(age_years)
 	scale = Vector3.ONE * float(by_age.get("scale", 1.0))
@@ -370,7 +399,7 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 	if spec.is_empty():
 		return
 	scale = Vector3.ONE * float(spec.scale)
-	_shirt.albedo_color = spec.cloth
+	_shirt.albedo_color = _outfit_color if _outfit_color != null else spec.cloth
 	if before.get("hat", "") != spec.hat:
 		if _hat != null:
 			_hat.free()

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Simulation.Players;
 
@@ -58,6 +60,18 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/create", (HttpContext http, string playerId, PlayerCreateRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Create, request.NpcId,
                 CityId: request.CityId, SampleNumber: request.Sample)));
+
+        // AD-197t: criador de personagem de verdade — o que a cidade oferece (só lê), a prévia validada pelo motor (só lê, não registra)
+        // e a criação (nome, idade, traços, família ou chegada, dinheiro, aparência); incoerência é 409 com o motivo e o mundo intacto
+        app.MapGet("/players/origins/{cityId:guid}", (Guid cityId) => Reply(gateway.CityOptions(cityId)));
+        app.MapPost("/players/{playerId}/character/preview", (HttpContext http, string playerId, JsonObject body) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            return TryParseSpec(body, out var spec, out var error) ? Reply(gateway.Preview(playerId, spec)) : Results.BadRequest(new { error });
+        });
+        app.MapPost("/players/{playerId}/character", (HttpContext http, string playerId, JsonObject body) =>
+            !TryParseSpec(body, out var spec, out var error) ? Results.BadRequest(new { error })
+                : Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec)));
 
         app.MapPost("/players/{playerId}/action", (HttpContext http, string playerId, PlayerActionRequest request) =>
         {
@@ -133,6 +147,34 @@ public static class PlayerEndpoints
             return session == playerId ? null : Results.StatusCode(StatusCodes.Status403Forbidden);
         }
         return authRequired ? Results.StatusCode(StatusCodes.Status401Unauthorized) : null;
+    }
+
+    private static readonly JsonSerializerOptions SpecJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    private static IResult Reply(PlayerReply reply) =>
+        reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
+
+    /// <summary>AD-197t: a escolha do criador vinda de JSON (rota ou canal); forma errada ou sexo desconhecido é 400.</summary>
+    internal static bool TryParseSpec(JsonNode? node, out CharacterSpec spec, out string error)
+    {
+        spec = null!;
+        error = "";
+        try
+        {
+            var parsed = node?.Deserialize<CharacterSpec>(SpecJson);
+            if (parsed is null || parsed.CityId == Guid.Empty) { error = "cityId: obrigatório"; return false; }
+            if (parsed.Sex is { } sex && !Enum.IsDefined(sex)) { error = "sex: Female ou Male"; return false; }
+            spec = parsed;
+            return true;
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException or NotSupportedException)
+        {
+            error = "character: forma inválida";
+            return false;
+        }
     }
 
     /// <summary>AD-197q: o filtro do criador; sexo desconhecido é recusado (400).</summary>

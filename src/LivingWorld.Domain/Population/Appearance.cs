@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population;
@@ -5,9 +6,24 @@ namespace LivingWorld.Domain.Population;
 /// <summary>Genes de aparência do NPC (#46 fatia 2), cada um em <c>[0,100]</c>: tom de pele, tom do cabelo
 /// (claro → escuro), ondulação do cabelo (liso → crespo) e porte (esguio → robusto). Altura e peso seguem em
 /// <c>Npc.Height</c>/<c>Weight</c>. Herdados pelo mesmo modelo de <see cref="Personality.Inherit"/> (ADR-0014: genes
-/// que alimentam atração são canônicos). O sprite/material do cliente é função pura destes valores.</summary>
-public sealed record Appearance(int SkinTone, int HairTone, int HairCurl, int Build)
+/// que alimentam atração são canônicos). O sprite/material do cliente é função pura destes valores.
+/// AD-197t: o criador de personagem acrescenta, só a quem o jogador monta, <see cref="EyeTone"/> (claro → escuro),
+/// <see cref="FaceShape"/> (fino → largo), <see cref="Outfit"/> (índice do traje, <see cref="OutfitCount"/>) e
+/// <see cref="BodyFrame"/> (arcabouço: esguio → robusto, lido pelo peso em <c>BodyGrowth.Frame</c>); nulos nos demais,
+/// omitidos do snapshot (hash igual ao de antes).</summary>
+public sealed record Appearance(
+    int SkinTone, int HairTone, int HairCurl, int Build,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? EyeTone = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? FaceShape = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Outfit = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? BodyFrame = null)
 {
+    /// <summary>Quantos trajes o criador oferece (índice 0 a <c>OutfitCount − 1</c>).</summary>
+    public const int OutfitCount = 6;
+
+    /// <summary>Os nomes dos trajes, na ordem do índice (a tela do criador os lista; o motor só guarda o índice).</summary>
+    public static readonly IReadOnlyList<string> OutfitNames = ["Camponês", "Artesão", "Burguês", "Nobre", "Clérigo", "Viajante"];
+
     public const int Genes = 4;
 
     public static Result<Appearance> Create(int skinTone, int hairTone, int hairCurl, int build)

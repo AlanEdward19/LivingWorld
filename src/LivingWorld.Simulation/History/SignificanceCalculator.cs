@@ -12,6 +12,8 @@ public static class SignificanceCalculator
         {
             [WorldEventKind.Birth] = 0.85,
             [WorldEventKind.PlayerIncarnated] = 0.3,
+            [WorldEventKind.CharacterArrived] = 0.5, // AD-197t
+            [WorldEventKind.CharacterJoinedFamily] = 0.5,
             [WorldEventKind.PlayerDisappeared] = 0.85,
             [WorldEventKind.DisappearedFound] = 0.7,
             [WorldEventKind.SearchGaveUp] = 0.6,

@@ -47,3 +47,25 @@ sortear sem viciar a semente, como o replay reproduz o que o jogador viu e o que
   parentes detalhados; com a vontade forte, alguns candidatos não deixam entrar.
 - **Follow-ups**: agregado com famílias e histórico (fome, guerra) para materializar parentes e memórias (issue aberta pela
   coordenação).
+
+## Emenda do dono em 2026-11-24: criador, não escolhedor (AD-197t, #219)
+O dono corrigiu: "é um criador e não um escolhedor, deveria dar para escolher idade, atributos (caso queira), nome, cidade, famílias
+(...) ou ser recém chegado, dinheiro inicial, aparência completa". A amostra do agregado **continua** ("sortear alguém da cidade"); a tela
+passa a **montar** a pessoa. Vale o que está acima, mais:
+- **Escolhas** (`CharacterSpec`): nome, sexo, idade (18 até a longevidade − 1), cidade, ofício, saúde, os 10 traços, dinheiro inicial e
+  aparência (altura, pele, cabelo, ondulação, corpo, olhos, rosto, traje). O que ficar em branco o motor sorteia por `OneShot`
+  (`character|jogador|semente`: nenhum stream guardado mexe; a semente é escolha registrada, "sortear de novo" a troca).
+- **Aparência é estado do corpo**: `Appearance` ganha `EyeTone`, `FaceShape`, `Outfit` e `BodyFrame` (nulos nos demais NPCs, omitidos do
+  snapshot); a altura vira estatura adulta (`SetStature`) e o arcabouço escolhido fixa o peso no crescimento mensal.
+- **Dinheiro** entra de fora (`Mint` `player-character`, contado em `MoneyMinted`): de 0 a 5× o morador típico da cidade (mín. 500).
+- **Lugar na cidade**: recém-chegado (migrante: `ArrivedAtTick`, sem casa, evento `CharacterArrived`; vindo de fora ou de outra cidade)
+  ou família: filho (pais = o parente e o cônjuge vivo), irmão (os mesmos pais; sem pais no registro não há irmandade), cônjuge (livre,
+  adulto e que aceita pela regra do cortejo; `MarriageSystem.Marry` de verdade) ou parente agregado à casa (sem laço genealógico).
+  Filho e irmão exigem pais que podiam ter gerado a pessoa (janela fértil do mundo, vivos ao nascimento): `CharacterJoinedFamily`.
+- **Validação antes de tudo**: idade fora da longevidade, laço impossível, cônjuge ocupado ou que não aceita, cidade inexistente, dinheiro
+  ou altura fora da faixa → 409 com o motivo, sem registro e sem efeito. A vontade que impede a posse segue sendo recusa registrada.
+- **Registro**: comando `Character` no `players.log` com a escolha inteira; o replay refaz a pessoa e dá o mesmo hash.
+- **Contrato** (v2, só acréscimos): `GET /players/origins/{cityId}`, `POST /players/{id}/character/preview` (só lê) e
+  `POST /players/{id}/character`; canal `character`. **Cliente**: campos, famílias vindas do motor e prévia do corpo pelo estado devolvido.
+- **Fora**: tio, primo e neto genealógicos (só há pais/irmão/cônjuge em laço de sangue ou casamento).
+

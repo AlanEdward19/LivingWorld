@@ -16,8 +16,12 @@ public static class BodyGrowth
 
     /// <summary>Compleição (fator do IMC) fixa por NPC, em torno de 1.</summary>
     public static double Frame(WorldState world, Npc npc) =>
+        npc.Appearance is { BodyFrame: { } chosen } ? FrameOf(chosen) : // AD-197t: o arcabouço que o jogador escolheu no criador
         Math.Clamp(1.0 + world.BodyRules.Growth.FrameStdDev * QuantitativeGenetics.Normal(world.Rng.StreamFor("body-frame", npc.Id.Value)),
             0.75, 1.3);
+
+    /// <summary>Arcabouço do corpo (0,75 a 1,30) para o arcabouço escolhido em [0,100] (esguio → robusto).</summary>
+    public static double FrameOf(int chosen) => 0.75 + 0.55 * Math.Clamp(chosen, 0, 100) / 100.0;
 
     public static double AgeYears(WorldState world, Npc npc, long tick) =>
         Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
