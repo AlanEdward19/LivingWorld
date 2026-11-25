@@ -262,12 +262,14 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
 	var door_at := Vector3.INF
 	var door_out := Vector3(0, 0, 1)
+	var walls: Array = [] # AD-197s2: as caixas sólidas das células de parede (a câmera do jogador fica no cômodo, fora delas)
 	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
 		var material: int = cells[cell]
 		match material:
 			MATERIAL_WALL_STONE, MATERIAL_WALL_WOOD:
+				walls.append(AABB(Vector3(cell.x, 0, cell.y), Vector3(1, height, 1)))
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[material])
 				_box(root, Vector3(1.04, 0.12, 1.04), Grid.to_world(cell, 0.06), trim) # rodapé
 				for level in range(1, floors):
@@ -284,6 +286,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 							window.name = "Window"
 							windows.append(window)
 			MATERIAL_DOOR:
+				walls.append(AABB(Vector3(cell.x, 0, cell.y), Vector3(1, height, 1)))
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[0])
 				for dir in DIRS:
 					if not cells.has(cell + dir):
@@ -360,6 +363,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	body.add_child(shape)
 	root.add_child(body)
 	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + 0.9, span.y)))
+	root.set_meta("walls", walls)
 	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
 	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
 	root.set_meta("shell", AABB(Vector3(min_cell.x - 0.2, 0, min_cell.y - 0.2), Vector3(span.x + 0.4, maxf(height + 0.9, roof_top + 0.1), span.y + 0.4)))
