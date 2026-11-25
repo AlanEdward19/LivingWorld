@@ -56,7 +56,7 @@ func test_opening_lists_the_cities_and_shows_the_cards_the_engine_drew() -> void
 	var transport := _transport()
 	var creator = _creator(transport)
 
-	await creator.open()
+	await creator.open("sample")
 
 	eq(creator.city_select.get_item_text(0), "Alfa · 40 no agregado")
 	eq(creator.cards.size(), 2, "um cartão por candidato do motor")
@@ -71,7 +71,7 @@ func test_opening_lists_the_cities_and_shows_the_cards_the_engine_drew() -> void
 func test_filter_and_another_sample_go_to_the_engine_and_entering_uses_the_shown_sample() -> void:
 	var transport := _transport()
 	var creator = _creator(transport)
-	await creator.open()
+	await creator.open("sample")
 	var entered := []
 	creator.entered.connect(func(id, name, city): entered.append([id, name, city]))
 
@@ -94,7 +94,7 @@ func test_an_empty_aggregate_shows_the_engine_reason_and_no_card() -> void:
 	transport.on("POST /players/p-1/candidates", {"status": 409, "body": {"error": "conflict: o agregado de Alfa não tem ninguém para materializar"}})
 	var creator = _creator(transport)
 
-	await creator.open()
+	await creator.open("sample")
 
 	eq(creator.cards.size(), 0)
 	eq(creator.message, "o agregado de Alfa não tem ninguém para materializar")
@@ -105,7 +105,7 @@ func test_a_refused_entry_keeps_the_screen_open_with_the_reason() -> void:
 	var transport := _transport()
 	transport.on("POST /players/p-1/create", {"status": 409, "body": {"error": "conflict: essa pessoa não está mais na amostra: peça outra"}})
 	var creator = _creator(transport)
-	await creator.open()
+	await creator.open("sample")
 
 	await creator.choose(101, "Ana Souza")
 

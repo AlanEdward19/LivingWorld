@@ -67,7 +67,7 @@ public sealed partial class PlayerCommandGateway
                         name = m.Name,
                         sex = m.Sex.ToString(),
                         ageYears = m.AgeYears(world.CurrentDate),
-                        spouseId = m.Spouse?.Value,
+                        spouseId = m.Spouse?.Value ?? 0,
                         roles = CharacterRole.Kinds.Where(k => k != CharacterRole.Newcomer).ToDictionary(k => k, k => RoleOption(world, city, k, m.Id.Value)),
                     }).ToList(),
                 }).ToList(),
@@ -101,7 +101,7 @@ public sealed partial class PlayerCommandGateway
             health = npc.Health,
             money,
             personality = npc.Personality,
-            role = new { kind = role.Kind, relativeId = relative?.Id.Value, relativeName = relative?.Name ?? "", fromCityId = role.FromCityId },
+            role = new { kind = role.Kind, relativeId = relative?.Id.Value ?? 0, relativeName = relative?.Name ?? "", fromCityId = role.FromCityId?.ToString() ?? "" },
             look = new
             {
                 heightM = Math.Round(npc.Height, 3),
@@ -115,7 +115,7 @@ public sealed partial class PlayerCommandGateway
                 outfit = look?.Outfit ?? 0,
             },
             outfitName = look?.Outfit is { } o && o >= 0 && o < Appearance.OutfitNames.Count ? Appearance.OutfitNames[o] : "",
-            household = npc.Household?.Value,
+            household = npc.Household?.Value ?? 0,
         };
     }
 }

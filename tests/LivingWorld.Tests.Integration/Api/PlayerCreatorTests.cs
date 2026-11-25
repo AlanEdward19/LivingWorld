@@ -159,13 +159,13 @@ public class PlayerCreatorTests : IClassFixture<LivingWorldApiFactory>
         using var socket = await ws.ConnectAsync(new Uri(_factory.Server.BaseAddress, "players/ws"), CancellationToken.None);
 
         var created = await PlayerSessionTests.Send(socket,
-            $$$"""{"seq":1,"command":"character","spec":{"cityId":"{{{city.Id.Value}}}","name":"Nina Reis","money":30,"role":{"kind":"newcomer"}}}""");
+            "{\"seq\":1,\"command\":\"character\",\"spec\":{\"cityId\":\"" + city.Id.Value + "\",\"name\":\"Nina Reis\",\"money\":30,\"role\":{\"kind\":\"newcomer\"}}}");
 
         Assert.Equal(200, created["status"]!.GetValue<int>());
         var npc = world.FindNpc(new LivingWorld.Domain.Shared.NpcId(created["body"]!["npcId"]!.GetValue<long>()))!;
         Assert.Equal(session.PlayerId, npc.ControllerId);
         Assert.NotNull(npc.ArrivedAtTick);
-        var refused = await PlayerSessionTests.Send(socket, $$$"""{"seq":2,"command":"character","spec":{"cityId":"{{{city.Id.Value}}}"}}""");
+        var refused = await PlayerSessionTests.Send(socket, "{\"seq\":2,\"command\":\"character\",\"spec\":{\"cityId\":\"" + city.Id.Value + "\"}}");
         Assert.Equal(409, refused["status"]!.GetValue<int>()); // já controla alguém
         await PlayerSessionTests.Send(socket, """{"seq":3,"command":"logout"}""");
     }

@@ -1,0 +1,75 @@
+{
+  "ageMax": "number",
+  "ageMin": "number",
+  "cityId": "string",
+  "economy": "boolean",
+  "families": [
+    {
+      "head": "string",
+      "householdId": "number",
+      "members": [
+        {
+          "ageYears": "number",
+          "name": "string",
+          "npcId": "number",
+          "roles": {
+            "child": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string"
+            },
+            "relative": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string"
+            },
+            "sibling": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string"
+            },
+            "spouse": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string"
+            }
+          },
+          "sex": "string",
+          "spouseId": "number"
+        }
+      ]
+    }
+  ],
+  "heightM": {
+    "female": {
+      "max": "number",
+      "min": "number",
+      "typical": "number"
+    },
+    "male": {
+      "max": "number",
+      "min": "number",
+      "typical": "number"
+    }
+  },
+  "moneyCap": "number",
+  "name": "string",
+  "origins": "[]",
+  "outfits": [
+    "string"
+  ],
+  "professions": [
+    {
+      "id": "number",
+      "name": "string"
+    }
+  ],
+  "roles": [
+    "string"
+  ],
+  "typicalMoney": "number"
+}

@@ -31,7 +31,7 @@ func _options() -> Dictionary:
 		"origins": [{"cityId": OTHER, "name": "Beta"}],
 		"families": [{"householdId": 7, "head": "Ana Souza", "members": [
 			{"npcId": 11, "name": "Ana Souza", "sex": "Female", "ageYears": 41, "spouseId": 12, "roles": _roles(true, false, false)},
-			{"npcId": 13, "name": "Davi Souza", "sex": "Male", "ageYears": 20, "spouseId": null, "roles": _roles(false, true, true)}]}]}
+			{"npcId": 13, "name": "Davi Souza", "sex": "Male", "ageYears": 20, "spouseId": 0, "roles": _roles(false, true, true)}]}]}
 
 
 ## A pessoa como o motor a devolve: o que a escolha trouxe e o que ele sorteou; `look` pode divergir da escolha (o motor manda).
@@ -45,8 +45,8 @@ func _character(spec: Dictionary, look: Dictionary = {}) -> Dictionary:
 		"cityId": CITY, "cityName": "Alfa", "professionId": 1, "profession": "Lavrador", "cultureId": 1, "health": int(spec.get("health", 80)),
 		"money": int(spec.get("money", 60)), "personality": {"extroversion": 50, "agreeableness": 50, "conscientiousness": 50,
 			"emotionalStability": 50, "openness": 50, "ambition": 50, "loyalty": 50, "altruism": 50, "impulsivity": 50, "riskAversion": 50},
-		"role": {"kind": String(role.kind), "relativeId": role.get("relativeId"), "relativeName": "Ana Souza" if role.has("relativeId") else "",
-			"fromCityId": role.get("fromCityId")}, "look": made, "outfitName": "Nobre", "household": null}
+		"role": {"kind": String(role.kind), "relativeId": int(role.get("relativeId", 0)), "relativeName": "Ana Souza" if role.has("relativeId") else "",
+			"fromCityId": String(role.get("fromCityId", ""))}, "look": made, "outfitName": "Nobre", "household": 0}
 
 
 func _transport() -> Object:
