@@ -149,7 +149,7 @@ func test_narrow_street_between_tall_houses_keeps_the_body_in_view() -> void:
 		if (entry[1] as AABB).intersects_segment(cam.origin, body_center) != null:
 			crossing[entry[0]] = true
 	check(not inside, "a câmera não termina dentro de uma parede ou telhado (%s)" % cam.origin)
-	check(rig.lift > 0.5, "sobe para olhar o corpo de cima (%s)" % rig.lift)
+	check(rig.lift > 0.3, "sobe um pouco para olhar o corpo (%s)" % rig.lift)
 	check(rig.arm >= rig.MIN_ARM and cam.origin.distance_to(body_center) < rig.THIRD_DISTANCE, "chega perto do corpo")
 	check(forward.dot(to_body) > cos(deg_to_rad(35.0)), "o corpo está no enquadramento (%s)" % forward.dot(to_body))
 	for id in crossing:
@@ -272,7 +272,7 @@ func test_body_that_arrives_later_gets_the_framing_on_the_very_first_frame() -> 
 	rig.set_mode(rig.THIRD)
 	rig.follow(null)
 	rig._process(0.016) # quadros sem corpo não movem nem quebram nada
-	check(_camera_world(rig).origin.y > rig.AWAIT_LIFT, "sem corpo a câmera espera no alto (%s), não dentro da casa" % _camera_world(rig).origin)
+	check(_camera_world(rig).origin.y > rig.await_lift(), "sem corpo a câmera espera no alto (%s), não dentro da casa" % _camera_world(rig).origin)
 	rig.follow(made[1]) # o corpo chegou no delta
 	check(not _camera_inside_any_shell(rig, boxes), "no mesmo quadro em que o corpo chega a câmera já está fora das paredes (%s)" % _camera_world(rig).origin)
 	check(made[3].has(7) and made[2].has(7), "e o prédio já abriu")
@@ -326,7 +326,7 @@ func test_first_person_eye_never_touches_a_wall() -> void:
 	var wall := [[1, AABB(Vector3(0, 0, 0), Vector3(4, 3.9, 4))]]
 	var close := Vector3(-0.03, 1.07, 2.0) # fora, a 3 cm da parede
 	var pushed: Vector3 = CameraRig.push_out(close, wall)
-	check(not wall[0][1].has_point(pushed) and (0.0 - pushed.x) >= CameraRig.EYE_CLEAR - 0.001, "recua até a folga (%s)" % pushed)
+	check(not wall[0][1].has_point(pushed) and (0.0 - pushed.x) >= CameraRig.eye_clear() - 0.001, "recua até a folga (%s)" % pushed)
 	eq(CameraRig.push_out(Vector3(-1.0, 1.07, 2.0), wall), Vector3(-1.0, 1.07, 2.0), "longe da parede: não mexe")
 	eq(CameraRig.push_out(Vector3(2.0, 1.07, 2.0), wall), Vector3(2.0, 1.07, 2.0), "dentro do prédio (o corpo mora lá): não mexe")
 	eq(CameraRig.push_out(Vector3(-0.03, 5.0, 2.0), wall), Vector3(-0.03, 5.0, 2.0), "acima do telhado: não mexe")
@@ -339,5 +339,98 @@ func test_first_person_rig_applies_the_eye_push_next_to_a_wall() -> void:
 	rig.set_mode(rig.FIRST)
 	rig.follow(made[1])
 	var cam := _camera_world(rig).origin
-	check(cam.x <= -CameraRig.EYE_CLEAR + 0.001, "o olho está a pelo menos a folga da parede (%s)" % cam.x)
+	check(cam.x <= -CameraRig.eye_clear() + 0.001, "o olho está a pelo menos a folga da parede (%s)" % cam.x)
 	rig.free()
+
+
+# --- AD-197s2: 3ª pessoa de RPG (atrás e acima do ombro, horizonte à vista), cômodo, anel ----------------------------------
+
+## Quanto abaixo do centro da tela (graus) o centro do corpo aparece, e quanto a câmera olha para baixo (graus).
+func _body_below_center_and_look_down(rig) -> Array:
+	var cam := _camera_world(rig)
+	var body_center: Vector3 = rig.target + Vector3(0, rig.eye_height() * 0.55, 0)
+	var forward: Vector3 = -cam.basis.z
+	var to_body := (body_center - cam.origin).normalized()
+	var below := rad_to_deg(forward.angle_to(to_body))
+	return [below, rad_to_deg(asin(clampf(-forward.y, -1.0, 1.0)))]
+
+
+## Rua aberta, mouse no padrão: a inclinação é baixa (olha o horizonte) e o corpo fica no terço de baixo da tela (fov 70: terço = 13°).
+func test_open_street_default_view_is_a_low_third_person_with_the_body_in_the_lower_third() -> void:
+	var made := _body_rig([], Vector3(5, 0, 5), 0.8)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	var seen := _body_below_center_and_look_down(rig)
+	check(seen[1] <= 25.0 and seen[1] >= 5.0, "olha para baixo entre 5 e 25 graus (%s)" % seen[1])
+	check(seen[0] >= 12.0, "o corpo está no terço de baixo da tela: %s graus abaixo do centro" % seen[0])
+	eq([rig.lift, rig.shoulder], [0.0, 0.0], "rua aberta não sobe nem desloca")
+	rig.free()
+
+
+## Parede colada atrás do corpo: o enquadramento é curto mas continua raso (nada de olhar a prumo para a cabeça) e fica fora da parede.
+func test_wall_right_behind_keeps_the_view_shallow_not_overhead() -> void:
+	var boxes := [[3, AABB(Vector3(-5, 0, 0.5), Vector3(10, 5, 3))]] # parede a meio passo, atrás (a câmera fica em +z)
+	var made := _body_rig(boxes, Vector3(0, 0, 0), 0.0)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	var seen := _body_below_center_and_look_down(rig)
+	check(seen[1] <= 55.0, "a vista curta não olha a prumo (%s graus; antes ~80)" % seen[1])
+	check(not _camera_inside_any_shell(rig, boxes), "e fora da parede")
+	rig.free()
+
+
+## Casa de `size` células com paredes em anel (miolo livre size-2): [[id, caixa, casca, paredes]].
+func _walled(size: int) -> Array:
+	var walls: Array = []
+	for x in size:
+		for z in size:
+			if x == 0 or z == 0 or x == size - 1 or z == size - 1:
+				walls.append(AABB(Vector3(x, 0, z), Vector3(1, 2.0, 1)))
+	var raw := AABB(Vector3.ZERO, Vector3(size, 2.9, size))
+	return [[7, raw, AABB(Vector3(-0.2, 0, -0.2), Vector3(size + 0.4, 3.0, size + 0.4)), walls]]
+
+
+## Cômodo largo (miolo 7x7): a câmera fica DENTRO dele, abaixo do teto, fora das paredes, olhar raso; o prédio abre.
+func test_inside_a_roomy_house_the_camera_stays_in_the_room() -> void:
+	var boxes := _walled(9)
+	var made := _body_rig(boxes, Vector3(4.5, 0, 4.5), 0.0)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	var cam := _camera_world(rig).origin
+	check((boxes[0][1] as AABB).has_point(cam), "a câmera está dentro do prédio (%s)" % cam)
+	var in_wall := false
+	for wall in boxes[0][3]:
+		in_wall = in_wall or (wall as AABB).has_point(cam)
+	check(not in_wall, "e fora das paredes")
+	check(cam.y < 2.0, "abaixo do teto do andar (%s)" % cam.y)
+	check(rig.arm >= rig.room_arm() - 0.001, "com a distância de cômodo (%s)" % rig.arm)
+	check(made[3].has(7) and made[2].has(7), "o prédio abre (paredes translúcidas, telhado some)")
+	var seen := _body_below_center_and_look_down(rig)
+	check(seen[1] <= 25.0, "olhar raso dentro do cômodo (%s)" % seen[1])
+	rig.free()
+
+
+## Casa pequena (miolo de 1 célula): não cabe câmera no cômodo, sobe acima da casca do telhado.
+func test_inside_a_tiny_house_the_camera_goes_above_the_roof() -> void:
+	var boxes := _walled(3)
+	var made := _body_rig(boxes, Vector3(1.5, 0, 1.5), 0.0)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	var cam := _camera_world(rig).origin
+	check(cam.y > CameraRig.shell_of(boxes[0]).end.y, "acima da casca do telhado (%s)" % cam.y)
+	rig.free()
+
+
+## A distância de cômodo vem dos metros do motor: outra escala de célula, outro valor em unidades.
+func test_room_distance_follows_the_engine_scale() -> void:
+	var before := Grid.cell_meters
+	Grid.cell_meters = 1.5
+	var a := CameraRig.room_arm()
+	Grid.cell_meters = 0.5
+	var b := CameraRig.room_arm()
+	Grid.cell_meters = before
+	check(absf(a - 2.0 / 1.5) < 0.001 and absf(b - 4.0) < 0.001, "2 m em unidades da grade (%s, %s)" % [a, b])

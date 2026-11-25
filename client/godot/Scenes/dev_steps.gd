@@ -280,6 +280,11 @@ static func run(app: Node, steps: Array) -> void:
 				if id >= 0:
 					await app.select_npc(id)
 					await app.incarnate(id)
+			"playopen": # só captura (AD-197s2): encarna o morador mais longe de qualquer prédio (rua aberta de verdade)
+				var open_id := _open_npc(app)
+				if open_id >= 0:
+					await app.select_npc(open_id)
+					await app.incarnate(open_id)
 			"playhome": # só captura (AD-197s): encarna um morador e o põe no meio do prédio mais próximo (só o desenho; o motor não muda)
 				var home_id := _street_npc(app)
 				if home_id >= 0:
@@ -287,7 +292,7 @@ static func run(app: Node, steps: Array) -> void:
 					await app.incarnate(home_id)
 					var body: Node3D = app.world_view.npc_nodes.get(home_id)
 					if body != null:
-						var inside := _nearest_box_center(app, body.position)
+						var inside := _nearest_box_center(app, body.position, arg == "big")
 						if inside != Vector3.INF:
 							body.position = inside
 							app.rig.follow(body)
@@ -388,7 +393,31 @@ static func stacks_report(nodes: Dictionary, limit: float = 0.25) -> String:
 	return "stacks: npcs=%d sobrepostos=%d%s" % [nodes.size(), close.size(), detail]
 
 
-static func _nearest_box_center(app: Node, from: Vector3) -> Vector3:
+static func _open_npc(app: Node) -> int:
+	var boxes: Array = []
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size != Vector3.ZERO:
+			boxes.append(box.grow(0.0))
+	var best := -1
+	var best_gap := -1.0
+	var ids: Array = app.world_view.npc_nodes.keys()
+	ids.sort()
+	for id in ids:
+		var at: Vector3 = app.world_view.npc_nodes[id].position
+		var gap := INF
+		for box in boxes:
+			var b: AABB = box
+			var dx := maxf(maxf(b.position.x - at.x, at.x - b.end.x), 0.0)
+			var dz := maxf(maxf(b.position.z - at.z, at.z - b.end.z), 0.0)
+			gap = minf(gap, sqrt(dx * dx + dz * dz))
+		if gap > best_gap:
+			best_gap = gap
+			best = int(id)
+	return best
+
+
+static func _nearest_box_center(app: Node, from: Vector3, largest: bool = false) -> Vector3:
 	var best := Vector3.INF
 	var best_distance := INF
 	for node in app.world_view.buildings.nodes.values():
@@ -396,8 +425,9 @@ static func _nearest_box_center(app: Node, from: Vector3) -> Vector3:
 		if box.size == Vector3.ZERO:
 			continue
 		var center := Vector3(box.get_center().x, 0.0, box.get_center().z)
-		if from.distance_to(center) < best_distance:
-			best_distance = from.distance_to(center)
+		var score := from.distance_to(center) if not largest else -box.size.x * box.size.z
+		if score < best_distance:
+			best_distance = score
 			best = center
 	return best
 
@@ -409,6 +439,8 @@ static func camera_report(app: Node) -> String:
 	var around: Array = []
 	for entry in app.camera_blockers():
 		var box: AABB = entry[1]
+		if box.has_point(body + Vector3(0, 0.5, 0)):
+			around.append("caixa=%s paredes=%d na_parede=%s" % [box, (entry[3] as Array).size(), (entry[3] as Array).any(func(w): return (w as AABB).has_point(body + Vector3(0, 1.3, 0)))])
 		around.append("%s:%s%s%s" % [entry[0], "C" if box.has_point(cam) else "-", "B" if box.has_point(body + Vector3(0, 0.5, 0)) else "-", "F" if app.world_view.buildings.faded.has(entry[0]) else "-"])
 	var roofs: Array = []
 	for id in rig.seen_ids():
@@ -417,6 +449,11 @@ static func camera_report(app: Node) -> String:
 			for child in node.find_children("Roof*", "GeometryInstance3D", true, false):
 				roofs.append(snappedf((child as GeometryInstance3D).transparency, 0.01))
 	around.append("vistos=%s abertos=%s faded=%s kind=%s stage=%s teto=%s" % [rig.seen_ids().keys(), app.world_view.buildings.opened.keys(), app.world_view.buildings.faded.keys(), app.store.kind, app.stage.active, roofs])
+	var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+	var near_ids: Array = []
+	if own != null:
+		near_ids = app.world_view.npcs.cell_members.get(Grid.to_cell(own.position), [])
+	around.append("jogador=%s ativo=%s escondidos=%s mesma_celula=%s marcado=%s" % [app.player_hud.npc_id, app.player_hud.is_active, app._eye_hidden.keys(), near_ids, app._marked])
 	return "camdump: mode=%s following=%s body=%s cam=%s arm=%s lift=%s shoulder=%s caixas=%s" % [rig.mode, rig.following != null, body, cam, snappedf(rig.arm, 0.01), snappedf(rig.lift, 0.01), snappedf(rig.shoulder, 0.01), around]
 
 
