@@ -344,8 +344,8 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 			root.add_child(node)
 	if info.type == -1:
 		var chimney_cell: Vector2i = min_cell
-		_box(root, Vector3(0.22, 0.7, 0.22), Grid.to_world(chimney_cell, height + 0.55) + Vector3(0.1, 0, 0.1), _flat_material(Color("7a6a5c")))
-		root.add_child(_smoke(Grid.to_world(chimney_cell, height + 0.95) + Vector3(0.1, 0, 0.1)))
+		_box(root, Vector3(Dress.u(0.22), Dress.u(0.7), Dress.u(0.22)), Grid.to_world(chimney_cell, height + Dress.u(0.55)) + Vector3(Dress.u(0.1), 0, Dress.u(0.1)), _flat_material(Color("7a6a5c")))
+		root.add_child(_smoke(Grid.to_world(chimney_cell, height + Dress.u(0.95)) + Vector3(Dress.u(0.1), 0, Dress.u(0.1))))
 	if not state.is_empty():
 		var center := Vector3(min_cell.x + span.x / 2.0, height, min_cell.y + span.y / 2.0)
 		if door_at == Vector3.INF:
@@ -364,12 +364,12 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	shape.position = Vector3(min_cell.x + span.x / 2.0, (height + 0.6) / 2.0, min_cell.y + span.y / 2.0)
 	body.add_child(shape)
 	root.add_child(body)
-	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + 0.9, span.y)))
+	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + Dress.u(0.9), span.y)))
 	root.set_meta("walls", walls)
 	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
 	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
 	var eave_shell := Grid.units(ROOF_EAVE_M)
-	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + 0.9, roof_top + 0.1), span.y + eave_shell * 2.0)))
+	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + Dress.u(0.9), roof_top + Dress.u(0.1)), span.y + eave_shell * 2.0)))
 	return root
 
 

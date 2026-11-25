@@ -104,7 +104,7 @@ func _apply() -> void:
 		var up := lift if following != null and is_instance_valid(following) else maxf(lift, await_lift())
 		_pivot.position = Vector3(0, eye_height() + shoulder_height() + up, 0)
 		camera.position = Vector3(shoulder, 0, arm)
-		camera.rotation = Vector3(maxf(-atan2(up, maxf(arm, 0.01)), MAX_DOWN - pitch), 0, 0) # sobe olhando para o corpo, sem passar da vertical
+		camera.rotation = Vector3(maxf(-atan2(up, maxf(arm, 0.01)), MAX_DOWN - pitch), atan2(shoulder, maxf(arm, 0.01)), 0) # AD-197s4: a ombro, gira para mirar o corpo # sobe olhando para o corpo, sem passar da vertical
 	else:
 		_pivot.position = Vector3(0, eye_height(), 0)
 		camera.position = eye_push

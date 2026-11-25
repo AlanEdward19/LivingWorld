@@ -490,3 +490,23 @@ func test_building_right_behind_is_passed_by_the_shoulder_before_rising() -> voi
 	var mirrored := [[3, AABB(Vector3(-0.4, 0, 0.5), Vector3(5.4, 4, 3))]] # espelhado: a rua livre fica à esquerda
 	var other := CameraRig.plan_third(Vector3(0, 1.4, 0), 0.0, 0.0, CameraRig.third_distance(), mirrored, 1.0)
 	check(other.shoulder < 0.0 and other.lift == 0.0, "e do lado oposto quando é o outro que está livre (%s)" % other.shoulder)
+
+
+## AD-197s4: a ombro a câmera gira para mirar o corpo: o corpo fica a poucos graus do eixo de visão, nos dois lados.
+func test_shoulder_framing_turns_to_aim_at_the_body() -> void:
+	for side in [1.0, -1.0]:
+		var boxes: Array = [[3, AABB(Vector3(-5, 0, 0.5) if side > 0.0 else Vector3(-0.4, 0, 0.5), Vector3(5.4, 4, 3))]]
+		var made := _body_rig(boxes, Vector3(0, 0, 0), 0.0)
+		var rig = made[0]
+		rig.pitch = 0.0
+		rig.set_mode(rig.THIRD)
+		rig.follow(made[1])
+		check(rig.shoulder * side > 0.0 and rig.lift == 0.0, "passou a ombro sem subir (lado %s: %s)" % [side, rig.shoulder])
+		var cam := _camera_world(rig)
+		var body_center: Vector3 = rig.target + Vector3(0, rig.eye_height() * 0.55, 0)
+		var forward: Vector3 = -cam.basis.z
+		var flat_forward := Vector2(forward.x, forward.z).normalized()
+		var flat_to_body := Vector2(body_center.x - cam.origin.x, body_center.z - cam.origin.z).normalized()
+		var yaw_off := rad_to_deg(flat_forward.angle_to(flat_to_body))
+		check(absf(yaw_off) < 3.0, "o corpo está no eixo da tela (%s graus de lado)" % yaw_off)
+		rig.free()
