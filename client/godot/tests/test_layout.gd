@@ -162,3 +162,39 @@ func test_absent_keys_and_explicit_nulls_read_the_same() -> void:
 		eq(store.crops[75].owner_id, -1, "%s: lavoura sem dono" % style)
 		eq(store.cities["city-a"].population, 0)
 		eq(store.npcs[8].cell, Vector2i(4, 3), "%s: `moved` sem lugar não move" % style)
+
+
+## AD-197s2: na 1ª pessoa quem está a menos de 0,6 m do olho não se desenha (só o desenho); ao afastar ou sair, volta. Na 3ª pessoa por cima
+## do telhado o próprio corpo leva o anel.
+func test_first_person_hides_whoever_is_at_the_eye_and_top_view_marks_the_own_body() -> void:
+	var app = await T.make_app(tree, O.transport())
+	await app.enter_scope("City", "city-a")
+	var ana: Node3D = app.world_view.npc_nodes[7]
+	var beto: Node3D = app.world_view.npc_nodes[8]
+	ana.position = Vector3(5.5, 0, 5.5)
+	beto.position = Vector3(5.5 + app.rig.near_person() * 0.5, 0, 5.5)
+	app.world_view.npcs.cell_members.clear()
+	app.world_view.npcs.cell_members[Vector2i(5, 5)] = [7, 8]
+	app.player_hud.npc_id = 7
+	app.player_hud.is_active = true
+	app.rig.follow(ana)
+	app.rig.set_mode(app.rig.FIRST)
+	app._player_view_effects()
+	check(not beto.visible, "quem está colado no olho some")
+	check(ana.visible, "o próprio corpo não é tocado")
+	beto.position = Vector3(5.5 + app.rig.near_person() * 2.0, 0, 5.5)
+	app._player_view_effects()
+	check(beto.visible, "afastou: volta a se desenhar")
+	beto.position = Vector3(5.5 + app.rig.near_person() * 0.5, 0, 5.5)
+	app._player_view_effects()
+	app.rig.set_mode(app.rig.THIRD)
+	app._player_view_effects()
+	check(beto.visible, "fora da 1ª pessoa ninguém fica escondido")
+	app.rig._opened = {4: true}
+	app._player_view_effects()
+	check(ana.marked, "de cima, dentro de casa, o próprio corpo leva o anel")
+	app.rig._opened = {}
+	app._player_view_effects()
+	check(not ana.marked, "fora da casa o anel some")
+	app.player_hud.is_active = false
+	app.queue_free()

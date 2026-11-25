@@ -225,6 +225,10 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if player_hud != null and player_hud.is_active:
+		_player_view_effects()
+	elif not _eye_hidden.is_empty() or _marked != -1:
+		_player_view_effects()
 	if time_label != null and day_cycle != null:
 		_update_time_label()
 	if world_view != null and rig != null:
@@ -747,6 +751,42 @@ func set_player_mode(on: bool) -> void:
 
 
 var crosshair: Label
+var _eye_hidden: Dictionary = {} ## AD-197s2: id -> true, quem está colado no olho da 1ª pessoa e não se desenha agora
+var _marked := -1 ## e o corpo que leva o anel na vista de cima dentro de casa
+
+
+## AD-197s2: efeitos só de desenho do modo jogador. 1ª pessoa: some quem está a menos de `near_person()` do olho (só os moradores das células
+## vizinhas, pelo índice do renderer). 3ª pessoa sobre o telhado de uma casa: anel discreto no próprio corpo.
+func _player_view_effects() -> void:
+	var own: Node3D = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null and player_hud.is_active else null
+	var want: Dictionary = {}
+	if own != null and rig.mode == rig.FIRST:
+		var radius: float = rig.near_person()
+		var base := Grid.to_cell(own.position)
+		for dx in range(-1, 2):
+			for dz in range(-1, 2):
+				for id in world_view.npcs.cell_members.get(base + Vector2i(dx, dz), []):
+					var other = world_view.npc_nodes.get(id)
+					if other != null and id != player_hud.npc_id and Vector2(other.position.x - own.position.x, other.position.z - own.position.z).length() < radius:
+						want[id] = true
+	for id in _eye_hidden.keys():
+		if not want.has(id):
+			var back = world_view.npc_nodes.get(id)
+			if back != null:
+				back.set_eye_hidden(false)
+			_eye_hidden.erase(id)
+	for id in want:
+		if not _eye_hidden.has(id):
+			world_view.npc_nodes[id].set_eye_hidden(true)
+			_eye_hidden[id] = true
+	var mark: int = player_hud.npc_id if own != null and rig.mode == rig.THIRD and not rig.opened_ids().is_empty() else -1
+	if mark != _marked:
+		var old = world_view.npc_nodes.get(_marked)
+		if old != null:
+			old.set_marked(false)
+		if mark != -1:
+			own.set_marked(true)
+		_marked = mark
 ## AD-197p: as caixas desenhadas dos prédios perto do corpo ([id, AABB]), para o braço de mola da 3ª pessoa.
 func camera_blockers() -> Array:
 	var out: Array = []
@@ -762,7 +802,7 @@ func camera_blockers() -> Array:
 		var reach: float = rig.THIRD_DISTANCE + box.size.length() * 0.5 + 1.0
 		if absf(center.x - near.x) > reach or absf(center.z - near.z) > reach:
 			continue
-		out.append([id, box, node.get_meta("shell", box.grow(0.2))]) # AD-197s: [id, caixa (onde o corpo está), casca (o que a câmera não toca)]
+		out.append([id, box, node.get_meta("shell", box.grow(0.2)), node.get_meta("walls", [])]) # AD-197s: [id, caixa (onde o corpo está), casca (o que a câmera não toca), paredes (AD-197s2)]
 	return out
 
 
