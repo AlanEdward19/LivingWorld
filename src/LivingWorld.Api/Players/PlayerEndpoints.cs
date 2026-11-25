@@ -67,11 +67,15 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/character/preview", (HttpContext http, string playerId, JsonObject body) =>
         {
             if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            if (gateway.PauseRefusal() is { } paused) return Reply(paused);
             return TryParseSpec(body, out var spec, out var error) ? Reply(gateway.Preview(playerId, spec)) : Results.BadRequest(new { error });
         });
         app.MapPost("/players/{playerId}/character", (HttpContext http, string playerId, JsonObject body) =>
-            !TryParseSpec(body, out var spec, out var error) ? Results.BadRequest(new { error })
-                : Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec)));
+        {
+            if (gateway.PauseRefusal() is { } paused) return Reply(paused);
+            return !TryParseSpec(body, out var spec, out var error) ? Results.BadRequest(new { error })
+                : Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec));
+        });
 
         app.MapPost("/players/{playerId}/action", (HttpContext http, string playerId, PlayerActionRequest request) =>
         {
