@@ -41,6 +41,14 @@ static func style_of(state: Dictionary) -> String:
 ## AD-188: o CORPO do prédio pela função que o motor diz (não só o enfeite): cor da parede (misturada ao material da planta,
 ## que continua mandando pedra ou madeira), cor e inclinação do telhado. Celeiro alto e vermelho, ferraria escura e de
 ## telhado baixo, templo claro e de telhado alto; casa e hospedaria com a cor de sempre.
+const Grid := preload("res://Scenes/grid.gd")
+
+
+## AD-197s4: medida de enfeite em "unidades de hoje" (célula de 1,5 m) passada por metros do motor: na escala de hoje é o mesmo número.
+static func u(today_units: float) -> float:
+	return Grid.units(today_units * 1.5)
+
+
 const BODIES := {
 	"dwelling": {"wall": null, "roof": null, "pitch": 0.75}, "lodging": {"wall": Color("c9b48a"), "roof": null, "pitch": 0.85},
 	"farm": {"wall": Color("8a4632"), "roof": Color("5e4a32"), "pitch": 1.05}, "smithy": {"wall": Color("4f4c4a"), "roof": Color("3d3a38"), "pitch": 0.5},
@@ -92,7 +100,7 @@ static func dress(root: Node3D, state: Dictionary, top: Vector3, door: Vector3, 
 	var closed := bool(state.get("closed", false))
 	match style:
 		"dwelling":
-			Props.part(dressing, Props._box(Vector3(0.22, 0.6, 0.22)), Color("7a6a5c"), top + Vector3(0.2, 0.25, 0.2))
+			Props.part(dressing, Props._box(Vector3(u(0.22), u(0.6), u(0.22))), Color("7a6a5c"), top + Vector3(u(0.2), u(0.25), u(0.2)))
 		"lodging":
 			Props.part(dressing, Props._sphere(0.09), Color("ffd27a"), door + outward * 0.35 + side * 0.45 + Vector3(0, 0.95, 0))
 		"farm":
@@ -105,12 +113,12 @@ static func dress(root: Node3D, state: Dictionary, top: Vector3, door: Vector3, 
 				Vector3(PI / 2.0, 0, 0))
 		"smithy":
 			Props.part(dressing, Props._box(Vector3(0.3, 0.22, 0.16)), Color("4a4f57"), door + outward * 0.8 + side * 0.6 + Vector3(0, 0.11, 0))
-			Props.part(dressing, Props._box(Vector3(0.28, 0.9, 0.28)), Color("5a4a40"), top + Vector3(-0.2, 0.4, -0.2))
+			Props.part(dressing, Props._box(Vector3(u(0.28), u(0.9), u(0.28))), Color("5a4a40"), top + Vector3(-u(0.2), u(0.4), -u(0.2)))
 		"bakery":
 			Props.part(dressing, Props._sphere(0.32, 0.4), Color("b8865a"), door + outward * 0.7 - side * 0.8 + Vector3(0, 0.12, 0))
-			Props.part(dressing, Props._box(Vector3(0.2, 0.7, 0.2)), Color("8a6a5c"), top + Vector3(0.2, 0.3, -0.2))
+			Props.part(dressing, Props._box(Vector3(u(0.2), u(0.7), u(0.2))), Color("8a6a5c"), top + Vector3(u(0.2), u(0.3), -u(0.2)))
 		"market":
-			var awning := Props.part(dressing, Props._box(Vector3(1.2, 0.04, 0.6)), Color("c84a3a"), door + outward * 0.5 + Vector3(0, 0.95, 0),
+			var awning := Props.part(dressing, Props._box(Vector3(u(1.2), u(0.04), u(0.6))), Color("c84a3a"), door + outward * u(0.5) + Vector3(0, u(0.95), 0),
 				Vector3(0.25, atan2(outward.x, outward.z), 0))
 			awning.name = "Awning"
 			for i in 2:
@@ -122,7 +130,7 @@ static func dress(root: Node3D, state: Dictionary, top: Vector3, door: Vector3, 
 			for i in 3:
 				Props.part(dressing, Props._box(Vector3(0.3, 0.2, 0.25)), Color("9a9ea6"), door + outward * 0.9 - side * (0.5 + i * 0.3) + Vector3(0, 0.1 + (i % 2) * 0.1, 0))
 		"temple":
-			Props.part(dressing, Props._cylinder(0.0, 0.3, 0.8, 4), Color("e0d6b8"), top + Vector3(0, 0.6, 0))
+			Props.part(dressing, Props._cylinder(0.0, u(0.3), u(0.8), 4), Color("e0d6b8"), top + Vector3(0, u(0.6), 0))
 		"shop":
 			Props.part(dressing, Props._box(Vector3(0.35, 0.3, 0.35)), Color("a27b52"), door + outward * 0.8 + side * 0.6 + Vector3(0, 0.15, 0))
 	if closed:
