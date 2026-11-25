@@ -110,9 +110,15 @@ public class PlayerCreatorTests : IClassFixture<LivingWorldApiFactory>
         int logged = _factory.Services.GetRequiredService<LivingWorld.Api.Players.PlayerCommandGateway>().Log.Records.Count;
         var spec = new
         {
-            cityId = city.Id.Value, name = "Lia Torres", sex = "Female", ageYears = parent["roles"]!["child"]!["maxAge"]!.GetValue<int>(), seed = 3,
-            money = 40, look = new { heightM = 1.63, skinTone = 30, eyeTone = 12, outfit = 2 },
-            traits = new { openness = 70 }, role = new { kind = "child", relativeId = parent["npcId"]!.GetValue<long>() },
+            cityId = city.Id.Value,
+            name = "Lia Torres",
+            sex = "Female",
+            ageYears = parent["roles"]!["child"]!["maxAge"]!.GetValue<int>(),
+            seed = 3,
+            money = 40,
+            look = new { heightM = 1.63, skinTone = 30, eyeTone = 12, outfit = 2 },
+            traits = new { openness = 70 },
+            role = new { kind = "child", relativeId = parent["npcId"]!.GetValue<long>() },
         };
         var preview = await client.PostAsJsonAsync("/players/criadora/character/preview", spec);
         Assert.Equal(HttpStatusCode.OK, preview.StatusCode);

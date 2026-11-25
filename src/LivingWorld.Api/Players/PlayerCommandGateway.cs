@@ -88,7 +88,9 @@ public sealed partial class PlayerCommandGateway(
                 PlayerCommandKind.Character => Map(players.Character(world, playerId, command.Spec!),
                     npc => new
                     {
-                        npcId = npc.Id.Value, playerId, cityId = npc.City.Value,
+                        npcId = npc.Id.Value,
+                        playerId,
+                        cityId = npc.City.Value,
                         character = CharacterView(world, npc, command.Spec!.Role ?? new CharacterRole(), npc.Wallet.Amount,
                             command.Spec.Role?.RelativeId is { } relative ? world.FindNpc(new NpcId(relative)) : null),
                     }),

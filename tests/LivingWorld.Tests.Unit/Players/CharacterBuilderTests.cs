@@ -1,6 +1,5 @@
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Scenarios;

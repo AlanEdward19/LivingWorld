@@ -36,8 +36,12 @@ public sealed partial class PlayerCommandGateway
             var names = Names?.For(world.PeriodId);
             var growth = world.BodyRules.Growth;
             object Height(Sex sex) => growth.Enabled
-                ? new { min = Math.Round(growth.AdultHeightMean(sex) - 3.5 * growth.AdultHeightStdDev(sex), 2),
-                    max = Math.Round(growth.AdultHeightMean(sex) + 3.5 * growth.AdultHeightStdDev(sex), 2), typical = Math.Round(growth.AdultHeightMean(sex), 2) }
+                ? new
+                {
+                    min = Math.Round(growth.AdultHeightMean(sex) - 3.5 * growth.AdultHeightStdDev(sex), 2),
+                    max = Math.Round(growth.AdultHeightMean(sex) + 3.5 * growth.AdultHeightStdDev(sex), 2),
+                    typical = Math.Round(growth.AdultHeightMean(sex), 2)
+                }
                 : new { min = 1.40, max = 2.10, typical = sex == Sex.Male ? 1.75 : 1.65 };
             var households = world.Households.Where(h => h.City == city.Id)
                 .Select(h => (Household: h, Members: h.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList()))
