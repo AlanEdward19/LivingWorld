@@ -107,6 +107,7 @@ func _draw(info: Dictionary, state: Dictionary) -> Node3D:
 const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
 const XRAY := 0.88 ## raio-x (AD-177): paredes de todos os prédios translúcidas
 const XRAY_ROOF := 0.96 ## e o telhado quase some
+const ROOF_EAVE_M := 0.3 ## beiral do telhado de cada lado (metros)
 const ROOF_OPEN := 0.97 ## AD-197s: o telhado do prédio em que o jogador está (3ª pessoa de cima) quase some
 var faded: Dictionary = {} ## id -> true (translúcidos agora)
 var opened: Dictionary = {} ## AD-197s: id -> true (o corpo do jogador está dentro: telhado aberto)
@@ -317,7 +318,8 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	if rectangular:
 		var prism := PrismMesh.new()
 		var along_x := span.x >= span.y
-		prism.size = Vector3((span.x if along_x else span.y) + 0.4, float(form.pitch), (span.y if along_x else span.x) + 0.4)
+		var eave := Grid.units(ROOF_EAVE_M) # AD-197s3: beiral em metros do motor (a câmera do jogador usa a mesma casca)
+		prism.size = Vector3((span.x if along_x else span.y) + eave * 2.0, float(form.pitch), (span.y if along_x else span.x) + eave * 2.0)
 		var ridge := MeshInstance3D.new()
 		ridge.mesh = prism
 		ridge.material_override = roof
@@ -366,7 +368,8 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	root.set_meta("walls", walls)
 	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
 	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
-	root.set_meta("shell", AABB(Vector3(min_cell.x - 0.2, 0, min_cell.y - 0.2), Vector3(span.x + 0.4, maxf(height + 0.9, roof_top + 0.1), span.y + 0.4)))
+	var eave_shell := Grid.units(ROOF_EAVE_M)
+	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + 0.9, roof_top + 0.1), span.y + eave_shell * 2.0)))
 	return root
 
 

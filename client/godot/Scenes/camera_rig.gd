@@ -15,7 +15,7 @@ const ISO_PITCH := deg_to_rad(-35.264)
 const ISO := "iso"
 const THIRD := "third"
 const FIRST := "first"
-const THIRD_DISTANCE := 3.0 ## unidades atrás do personagem (4,5 m na escala do motor, 1,5 m/célula; AD-197r)
+const THIRD_DISTANCE_M := 4.5 ## metros atrás do personagem (AD-197r; AD-197s3: em metros do motor, a escala do mundo muda)
 ## AD-197r: a altura dos olhos sai do corpo (a altura em cm que o motor dá vira a escala do boneco), não de constante:
 ## olhos a 94% da altura, na escala do motor (adulto mediano de 1,70 m -> 1,6 m -> ~1,07 unidade; criança fica mais baixa).
 const ADULT_HEIGHT_CM := 170.0
@@ -24,7 +24,7 @@ const SHOULDER_M := 0.5 ## a 3ª pessoa mira acima do ombro (olho + isto, metros
 const MIN_PITCH := deg_to_rad(-70.0)
 const MAX_PITCH := deg_to_rad(35.0)
 const LOOK_SPEED := 0.004 ## rad por pixel do mouse
-const NEAR_THIRD := 0.05
+const NEAR_THIRD_M := 0.075
 const NEAR_FIRST_M := 0.15 ## AD-197s: ~ raio da cabeça: nada mais perto que isto atravessa o olho
 const EYE_CLEAR_M := 0.18 ## e o olho não chega mais perto que isto de uma parede por fora
 const AWAIT_LIFT_M := 12.0 ## sem corpo para seguir (a pessoa nova chega no próximo delta) a 3ª pessoa fica no alto, nunca dentro de um prédio
@@ -32,6 +32,10 @@ const ROOM_ARM_M := 2.0 ## AD-197s2: dentro de casa a câmera fica no cômodo se
 const NEAR_PERSON_M := 1.0 ## na 1ª pessoa quem está a menos disto do olho não se desenha (o espaçamento mínimo entre corpos parados é ~0,9 m)
 const CEILING_M := 0.2 ## folga da câmera até o teto do andar
 ## Distâncias em metros do motor viram unidades da grade (a escala do mundo muda): nada fixo na escala de hoje.
+static func third_distance() -> float: return Grid.units(THIRD_DISTANCE_M)
+static func near_third() -> float: return Grid.units(NEAR_THIRD_M)
+static func min_arm() -> float: return Grid.units(MIN_ARM_M)
+static func arm_margin() -> float: return Grid.units(ARM_MARGIN_M)
 static func near_first() -> float: return Grid.units(NEAR_FIRST_M)
 static func eye_clear() -> float: return Grid.units(EYE_CLEAR_M)
 static func await_lift() -> float: return Grid.units(AWAIT_LIFT_M)
@@ -56,15 +60,16 @@ var city_at: Callable = func(_point: Vector3) -> String: return ""
 
 ## AD-197p: braço de mola da 3ª pessoa. `blockers` devolve os nós desenhados com a caixa (`meta box`) de cada prédio, qualquer que seja
 ## o tamanho; a câmera chega perto do corpo quando a parede ou o telhado ficaria no meio e volta devagar quando o caminho abre.
-const MIN_ARM := 0.5
-const ARM_MARGIN := 0.25
+const MIN_ARM_M := 0.75
+const ARM_MARGIN_M := 0.375
 const ARM_RETURN := 3.0 ## por segundo: a volta é suave; a aproximação, imediata (nunca atravessa a parede)
 var blockers: Callable = Callable()
-var arm := THIRD_DISTANCE
+var arm := 3.0 ## inicial; vira third_distance() ao entrar no modo
 var lift := 0.0 ## AD-197r: quanto a 3ª pessoa sobe (olhando o corpo de cima) quando o caminho para trás está fechado
 var shoulder := 0.0 ## e quanto passa a ombro (deslocamento lateral), em unidades
 var _see_through: Dictionary = {}
 var _opened: Dictionary = {}
+var _in_room := false ## AD-197s3: o enquadramento anterior era dentro do cômodo (histerese contra piscar no limite)
 var _snap := true ## AD-197s: o próximo enquadramento vai direto ao plano (corpo novo, modo novo): nenhum quadro na posição velha
 var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
 var camera: Camera3D
@@ -130,7 +135,7 @@ func set_mode(value: String) -> void:
 		return
 	mode = value
 	if mode == ISO:
-		arm = THIRD_DISTANCE
+		arm = third_distance()
 		lift = 0.0
 		shoulder = 0.0
 		if not _see_through.is_empty():
@@ -149,12 +154,12 @@ func set_mode(value: String) -> void:
 		set_cursor_captured(true) # AD-197k (emenda do dono ao ADR-0051): o mouse olha só de mexer, sem botão
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		camera.fov = 70.0
-		camera.near = near_first() if mode == FIRST else NEAR_THIRD
+		camera.near = near_first() if mode == FIRST else near_third()
 		pitch = clampf(pitch, MIN_PITCH, MAX_PITCH)
 		_snap = true
 		eye_push = Vector3.ZERO
 		if mode == THIRD:
-			arm = THIRD_DISTANCE
+			arm = third_distance()
 			lift = 0.0
 			shoulder = 0.0
 		if following != null and is_instance_valid(following):
@@ -317,7 +322,8 @@ func _spring_arm(delta: float) -> void:
 		return
 	var boxes: Array = blockers.call()
 	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
-	var plan := plan_third(eye, yaw, pitch, THIRD_DISTANCE, boxes, body_scale())
+	var plan := plan_third(eye, yaw, pitch, third_distance(), boxes, body_scale(), _in_room)
+	_in_room = bool(plan.get("room", false))
 	var free: float = plan.arm
 	if _snap:
 		_snap = false
@@ -325,7 +331,7 @@ func _spring_arm(delta: float) -> void:
 		lift = plan.lift
 		shoulder = plan.shoulder
 	else:
-		arm = free if free < arm else minf(free, arm + (THIRD_DISTANCE - MIN_ARM) * ARM_RETURN * delta)
+		arm = free if free < arm else minf(free, arm + (third_distance() - min_arm()) * ARM_RETURN * delta)
 		var blend := clampf(delta * 8.0, 0.0, 1.0)
 		lift = lerpf(lift, plan.lift, blend)
 		shoulder = lerpf(shoulder, plan.shoulder, blend)
@@ -354,23 +360,26 @@ const COMFORT := 0.6 ## fração do braço cheio que já basta para a vista ser 
 static func third_options(scale: float) -> Array:
 	var up := Grid.units(1.0) * scale
 	var side := Grid.units(0.6) * scale
-	return [[0.0, 0.0], [up, 0.0], [up * 2.0, 0.0], [up * 2.0, side], [up * 2.0, -side], [up * 3.0, 0.0]]
+	var wide := Grid.units(1.2) * scale # AD-197s3: passar a ombro, nos dois lados, ANTES de subir (prédio colado atrás: dobra a esquina)
+	return [[0.0, 0.0], [0.0, wide], [0.0, -wide], [up, 0.0], [up * 2.0, 0.0], [up * 2.0, side], [up * 2.0, -side], [up * 3.0, 0.0]]
 
 
 ## Escolhe {arm, lift, shoulder} da 3ª pessoa: o primeiro enquadramento com caminho livre >= COMFORT do braço cheio e câmera fora de
 ## qualquer caixa; senão o de maior caminho (empate: o menos deslocado), com a subida mínima de quem ficou colado ao corpo.
 ## Cada entrada de `boxes` é [id, caixa] ou [id, caixa, casca]: a caixa diz onde o corpo está; a casca (caixa + beiral e cumeeira do
 ## telhado) é o que a câmera não pode tocar. Corpo dentro de um prédio: câmera acima da casca (AD-197s), nunca dentro das paredes.
-static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0) -> Dictionary:
+static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0, was_room: bool = false) -> Dictionary:
 	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
 	var room := roof_lift(eye, boxes)
 	if room > 0.0:
-		var inside := room_plan(eye, back, length, boxes)
+		# histerese (AD-197s3): quem já está no cômodo só sai com 15% a menos de espaço; quem está em cima só entra com 15% a mais
+		var inside := room_plan(eye, back, length, boxes, room_arm() * (0.85 if was_room else 1.15))
 		if not inside.is_empty():
+			inside["room"] = true
 			return inside
 	if room > 0.0: # por cima do telhado e um pouco atrás (olhar inclinado, não a prumo), enquanto o ponto estiver livre de casca
-		var arm := MIN_ARM
-		for reach in [length * 0.5, 1.0]:
+		var arm := min_arm()
+		for reach in [length * 0.5, Grid.units(1.5)]:
 			if not inside_any(eye + Vector3(0, room, 0) + back * reach, boxes):
 				arm = reach
 				break
@@ -381,7 +390,7 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 		var origin: Vector3 = eye + Vector3(0, option[0], 0) + right * option[1]
 		var free := free_arm(origin, back, length, boxes)
 		if inside_any(origin + back * free, boxes):
-			free = MIN_ARM
+			free = min_arm()
 		if free >= length * COMFORT:
 			return {"arm": free, "lift": option[0], "shoulder": option[1]}
 		if free > float(best.arm) + length * 0.15: # só troca por um enquadramento deslocado se ele ganha caminho de verdade (nada de subir à toa)
@@ -397,7 +406,7 @@ const SHALLOW_DEG := 35.0 ## sem caminho livre, a subida extra mantém a inclina
 
 ## AD-197s2: corpo dentro de um prédio com paredes conhecidas (4ª coluna da entrada: caixas das células de parede): a câmera fica DENTRO do
 ## cômodo se couber `room_arm()` atrás do corpo (até a parede com folga, o teto do andar e a caixa do prédio); senão {} e a câmera sobe.
-static func room_plan(eye: Vector3, back: Vector3, length: float, boxes: Array) -> Dictionary:
+static func room_plan(eye: Vector3, back: Vector3, length: float, boxes: Array, need: float = -1.0) -> Dictionary:
 	for entry in boxes:
 		var raw: AABB = entry[1]
 		if not raw.has_point(eye):
@@ -410,15 +419,15 @@ static func room_plan(eye: Vector3, back: Vector3, length: float, boxes: Array) 
 				return {}
 		var floor_h := Grid.floor_height()
 		var ceiling := raw.position.y + (floorf((eye.y - raw.position.y) / floor_h) + 1.0) * floor_h - Grid.units(CEILING_M)
-		var free := minf(length, exit_distance(eye, back, raw) - ARM_MARGIN)
+		var free := minf(length, exit_distance(eye, back, raw) - arm_margin())
 		if back.y > 0.0001:
 			free = minf(free, (ceiling - eye.y) / back.y)
 		var far := eye + back * length
 		for wall in walls:
 			var hit = (wall as AABB).intersects_segment(eye, far)
 			if hit != null:
-				free = minf(free, eye.distance_to(hit) - ARM_MARGIN)
-		if free >= room_arm():
+				free = minf(free, eye.distance_to(hit) - arm_margin())
+		if free >= (need if need > 0.0 else room_arm()):
 			return {"arm": free, "lift": 0.0, "shoulder": 0.0}
 		return {}
 	return {}
@@ -439,7 +448,7 @@ static func roof_lift(eye: Vector3, boxes: Array) -> float:
 	var need := 0.0
 	for entry in boxes:
 		if (entry[1] as AABB).has_point(eye):
-			need = maxf(need, shell_of(entry).end.y + ARM_MARGIN - eye.y)
+			need = maxf(need, shell_of(entry).end.y + arm_margin() - eye.y)
 	return need
 
 
@@ -464,7 +473,7 @@ static func inside_any(point: Vector3, boxes: Array) -> bool:
 	return false
 
 
-## Comprimento livre do braço: até a primeira casca que o segmento olho → câmera cruza, menos uma folga; nunca menos que MIN_ARM.
+## Comprimento livre do braço: até a primeira casca que o segmento olho → câmera cruza, menos uma folga; nunca menos que min_arm().
 static func free_arm(eye: Vector3, back: Vector3, length: float, boxes: Array) -> float:
 	var best := length
 	var far := eye + back * length
@@ -474,8 +483,8 @@ static func free_arm(eye: Vector3, back: Vector3, length: float, boxes: Array) -
 			continue
 		var hit = box.intersects_segment(eye, far)
 		if hit != null:
-			best = minf(best, eye.distance_to(hit) - ARM_MARGIN)
-	return clampf(best, MIN_ARM, length)
+			best = minf(best, eye.distance_to(hit) - arm_margin())
+	return clampf(best, min_arm(), length)
 
 
 ## AD-197s: o olho da 1ª pessoa fora de um prédio não chega a eye_clear() da parede: sai pelo lado mais próximo (dentro, não mexe).
