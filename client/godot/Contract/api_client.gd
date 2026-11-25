@@ -205,6 +205,24 @@ func player_origins() -> Dictionary:
 	return _checked("/players/origins", {"status": response.status, "body": response.body}, "player-origins")
 
 
+## AD-197t: o que o criador oferece numa cidade (faixas, teto de dinheiro, ofícios, trajes, origens e as famílias com os papéis possíveis).
+func player_city_options(city_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/origins/%s" % city_id.uri_encode(), null, _player_headers())
+	return _checked("/players/origins/city", {"status": response.status, "body": response.body}, "player-city-options")
+
+
+## AD-197t: a prévia que o motor valida da escolha (`spec`); só lê, nada vai ao registro. 409 com o motivo se for incoerente.
+func player_character_preview(player_id: String, spec: Dictionary) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%s/character/preview" % player_id.uri_encode(), spec, _player_headers())
+	return _checked("/players/character/preview", {"status": response.status, "body": response.body}, "player-character-preview")
+
+
+## AD-197t: cria a pessoa que o jogador montou e a encarna (nome, idade, traços, cidade, família ou chegada, dinheiro, aparência).
+func player_character(player_id: String, spec: Dictionary) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "character", "spec": spec}, "POST", "/players/%s/character" % player_id.uri_encode(), spec)
+	return _checked("/players/character", {"status": response.status, "body": response.body}, "player-character")
+
+
 ## AD-197q: uma amostra nova do agregado da cidade (`filter`: sex, minAge, maxAge, professionId, count). Cada pedido é registrado
 ## pelo motor; 409 com o motivo quando o agregado está vazio ou ninguém passa no filtro.
 func player_candidates(player_id: String, city_id: String, filter: Dictionary = {}) -> Dictionary:

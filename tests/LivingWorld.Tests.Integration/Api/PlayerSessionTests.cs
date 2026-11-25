@@ -216,7 +216,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
                 && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains("POST"))
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/accelerate",
-            "/players/{playerId}/action", "/players/{playerId}/candidates", "/players/{playerId}/create", "/players/{playerId}/interact", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
+            "/players/{playerId}/action", "/players/{playerId}/candidates", "/players/{playerId}/character", "/players/{playerId}/character/preview", "/players/{playerId}/create", "/players/{playerId}/interact", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
             "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 

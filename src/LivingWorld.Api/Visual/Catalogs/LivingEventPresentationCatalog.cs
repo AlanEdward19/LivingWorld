@@ -11,6 +11,8 @@ public static class LivingEventPresentationCatalog
         {
             [WorldEventKind.Birth] = "Um novo habitante nasceu",
             [WorldEventKind.PlayerIncarnated] = "Alguém assumiu o rumo de um habitante",
+            [WorldEventKind.CharacterArrived] = "Um recém-chegado se instalou na cidade",
+            [WorldEventKind.CharacterJoinedFamily] = "Alguém passou a fazer parte de uma família da cidade",
             [WorldEventKind.PlayerDisappeared] = "Um habitante desapareceu sem deixar rastro",
             [WorldEventKind.DisappearedFound] = "Alguém reencontrou um desaparecido",
             [WorldEventKind.SearchGaveUp] = "A procura por um desaparecido chegou ao fim",

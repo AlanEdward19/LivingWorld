@@ -313,6 +313,27 @@ func _became(id: int, name: String) -> void:
 	refresh_labels()
 
 
+## AD-197t: a prévia validada pelo motor (a sessão vem antes, como ao encarnar).
+func character_preview(spec: Dictionary) -> Dictionary:
+	await _ensure_session()
+	return await api.player_character_preview(player_id, spec)
+
+
+## AD-197t: cria a pessoa montada e a encarna. Devolve o corpo da resposta (`npcId`, `character`) ou, na recusa, `{error}`.
+func create_character(spec: Dictionary) -> Dictionary:
+	if _busy or is_active:
+		return {"error": "Você já controla outro NPC." if is_active else ""}
+	_busy = true
+	await _ensure_session()
+	var response: Dictionary = await api.player_character(player_id, spec)
+	_busy = false
+	if response.ok:
+		_became(int(response.body.npcId), String(response.body.character.name))
+		return response.body
+	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+	return {"error": error if error != "" else "Não foi possível criar a pessoa (erro %d)." % response.status}
+
+
 ## AD-197q: amostra do agregado da cidade para o criador de personagem (a sessão vem antes, como ao encarnar).
 func candidates(city_id: String, filter: Dictionary) -> Dictionary:
 	await _ensure_session()

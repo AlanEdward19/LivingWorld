@@ -91,7 +91,7 @@ public static class PopulationSeeder
     /// <summary>Quem já existe quando o mundo começa não teve a infância nem os anos de ofício simulados (AD-132): recebe, no
     /// ofício da própria profissão, a habilidade esperada de quem o praticou desde criança sob as regras de aprendizado do
     /// cenário (<see cref="SkillLearningRules.ExpectedPracticedSkill"/>). Habilidade autorada vence.</summary>
-    private static void SeedPracticedSkill(WorldState world, Npc npc)
+    internal static void SeedPracticedSkill(WorldState world, Npc npc)
     {
         var rules = LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultSkillsRules;
         if (npc.Skills.Values.Count > 0 || !rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) return;

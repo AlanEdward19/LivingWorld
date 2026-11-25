@@ -1,17 +1,24 @@
 extends PanelContainer
-## AD-197q: entrar como pessoa nova. O motor diz de onde dá para sair (`/players/origins`), sorteia candidatos do agregado da
-## cidade (`/players/{id}/candidates`) e, escolhido um, materializa e encarna (`/players/{id}/create`). Aqui não se monta atributo
-## nenhum: só se escolhe a cidade, se estreita o filtro, se pede outra amostra e se entra.
+## Criar a pessoa e entrar no mundo. O motor diz de onde dá para sair (`/players/origins`). Dois modos:
+## - "Montar" (AD-197t, o padrão): o criador de verdade (`character_designer.gd`): nome, idade, traços, família ou chegada de fora,
+##   dinheiro e aparência; o motor valida e devolve a pessoa.
+## - "Sortear alguém da cidade" (AD-197q): candidatos do agregado (`/players/{id}/candidates`), escolhido um, o motor o materializa
+##   e encarna (`/players/{id}/create`). Aqui não se monta nada: se estreita o filtro, se pede outra amostra e se entra.
 
 signal closed()
 signal warning(text: String)
 signal entered(npc_id: int, name: String, city_id: String)
 
+const Designer := preload("res://Scenes/character_designer.gd")
 const SEXES := [["", "Qualquer sexo"], ["Female", "Mulher"], ["Male", "Homem"]]
 const TRAITS := {"extroversion": "expansividade", "agreeableness": "amabilidade", "conscientiousness": "cuidado", "emotionalStability": "serenidade",
 	"openness": "curiosidade", "ambition": "ambição", "loyalty": "lealdade", "altruism": "generosidade", "impulsivity": "impulsividade",
 	"riskAversion": "cautela"}
 
+var mode := "design" ## "design" (montar) ou "sample" (sortear do agregado)
+var designer
+var mode_select: OptionButton
+var _sample_box: VBoxContainer
 var hud ## o HUD do jogador (sessão, playerId, e quem fica ativo ao entrar)
 var api
 var is_open := false
@@ -41,7 +48,7 @@ func _init() -> void:
 	var header := HBoxContainer.new()
 	box.add_child(header)
 	var title := Label.new()
-	title.text = "Entrar como pessoa nova"
+	title.text = "Criar a minha pessoa"
 	title.add_theme_font_size_override("font_size", 20)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
@@ -50,15 +57,31 @@ func _init() -> void:
 	close_button.pressed.connect(func(): close())
 	header.add_child(close_button)
 	var note := Label.new()
-	note.text = "Quem você pode ser sai da população da cidade que o mundo já conta: ninguém é criado do nada."
+	note.text = "Monte a pessoa que quiser: o motor confere tudo, sorteia o que você deixar em branco e a faz viver como qualquer habitante."
 	note.modulate = Color(1, 1, 1, 0.75)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
-	var filters := HFlowContainer.new()
-	box.add_child(filters)
+	var top := HFlowContainer.new()
+	box.add_child(top)
 	city_select = OptionButton.new()
-	city_select.item_selected.connect(func(_i: int): resample())
-	filters.add_child(city_select)
+	city_select.item_selected.connect(func(_i: int): _city_changed())
+	top.add_child(city_select)
+	mode_select = OptionButton.new()
+	mode_select.add_item("Montar a minha pessoa")
+	mode_select.add_item("Sortear alguém da cidade")
+	mode_select.tooltip_text = "Sortear: o motor tira alguém da população da cidade (ninguém é criado do nada)"
+	mode_select.item_selected.connect(func(i: int): set_mode("design" if i == 0 else "sample"))
+	top.add_child(mode_select)
+	designer = Designer.new()
+	designer.hud = hud
+	designer.created.connect(func(id: int, who: String, city: String): _entered(id, who, city))
+	designer.warning.connect(func(text: String): warning.emit(text))
+	box.add_child(designer)
+	_sample_box = VBoxContainer.new()
+	_sample_box.add_theme_constant_override("separation", 8)
+	box.add_child(_sample_box)
+	var filters := HFlowContainer.new()
+	_sample_box.add_child(filters)
 	sex_select = OptionButton.new()
 	for pair in SEXES:
 		sex_select.add_item(pair[1])
@@ -79,18 +102,43 @@ func _init() -> void:
 	_message = Label.new()
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message.add_theme_color_override("font_color", Color("ffcf4a"))
-	box.add_child(_message)
+	_sample_box.add_child(_message)
 	var scroll := ScrollContainer.new() # a área central do roteador é baixa: os cartões rolam dentro da janela
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size.y = 220
-	box.add_child(scroll)
+	_sample_box.add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 3
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(_grid)
+	_apply_mode()
+
+
+## Troca entre montar a pessoa e sortear do agregado; abre a cidade escolhida no modo novo.
+func set_mode(next: String) -> void:
+	mode = next
+	mode_select.select(0 if next == "design" else 1)
+	_apply_mode()
+	await _city_changed()
+
+
+func _apply_mode() -> void:
+	designer.visible = mode == "design"
+	_sample_box.visible = mode == "sample"
+
+
+func _city_changed() -> void:
+	if city_select.item_count == 0:
+		return
+	city_id = String(city_select.get_item_metadata(max(0, city_select.selected)))
+	if mode == "design":
+		designer.hud = hud
+		await designer.open_city(city_id)
+	else:
+		await resample()
 
 
 func _age_box(prefix: String, value: int) -> SpinBox:
@@ -108,8 +156,12 @@ func reveal() -> void:
 	visible = true
 
 
-## Abre e pergunta ao motor de onde dá para sair; a cidade com mais gente no agregado vem primeiro.
-func open() -> void:
+## Abre e pergunta ao motor de onde dá para sair; a cidade com mais gente no agregado vem primeiro. `open_mode`: "design" (montar,
+## o padrão) ou "sample" (sortear alguém do agregado).
+func open(open_mode: String = "design") -> void:
+	mode = open_mode
+	mode_select.select(0 if mode == "design" else 1)
+	_apply_mode()
 	reveal()
 	_request += 1
 	var mine := _request
@@ -124,7 +176,7 @@ func open() -> void:
 	if origins.is_empty():
 		_show_message("Não há cidade no mundo agora.")
 		return
-	await resample()
+	await _city_changed()
 
 
 func close() -> void:
@@ -242,6 +294,12 @@ func choose(id: int, name: String) -> void:
 	var city := city_id
 	close()
 	entered.emit(id, name, city)
+
+
+## A pessoa montada foi criada e encarnada: fecha e avisa o app (a cidade, o corpo e a 3ª pessoa seguem como ao encarnar).
+func _entered(id: int, who: String, city: String) -> void:
+	close()
+	entered.emit(id, who, city)
 
 
 func _remember_profession(id: int, name: String) -> void:

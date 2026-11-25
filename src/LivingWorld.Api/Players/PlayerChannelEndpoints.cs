@@ -106,6 +106,9 @@ public static class PlayerChannelEndpoints
                 "create" when node?["cityId"] is { } city && node?["npcId"] is { } id && node?["sample"] is { } sample =>
                     new PlayerCommandRequest(PlayerCommandKind.Create, id.GetValue<long>(), CityId: Guid.Parse(city.GetValue<string>()),
                         SampleNumber: sample.GetValue<long>()),
+                // AD-197t: criador de personagem de verdade — a escolha inteira em "spec" (a mesma forma da rota)
+                "character" when PlayerEndpoints.TryParseSpec(node?["spec"], out var spec, out _) =>
+                    new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec),
                 _ => null,
             };
         }

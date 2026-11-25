@@ -288,8 +288,13 @@ func _npc(id: int, cell: Vector2i, action: Variant, city_id: String, look: Dicti
 static func look_of(appearance: Variant) -> Dictionary:
 	if not appearance is Dictionary:
 		return {}
-	return {"skin_tone": int(appearance.skinTone), "hair_tone": int(appearance.hairTone),
+	var look := {"skin_tone": int(appearance.skinTone), "hair_tone": int(appearance.hairTone),
 		"hair_curl": int(appearance.hairCurl), "build": int(appearance.build)}
+	# AD-197t: olhos, rosto e traje só existem em quem o jogador montou no criador (o motor omite nos demais)
+	for pair in [["eyeTone", "eye_tone"], ["faceShape", "face_shape"], ["outfit", "outfit"]]:
+		if appearance.get(pair[0]) != null:
+			look[pair[1]] = int(appearance[pair[0]])
+	return look
 
 
 func _building(id: int, marker: Dictionary) -> Dictionary:
