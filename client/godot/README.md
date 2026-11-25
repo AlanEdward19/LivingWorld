@@ -97,6 +97,8 @@ AD-197r (câmera em passagem estreita, olhos pelo corpo, pessoas sem se sobrepor
 AD-197q (criador de personagem "Pessoa nova", fechado por padrão), contra `024c2748`: `stress` 116,8/116,0/116,7 → 116,7/116,5/116,9.
 AD-197s (3ª pessoa com o corpo à vista, translucidez que sobrevive ao redesenho, 1ª pessoa fora da parede), contra `c0979602` (medianas de 3): `stress` 115,6 → 115,3,
 `bench` 170,1 → 171,1, `benchbig` 136,9 → 137,3, `benchrun` 57,9 → 58,5; 3ª pessoa pareada (`tools/bench-third-paired.sh`) 120,5 → 120,8 (máquina ruidosa: 110 a 148 nas duas pontas).
+AD-197s3 (câmera do jogador em metros do motor, histerese cômodo/telhado, ombro antes de subir), contra `70e76523` (medianas de 3): `stress` 115,8 → 116,0,
+`bench` 167,9 → 168,1, `benchbig` 135,0 → 135,4, `benchrun` 58,2 → 58,5; 3ª pessoa pareada 110,9 → 110,3 (ruído da máquina: 89 a 116).
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
