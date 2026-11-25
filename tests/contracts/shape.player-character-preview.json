@@ -38,7 +38,8 @@
       "fromCityId": "string",
       "kind": "string",
       "relativeId": "number",
-      "relativeName": "string"
+      "relativeName": "string",
+      "viaId": "number"
     },
     "sex": "string"
   }

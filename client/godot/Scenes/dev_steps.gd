@@ -651,6 +651,9 @@ static func _creator_set(app: Node, text: String) -> void:
 				designer._refill_families()
 			"family":
 				designer.family_select.select(int(value))
+				designer._refill_vias()
+			"via":
+				designer.via_select.select(int(value))
 			"origin":
 				designer.origin_select.select(int(value))
 			"outfit":

@@ -29,11 +29,17 @@ public sealed record CharacterLook(
 /// <summary>O lugar da pessoa na cidade: <see cref="Newcomer"/> (recém-chegado, de fora do mundo ou de <see cref="FromCityId"/>) ou
 /// um laço com <see cref="RelativeId"/>: <see cref="Child"/> (filho/filha dele e do cônjuge, se vivo), <see cref="Sibling"/> (irmão:
 /// mesmos pais), <see cref="Spouse"/> (cônjuge: ele tem de estar livre e aceitar) ou <see cref="Relative"/> (parente agregado à casa,
-/// com vínculo, sem laço genealógico).</summary>
-public sealed record CharacterRole(string Kind = CharacterRole.Newcomer, long? RelativeId = null, Guid? FromCityId = null)
+/// com vínculo, sem laço genealógico). AD-197t2, laços de sangue que passam por <see cref="ViaId"/>: <see cref="Grandchild"/> (filho
+/// de um filho do parente), <see cref="Nephew"/> (filho de um irmão dele), <see cref="Uncle"/> (irmão do pai ou da mãe dele: via = o pai
+/// ou a mãe) e <see cref="Cousin"/> (filho de um irmão do pai ou da mãe dele: via = esse tio).</summary>
+public sealed record CharacterRole(string Kind = CharacterRole.Newcomer, long? RelativeId = null, Guid? FromCityId = null, long? ViaId = null)
 {
-    public const string Newcomer = "newcomer", Child = "child", Sibling = "sibling", Spouse = "spouse", Relative = "relative";
-    public static readonly IReadOnlyList<string> Kinds = [Newcomer, Child, Sibling, Spouse, Relative];
+    public const string Newcomer = "newcomer", Child = "child", Grandchild = "grandchild", Sibling = "sibling", Nephew = "nephew",
+        Uncle = "uncle", Cousin = "cousin", Spouse = "spouse", Relative = "relative";
+    public static readonly IReadOnlyList<string> Kinds = [Newcomer, Child, Grandchild, Sibling, Nephew, Uncle, Cousin, Spouse, Relative];
+
+    /// <summary>Papéis em que o laço passa por um parente intermediário (<see cref="ViaId"/>).</summary>
+    public static bool NeedsVia(string kind) => kind is Grandchild or Nephew or Uncle or Cousin;
 }
 
 /// <summary>Tudo o que o jogador escolhe ao criar a pessoa (AD-197t): cidade e o resto opcional. O que não vier o motor sorteia pelo
