@@ -29,7 +29,7 @@ const NEAR_FIRST_M := 0.15 ## AD-197s: ~ raio da cabeça: nada mais perto que is
 const EYE_CLEAR_M := 0.18 ## e o olho não chega mais perto que isto de uma parede por fora
 const AWAIT_LIFT_M := 12.0 ## sem corpo para seguir (a pessoa nova chega no próximo delta) a 3ª pessoa fica no alto, nunca dentro de um prédio
 const ROOM_ARM_M := 2.0 ## AD-197s2: dentro de casa a câmera fica no cômodo se couber isto atrás do corpo; senão sobe acima do telhado
-const NEAR_PERSON_M := 0.6 ## na 1ª pessoa quem está a menos disto do olho não se desenha
+const NEAR_PERSON_M := 1.0 ## na 1ª pessoa quem está a menos disto do olho não se desenha (o espaçamento mínimo entre corpos parados é ~0,9 m)
 const CEILING_M := 0.2 ## folga da câmera até o teto do andar
 ## Distâncias em metros do motor viram unidades da grade (a escala do mundo muda): nada fixo na escala de hoje.
 static func near_first() -> float: return Grid.units(NEAR_FIRST_M)
