@@ -87,7 +87,8 @@ static func slot_point(count: int, slot: int) -> Vector3:
 
 
 static func _key(x: float, z: float) -> Vector2i:
-	return Vector2i(floori(x / avoid_radius()), floori(z / avoid_radius()))
+	var radius := avoid_radius()
+	return Vector2i(floori(x / radius), floori(z / radius))
 
 
 ## AD-197r: quem anda contorna quem está parado (só no desenho). Índice de parados refeito a cada STILL_EVERY quadros; cada pessoa
@@ -127,6 +128,7 @@ static func steer_away(base: Vector3, heading: Vector3, still: Dictionary, self_
 	var ahead := Vector3(heading.x, 0, heading.z).normalized()
 	var right := Vector3(-ahead.z, 0, ahead.x)
 	var key := _key(base.x, base.z)
+	var radius := avoid_radius() # uma conversão por chamada, não uma por vizinho (caminho quente)
 	var best := 0.0
 	for dx in [-1, 0, 1]:
 		for dz in [-1, 0, 1]:
@@ -136,9 +138,9 @@ static func steer_away(base: Vector3, heading: Vector3, still: Dictionary, self_
 				var rel := Vector3(other.x - base.x, 0, other.z - base.z)
 				var along := rel.dot(ahead)
 				var lat := rel.dot(right)
-				if along < -avoid_radius() or along > avoid_radius() or absf(lat) >= avoid_radius():
+				if along < -radius or along > radius or absf(lat) >= radius:
 					continue
-				var need := (1.0 if lat <= 0.0 else -1.0) * (avoid_radius() - absf(lat))
+				var need := (1.0 if lat <= 0.0 else -1.0) * (radius - absf(lat))
 				if absf(need) > absf(best):
 					best = need
 	return right * clampf(best, -avoid_max(), avoid_max())
