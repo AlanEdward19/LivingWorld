@@ -53,6 +53,14 @@ var _link_keys: Array = []
 
 func _init() -> void:
 	custom_minimum_size = Vector2(300, 0)
+	var card := StyleBoxFlat.new() # #222: um cartão só, do título aos vínculos (o fim da ficha não fica solto sobre a cena)
+	card.bg_color = Color(0.07, 0.08, 0.12, 0.9)
+	card.set_corner_radius_all(10)
+	card.content_margin_left = 8
+	card.content_margin_right = 8
+	card.content_margin_top = 8
+	card.content_margin_bottom = 8
+	add_theme_stylebox_override("panel", card)
 	var box := VBoxContainer.new()
 	add_child(box)
 	var header := HBoxContainer.new()

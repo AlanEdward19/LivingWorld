@@ -2,6 +2,7 @@ extends PanelContainer
 ## HUD do jogador encarnado (`/players/*`): o NPC controlado, a barra de ações que o motor aceita e a saída.
 ## O motor decide se a ação cabe: aqui só se pede. Sair não congela o personagem: ele desaparece do mundo.
 const WorldTime := preload("res://Contract/world_time.gd")
+const PlayerFrame := preload("res://Scenes/player_frame.gd")
 
 signal released()
 signal warning(text: String)
@@ -15,6 +16,7 @@ signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
+signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
 const PAUSED_NOTE := "Mundo pausado: suas ações só andam quando o tempo voltar."
@@ -64,6 +66,12 @@ var _reach_pending := false
 var reach_clock := 0.0 ## segundos desde a última oferta pedida para a dica da mira
 var _reach_at := Vector2.INF ## onde o corpo estava na última oferta da dica
 const REACH_HINT_EVERY := 1.0 ## no máximo uma oferta por segundo, e só depois de o corpo andar
+var frame: Control ## #222: a moldura de jogo (PlayerFrame) do modo jogador; o app liga
+var header: HFlowContainer
+var _body_clock := 0.0
+var _body_pending := false
+const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
+var _paused_note_clock := 0.0
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
 var has_session := false
 
@@ -72,7 +80,7 @@ func _init() -> void:
 	visible = false
 	var box := VBoxContainer.new()
 	add_child(box)
-	var header := HFlowContainer.new() # AD-197p: nome, ritmo, menu e sair; o resto fica nas ordens
+	header = HFlowContainer.new() # AD-197p: nome, ritmo, menu e sair; o resto fica nas ordens
 	box.add_child(header)
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 18)
@@ -230,6 +238,14 @@ func _time_command(request_fn: Callable, note: String) -> void:
 func set_rpg(on: bool) -> void:
 	rpg = on and is_active
 	orders_button.visible = rpg
+	refresh_labels()
+	header.visible = not rpg # #222: no modo jogador o topo some; nome e barras ficam na moldura, sair fica no menu (Esc)
+	if frame != null:
+		frame.visible = rpg
+		if not rpg:
+			frame.close_menu()
+		else:
+			_body_clock = BODY_EVERY
 	if not rpg:
 		reach_hint.visible = false
 		reach_hint.text = ""
@@ -237,6 +253,15 @@ func set_rpg(on: bool) -> void:
 		_orders_open = false
 		menu_toggled.emit(false)
 	orders.visible = not rpg or _orders_open
+	_show_in_rpg()
+
+
+## #222: no modo jogador o painel só aparece com as ações abertas (Tab), ou com algo a dizer.
+func _show_in_rpg() -> void:
+	if rpg:
+		visible = _orders_open or _status.visible or _pause.visible
+	elif is_active or stale_session:
+		visible = true
 
 
 ## Tab ou o botão: abre ou fecha as ordens (abertas, o cursor fica solto para clicar).
@@ -245,6 +270,7 @@ func toggle_orders() -> void:
 		return
 	_orders_open = not _orders_open
 	orders.visible = _orders_open
+	_show_in_rpg()
 	menu_toggled.emit(_orders_open)
 
 
@@ -254,9 +280,11 @@ func orders_open() -> bool:
 
 ## A dica da mira: o nome curto da primeira coisa que o E alcançaria, tal como o motor a ofereceu (nada inventado aqui).
 func set_reach_hint(from: Array) -> void:
-	var entries := menu_entries(from, resource_name_of)
+	var entries := PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
-	reach_hint.visible = rpg and reach_hint.text != ""
+	reach_hint.visible = rpg and reach_hint.text != "" and frame == null
+	if frame != null:
+		frame.set_prompt(reach_hint.text if rpg else "")
 
 
 ## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo.
@@ -273,12 +301,16 @@ func _refresh_reach_hint(delta: float) -> void:
 		set_reach_hint(response.body.get("offers", []))
 
 
-## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação).
+## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação). #222: no modo jogador o botão é uma ordem
+## ("Comer"), não o estado ("Comendo").
+const ORDER_TEXT := {"Eat": "Comer", "Sleep": "Dormir", "Work": "Trabalhar", "Socialize": "Conversar", "Idle": "Descansar", "Buy": "Comprar"}
+
+
 func refresh_labels() -> void:
 	for choice in CHOICES:
 		var name: String = choice[0]
 		var label: String = labels.label_for(int(choice[1])) if labels != null else ""
-		action_buttons[name].text = label if label != "" else name
+		action_buttons[name].text = ORDER_TEXT[name] if rpg else (label if label != "" else name)
 
 
 ## Encarna o NPC; devolve true se o servidor aceitou.
@@ -448,6 +480,25 @@ func _process(delta: float) -> void:
 		return
 	glide(walk_direction(_held_keys()), delta)
 	_refresh_reach_hint(delta)
+	_refresh_body(delta)
+	_paused_note_clock = maxf(0.0, _paused_note_clock - delta)
+
+
+## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
+func _refresh_body(delta: float) -> void:
+	_body_clock += delta
+	if not rpg or frame == null or _body_pending or _body_clock < BODY_EVERY:
+		return
+	_body_clock = 0.0
+	_body_pending = true
+	var response: Dictionary = await api.npc_detail(npc_id)
+	_body_pending = false
+	if rpg and response.ok and response.body is Dictionary:
+		var body: Dictionary = response.body
+		var action := ""
+		if labels != null and body.get("currentAction") != null:
+			action = labels.label_for(int(body.currentAction))
+		frame.set_body(npc_name, action, body)
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
@@ -473,25 +524,67 @@ func glide(direction: Vector2, delta: float) -> void:
 		fine += direction * speed_cells * delta
 		glided.emit(fine)
 	_walk_clock += delta
-	var changed := direction != _walk_dir
+	var run := direction != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT)
+	var changed := direction != _walk_dir or run != _walk_run
 	if (changed or (direction != Vector2.ZERO and _walk_clock >= WALK_SEND)) and not _walk_busy:
 		_walk_clock = 0.0
 		_walk_dir = direction
-		send_walk(direction)
+		_walk_run = run
+		send_walk(direction, run)
 
 
-func send_walk(direction: Vector2) -> void:
+var _walk_run := false
+var running := false ## #222: o motor disse que o corpo está correndo (Shift); cansado, ele anda
+
+
+func send_walk(direction: Vector2, run: bool = false) -> void:
 	_walk_busy = true
 	var started := Time.get_ticks_usec()
-	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0))
+	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0), run)
 	_note_latency(started)
 	_walk_busy = false
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
 		apply_pose(response.body)
+		running = bool(response.body.get("running", false))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
+	elif direction != Vector2.ZERO:
+		_refused_step(response)
+
+
+## #222: o passo recusado não fica calado: mundo pausado diz como voltar; outra recusa diz o motivo do motor (no máximo a cada 3 s).
+func _refused_step(response: Dictionary) -> void:
+	if _paused_note_clock > 0.0:
+		return
+	_paused_note_clock = 3.0
+	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+	if response.status == 409 and (paused or "pausa" in error):
+		warning.emit("O mundo está pausado: o corpo só anda com o tempo correndo (Esc → Continuar, ou ▶ na barra do topo).")
+	elif error != "":
+		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ").trim_prefix("move: "))
+
+
+## #222: Espaço pula; o motor decide se o corpo consegue (cansaço, ferimento, idade) e por quanto tempo fica no ar.
+func jump() -> void:
+	if not is_active or _jumping:
+		return
+	_jumping = true
+	var response: Dictionary = await api.player_jump(player_id)
+	_jumping = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		jumped.emit(float(response.body.get("airMs", 0)) / 1000.0 / maxf(scale, 0.001))
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		_refused_step(response)
+
+
+var _jumping := false
 
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
@@ -506,8 +599,21 @@ func apply_pose(pose: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_active:
 		return
+	if frame != null and frame.menu_open() and event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_E:
+			get_viewport().set_input_as_handled()
+			close_menu()
+			return
+		var entry: Dictionary = frame.entry_for_key(event.keycode)
+		if not entry.is_empty():
+			get_viewport().set_input_as_handled()
+			interact(entry)
+			return
 	if event is InputEventKey and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg:
+		get_viewport().set_input_as_handled()
+		jump()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_orders() # AD-197p: as ordens ficam num menu que solta o cursor
@@ -569,7 +675,7 @@ func latency_median_ms() -> float:
 	return sorted[sorted.size() / 2]
 
 
-const KIND_TEXT := {"door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
+const KIND_TEXT := {"counter": "Balcão", "door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
 	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
@@ -593,6 +699,10 @@ func open_interactions() -> void:
 			_lost("Você não controla mais %s." % npc_name)
 		return
 	offers = response.body.get("offers", [])
+	if rpg and frame != null:
+		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine))
+		menu_toggled.emit(true)
+		return
 	show_menu(menu_entries(offers, resource_name_of))
 
 
@@ -639,6 +749,9 @@ func show_menu(entries: Array) -> void:
 
 
 func close_menu() -> void:
+	if frame != null and frame.menu_open():
+		frame.close_menu()
+		menu_toggled.emit(false)
 	if menu != null and menu.visible:
 		menu.visible = false
 		menu_toggled.emit(false)
@@ -739,6 +852,7 @@ func _set_actions_enabled(enabled: bool) -> void:
 func set_paused(value: bool) -> void:
 	paused = value
 	_pause.visible = value and is_active
+	_show_in_rpg()
 
 
 func action_text(action: String) -> String:
@@ -772,6 +886,7 @@ func _set_status(text: String) -> void:
 	status_text = text
 	_status.text = text
 	_status.visible = text != "" # AD-197p: sem linha vazia no HUD compacto
+	_show_in_rpg()
 
 
 func _incarnate_error(response: Dictionary) -> String:
@@ -780,5 +895,11 @@ func _incarnate_error(response: Dictionary) -> String:
 		404:
 			return "Este NPC morreu ou não existe: não dá para encarná-lo."
 		409:
-			return "Você já controla outro NPC." if "outro NPC" in error else "Este NPC já é controlado por outro jogador."
+			if "outro NPC" in error:
+				return "Você já controla outro NPC."
+			if "pausa" in error or paused:
+				return "O mundo está pausado: aperte ▶ na barra do topo para o tempo correr e encarne de novo."
+			if "controlador" in error:
+				return "Este NPC já é controlado por outro jogador."
+			return error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou a posse."
 	return "Não foi possível encarnar (erro %d)." % response.status

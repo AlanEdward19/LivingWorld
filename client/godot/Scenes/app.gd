@@ -81,6 +81,8 @@ var banner: Label
 var breadcrumb: Label
 var follow_label: Label
 var time_label: Label
+var top_bar: Control ## #222: a barra do espectador (some no modo jogador)
+var player_frame ## #222: PlayerFrame
 var weather_label: Label ## AD-180: indicador do tempo do dia
 var loading: Control
 var tooltip: PanelContainer
@@ -206,6 +208,9 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var weather := Season.hud_text(store.climate) if store != null else ""
 	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
 		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]
+	if player_frame != null: # #222: a hora do modo jogador, curta (dia, hora, fase e tempo)
+		player_frame.set_clock("Dia %d · %s · %s%s%s" % [date.day, day_cycle.clock_text(), day_cycle.phase_name(),
+			(" · " + weather) if weather != "" else "", "  ·  ⏸ pausado" if s.isPaused else ""])
 
 
 ## Tempo sob a câmera (AD-180): sol pelo nascer e pôr do motor, céu encoberto e o indicador do topo.
@@ -573,8 +578,20 @@ func _toggle_brain() -> void:
 
 ## Encarna o NPC (atalho I): o servidor decide se pode; a câmera passa a segui-lo.
 func incarnate(id: int) -> void:
+	await resume_for_play()
 	if await player_hud.incarnate(id, registry.person_name(id)):
 		await _drive(id)
+
+
+## #222: quem vai jogar quer o tempo correndo: com o mundo pausado e o relógio nas mãos (jogo local, admin), o tempo volta a andar
+## antes de encarnar ou criar; sem o relógio, o motor recusa e o aviso diz o porquê.
+func resume_for_play() -> void:
+	if clock_panel == null or not clock_panel.can_control:
+		return
+	var status: Dictionary = clock_panel.status
+	if status.has("isPaused") and bool(status.isPaused):
+		await clock_panel.command("resume")
+		toasts.push("O tempo voltou a correr para você jogar.")
 
 
 ## AD-197q: abre o criador de personagem (a pessoa nova sai do agregado de uma cidade, pelo motor).
@@ -582,6 +599,7 @@ func open_creator() -> void:
 	if player_hud.is_active:
 		toasts.push("Você já controla alguém: saia do personagem antes de entrar como pessoa nova.")
 		return
+	await resume_for_play() # #222: o criador cria pelo motor, que recusa com o mundo pausado
 	creator.reveal()
 	router.opened(creator) # AD-197q: encaixada na área central, abaixo da barra (não no canto, por cima da trilha)
 	await creator.open()
@@ -672,6 +690,12 @@ func aim_point() -> Vector2:
 
 
 ## AD-197j: o golpe saiu: o braço do personagem desce (a mesma pose para quem olha de fora).
+func _on_player_jumped(air_s: float) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.play_jump(air_s)
+
+
 func _on_player_struck(_target: int) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
@@ -720,16 +744,23 @@ func set_player_mode(on: bool) -> void:
 		world_view.events.visible = not on # AD-197p: os marcadores de acontecimento (alfinetes) são do espectador
 	if help_label != null:
 		help_label.text = AppUi.PLAYER_HELP if on else AppUi.HELP
+		help_label.visible = not on # #222: a moldura mostra as teclas do jogador
+	if top_bar != null:
+		top_bar.visible = not on # #222: velocidades, passo e ano são do espectador; a moldura mostra a hora
+	if on and world_view != null:
+		world_view.hover_npc(-1) # #222: o nome grande de quem estava sob o cursor não fica preso na tela
+	if on:
+		_update_time_label()
 	if on:
 		toasts.clear_events()
 	# AD-197p: o HUD do jogador vai para o canto, sem a coluna da lista à esquerda nem o inspetor à direita; os avisos, discretos,
 	# centralizados acima do rodapé (não cobrem a mira nem se sobrepõem a painel)
-	if on:
-		player_hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		player_hud.offset_left = 12
-		player_hud.offset_top = 60
-		player_hud.offset_right = 12
-		player_hud.offset_bottom = 60
+	if on: # #222: as ações (Tab) abrem no meio da tela, por cima da cena
+		player_hud.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		player_hud.offset_left = -300
+		player_hud.offset_right = 300
+		player_hud.offset_top = 70
+		player_hud.offset_bottom = 70
 	else:
 		player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
 		player_hud.offset_left = 310
@@ -743,11 +774,11 @@ func set_player_mode(on: bool) -> void:
 		toasts.offset_top = -130
 		toasts.offset_bottom = -40
 	else:
-		toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		toasts.offset_left = -420
-		toasts.offset_right = -12
-		toasts.offset_top = -260
-		toasts.offset_bottom = -48
+		toasts.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		toasts.offset_left = -300
+		toasts.offset_right = 300
+		toasts.offset_top = 64
+		toasts.offset_bottom = 240
 
 
 var crosshair: Label

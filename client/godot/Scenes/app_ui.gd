@@ -16,6 +16,7 @@ const AdminWindow := preload("res://Scenes/admin_window.gd")
 const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
+const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
@@ -55,6 +56,7 @@ static func build(app) -> void:
 
 static func _top_bar(app, ui: Control) -> void:
 	var top := PanelContainer.new()
+	app.top_bar = top # #222: some no modo jogador (a moldura mostra a hora)
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 8
 	top.offset_right = -8
@@ -135,13 +137,19 @@ static func _top_bar(app, ui: Control) -> void:
 
 
 static func _side(app, ui: Control) -> void:
+	var scroll := ScrollContainer.new() # #222: a ficha longa rola dentro da tela em vez de sair por baixo
+	scroll.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	scroll.offset_left = -314
+	scroll.offset_right = -8
+	scroll.offset_top = 64
+	scroll.offset_bottom = -40
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	ui.add_child(scroll)
 	var side := VBoxContainer.new()
-	side.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	side.offset_left = -306
-	side.offset_right = -8
-	side.offset_top = 64
-	ui.add_child(side)
-	app.side_panel = side
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(side)
+	app.side_panel = scroll
 	var inspector := Inspector.new()
 	inspector.reader = app.api
 	inspector.registry = app.registry
@@ -207,6 +215,11 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.settled.connect(app._on_player_fine)
 	app.player_hud.menu_toggled.connect(app._on_player_menu)
 	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
+	app.player_frame = PlayerFrame.new() # #222: a moldura de jogo do modo jogador (barras, dica do E, teclas, menu do E)
+	ui.add_child(app.player_frame)
+	app.player_hud.frame = app.player_frame
+	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
+	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
 	app.crosshair.add_theme_font_size_override("font_size", 28)
@@ -317,11 +330,11 @@ static func _bottom(app, ui: Control) -> void:
 	app.timeline.watch_toggled.connect(func(_on: bool): app.toggle_watch())
 	ui.add_child(app.timeline)
 	app.toasts = Toasts.new()
-	app.toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	app.toasts.offset_left = -420
-	app.toasts.offset_right = -12
-	app.toasts.offset_top = -260
-	app.toasts.offset_bottom = -48
+	app.toasts.set_anchors_preset(Control.PRESET_CENTER_TOP) # #222: avisos no alto, no meio: nem sobre a ficha nem sobre a linha do tempo
+	app.toasts.offset_left = -300
+	app.toasts.offset_right = 300
+	app.toasts.offset_top = 64
+	app.toasts.offset_bottom = 240
 	ui.add_child(app.toasts)
 	var help := Label.new()
 	help.text = HELP
@@ -330,6 +343,8 @@ static func _bottom(app, ui: Control) -> void:
 	help.offset_left = 10
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.add_theme_font_size_override("font_size", 13)
+	help.add_theme_constant_override("outline_size", 5) # #222: legível sobre chão claro
+	help.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
 	ui.add_child(help)
 	app.help_label = help
 	app.tooltip = PanelContainer.new()

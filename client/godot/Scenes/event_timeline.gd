@@ -72,16 +72,19 @@ func refresh() -> void:
 		var button := Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.clip_text = true
-		button.custom_minimum_size.x = 340
+		button.custom_minimum_size.x = 380
 		button.pressed.connect(func(): if index < rows.size(): event_chosen.emit(int(rows[index])))
 		_list.add_child(button)
 	for i in wanted.size():
 		var event: Dictionary = registry.events.get(wanted[i], {})
-		var text := "%s · %s%s" % [date_of.call(int(event.get("tick", 0))), registry.event_title(event),
-			"" if bool(event.get("has_cell", false)) else " (sem lugar)"]
+		# #222: o que aconteceu primeiro (a data comprida cortava o título); a data inteira fica na dica do mouse
+		var when: String = date_of.call(int(event.get("tick", 0)))
+		var text := "%s%s · %s" % [registry.event_title(event), "" if bool(event.get("has_cell", false)) else " (sem lugar)",
+			when.get_slice(" · ", when.get_slice_count(" · ") - 1)]
 		var button := _list.get_child(i) as Button
 		if button.text != text:
 			button.text = text
+			button.tooltip_text = "%s · %s" % [when, registry.event_title(event)]
 	visible = not wanted.is_empty() or watch_button.button_pressed
 
 

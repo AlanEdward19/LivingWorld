@@ -4,6 +4,12 @@ extends RefCounted
 ## Esc pula as dicas ou fecha a ajuda; depois fecha a janela da frente, a conversa e sai do prédio; sem nada aberto,
 ## abre (ou fecha) o menu de pausa. Sair da cidade: botão "◀ Mapa do mundo" ou afastar a câmera.
 static func escape(app) -> void:
+	if app.player_mode and app.player_hud.orders_open(): # #222: no modo jogador, Esc fecha as ações antes do menu
+		app.player_hud.toggle_orders()
+		return
+	if app.player_mode and app.conversation.is_open:
+		app.conversation.end_conversation()
+		return
 	if app.rig != null and app.rig.cursor_captured: # AD-197k: Esc solta o cursor antes de qualquer menu
 		app.rig.set_cursor_captured(false)
 	if app.first_steps != null and app.first_steps.handle_escape():
@@ -23,7 +29,14 @@ static func escape(app) -> void:
 		app.pause_menu.open()
 
 
+## #222: no modo jogador só valem as teclas do jogador (Esc e F1 aqui; o resto é do player_hud e da câmera): os atalhos do
+## espectador (B, R, T, M, N, V, L, F, X, P, H, Tab...) não disparam no meio do jogo.
+const PLAYER_KEYS := [KEY_ESCAPE, KEY_F1, KEY_F10]
+
+
 static func handle(app, event: InputEvent) -> void:
+	if app.player_mode and event is InputEventKey and event.pressed and not event.keycode in PLAYER_KEYS:
+		return
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:

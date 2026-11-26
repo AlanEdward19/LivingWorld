@@ -375,6 +375,33 @@ static func run(app: Node, steps: Array) -> void:
 				app.next_event()
 			"watch":
 				app.toggle_watch()
+			"hold": # #222: `hold:W=2` segura a tecla (W, A, S, D, SHIFT, SPACE, E) por N s, como o teclado de verdade
+				var key_name := arg.get_slice("=", 0)
+				var code := OS.find_keycode_from_string(key_name)
+				var press := InputEventKey.new()
+				press.keycode = code
+				press.physical_keycode = code
+				press.pressed = true
+				Input.parse_input_event(press)
+				await app.get_tree().create_timer(float(arg.get_slice("=", 1)) if "=" in arg else 0.1).timeout
+				var release: InputEventKey = press.duplicate()
+				release.pressed = false
+				Input.parse_input_event(release)
+			"sizes": # #222: tamanhos da ficha (depuração de layout)
+				var ins = app.inspector
+				print("sizes: inspector ", ins.size, " min ", ins.get_combined_minimum_size(), " side ", app.side_panel.size)
+				for child in ins.get_child(0).get_children():
+					print("sizes:   ", child.get_class(), " ", child.size, " min ", child.get_combined_minimum_size(), " vis ", child.visible)
+			"pos": # #222: onde o corpo do jogador está (motor e desenho)
+				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+				print("pos: ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
+					" corpo=", own.position if own != null else "sem corpo", " modo=", app.rig.mode, " braço=", app.rig.arm, " subida=", app.rig.lift,
+					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys())
+				if own != null:
+					var eye: Vector3 = app.rig.target + Vector3(0, app.rig.eye_height() + app.rig.shoulder_height(), 0)
+					for entry in app.camera_blockers():
+						if (entry[1] as AABB).has_point(eye) or (entry[2] as AABB).has_point(eye):
+							print("pos: olho na caixa ", entry[0], " ", entry[1], " paredes=", (entry[3] as Array).size())
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()

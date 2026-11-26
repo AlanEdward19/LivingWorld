@@ -27,6 +27,16 @@ func push(text: String, event: bool = false) -> void:
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
 	if compact:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var pill := StyleBoxFlat.new() # #222: fundo escuro: o aviso não some sobre a cena nem se mistura com a ficha
+	pill.bg_color = Color(0.05, 0.06, 0.09, 0.78)
+	pill.set_corner_radius_all(8)
+	pill.content_margin_left = 10
+	pill.content_margin_right = 10
+	pill.content_margin_top = 4
+	pill.content_margin_bottom = 4
+	label.add_theme_stylebox_override("normal", pill)
+	label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	alignment = BoxContainer.ALIGNMENT_END if compact else BoxContainer.ALIGNMENT_BEGIN
 	add_child(label)
 	_items.append({"label": label, "born": _clock, "event": event})
 	while _items.size() > (MAX_VISIBLE if not compact else 3):

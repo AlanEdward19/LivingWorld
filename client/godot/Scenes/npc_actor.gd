@@ -796,6 +796,17 @@ func play_strike() -> void:
 	_strike_until = _clock + STRIKE_TIME
 
 
+## #222: o pulo que o motor deixou: o corpo sobe e desce em `air_s` segundos (parábola), pernas encolhidas no alto.
+func play_jump(air_s: float) -> void:
+	_jump_from = _clock
+	_jump_air = maxf(0.15, air_s)
+
+
+var _jump_from := -1.0
+var _jump_air := 0.0
+const JUMP_HEIGHT := 0.22 ## altura do salto em unidades do boneco (~0,4 m num adulto)
+
+
 var _strike_until := -1.0
 
 
@@ -877,6 +888,13 @@ func _animate() -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
+	if _jump_from >= 0.0 and _clock < _jump_from + _jump_air: # por cima da pose: o pulo
+		var t := (_clock - _jump_from) / _jump_air
+		var lift := 4.0 * JUMP_HEIGHT * t * (1.0 - t)
+		_body.position.y += lift
+		for i in _legs.size():
+			_legs[i].position.y += lift
+			_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
 	if _clock < _strike_until: # por cima da pose: o golpe
 		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
 		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)

@@ -289,7 +289,7 @@ func test_incarnating_hides_the_spectator_ui_and_leaving_restores_it() -> void:
 	await tree.process_frame
 	var after := [app.side_panel.visible, app.minimap.visible, app.timeline.visible, app.help_label.text]
 
-	eq(playing, [true, false, false, false, true, false, true, true, true])
+	eq(playing, [true, false, false, false, true, false, true, false, true]) # #222: sair do personagem fica no menu do Esc
 	eq(toasts_while_playing, [], "acontecimento não vira aviso sobre a cena do jogador")
 	eq([after, app.player_mode, node.is_self], [before, false, false], "o espectador volta intacto")
 	app.queue_free()

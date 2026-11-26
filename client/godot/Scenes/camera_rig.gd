@@ -377,6 +377,11 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 		if not inside.is_empty():
 			inside["room"] = true
 			return inside
+	if room > 0.0: # #222: corte de RPG: a câmera fica atrás, na distância cheia, fora da casca (a parede entre ela e o corpo fica
+		# translúcida e o telhado abre); sobe só o necessário: no olho, acima da parede do andar, metade do telhado, o telhado todo
+		for rise in [floor_lift(eye, boxes), room * 0.5]:
+			if rise <= room and not inside_any(eye + Vector3(0, rise, 0) + back * length, boxes):
+				return {"arm": length, "lift": rise, "shoulder": 0.0, "cut": true}
 	if room > 0.0: # por cima do telhado e um pouco atrás (olhar inclinado, não a prumo), enquanto o ponto estiver livre de casca
 		var arm := min_arm()
 		for reach in [length * 0.5, Grid.units(1.5)]:
@@ -450,6 +455,17 @@ static func roof_lift(eye: Vector3, boxes: Array) -> float:
 		if (entry[1] as AABB).has_point(eye):
 			need = maxf(need, shell_of(entry).end.y + arm_margin() - eye.y)
 	return need
+
+
+## #222: quanto subir (sobre o olho) para passar do teto do andar em que o olho está, na caixa que o contém; 0 se fora.
+static func floor_lift(eye: Vector3, boxes: Array) -> float:
+	for entry in boxes:
+		var raw: AABB = entry[1]
+		if raw.has_point(eye):
+			var floor_h := Grid.floor_height()
+			var ceiling := raw.position.y + (floorf((eye.y - raw.position.y) / floor_h) + 1.0) * floor_h
+			return maxf(0.0, ceiling + arm_margin() - eye.y)
+	return 0.0
 
 
 ## A casca de uma entrada: a 3ª coluna se houver, senão a própria caixa.

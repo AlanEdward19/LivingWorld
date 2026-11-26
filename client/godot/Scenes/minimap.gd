@@ -44,7 +44,7 @@ func rebuild() -> void:
 	var map: Vector2i = store.map_size
 	var image := Image.create(map.x, map.y, false, Image.FORMAT_RGBA8)
 	for cell in store.terrain:
-		var color := Color("6aa84f") if store.terrain[cell] == 1 else Color("c9b777")
+		var color := Color("6f9e57") if store.terrain[cell] == 1 else Color("93a66a") # #222: tons próximos: o chão salpicado não vira ruído
 		if store.rivers.has(cell):
 			color = Color("4a86b8")
 		image.set_pixelv(cell, color)

@@ -59,8 +59,9 @@ public static class DefaultPeriodSeeder
             }
             // AD-190: o clima gravado sem o desvio do ano de safra (faixa uniforme) ganha o do cenário de código
             bool oldClimate = stored["Climate"] is JsonObject climate && !climate.ContainsKey("StdDevMilli");
-            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate") && !oldClimate) continue;
+            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate") && !oldClimate && stored.ContainsKey("Descriptors")) continue;
             if (!stored.ContainsKey("Presentation")) stored["Presentation"] = PresentationOf(preset);
+            if (!stored.ContainsKey("Descriptors")) stored["Descriptors"] = DescriptorsOf(); // #222: o nome do que se compra e se guarda
             if (!stored.ContainsKey("Climate") || oldClimate) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
             Save(repository, preset, latest.Version + 1, stored.ToJsonString());
         }
@@ -96,6 +97,16 @@ public static class DefaultPeriodSeeder
             ["Weather"] = new JsonObject { ["Enabled"] = true },
         };
     }
+
+    /// <summary>#222: os nomes dos recursos que a vila produz (comida e água da lavoura, ferramentas da oficina), para a banca, a
+    /// despensa e o jogador dizerem "Comprar comida" e não "recurso 1". Só descritivo: o motor nunca decide por eles.</summary>
+    private static JsonObject DescriptorsOf() => new()
+    {
+        ["Resource"] = new JsonArray(
+            new JsonObject { ["Id"] = 1, ["Name"] = "Comida" },
+            new JsonObject { ["Id"] = 2, ["Name"] = "Água" },
+            new JsonObject { ["Id"] = 4, ["Name"] = "Ferramentas" }),
+    };
 
     private static JsonObject PresentationOf(Preset preset) => new()
     {
@@ -160,6 +171,7 @@ public static class DefaultPeriodSeeder
         {
             // AD-175: o cartão do menu (só apresentação; nenhum sistema lê)
             ["Presentation"] = PresentationOf(preset),
+            ["Descriptors"] = DescriptorsOf(),
             ["Climate"] = ClimateOf(),
             ["Width"] = SideOf(preset),
             ["Height"] = SideOf(preset),

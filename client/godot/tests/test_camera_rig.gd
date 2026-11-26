@@ -413,7 +413,8 @@ func test_inside_a_roomy_house_the_camera_stays_in_the_room() -> void:
 	rig.free()
 
 
-## Casa pequena (miolo de 1 célula): não cabe câmera no cômodo, sobe acima da casca do telhado.
+## Casa pequena (miolo de 1 célula): não cabe câmera no cômodo; #222: corte de RPG, a câmera fica fora da casca, atrás e acima da
+## parede do andar, olhando o corpo de cima (o telhado abre), na distância cheia em vez de a prumo sobre o telhado.
 func test_inside_a_tiny_house_the_camera_goes_above_the_roof() -> void:
 	var boxes := _walled(3)
 	var made := _body_rig(boxes, Vector3(1.5, 0, 1.5), 0.0)
@@ -421,7 +422,9 @@ func test_inside_a_tiny_house_the_camera_goes_above_the_roof() -> void:
 	rig.set_mode(rig.THIRD)
 	rig.follow(made[1])
 	var cam := _camera_world(rig).origin
-	check(cam.y > CameraRig.shell_of(boxes[0]).end.y, "acima da casca do telhado (%s)" % cam.y)
+	check(not _camera_inside_any_shell(rig, boxes), "fora da casca (%s)" % cam)
+	check(cam.y > Grid.floor_height(), "acima da parede do andar (%s)" % cam.y)
+	check(-_camera_world(rig).basis.z.y < 0.0, "olhando o corpo de cima")
 	rig.free()
 
 

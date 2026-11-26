@@ -263,9 +263,20 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 
 
 ## AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para); a resposta é a pose com a posição fina e a velocidade.
-func player_walk(player_id: String, dx: int, dy: int) -> Dictionary:
-	var response: Dictionary = await _player_command({"command": "walk", "dx": dx, "dy": dy}, "POST", "/players/%s/walk" % player_id.uri_encode(), {"dx": dx, "dy": dy})
+func player_walk(player_id: String, dx: int, dy: int, run: bool = false) -> Dictionary:
+	var body := {"dx": dx, "dy": dy}
+	if run:
+		body["run"] = true # #222: Shift corre; o motor decide se o corpo aguenta (cansado, anda)
+	var command := body.duplicate()
+	command["command"] = "walk"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/walk" % player_id.uri_encode(), body)
 	return _checked("/players/walk", {"status": response.status, "body": response.body}, "")
+
+
+## #222: pular; o motor diz se o corpo consegue e quanto tempo fica no ar (`airMs`), ou 409 com o motivo.
+func player_jump(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "jump"}, "POST", "/players/%s/jump" % player_id.uri_encode(), {})
+	return _checked("/players/jump", {"status": response.status, "body": response.body}, "")
 
 
 ## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.
