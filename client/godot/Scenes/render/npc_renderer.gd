@@ -482,7 +482,7 @@ func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: b
 		# muda, só a frequência com que a pose é refeita); a posição continua todo quadro (AD-188, medida com o mundo rodando).
 		# AD-189: parado (sem passo nem rota em curso; rota que já chegou não conta), a pose é a respiração lenta: a cada 8 quadros
 		var stride := 1
-		if crowded:
+		if crowded and not actor.driven: # #222: o corpo do jogador se anima todo quadro (na multidão a pose era a cada 3)
 			var moving: bool = actor._t < 1.0 or (actor.walk != null and not actor.walk.done)
 			# com o mundo rodando a 40 ticks/s quase todo mundo está no passo (cada tick muda a célula): o passo perto do centro
 			# a cada 3 quadros, na borda a cada 6 (o selecionado a cada 2)

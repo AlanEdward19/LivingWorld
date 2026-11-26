@@ -73,6 +73,7 @@ var _body_clock := 0.0
 var _body_pending := false
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
 var _paused_note_clock := 0.0
+var full_possession := false ## #222: o app liga com o token de admin (posse plena, AD-197e)
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
 var has_session := false
 
@@ -322,7 +323,12 @@ func incarnate(id: int, name: String) -> bool:
 		return false # outro pedido em andamento ou já encarnado: um clique a mais não vira segundo POST
 	_busy = true
 	await _ensure_session()
-	var response: Dictionary = await api.incarnate(id, player_id)
+	# #222: quem tem o token de admin (o jogo local) possui em modo pleno (a pessoa não recusa ordens); sem ele, a disputa de vontade
+	var response: Dictionary
+	if full_possession and has_session:
+		response = await api.player_possess(id)
+	else:
+		response = await api.incarnate(id, player_id)
 	_busy = false
 	if response.ok:
 		_became(id, name)
@@ -509,6 +515,11 @@ func _refresh_body(delta: float) -> void:
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
 const WALK_SEND := 0.1 ## s entre rumos enviados com a tecla segurada (o motor anda o corpo pelo tempo de mundo entre eles)
+var _blocked := false
+var _last_server := Vector2.INF
+var _last_server_at := 0
+const RECONCILE_SNAP := 0.6 ## células: acima disso a previsão salta para o motor
+const RECONCILE_BLEND := 0.3 ## fração do erro absorvida por resposta (a cada ~0,1 s)
 var fine := Vector2.INF ## posição fina do corpo (células, absoluta): a do motor, mais a previsão desde a última resposta
 var speed_cells := 0.0 ## células por segundo real (m/s do motor / metros por célula, na escala do relógio)
 var _walk_dir := Vector2.ZERO
@@ -526,7 +537,9 @@ func walk_direction(keys: Vector2i) -> Vector2:
 
 ## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
 func glide(direction: Vector2, delta: float) -> void:
-	if fine != Vector2.INF and direction != Vector2.ZERO and speed_cells > 0.0:
+	if direction != _walk_dir:
+		_blocked = false # #222: outro rumo: volta a prever
+	if fine != Vector2.INF and direction != Vector2.ZERO and speed_cells > 0.0 and not _blocked:
 		fine += direction * speed_cells * delta
 		glided.emit(fine)
 	_walk_clock += delta
@@ -596,7 +609,18 @@ var _jumping := false
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary) -> void:
 	if pose.has("fx"):
-		fine = Vector2(float(pose.fx), float(pose.fy))
+		var server := Vector2(float(pose.fx), float(pose.fy))
+		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar
+		var now := Time.get_ticks_msec()
+		if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
+			var expected := speed_cells * float(now - _last_server_at) / 1000.0
+			_blocked = expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
+			if _blocked:
+				fine = server
+		_last_server = server
+		_last_server_at = now
+		# #222: a posição do motor manda, mas sem tranco: erro pequeno (latência) é absorvido aos poucos; grande (parede, recusa) salta
+		fine = server if fine == Vector2.INF or fine.distance_to(server) > RECONCILE_SNAP else fine.lerp(server, RECONCILE_BLEND)
 		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
 		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(float(pose.get("cellMeters", 1.5)), 0.01) * scale
 		settled.emit(fine)

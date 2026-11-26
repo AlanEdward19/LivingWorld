@@ -646,12 +646,15 @@ var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fin
 func set_fine(at: Vector2) -> void:
 	var to := Vector3(at.x * Grid.CELL, position.y, at.y * Grid.CELL)
 	var heading := to - position
+	walk = null # #222: o corpo do jogador anda pela posição fina, nunca pela rota do motor desenhada
 	if heading.length() > 0.001:
-		rotation.y = atan2(heading.x, heading.z)
-		_from = position
+		rotation.y = lerp_angle(rotation.y, atan2(heading.x, heading.z), 0.35)
+		# #222: só marca "andando" (a pose de passo) sem interpolar de volta da posição anterior: antes o _from velho puxava o
+		# corpo para trás a cada quadro e o passo saía em trancos
+		_from = to
 		_to = to
-		_duration = 0.12
-		_t = 0.0 # a pose de andar enquanto se move
+		_duration = 0.15
+		_t = 0.0
 	position = to
 	cell = Vector2i(floori(at.x), floori(at.y))
 

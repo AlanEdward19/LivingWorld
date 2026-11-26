@@ -810,7 +810,50 @@ var _marked := -1 ## e o corpo que leva o anel na vista de cima dentro de casa
 
 ## AD-197s2: efeitos só de desenho do modo jogador. 1ª pessoa: some quem está a menos de `near_person()` do olho (só os moradores das células
 ## vizinhas, pelo índice do renderer). 3ª pessoa sobre o telhado de uma casa: anel discreto no próprio corpo.
+## #222: o próprio corpo saiu do escopo desenhado (andou para fora da cidade, entrou noutra): a posse e o modo de câmera ficam; o app
+## pergunta ao motor onde o corpo está (`currentScope` da ficha), troca de escopo e volta a segui-lo assim que ele chegar no novo fluxo.
+var _body_missing_since := -1
+var _seeking_body := false
+const BODY_LOST_MS := 600
+
+
+func _keep_the_body() -> void:
+	if player_hud == null or not player_hud.is_active:
+		_body_missing_since = -1
+		return
+	var own = world_view.npc_nodes.get(player_hud.npc_id)
+	if own != null:
+		_body_missing_since = -1
+		if rig.following != own:
+			own.driven = true
+			own.set_self(true)
+			own.set_first_person(rig.mode == rig.FIRST)
+			rig.follow(own)
+		return
+	var now := Time.get_ticks_msec()
+	if _body_missing_since < 0:
+		_body_missing_since = now
+	elif now - _body_missing_since > BODY_LOST_MS and not _seeking_body:
+		_seek_body()
+
+
+func _seek_body() -> void:
+	_seeking_body = true
+	api.invalidate_npc(player_hud.npc_id)
+	var detail: Dictionary = await api.npc_detail(player_hud.npc_id)
+	if detail.ok and detail.body is Dictionary and detail.body.get("currentScope") is Dictionary and player_hud.is_active:
+		var scope: Dictionary = detail.body.currentScope
+		var city_id := String(scope.get("cityId", {}).get("value", "")) if scope.get("cityId") is Dictionary else ""
+		if int(scope.get("kind", 0)) == 1 and city_id != "" and (store.kind != "City" or String(store.city.get("id", "")) != city_id):
+			await enter_scope("City", city_id)
+		elif int(scope.get("kind", 0)) == 0 and store.kind != "World":
+			await enter_scope("World", "")
+	_body_missing_since = Time.get_ticks_msec() # dá tempo ao novo fluxo de trazer o corpo antes de perguntar de novo
+	_seeking_body = false
+
+
 func _player_view_effects() -> void:
+	_keep_the_body()
 	var own: Node3D = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null and player_hud.is_active else null
 	var want: Dictionary = {}
 	if own != null and rig.mode == rig.FIRST:

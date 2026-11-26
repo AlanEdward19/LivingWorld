@@ -199,6 +199,12 @@ func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
+## #222 (AD-197e): posse plena, do admin (o transporte manda o X-Admin-Token) com a sessão do jogador: a pessoa não recusa ordens.
+func player_possess(npc_id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%d/possess" % npc_id, {}, _player_headers())
+	return _checked("/players/possess", {"status": response.status, "body": response.body}, "player-incarnate")
+
+
 ## AD-197q: de onde dá para sair como pessoa nova (`{cities:[{cityId,name,aggregateCount,detailedCount}]}`), do motor.
 func player_origins() -> Dictionary:
 	var response: Dictionary = await transport.request("GET", "/players/origins", null, _player_headers())

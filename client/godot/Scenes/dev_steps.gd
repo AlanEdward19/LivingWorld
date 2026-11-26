@@ -411,7 +411,7 @@ static func run(app: Node, steps: Array) -> void:
 					print("sizes:   ", child.get_class(), " ", child.size, " min ", child.get_combined_minimum_size(), " vis ", child.visible)
 			"pos": # #222: onde o corpo do jogador está (motor e desenho)
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
-				print("pos: ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
+				print("pos: escopo=", app.store.kind, " segue=", app.rig.following != null and is_instance_valid(app.rig.following), " ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
 					" corpo=", own.position if own != null else "sem corpo", " modo=", app.rig.mode, " braço=", app.rig.arm, " subida=", app.rig.lift,
 					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys(), " cartão=", app.player_frame.purse_label.text if app.player_frame != null else "", " leitura=", app.player_hud._body_pending, "/", snappedf(app.player_hud._body_clock, 0.1), " rpg=", app.player_hud.rpg, " npc=", app.player_hud.npc_id, " menu1=", app.player_frame.entries[0].text if app.player_frame != null and not app.player_frame.entries.is_empty() else "")
 				if own != null:

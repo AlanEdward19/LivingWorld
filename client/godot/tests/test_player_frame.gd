@@ -231,3 +231,27 @@ func test_the_card_reads_the_sheet_fresh_through_the_cached_reader() -> void:
 	eq(hud.frame.purse_label.text, "Dinheiro 45", "a compra aparece sem esperar a hora do mundo virar")
 	hud.frame.queue_free()
 	hud.queue_free()
+
+
+## #222: com o token de admin (jogo local) a posse é plena: o cliente pede /possess (a pessoa não recusa ordens); sem ele, /incarnate.
+func test_the_admin_possesses_fully_and_others_incarnate() -> void:
+	for full in [true, false]:
+		var transport := FakeTransport.new()
+		transport.on("POST /sessions", {"status": 200, "body": {"sessionToken": "tok", "playerId": "p-1"}})
+		transport.on("POST /players/7/possess", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+		transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+		transport.channel_replier = func(command: Dictionary) -> Dictionary:
+			return {"seq": command.seq, "ok": true, "status": 200, "body": {"npcId": 7, "playerId": "p-1"}}
+		var hud := PlayerHud.new()
+		hud.api = ApiClient.new(transport)
+		hud.labels = ActionLabels.new()
+		hud.player_id = "p-1"
+		hud.session_enabled = true
+		hud.full_possession = full
+		tree.root.add_child(hud)
+		check(await hud.incarnate(7, "Ana"), "encarnou")
+		eq(transport.calls.has("POST /players/7/possess"), full, "posse plena só com o admin (%s)" % full)
+		if not full:
+			eq(String(transport.channels.back().sent.back().command), "incarnate", "sem admin, a posse comum pelo canal")
+		hud.api.close_player_channel()
+		hud.queue_free()
