@@ -204,3 +204,30 @@ func test_the_card_shows_money_and_what_is_carried() -> void:
 	frame.set_purse(null, null, Callable())
 	eq(frame.purse_label.visible, false, "servidor sem o campo: nada")
 	frame.free()
+
+
+const WorldReader := preload("res://Contract/world_reader.gd")
+
+
+## #222: o cartão lê a ficha do motor na hora, mesmo com o leitor em cache (em tempo real a hora do mundo leva 1 h para virar).
+func test_the_card_reads_the_sheet_fresh_through_the_cached_reader() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	transport.on("GET /npcs/7", {"status": 200, "body": {"health": 90, "hunger": 50, "thirst": 50, "sleep": 50, "money": 50}})
+	var hud := PlayerHud.new()
+	hud.api = WorldReader.new(transport)
+	hud.api.validate_shapes = false
+	hud.labels = ActionLabels.new()
+	hud.player_id = "p-1"
+	hud.frame = PlayerFrame.new()
+	tree.root.add_child(hud)
+	tree.root.add_child(hud.frame)
+	await hud.incarnate(7, "Ana")
+	hud.set_rpg(true)
+	await hud._refresh_body(PlayerHud.BODY_EVERY)
+	eq(hud.frame.purse_label.text, "Dinheiro 50")
+	transport.on("GET /npcs/7", {"status": 200, "body": {"health": 90, "hunger": 50, "thirst": 50, "sleep": 50, "money": 45}})
+	await hud._refresh_body(PlayerHud.BODY_EVERY)
+	eq(hud.frame.purse_label.text, "Dinheiro 45", "a compra aparece sem esperar a hora do mundo virar")
+	hud.frame.queue_free()
+	hud.queue_free()

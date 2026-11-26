@@ -269,7 +269,9 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                         ? ConstrainByDevelopment(world, npc, ActionType.Eat)
                         : ConstrainByDevelopment(world, npc, sickAware);
 
-                chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                chosen = npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
+                    ? ActionType.Idle // #222: o corpo do jogador "à toa" fica onde está (não vai à toa em casa); o jogador o conduz
+                    : ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
                 if (chosen is not (ActionType.Eat or ActionType.Travel))
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
@@ -381,6 +383,9 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 ? nowMs - npc.ActionStartedAtMs < LivingWorld.Simulation.Objects.ObjectUse.DurationMs(world, npc, action, catalog) // AD-197h
                 : Underway(nowMs, npc.ActionStartedAtMs, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)))
             return false;
+
+        // #222: o corpo do jogador não passeia nem anda sozinho no trabalho: quem o move é o jogador (walk)
+        if (npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle) return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.

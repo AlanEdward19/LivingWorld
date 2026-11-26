@@ -399,6 +399,11 @@ static func run(app: Node, steps: Array) -> void:
 			"pitch": # #224: `pitch:-40` inclina o olhar do jogador (graus)
 				app.rig.pitch = deg_to_rad(float(arg))
 				app.rig._apply()
+			"nochannel": # #222: depuração: comandos do jogador pela rota HTTP em vez do canal
+				app.api.close_player_channel()
+			"money": # #222: o que a ficha do motor diz agora (dinheiro), lida na hora
+				var detail: Dictionary = await app.api.npc_detail(app.player_hud.npc_id)
+				print("money: ok=", detail.ok, " status=", detail.status, " money=", detail.body.get("money") if detail.body is Dictionary else null, " erros=", detail.get("errors", []))
 			"sizes": # #222: tamanhos da ficha (depuração de layout)
 				var ins = app.inspector
 				print("sizes: inspector ", ins.size, " min ", ins.get_combined_minimum_size(), " side ", app.side_panel.size)
@@ -408,7 +413,7 @@ static func run(app: Node, steps: Array) -> void:
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
 				print("pos: ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
 					" corpo=", own.position if own != null else "sem corpo", " modo=", app.rig.mode, " braço=", app.rig.arm, " subida=", app.rig.lift,
-					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys())
+					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys(), " cartão=", app.player_frame.purse_label.text if app.player_frame != null else "", " leitura=", app.player_hud._body_pending, "/", snappedf(app.player_hud._body_clock, 0.1), " rpg=", app.player_hud.rpg, " npc=", app.player_hud.npc_id, " menu1=", app.player_frame.entries[0].text if app.player_frame != null and not app.player_frame.entries.is_empty() else "")
 				if own != null:
 					var eye: Vector3 = app.rig.target + Vector3(0, app.rig.eye_height() + app.rig.shoulder_height(), 0)
 					for entry in app.camera_blockers():

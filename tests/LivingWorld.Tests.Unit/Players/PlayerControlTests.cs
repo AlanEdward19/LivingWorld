@@ -236,5 +236,32 @@ public class PlayerControlTests
         Assert.True(service.Incarnate(w, npc.Id, "alan").IsSuccess);
         Assert.Equal(ActionType.Idle, npc.CurrentAction);
         Assert.Equal(ActionType.Idle, npc.ControlledAction);
+        var at = npc.CurrentLocation;
+        arm.Clock.Run(w, 6); // horas de mundo: nem viaja para ficar à toa em casa nem passeia sozinho; quem move é o jogador
+        Assert.Equal(ActionType.Idle, npc.CurrentAction);
+        Assert.Equal(at, npc.CurrentLocation);
+    }
+
+    /// <summary>#222: a ficha do motor mostra o dinheiro da compra na hora, também depois de sair (sumir) e possuir de novo.</summary>
+    [Fact]
+    public void The_sheet_shows_the_wallet_right_after_buying_even_after_leaving_and_coming_back()
+    {
+        var (arm, npc, service) = Body(4);
+        var w = arm.World;
+        var stall = w.Workplaces.Where(p => p.Prices.Any(x => x.Value > 0 && p.Stock.GetValueOrDefault(x.Key) > 0)).OrderBy(p => p.Id.Value).First();
+        var (resource, unit) = stall.Prices.Where(x => x.Value > 0 && stall.Stock.GetValueOrDefault(x.Key) > 0).OrderBy(x => x.Key.Id).First();
+        npc.CreditWallet(new Money(unit * 10));
+        for (int round = 0; round < 2; round++)
+        {
+            Place(w, npc, stall.Location);
+            long before = LivingWorld.Simulation.Cities.Queries.NpcInspectionQuery.Inspect(w, npc.Id).Value!.Money!.Value;
+            Assert.True(service.Interact(w, "alan", "stall", stall.Id.Value, "buy", resource.Id, 1).IsSuccess);
+            var sheet = LivingWorld.Simulation.Cities.Queries.NpcInspectionQuery.Inspect(w, npc.Id).Value!;
+            Assert.Equal(before - unit, sheet.Money);
+            Assert.Equal(npc.Wallet.Amount, sheet.Money);
+            Assert.True(service.Logout(w, "alan").IsSuccess);
+            arm.Clock.Run(w, 2);
+            Assert.True(service.Incarnate(w, npc.Id, "alan").IsSuccess);
+        }
     }
 }

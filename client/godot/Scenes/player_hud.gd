@@ -494,6 +494,8 @@ func _refresh_body(delta: float) -> void:
 		return
 	_body_clock = 0.0
 	_body_pending = true
+	if api.has_method("invalidate_npc"):
+		api.invalidate_npc(npc_id) # #222: o cartão do jogador lê a ficha do motor na hora (dinheiro, fome, sede)
 	var response: Dictionary = await api.npc_detail(npc_id)
 	_body_pending = false
 	if rpg and response.ok and response.body is Dictionary:

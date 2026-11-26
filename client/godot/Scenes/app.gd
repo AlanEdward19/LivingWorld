@@ -184,7 +184,7 @@ func _load_world_info() -> void:
 # --- relógio, eventos, nomes -----------------------------------------------
 
 func _on_clock_status(status: Dictionary) -> void:
-	api.set_tick(WorldTime.hours_of(status, "atMs"))
+	api.set_tick(int(float(status.get("atMs", 0)) / 60000.0)) # #222: o cache da ficha vence por minuto do mundo (em tempo real a hora leva 1 h)
 	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), hours_per_second(status), bool(status.isPaused))
 	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
