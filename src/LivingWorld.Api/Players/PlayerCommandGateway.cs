@@ -45,6 +45,10 @@ public sealed partial class PlayerCommandGateway(
 
     public PlayerLogStore Log => log;
 
+    /// <summary>Recusa da pausa do admin antes de ler o pedido (decisão do dono: pausa = 409 em toda rota do jogador).</summary>
+    public PlayerReply? PauseRefusal() =>
+        EnforcePause && simulation.IsPaused ? new PlayerReply(StatusCodes.Status409Conflict, null, PausedError) : null;
+
     /// <summary>AD-197q: nomes do período (ofício) para os cartões do criador de personagem; sem ele, só os ids.</summary>
     public LivingWorld.Api.Visual.Observable.PresentationNameResolver? Names { get; set; }
 

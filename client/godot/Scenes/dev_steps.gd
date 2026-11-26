@@ -292,6 +292,18 @@ static func run(app: Node, steps: Array) -> void:
 				if open_id >= 0:
 					await app.select_npc(open_id)
 					await app.incarnate(open_id)
+			"playwall": # só captura (AD-197s4): encarna um morador da rua e o põe a 1 m da quina de um prédio, com a câmera virada para a quina atrás
+				var wall_id := _street_npc(app)
+				if wall_id >= 0:
+					await app.select_npc(wall_id)
+					await app.incarnate(wall_id)
+					var wall_body: Node3D = app.world_view.npc_nodes.get(wall_id)
+					if wall_body != null:
+						var spot := _corner_spot(app, wall_body.position)
+						if spot.size() == 2:
+							wall_body.position = spot[0]
+							app.rig.yaw = spot[1]
+							app.rig.follow(wall_body)
 			"playhome": # só captura (AD-197s): encarna um morador e o põe no meio do prédio mais próximo (só o desenho; o motor não muda)
 				var home_id := _street_npc(app)
 				if home_id >= 0:
@@ -398,6 +410,23 @@ static func stacks_report(nodes: Dictionary, limit: float = 0.25) -> String:
 		detail = " maior=%d em %s ações=%s andando=%s" % [best.size(), first.position, best.map(func(i): return nodes[i].action),
 			best.map(func(i): return nodes[i].walk != null)]
 	return "stacks: npcs=%d sobrepostos=%d%s" % [nodes.size(), close.size(), detail]
+
+
+## [posição a 1 m da quina mais próxima, giro para a quina ficar atrás da câmera] ou [].
+static func _corner_spot(app: Node, from: Vector3) -> Array:
+	var best: Array = []
+	var best_distance := INF
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		var center := Vector3(box.get_center().x, 0.0, box.get_center().z)
+		for corner: Vector3 in [Vector3(box.position.x, 0, box.position.z), Vector3(box.end.x, 0, box.position.z), Vector3(box.position.x, 0, box.end.z), Vector3(box.end.x, 0, box.end.z)]:
+			var outward: Vector3 = (corner - center).normalized()
+			if from.distance_to(corner) < best_distance:
+				best_distance = from.distance_to(corner)
+				best = [corner + outward * Grid.units(1.5), atan2(-outward.x, -outward.z)]
+	return best
 
 
 static func _open_npc(app: Node) -> int:

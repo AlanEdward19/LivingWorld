@@ -96,7 +96,7 @@ func test_third_person_camera_stops_before_a_wall_and_returns_smoothly() -> void
 	var after_one_frame := rig.arm
 	for i in 120:
 		rig._process(0.016)
-	eq([snappedf(blocked, 0.01), after_one_frame < rig.THIRD_DISTANCE, after_one_frame > blocked, rig.arm], [1.75, true, true, rig.THIRD_DISTANCE])
+	eq([snappedf(blocked, 0.01), after_one_frame < rig.third_distance(), after_one_frame > blocked, rig.arm], [1.75, true, true, rig.third_distance()])
 	rig.free()
 
 
@@ -150,7 +150,7 @@ func test_narrow_street_between_tall_houses_keeps_the_body_in_view() -> void:
 			crossing[entry[0]] = true
 	check(not inside, "a câmera não termina dentro de uma parede ou telhado (%s)" % cam.origin)
 	check(rig.lift > 0.3, "sobe um pouco para olhar o corpo (%s)" % rig.lift)
-	check(rig.arm >= rig.MIN_ARM and cam.origin.distance_to(body_center) < rig.THIRD_DISTANCE, "chega perto do corpo")
+	check(rig.arm >= rig.min_arm() and cam.origin.distance_to(body_center) < rig.third_distance(), "chega perto do corpo")
 	check(forward.dot(to_body) > cos(deg_to_rad(35.0)), "o corpo está no enquadramento (%s)" % forward.dot(to_body))
 	for id in crossing:
 		check(seen.has(id), "o que ainda cobre o corpo fica translúcido (prédio %s)" % id)
@@ -160,11 +160,11 @@ func test_narrow_street_between_tall_houses_keeps_the_body_in_view() -> void:
 func test_third_person_rises_over_a_low_wall_and_passes_by_the_shoulder_of_a_pillar() -> void:
 	var low := [[1, AABB(Vector3(-3, 0, 2), Vector3(6, 2.2, 1))]] # a câmera, subindo, passa por cima
 	var made_low := _third_rig(low, 0.0)
-	check(made_low[0].lift > 0.4 and made_low[0].arm >= made_low[0].THIRD_DISTANCE - 0.01, "sobe e mantém o braço cheio (%s %s)" % [made_low[0].lift, made_low[0].arm])
+	check(made_low[0].lift > 0.4 and made_low[0].arm >= made_low[0].third_distance() - 0.01, "sobe e mantém o braço cheio (%s %s)" % [made_low[0].lift, made_low[0].arm])
 	made_low[0].free()
 	var pillar := [[2, AABB(Vector3(-0.2, 0, 1), Vector3(0.4, 9, 0.5))]] # coluna alta atrás: nem subindo passa; passa a ombro
 	var made_pillar := _third_rig(pillar, 0.0)
-	check(made_pillar[0].shoulder != 0.0 and made_pillar[0].arm >= made_pillar[0].THIRD_DISTANCE - 0.01, "passa a ombro (%s %s)" % [made_pillar[0].shoulder, made_pillar[0].arm])
+	check(made_pillar[0].shoulder != 0.0 and made_pillar[0].arm >= made_pillar[0].third_distance() - 0.01, "passa a ombro (%s %s)" % [made_pillar[0].shoulder, made_pillar[0].arm])
 	made_pillar[0].free()
 	var open := _third_rig([], 0.0)
 	eq([open[0].lift, open[0].shoulder], [0.0, 0.0])
@@ -321,7 +321,7 @@ func test_first_person_eye_never_touches_a_wall() -> void:
 	rig.set_mode(rig.FIRST)
 	check(rig.camera.near >= 0.1 and rig.camera.near <= 0.2, "near da 1ª pessoa cobre a cabeça (%s)" % rig.camera.near)
 	rig.set_mode(rig.THIRD)
-	check(is_equal_approx(rig.camera.near, rig.NEAR_THIRD), "e a 3ª pessoa volta ao near curto")
+	check(is_equal_approx(rig.camera.near, rig.near_third()), "e a 3ª pessoa volta ao near curto")
 	rig.free()
 	var wall := [[1, AABB(Vector3(0, 0, 0), Vector3(4, 3.9, 4))]]
 	var close := Vector3(-0.03, 1.07, 2.0) # fora, a 3 cm da parede
@@ -434,3 +434,79 @@ func test_room_distance_follows_the_engine_scale() -> void:
 	var b := CameraRig.room_arm()
 	Grid.cell_meters = before
 	check(absf(a - 2.0 / 1.5) < 0.001 and absf(b - 4.0) < 0.001, "2 m em unidades da grade (%s, %s)" % [a, b])
+
+
+# --- AD-197s3: escala em metros, histerese cômodo/telhado, ombro antes de subir ------------------------------------------
+
+## Os números da câmera são metros do motor: trocar a célula de 1,5 m para 0,5 m muda tudo em unidades, na mesma proporção.
+func test_camera_distances_follow_the_engine_cell_size() -> void:
+	var before := Grid.cell_meters
+	Grid.cell_meters = 1.5
+	var base := [CameraRig.third_distance(), CameraRig.min_arm(), CameraRig.arm_margin(), CameraRig.near_third()]
+	eq([snappedf(base[0], 0.001), snappedf(base[1], 0.001), snappedf(base[2], 0.001), snappedf(base[3], 0.001)], [3.0, 0.5, 0.25, 0.05], "na escala de hoje as mesmas unidades de antes")
+	Grid.cell_meters = 0.5
+	eq([snappedf(CameraRig.third_distance(), 0.001), snappedf(CameraRig.min_arm(), 0.001), snappedf(CameraRig.arm_margin(), 0.001), snappedf(CameraRig.near_third(), 0.001)],
+		[9.0, 1.5, 0.75, 0.15], "com célula de 0,5 m: o triplo")
+	var made := _body_rig([], Vector3(5, 0, 5), 0.8)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	check(is_equal_approx(rig.arm, 9.0) and is_equal_approx(rig.camera.near, 0.15), "o rig usa os metros do motor (braço %s, near %s)" % [rig.arm, rig.camera.near])
+	rig.free()
+	Grid.cell_meters = before
+
+
+## Limite entre ficar no cômodo e subir ao telhado: perto dele a escolha não pisca (histerese de 15%).
+func test_room_versus_roof_does_not_flicker_at_the_limit() -> void:
+	var boxes := _walled(9)
+	var need := CameraRig.room_arm()
+	var stay := true
+	var flips := 0
+	var was_room := false
+	var z_values: Array = [5.0, 5.5, 6.0, 6.2]
+	for k in 10:
+		z_values.append(8.0 - (need + CameraRig.arm_margin()) - 0.017) # logo abaixo do limite
+		z_values.append(8.0 - (need + CameraRig.arm_margin()) + 0.017) # logo acima
+	for z in z_values:
+		var plan := CameraRig.plan_third(Vector3(4.5, 1.4, z), 0.0, 0.0, CameraRig.third_distance(), boxes, 1.0, was_room)
+		var now := bool(plan.get("room", false))
+		if now != was_room:
+			flips += 1
+		was_room = now
+	check(flips <= 1, "uma entrada no cômodo e nenhuma troca por causa do tremor (%s trocas)" % flips)
+	check(was_room, "e termina no cômodo")
+	# de fora, no mesmo ponto limite, não entra (precisa de 15% a mais)
+	var outside := CameraRig.plan_third(Vector3(4.5, 1.4, 8.0 - (need + CameraRig.arm_margin()) - 0.017), 0.0, 0.0, CameraRig.third_distance(), boxes, 1.0, false)
+	check(not outside.has("room"), "quem está em cima não desce com folga mínima")
+
+
+## Prédio colado atrás do corpo, na rua: passa a ombro (dobrando a esquina) antes de subir; sem subir, o olhar fica raso.
+func test_building_right_behind_is_passed_by_the_shoulder_before_rising() -> void:
+	var boxes := [[3, AABB(Vector3(-5, 0, 0.5), Vector3(5.4, 4, 3))]] # o prédio acaba em x = 0,4: à direita (+x) há rua livre
+	var plan := CameraRig.plan_third(Vector3(0, 1.4, 0), 0.0, 0.0, CameraRig.third_distance(), boxes, 1.0)
+	eq(plan.lift, 0.0, "não sobe")
+	check(plan.shoulder > 0.0, "passa a ombro para o lado livre (%s)" % plan.shoulder)
+	check(plan.arm >= CameraRig.third_distance() * CameraRig.COMFORT, "com caminho cheio (%s)" % plan.arm)
+	var mirrored := [[3, AABB(Vector3(-0.4, 0, 0.5), Vector3(5.4, 4, 3))]] # espelhado: a rua livre fica à esquerda
+	var other := CameraRig.plan_third(Vector3(0, 1.4, 0), 0.0, 0.0, CameraRig.third_distance(), mirrored, 1.0)
+	check(other.shoulder < 0.0 and other.lift == 0.0, "e do lado oposto quando é o outro que está livre (%s)" % other.shoulder)
+
+
+## AD-197s4: a ombro a câmera gira para mirar o corpo: o corpo fica a poucos graus do eixo de visão, nos dois lados.
+func test_shoulder_framing_turns_to_aim_at_the_body() -> void:
+	for side in [1.0, -1.0]:
+		var boxes: Array = [[3, AABB(Vector3(-5, 0, 0.5) if side > 0.0 else Vector3(-0.4, 0, 0.5), Vector3(5.4, 4, 3))]]
+		var made := _body_rig(boxes, Vector3(0, 0, 0), 0.0)
+		var rig = made[0]
+		rig.pitch = 0.0
+		rig.set_mode(rig.THIRD)
+		rig.follow(made[1])
+		check(rig.shoulder * side > 0.0 and rig.lift == 0.0, "passou a ombro sem subir (lado %s: %s)" % [side, rig.shoulder])
+		var cam := _camera_world(rig)
+		var body_center: Vector3 = rig.target + Vector3(0, rig.eye_height() * 0.55, 0)
+		var forward: Vector3 = -cam.basis.z
+		var flat_forward := Vector2(forward.x, forward.z).normalized()
+		var flat_to_body := Vector2(body_center.x - cam.origin.x, body_center.z - cam.origin.z).normalized()
+		var yaw_off := rad_to_deg(flat_forward.angle_to(flat_to_body))
+		check(absf(yaw_off) < 3.0, "o corpo está no eixo da tela (%s graus de lado)" % yaw_off)
+		rig.free()

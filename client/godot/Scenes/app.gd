@@ -799,10 +799,10 @@ func camera_blockers() -> Array:
 		if box.size == Vector3.ZERO:
 			continue
 		var center := box.get_center()
-		var reach: float = rig.THIRD_DISTANCE + box.size.length() * 0.5 + 1.0
+		var reach: float = rig.third_distance() + box.size.length() * 0.5 + 1.0
 		if absf(center.x - near.x) > reach or absf(center.z - near.z) > reach:
 			continue
-		out.append([id, box, node.get_meta("shell", box.grow(0.2)), node.get_meta("walls", [])]) # AD-197s: [id, caixa (onde o corpo está), casca (o que a câmera não toca), paredes (AD-197s2)]
+		out.append([id, box, node.get_meta("shell", box.grow(Grid.units(0.3))), node.get_meta("walls", [])]) # AD-197s: [id, caixa (onde o corpo está), casca (o que a câmera não toca), paredes (AD-197s2)]
 	return out
 
 
