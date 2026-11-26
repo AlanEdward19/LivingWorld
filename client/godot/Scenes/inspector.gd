@@ -406,7 +406,9 @@ func _set_links(links: Array) -> void:
 		var entity: Dictionary = link[1]
 		link_refs.append(entity)
 		var button := Button.new()
-		button.text = "%s: %s" % [link[0], registry.title_of(entity)]
+		var title: String = registry.title_of(entity)
+		# #222: sem repetir o papel quando o nome já o diz ("Prédio: Prédio tipo 1" vira "Prédio tipo 1")
+		button.text = title if title.to_lower().begins_with(String(link[0]).to_lower()) else "%s: %s" % [link[0], title]
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(func(): inspect(entity))
 		_links.add_child(button)

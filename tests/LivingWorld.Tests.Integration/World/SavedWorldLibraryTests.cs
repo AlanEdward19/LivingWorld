@@ -14,6 +14,25 @@ namespace LivingWorld.Tests.Integration.World;
 
 public class SavedWorldLibraryTests
 {
+    /// <summary>#222: o registro do jogador (`{mundo}.players.base.json`, outra forma) fica na pasta dos saves; a biblioteca abre
+    /// mesmo assim e só lê os cartões dos mundos (antes a API não subia depois de alguém jogar com um personagem).</summary>
+    [Fact]
+    public void Library_ignores_the_player_log_base_next_to_the_saves()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "lw-saves-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, $"{Guid.NewGuid()}.players.base.json"), """{"CurrentDate":{"TotalHours":10}}""");
+            using var library = new SavedWorldLibrary(directory, new BufferingWorldEventSink());
+            Assert.Equal(directory, library.WorldsDirectory);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public void Library_lifecycle_preserves_saved_worlds_and_rejects_invalid_transitions_without_http()
     {

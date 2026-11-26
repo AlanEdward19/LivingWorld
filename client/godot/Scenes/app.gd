@@ -717,6 +717,7 @@ func _on_camera_mode(mode: String) -> void:
 ## acontecimento, dica grande sob o cursor, atalhos do espectador); ficam o topo compacto do HUD, a mira com o nome curto do que o E
 ## alcançaria (da oferta do motor) e as dicas do jogador. Ao sair, tudo volta como estava.
 var player_mode := false
+var minimap_wanted := false ## #222: o minimapa só aparece quando pedido (K)
 var _timeline_was_visible := false
 
 
@@ -731,7 +732,7 @@ func set_player_mode(on: bool) -> void:
 	if list_panel != null and on:
 		list_panel.visible = false
 	if minimap != null:
-		minimap.visible = not on
+		minimap.visible = not on and minimap_wanted
 	if timeline != null:
 		if on:
 			_timeline_was_visible = timeline.visible

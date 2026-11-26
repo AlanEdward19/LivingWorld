@@ -7,7 +7,7 @@ signal chosen(entry: Dictionary)
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir   Clique bater   Tab ações   C câmera   Esc menu"
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir   Clique bater   C câmera   Esc menu"
 const MENU_MAX := 8 ## linhas no menu do E (o resto fica de fora: quem está mais perto primeiro)
 const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próximas)
 

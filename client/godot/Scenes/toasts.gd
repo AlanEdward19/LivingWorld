@@ -1,7 +1,7 @@
 extends VBoxContainer
 ## Avisos de eventos notáveis do mundo (texto vem do servidor em `events[].label`), com histórico.
 
-const MAX_VISIBLE := 5
+const MAX_VISIBLE := 3 ## #222: no máximo três avisos; a lista completa fica em Acontecimentos
 const LIFETIME := 7.0
 ## AD-197p: no modo jogador os avisos são discretos: menores, no máximo três, centralizados acima do rodapé.
 var compact := false
@@ -19,6 +19,10 @@ func _init() -> void:
 ## `event` marca aviso de acontecimento do mundo (o modo jogador limpa esses; os avisos do motor ao jogador ficam).
 func push(text: String, event: bool = false) -> void:
 	history.append(text)
+	for item in _items: # #222: o mesmo aviso ainda na tela não se repete; só renova
+		if is_instance_valid(item.label) and item.label.text == "• " + text:
+			item.born = _clock
+			return
 	var label := Label.new()
 	label.text = "• " + text
 	label.add_theme_color_override("font_color", Color("ffe9a6") if not compact else Color(1, 1, 1, 0.9))
@@ -39,7 +43,7 @@ func push(text: String, event: bool = false) -> void:
 	alignment = BoxContainer.ALIGNMENT_END if compact else BoxContainer.ALIGNMENT_BEGIN
 	add_child(label)
 	_items.append({"label": label, "born": _clock, "event": event})
-	while _items.size() > (MAX_VISIBLE if not compact else 3):
+	while _items.size() > (MAX_VISIBLE if not compact else 2):
 		_items.pop_front().label.queue_free()
 
 

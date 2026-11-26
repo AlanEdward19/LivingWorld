@@ -50,7 +50,7 @@ func on_snapshot(envelope: Dictionary) -> void:
 		app.list_panel.search(app.list_panel.query)
 	if kind == "City":
 		app.breadcrumb.text = "Mundo › %s" % (app.store.city.name if app.store.city.name != "" else "Cidade")
-		if app.inspector.current.is_empty() or String(app.inspector.current.kind) == Registry.CITY:
+		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY: # #222: a ficha da cidade
 			app.inspector.inspect(Registry.ref(Registry.CITY, String(app.store.city.id)))
 		var area := built_area()
 		if not app.director.active():

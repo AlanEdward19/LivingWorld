@@ -289,7 +289,7 @@ func test_incarnating_hides_the_spectator_ui_and_leaving_restores_it() -> void:
 	await tree.process_frame
 	var after := [app.side_panel.visible, app.minimap.visible, app.timeline.visible, app.help_label.text]
 
-	eq(playing, [true, false, false, false, true, false, true, false, true]) # #222: sair do personagem fica no menu do Esc
+	eq(playing, [true, false, false, false, true, false, false, false, true]) # #222: sem ordens nem sair no topo (Esc e comandos)
 	eq(toasts_while_playing, [], "acontecimento não vira aviso sobre a cena do jogador")
 	eq([after, app.player_mode, node.is_self], [before, false, false], "o espectador volta intacto")
 	app.queue_free()
@@ -311,7 +311,8 @@ func test_tab_opens_the_orders_and_releases_the_cursor_and_the_reach_hint_comes_
 	var hint: String = hud.reach_hint.text
 	hud.set_reach_hint([])
 
-	eq([closed, opened, toggles, hint, hud.reach_hint.visible], [false, true, [true, false], "Banca: Comprar recurso 1 (4)", false])
+	eq([closed, opened, toggles, hint, hud.reach_hint.visible], [false, false, [], "Banca: Comprar recurso 1 (4)", false],
+		"#222: no modo jogador o Tab não abre painel de ordens (o corpo só recebe comandos)")
 	hud.set_rpg(false)
 	eq(hud.orders.visible, true, "fora do modo jogador as ordens ficam à vista, como antes")
 	hud.free()

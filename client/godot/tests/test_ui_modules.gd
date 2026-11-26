@@ -110,14 +110,16 @@ func test_minimap_maps_cells_and_requests_pan() -> void:
 	map.free()
 
 
-func test_toasts_keep_five_and_full_history() -> void:
+func test_toasts_keep_three_no_repeats_and_full_history() -> void:
 	var toasts := Toasts.new()
 	for i in 7:
 		toasts.push("evento %d" % i)
+	toasts.push("evento 6")
 
-	eq(toasts.visible_texts().size(), 5, "no máximo 5 avisos na tela")
-	eq(toasts.visible_texts()[0], "evento 2", "os mais antigos saem")
-	eq(toasts.history.size(), 7, "o histórico guarda todos")
+	eq(toasts.visible_texts().size(), 3, "no máximo 3 avisos na tela (#222)")
+	eq(toasts.visible_texts()[0], "evento 4", "os mais antigos saem")
+	eq(toasts.history.size(), 8, "o histórico guarda todos")
+	eq(toasts.visible_texts().count("evento 6"), 1, "o mesmo aviso não se repete na tela")
 	toasts.free()
 
 

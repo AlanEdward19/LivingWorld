@@ -237,7 +237,7 @@ func _time_command(request_fn: Callable, note: String) -> void:
 ## desligado, tudo como antes (o HUD do espectador que encarna pela isométrica).
 func set_rpg(on: bool) -> void:
 	rpg = on and is_active
-	orders_button.visible = rpg
+	orders_button.visible = rpg and not PLAYER_COMMANDS_ONLY
 	refresh_labels()
 	header.visible = not rpg # #222: no modo jogador o topo some; nome e barras ficam na moldura, sair fica no menu (Esc)
 	if frame != null:
@@ -264,9 +264,10 @@ func _show_in_rpg() -> void:
 		visible = true
 
 
-## Tab ou o botão: abre ou fecha as ordens (abertas, o cursor fica solto para clicar).
+## Tab ou o botão: abre ou fecha as ordens (abertas, o cursor fica solto para clicar). #222: no modo jogador não há painel de
+## ordens: o corpo só recebe comandos (teclas, mouse e o menu do E, onde comer, dormir e comprar vêm da oferta do motor).
 func toggle_orders() -> void:
-	if not rpg:
+	if not rpg or PLAYER_COMMANDS_ONLY:
 		return
 	_orders_open = not _orders_open
 	orders.visible = _orders_open
@@ -303,6 +304,7 @@ func _refresh_reach_hint(delta: float) -> void:
 
 ## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação). #222: no modo jogador o botão é uma ordem
 ## ("Comer"), não o estado ("Comendo").
+const PLAYER_COMMANDS_ONLY := true
 const ORDER_TEXT := {"Eat": "Comer", "Sleep": "Dormir", "Work": "Trabalhar", "Socialize": "Conversar", "Idle": "Descansar", "Buy": "Comprar"}
 
 
@@ -615,8 +617,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		jump()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and rpg:
-		get_viewport().set_input_as_handled()
-		toggle_orders() # AD-197p: as ordens ficam num menu que solta o cursor
+		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		get_viewport().set_input_as_handled()
 		if menu != null and menu.visible:
@@ -675,6 +676,8 @@ func latency_median_ms() -> float:
 	return sorted[sorted.size() / 2]
 
 
+const OBJECT_TEXT := {"table": "Mesa", "bench": "Banco", "crate": "Caixote", "barrel": "Barril", "counter": "Balcão", "shelf": "Prateleira",
+	"bed": "Cama", "chest": "Baú", "anvil": "Bigorna"}
 const KIND_TEXT := {"counter": "Balcão", "door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
 	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
@@ -712,6 +715,7 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
 		var title := String(offer.get("label", "")) if kind in ["person", "item", "object"] else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor
+		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
 		for verb in offer.get("verbs", []):
 			var resources: Array = offer.get("resources", [])
 			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():

@@ -29,7 +29,7 @@ const PauseMenu := preload("res://Scenes/pause_menu.gd")
 const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · X: raio-x · P: planta · ? ou F1: todos os atalhos · Esc: pausa"
+const HELP := "Clique: ver · Duplo clique: entrar · Botão direito: mover · Roda: zoom · K: minimapa · F1: atalhos · Esc: menu"
 ## AD-197p: atalhos do modo jogador (3ª/1ª pessoa), no lugar dos do espectador.
 const PLAYER_HELP := "WASD: andar · Mouse: olhar · E: interagir · Clique: bater · Tab: ordens · C: 1ª/3ª pessoa · Z: soltar o cursor · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
@@ -67,6 +67,12 @@ static func _top_bar(app, ui: Control) -> void:
 	app.breadcrumb = Label.new()
 	app.breadcrumb.text = "Mundo"
 	app.breadcrumb.add_theme_font_size_override("font_size", 19)
+	app.breadcrumb.mouse_filter = Control.MOUSE_FILTER_STOP # #222: clicar no nome da cidade abre a ficha dela
+	app.breadcrumb.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	app.breadcrumb.tooltip_text = "Clique para ver a ficha da cidade"
+	app.breadcrumb.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and app.store.kind == "City":
+			app._show_city_summary(String(app.store.city.id)))
 	bar.add_child(app.breadcrumb)
 	app.world_button = Button.new()
 	app.world_button.text = "◀ Mapa do mundo"
@@ -109,7 +115,8 @@ static func _top_bar(app, ui: Control) -> void:
 		app.clock_panel.set_control_enabled(false, NO_ADMIN)
 	if app.admin_enabled:
 		var console_button := Button.new()
-		console_button.text = "Console (F8)"
+		console_button.text = "Admin" # #222: curto, a barra cabe em 1280–1600
+		console_button.tooltip_text = "Console do mundo (F8)"
 		console_button.pressed.connect(func(): app._toggle_admin())
 		bar.add_child(console_button)
 	var creator_button := Button.new() # AD-197q: entrar como pessoa nova, tirada do agregado de uma cidade pelo motor
@@ -318,6 +325,7 @@ static func _bottom(app, ui: Control) -> void:
 	app.minimap.offset_right = 218
 	app.minimap.offset_bottom = -48
 	app.minimap.pan_requested.connect(func(point: Vector3): app.rig.focus(point))
+	app.minimap.visible = false # #222: escondido até pedir (K): menos coisa sobre a cena
 	ui.add_child(app.minimap)
 	app.timeline = EventTimeline.new()
 	app.timeline.registry = app.registry

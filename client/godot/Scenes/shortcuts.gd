@@ -62,6 +62,9 @@ static func handle(app, event: InputEvent) -> void:
 					app.talk_to(app.selected_npc)
 			KEY_M:
 				app.ambience.set_muted(not app.ambience.muted)
+			KEY_K: # #222: minimapa sob demanda
+				app.minimap_wanted = not app.minimap_wanted
+				app.minimap.visible = app.minimap_wanted
 			KEY_N:
 				app.next_event()
 			KEY_V:

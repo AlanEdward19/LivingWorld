@@ -55,6 +55,8 @@ public sealed class SavedWorldLibrary : IDisposable
         Directory.CreateDirectory(directory);
         foreach (string file in Directory.EnumerateFiles(directory, "*.json"))
         {
+            // #222: só o cartão do mundo ({id}.json); o registro do jogador ({id}.players.base.json) mora na mesma pasta e não é cartão
+            if (!Guid.TryParse(Path.GetFileNameWithoutExtension(file), out _)) continue;
             var info = JsonSerializer.Deserialize<SavedWorldInfo>(File.ReadAllText(file));
             if (info is not null && File.Exists(DatabasePath(info.WorldId))) _info.Add(info.WorldId, info);
         }

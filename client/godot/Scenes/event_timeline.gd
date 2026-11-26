@@ -25,7 +25,7 @@ func _init() -> void:
 	var header := HBoxContainer.new()
 	box.add_child(header)
 	_collapse = Button.new()
-	_collapse.text = "▾ Acontecimentos"
+	_collapse.text = "▸ Acontecimentos" # #222: começa recolhida (uma linha); abre ao clicar
 	_collapse.flat = true
 	_collapse.pressed.connect(func(): _list.visible = not _list.visible; _collapse.text = ("▾" if _list.visible else "▸") + " Acontecimentos")
 	header.add_child(_collapse)
@@ -44,6 +44,7 @@ func _init() -> void:
 	watch_button.toggled.connect(func(on: bool): watch_toggled.emit(on))
 	header.add_child(watch_button)
 	_list = VBoxContainer.new()
+	_list.visible = false
 	box.add_child(_list)
 
 

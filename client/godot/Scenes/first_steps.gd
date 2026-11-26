@@ -36,6 +36,7 @@ const SHORTCUTS: Array[Array] = [
 	["Mapa de calor do pisoteio das ruas", "H"],
 	["Prédio de trás sob o cursor", "Tab · Alt + rodinha"],
 	["Som liga/desliga", "M"],
+	["Minimapa", "K"],
 	["Fechar janela · menu de pausa", "Esc"],
 	["Console do mundo", "F8"],
 	["Esta ajuda", "? ou F1"],

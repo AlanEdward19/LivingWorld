@@ -290,7 +290,8 @@ func test_chronicle_button_gets_the_city_id_from_both_real_paths() -> void:
 	tree.root.add_child(app)
 	await app.start(transport, false)
 
-	await app.enter_scope("City", "city-b") # snapshot de cidade -> show_city(store.city)
+	await app.enter_scope("City", "city-b") # snapshot de cidade
+	await app._show_city_summary("city-b") # #222: a ficha da cidade abre pelo clique no nome do topo (não sozinha ao entrar)
 	_find_button(app.city_panel, "Crônica").pressed.emit()
 	await tree.process_frame
 	check(transport.calls.any(func(c: String) -> bool: return c.contains("/narratives/chronicles?location=city-b")), "pelo escopo cidade: " + str(transport.calls))
