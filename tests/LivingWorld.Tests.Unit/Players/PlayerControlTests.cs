@@ -223,4 +223,18 @@ public class PlayerControlTests
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: new BufferingWorldEventSink()), new BufferingWorldEventSink(), end);
         Assert.Equal(WorldSnapshot.CanonicalHash(w), WorldSnapshot.CanonicalHash(replayed));
     }
+
+    /// <summary>#222: quem é possuído no meio de uma ação (trabalho, viagem) para e fica à toa esperando o jogador.</summary>
+    [Fact]
+    public void Possessing_someone_in_the_middle_of_an_action_stops_it()
+    {
+        var arm = Village(1, NoPace);
+        var w = arm.World;
+        var npc = w.AliveNpcIndex.Alive.First(n => n.ControllerId is null && n.AgeYears(w.CurrentDate) >= 18);
+        npc.SetCurrentAction(ActionType.Work, w.CurrentDate.TotalHours);
+        var service = new PlayerService(arm.Sink);
+        Assert.True(service.Incarnate(w, npc.Id, "alan").IsSuccess);
+        Assert.Equal(ActionType.Idle, npc.CurrentAction);
+        Assert.Equal(ActionType.Idle, npc.ControlledAction);
+    }
 }

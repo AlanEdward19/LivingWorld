@@ -167,3 +167,28 @@ func test_the_clock_estimate_follows_the_engine_rhythm() -> void:
 func test_an_accepted_interaction_says_what_happened() -> void:
 	eq(PlayerHud.done_text({"text": "Banca: Comprar Comida (4)"}, {"quantity": 1, "value": 4}), "✓ Banca: Comprar Comida · 1 un. por 4")
 	eq(PlayerHud.done_text({"text": "Porta: Entrar"}, {"quantity": null, "value": null}), "✓ Porta: Entrar")
+
+
+const CameraRig := preload("res://Scenes/camera_rig.gd")
+
+
+## #222: zoom sem mouse: + e − na 3ª pessoa aproximam e afastam a câmera, dentro dos limites; na isométrica mudam o zoom.
+func test_plus_and_minus_zoom_without_a_mouse() -> void:
+	var rig := CameraRig.new()
+	rig.set_mode(rig.THIRD)
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_EQUAL
+	rig._unhandled_input(key)
+	check(rig.third_scale < 1.0, "+ aproxima (%s)" % rig.third_scale)
+	key.keycode = KEY_MINUS
+	for i in 20:
+		rig._unhandled_input(key)
+	eq(rig.third_scale, CameraRig.THIRD_SCALE_MAX, "− afasta até o limite")
+	rig.set_mode(rig.ISO)
+	var before: float = rig._zoom_goal
+	key.keycode = KEY_KP_ADD
+	rig._unhandled_input(key)
+	var after: float = rig._zoom_goal
+	check(after < before, "na isométrica + aproxima (%s → %s)" % [before, after])
+	rig.free()

@@ -29,7 +29,7 @@ const PauseMenu := preload("res://Scenes/pause_menu.gd")
 const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Clique: ver · Duplo clique: entrar · Botão direito: mover · Roda: zoom · K: minimapa · F1: atalhos · Esc: menu"
+const HELP := "Clique: ver · Duplo clique: entrar · Botão direito: mover · Roda ou + −: zoom · K: minimapa · F1: atalhos · Esc: menu"
 ## AD-197p: atalhos do modo jogador (3ª/1ª pessoa), no lugar dos do espectador.
 const PLAYER_HELP := "WASD: andar · Mouse: olhar · E: interagir · Clique: bater · Tab: ordens · C: 1ª/3ª pessoa · Z: soltar o cursor · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."

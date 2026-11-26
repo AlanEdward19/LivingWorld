@@ -25,6 +25,7 @@ const PLAYER_SHORTCUTS: Array[Array] = [
 	["Interagir (comprar, beber, conversar, porta, cama…)", "E, depois o número da opção"],
 	["Bater em quem está na mira", "clique"],
 	["1ª ou 3ª pessoa", "C"],
+	["Aproximar e afastar a câmera", "+ e − (ou a rodinha)"],
 	["Soltar o mouse", "Z"],
 	["Menu (continuar, sair do personagem)", "Esc"],
 ]
@@ -33,7 +34,7 @@ var player_grid: GridContainer
 var _title_label: Label
 const SHORTCUTS: Array[Array] = [
 	["Andar pelo mundo", "botão direito e arrastar · W A S D ou setas"],
-	["Aproximar e afastar", "rodinha do mouse"],
+	["Aproximar e afastar", "rodinha do mouse · + e −"],
 	["Girar a câmera", "Shift + botão direito · Q e E"],
 	["Ver quem é", "clique numa pessoa, casa ou cidade"],
 	["Voltar na ficha", "Backspace"],

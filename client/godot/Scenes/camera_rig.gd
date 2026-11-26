@@ -65,6 +65,9 @@ const ARM_MARGIN_M := 0.375
 const ARM_RETURN := 3.0 ## por segundo: a volta é suave; a aproximação, imediata (nunca atravessa a parede)
 var blockers: Callable = Callable()
 var arm := 3.0 ## inicial; vira third_distance() ao entrar no modo
+var third_scale := 1.0 ## #222: + e − (ou a rodinha) aproximam e afastam a 3ª pessoa: 0,4 a 1,8 do braço padrão
+const THIRD_SCALE_MIN := 0.4
+const THIRD_SCALE_MAX := 1.8
 var lift := 0.0 ## AD-197r: quanto a 3ª pessoa sobe (olhando o corpo de cima) quando o caminho para trás está fechado
 var shoulder := 0.0 ## e quanto passa a ombro (deslocamento lateral), em unidades
 var _see_through: Dictionary = {}
@@ -322,7 +325,7 @@ func _spring_arm(delta: float) -> void:
 		return
 	var boxes: Array = blockers.call()
 	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
-	var plan := plan_third(eye, yaw, pitch, third_distance(), boxes, body_scale(), _in_room)
+	var plan := plan_third(eye, yaw, pitch, third_distance() * third_scale, boxes, body_scale(), _in_room)
 	_in_room = bool(plan.get("room", false))
 	var free: float = plan.arm
 	if _snap:
@@ -331,7 +334,7 @@ func _spring_arm(delta: float) -> void:
 		lift = plan.lift
 		shoulder = plan.shoulder
 	else:
-		arm = free if free < arm else minf(free, arm + (third_distance() - min_arm()) * ARM_RETURN * delta)
+		arm = free if free < arm else minf(free, arm + (third_distance() * third_scale - min_arm()) * ARM_RETURN * delta)
 		var blend := clampf(delta * 8.0, 0.0, 1.0)
 		lift = lerpf(lift, plan.lift, blend)
 		shoulder = lerpf(shoulder, plan.shoulder, blend)
@@ -565,6 +568,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			zoom_smooth(0.85)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom_smooth(1.18)
+	elif event is InputEventKey and event.pressed and event.keycode in ZOOM_IN_KEYS:
+		zoom_smooth(0.85) # #222: zoom sem mouse
+	elif event is InputEventKey and event.pressed and event.keycode in ZOOM_OUT_KEYS:
+		zoom_smooth(1.18)
 	elif event is InputEventKey and event.pressed:
 		if walking.is_valid() and walking.call() and event.keycode in [KEY_W, KEY_UP, KEY_S, KEY_DOWN, KEY_A, KEY_LEFT, KEY_D, KEY_RIGHT]:
 			return # encarnado, as teclas de direção andam com o personagem (player_hud), não movem a câmera
@@ -579,7 +586,25 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Encarnado: o mouse olha (com o botão direito, ou sempre com o cursor preso por Z), C troca 1ª/3ª pessoa; WASD, E e o clique são do
 ## personagem (player_hud e app), não da câmera.
+const ZOOM_IN_KEYS := [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD]
+const ZOOM_OUT_KEYS := [KEY_MINUS, KEY_KP_SUBTRACT]
+
+
+## #222: aproxima (<1) ou afasta (>1) a câmera da 3ª pessoa, entre os limites.
+func zoom_third(factor: float) -> void:
+	third_scale = clampf(third_scale * factor, THIRD_SCALE_MIN, THIRD_SCALE_MAX)
+
+
 func _player_input(event: InputEvent) -> void:
+	if mode == THIRD and event is InputEventKey and event.pressed and event.keycode in ZOOM_IN_KEYS:
+		zoom_third(0.85)
+		return
+	if mode == THIRD and event is InputEventKey and event.pressed and event.keycode in ZOOM_OUT_KEYS:
+		zoom_third(1.18)
+		return
+	if mode == THIRD and event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		zoom_third(0.85 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.18)
+		return
 	if event is InputEventMouseMotion and (cursor_captured or event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
 		look(event.relative)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:
