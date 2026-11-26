@@ -26,6 +26,7 @@ public static class Disappearance
     {
         var rules = world.Players;
         var bonds = CloseBonds(world, npc, rules);
+        PlayerCommands.StopOnPossession(world, npc); // #222: quem some para o que fazia (igual à posse: o sumiço segue byte a byte o do jogador)
         npc.Disappear(ctx.CurrentTick);
         ReleaseJob(world, ctx, npc);
         ReleaseHome(world, ctx, npc);
