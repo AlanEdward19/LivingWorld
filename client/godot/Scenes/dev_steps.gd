@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -80,6 +80,11 @@ static func run(app: Node, steps: Array) -> void:
 				await app.open_creator()
 			"creatorset": # AD-197t: `creatorset:name=Ana,age=29,role=child,family=0,money=90,height=1.65,look.skinTone=30,outfit=3` preenche o criador
 				await _creator_set(app, arg)
+			"creatorstep": # #222: `creatorstep:N` vai à etapa N do criador (1 Origem … 5 Revisar), com a prévia do motor
+				await app.creator.designer.go_to(int(arg) - 1)
+			"creatorrandom": # #222: sorteia a aparência no cliente (o motor valida)
+				app.creator.designer._randomize_look(app.creator.designer._all_look_keys())
+				await app.creator.designer.refresh()
 			"creatorcreate": # AD-197t: cria a pessoa montada e entra
 				await app.creator.designer.refresh()
 				await app.creator.designer.create()

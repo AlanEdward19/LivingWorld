@@ -291,7 +291,11 @@ static func _windows(app, ui: Control) -> void:
 	for window in [app.brain_panel, app.narrative, app.admin_window, app.economy, app.technology, app.creator]:
 		window.warning.connect(func(text: String): app.toasts.push(text))
 		ui.add_child(window)
-		app.router.register(window)
+		if window == app.creator: # #222: o criador é a janela central da tela toda: não se encaixa nem se arrasta, só vem para a frente
+			app.router.floating[window] = true
+			window.closed.connect(func(): app.router.closed(window))
+		else:
+			app.router.register(window)
 	app.conversation = ConversationWindow.new()
 	app.conversation.api = app.api
 	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar

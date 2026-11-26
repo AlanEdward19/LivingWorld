@@ -137,9 +137,11 @@ func test_in_the_app_the_new_person_enters_the_city_of_origin_and_goes_straight_
 	app.player_hud.session_enabled = false
 
 	await app.open_creator()
-	var placed: Vector2 = app.creator.position
-	check(placed.y >= app.router.MARGIN_TOP and placed.x >= app.router.MARGIN_LEFT,
-		"encaixada na área central, abaixo da barra de cima (não no canto): %s" % placed)
+	check(app.creator.visible and app.creator.anchor_right == 1.0 and app.creator.anchor_bottom == 1.0,
+		"cobre a tela toda: a janela do criador fica no centro, não encaixada no canto")
+	eq(app.router.floating.has(app.creator), true, "fora do encaixe das demais janelas")
+	eq(app.creator.mode, "design", "abre montando; sortear é o atalho")
+	await app.creator.set_mode("sample")
 	await app.creator.choose(103, "Clara Dias")
 	for _i in 4:
 		await tree.process_frame
