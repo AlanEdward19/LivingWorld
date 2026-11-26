@@ -185,7 +185,7 @@ func _load_world_info() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	api.set_tick(WorldTime.hours_of(status, "atMs"))
-	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), float(status.ticksPerSecond), bool(status.isPaused))
+	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), hours_per_second(status), bool(status.isPaused))
 	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
 	if player_hud.is_active: # AD-197c: o ritmo e os controles de dormir e acelerar, como o motor os diz
@@ -195,9 +195,17 @@ func _on_clock_status(status: Dictionary) -> void:
 	pause_label.text = admin_window.pause_banner(status)
 	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
-	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "atMs"), float(status.ticksPerSecond), bool(status.isPaused)) # rota (AD-181)
+	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "atMs"), hours_per_second(status), bool(status.isPaused)) # rota (AD-181); #222: pelo ritmo do motor
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
+
+
+## #222: quantas horas do mundo passam por segundo real, pelo ritmo que o motor diz (Δ por tick × ticks do laço). Com jogador o mundo
+## anda em tempo real: estimar 1 hora por segundo (ticksPerSecond) adiantava o relógio e o motor o puxava para trás.
+static func hours_per_second(status: Dictionary) -> float:
+	if status.get("tickDeltaMs") != null and status.get("loopTicksPerSecond") != null:
+		return float(status.tickDeltaMs) / 3600000.0 * float(status.loopTicksPerSecond)
+	return float(status.get("ticksPerSecond", 1.0))
 
 
 func _update_time_label(status: Dictionary = {}) -> void:
@@ -352,6 +360,8 @@ func _on_snapshot(envelope: Dictionary) -> void:
 
 
 func release_observation() -> void:
+	if player_hud != null and player_hud.is_active: # #222: fechar o jogo ou voltar ao menu sai do personagem (senão o motor segue com
+		await player_hud.logout()                    # o jogador presente e o mundo fica preso no tempo real)
 	if conversation != null:
 		await conversation.end_conversation()
 	if observer != null:

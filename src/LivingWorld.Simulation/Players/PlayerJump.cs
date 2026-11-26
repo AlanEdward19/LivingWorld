@@ -29,8 +29,10 @@ public static class PlayerJump
         if (now < npc.JumpUntilMs) return $"{PlayerCommands.Conflict} jump: ainda no ar (faltam {npc.JumpUntilMs - now} ms)";
         if (npc.SleepNeed.ValueAtMs(now) < rules.JumpMinSleep) return $"{PlayerCommands.Conflict} jump: {npc.Name} está exausto";
         if (npc.Health < rules.ExertionMinHealth) return $"{PlayerCommands.Conflict} jump: {npc.Name} está ferido ou fraco demais";
+        if (npc.AgeYears(world.CurrentDate) < rules.JumpMinAgeYears) return $"{PlayerCommands.Conflict} jump: {npc.Name} ainda é pequeno demais para pular";
+        if (npc.AgeYears(world.CurrentDate) > rules.JumpMaxAgeYears) return $"{PlayerCommands.Conflict} jump: {npc.Name} já não tem idade para pular";
         if (BodyMechanic.MovementCostMultiplier(world, npc) > rules.JumpMaxBodyCost)
-            return $"{PlayerCommands.Conflict} jump: o corpo de {npc.Name} não alcança o pulo (passada curta ou pesada)";
+            return $"{PlayerCommands.Conflict} jump: {npc.Name} é pequeno ou pesado demais para pular";
         if (BodyMechanic.WorkCapacityMultiplier(world, npc) < rules.JumpMinCapacity)
             return $"{PlayerCommands.Conflict} jump: {npc.Name} não tem força para pular";
         return null;

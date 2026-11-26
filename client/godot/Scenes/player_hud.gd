@@ -566,7 +566,7 @@ func _refused_step(response: Dictionary) -> void:
 	if response.status == 409 and (paused or "pausa" in error):
 		warning.emit("O mundo está pausado: o corpo só anda com o tempo correndo (Esc → Continuar, ou ▶ na barra do topo).")
 	elif error != "":
-		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ").trim_prefix("move: "))
+		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ").trim_prefix("move: ").trim_prefix("jump: "))
 
 
 ## #222: Espaço pula; o motor decide se o corpo consegue (cansaço, ferimento, idade) e por quanto tempo fica no ar.
@@ -782,12 +782,25 @@ func interact(entry: Dictionary) -> void:
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
-		_set_status(String(entry.get("text", "")))
+		if rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
+			warning.emit(done_text(entry, response.body))
+		else:
+			_set_status(String(entry.get("text", "")))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	else:
 		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
 		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou (erro %d)." % response.status)
+
+
+## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
+static func done_text(entry: Dictionary, body: Dictionary) -> String:
+	var text := String(entry.get("text", "")).get_slice(" (", 0)
+	var quantity := int(body.get("quantity", 0)) if body.get("quantity") != null else 0
+	var value := int(body.get("value", 0)) if body.get("value") != null else 0
+	if quantity > 0:
+		text += " · %d un." % quantity + (" por %d" % value if value > 0 else "")
+	return "✓ " + text
 
 
 func _offer_label(entry: Dictionary) -> String:

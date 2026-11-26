@@ -193,7 +193,7 @@ public class PlayerRunJumpTests
         Assert.True(service.Jump(w, "alan").IsSuccess);
         Assert.StartsWith(PlayerCommands.NotFound, service.Jump(w, "ninguem").Error);
 
-        foreach (var (min, max) in new[] { (0, 2), (90, 120) })
+        foreach (var (min, max) in new[] { (0, 1), (90, 120) }) // #222: aos 2 anos a criança já pula
         {
             var body = w.AliveNpcIndex.Alive.FirstOrDefault(n => n.ControllerId is null
                 && n.AgeYears(w.CurrentDate) >= min && n.AgeYears(w.CurrentDate) <= max);

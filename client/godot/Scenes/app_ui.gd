@@ -67,6 +67,9 @@ static func _top_bar(app, ui: Control) -> void:
 	app.breadcrumb = Label.new()
 	app.breadcrumb.text = "Mundo"
 	app.breadcrumb.add_theme_font_size_override("font_size", 19)
+	app.breadcrumb.clip_text = true # #222: nome longo corta em vez de empurrar os botões para fora da tela
+	app.breadcrumb.custom_minimum_size.x = 230
+	app.breadcrumb.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	app.breadcrumb.mouse_filter = Control.MOUSE_FILTER_STOP # #222: clicar no nome da cidade abre a ficha dela
 	app.breadcrumb.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	app.breadcrumb.tooltip_text = "Clique para ver a ficha da cidade"
@@ -75,13 +78,15 @@ static func _top_bar(app, ui: Control) -> void:
 			app._show_city_summary(String(app.store.city.id)))
 	bar.add_child(app.breadcrumb)
 	app.world_button = Button.new()
-	app.world_button.text = "◀ Mapa do mundo"
+	app.world_button.text = "◀ Mundo" # #222: curto (a barra estourava com nome de cidade longo)
 	app.world_button.tooltip_text = "Sai da cidade e mostra o mundo todo"
 	app.world_button.visible = false
 	app.world_button.pressed.connect(func(): app.enter_scope("World", ""))
 	bar.add_child(app.world_button)
 	app.follow_label = Label.new()
 	app.follow_label.add_theme_color_override("font_color", Color("9fe0a8"))
+	app.follow_label.clip_text = true
+	app.follow_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	bar.add_child(app.follow_label)
 	var left_spacer := Control.new()
 	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -94,6 +99,9 @@ static func _top_bar(app, ui: Control) -> void:
 	app.weather_label.add_theme_font_size_override("font_size", 15)
 	app.weather_label.add_theme_color_override("font_color", Color("cfe3f0"))
 	app.weather_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	app.weather_label.clip_text = true # #222: o detalhe do tempo vai na dica; na barra, o que couber
+	app.weather_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	app.weather_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	app.weather_label.visible = false
 	bar.add_child(app.weather_label)
 	var right_spacer := Control.new()
@@ -101,7 +109,8 @@ static func _top_bar(app, ui: Control) -> void:
 	bar.add_child(right_spacer)
 	app.pause_label = Label.new()
 	app.pause_label.clip_text = true
-	app.pause_label.custom_minimum_size.x = 120
+	app.pause_label.custom_minimum_size.x = 0 # #222: some antes de empurrar os botões
+	app.pause_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	app.pause_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	app.pause_label.size_flags_stretch_ratio = 4.0
 	app.pause_label.add_theme_color_override("font_color", Color("ffcf4a"))

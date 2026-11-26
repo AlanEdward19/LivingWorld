@@ -153,3 +153,17 @@ func test_every_player_verb_has_a_gesture_and_it_plays() -> void:
 	actor.play_gesture("inventado")
 	eq(actor.gesture_playing(), "", "gesto desconhecido não toca")
 	actor.free()
+
+
+## #222: o relógio estima o tempo pelo ritmo do motor: em tempo real (Δ 100 ms, 10 ticks/s) passa 1 s de mundo por segundo, não 1 hora.
+func test_the_clock_estimate_follows_the_engine_rhythm() -> void:
+	var real := App.hours_per_second({"ticksPerSecond": 1.0, "tickDeltaMs": 100, "loopTicksPerSecond": 10.0})
+	check(absf(real - 1.0 / 3600.0) < 1e-9, "tempo real: 1 s por segundo (%s h/s)" % real)
+	eq(App.hours_per_second({"ticksPerSecond": 4.0, "tickDeltaMs": 3600000, "loopTicksPerSecond": 4.0}), 4.0, "rápido: horas por tick × ticks")
+	eq(App.hours_per_second({"ticksPerSecond": 2.0}), 2.0, "servidor antigo: ticksPerSecond")
+
+
+## #222: interação aceita no modo jogador vira um aviso curto com o que o motor disse (quanto e por quanto).
+func test_an_accepted_interaction_says_what_happened() -> void:
+	eq(PlayerHud.done_text({"text": "Banca: Comprar Comida (4)"}, {"quantity": 1, "value": 4}), "✓ Banca: Comprar Comida · 1 un. por 4")
+	eq(PlayerHud.done_text({"text": "Porta: Entrar"}, {"quantity": null, "value": null}), "✓ Porta: Entrar")

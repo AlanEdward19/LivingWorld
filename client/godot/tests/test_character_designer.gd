@@ -355,7 +355,7 @@ func test_the_wizard_has_five_steps_and_next_needs_the_step_to_be_valid() -> voi
 	await designer.go_to(2)
 	await designer.go_to(3)
 	await designer.go_to(4)
-	eq(designer.next_button.text, "Criar e entrar")
+	eq(designer.next_button.text, "Criar e entrar  ✓")
 	check("Origem" in designer._review.text and "Identidade" in designer._review.text, designer._review.text)
 	await designer.go_to(0)
 	eq(designer.step_buttons[3].disabled, false, "etapas já visitadas abrem pelo topo")

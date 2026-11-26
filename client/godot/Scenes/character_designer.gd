@@ -553,7 +553,9 @@ func _update_attrs() -> void:
 		var traits: Array = TRAITS.duplicate()
 		traits.sort_custom(func(a, b): return int(personality.get(a[0], 0)) > int(personality.get(b[0], 0)))
 		var strongest: Array = traits.slice(0, 3).map(func(p): return p[1])
-		text = "O motor sorteou: saúde %d de 100 e, no jeito de ser, %s." % [int(state.health), ", ".join(strongest)]
+		# #222: frase inteira (antes "saúde 50 de 100 e, no jeito de ser, cuidado, ...")
+		var listed: String = ", ".join(strongest.slice(0, strongest.size() - 1)) + " e " + String(strongest.back()) if strongest.size() > 1 else ", ".join(strongest)
+		text = "O motor sorteou: saúde %d de 100; traços mais fortes: %s." % [int(state.health), listed]
 	_attrs_note.text = text
 
 
@@ -839,7 +841,14 @@ func _show_step() -> void:
 		_style_chip(i)
 	back_button.visible = step > 0
 	var last := step == STEPS.size() - 1
-	next_button.text = "Criar e entrar" if last else "Avançar  ›"
+	next_button.text = "Criar e entrar  ✓" if last else "Avançar  ›"
+	if last: # #222: a ação final em destaque (antes tinha o mesmo peso de "Voltar")
+		var accent := StyleBoxFlat.new()
+		accent.bg_color = Color("3a7d4f")
+		accent.set_corner_radius_all(8)
+		next_button.add_theme_stylebox_override("normal", accent)
+	else:
+		next_button.remove_theme_stylebox_override("normal")
 	next_button.disabled = not step_valid(step) or (last and state.is_empty())
 	_update_attrs()
 	_update_review()

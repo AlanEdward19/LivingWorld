@@ -31,7 +31,7 @@ static func escape(app) -> void:
 
 ## #222: no modo jogador só valem as teclas do jogador (Esc e F1 aqui; o resto é do player_hud e da câmera): os atalhos do
 ## espectador (B, R, T, M, N, V, L, F, X, P, H, Tab...) não disparam no meio do jogo.
-const PLAYER_KEYS := [KEY_ESCAPE, KEY_F1, KEY_F10]
+const PLAYER_KEYS := [KEY_ESCAPE, KEY_F1, KEY_F10, KEY_QUESTION, KEY_SLASH]
 
 
 static func handle(app, event: InputEvent) -> void:

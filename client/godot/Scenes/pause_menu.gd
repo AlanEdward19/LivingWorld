@@ -65,6 +65,8 @@ func toggle() -> void:
 
 
 func open() -> void:
+	if app != null and app.first_steps != null:
+		app.first_steps.close_help() # #222: a pausa não abre por cima da ajuda
 	visible = true
 	leave_button.visible = app != null and app.player_hud != null and app.player_hud.is_active
 	Kit.fade_in(self)

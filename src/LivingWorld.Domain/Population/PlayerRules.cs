@@ -143,6 +143,18 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? JumpMinCapacityValue { get; init; }
 
+    /// <summary>#222: abaixo desta idade (anos) o corpo ainda não pula (criança pequena); o custo do corpo deixou de barrar adulto pesado.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpMinAgeYearsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMinAgeYears => JumpMinAgeYearsValue ?? 2.0;
+
+    /// <summary>#222: acima desta idade (anos) o corpo já não pula (fragilidade da velhice), qualquer que seja o resto do corpo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpMaxAgeYearsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMaxAgeYears => JumpMaxAgeYearsValue ?? 88.0;
+
     [System.Text.Json.Serialization.JsonIgnore] public int CellCrowd => CellCrowdLimit ?? 3;
     [System.Text.Json.Serialization.JsonIgnore] public double RunFactor => RunFactorValue ?? 2.2;
     [System.Text.Json.Serialization.JsonIgnore] public double RunMaxMps => RunMaxMetersPerSecond ?? 4.5;
@@ -151,7 +163,7 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore] public double JumpMinSleep => JumpMinSleepValue ?? 15.0;
     [System.Text.Json.Serialization.JsonIgnore] public double JumpSleepCost => JumpSleepCostValue ?? 0.5;
     [System.Text.Json.Serialization.JsonIgnore] public int JumpAirMs => JumpAirMsValue ?? 500;
-    [System.Text.Json.Serialization.JsonIgnore] public double JumpMaxBodyCost => JumpMaxBodyCostValue ?? 1.2;
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMaxBodyCost => JumpMaxBodyCostValue ?? 1.8; // #222: 1,2 recusava adulto alto ou pesado comum
     [System.Text.Json.Serialization.JsonIgnore] public double JumpMinCapacity => JumpMinCapacityValue ?? 0.55;
 
     [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? LivingWorld.Domain.Geography.WorldScale.ReferenceWalkMps;
