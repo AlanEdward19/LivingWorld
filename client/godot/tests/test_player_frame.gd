@@ -130,3 +130,26 @@ func test_the_frame_shows_the_body_as_the_engine_says_and_the_paused_incarnate_r
 	var taken := hud._incarnate_error({"status": 409, "body": {"error": "conflict: NPC já tem controlador"}})
 	eq(taken, "Este NPC já é controlado por outro jogador.")
 	hud.free()
+
+
+const App := preload("res://Scenes/app.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
+
+
+## #224: todo verbo que o motor oferece ao jogador tem gesto (menos os que já são pose ou golpe), e o gesto conhecido toca.
+func test_every_player_verb_has_a_gesture_and_it_plays() -> void:
+	for verb in PlayerHud.VERB_TEXT:
+		if verb in ["strike"]:
+			continue # o golpe tem animação própria (play_strike)
+		check(App.GESTURE_BY_VERB.has(verb), "verbo sem gesto: %s" % verb)
+	var actor := NpcActor.new()
+	actor.setup(7, Vector2i(1, 1), 5, ActionLabels.new())
+	for kind in NpcActor.GESTURES:
+		actor.play_gesture(kind, 1.0)
+		actor.animate(0.3)
+		eq(actor.gesture_playing(), kind, "o gesto %s toca" % kind)
+	actor.animate(2.0)
+	eq(actor.gesture_playing(), "", "e termina")
+	actor.play_gesture("inventado")
+	eq(actor.gesture_playing(), "", "gesto desconhecido não toca")
+	actor.free()

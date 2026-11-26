@@ -392,6 +392,13 @@ static func run(app: Node, steps: Array) -> void:
 				var release: InputEventKey = press.duplicate()
 				release.pressed = false
 				Input.parse_input_event(release)
+			"gesture": # #224: `gesture:reach` toca um gesto no corpo do jogador (captura das animações)
+				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+				if own != null:
+					own.play_gesture(arg, 1.6)
+			"pitch": # #224: `pitch:-40` inclina o olhar do jogador (graus)
+				app.rig.pitch = deg_to_rad(float(arg))
+				app.rig._apply()
 			"sizes": # #222: tamanhos da ficha (depuração de layout)
 				var ins = app.inspector
 				print("sizes: inspector ", ins.size, " min ", ins.get_combined_minimum_size(), " side ", app.side_panel.size)

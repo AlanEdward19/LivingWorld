@@ -689,6 +689,18 @@ func aim_point() -> Vector2:
 
 
 ## AD-197j: o golpe saiu: o braço do personagem desce (a mesma pose para quem olha de fora).
+## #224: verbo aceito pelo motor -> gesto no corpo (o mesmo em 1ª e 3ª pessoa).
+const GESTURE_BY_VERB := {"take": "reach", "collect": "reach", "fill": "reach", "steal": "reach", "deposit": "give", "return": "give",
+	"buy": "give", "sell": "give", "abandon": "give", "drink": "drink", "eat": "eat", "enter": "push", "exit": "push", "up": "climb",
+	"down": "climb", "talk": "talk", "socialize": "talk", "work": "work", "sleep": "rest", "idle": "rest"}
+
+
+func _on_player_acted(verb: String) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null and GESTURE_BY_VERB.has(verb):
+		node.play_gesture(GESTURE_BY_VERB[verb])
+
+
 func _on_player_jumped(air_s: float) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
@@ -800,6 +812,21 @@ func _player_view_effects() -> void:
 					var other = world_view.npc_nodes.get(id)
 					if other != null and id != player_hud.npc_id and Vector2(other.position.x - own.position.x, other.position.z - own.position.z).length() < radius:
 						want[id] = true
+	if own != null and rig.mode == rig.THIRD: # #224: em 3ª pessoa, quem está colado no corpo do lado da câmera some (o corpo fica à vista)
+		var cam: Vector3 = rig.camera.global_position if rig.camera.is_inside_tree() else own.position
+		var toward := Vector2(cam.x - own.position.x, cam.z - own.position.z)
+		var reach: float = Grid.units(2.0)
+		var base3 := Grid.to_cell(own.position)
+		for dx in range(-2, 3):
+			for dz in range(-2, 3):
+				for id in world_view.npcs.cell_members.get(base3 + Vector2i(dx, dz), []):
+					var other = world_view.npc_nodes.get(id)
+					if other == null or id == player_hud.npc_id:
+						continue
+					var rel := Vector2(other.position.x - own.position.x, other.position.z - own.position.z)
+					if rel.length() < reach and toward.length() > 0.01 and rel.dot(toward.normalized()) > 0.0 \
+							and absf(rel.cross(toward.normalized())) < Grid.units(0.9):
+						want[id] = true
 	for id in _eye_hidden.keys():
 		if not want.has(id):
 			var back = world_view.npc_nodes.get(id)
@@ -810,6 +837,10 @@ func _player_view_effects() -> void:
 		if not _eye_hidden.has(id):
 			world_view.npc_nodes[id].set_eye_hidden(true)
 			_eye_hidden[id] = true
+	if own != null: # #224: em 1ª pessoa o corpo olha para onde a câmera olha (as mãos entram no quadro); correr vem do motor
+		if rig.mode == rig.FIRST:
+			own.rotation.y = rig.yaw + PI
+		own.running = player_hud.running and own.is_moving()
 	var mark: int = player_hud.npc_id if own != null and rig.mode == rig.THIRD and not rig.opened_ids().is_empty() else -1
 	if mark != _marked:
 		var old = world_view.npc_nodes.get(_marked)

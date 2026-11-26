@@ -227,6 +227,7 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.frame = app.player_frame
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
 	app.player_hud.jumped.connect(app._on_player_jumped)
+	app.player_hud.acted.connect(app._on_player_acted)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
 	app.crosshair.add_theme_font_size_override("font_size", 28)

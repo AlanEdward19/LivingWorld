@@ -802,6 +802,74 @@ func play_jump(air_s: float) -> void:
 	_jump_air = maxf(0.15, air_s)
 
 
+## #224: gesto curto por cima da pose (o verbo que o motor aceitou: pegar, dar, beber, comer, empurrar a porta, subir, conversar,
+## trabalhar). Toca igual em 1ª e 3ª pessoa; em 1ª as mãos sobem para dentro do quadro.
+const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest"]
+var _gesture := ""
+var _gesture_from := -1.0
+var _gesture_len := 0.0
+var running := false ## #224: o motor disse que o corpo corre (só o do jogador): passada mais larga e rápida, corpo inclinado
+
+
+func play_gesture(kind: String, seconds: float = 0.9) -> void:
+	if not kind in GESTURES:
+		return
+	_gesture = kind
+	_gesture_from = _clock
+	_gesture_len = maxf(0.2, seconds)
+
+
+func gesture_playing() -> String:
+	return _gesture if _gesture_from >= 0.0 and _clock < _gesture_from + _gesture_len else ""
+
+
+func _apply_gesture() -> void:
+	var t := (_clock - _gesture_from) / _gesture_len
+	var k := sin(clampf(t, 0.0, 1.0) * PI) # sobe e volta
+	match _gesture:
+		"reach": # agacha e estende as duas mãos ao chão/à prateleira (pegar, recolher, encher o cântaro)
+			_body.rotation.x = 0.55 * k
+			_body.position.y = -0.08 * k
+			_arms[0].rotation.x = -1.1 * k
+			_arms[1].rotation.x = -1.3 * k
+			_legs[0].rotation.x = 0.4 * k
+			_legs[1].rotation.x = 0.4 * k
+		"give": # estende a mão para a frente (guardar, devolver, comprar, vender)
+			_arms[1].rotation.x = -1.55 * k
+			_arms[0].rotation.x = -0.4 * k
+			_body.rotation.x = 0.12 * k
+		"drink": # leva a mão à boca e inclina a cabeça para trás
+			_arms[1].rotation.x = -2.5 * k
+			_arms[1].rotation.z = 0.35 * k
+			_head.rotation.x = -0.3 * k
+		"eat": # mão à boca, mastigando
+			_arms[1].rotation.x = -2.2 * k + sin(_clock * 12.0) * 0.15 * k
+			_arms[1].rotation.z = 0.3 * k
+			_head.rotation.x = 0.1 * k
+		"push": # empurra a porta com as duas mãos e dá um passo
+			_arms[0].rotation.x = -1.6 * k
+			_arms[1].rotation.x = -1.6 * k
+			_legs[1].rotation.x = -0.4 * k
+			_body.rotation.x = 0.15 * k
+		"climb": # passos altos alternados (escada)
+			_legs[0].rotation.x = -0.9 * maxf(0.0, sin(t * TAU * 2.0))
+			_legs[1].rotation.x = -0.9 * maxf(0.0, -sin(t * TAU * 2.0))
+			_arms[0].rotation.x = 0.5 * sin(t * TAU * 2.0)
+			_arms[1].rotation.x = -0.5 * sin(t * TAU * 2.0)
+			_body.position.y = 0.05 * absf(sin(t * TAU * 2.0))
+		"talk": # gesticula com as mãos à frente
+			_arms[0].rotation.x = -1.0 * k + sin(_clock * 6.0) * 0.25 * k
+			_arms[1].rotation.x = -1.2 * k + cos(_clock * 5.0) * 0.3 * k
+			_head.rotation.y = sin(_clock * 3.0) * 0.25 * k
+		"work": # golpe de ferramenta para a frente
+			_arms[1].rotation.x = -2.4 * k + sin(t * TAU * 2.0) * 0.8 * k
+			_arms[0].rotation.x = -1.2 * k
+			_body.rotation.x = 0.2 * k
+		"rest": # deixa o corpo cair (deitar, sentar)
+			_body.position.y = -0.1 * k
+			_head.rotation.x = 0.3 * k
+
+
 var _jump_from := -1.0
 var _jump_air := 0.0
 const JUMP_HEIGHT := 0.22 ## altura do salto em unidades do boneco (~0,4 m num adulto)
@@ -888,6 +956,16 @@ func _animate() -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
+	if effective == "walk" and running: # #224: correr: passada mais rápida e larga, corpo inclinado
+		var stride := sin(_clock * 15.0 + float(npc_id))
+		_legs[0].rotation.x = stride * 1.0
+		_legs[1].rotation.x = -stride * 1.0
+		_arms[0].rotation.x = -stride * 0.9
+		_arms[1].rotation.x = stride * 0.9
+		_body.rotation.x = 0.25
+		_body.position.y = absf(stride) * 0.06
+	if gesture_playing() != "": # por cima da pose: o gesto do verbo aceito
+		_apply_gesture()
 	if _jump_from >= 0.0 and _clock < _jump_from + _jump_air: # por cima da pose: o pulo
 		var t := (_clock - _jump_from) / _jump_air
 		var lift := 4.0 * JUMP_HEIGHT * t * (1.0 - t)

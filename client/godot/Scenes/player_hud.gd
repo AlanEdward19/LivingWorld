@@ -16,6 +16,7 @@ signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
+signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
@@ -774,6 +775,7 @@ func interact(entry: Dictionary) -> void:
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
+		acted.emit(String(entry.verb))
 		var pose = response.body.get("pose")
 		if pose is Dictionary:
 			_pace(pose)

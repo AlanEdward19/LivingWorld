@@ -188,8 +188,15 @@ func test_first_person_hides_whoever_is_at_the_eye_and_top_view_marks_the_own_bo
 	beto.position = Vector3(5.5 + app.rig.near_person() * 0.5, 0, 5.5)
 	app._player_view_effects()
 	app.rig.set_mode(app.rig.THIRD)
+	var cam: Vector3 = app.rig.camera.global_position
+	var toward := Vector3(cam.x - ana.position.x, 0, cam.z - ana.position.z).normalized()
+	beto.position = ana.position - toward * app.rig.near_person() * 0.8 # na frente do corpo, longe da câmera
 	app._player_view_effects()
-	check(beto.visible, "fora da 1ª pessoa ninguém fica escondido")
+	check(beto.visible, "em 3ª pessoa, quem está à frente do corpo continua à vista")
+	beto.position = ana.position + toward * app.rig.near_person() * 0.8 # #224: entre a câmera e o corpo
+	app._player_view_effects()
+	check(not beto.visible, "e quem tapa o corpo do lado da câmera some")
+	beto.position = Vector3(5.5 + app.rig.near_person() * 2.0, 0, 5.5)
 	app.rig._opened = {4: true}
 	app._player_view_effects()
 	check(ana.marked, "de cima, dentro de casa, o próprio corpo leva o anel")
