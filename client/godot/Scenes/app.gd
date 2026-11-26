@@ -583,7 +583,7 @@ func open_creator() -> void:
 		toasts.push("Você já controla alguém: saia do personagem antes de entrar como pessoa nova.")
 		return
 	creator.reveal()
-	router.opened(creator) # AD-197q: encaixada na área central, abaixo da barra (não no canto, por cima da trilha)
+	router.opened(creator) # #222: janela central sobre a tela toda (fora do encaixe); Esc a fecha como as demais
 	await creator.open()
 
 

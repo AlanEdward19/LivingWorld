@@ -1,24 +1,29 @@
-extends PanelContainer
-## Criar a pessoa e entrar no mundo. O motor diz de onde dá para sair (`/players/origins`). Dois modos:
-## - "Montar" (AD-197t, o padrão): o criador de verdade (`character_designer.gd`): nome, idade, traços, família ou chegada de fora,
-##   dinheiro e aparência; o motor valida e devolve a pessoa.
-## - "Sortear alguém da cidade" (AD-197q): candidatos do agregado (`/players/{id}/candidates`), escolhido um, o motor o materializa
-##   e encarna (`/players/{id}/create`). Aqui não se monta nada: se estreita o filtro, se pede outra amostra e se entra.
+extends Control
+## Criar a pessoa e entrar no mundo (#222): uma janela grande no centro da tela, em etapas (`character_designer.gd`). O motor diz de
+## onde dá para sair (`/players/origins`). Dois modos:
+## - "Montar" (AD-197t, o padrão): o criador de verdade: origem, identidade, aparência e atributos; o motor valida e devolve a pessoa.
+## - "Sortear alguém da cidade" (AD-197q, atalho discreto): candidatos do agregado (`/players/{id}/candidates`), escolhido um, o motor o
+##   materializa e encarna (`/players/{id}/create`). Aqui não se monta nada: se estreita o filtro, se pede outra amostra e se entra.
 
 signal closed()
 signal warning(text: String)
 signal entered(npc_id: int, name: String, city_id: String)
 
 const Designer := preload("res://Scenes/character_designer.gd")
+const MenuKit := preload("res://Scenes/menu/menu_kit.gd")
 const SEXES := [["", "Qualquer sexo"], ["Female", "Mulher"], ["Male", "Homem"]]
 const TRAITS := {"extroversion": "expansividade", "agreeableness": "amabilidade", "conscientiousness": "cuidado", "emotionalStability": "serenidade",
 	"openness": "curiosidade", "ambition": "ambição", "loyalty": "lealdade", "altruism": "generosidade", "impulsivity": "impulsividade",
 	"riskAversion": "cautela"}
+const WIDTH := 1180.0
+const HEIGHT := 760.0
 
 var mode := "design" ## "design" (montar) ou "sample" (sortear do agregado)
 var designer
-var mode_select: OptionButton
+var frame: PanelContainer
+var sample_button: Button
 var _sample_box: VBoxContainer
+var _city_row: HBoxContainer
 var hud ## o HUD do jogador (sessão, playerId, e quem fica ativo ao entrar)
 var api
 var is_open := false
@@ -41,44 +46,67 @@ var _request := 0
 
 func _init() -> void:
 	visible = false
-	custom_minimum_size = Vector2(760, 0)
+	mouse_filter = Control.MOUSE_FILTER_STOP # a janela cobre a tela: nada por baixo recebe clique
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.03, 0.05, 0.62)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	frame = PanelContainer.new()
+	frame.custom_minimum_size = Vector2(760, 520)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.08, 0.12, 0.97)
+	style.set_corner_radius_all(18)
+	style.set_border_width_all(1)
+	style.border_color = Color(1, 1, 1, 0.12)
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 24
+	for side in [SIDE_LEFT, SIDE_RIGHT]:
+		style.set_content_margin(side, 28)
+	style.set_content_margin(SIDE_TOP, 20)
+	style.set_content_margin(SIDE_BOTTOM, 22)
+	frame.add_theme_stylebox_override("panel", style)
+	center.add_child(frame)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	add_child(box)
+	box.add_theme_constant_override("separation", 12)
+	frame.add_child(box)
 	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
 	box.add_child(header)
 	var title := Label.new()
 	title.text = "Criar a minha pessoa"
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", 28)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
-	var close_button := Button.new()
-	close_button.text = "Fechar (Esc)"
-	close_button.pressed.connect(func(): close())
-	header.add_child(close_button)
-	var note := Label.new()
-	note.text = "Monte a pessoa que quiser: o motor confere tudo, sorteia o que você deixar em branco e a faz viver como qualquer habitante."
-	note.modulate = Color(1, 1, 1, 0.75)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(note)
-	var top := HFlowContainer.new()
-	box.add_child(top)
+	sample_button = MenuKit.button("Sortear alguém da cidade", header, func(): set_mode("design" if mode == "sample" else "sample"))
+	sample_button.tooltip_text = "Atalho: o motor tira alguém da população da cidade (ninguém é criado do nada)"
+	sample_button.flat = true
+	var close_button := MenuKit.button("Fechar (Esc)", header, func(): close())
+	close_button.custom_minimum_size.x = 140
 	city_select = OptionButton.new()
+	city_select.custom_minimum_size = Vector2(0, 40)
+	city_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	city_select.item_selected.connect(func(_i: int): _city_changed())
-	top.add_child(city_select)
-	mode_select = OptionButton.new()
-	mode_select.add_item("Montar a minha pessoa")
-	mode_select.add_item("Sortear alguém da cidade")
-	mode_select.tooltip_text = "Sortear: o motor tira alguém da população da cidade (ninguém é criado do nada)"
-	mode_select.item_selected.connect(func(i: int): set_mode("design" if i == 0 else "sample"))
-	top.add_child(mode_select)
 	designer = Designer.new()
 	designer.hud = hud
+	designer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	designer.created.connect(func(id: int, who: String, city: String): _entered(id, who, city))
 	designer.warning.connect(func(text: String): warning.emit(text))
 	box.add_child(designer)
+	var city_title := Label.new()
+	city_title.text = "Cidade"
+	city_title.custom_minimum_size.x = 190
+	_city_row = HBoxContainer.new()
+	_city_row.add_theme_constant_override("separation", 10)
+	_city_row.add_child(city_title)
+	_city_row.add_child(city_select)
+	designer.city_slot.add_child(_city_row)
 	_sample_box = VBoxContainer.new()
 	_sample_box.add_theme_constant_override("separation", 8)
+	_sample_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(_sample_box)
 	var filters := HFlowContainer.new()
 	_sample_box.add_child(filters)
@@ -103,7 +131,7 @@ func _init() -> void:
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message.add_theme_color_override("font_color", Color("ffcf4a"))
 	_sample_box.add_child(_message)
-	var scroll := ScrollContainer.new() # a área central do roteador é baixa: os cartões rolam dentro da janela
+	var scroll := ScrollContainer.new() # os cartões rolam dentro da janela
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size.y = 220
@@ -114,13 +142,18 @@ func _init() -> void:
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(_grid)
+	resized.connect(_fit)
 	_apply_mode()
+
+
+## A janela ocupa a tela com folga, até um teto legível.
+func _fit() -> void:
+	frame.custom_minimum_size = Vector2(clampf(size.x - 80.0, 760.0, WIDTH), clampf(size.y - 70.0, 540.0, HEIGHT))
 
 
 ## Troca entre montar a pessoa e sortear do agregado; abre a cidade escolhida no modo novo.
 func set_mode(next: String) -> void:
 	mode = next
-	mode_select.select(0 if next == "design" else 1)
 	_apply_mode()
 	await _city_changed()
 
@@ -128,6 +161,12 @@ func set_mode(next: String) -> void:
 func _apply_mode() -> void:
 	designer.visible = mode == "design"
 	_sample_box.visible = mode == "sample"
+	sample_button.text = "Sortear alguém da cidade" if mode == "design" else "Voltar a montar a minha pessoa"
+	var home: Control = designer.city_slot if mode == "design" else _sample_box # a escolha da cidade mora na etapa 1 ou nos filtros
+	if _city_row.get_parent() != home:
+		_city_row.reparent(home, false)
+		if home == _sample_box:
+			_sample_box.move_child(_city_row, 0)
 
 
 func _city_changed() -> void:
@@ -150,18 +189,20 @@ func _age_box(prefix: String, value: int) -> SpinBox:
 	return spin
 
 
-## Fica aberta já (o roteador só encaixa janela aberta: abaixo da barra, na área central).
+## Fica aberta já (o roteador a põe na frente; ela não se encaixa: é a janela central da tela).
 func reveal() -> void:
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT) # cobre a tela; a janela fica no centro
 	is_open = true
 	visible = true
+	_fit()
 
 
 ## Abre e pergunta ao motor de onde dá para sair; a cidade com mais gente no agregado vem primeiro. `open_mode`: "design" (montar,
 ## o padrão) ou "sample" (sortear alguém do agregado).
 func open(open_mode: String = "design") -> void:
 	mode = open_mode
-	mode_select.select(0 if mode == "design" else 1)
 	_apply_mode()
+	designer.restart()
 	reveal()
 	_request += 1
 	var mine := _request
@@ -175,6 +216,7 @@ func open(open_mode: String = "design") -> void:
 		city_select.set_item_metadata(city_select.item_count - 1, String(city.cityId))
 	if origins.is_empty():
 		_show_message("Não há cidade no mundo agora.")
+		designer._show_message(message, 0)
 		return
 	await _city_changed()
 

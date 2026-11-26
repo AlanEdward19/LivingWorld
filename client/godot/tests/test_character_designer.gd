@@ -159,6 +159,14 @@ func test_an_incoherent_choice_shows_the_engine_reason_and_blocks_creating() -> 
 	await designer.refresh()
 
 	eq(designer.message, "idade fora da longevidade: de 18 a 89 anos")
+	eq(designer.error_step, 1, "a idade é da etapa Identidade")
+	eq(designer.step_valid(0), true, "a etapa 1 segue livre: o erro é da etapa 2")
+	await designer.go_to(1)
+	eq(designer.create_button.disabled, true, "a etapa com o erro não deixa avançar")
+	eq(designer._banners[1].visible, true, "o aviso aparece na página da etapa que o causou")
+	eq(designer._banners[1].text, "idade fora da longevidade: de 18 a 89 anos")
+	designer.step = 4
+	designer._show_step()
 	eq(designer.create_button.disabled, true, "sem prévia aceita não cria")
 	eq(designer.figure.actor, null, "nada desenhado do que o motor recusou")
 	await designer.create()
@@ -316,3 +324,116 @@ func test_when_nobody_allows_the_link_the_screen_explains_the_engine_reason() ->
 	eq(designer.via_select.get_parent().visible, false)
 	_free(creator)
 
+
+
+func test_the_wizard_has_five_steps_and_next_needs_the_step_to_be_valid() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+
+	eq(designer.STEPS.size(), 5)
+	eq(designer.step, 0)
+	eq(designer.step_buttons[1].disabled, true, "as etapas à frente só se abrem pelo Avançar")
+	designer.role_select.select(5) # tio: ninguém serve
+	designer._refill_families()
+	eq(designer.step_valid(0), false, "sem parente que o motor aceite, a etapa 1 não avança")
+	eq(designer.next_button.disabled, true)
+	await designer.go_to(1)
+	eq(designer.step, 0, "não passa de etapa inválida")
+	designer.role_select.select(0)
+	designer._refill_families()
+	eq(designer.next_button.disabled, false)
+	var calls: int = transport.bodies[PREVIEW].size()
+	designer.next_button.pressed.emit()
+	await tree.process_frame
+	await tree.process_frame
+	eq(designer.step, 1, "Avançar vai à etapa 2")
+	check(transport.bodies[PREVIEW].size() > calls, "trocar de etapa roda a prévia do motor")
+	await designer.go_to(4)
+	eq(designer.step, 1, "pular etapas não vale")
+	await designer.go_to(2)
+	await designer.go_to(3)
+	await designer.go_to(4)
+	eq(designer.next_button.text, "Criar e entrar")
+	check("Origem" in designer._review.text and "Identidade" in designer._review.text, designer._review.text)
+	await designer.go_to(0)
+	eq(designer.step_buttons[3].disabled, false, "etapas já visitadas abrem pelo topo")
+	_free(creator)
+
+
+func test_changes_are_debounced_and_the_bars_show_what_the_engine_drew_for_what_was_left_blank() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+	var calls: int = transport.bodies[PREVIEW].size()
+
+	designer.name_edit.text = "Ana"
+	designer._changed()
+	designer.name_edit.text = "Ana B"
+	designer._changed()
+	eq(transport.bodies[PREVIEW].size(), calls, "ainda não pediu: espera ~0,4 s")
+	eq(designer._timer.wait_time, 0.4)
+	check(not designer._timer.is_stopped(), "o atraso está armado")
+	check("Sorteada Dias" in designer.name_edit.placeholder_text, "o nome sorteado pelo motor vira a sugestão")
+	eq(designer.fields["look.hairTone"].known, true, "a barra do cabelo mostra o que o motor sorteou")
+	eq(designer.fields["look.hairTone"].input.value, 40.0)
+	eq(designer._on("look.hairTone"), false, "e continua em branco: não vai na escolha")
+	check("motor:" in designer.fields["look.hairTone"].label.text, designer.fields["look.hairTone"].label.text)
+	_free(creator)
+
+
+func test_random_per_group_marks_only_that_group_and_motor_decides_clears_it() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+
+	designer._randomize_look(["look.skinTone"])
+	await designer.refresh()
+	eq(transport.bodies[PREVIEW].back().look.keys(), ["skinTone"], "só a pele foi para o motor")
+	designer._randomize_look(["outfit"])
+	await designer.refresh()
+	check(transport.bodies[PREVIEW].back().look.has("outfit"), "o traje sorteado vai ao motor")
+	designer._clear_keys(["look.skinTone", "outfit"])
+	await designer.refresh()
+	check(not transport.bodies[PREVIEW].back().has("look"), "o motor volta a decidir")
+	_free(creator)
+
+
+func test_attributes_are_optional_and_collapsed_until_asked() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+
+	eq(designer._attrs_box.visible, false, "recolhido")
+	check("O motor sorteou" in designer._attrs_note.text, designer._attrs_note.text)
+	designer._toggle_attrs()
+	eq(designer._attrs_box.visible, true)
+	designer.set_field("trait.ambition", 90)
+	designer.set_field("health", 70)
+	await designer.refresh()
+	eq(transport.bodies[PREVIEW].back().traits, {"ambition": 90})
+	designer._toggle_attrs() # "deixar o motor decidir": desmarca tudo
+	await designer.refresh()
+	check(not transport.bodies[PREVIEW].back().has("traits") and not transport.bodies[PREVIEW].back().has("health"))
+	_free(creator)
+
+
+func test_a_family_error_is_shown_on_the_origin_step_even_from_a_later_one() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+	await designer.go_to(1)
+	transport.on(PREVIEW, {"status": 409, "body": {"error": "conflict: Davi Souza não aceita: sem afinidade com essa pessoa"}})
+
+	await designer.refresh()
+
+	eq(designer.error_step, 0)
+	eq(designer._banners[0].visible, true)
+	check("etapa 1" in designer._message.text and "Origem" in designer._message.text, designer._message.text)
+	eq(designer.next_button.disabled, true, "volte à etapa que o motor apontou")
+	_free(creator)

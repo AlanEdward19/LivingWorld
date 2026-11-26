@@ -94,7 +94,7 @@ AD-197k (passo solto, olhar sem botão), contra `21c793fe` (medianas): `stress` 
 `benchbig` 138,7 → 138,8, `benchrun` 60,2 → 59,8 FPS; 3ª pessoa 67,5. Passo solto: mediana 0,575 m/s; `walk` 0,086 ms no canal.
 AD-197r (câmera em passagem estreita, olhos pelo corpo, pessoas sem se sobrepor só no desenho), contra `e7727571` (medianas de 3): `stress` 115,5 → 115,6,
 `bench` 171,0 → 169,3, `benchbig` 136,2 → 136,8, `benchrun` 59,2 → 58,8; 3ª pessoa pareada (`tools/bench-third-paired.sh`, mesmo corpo) 118,8 → 118,7. `npc_avoid` 0,10 ms/quadro.
-AD-197q/t (criador de personagem; AD-197t monta a pessoa, prévia pelo estado do motor), contra `3eba4fe7`: `stress` 116,0/116,0/115,4 → 115,3/115,5/116,2.
+#222 (criador em etapas: janela central, 5 etapas, boneco girando num SubViewport que só desenha com o criador aberto; fechado não custa quadro, sem medição de `stress` nesta rodada), AD-197q/t (criador de personagem; AD-197t monta a pessoa, prévia pelo estado do motor), contra `3eba4fe7`: `stress` 116,0/116,0/115,4 → 115,3/115,5/116,2.
 AD-197s (3ª pessoa com o corpo à vista, translucidez que sobrevive ao redesenho, 1ª pessoa fora da parede), contra `c0979602` (medianas de 3): `stress` 115,6 → 115,3,
 `bench` 170,1 → 171,1, `benchbig` 136,9 → 137,3, `benchrun` 57,9 → 58,5; 3ª pessoa pareada (`tools/bench-third-paired.sh`) 120,5 → 120,8 (máquina ruidosa: 110 a 148 nas duas pontas).
 AD-197s3 (câmera do jogador em metros do motor, histerese cômodo/telhado, ombro antes de subir), contra `70e76523` (medianas de 3): `stress` 115,8 → 116,0,

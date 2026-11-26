@@ -10,28 +10,41 @@ var actor: Node3D
 var last_look: Dictionary = {} ## o que foi entregue ao ator (para os testes e a captura)
 var last_height_m := 0.0
 var _viewport: SubViewport
+const SPIN_RAD_S := 0.5 ## giro lento do boneco; só gira visível e com alguém desenhado (o criador fechado não custa nada)
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(220, 300)
+	custom_minimum_size = Vector2(300, 400)
 	stretch = true
 	_viewport = SubViewport.new()
-	_viewport.size = Vector2i(220, 300)
+	_viewport.size = Vector2i(300, 400)
 	_viewport.own_world_3d = true
 	_viewport.transparent_bg = true
 	add_child(_viewport)
 	var camera := Camera3D.new()
 	camera.fov = 28.0
-	camera.position = Vector3(0.0, 0.95, 3.0)
-	camera.basis = Basis.looking_at(Vector3(0.0, 0.85, 0.0) - camera.position, Vector3.UP)
+	camera.position = Vector3(0.0, 1.05, 4.7)
+	camera.basis = Basis.looking_at(Vector3(0.0, 0.88, 0.0) - camera.position, Vector3.UP)
 	_viewport.add_child(camera)
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-35, -25, 0)
 	_viewport.add_child(light)
+	var floor := MeshInstance3D.new() # um disco no chão para o boneco não flutuar
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.6
+	disc.bottom_radius = 0.6
+	disc.height = 0.03
+	floor.mesh = disc
+	floor.position = Vector3(0.0, -0.016, 0.0)
+	var floor_material := StandardMaterial3D.new()
+	floor_material.albedo_color = Color(0.2, 0.24, 0.33)
+	floor.material_override = floor_material
+	_viewport.add_child(floor)
 	var fill := OmniLight3D.new()
 	fill.position = Vector3(1.5, 1.6, 2.5)
 	fill.light_energy = 0.6
 	_viewport.add_child(fill)
+	set_process(false)
 
 
 ## Entrega ao corpo o estado que o motor validou. Sem `look` (resposta vazia) apaga o desenho.
@@ -48,6 +61,12 @@ func show_character(character: Dictionary) -> void:
 	actor.position = Vector3.ZERO
 	actor.scale = Vector3.ONE * clampf(last_height_m / ADULT_HEIGHT_M, 0.7, 1.25)
 	_viewport.add_child(actor)
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	if actor != null and is_visible_in_tree():
+		actor.rotation.y = wrapf(actor.rotation.y + delta * SPIN_RAD_S, -PI, PI)
 
 
 func clear() -> void:
@@ -56,3 +75,4 @@ func clear() -> void:
 	if actor != null:
 		actor.queue_free()
 		actor = null
+	set_process(false)
