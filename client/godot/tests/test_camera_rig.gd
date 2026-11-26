@@ -436,7 +436,7 @@ func test_room_distance_follows_the_engine_scale() -> void:
 	Grid.cell_meters = 0.5
 	var b := CameraRig.room_arm()
 	Grid.cell_meters = before
-	check(absf(a - 2.0 / 1.5) < 0.001 and absf(b - 4.0) < 0.001, "2 m em unidades da grade (%s, %s)" % [a, b])
+	check(absf(a - 1.0 / 1.5) < 0.001 and absf(b - 2.0) < 0.001, "1 m em unidades da grade (%s, %s)" % [a, b]) # #222
 
 
 # --- AD-197s3: escala em metros, histerese cômodo/telhado, ombro antes de subir ------------------------------------------
@@ -513,3 +513,12 @@ func test_shoulder_framing_turns_to_aim_at_the_body() -> void:
 		var yaw_off := rad_to_deg(flat_forward.angle_to(flat_to_body))
 		check(absf(yaw_off) < 3.0, "o corpo está no eixo da tela (%s graus de lado)" % yaw_off)
 		rig.free()
+
+
+## #222: encostado na parede (olho sob o beiral do vizinho), olhando para longe dele, a câmera fica no braço cheio, não colada no corpo.
+func test_body_against_a_wall_under_the_eave_keeps_the_full_arm() -> void:
+	var box := AABB(Vector3(0, 0, 0), Vector3(4, 3, 4))
+	var boxes := [[5, box, box.grow(0.3)]]
+	var eye := Vector3(-0.1, 1.4, 2.0) # fora da caixa, dentro da casca (beiral)
+	var plan := CameraRig.plan_third(eye, -PI / 2.0, 0.0, CameraRig.third_distance(), boxes, 1.0) # olhando para +x: as costas para longe da parede
+	check(plan.arm >= CameraRig.third_distance() * CameraRig.COMFORT, "braço cheio (%s)" % plan.arm)

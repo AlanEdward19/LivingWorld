@@ -28,7 +28,7 @@ const NEAR_THIRD_M := 0.075
 const NEAR_FIRST_M := 0.15 ## AD-197s: ~ raio da cabeça: nada mais perto que isto atravessa o olho
 const EYE_CLEAR_M := 0.18 ## e o olho não chega mais perto que isto de uma parede por fora
 const AWAIT_LIFT_M := 12.0 ## sem corpo para seguir (a pessoa nova chega no próximo delta) a 3ª pessoa fica no alto, nunca dentro de um prédio
-const ROOM_ARM_M := 2.0 ## AD-197s2: dentro de casa a câmera fica no cômodo se couber isto atrás do corpo; senão sobe acima do telhado
+const ROOM_ARM_M := 1.0 ## AD-197s2: dentro de casa a câmera fica no cômodo se couber isto atrás do corpo; senão sobe acima do telhado. #222: 1 m (de ombro, como em RPG); com 2 m quase nenhum cômodo cabia e a câmera ia a prumo
 const NEAR_PERSON_M := 1.0 ## na 1ª pessoa quem está a menos disto do olho não se desenha (o espaçamento mínimo entre corpos parados é ~0,9 m)
 const CEILING_M := 0.2 ## folga da câmera até o teto do andar
 ## Distâncias em metros do motor viram unidades da grade (a escala do mundo muda): nada fixo na escala de hoje.
@@ -390,6 +390,7 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 				break
 		return {"arm": arm, "lift": room, "shoulder": 0.0}
 	var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
+	boxes = under_eave(eye, boxes) # #222: encostado na parede, o olho fica sob o beiral: dali conta a parede, não o beiral
 	var best := {"arm": -1.0, "lift": 0.0, "shoulder": 0.0}
 	for option in third_options(scale):
 		var origin: Vector3 = eye + Vector3(0, option[0], 0) + right * option[1]
@@ -466,6 +467,18 @@ static func floor_lift(eye: Vector3, boxes: Array) -> float:
 			var ceiling := raw.position.y + (floorf((eye.y - raw.position.y) / floor_h) + 1.0) * floor_h
 			return maxf(0.0, ceiling + arm_margin() - eye.y)
 	return 0.0
+
+
+## #222: o olho fora da caixa mas dentro da casca (rente à parede, sob o beiral): a casca desse prédio vira a própria caixa. Antes o raio
+## ignorava o prédio e o ponto final caía no beiral, e o braço ia ao mínimo (câmera colada no corpo).
+static func under_eave(eye: Vector3, boxes: Array) -> Array:
+	var out: Array = []
+	for entry in boxes:
+		if not (entry[1] as AABB).has_point(eye) and shell_of(entry).has_point(eye):
+			out.append([entry[0], entry[1], entry[1]] + (entry.slice(3) if entry.size() > 3 else []))
+		else:
+			out.append(entry)
+	return out
 
 
 ## A casca de uma entrada: a 3ª coluna se houver, senão a própria caixa.
