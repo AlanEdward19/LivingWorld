@@ -19,7 +19,7 @@ func test_every_group_size_keeps_bodies_apart_deterministically() -> void:
 			for b in offsets:
 				if a != b:
 					worst = minf(worst, (offsets[a] as Vector3).distance_to(offsets[b]))
-		check(worst >= NpcRenderer.PERSONAL - 0.02, "grupo de %d: o mais perto está a %s" % [count, worst])
+		check(worst >= NpcRenderer.personal() - 0.02, "grupo de %d: o mais perto está a %s" % [count, worst])
 		eq(NpcRenderer.spread_offsets(ids.duplicate()), offsets, "mesmo grupo, mesmos lugares (%d)" % count)
 		var reversed := ids.duplicate()
 		reversed.reverse()
@@ -44,7 +44,7 @@ func test_five_people_in_one_workplace_cell_are_apart_and_the_engine_state_is_un
 			var a: Vector3 = app.world_view.npc_nodes[50 + i].position
 			var b: Vector3 = app.world_view.npc_nodes[50 + j].position
 			worst = minf(worst, Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z)))
-	check(worst >= NpcRenderer.PERSONAL - 0.02, "ninguém empilhado: o mais perto está a %s" % worst)
+	check(worst >= NpcRenderer.personal() - 0.02, "ninguém empilhado: o mais perto está a %s" % worst)
 	var snapshot: Dictionary = app.store.npcs[50].duplicate(true)
 	for i in 30:
 		app.world_view.npcs.advance(0.05, Vector3.ZERO, 40.0, false, false)
@@ -86,3 +86,29 @@ func test_steering_is_lateral_deterministic_and_zero_when_nobody_is_near() -> vo
 	check(absf(a.x) < 0.001 and a.z < -0.1, "lateral e para o lado oposto ao do parado: %s" % a)
 	eq(NpcRenderer.steer_away(Vector3(5, 0, 5), Vector3(1, 0, 0), still), Vector3.ZERO, "longe de todos: sem desvio")
 	eq(NpcRenderer.steer_away(Vector3(0.8, 0, 0), Vector3.ZERO, still), Vector3.ZERO, "parado não desvia")
+
+
+## AD-197s4: espaçamento e desvio em metros do motor: célula de 1,5 m dá os números de hoje; de 0,5 m, o triplo em unidades.
+func test_separation_distances_follow_the_engine_cell_size() -> void:
+	var Grid := preload("res://Scenes/grid.gd")
+	var before := Grid.cell_meters
+	Grid.cell_meters = 1.5
+	check(is_equal_approx(NpcRenderer.personal(), 0.6) and is_equal_approx(NpcRenderer.avoid_radius(), 0.7) and is_equal_approx(NpcRenderer.avoid_max(), 0.8), "escala de hoje")
+	var Dress := preload("res://Scenes/render/building_dress.gd")
+	check(is_equal_approx(Dress.u(0.9), 0.9), "enfeite e caixa do telhado na escala de hoje")
+	Grid.cell_meters = 0.5
+	check(is_equal_approx(NpcRenderer.personal(), 1.8) and is_equal_approx(NpcRenderer.avoid_radius(), 2.1) and is_equal_approx(NpcRenderer.avoid_max(), 2.4), "célula de 0,5 m: o triplo")
+	check(is_equal_approx(Dress.u(0.9), 2.7), "o enfeite e a caixa do telhado crescem junto")
+	# grupos continuam sem se sobrepor na nova escala
+	for count in [2, 5, 13]:
+		var ids: Array = []
+		for i in count:
+			ids.append(i + 1)
+		var offsets: Dictionary = NpcRenderer.spread_offsets(ids)
+		var worst := INF
+		for a in offsets:
+			for b in offsets:
+				if a < b:
+					worst = minf(worst, (offsets[a] as Vector3).distance_to(offsets[b]))
+		check(worst >= NpcRenderer.personal() - 0.02, "grupo de %d a 0,5 m/célula: o mais perto está a %s" % [count, worst])
+	Grid.cell_meters = before
