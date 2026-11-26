@@ -1,6 +1,7 @@
 {
   "ageMax": "number",
   "ageMin": "number",
+  "ageMinMinor": "number",
   "cityId": "string",
   "economy": "boolean",
   "families": [
@@ -17,25 +18,57 @@
               "available": "boolean",
               "maxAge": "number",
               "minAge": "number",
-              "reason": "string"
+              "reason": "string",
+              "vias": "[]"
+            },
+            "cousin": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "grandchild": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "nephew": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
             },
             "relative": {
               "available": "boolean",
               "maxAge": "number",
               "minAge": "number",
-              "reason": "string"
+              "reason": "string",
+              "vias": "[]"
             },
             "sibling": {
               "available": "boolean",
               "maxAge": "number",
               "minAge": "number",
-              "reason": "string"
+              "reason": "string",
+              "vias": "[]"
             },
             "spouse": {
               "available": "boolean",
               "maxAge": "number",
               "minAge": "number",
-              "reason": "string"
+              "reason": "string",
+              "vias": "[]"
+            },
+            "uncle": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
             }
           },
           "sex": "string",

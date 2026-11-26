@@ -27,9 +27,9 @@ public static class CharacterBuilder
     public const int MinName = 2, MaxName = 60;
 
     /// <summary>As idades (menor e maior) em que o laço <paramref name="role"/> é possível agora, ou o motivo de não ser. Só lê.</summary>
-    public static Result<(int Min, int Max)> AgeWindow(WorldState world, LivingWorld.Domain.Cities.City city, CharacterRole role)
+    public static Result<(int Min, int Max)> AgeWindow(WorldState world, LivingWorld.Domain.Cities.City city, CharacterRole role, KinIndex? kin = null)
     {
-        var plan = CharacterRoles.Plan(world, city, role);
+        var plan = CharacterRoles.Plan(world, city, role, kin);
         if (!plan.IsSuccess) return Result<(int, int)>.Fail(plan.Error!);
         return plan.Value!.Ages.Count == 0 ? Result<(int, int)>.Fail($"{PlayerCommands.Conflict} nenhuma idade adulta serve a esse laço")
             : Result<(int, int)>.Ok((plan.Value.Ages[0], plan.Value.Ages[^1]));
@@ -61,21 +61,32 @@ public static class CharacterBuilder
         if (spec.AgeYears is { } chosenAge)
         {
             int longevity = world.PopulationRules.LifeTable.MaxLongevityYears;
-            if (chosenAge < MaterializationPrior.AdultYears || chosenAge >= longevity)
-                return Refuse($"idade fora da longevidade: de {MaterializationPrior.AdultYears} a {longevity - 1} anos");
+            if (chosenAge < CharacterRoles.MinMinorAge || chosenAge >= longevity)
+                return Refuse($"idade fora da longevidade: de {CharacterRoles.MinMinorAge} a {longevity - 1} anos");
             if (!ages.Contains(chosenAge))
-                return Refuse($"com esse laço a idade só pode ser de {minAge} a {maxAge} anos (os pais ou o cônjuge não permitem {chosenAge})");
+                return Refuse(chosenAge < MaterializationPrior.AdultYears && ages[0] >= MaterializationPrior.AdultYears
+                    ? $"menor de idade só entra numa família com adulto vivo na casa que cuide (idade de {minAge} a {maxAge} anos neste laço)"
+                    : $"com esse laço a idade só pode ser de {minAge} a {maxAge} anos (os pais ou o cônjuge não permitem {chosenAge})");
             age = chosenAge;
         }
         else
-            age = role.Kind is CharacterRole.Newcomer or CharacterRole.Relative && ages.Contains(drawn.AgeYears)
-                ? drawn.AgeYears : ages[(int)(world.Rng.OneShot($"{salt}-age").NextDouble() * ages.Count)];
+        {
+            // em branco: o motor sorteia, e adulto de preferência (menor é escolha de quem cria)
+            var adultAges = ages.Where(a => a >= MaterializationPrior.AdultYears).ToList();
+            var pool = adultAges.Count > 0 ? adultAges : ages;
+            age = role.Kind is CharacterRole.Newcomer or CharacterRole.Relative && pool.Contains(drawn.AgeYears)
+                ? drawn.AgeYears : pool[(int)(world.Rng.OneShot($"{salt}-age").NextDouble() * pool.Count)];
+        }
+        bool minor = age < MaterializationPrior.AdultYears;
+        if (minor && spec.ProfessionId is not null) return Refuse("menor de idade não tem ofício");
+        if (minor && spec.Money is > 0) return Refuse("menor de idade não tem dinheiro próprio");
 
         var sex = spec.Sex ?? drawn.Sex;
         if (!Enum.IsDefined(sex)) return Refuse("sexo desconhecido");
         if (spec.ProfessionId is { } professionId && (professionId < 0 || !world.PopulationCatalog.IsValidProfession(new ProfessionType(professionId))))
             return Refuse("o ofício escolhido não existe neste período");
-        var profession = spec.ProfessionId is { } chosenProfession ? new ProfessionType(chosenProfession) : drawn.Profession;
+        var profession = minor ? ProfessionType.None // ninguém nasce com ofício: escolhe na juventude (AD-136)
+            : spec.ProfessionId is { } chosenProfession ? new ProfessionType(chosenProfession) : drawn.Profession;
         if (spec.Health is { } chosenHealth && chosenHealth is < 1 or > 100) return Refuse("saúde: de 1 a 100");
         if (spec.Traits is { } traits)
             foreach (var (name, value) in traits.All())
@@ -85,9 +96,9 @@ public static class CharacterBuilder
         var culture = anchor?.Culture ?? OriginCulture(world, role, drawn);
         string name2 = spec.Name?.Trim() ?? "";
         if (spec.Name is not null && (name2.Length < MinName || name2.Length > MaxName)) return Refuse($"nome: de {MinName} a {MaxName} letras");
-        if (name2.Length == 0) name2 = DrawName(world, salt, culture, sex, anchor, role);
+        if (name2.Length == 0) name2 = DrawName(world, salt, culture, sex, parents);
 
-        var money = Money(world, city, prior, spec.Money);
+        var money = minor ? Result<long>.Ok(0) : Money(world, city, prior, spec.Money);
         if (!money.IsSuccess) return Result<ResolvedCharacter>.Fail(money.Error!);
 
         var look = Look(world, salt, sex, age, spec.Look, role, parents);
@@ -120,13 +131,13 @@ public static class CharacterBuilder
         return MaterializationPrior.Of(world, origin).Profile(new NpcId(0), "origin").Culture;
     }
 
-    private static string DrawName(WorldState world, string salt, CultureId culture, Sex sex, Npc? anchor, CharacterRole role)
+    private static string DrawName(WorldState world, string salt, CultureId culture, Sex sex, IReadOnlyList<Npc> parents)
     {
         var naming = CultureNaming.Of(world, culture);
         var rng = world.Rng.OneShot($"{salt}-name");
         string given = naming.NewGivenName(sex, rng);
-        bool kin = role.Kind is CharacterRole.Child or CharacterRole.Sibling && anchor?.FamilyName is not null;
-        return PersonNaming.Full(given, kin ? anchor!.FamilyName! : naming.NewFamilyName(rng));
+        string? family = parents.FirstOrDefault(p => p.Sex == Sex.Male)?.FamilyName ?? parents.FirstOrDefault()?.FamilyName;
+        return PersonNaming.Full(given, family ?? naming.NewFamilyName(rng));
     }
 
     /// <summary>Dinheiro inicial: o escolhido (de zero ao teto) ou, em branco, o que um morador típico da cidade tem. O teto é
@@ -174,15 +185,19 @@ public static class CharacterBuilder
         {
             minHeight = growth.AdultHeightMean(sex) - 3.5 * growth.AdultHeightStdDev(sex);
             maxHeight = growth.AdultHeightMean(sex) + 3.5 * growth.AdultHeightStdDev(sex);
+            // quem ainda cresce tem a altura da idade: a faixa adulta na proporção do crescimento (adulto: fração 1)
+            double growing = growth.HeightAt(sex, age, 1.0, null);
+            minHeight *= growing;
+            maxHeight *= growing;
         }
         if (chosen.HeightM is { } wanted && (!(wanted >= minHeight) || wanted > maxHeight))
-            return Result<Built>.Fail($"{PlayerCommands.Conflict} altura: de {minHeight:0.00} a {maxHeight:0.00} m para esse sexo");
+            return Result<Built>.Fail($"{PlayerCommands.Conflict} altura: de {minHeight:0.00} a {maxHeight:0.00} m para esse sexo e idade");
 
         var rng = world.Rng.OneShot($"{salt}-look");
         var rolled = Appearance.RollFrom(rng);
         var mother = parents.FirstOrDefault(p => p.Sex == Sex.Female)?.Appearance;
         var father = parents.FirstOrDefault(p => p.Sex == Sex.Male)?.Appearance;
-        if (role.Kind is CharacterRole.Child or CharacterRole.Sibling && world.AppearanceRules is { } rules && (mother ?? father) is { } any)
+        if (parents.Count > 0 && world.AppearanceRules is { } rules && (mother ?? father) is { } any)
             rolled = Appearance.Inherit(mother ?? any, father ?? any, world.Rng.OneShot($"{salt}-look-heredity"), rules.Heritability);
         int build = chosen.Build ?? rolled.Build;
         var appearance = new Appearance(
@@ -204,7 +219,7 @@ public static class CharacterBuilder
         else
         {
             gene = Math.Sqrt(Math.Clamp(growth.StatureHeritability, 0, 1)) * QuantitativeGenetics.Normal(rng);
-            if (role.Kind is CharacterRole.Child or CharacterRole.Sibling && parents.Count > 0)
+            if (parents.Count > 0)
                 gene = QuantitativeGenetics.Inherit(parents[0].StatureGene, parents[^1].StatureGene,
                     world.BodyRules.Genetics.Mendelian ? world.BodyRules.Genetics.StatureSegregationStdDev : 0.0, rng);
             adult = Math.Max(0.5, growth.AdultHeightFrom(sex, gene, QuantitativeGenetics.Normal(rng)));
