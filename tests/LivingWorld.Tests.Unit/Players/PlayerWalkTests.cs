@@ -21,7 +21,7 @@ public class PlayerWalkTests
     private const int Fine = 50; // ms de mundo por tick fino (1:1)
 
     /// <summary>Uma célula aberta com a vizinha de leste aberta (fora de prédio, sem ninguém, sem água).</summary>
-    private static CellCoord OpenRun(WorldState w, Npc npc, int cells)
+    internal static CellCoord OpenRun(WorldState w, Npc npc, int cells)
     {
         npc.ExitBuilding();
         var homes = w.Households.Select(h => h.Location).ToHashSet();
@@ -39,7 +39,7 @@ public class PlayerWalkTests
         throw new InvalidOperationException("sem chão aberto");
     }
 
-    private static void Wait(Arm arm, long ms)
+    internal static void Wait(Arm arm, long ms)
     {
         long until = arm.World.CurrentDate.TotalMilliseconds + ms;
         while (arm.World.CurrentDate.TotalMilliseconds < until) arm.Clock.Tick(arm.World, Fine);

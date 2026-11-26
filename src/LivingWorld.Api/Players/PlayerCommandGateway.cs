@@ -10,12 +10,12 @@ namespace LivingWorld.Api.Players;
 /// <summary>Um comando de jogador vindo da rota HTTP ou do canal persistente. <c>Mode</c> só com <c>Incarnate</c> (posse plena é
 /// do admin); <c>Dx</c>/<c>Dy</c> com <c>Move</c>; <c>NpcId</c> é o alvo no <c>Incarnate</c> e no <c>Strike</c>. AD-197c: <c>UntilHour</c>
 /// (hora do dia) com <c>Sleep</c>; sem ela, dormir acelerando. AD-197d: <c>Interaction</c> (door, stock, stall, bed, person, house),
-/// <c>TargetId</c>, <c>Verb</c>, <c>ResourceId</c> e <c>Quantity</c> com <c>Interact</c>.</summary>
+/// <c>TargetId</c>, <c>Verb</c>, <c>ResourceId</c> e <c>Quantity</c> com <c>Interact</c>. AD-197u: <c>Run</c> com <c>Walk</c> pede correr.</summary>
 public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = null, ActionType? Action = null, string? PowerId = null,
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
     long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null);
+    CharacterSpec? Spec = null, bool Run = false);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -23,6 +23,12 @@ public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = 
 public sealed record PlayerTimeView(
     string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
     string? LastWakeReason);
+
+/// <summary>A pose do corpo do jogador na resposta de um comando. <c>AirMs</c> (ms no ar) só na resposta do pulo (AD-197u).</summary>
+public sealed record PlayerPose(
+    string PlayerId, long NpcId, int X, int Y, long? BuildingId, int Floor, long ReadyInMs, double Fx, double Fy, double SpeedMps,
+    double CellMeters, bool Running,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -80,7 +86,8 @@ public sealed partial class PlayerCommandGateway(
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
-                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy, command.Run), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Jump => Map(players.Jump(world, playerId), air => PoseOf(world, playerId, air)),
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
                     command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
                 PlayerCommandKind.Sample => Map(players.Sample(world, playerId, new CityId(command.CityId ?? Guid.Empty),
@@ -199,46 +206,37 @@ public sealed partial class PlayerCommandGateway(
     }
 
     /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela). AD-197d: <c>buildingId</c> do prédio
-    /// em cuja planta o corpo está (nulo na rua).</summary>
-    private static object PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId) =>
-        PlayerCommands.ControlledBy(world, playerId) is { } npc
-            ? new
-            {
-                playerId,
-                npcId = npc.Id.Value,
-                x = npc.CurrentLocation.X,
-                y = npc.CurrentLocation.Y,
-                buildingId = npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
-                floor = PlayerGround.FloorOf(npc),
-                readyInMs = Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
-                fx = (npc.Fine?.X ?? npc.CurrentLocation.X * FinePose.PerCell + 500) / (double)FinePose.PerCell,
-                fy = (npc.Fine?.Y ?? npc.CurrentLocation.Y * FinePose.PerCell + 500) / (double)FinePose.PerCell,
-                speedMps = WalkSpeed(world, npc),
-                cellMeters = world.Players.CellM,
-            }
-            : new
-            {
-                playerId,
-                npcId = -1L,
-                x = 0,
-                y = 0,
-                buildingId = (long?)null,
-                floor = 0,
-                readyInMs = 0L,
-                fx = 0.0,
-                fy = 0.0,
-                speedMps = 0.0,
-                cellMeters = world.Players.CellM
-            };
+    /// em cuja planta o corpo está (nulo na rua). AD-197u: <c>running</c> (corre agora) e, só na resposta do pulo, <c>airMs</c>.</summary>
+    private static PlayerPose PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId, int? airMs = null)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return new PlayerPose(playerId, -1L, 0, 0, null, 0, 0L, 0.0, 0.0, 0.0, world.Players.CellM, false, airMs);
+        bool running = npc.Fine is { Run: true } && (npc.Fine.HeadingX != 0 || npc.Fine.HeadingY != 0);
+        return new PlayerPose(
+            playerId,
+            npc.Id.Value,
+            npc.CurrentLocation.X,
+            npc.CurrentLocation.Y,
+            npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
+            PlayerGround.FloorOf(npc),
+            Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
+            (npc.Fine?.X ?? npc.CurrentLocation.X * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+            (npc.Fine?.Y ?? npc.CurrentLocation.Y * FinePose.PerCell + 500) / (double)FinePose.PerCell,
+            WalkSpeed(world, npc, running),
+            world.Players.CellM,
+            running,
+            airMs);
+    }
 
-    /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo.</summary>
-    private static double WalkSpeed(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc)
+    /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo;
+    /// correndo (AD-197u), a da corrida.</summary>
+    private static double WalkSpeed(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc, bool running)
     {
         var at = npc.CurrentLocation;
         int hx = Math.Sign(npc.Fine?.HeadingX ?? 0), hy = Math.Sign(npc.Fine?.HeadingY ?? 0);
         var ahead = hx == 0 && hy == 0 ? new LivingWorld.Domain.Geography.CellCoord(at.X + 1, at.Y)
             : new LivingWorld.Domain.Geography.CellCoord(at.X + hx, at.Y + hy);
-        return world.Map.TryGetCell(ahead, out _) ? PlayerWalk.SpeedMps(world, npc, at, ahead) : world.Players.WalkMps;
+        return world.Map.TryGetCell(ahead, out _) ? PlayerWalk.SpeedMps(world, npc, at, ahead, running) : world.Players.WalkMps;
     }
 
     /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>

@@ -29,7 +29,7 @@ public class PlayerBodyTests
             foreach (var d in Around)
             {
                 var to = new CellCoord(cell.X + d.X, cell.Y + d.Y);
-                if (w.Map.TryGetCell(to, out var c1) && !c1.HasWater && PlayerGround.Step(w, npc, cell, to).IsSuccess) return (cell, to);
+                if (w.Map.TryGetCell(to, out var c1) && !c1.HasWater && PlayerGround.PersonAt(w, npc, to) is null && PlayerGround.Step(w, npc, cell, to).IsSuccess) return (cell, to);
             }
         }
         throw new InvalidOperationException("sem chão aberto");

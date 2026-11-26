@@ -13,9 +13,9 @@ namespace LivingWorld.Tests.Unit.Players;
 public class PlayerPossessionTests
 {
     /// <summary>Um NPC, alguém da casa dele de quem ele gosta muito e um desconhecido, os três na mesma célula.</summary>
-    private static (Arm Arm, Npc Npc, Npc Beloved, Npc Stranger) Scene(ulong seed)
+    private static (Arm Arm, Npc Npc, Npc Beloved, Npc Stranger) Scene(ulong seed, PlayerRules? rules = null)
     {
-        var arm = Village(seed);
+        var arm = Village(seed, rules);
         var w = arm.World;
         var npc = Pick(w);
         var beloved = w.FindHousehold(npc.Household!.Value)!.Members.Where(m => m != npc.Id).Select(m => w.FindNpc(m)!).First(m => m.IsAlive);
@@ -99,7 +99,7 @@ public class PlayerPossessionTests
     [Fact]
     public void A_move_needs_the_controller_and_one_step_and_the_log_with_moves_and_a_refusal_replays_to_the_same_hash()
     {
-        var (arm, npc, beloved, stranger) = Scene(5);
+        var (arm, npc, beloved, stranger) = Scene(5, PlayerRules.Default with { CellCrowdLimit = 1 }); // AD-197u: gente barra a célula de uma pessoa só
         var w = arm.World;
         string snapshot = WorldSnapshot.Serialize(w);
         var service = new PlayerService(arm.Sink);

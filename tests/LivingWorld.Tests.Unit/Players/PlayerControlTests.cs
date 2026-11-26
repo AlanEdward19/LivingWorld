@@ -73,7 +73,7 @@ public class PlayerControlTests
         int walls = 0, people = 0;
         for (ulong seed = 1; seed <= 5; seed++)
         {
-            var (arm, npc, service) = Body(seed);
+            var (arm, npc, service) = Body(seed, rules: NoPace with { CellCrowdLimit = 1 }); // AD-197u: com a célula de uma pessoa só, uma já a barra
             var w = arm.World;
             var (house, _, _) = Door(w, npc);
             var origin = house.Position!.Value;
