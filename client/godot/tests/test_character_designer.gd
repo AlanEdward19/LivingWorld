@@ -16,9 +16,11 @@ const CREATE := "POST /players/p-1/character"
 
 
 func _roles(child: bool, sibling: bool, spouse: bool) -> Dictionary:
-	var role := func(on: bool) -> Dictionary:
-		return {"available": on, "minAge": 18 if on else 0, "maxAge": 24 if on else 0, "reason": "" if on else "sem pais registrados"}
-	return {"child": role.call(child), "sibling": role.call(sibling), "spouse": role.call(spouse), "relative": role.call(true)}
+	var role := func(on: bool, vias: Array = []) -> Dictionary:
+		return {"available": on, "minAge": (6 if on else 0), "maxAge": (24 if on else 0), "reason": "" if on else "sem pais registrados", "vias": vias}
+	var via := [{"npcId": 12, "name": "Davi Souza", "ageYears": 44, "minAge": 6, "maxAge": 20}]
+	return {"child": role.call(child), "grandchild": role.call(child, via), "sibling": role.call(sibling), "nephew": role.call(sibling, via),
+		"uncle": role.call(false), "cousin": role.call(sibling, via), "spouse": role.call(spouse), "relative": role.call(true)}
 
 
 func _options() -> Dictionary:
@@ -27,7 +29,7 @@ func _options() -> Dictionary:
 		"heightM": {"female": range_of.call(1.4, 1.9, 1.62), "male": range_of.call(1.5, 2.0, 1.75)},
 		"outfits": ["Camponês", "Artesão", "Burguês", "Nobre", "Clérigo", "Viajante"],
 		"professions": [{"id": 1, "name": "Lavrador"}, {"id": 2, "name": "Ferreiro"}],
-		"roles": ["newcomer", "child", "sibling", "spouse", "relative"],
+		"ageMinMinor": 6, "roles": ["newcomer", "child", "grandchild", "sibling", "nephew", "uncle", "cousin", "spouse", "relative"],
 		"origins": [{"cityId": OTHER, "name": "Beta"}],
 		"families": [{"householdId": 7, "head": "Ana Souza", "members": [
 			{"npcId": 11, "name": "Ana Souza", "sex": "Female", "ageYears": 41, "spouseId": 12, "roles": _roles(true, false, false)},
@@ -45,7 +47,7 @@ func _character(spec: Dictionary, look: Dictionary = {}) -> Dictionary:
 		"cityId": CITY, "cityName": "Alfa", "professionId": 1, "profession": "Lavrador", "cultureId": 1, "health": int(spec.get("health", 80)),
 		"money": int(spec.get("money", 60)), "personality": {"extroversion": 50, "agreeableness": 50, "conscientiousness": 50,
 			"emotionalStability": 50, "openness": 50, "ambition": 50, "loyalty": 50, "altruism": 50, "impulsivity": 50, "riskAversion": 50},
-		"role": {"kind": String(role.kind), "relativeId": int(role.get("relativeId", 0)), "relativeName": "Ana Souza" if role.has("relativeId") else "",
+		"role": {"kind": String(role.kind), "viaId": int(role.get("viaId", 0)), "relativeId": int(role.get("relativeId", 0)), "relativeName": "Ana Souza" if role.has("relativeId") else "",
 			"fromCityId": String(role.get("fromCityId", ""))}, "look": made, "outfitName": "Nobre", "household": 0}
 
 
@@ -174,7 +176,7 @@ func test_the_family_list_comes_from_the_engine_and_only_lists_who_the_role_allo
 	designer._refill_families()
 	eq(designer.family_select.item_count, 1, "só Ana pode ter um filho adulto")
 	check("Ana Souza, 41 anos" in designer.family_select.get_item_text(0), designer.family_select.get_item_text(0))
-	designer.role_select.select(3) # cônjuge
+	designer.role_select.select(7) # cônjuge
 	designer._refill_families()
 	eq(designer.family_select.item_count, 1, "só Davi está livre")
 	check("Davi Souza" in designer.family_select.get_item_text(0))
@@ -278,3 +280,39 @@ func test_in_the_app_the_created_person_enters_the_city_and_goes_straight_to_thi
 	eq(app.selected_npc, 501)
 	eq(app.player_hud.is_active, true)
 	app.queue_free()
+
+
+func test_a_via_role_lists_who_the_link_passes_through_and_sends_the_via() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+
+	designer.role_select.select(2) # neto: o laço passa por um filho do parente
+	designer._refill_families()
+	await designer.refresh()
+
+	eq(designer.family_select.item_count, 1, "só quem tem filho que serve de passagem")
+	eq(designer.via_select.item_count, 1)
+	check("Davi Souza, 44 anos" in designer.via_select.get_item_text(0), designer.via_select.get_item_text(0))
+	eq(designer.via_select.get_parent().visible, true)
+	eq(transport.bodies[PREVIEW].back().role, {"kind": "grandchild", "relativeId": 11, "viaId": 12})
+	eq(designer.fields.age.input.min_value, 6.0, "menor de idade entra com quem cuida: a idade mínima é a do motor")
+	eq(designer.fields.age.input.max_value, 20.0, "a faixa do parente de passagem")
+	_free(creator)
+
+
+func test_when_nobody_allows_the_link_the_screen_explains_the_engine_reason() -> void:
+	var transport := _transport()
+	var creator = _creator(transport)
+	await creator.open()
+	var designer = creator.designer
+
+	designer.role_select.select(5) # tio: ninguém tem pais registrados nesta cidade
+	designer._refill_families()
+
+	eq(designer.family_select.item_count, 0)
+	check("sem pais registrados" in designer._hint.text, designer._hint.text)
+	eq(designer.via_select.get_parent().visible, false)
+	_free(creator)
+

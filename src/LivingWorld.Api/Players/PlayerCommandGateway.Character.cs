@@ -10,9 +10,6 @@ namespace LivingWorld.Api.Players;
 /// prévia validada pelo motor (só lê, nada vai ao registro) e a pessoa como o motor a tem.</summary>
 public sealed partial class PlayerCommandGateway
 {
-    /// <summary>No máximo estas famílias por cidade na lista da tela (as maiores primeiro); o resto some só da lista, não do mundo.</summary>
-    private const int MaxFamilies = 120;
-
     /// <summary>Prévia: a pessoa que a escolha daria, validada e com o que ficou em branco sorteado pela mesma chave. Não registra.</summary>
     public PlayerReply Preview(string playerId, CharacterSpec spec)
     {
@@ -43,9 +40,6 @@ public sealed partial class PlayerCommandGateway
                     typical = Math.Round(growth.AdultHeightMean(sex), 2)
                 }
                 : new { min = 1.40, max = 2.10, typical = sex == Sex.Male ? 1.75 : 1.65 };
-            var households = world.Households.Where(h => h.City == city.Id)
-                .Select(h => (Household: h, Members: h.Members.Select(world.FindNpc).Where(n => n is { IsAlive: true }).Cast<Npc>().ToList()))
-                .Where(h => h.Members.Count > 0).OrderByDescending(h => h.Members.Count).ThenBy(h => h.Household.Id.Value).Take(MaxFamilies).ToList();
             return new PlayerReply(StatusCodes.Status200OK, new
             {
                 cityId = city.Id.Value,
@@ -61,30 +55,30 @@ public sealed partial class PlayerCommandGateway
                 roles = CharacterRole.Kinds,
                 origins = world.ActiveCities().Where(c => c.Id != city.Id).OrderBy(c => c.Name, StringComparer.Ordinal)
                     .Select(c => new { cityId = c.Id.Value, name = c.Name }).ToList(),
-                families = households.Select(h => new
+                ageMinMinor = CharacterFamilies.MinMinorAge,
+                families = CharacterFamilies.List(world, city).Select(f => new
                 {
-                    householdId = h.Household.Id.Value,
-                    head = world.FindNpc(h.Household.Head)?.Name ?? "",
-                    members = h.Members.OrderBy(m => m.Id.Value).Select(m => new
+                    householdId = f.HouseholdId,
+                    head = f.Head,
+                    members = f.Members.Select(m => new
                     {
-                        npcId = m.Id.Value,
+                        npcId = m.NpcId,
                         name = m.Name,
                         sex = m.Sex.ToString(),
-                        ageYears = m.AgeYears(world.CurrentDate),
-                        spouseId = m.Spouse?.Value ?? 0,
-                        roles = CharacterRole.Kinds.Where(k => k != CharacterRole.Newcomer).ToDictionary(k => k, k => RoleOption(world, city, k, m.Id.Value)),
+                        ageYears = m.AgeYears,
+                        spouseId = m.SpouseId,
+                        roles = m.Roles.ToDictionary(r => r.Key, r => new
+                        {
+                            available = r.Value.Available,
+                            minAge = r.Value.MinAge,
+                            maxAge = r.Value.MaxAge,
+                            reason = r.Value.Reason,
+                            vias = r.Value.Vias.Select(v => new { npcId = v.NpcId, name = v.Name, ageYears = v.AgeYears, minAge = v.MinAge, maxAge = v.MaxAge }).ToList(),
+                        }),
                     }).ToList(),
                 }).ToList(),
             }, null);
         }
-    }
-
-    private static object RoleOption(WorldState world, LivingWorld.Domain.Cities.City city, string kind, long relativeId)
-    {
-        var window = CharacterBuilder.AgeWindow(world, city, new CharacterRole(kind, relativeId));
-        return window.IsSuccess
-            ? new { available = true, minAge = window.Value.Min, maxAge = window.Value.Max, reason = "" }
-            : new { available = false, minAge = 0, maxAge = 0, reason = window.Error!.Replace(PlayerCommands.Conflict, "").Trim() };
     }
 
     /// <summary>A pessoa como o motor a tem (ou a teria): o que o cliente desenha e mostra vem daqui, nunca da escolha local.</summary>
@@ -105,7 +99,7 @@ public sealed partial class PlayerCommandGateway
             health = npc.Health,
             money,
             personality = npc.Personality,
-            role = new { kind = role.Kind, relativeId = relative?.Id.Value ?? 0, relativeName = relative?.Name ?? "", fromCityId = role.FromCityId?.ToString() ?? "" },
+            role = new { kind = role.Kind, viaId = role.ViaId ?? 0, relativeId = relative?.Id.Value ?? 0, relativeName = relative?.Name ?? "", fromCityId = role.FromCityId?.ToString() ?? "" },
             look = new
             {
                 heightM = Math.Round(npc.Height, 3),

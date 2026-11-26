@@ -67,5 +67,18 @@ passa a **montar** a pessoa. Vale o que está acima, mais:
 - **Registro**: comando `Character` no `players.log` com a escolha inteira; o replay refaz a pessoa e dá o mesmo hash.
 - **Contrato** (v2, só acréscimos): `GET /players/origins/{cityId}`, `POST /players/{id}/character/preview` (só lê) e
   `POST /players/{id}/character`; canal `character`. **Cliente**: campos, famílias vindas do motor e prévia do corpo pelo estado devolvido.
-- **Fora**: tio, primo e neto genealógicos (só há pais/irmão/cônjuge em laço de sangue ou casamento).
+
+## Emenda t2 (AD-197t2, #219): parentes genealógicos, irmão de fundador e menor de idade
+- **Neto, sobrinho, tio, primo** (laço de sangue pelos pais registrados, `KinIndex`): o jogador escolhe o parente e por quem o laço passa
+  (`ViaId`). Neto = filho de um filho do parente; sobrinho = filho de um irmão dele; primo = filho de um irmão do pai ou da mãe dele;
+  tio = irmão do pai ou da mãe dele (divide os pais dessa pessoa). Quem faz de pai/mãe tem de viver na cidade e ter podido gerar a pessoa
+  (janela fértil, vivo ao nascimento); a pessoa entra na casa dele e herda nome de família, aparência e estatura dos pais.
+- **Irmão ou tio de quem não tem pais registrados: recusa com motivo**, a opção mais realista. Criar pais mortos exigiria Npcs fantasma
+  (herança, linhagem, nomes, hash) e editar o registro do fundador: seria inventar antepassados, contra "materializar move, nunca cria". A
+  tela mostra o motivo; com gerações no mundo o laço passa a existir.
+- **Menor de idade** (de 6 a 17 anos) como filho, neto, sobrinho, primo ou irmão, só em casa com adulto vivo que cuide; sem ofício nem
+  dinheiro próprios; altura na faixa de quem cresce. Vive pelas regras de qualquer criança (ontogenia, crescimento, dependência da casa).
+  Fora: menor de 6 (lactente), tio, cônjuge e recém-chegado menores.
+- **Custo** (`CharacterCreatorCostTests`, cidade de 10.000): `GET /players/origins/{cityId}` 10 ms e prévia 2 ms (medianas de 3); teto
+  declarado 250 ms e 50 ms; a lista tem no máximo 120 famílias e 8 parentes de passagem por laço.
 

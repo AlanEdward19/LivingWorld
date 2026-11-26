@@ -9,8 +9,11 @@ signal created(npc_id: int, name: String, city_id: String)
 signal warning(text: String)
 
 const SEXES := [["", "Sortear"], ["Female", "Mulher"], ["Male", "Homem"]]
-const ROLES := [["newcomer", "Recém-chegado de fora"], ["child", "Filho(a) de alguém da cidade"], ["sibling", "Irmão(ã) de alguém da cidade"],
-	["spouse", "Cônjuge de alguém da cidade"], ["relative", "Parente agregado a uma casa"]]
+const ROLES := [["newcomer", "Recém-chegado de fora"], ["child", "Filho(a) de alguém da cidade"], ["grandchild", "Neto(a) de alguém da cidade"],
+	["sibling", "Irmão(ã) de alguém da cidade"], ["nephew", "Sobrinho(a) de alguém da cidade"], ["uncle", "Tio(a) de alguém da cidade"],
+	["cousin", "Primo(a) de alguém da cidade"], ["spouse", "Cônjuge de alguém da cidade"], ["relative", "Parente agregado a uma casa"]]
+const BLOOD := ["child", "grandchild", "sibling", "nephew", "uncle", "cousin"] ## laços de sangue: a idade vem dos pais
+const VIA_LABELS := {"grandchild": "Filho(a) de", "nephew": "Filho(a) do irmão", "uncle": "Irmão(ã) do pai/mãe", "cousin": "Filho(a) do tio(a)"}
 const TRAITS := [["extroversion", "expansividade"], ["agreeableness", "amabilidade"], ["conscientiousness", "cuidado"],
 	["emotionalStability", "serenidade"], ["openness", "curiosidade"], ["ambition", "ambição"], ["loyalty", "lealdade"],
 	["altruism", "generosidade"], ["impulsivity", "impulsividade"], ["riskAversion", "cautela"]]
@@ -30,6 +33,7 @@ var sex_select: OptionButton
 var profession_select: OptionButton
 var role_select: OptionButton
 var family_select: OptionButton
+var via_select: OptionButton ## por quem o laço passa (neto, sobrinho, tio, primo)
 var origin_select: OptionButton
 var outfit_select: OptionButton
 var reroll_button: Button
@@ -41,6 +45,7 @@ var _message: Label
 var _timer: Timer
 var _request := 0
 var _loading := false
+var _no_one_reason := "" ## por que ninguém serve para o laço escolhido (o primeiro motivo do motor)
 var _families: Array = [] ## [{npc_id, label}] já filtradas pelo papel
 
 
@@ -70,6 +75,8 @@ func _init() -> void:
 	role_select.item_selected.connect(func(_i: int): _refill_families())
 	origin_select = _select(form, "Veio de", ["De fora do mundo"])
 	family_select = _select(form, "Parente", [])
+	family_select.item_selected.connect(func(_i: int): _refill_vias())
+	via_select = _select(form, "Por meio de", [])
 	_hint = Label.new()
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.modulate = Color(1, 1, 1, 0.7)
@@ -247,16 +254,33 @@ func _refill_families() -> void:
 	var newcomer := kind == "newcomer"
 	family_select.get_parent().visible = not newcomer
 	origin_select.get_parent().visible = newcomer
+	var first_reason := ""
 	if not newcomer:
 		for family in options.get("families", []):
 			for member in family.members:
 				var role: Dictionary = member.roles.get(kind, {})
 				if not bool(role.get("available", false)):
+					if first_reason == "":
+						first_reason = String(role.get("reason", ""))
 					continue
 				var label := "%s, %d anos (casa de %s)" % [member.name, int(member.ageYears), family.head]
 				family_select.add_item(label)
 				family_select.set_item_metadata(family_select.item_count - 1, int(member.npcId))
-				_families.append({"npc_id": int(member.npcId), "label": label, "min": int(role.minAge), "max": int(role.maxAge)})
+				_families.append({"npc_id": int(member.npcId), "label": label, "min": int(role.minAge), "max": int(role.maxAge),
+					"vias": role.get("vias", [])})
+	_no_one_reason = first_reason
+	_refill_vias()
+
+
+## Nos laços que passam por alguém, a lista de quem serve de passagem para o parente escolhido (e a faixa de idade de cada um).
+func _refill_vias() -> void:
+	var kind := _role_kind()
+	via_select.clear()
+	via_select.get_parent().visible = kind in VIA_LABELS and not _families.is_empty()
+	if kind in VIA_LABELS:
+		for via in _anchor().get("vias", []):
+			via_select.add_item("%s, %d anos" % [via.name, int(via.ageYears)])
+			via_select.set_item_metadata(via_select.item_count - 1, int(via.npcId))
 	_update_hint()
 	_changed()
 
@@ -266,21 +290,31 @@ func _update_hint() -> void:
 	if kind == "newcomer":
 		_hint.text = "Chega sem casa e sem família na cidade, como um migrante."
 	elif _families.is_empty():
-		_hint.text = "Ninguém na cidade permite esse laço agora (o motor não lista quem não pode)."
-	elif kind in ["child", "sibling"]:
-		var picked := _anchor()
+		_hint.text = "Ninguém na cidade permite esse laço agora: %s" % (_no_one_reason if _no_one_reason != "" else "o motor não lista quem não pode.")
+	elif kind in BLOOD:
+		var window := _window()
 		var age: Range = fields.age.input
-		age.min_value = maxi(int(options.get("ageMin", 18)), int(picked.min))
-		age.max_value = mini(int(options.get("ageMax", 90)), int(picked.max))
-		_hint.text = "Com esse parente a idade vai de %d a %d anos (os pais precisam poder ter gerado você)." % [picked.min, picked.max]
+		age.min_value = maxi(int(options.get("ageMinMinor", 6)), int(window.min))
+		age.max_value = mini(int(options.get("ageMax", 90)), int(window.max))
+		_hint.text = "Com esse laço a idade vai de %d a %d anos (os pais precisam poder ter gerado você). Menor de idade mora com quem cuida, sem ofício nem dinheiro." % [window.min, window.max]
 	elif kind == "spouse":
 		_hint.text = "O parente precisa estar livre e aceitar: o motor recusa se não aceitar."
 	else:
 		_hint.text = "Entra na casa dele como agregado, sem laço de sangue."
-	if kind not in ["child", "sibling"]:
+	if kind not in BLOOD:
 		var age_range: Range = fields.age.input
 		age_range.min_value = int(options.get("ageMin", 18))
 		age_range.max_value = int(options.get("ageMax", 90))
+
+
+## A faixa de idade do laço: a do parente de passagem escolhido, ou a do parente.
+func _window() -> Dictionary:
+	var picked := _anchor()
+	var index := via_select.selected
+	var vias: Array = picked.get("vias", [])
+	if _role_kind() in VIA_LABELS and index >= 0 and index < vias.size():
+		return {"min": int(vias[index].minAge), "max": int(vias[index].maxAge)}
+	return {"min": int(picked.min), "max": int(picked.max)}
 
 
 func _anchor() -> Dictionary:
@@ -333,6 +367,8 @@ func spec() -> Dictionary:
 			role["fromCityId"] = String(origin)
 	elif _anchor().npc_id >= 0:
 		role["relativeId"] = int(_anchor().npc_id)
+		if kind in VIA_LABELS and via_select.selected >= 0:
+			role["viaId"] = int(via_select.get_item_metadata(via_select.selected))
 	result["role"] = role
 	return result
 
