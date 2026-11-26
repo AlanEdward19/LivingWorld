@@ -319,11 +319,11 @@ static func _windows(app, ui: Control) -> void:
 static func _bottom(app, ui: Control) -> void:
 	app.minimap = Minimap.new()
 	app.minimap.bind(app.store)
-	app.minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	app.minimap.set_anchors_preset(Control.PRESET_TOP_LEFT) # #222: sob a barra, à esquerda; embaixo ficam os acontecimentos
 	app.minimap.offset_left = 8
-	app.minimap.offset_top = -258
+	app.minimap.offset_top = 64
 	app.minimap.offset_right = 218
-	app.minimap.offset_bottom = -48
+	app.minimap.offset_bottom = 274
 	app.minimap.pan_requested.connect(func(point: Vector3): app.rig.focus(point))
 	app.minimap.visible = false # #222: escondido até pedir (K): menos coisa sobre a cena
 	ui.add_child(app.minimap)
@@ -331,8 +331,8 @@ static func _bottom(app, ui: Control) -> void:
 	app.timeline.registry = app.registry
 	app.timeline.date_of = app._date_text
 	app.timeline.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	app.timeline.offset_left = 226
-	app.timeline.offset_right = 600
+	app.timeline.offset_left = 8 # #222: no canto, sem o vão que sobrava do minimapa
+	app.timeline.offset_right = 420
 	app.timeline.offset_top = -80
 	app.timeline.offset_bottom = -40
 	app.timeline.grow_vertical = Control.GROW_DIRECTION_BEGIN

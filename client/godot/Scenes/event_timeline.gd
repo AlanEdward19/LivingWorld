@@ -27,7 +27,7 @@ func _init() -> void:
 	_collapse = Button.new()
 	_collapse.text = "▸ Acontecimentos" # #222: começa recolhida (uma linha); abre ao clicar
 	_collapse.flat = true
-	_collapse.pressed.connect(func(): _list.visible = not _list.visible; _collapse.text = ("▾" if _list.visible else "▸") + " Acontecimentos")
+	_collapse.pressed.connect(func(): _list.visible = not _list.visible; unseen = 0; _title())
 	header.add_child(_collapse)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -48,6 +48,13 @@ func _init() -> void:
 	box.add_child(_list)
 
 
+var unseen := 0 ## #222: quantos chegaram com a lista recolhida (o título avisa; nada aparece no meio da tela)
+
+
+func _title() -> void:
+	_collapse.text = ("▾" if _list.visible else "▸") + " Acontecimentos" + ((" (%d %s)" % [unseen, "novo" if unseen == 1 else "novos"]) if unseen > 0 and not _list.visible else "")
+
+
 func set_watching(on: bool) -> void:
 	watch_button.set_pressed_no_signal(on)
 
@@ -61,6 +68,9 @@ func refresh() -> void:
 	if wanted == rows and _list.get_child_count() == wanted.size():
 		visible = not wanted.is_empty() or watch_button.button_pressed
 		return
+	if not _list.visible:
+		unseen += wanted.filter(func(id): return not rows.has(id)).size()
+		_title()
 	rows = wanted
 	# AD-189: com o mundo rodando chega evento a quase todo delta; as linhas são reaproveitadas (só o texto muda) em vez de
 	# 10 botões novos por delta

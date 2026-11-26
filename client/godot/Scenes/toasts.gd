@@ -16,6 +16,11 @@ func _init() -> void:
 	alignment = BoxContainer.ALIGNMENT_END
 
 
+## #222: acontecimento do mundo só entra no histórico (a lista "Acontecimentos" mostra e avisa quantos chegaram); a tela fica livre.
+func record(text: String) -> void:
+	history.append(text)
+
+
 ## `event` marca aviso de acontecimento do mundo (o modo jogador limpa esses; os avisos do motor ao jogador ficam).
 func push(text: String, event: bool = false) -> void:
 	history.append(text)

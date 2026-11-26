@@ -241,7 +241,7 @@ func test_app_button_and_i_key_incarnate_the_selected_npc_and_the_camera_follows
 	app.world_view.npc_nodes[7] = node
 	await app.select_npc(7)
 
-	_find_button(app.npc_panel, "Encarnar (I)").pressed.emit()
+	_find_button(app.npc_panel, "Jogar com esta pessoa (I)").pressed.emit()
 	await tree.process_frame
 	eq(app.player_hud.is_active, true, "o botão encarna")
 	eq(app.rig.following, node, "a câmera segue o personagem")

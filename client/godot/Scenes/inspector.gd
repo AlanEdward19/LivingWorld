@@ -410,6 +410,10 @@ func _set_links(links: Array) -> void:
 		# #222: sem repetir o papel quando o nome já o diz ("Prédio: Prédio tipo 1" vira "Prédio tipo 1")
 		button.text = title if title.to_lower().begins_with(String(link[0]).to_lower()) else "%s: %s" % [link[0], title]
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.flat = true # #222: vínculos como lista leve (linhas clicáveis), não uma pilha de botões
+		button.add_theme_font_size_override("font_size", 14)
+		button.add_theme_color_override("font_color", Color("9fc8f0"))
+		button.text = "› " + button.text
 		button.pressed.connect(func(): inspect(entity))
 		_links.add_child(button)
 

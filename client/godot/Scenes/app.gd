@@ -274,8 +274,7 @@ func _on_events(events: Array) -> void:
 		# obra de rua (AD-181) vem sem lugar: o marcador vai para as células da obra que o motor mandou nas ruas
 		var event := RoadBook.place_event(Parse.event(raw, _local_event_id), store.roads, store.finished_works)
 		registry.remember_event(event)
-		if not player_mode: # AD-197p: no modo jogador os acontecimentos não viram aviso sobre a cena
-			toasts.push(registry.event_title(event), true)
+		toasts.record(registry.event_title(event)) # #222: acontecimento não vira aviso no meio da tela; a lista conta os novos
 		world_view.events.add(event)
 		ids.append(int(event.id))
 	if timeline != null:

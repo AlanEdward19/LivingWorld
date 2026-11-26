@@ -177,12 +177,15 @@ func test_hover_text_comes_from_store_and_server_labels() -> void:
 	app.queue_free()
 
 
-func test_delta_events_become_toasts_with_server_text() -> void:
+func test_delta_events_go_to_the_list_with_server_text_not_to_the_middle_of_the_screen() -> void:
 	var app = await _app_with(_online_transport())
 
 	app._on_delta(Fx.delta(0, 1, {"events": [{"atMs": 5 * 3600000, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
 
-	eq(app.toasts.visible_texts(), ["Nasceu uma criança"], "o texto do aviso vem do servidor")
+	eq(app.toasts.visible_texts(), [], "#222: acontecimento não vira aviso no meio da tela")
+	eq(app.toasts.history, ["Nasceu uma criança"], "o texto do servidor fica no histórico")
+	check("Nasceu uma criança" in app.timeline.row_text(0), "e na lista de acontecimentos: " + app.timeline.row_text(0))
+	check("1 novo" in app.timeline._collapse.text, "o título da lista recolhida conta os novos: " + app.timeline._collapse.text)
 	app.queue_free()
 
 
