@@ -101,6 +101,59 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? WalkHoldMs { get; init; }
 
+    // --- AD-197u: multidão na célula, correr e pular. Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
+
+    /// <summary>AD-197u: quantas pessoas cabem numa célula de 1,5 m (2,25 m²) antes de ela barrar o passo de mais uma.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? CellCrowdLimit { get; init; }
+
+    /// <summary>AD-197u: quanto a corrida multiplica a velocidade do passo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? RunFactorValue { get; init; }
+
+    /// <summary>AD-197u: teto da corrida (m/s): nem o corpo mais leve passa de uma corrida de fôlego.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? RunMaxMetersPerSecond { get; init; }
+
+    /// <summary>AD-197u: quantas vezes o gasto de sono da caminhada (<see cref="StepSleep"/>) a corrida gasta.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? RunSleepFactorValue { get; init; }
+
+    /// <summary>AD-197u: abaixo desta saúde (0–100) o corpo não corre nem pula.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? ExertionMinHealthValue { get; init; }
+
+    /// <summary>AD-197u: abaixo deste sono (energia) o corpo não pula (exausto).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpMinSleepValue { get; init; }
+
+    /// <summary>AD-197u: sono (energia) que um pulo gasta.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpSleepCostValue { get; init; }
+
+    /// <summary>AD-197u: tempo no ar (ms) de um adulto de força média; o corpo (massa muscular) o escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? JumpAirMsValue { get; init; }
+
+    /// <summary>AD-197u: acima deste custo de movimento do corpo (passada curta de criança, peso, fraqueza) não se pula.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpMaxBodyCostValue { get; init; }
+
+    /// <summary>AD-197u: abaixo desta capacidade de força (massa muscular relativa à média) não se pula (idoso, frágil).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? JumpMinCapacityValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public int CellCrowd => CellCrowdLimit ?? 3;
+    [System.Text.Json.Serialization.JsonIgnore] public double RunFactor => RunFactorValue ?? 2.2;
+    [System.Text.Json.Serialization.JsonIgnore] public double RunMaxMps => RunMaxMetersPerSecond ?? 4.5;
+    [System.Text.Json.Serialization.JsonIgnore] public double RunSleepFactor => RunSleepFactorValue ?? 3.0;
+    [System.Text.Json.Serialization.JsonIgnore] public int ExertionMinHealth => ExertionMinHealthValue ?? 30;
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMinSleep => JumpMinSleepValue ?? 15.0;
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpSleepCost => JumpSleepCostValue ?? 0.5;
+    [System.Text.Json.Serialization.JsonIgnore] public int JumpAirMs => JumpAirMsValue ?? 500;
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMaxBodyCost => JumpMaxBodyCostValue ?? 1.2;
+    [System.Text.Json.Serialization.JsonIgnore] public double JumpMinCapacity => JumpMinCapacityValue ?? 0.55;
+
     [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? LivingWorld.Domain.Geography.WorldScale.ReferenceWalkMps;
     [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? LivingWorld.Domain.Geography.WorldScale.CellMeters;
     [System.Text.Json.Serialization.JsonIgnore] public int WalkHold => WalkHoldMs ?? 300;

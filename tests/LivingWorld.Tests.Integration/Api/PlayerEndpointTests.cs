@@ -49,4 +49,35 @@ public class PlayerEndpointTests : IClassFixture<LivingWorldApiFactory>
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    /// <summary>AD-197u: <c>walk</c> com <c>run</c> responde a pose com <c>running</c> e a velocidade de verdade; <c>jump</c> responde a
+    /// pose com <c>airMs</c> e recusa o segundo pulo no ar com 409.</summary>
+    [Fact]
+    public async Task Walk_with_run_and_jump_answer_the_pose_with_running_and_air_time()
+    {
+        var npc = World().Npcs.First(n => n.IsAlive && n.ControllerId is null
+            && n.AgeYears(World().CurrentDate) is >= 25 and <= 45 && n.Health >= 90);
+        var client = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/players/{npc.Id.Value}/incarnate", new { playerId = "runner" })).StatusCode);
+        npc.SetSleep(90, World().CurrentDate.TotalHours);
+
+        var walk = await client.PostAsJsonAsync("/players/runner/walk", new { dx = 1000, dy = 0 });
+        var walkBody = await walk.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var run = await client.PostAsJsonAsync("/players/runner/walk", new { dx = 1000, dy = 0, run = true });
+        var runBody = await run.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var jump = await client.PostAsJsonAsync("/players/runner/jump", new { });
+        var jumpBody = await jump.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var again = await client.PostAsync("/players/runner/jump", null);
+        await client.PostAsJsonAsync("/players/runner/walk", new { dx = 0, dy = 0 });
+        await client.PostAsync("/players/runner/logout", null);
+
+        Assert.Equal(HttpStatusCode.OK, walk.StatusCode);
+        Assert.False(walkBody.GetProperty("running").GetBoolean());
+        Assert.False(walkBody.TryGetProperty("airMs", out _));
+        Assert.True(runBody.GetProperty("running").GetBoolean());
+        Assert.True(runBody.GetProperty("speedMps").GetDouble() > walkBody.GetProperty("speedMps").GetDouble() * 1.5);
+        Assert.Equal(HttpStatusCode.OK, jump.StatusCode);
+        Assert.InRange(jumpBody.GetProperty("airMs").GetInt32(), 400, 600);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+    }
 }
