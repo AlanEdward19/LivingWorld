@@ -502,6 +502,7 @@ func _refresh_body(delta: float) -> void:
 		if labels != null and body.get("currentAction") != null:
 			action = labels.label_for(int(body.currentAction))
 		frame.set_body(npc_name, action, body)
+		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
@@ -776,6 +777,7 @@ func interact(entry: Dictionary) -> void:
 		return
 	if response.ok and response.body is Dictionary:
 		acted.emit(String(entry.verb))
+		_body_clock = BODY_EVERY # #222: o dinheiro e a carga mudam na hora no cartão
 		var pose = response.body.get("pose")
 		if pose is Dictionary:
 			_pace(pose)

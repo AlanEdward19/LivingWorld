@@ -82,7 +82,14 @@ public sealed record NpcInspectionDto(
     // AD-170 (ADR-0047 etapa 2), só acréscimo: filhos vivos, o prédio onde a casa mora e o emprego legível (o `employer` segue id)
     IReadOnlyList<NpcId>? ChildIds = null,
     BuildingId? HouseholdBuildingId = null,
-    NpcEmploymentDto? Employment = null);
+    NpcEmploymentDto? Employment = null,
+    // #222, só acréscimo: o dinheiro da pessoa (a carteira) e o que ela leva agora (recurso e quantidade); omitidos no morador
+    // anônimo do pool, que não tem esse estado
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] long? Money = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NpcCarryDto? Carrying = null);
+
+/// <summary>#222: o que a pessoa leva nas mãos ou no recipiente agora: o recurso (nome pelo catálogo do período) e a quantidade.</summary>
+public sealed record NpcCarryDto(int ResourceId, long Quantity);
 
 /// <summary>Emprego legível (AD-170): a oficina, o tipo de local, o prédio e o dono; <see cref="Name"/> é o nome do tipo de local no
 /// período (preenchido pela API; nulo sem período).</summary>

@@ -14,6 +14,7 @@ const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próx
 var card: PanelContainer
 var name_label: Label
 var action_label: Label
+var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
 var clock_label: Label
 var prompt: Label
 var hints: Label
@@ -44,6 +45,9 @@ func _init() -> void:
 	box.add_child(name_label)
 	action_label = _label(14, Color(1, 1, 1, 0.7))
 	box.add_child(action_label)
+	purse_label = _label(15, Color("ffe9a6"))
+	purse_label.visible = false
+	box.add_child(purse_label)
 	for spec in BARS:
 		var row := HBoxContainer.new()
 		var text := _label(13, Color(1, 1, 1, 0.8))
@@ -130,6 +134,17 @@ func set_body(name: String, action: String, needs: Dictionary) -> void:
 			var value := float(needs[key])
 			bars[key].value = value
 			bars[key].modulate = Color.WHITE if value >= 25.0 else Color(1.0, 0.55, 0.55)
+
+
+## #222: "Dinheiro 120 · Leva 3 Comida" (o que o motor diz; sem campo, nada).
+func set_purse(money: Variant, carrying: Variant, name_of: Callable) -> void:
+	var parts: Array[String] = []
+	if money != null:
+		parts.append("Dinheiro %d" % int(money))
+	if carrying is Dictionary and int(carrying.get("quantity", 0)) > 0:
+		parts.append("Leva %d %s" % [int(carrying.quantity), String(name_of.call(int(carrying.resourceId))) if name_of.is_valid() else ""])
+	purse_label.text = " · ".join(parts)
+	purse_label.visible = not parts.is_empty()
 
 
 func set_clock(text: String) -> void:

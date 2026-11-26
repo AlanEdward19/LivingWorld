@@ -6,6 +6,10 @@
   },
   "ageYears": "number",
   "beliefs": "[]",
+  "carrying?": {
+    "quantity": "number",
+    "resourceId": "number"
+  },
   "childIds": "[]",
   "city": {
     "value": "string"
@@ -101,6 +105,7 @@
   },
   "lod": "number",
   "memories": "[]",
+  "money?": "number",
   "motherId?": {
     "value": "number"
   },

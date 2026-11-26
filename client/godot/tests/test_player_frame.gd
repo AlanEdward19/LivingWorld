@@ -192,3 +192,15 @@ func test_plus_and_minus_zoom_without_a_mouse() -> void:
 	var after: float = rig._zoom_goal
 	check(after < before, "na isométrica + aproxima (%s → %s)" % [before, after])
 	rig.free()
+
+
+## #222: o cartão mostra o dinheiro e o que a pessoa leva, como a ficha do motor diz (o nome do recurso vem do catálogo).
+func test_the_card_shows_money_and_what_is_carried() -> void:
+	var frame := PlayerFrame.new()
+	frame.set_purse(120, {"resourceId": 1, "quantity": 3}, func(id: int) -> String: return "Comida" if id == 1 else "?")
+	eq(frame.purse_label.text, "Dinheiro 120 · Leva 3 Comida")
+	frame.set_purse(45, null, Callable())
+	eq(frame.purse_label.text, "Dinheiro 45", "sem carga, só o dinheiro")
+	frame.set_purse(null, null, Callable())
+	eq(frame.purse_label.visible, false, "servidor sem o campo: nada")
+	frame.free()
