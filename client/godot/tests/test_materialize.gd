@@ -185,13 +185,13 @@ func test_an_anonymous_sheet_hides_the_meaningless_blocks_and_names_it_anonymous
 	eq(panel._grid.visible, false, "sem barras de necessidades inventadas")
 	eq(panel._details.visible, false)
 	for control in panel._sheet_only:
-		eq(control.visible, false, "botão de NPC detalhado fica oculto no anônimo: " + control.text)
+		eq(control.visible, false, "botão de NPC detalhado fica oculto no anônimo: " + str(control))
 	eq(panel.trades_button.visible, false)
 
 	await panel.materialize()
 	eq(panel._grid.visible, true, "materializado: barras voltam")
 	for control in panel._sheet_only:
-		eq(control.visible, true, "botões voltam: " + control.text)
+		eq(control.visible, true, "botões voltam: " + str(control))
 	eq(panel._title.text, "Ana de Verdade")
 	panel.free()
 

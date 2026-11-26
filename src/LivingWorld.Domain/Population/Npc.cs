@@ -543,6 +543,17 @@ public sealed class Npc
     /// cref="AggregatePopulationPool"/> da cidade.</summary>
     public long? MaterializedAtTick { get; private set; }
 
+    /// <summary>AD-197t: tick em que chegou de fora como recém-chegado (migrante que o jogador montou no criador de personagem);
+    /// nulo = nasceu ou foi povoado aqui. Omitido do snapshot quando nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? ArrivedAtTick { get; private set; }
+
+    public void MarkArrived(long tick)
+    {
+        ArrivedAtTick = tick;
+        TouchCanonical();
+    }
+
     /// <summary>Ocupação de interior — <c>null</c> quando o NPC está em
     /// escopo World/City. Nunca substitui <see cref="CurrentLocation"/>/<see cref="City"/>: a
     /// localização global continua a mesma independente de estar dentro de um prédio.</summary>
@@ -585,7 +596,8 @@ public sealed class Npc
         long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0,
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
-        long travelLegEndMs = 0, CellCoord? travelLegTo = null)
+        long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
+        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -616,6 +628,9 @@ public sealed class Npc
         ActionPhaseMs = actionPhaseMs;
         TravelLegEndMs = travelLegEndMs;
         TravelLegTo = travelLegTo;
+        StepReadyAtMs = stepReadyAtMs;
+        Fine = fine;
+        JumpUntilMs = jumpUntilMs;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -662,6 +677,7 @@ public sealed class Npc
         CourtingWith = courtingWith;
         City = city;
         MaterializedAtTick = materializedAtTick;
+        ArrivedAtTick = arrivedAtTick;
         Interior = interior;
         CarriedResourceId = carriedResourceId;
         CarriedQuantity = carriedQuantity;
@@ -896,6 +912,19 @@ public sealed class Npc
     public void Step(long readyAtMs, double sleepCost, long nowMs)
     {
         StepReadyAtMs = readyAtMs;
+        if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
+    /// <summary>AD-197u: instante (ms) em que o corpo conduzido pelo jogador volta ao chão depois de um pulo; antes dele não pula de
+    /// novo. Omitido enquanto 0 (quem nunca pulou).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long JumpUntilMs { get; private set; }
+
+    /// <summary>AD-197u: o corpo pulou: fica no ar até <paramref name="untilMs"/> e gasta <paramref name="sleepCost"/> do sono.</summary>
+    public void Jump(long untilMs, double sleepCost, long nowMs)
+    {
+        JumpUntilMs = untilMs;
         if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
         TouchCanonical();
     }

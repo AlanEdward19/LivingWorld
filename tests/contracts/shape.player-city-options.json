@@ -1,0 +1,108 @@
+{
+  "ageMax": "number",
+  "ageMin": "number",
+  "ageMinMinor": "number",
+  "cityId": "string",
+  "economy": "boolean",
+  "families": [
+    {
+      "head": "string",
+      "householdId": "number",
+      "members": [
+        {
+          "ageYears": "number",
+          "name": "string",
+          "npcId": "number",
+          "roles": {
+            "child": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "cousin": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "grandchild": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "nephew": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "relative": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "sibling": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "spouse": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            },
+            "uncle": {
+              "available": "boolean",
+              "maxAge": "number",
+              "minAge": "number",
+              "reason": "string",
+              "vias": "[]"
+            }
+          },
+          "sex": "string",
+          "spouseId": "number"
+        }
+      ]
+    }
+  ],
+  "heightM": {
+    "female": {
+      "max": "number",
+      "min": "number",
+      "typical": "number"
+    },
+    "male": {
+      "max": "number",
+      "min": "number",
+      "typical": "number"
+    }
+  },
+  "moneyCap": "number",
+  "name": "string",
+  "origins": "[]",
+  "outfits": [
+    "string"
+  ],
+  "professions": [
+    {
+      "id": "number",
+      "name": "string"
+    }
+  ],
+  "roles": [
+    "string"
+  ],
+  "typicalMoney": "number"
+}

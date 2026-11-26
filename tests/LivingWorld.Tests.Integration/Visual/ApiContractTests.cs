@@ -287,6 +287,8 @@ public class ApiContractTests
         Optional(shape, "currentAction", "number");
         // AD-170: prédio da casa e emprego legível só existem para quem tem casa com prédio e emprego
         Optional(shape, "householdBuildingId", Id());
+        Optional(shape, "money", "number"); // #222: a carteira (omitida no morador anônimo do pool)
+        Optional(shape, "carrying", new JsonObject { ["quantity"] = "number", ["resourceId"] = "number" }); // #222: o que leva agora
         Optional(shape, "employment", new JsonObject { ["buildingId?"] = Id(), ["id"] = Id(), ["locationTypeId"] = "number", ["name?"] = "string", ["ownerId?"] = Id() });
         Optional(shape, "actionTarget", new JsonObject { ["id"] = "string", ["kind"] = "string" });
         Optional(shape, "rest", new JsonObject { ["blocked"] = "boolean", ["kind"] = "number", ["location"] = new JsonObject { ["x"] = "number", ["y"] = "number" }, ["quality"] = "number", ["remainingHours"] = "number" });

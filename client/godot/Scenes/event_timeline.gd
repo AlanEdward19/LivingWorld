@@ -25,9 +25,9 @@ func _init() -> void:
 	var header := HBoxContainer.new()
 	box.add_child(header)
 	_collapse = Button.new()
-	_collapse.text = "▾ Acontecimentos"
+	_collapse.text = "▸ Acontecimentos" # #222: começa recolhida (uma linha); abre ao clicar
 	_collapse.flat = true
-	_collapse.pressed.connect(func(): _list.visible = not _list.visible; _collapse.text = ("▾" if _list.visible else "▸") + " Acontecimentos")
+	_collapse.pressed.connect(func(): _list.visible = not _list.visible; unseen = 0; _title())
 	header.add_child(_collapse)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -44,7 +44,15 @@ func _init() -> void:
 	watch_button.toggled.connect(func(on: bool): watch_toggled.emit(on))
 	header.add_child(watch_button)
 	_list = VBoxContainer.new()
+	_list.visible = false
 	box.add_child(_list)
+
+
+var unseen := 0 ## #222: quantos chegaram com a lista recolhida (o título avisa; nada aparece no meio da tela)
+
+
+func _title() -> void:
+	_collapse.text = ("▾" if _list.visible else "▸") + " Acontecimentos" + ((" (%d %s)" % [unseen, "novo" if unseen == 1 else "novos"]) if unseen > 0 and not _list.visible else "")
 
 
 func set_watching(on: bool) -> void:
@@ -60,6 +68,9 @@ func refresh() -> void:
 	if wanted == rows and _list.get_child_count() == wanted.size():
 		visible = not wanted.is_empty() or watch_button.button_pressed
 		return
+	if not _list.visible:
+		unseen += wanted.filter(func(id): return not rows.has(id)).size()
+		_title()
 	rows = wanted
 	# AD-189: com o mundo rodando chega evento a quase todo delta; as linhas são reaproveitadas (só o texto muda) em vez de
 	# 10 botões novos por delta
@@ -72,16 +83,19 @@ func refresh() -> void:
 		var button := Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.clip_text = true
-		button.custom_minimum_size.x = 340
+		button.custom_minimum_size.x = 380
 		button.pressed.connect(func(): if index < rows.size(): event_chosen.emit(int(rows[index])))
 		_list.add_child(button)
 	for i in wanted.size():
 		var event: Dictionary = registry.events.get(wanted[i], {})
-		var text := "%s · %s%s" % [date_of.call(int(event.get("tick", 0))), registry.event_title(event),
-			"" if bool(event.get("has_cell", false)) else " (sem lugar)"]
+		# #222: o que aconteceu primeiro (a data comprida cortava o título); a data inteira fica na dica do mouse
+		var when: String = date_of.call(int(event.get("tick", 0)))
+		var text := "%s%s · %s" % [registry.event_title(event), "" if bool(event.get("has_cell", false)) else " (sem lugar)",
+			when.get_slice(" · ", when.get_slice_count(" · ") - 1)]
 		var button := _list.get_child(i) as Button
 		if button.text != text:
 			button.text = text
+			button.tooltip_text = "%s · %s" % [when, registry.event_title(event)]
 	visible = not wanted.is_empty() or watch_button.button_pressed
 
 

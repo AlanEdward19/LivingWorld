@@ -70,3 +70,33 @@ func test_stage_enter_and_leave_toggle_dimming() -> void:
 	eq(stage.dim_rect.visible, false, "exterior restaurado ao sair")
 	eq(stage.active, false)
 	stage.free()
+
+
+## #222: no interior a parede tem a altura do andar (mais alta que uma pessoa), as do lado da câmera ficam na altura do joelho
+## (corte de maquete), a porta é um vão com verga e a escada tem degraus.
+func test_interior_walls_are_floor_tall_with_a_cutaway_door_gap_and_steps() -> void:
+	var grid = InteriorView.Grid
+	var kept := [grid.cell_meters, grid.floor_meters, grid.door_meters]
+	grid.cell_meters = 1.5 # a escala do motor (ADR-0052)
+	grid.floor_meters = 3.0
+	grid.door_meters = 2.0
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	var walls: Array = view._walls.filter(func(w): return not w.get("lintel", false))
+	var tallest := 0.0
+	for wall in walls:
+		tallest = maxf(tallest, (wall.mesh as BoxMesh).size.y)
+	check(tallest > InteriorView.Grid.units(1.8), "parede mais alta que uma pessoa (%s unidades)" % tallest)
+	check(view._walls.any(func(w): return w.get("lintel", false)), "a porta tem verga (um vão, não um bloco)")
+	view.set_view_direction(Vector3(0, 0, 1))
+	var low := walls.filter(func(w): return (w.mesh as BoxMesh).size.y < InteriorView.Grid.units(1.0))
+	check(not low.is_empty() and low.size() < walls.size(), "só as paredes do lado da câmera ficam baixas")
+	var steps := 0
+	for child in view.floor_nodes[0].get_children():
+		if child is MeshInstance3D and (child.mesh as BoxMesh).size.y > 0.1 and (child.mesh as BoxMesh).size.x < 1.0:
+			steps += 1
+	check(steps >= 3, "a escada tem degraus (%d)" % steps)
+	view.free()
+	grid.cell_meters = kept[0]
+	grid.floor_meters = kept[1]
+	grid.door_meters = kept[2]

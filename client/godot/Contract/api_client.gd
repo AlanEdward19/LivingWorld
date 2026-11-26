@@ -199,6 +199,56 @@ func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
+## #222 (AD-197e): posse plena, do admin (o transporte manda o X-Admin-Token) com a sessão do jogador: a pessoa não recusa ordens.
+func player_possess(npc_id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%d/possess" % npc_id, {}, _player_headers())
+	return _checked("/players/possess", {"status": response.status, "body": response.body}, "player-incarnate")
+
+
+## AD-197q: de onde dá para sair como pessoa nova (`{cities:[{cityId,name,aggregateCount,detailedCount}]}`), do motor.
+func player_origins() -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/origins", null, _player_headers())
+	return _checked("/players/origins", {"status": response.status, "body": response.body}, "player-origins")
+
+
+## AD-197t: o que o criador oferece numa cidade (faixas, teto de dinheiro, ofícios, trajes, origens e as famílias com os papéis possíveis).
+func player_city_options(city_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/origins/%s" % city_id.uri_encode(), null, _player_headers())
+	return _checked("/players/origins/city", {"status": response.status, "body": response.body}, "player-city-options")
+
+
+## AD-197t: a prévia que o motor valida da escolha (`spec`); só lê, nada vai ao registro. 409 com o motivo se for incoerente.
+func player_character_preview(player_id: String, spec: Dictionary) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%s/character/preview" % player_id.uri_encode(), spec, _player_headers())
+	return _checked("/players/character/preview", {"status": response.status, "body": response.body}, "player-character-preview")
+
+
+## AD-197t: cria a pessoa que o jogador montou e a encarna (nome, idade, traços, cidade, família ou chegada, dinheiro, aparência).
+func player_character(player_id: String, spec: Dictionary) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "character", "spec": spec}, "POST", "/players/%s/character" % player_id.uri_encode(), spec)
+	return _checked("/players/character", {"status": response.status, "body": response.body}, "player-character")
+
+
+## AD-197q: uma amostra nova do agregado da cidade (`filter`: sex, minAge, maxAge, professionId, count). Cada pedido é registrado
+## pelo motor; 409 com o motivo quando o agregado está vazio ou ninguém passa no filtro.
+func player_candidates(player_id: String, city_id: String, filter: Dictionary = {}) -> Dictionary:
+	var body := filter.duplicate()
+	body["cityId"] = city_id
+	var command := body.duplicate()
+	command["command"] = "candidates"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/candidates" % player_id.uri_encode(), body)
+	return _checked("/players/candidates", {"status": response.status, "body": response.body}, "player-candidates")
+
+
+## AD-197q: entrar como o candidato `npc_id` da amostra `sample`: o motor materializa a pessoa e a encarna.
+func player_create(player_id: String, city_id: String, npc_id: int, sample: int) -> Dictionary:
+	var body := {"cityId": city_id, "npcId": npc_id, "sample": sample}
+	var command := body.duplicate()
+	command["command"] = "create"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/create" % player_id.uri_encode(), body)
+	return _checked("/players/create", {"status": response.status, "body": response.body}, "player-create")
+
+
 ## `action` = nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); "" devolve a escolha ao motor. `power_id` (AD-196)
 ## vai só com UsePower: o poder que o NPC porta (o servidor recusa com 400 o que ele não porta).
 func player_action(player_id: String, action: String, power_id: String = "") -> Dictionary:
@@ -219,9 +269,20 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 
 
 ## AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para); a resposta é a pose com a posição fina e a velocidade.
-func player_walk(player_id: String, dx: int, dy: int) -> Dictionary:
-	var response: Dictionary = await _player_command({"command": "walk", "dx": dx, "dy": dy}, "POST", "/players/%s/walk" % player_id.uri_encode(), {"dx": dx, "dy": dy})
+func player_walk(player_id: String, dx: int, dy: int, run: bool = false) -> Dictionary:
+	var body := {"dx": dx, "dy": dy}
+	if run:
+		body["run"] = true # #222: Shift corre; o motor decide se o corpo aguenta (cansado, anda)
+	var command := body.duplicate()
+	command["command"] = "walk"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/walk" % player_id.uri_encode(), body)
 	return _checked("/players/walk", {"status": response.status, "body": response.body}, "")
+
+
+## #222: pular; o motor diz se o corpo consegue e quanto tempo fica no ar (`airMs`), ou 409 com o motivo.
+func player_jump(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "jump"}, "POST", "/players/%s/jump" % player_id.uri_encode(), {})
+	return _checked("/players/jump", {"status": response.status, "body": response.body}, "")
 
 
 ## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.

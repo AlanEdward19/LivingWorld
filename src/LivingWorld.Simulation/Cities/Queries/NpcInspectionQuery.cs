@@ -88,7 +88,9 @@ public static class NpcInspectionQuery
             HouseholdBuildingId: npc.Household is { } home ? world.FindHousehold(home)?.Dwelling : null,
             Employment: npc.Employer is { } employer && world.FindWorkplace(employer) is { } workplace
                 ? new NpcEmploymentDto(workplace.Id, workplace.LocationType.Id, workplace.Building, workplace.Owner)
-                : null);
+                : null,
+            Money: npc.Wallet.Amount,
+            Carrying: npc.IsCarrying ? new NpcCarryDto(npc.CarriedResourceId, npc.CarriedQuantity) : null);
     }
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>

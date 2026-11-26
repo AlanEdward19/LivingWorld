@@ -16,9 +16,25 @@ const TIPS: Array[Dictionary] = [
 	{"text": "Aperte N para ir ao próximo acontecimento, ou V para só assistir o mundo acontecer.", "anchor": "minimap"},
 	{"text": "Esqueceu algo? O botão ? mostra as dicas e os atalhos de novo. Esc abre o menu de pausa.", "anchor": "help_button"},
 ]
+## #222: com um personagem, a ajuda mostra os comandos do jogo (o resto é do observador).
+const PLAYER_SHORTCUTS: Array[Array] = [
+	["Andar", "W A S D (para onde a câmera olha)"],
+	["Olhar em volta", "mexer o mouse"],
+	["Correr", "Shift + andar (o corpo cansa)"],
+	["Pular", "Espaço"],
+	["Interagir (comprar, beber, conversar, porta, cama…)", "E, depois o número da opção"],
+	["Bater em quem está na mira", "clique"],
+	["1ª ou 3ª pessoa", "C"],
+	["Aproximar e afastar a câmera", "+ e − (ou a rodinha)"],
+	["Soltar o mouse", "Z"],
+	["Menu (continuar, sair do personagem)", "Esc"],
+]
+var spectator_grid: GridContainer
+var player_grid: GridContainer
+var _title_label: Label
 const SHORTCUTS: Array[Array] = [
 	["Andar pelo mundo", "botão direito e arrastar · W A S D ou setas"],
-	["Aproximar e afastar", "rodinha do mouse"],
+	["Aproximar e afastar", "rodinha do mouse · + e −"],
 	["Girar a câmera", "Shift + botão direito · Q e E"],
 	["Ver quem é", "clique numa pessoa, casa ou cidade"],
 	["Voltar na ficha", "Backspace"],
@@ -36,6 +52,7 @@ const SHORTCUTS: Array[Array] = [
 	["Mapa de calor do pisoteio das ruas", "H"],
 	["Prédio de trás sob o cursor", "Tab · Alt + rodinha"],
 	["Som liga/desliga", "M"],
+	["Minimapa", "K"],
 	["Fechar janela · menu de pausa", "Esc"],
 	["Console do mundo", "F8"],
 	["Esta ajuda", "? ou F1"],
@@ -141,22 +158,32 @@ func _build_help() -> Control:
 	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.visible = false
 	add_child(layer)
+	var dim := ColorRect.new() # #222: fundo escuro: nada da cena vaza por trás do texto
+	dim.color = Color(0.02, 0.03, 0.06, 0.82)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
 	var box := Kit.screen(layer, 640)
-	Kit.title("Ajuda e atalhos", 30, box, Kit.GOLD)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 24)
-	grid.add_theme_constant_override("v_separation", 6)
-	box.add_child(grid)
-	for entry in SHORTCUTS:
-		for i in 2:
-			var cell := Kit.text(entry[i], grid, 16, Color.WHITE if i == 0 else Kit.SOFT)
-			cell.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_title_label = Kit.title("Ajuda e atalhos", 30, box, Kit.GOLD)
+	spectator_grid = _shortcut_grid(box, SHORTCUTS)
+	player_grid = _shortcut_grid(box, PLAYER_SHORTCUTS)
 	var row := Kit.row(box)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	Kit.button("Ver as dicas de novo", row, func(): start(true))
 	Kit.button("Fechar (Esc)", row, close_help)
 	return layer
+
+
+func _shortcut_grid(box: Control, rows: Array) -> GridContainer:
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 6)
+	box.add_child(grid)
+	for entry in rows:
+		for i in 2:
+			var cell := Kit.text(entry[i], grid, 16, Color.WHITE if i == 0 else Kit.SOFT)
+			cell.autowrap_mode = TextServer.AUTOWRAP_OFF
+	return grid
 
 
 func toggle_help() -> void:
@@ -170,6 +197,10 @@ func open_help() -> void:
 	bubble.visible = false
 	index = -1
 	help.visible = true
+	var playing: bool = app != null and bool(app.get("player_mode"))
+	player_grid.visible = playing
+	spectator_grid.visible = not playing
+	_title_label.text = "Como jogar" if playing else "Ajuda e atalhos"
 	help.mouse_filter = Control.MOUSE_FILTER_STOP
 	Kit.fade_in(help)
 	var first := Kit.first_focusable(help)

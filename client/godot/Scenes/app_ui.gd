@@ -16,6 +16,8 @@ const AdminWindow := preload("res://Scenes/admin_window.gd")
 const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
+const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const CameraRig := preload("res://Scenes/camera_rig.gd")
@@ -27,7 +29,7 @@ const PauseMenu := preload("res://Scenes/pause_menu.gd")
 const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · X: raio-x · P: planta · ? ou F1: todos os atalhos · Esc: pausa"
+const HELP := "Clique: ver · Duplo clique: entrar · Botão direito: mover · Roda ou + −: zoom · K: minimapa · F1: atalhos · Esc: menu"
 ## AD-197p: atalhos do modo jogador (3ª/1ª pessoa), no lugar dos do espectador.
 const PLAYER_HELP := "WASD: andar · Mouse: olhar · E: interagir · Clique: bater · Tab: ordens · C: 1ª/3ª pessoa · Z: soltar o cursor · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
@@ -54,6 +56,7 @@ static func build(app) -> void:
 
 static func _top_bar(app, ui: Control) -> void:
 	var top := PanelContainer.new()
+	app.top_bar = top # #222: some no modo jogador (a moldura mostra a hora)
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 8
 	top.offset_right = -8
@@ -64,15 +67,26 @@ static func _top_bar(app, ui: Control) -> void:
 	app.breadcrumb = Label.new()
 	app.breadcrumb.text = "Mundo"
 	app.breadcrumb.add_theme_font_size_override("font_size", 19)
+	app.breadcrumb.clip_text = true # #222: nome longo corta em vez de empurrar os botões para fora da tela
+	app.breadcrumb.custom_minimum_size.x = 230
+	app.breadcrumb.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	app.breadcrumb.mouse_filter = Control.MOUSE_FILTER_STOP # #222: clicar no nome da cidade abre a ficha dela
+	app.breadcrumb.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	app.breadcrumb.tooltip_text = "Clique para ver a ficha da cidade"
+	app.breadcrumb.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and app.store.kind == "City":
+			app._show_city_summary(String(app.store.city.id)))
 	bar.add_child(app.breadcrumb)
 	app.world_button = Button.new()
-	app.world_button.text = "◀ Mapa do mundo"
+	app.world_button.text = "◀ Mundo" # #222: curto (a barra estourava com nome de cidade longo)
 	app.world_button.tooltip_text = "Sai da cidade e mostra o mundo todo"
 	app.world_button.visible = false
 	app.world_button.pressed.connect(func(): app.enter_scope("World", ""))
 	bar.add_child(app.world_button)
 	app.follow_label = Label.new()
 	app.follow_label.add_theme_color_override("font_color", Color("9fe0a8"))
+	app.follow_label.clip_text = true
+	app.follow_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	bar.add_child(app.follow_label)
 	var left_spacer := Control.new()
 	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -85,6 +99,9 @@ static func _top_bar(app, ui: Control) -> void:
 	app.weather_label.add_theme_font_size_override("font_size", 15)
 	app.weather_label.add_theme_color_override("font_color", Color("cfe3f0"))
 	app.weather_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	app.weather_label.clip_text = true # #222: o detalhe do tempo vai na dica; na barra, o que couber
+	app.weather_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	app.weather_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	app.weather_label.visible = false
 	bar.add_child(app.weather_label)
 	var right_spacer := Control.new()
@@ -92,7 +109,8 @@ static func _top_bar(app, ui: Control) -> void:
 	bar.add_child(right_spacer)
 	app.pause_label = Label.new()
 	app.pause_label.clip_text = true
-	app.pause_label.custom_minimum_size.x = 120
+	app.pause_label.custom_minimum_size.x = 0 # #222: some antes de empurrar os botões
+	app.pause_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	app.pause_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	app.pause_label.size_flags_stretch_ratio = 4.0
 	app.pause_label.add_theme_color_override("font_color", Color("ffcf4a"))
@@ -106,9 +124,15 @@ static func _top_bar(app, ui: Control) -> void:
 		app.clock_panel.set_control_enabled(false, NO_ADMIN)
 	if app.admin_enabled:
 		var console_button := Button.new()
-		console_button.text = "Console (F8)"
+		console_button.text = "Admin" # #222: curto, a barra cabe em 1280–1600
+		console_button.tooltip_text = "Console do mundo (F8)"
 		console_button.pressed.connect(func(): app._toggle_admin())
 		bar.add_child(console_button)
+	var creator_button := Button.new() # AD-197q: entrar como pessoa nova, tirada do agregado de uma cidade pelo motor
+	creator_button.text = "Pessoa nova"
+	creator_button.tooltip_text = "Entrar no mundo como alguém da população de uma cidade"
+	creator_button.pressed.connect(func(): app.open_creator())
+	bar.add_child(creator_button)
 	app.help_button = Button.new()
 	app.help_button.text = " ? "
 	app.help_button.tooltip_text = "Dicas e atalhos"
@@ -129,13 +153,19 @@ static func _top_bar(app, ui: Control) -> void:
 
 
 static func _side(app, ui: Control) -> void:
+	var scroll := ScrollContainer.new() # #222: a ficha longa rola dentro da tela em vez de sair por baixo
+	scroll.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	scroll.offset_left = -314
+	scroll.offset_right = -8
+	scroll.offset_top = 64
+	scroll.offset_bottom = -40
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	ui.add_child(scroll)
 	var side := VBoxContainer.new()
-	side.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	side.offset_left = -306
-	side.offset_right = -8
-	side.offset_top = 64
-	ui.add_child(side)
-	app.side_panel = side
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(side)
+	app.side_panel = scroll
 	var inspector := Inspector.new()
 	inspector.reader = app.api
 	inspector.registry = app.registry
@@ -180,7 +210,8 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.api = app.api
 	app.player_hud.labels = app.labels
 	app.player_hud.player_id = app.player_id if app.player_id != "" else PlayerProfile.load_or_create()
-	app.player_hud.session_enabled = true # AD-197a: sessão por token e canal persistente; o id local fica só como reserva
+	app.player_hud.session_enabled = true
+	app.player_hud.full_possession = app.admin_enabled # #222: jogo local (admin): posse plena, sem recusa de vontade # AD-197a: sessão por token e canal persistente; o id local fica só como reserva
 	app.player_hud.warning.connect(func(text: String): app.toasts.push(text))
 	app.player_hud.released.connect(func(): app.player_released())
 	app.player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -201,6 +232,12 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.settled.connect(app._on_player_fine)
 	app.player_hud.menu_toggled.connect(app._on_player_menu)
 	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
+	app.player_frame = PlayerFrame.new() # #222: a moldura de jogo do modo jogador (barras, dica do E, teclas, menu do E)
+	ui.add_child(app.player_frame)
+	app.player_hud.frame = app.player_frame
+	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
+	app.player_hud.jumped.connect(app._on_player_jumped)
+	app.player_hud.acted.connect(app._on_player_acted)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
 	app.crosshair.add_theme_font_size_override("font_size", 28)
@@ -221,6 +258,7 @@ static func _side(app, ui: Control) -> void:
 	app.rig.mode_changed.connect(app._on_camera_mode)
 	app.rig.blockers = app.camera_blockers # AD-197p: braço de mola contra os prédios desenhados
 	app.rig.see_through.connect(func(ids: Dictionary): app.world_view.buildings.set_faded(ids))
+	app.rig.opened.connect(func(ids: Dictionary): app.world_view.buildings.set_opened(ids)) # AD-197s
 
 	app.list_panel = Panels.NpcListPanel.new()
 	app.list_panel.api = app.api
@@ -263,11 +301,19 @@ static func _windows(app, ui: Control) -> void:
 	app.technology = TechnologyWindow.new()
 	app.technology.api = app.api
 	app.technology.date_of = app._date_text
+	app.creator = CharacterCreator.new()
+	app.creator.api = app.api
+	app.creator.hud = app.player_hud
+	app.creator.entered.connect(app._on_created)
 	app.router.host = ui
-	for window in [app.brain_panel, app.narrative, app.admin_window, app.economy, app.technology]:
+	for window in [app.brain_panel, app.narrative, app.admin_window, app.economy, app.technology, app.creator]:
 		window.warning.connect(func(text: String): app.toasts.push(text))
 		ui.add_child(window)
-		app.router.register(window)
+		if window == app.creator: # #222: o criador é a janela central da tela toda: não se encaixa nem se arrasta, só vem para a frente
+			app.router.floating[window] = true
+			window.closed.connect(func(): app.router.closed(window))
+		else:
+			app.router.register(window)
 	app.conversation = ConversationWindow.new()
 	app.conversation.api = app.api
 	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar
@@ -284,19 +330,20 @@ static func _windows(app, ui: Control) -> void:
 static func _bottom(app, ui: Control) -> void:
 	app.minimap = Minimap.new()
 	app.minimap.bind(app.store)
-	app.minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	app.minimap.set_anchors_preset(Control.PRESET_TOP_LEFT) # #222: sob a barra, à esquerda; embaixo ficam os acontecimentos
 	app.minimap.offset_left = 8
-	app.minimap.offset_top = -258
+	app.minimap.offset_top = 64
 	app.minimap.offset_right = 218
-	app.minimap.offset_bottom = -48
+	app.minimap.offset_bottom = 274
 	app.minimap.pan_requested.connect(func(point: Vector3): app.rig.focus(point))
+	app.minimap.visible = false # #222: escondido até pedir (K): menos coisa sobre a cena
 	ui.add_child(app.minimap)
 	app.timeline = EventTimeline.new()
 	app.timeline.registry = app.registry
 	app.timeline.date_of = app._date_text
 	app.timeline.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	app.timeline.offset_left = 226
-	app.timeline.offset_right = 600
+	app.timeline.offset_left = 8 # #222: no canto, sem o vão que sobrava do minimapa
+	app.timeline.offset_right = 420
 	app.timeline.offset_top = -80
 	app.timeline.offset_bottom = -40
 	app.timeline.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -306,11 +353,11 @@ static func _bottom(app, ui: Control) -> void:
 	app.timeline.watch_toggled.connect(func(_on: bool): app.toggle_watch())
 	ui.add_child(app.timeline)
 	app.toasts = Toasts.new()
-	app.toasts.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	app.toasts.offset_left = -420
-	app.toasts.offset_right = -12
-	app.toasts.offset_top = -260
-	app.toasts.offset_bottom = -48
+	app.toasts.set_anchors_preset(Control.PRESET_CENTER_TOP) # #222: avisos no alto, no meio: nem sobre a ficha nem sobre a linha do tempo
+	app.toasts.offset_left = -300
+	app.toasts.offset_right = 300
+	app.toasts.offset_top = 64
+	app.toasts.offset_bottom = 240
 	ui.add_child(app.toasts)
 	var help := Label.new()
 	help.text = HELP
@@ -319,6 +366,8 @@ static func _bottom(app, ui: Control) -> void:
 	help.offset_left = 10
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.add_theme_font_size_override("font_size", 13)
+	help.add_theme_constant_override("outline_size", 5) # #222: legível sobre chão claro
+	help.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
 	ui.add_child(help)
 	app.help_label = help
 	app.tooltip = PanelContainer.new()

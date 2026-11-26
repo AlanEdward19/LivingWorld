@@ -121,9 +121,17 @@ class NpcDetailPanel extends PanelContainer:
 	var _subtitle: Label
 	var _grid: VBoxContainer
 
+	static func _flat(color: Color, radius: int = 3) -> StyleBoxFlat:
+		var style := StyleBoxFlat.new()
+		style.bg_color = color
+		style.set_corner_radius_all(radius)
+		return style
+
 	func _init() -> void:
 		custom_minimum_size = Vector2(290, 0)
+		add_theme_stylebox_override("panel", StyleBoxEmpty.new()) # #222: o inspetor já é o cartão (sem borda dupla)
 		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 6)
 		add_child(box)
 		_title = Label.new()
 		_title.add_theme_font_size_override("font_size", 20)
@@ -144,51 +152,56 @@ class NpcDetailPanel extends PanelContainer:
 		materialize_button.pressed.connect(func(): materialize())
 		box.add_child(materialize_button)
 		_grid = VBoxContainer.new()
+		_grid.add_theme_constant_override("separation", 3)
 		box.add_child(_grid)
-		for spec in ["Saúde", "Fome", "Sede", "Sono", "Social"]:
+		for spec in [["Saúde", Color("5fb36b")], ["Fome", Color("e0a43a")], ["Sede", Color("4aa3df")], ["Sono", Color("9b7fd1")],
+				["Social", Color("d98bb0")]]:
 			var row := HBoxContainer.new()
 			var name := Label.new()
-			name.text = spec
+			name.text = spec[0]
 			name.custom_minimum_size.x = 56
+			name.add_theme_font_size_override("font_size", 14)
+			name.modulate = Color(1, 1, 1, 0.8)
 			row.add_child(name)
-			var bar := ProgressBar.new()
+			var bar := ProgressBar.new() # #222: barra fina, cor por necessidade, fundo discreto
 			bar.max_value = 100
 			bar.show_percentage = false
-			bar.custom_minimum_size = Vector2(150, 14)
+			bar.custom_minimum_size = Vector2(190, 8)
+			bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			bar.add_theme_stylebox_override("background", _flat(Color(1, 1, 1, 0.1)))
+			bar.add_theme_stylebox_override("fill", _flat(spec[1]))
 			row.add_child(bar)
 			_grid.add_child(row)
-			bars[spec] = bar
+			bars[spec[0]] = bar
 		_details = Label.new()
 		_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_details.custom_minimum_size.x = 270
-		_details.modulate = Color(1, 1, 1, 0.85)
+		_details.add_theme_font_size_override("font_size", 14)
+		_details.modulate = Color(1, 1, 1, 0.8)
 		box.add_child(_details)
-		var follow := Button.new()
-		follow.text = "Seguir (F)"
-		follow.pressed.connect(func(): follow_requested.emit(npc_id))
-		box.add_child(follow)
-		_sheet_only.append(follow)
-		var brain := Button.new()
-		brain.text = "Cérebro (B)"
-		brain.pressed.connect(func(): brain_requested.emit(npc_id))
-		box.add_child(brain)
-		_sheet_only.append(brain)
-		var talk := Button.new()
-		talk.text = "Conversar (T)"
-		talk.pressed.connect(func(): conversation_requested.emit(npc_id))
-		box.add_child(talk)
-		_sheet_only.append(talk)
-		var bio := Button.new()
-		bio.text = "Biografia"
-		bio.pressed.connect(func(): biography_requested.emit(npc_id))
-		box.add_child(bio)
-		_sheet_only.append(bio)
+		# #222: a ação principal em destaque; as outras numa grade de duas colunas
 		var incarnate := Button.new()
-		incarnate.text = "Encarnar (I)"
+		incarnate.text = "Jogar com esta pessoa (I)"
+		incarnate.custom_minimum_size.y = 38
+		incarnate.add_theme_stylebox_override("normal", _flat(Color("3a6fb0"), 7))
+		incarnate.add_theme_stylebox_override("hover", _flat(Color("4a82c8"), 7))
 		incarnate.pressed.connect(func(): incarnate_requested.emit(npc_id))
 		box.add_child(incarnate)
 		_sheet_only.append(incarnate)
+		var actions := GridContainer.new()
+		actions.columns = 2
+		actions.add_theme_constant_override("h_separation", 4)
+		actions.add_theme_constant_override("v_separation", 4)
+		box.add_child(actions)
+		_sheet_only.append(actions)
+		for spec in [["Seguir (F)", func(): follow_requested.emit(npc_id)], ["Conversar (T)", func(): conversation_requested.emit(npc_id)],
+				["Cérebro (B)", func(): brain_requested.emit(npc_id)], ["Biografia", func(): biography_requested.emit(npc_id)]]:
+			var button := Button.new()
+			button.text = spec[0]
+			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			button.pressed.connect(spec[1])
+			actions.add_child(button)
 		trades_button = Button.new()
 		trades_button.text = "Vendas do local de trabalho"
 		trades_button.visible = false
@@ -251,7 +264,7 @@ class NpcDetailPanel extends PanelContainer:
 		var values := {"Saúde": npc.health, "Fome": npc.hunger, "Sede": npc.thirst, "Sono": npc.sleep, "Social": npc.social}
 		for key in values:
 			bars[key].value = float(values[key])
-			bars[key].modulate = Color("5fb36b") if float(values[key]) >= 40.0 else Color("d9a441") if float(values[key]) >= 20.0 else Color("d9534f")
+			bars[key].modulate = Color.WHITE if float(values[key]) >= 25.0 else Color(1.0, 0.55, 0.55) # #222: a cor é da necessidade; baixa, avermelha
 		text = "%s\nIdade %d · saúde %d\nFome %d · Sede %d · Sono %d · Social %d" % [
 			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
 		details_text = _describe(npc)
@@ -275,9 +288,6 @@ class NpcDetailPanel extends PanelContainer:
 		var profession = npc.get("profession")
 		lines.append("%s · %s" % ["Mulher" if int(npc.get("sex", 0)) == 0 else "Homem",
 			profession_name_of.call(int(profession.id)) if profession is Dictionary else "sem ofício"])
-		var target = npc.get("actionTarget")
-		if target is Dictionary:
-			lines.append("Alvo da ação: %s %s" % [String(target.get("kind", "")), String(target.get("id", ""))])
 		var skills: Dictionary = npc.get("skills", {}).get("values", {})
 		if not skills.is_empty():
 			var parts: Array[String] = []
@@ -376,25 +386,38 @@ class ClockPanel extends HBoxContainer:
 	signal changed()
 	signal status_changed(status: Dictionary)
 
+	var play_button: Button ## #222: um botão só: ▶ quando pausado, ⏸ quando rodando
+	var speed_picker: OptionButton ## #222: a velocidade num seletor (cabia mal em cinco botões)
+	var more_button: MenuButton ## #222: Passo e +1 ano (raros) num menu "⋯"
+
 	func _init() -> void:
 		add_theme_constant_override("separation", 4)
 		_label = Label.new()
 		add_child(_label)
-		for spec in [["⏸", "pause"], ["▶", "resume"], ["Passo", "step"], ["+1 ano", "advance-year"]]:
-			var button := Button.new()
-			button.text = spec[0]
-			var action: String = spec[1]
-			button.pressed.connect(func(): command(action))
-			add_child(button)
-			_command_buttons.append(button)
+		play_button = Button.new()
+		play_button.text = "⏸"
+		play_button.tooltip_text = "Pausar ou continuar o tempo (Espaço no menu de pausa)"
+		play_button.custom_minimum_size.x = 40
+		play_button.pressed.connect(func(): command("resume" if bool(status.get("isPaused", false)) else "pause"))
+		add_child(play_button)
+		_command_buttons.append(play_button)
+		speed_picker = OptionButton.new()
+		speed_picker.tooltip_text = "Velocidade do tempo"
+		speed_picker.focus_mode = Control.FOCUS_NONE
 		for speed in SPEEDS:
-			var button := Button.new()
-			button.text = "%d×" % int(speed)
-			button.toggle_mode = true
-			var value: float = speed
-			button.pressed.connect(func(): set_speed(value))
-			add_child(button)
-			_speed_buttons.append(button)
+			speed_picker.add_item("%d×" % int(speed))
+		speed_picker.item_selected.connect(func(index: int): set_speed(SPEEDS[index]))
+		add_child(speed_picker)
+		_speed_buttons.append(speed_picker)
+		more_button = MenuButton.new()
+		more_button.text = "Avançar ▾"
+		more_button.tooltip_text = "Avançar o tempo"
+		more_button.flat = false
+		more_button.get_popup().add_item("Avançar uma hora", 0)
+		more_button.get_popup().add_item("Avançar um ano", 1)
+		more_button.get_popup().id_pressed.connect(func(id: int): command("step" if id == 0 else "advance-year"))
+		add_child(more_button)
+		_command_buttons.append(more_button)
 		_timer = Timer.new()
 		_timer.wait_time = 1.0
 		_timer.autostart = true
@@ -433,8 +456,10 @@ class ClockPanel extends HBoxContainer:
 			status_text = "%s · %s ticks/s · tick %d · ano %d%s" % [
 				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), preload("res://Contract/world_time.gd").hours_of(status, "atMs"), int(status.year),
 				"" if can_control else " · tempo: só admin"]
-			for i in _speed_buttons.size():
-				_speed_buttons[i].button_pressed = is_equal_approx(SPEEDS[i], float(status.ticksPerSecond))
+			for i in SPEEDS.size():
+				if is_equal_approx(SPEEDS[i], float(status.ticksPerSecond)) and speed_picker.selected != i:
+					speed_picker.select(i)
+			play_button.text = "▶" if bool(status.isPaused) else "⏸"
 			status_changed.emit(status)
 		_label.text = status_text
 		_label.visible = show_status_text

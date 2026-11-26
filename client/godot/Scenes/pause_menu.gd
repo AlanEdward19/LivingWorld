@@ -22,6 +22,7 @@ var save_button: Button
 var saving := false
 var last_saved_iso := "" ## última gravação conhecida (da lista de mundos ou do Salvar agora)
 var options: Control
+var leave_button: Button ## #222: "Sair do personagem" (só com alguém encarnado)
 var _box: VBoxContainer
 var _column_root: Control
 
@@ -41,6 +42,10 @@ func _ready() -> void:
 	save_line = Kit.title(AUTO_SAVE, 15, _box, Kit.SOFT)
 	Kit.spacer(_box, 6)
 	continue_button = Kit.big_button("Continuar", _box, close)
+	leave_button = Kit.big_button("Sair do personagem", _box, func():
+		await close()
+		if app != null and app.player_hud != null:
+			await app.player_hud.logout())
 	save_button = Kit.big_button("Salvar agora", _box, save_now)
 	Kit.big_button("Opções", _box, show_options)
 	Kit.big_button("Ajuda e atalhos", _box, func(): close(); help_pressed.emit())
@@ -60,7 +65,10 @@ func toggle() -> void:
 
 
 func open() -> void:
+	if app != null and app.first_steps != null:
+		app.first_steps.close_help() # #222: a pausa não abre por cima da ajuda
 	visible = true
+	leave_button.visible = app != null and app.player_hud != null and app.player_hud.is_active
 	Kit.fade_in(self)
 	continue_button.grab_focus()
 	var status: Dictionary = app.clock_panel.status if app != null else {}
@@ -135,6 +143,8 @@ func close() -> void:
 	save_button.text = "Salvar agora"
 	await _restore_clock()
 	resume_pressed.emit()
+	if app != null and app.player_mode and app.rig != null: # #222: de volta ao jogo, o mouse volta a olhar
+		app.rig.set_cursor_captured(true)
 
 
 func _restore_clock() -> void:

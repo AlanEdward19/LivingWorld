@@ -87,7 +87,10 @@ public static class PlayerChannelEndpoints
                 "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
                 "persuade" => new PlayerCommandRequest(PlayerCommandKind.Persuade),
                 // AD-197k: o rumo do passo solto, em milésimos (0, 0 para)
-                "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
+                // AD-197u: "run": true corre (só com fôlego e saúde); "jump" pula
+                "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
+                    Run: node?["run"]?.GetValue<bool>() ?? false),
+                "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 // AD-197c: dormir (até a hora do dia "untilHour", ou acelerando), acelerar parado e acordar: só quem joga sozinho
@@ -98,6 +101,17 @@ public static class PlayerChannelEndpoints
                 "interact" when node?["kind"] is { } kind && node?["id"] is { } id && node?["verb"] is { } verb =>
                     new PlayerCommandRequest(PlayerCommandKind.Interact, Interaction: kind.GetValue<string>(), TargetId: id.GetValue<long>(),
                         Verb: verb.GetValue<string>(), ResourceId: node?["resourceId"]?.GetValue<int>(), Quantity: node?["quantity"]?.GetValue<long>()),
+                // AD-197q: criador de personagem — amostra do agregado (registrada) e entrar como um dos candidatos
+                "candidates" when node?["cityId"] is { } city && PlayerEndpoints.TryParseFilter(node?["sex"]?.GetValue<string>(),
+                        node?["minAge"]?.GetValue<int>(), node?["maxAge"]?.GetValue<int>(), node?["professionId"]?.GetValue<int>(), out var filter) =>
+                    new PlayerCommandRequest(PlayerCommandKind.Sample, CityId: Guid.Parse(city.GetValue<string>()), Filter: filter,
+                        Count: node?["count"]?.GetValue<int>()),
+                "create" when node?["cityId"] is { } city && node?["npcId"] is { } id && node?["sample"] is { } sample =>
+                    new PlayerCommandRequest(PlayerCommandKind.Create, id.GetValue<long>(), CityId: Guid.Parse(city.GetValue<string>()),
+                        SampleNumber: sample.GetValue<long>()),
+                // AD-197t: criador de personagem de verdade — a escolha inteira em "spec" (a mesma forma da rota)
+                "character" when PlayerEndpoints.TryParseSpec(node?["spec"], out var spec, out _) =>
+                    new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec),
                 _ => null,
             };
         }

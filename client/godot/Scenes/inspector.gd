@@ -53,6 +53,14 @@ var _link_keys: Array = []
 
 func _init() -> void:
 	custom_minimum_size = Vector2(300, 0)
+	var card := StyleBoxFlat.new() # #222: um cartão só, do título aos vínculos (o fim da ficha não fica solto sobre a cena)
+	card.bg_color = Color(0.07, 0.08, 0.12, 0.9)
+	card.set_corner_radius_all(10)
+	card.content_margin_left = 8
+	card.content_margin_right = 8
+	card.content_margin_top = 8
+	card.content_margin_bottom = 8
+	add_theme_stylebox_override("panel", card)
 	var box := VBoxContainer.new()
 	add_child(box)
 	var header := HBoxContainer.new()
@@ -398,8 +406,14 @@ func _set_links(links: Array) -> void:
 		var entity: Dictionary = link[1]
 		link_refs.append(entity)
 		var button := Button.new()
-		button.text = "%s: %s" % [link[0], registry.title_of(entity)]
+		var title: String = registry.title_of(entity)
+		# #222: sem repetir o papel quando o nome já o diz ("Prédio: Prédio tipo 1" vira "Prédio tipo 1")
+		button.text = title if title.to_lower().begins_with(String(link[0]).to_lower()) else "%s: %s" % [link[0], title]
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.flat = true # #222: vínculos como lista leve (linhas clicáveis), não uma pilha de botões
+		button.add_theme_font_size_override("font_size", 14)
+		button.add_theme_color_override("font_color", Color("9fc8f0"))
+		button.text = "› " + button.text
 		button.pressed.connect(func(): inspect(entity))
 		_links.add_child(button)
 

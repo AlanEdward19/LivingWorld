@@ -6,6 +6,7 @@ extends RefCounted
 
 const Store := preload("res://Store/world_store.gd")
 const Registry := preload("res://Store/entity_registry.gd")
+const Grid := preload("res://Scenes/grid.gd")
 
 var app
 var previous_scope := ["World", ""]
@@ -50,7 +51,7 @@ func on_snapshot(envelope: Dictionary) -> void:
 		app.list_panel.search(app.list_panel.query)
 	if kind == "City":
 		app.breadcrumb.text = "Mundo › %s" % (app.store.city.name if app.store.city.name != "" else "Cidade")
-		if app.inspector.current.is_empty() or String(app.inspector.current.kind) == Registry.CITY:
+		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY: # #222: a ficha da cidade
 			app.inspector.inspect(Registry.ref(Registry.CITY, String(app.store.city.id)))
 		var area := built_area()
 		if not app.director.active():
@@ -63,6 +64,20 @@ func on_snapshot(envelope: Dictionary) -> void:
 			app.inspector.close()
 		if app.rig.zoom_size < app.rig.city_exit_size + 1.0:
 			app.rig.set_zoom(22.0)
+		# #222: no mapa do mundo a câmera abre sobre a primeira cidade (antes abria num campo vazio e a cidade era uma mancha na borda)
+		var first := first_city_bounds()
+		if first.size != Vector2i.ZERO and not app.director.active():
+			app.rig.focus(Grid.to_world(first.position + first.size / 2))
+
+
+func first_city_bounds() -> Rect2i:
+	var ids: Array = app.store.cities.keys()
+	ids.sort()
+	for id in ids:
+		var bounds = app.store.cities[id].get("bounds")
+		if bounds is Rect2i and bounds.size != Vector2i.ZERO:
+			return bounds
+	return Rect2i()
 
 
 ## Conta ao servidor o que a câmera observa: só assim o rastro de cognição do NPC é gravado.

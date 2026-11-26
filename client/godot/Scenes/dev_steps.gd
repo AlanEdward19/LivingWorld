@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -71,8 +71,34 @@ static func run(app: Node, steps: Array) -> void:
 			"player":
 				await app.select_npc(int(arg))
 				await app.incarnate(int(arg))
+			"unplayer": # AD-197r: sai do personagem (o servidor o libera; encarnar o mesmo corpo na rodada seguinte não dá 409)
+				await app.player_hud.logout()
+				print("unplayer: ativo=", app.player_hud.is_active)
 			"act":
 				await app.player_hud.act(arg)
+			"creator": # AD-197q: abre o criador de personagem (cidades e primeira amostra do motor)
+				await app.open_creator()
+			"creatorset": # AD-197t: `creatorset:name=Ana,age=29,role=child,family=0,money=90,height=1.65,look.skinTone=30,outfit=3` preenche o criador
+				await _creator_set(app, arg)
+			"creatorstep": # #222: `creatorstep:N` vai à etapa N do criador (1 Origem … 5 Revisar), com a prévia do motor
+				await app.creator.designer.go_to(int(arg) - 1)
+			"creatorrandom": # #222: sorteia a aparência no cliente (o motor valida)
+				app.creator.designer._randomize_look(app.creator.designer._all_look_keys())
+				await app.creator.designer.refresh()
+			"creatorcreate": # AD-197t: cria a pessoa montada e entra
+				await app.creator.designer.refresh()
+				await app.creator.designer.create()
+			"creatorpick": # AD-197q: `creatorpick:N` entra como o N-ésimo candidato que a vontade deixa (0 = o primeiro)
+				if app.creator.mode != "sample":
+					await app.creator.set_mode("sample")
+				var open_cards: Array = app.creator.cards.filter(func(c): return not c.button.disabled)
+				if int(arg) < open_cards.size():
+					var card: Dictionary = open_cards[int(arg)]
+					var who: String = ""
+					for c in app.creator.sample.get("candidates", []):
+						if int(c.npcId) == int(card.npc_id):
+							who = String(c.name)
+					await app.creator.choose(int(card.npc_id), who)
 			"admin":
 				app.admin_window.open()
 				app.admin_window.reason_input.text = arg
@@ -266,6 +292,54 @@ static func run(app: Node, steps: Array) -> void:
 				if id >= 0:
 					await app.select_npc(id)
 					await app.incarnate(id)
+			"playopen": # só captura (AD-197s2): encarna o morador mais longe de qualquer prédio (rua aberta de verdade)
+				var open_id := _open_npc(app)
+				if open_id >= 0:
+					await app.select_npc(open_id)
+					await app.incarnate(open_id)
+			"playwall": # só captura (AD-197s4): encarna um morador da rua e o põe a 1 m da quina de um prédio, com a câmera virada para a quina atrás
+				var wall_id := _street_npc(app)
+				if wall_id >= 0:
+					await app.select_npc(wall_id)
+					await app.incarnate(wall_id)
+					var wall_body: Node3D = app.world_view.npc_nodes.get(wall_id)
+					if wall_body != null:
+						var spot := _corner_spot(app, wall_body.position)
+						if spot.size() == 2:
+							wall_body.position = spot[0]
+							app.rig.yaw = spot[1]
+							app.rig.follow(wall_body)
+			"playhome": # só captura (AD-197s): encarna um morador e o põe no meio do prédio mais próximo (só o desenho; o motor não muda)
+				var home_id := _street_npc(app)
+				if home_id >= 0:
+					await app.select_npc(home_id)
+					await app.incarnate(home_id)
+					var body: Node3D = app.world_view.npc_nodes.get(home_id)
+					if body != null:
+						var inside := _nearest_box_center(app, body.position, arg == "big")
+						if inside != Vector3.INF:
+							body.position = inside
+							app.rig.follow(body)
+			"crowd": # só captura (AD-197r): câmera perto do ponto com mais gente a menos de 0,6 unidade umas das outras
+				var best_id := -1
+				var best_count := 0
+				for id in app.world_view.npc_nodes:
+					var at: Vector3 = app.world_view.npc_nodes[id].position
+					var count := 0
+					for other in app.world_view.npc_nodes.values():
+						if Vector2(at.x, at.z).distance_to(Vector2(other.position.x, other.position.z)) < 0.6:
+							count += 1
+					if count > best_count:
+						best_count = count
+						best_id = id
+				if best_id >= 0:
+					print("crowd: ", best_count, " pessoas perto de ", app.world_view.npc_nodes[best_id].position)
+					app.rig.focus(app.world_view.npc_nodes[best_id].position)
+					app.rig.set_zoom(float(arg) if arg != "" else 4.0)
+			"camdump": # só diagnóstico (AD-197s): onde estão corpo e câmera, e em que caixas de prédio cada um está
+				print(camera_report(app))
+			"stacks": # só medida (AD-197r): quantas pessoas ficam a menos de 0,25 unidade de outra e o maior bolo (com onde e o que fazem)
+				print(stacks_report(app.world_view.npc_nodes))
 			"cam": # só captura (AD-197o): troca o modo da câmera (`cam:first|third|iso`) sem trocar quem ela segue
 				app.rig.set_mode({"first": app.rig.FIRST, "third": app.rig.THIRD}.get(arg, app.rig.ISO))
 			"third", "first": # só medida (AD-197d): câmera do modo jogador (3ª/1ª pessoa) colada num morador, sem encarnar
@@ -306,6 +380,45 @@ static func run(app: Node, steps: Array) -> void:
 				app.next_event()
 			"watch":
 				app.toggle_watch()
+			"hold": # #222: `hold:W=2` segura a tecla (W, A, S, D, SHIFT, SPACE, E) por N s, como o teclado de verdade
+				var key_name := arg.get_slice("=", 0)
+				var code := OS.find_keycode_from_string(key_name)
+				var press := InputEventKey.new()
+				press.keycode = code
+				press.physical_keycode = code
+				press.pressed = true
+				Input.parse_input_event(press)
+				await app.get_tree().create_timer(float(arg.get_slice("=", 1)) if "=" in arg else 0.1).timeout
+				var release: InputEventKey = press.duplicate()
+				release.pressed = false
+				Input.parse_input_event(release)
+			"gesture": # #224: `gesture:reach` toca um gesto no corpo do jogador (captura das animações)
+				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+				if own != null:
+					own.play_gesture(arg, 1.6)
+			"pitch": # #224: `pitch:-40` inclina o olhar do jogador (graus)
+				app.rig.pitch = deg_to_rad(float(arg))
+				app.rig._apply()
+			"nochannel": # #222: depuração: comandos do jogador pela rota HTTP em vez do canal
+				app.api.close_player_channel()
+			"money": # #222: o que a ficha do motor diz agora (dinheiro), lida na hora
+				var detail: Dictionary = await app.api.npc_detail(app.player_hud.npc_id)
+				print("money: ok=", detail.ok, " status=", detail.status, " money=", detail.body.get("money") if detail.body is Dictionary else null, " erros=", detail.get("errors", []))
+			"sizes": # #222: tamanhos da ficha (depuração de layout)
+				var ins = app.inspector
+				print("sizes: inspector ", ins.size, " min ", ins.get_combined_minimum_size(), " side ", app.side_panel.size)
+				for child in ins.get_child(0).get_children():
+					print("sizes:   ", child.get_class(), " ", child.size, " min ", child.get_combined_minimum_size(), " vis ", child.visible)
+			"pos": # #222: onde o corpo do jogador está (motor e desenho)
+				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+				print("pos: escopo=", app.store.kind, " segue=", app.rig.following != null and is_instance_valid(app.rig.following), " ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
+					" corpo=", own.position if own != null else "sem corpo", " modo=", app.rig.mode, " braço=", app.rig.arm, " subida=", app.rig.lift,
+					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys(), " cartão=", app.player_frame.purse_label.text if app.player_frame != null else "", " leitura=", app.player_hud._body_pending, "/", snappedf(app.player_hud._body_clock, 0.1), " rpg=", app.player_hud.rpg, " npc=", app.player_hud.npc_id, " menu1=", app.player_frame.entries[0].text if app.player_frame != null and not app.player_frame.entries.is_empty() else "")
+				if own != null:
+					var eye: Vector3 = app.rig.target + Vector3(0, app.rig.eye_height() + app.rig.shoulder_height(), 0)
+					for entry in app.camera_blockers():
+						if (entry[1] as AABB).has_point(eye) or (entry[2] as AABB).has_point(eye):
+							print("pos: olho na caixa ", entry[0], " ", entry[1], " paredes=", (entry[3] as Array).size())
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()
@@ -316,6 +429,114 @@ static func run(app: Node, steps: Array) -> void:
 ## primeiro morador aberta e a multidão completada até `total` NPCs andando dentro da cidade. Imprime FPS médio e o
 ## tempo de quadro p95 de 6 s, depois de 1 s de aquecimento. Uso: `--steps "wait:3;city;wait:3;bench:500;quit"`.
 ## Morador na rua (fora da planta dos prédios), de preferência trabalhando ou conversando; -1 se não há.
+static func stacks_report(nodes: Dictionary, limit: float = 0.25) -> String:
+	var cells := {}
+	for id in nodes:
+		var at: Vector3 = nodes[id].position
+		cells.get_or_add(Vector2i(floori(at.x / limit), floori(at.z / limit)), []).append(id)
+	var close := {}
+	var best: Array = []
+	for id in nodes:
+		var at: Vector3 = nodes[id].position
+		var group: Array = []
+		for dx in [-1, 0, 1]:
+			for dz in [-1, 0, 1]:
+				for other in cells.get(Vector2i(floori(at.x / limit) + dx, floori(at.z / limit) + dz), []):
+					if other != id and Vector2(at.x, at.z).distance_to(Vector2(nodes[other].position.x, nodes[other].position.z)) < limit:
+						group.append(other)
+		if not group.is_empty():
+			close[id] = true
+			if group.size() + 1 > best.size():
+				best = group + [id]
+	var detail := ""
+	if not best.is_empty():
+		var first = nodes[best[0]]
+		detail = " maior=%d em %s ações=%s andando=%s" % [best.size(), first.position, best.map(func(i): return nodes[i].action),
+			best.map(func(i): return nodes[i].walk != null)]
+	return "stacks: npcs=%d sobrepostos=%d%s" % [nodes.size(), close.size(), detail]
+
+
+## [posição a 1 m da quina mais próxima, giro para a quina ficar atrás da câmera] ou [].
+static func _corner_spot(app: Node, from: Vector3) -> Array:
+	var best: Array = []
+	var best_distance := INF
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		var center := Vector3(box.get_center().x, 0.0, box.get_center().z)
+		for corner: Vector3 in [Vector3(box.position.x, 0, box.position.z), Vector3(box.end.x, 0, box.position.z), Vector3(box.position.x, 0, box.end.z), Vector3(box.end.x, 0, box.end.z)]:
+			var outward: Vector3 = (corner - center).normalized()
+			if from.distance_to(corner) < best_distance:
+				best_distance = from.distance_to(corner)
+				best = [corner + outward * Grid.units(1.5), atan2(-outward.x, -outward.z)]
+	return best
+
+
+static func _open_npc(app: Node) -> int:
+	var boxes: Array = []
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size != Vector3.ZERO:
+			boxes.append(box.grow(0.0))
+	var best := -1
+	var best_gap := -1.0
+	var ids: Array = app.world_view.npc_nodes.keys()
+	ids.sort()
+	for id in ids:
+		var at: Vector3 = app.world_view.npc_nodes[id].position
+		var gap := INF
+		for box in boxes:
+			var b: AABB = box
+			var dx := maxf(maxf(b.position.x - at.x, at.x - b.end.x), 0.0)
+			var dz := maxf(maxf(b.position.z - at.z, at.z - b.end.z), 0.0)
+			gap = minf(gap, sqrt(dx * dx + dz * dz))
+		if gap > best_gap:
+			best_gap = gap
+			best = int(id)
+	return best
+
+
+static func _nearest_box_center(app: Node, from: Vector3, largest: bool = false) -> Vector3:
+	var best := Vector3.INF
+	var best_distance := INF
+	for node in app.world_view.buildings.nodes.values():
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		var center := Vector3(box.get_center().x, 0.0, box.get_center().z)
+		var score := from.distance_to(center) if not largest else -box.size.x * box.size.z
+		if score < best_distance:
+			best_distance = score
+			best = center
+	return best
+
+
+static func camera_report(app: Node) -> String:
+	var rig = app.rig
+	var cam: Vector3 = rig.camera.global_position if rig.camera.is_inside_tree() else Vector3.INF
+	var body: Vector3 = rig.following.position if rig.following != null and is_instance_valid(rig.following) else Vector3.INF
+	var around: Array = []
+	for entry in app.camera_blockers():
+		var box: AABB = entry[1]
+		if box.has_point(body + Vector3(0, 0.5, 0)):
+			around.append("caixa=%s paredes=%d na_parede=%s" % [box, (entry[3] as Array).size(), (entry[3] as Array).any(func(w): return (w as AABB).has_point(body + Vector3(0, 1.3, 0)))])
+		around.append("%s:%s%s%s" % [entry[0], "C" if box.has_point(cam) else "-", "B" if box.has_point(body + Vector3(0, 0.5, 0)) else "-", "F" if app.world_view.buildings.faded.has(entry[0]) else "-"])
+	var roofs: Array = []
+	for id in rig.seen_ids():
+		var node = app.world_view.buildings.nodes.get(id)
+		if node != null:
+			for child in node.find_children("Roof*", "GeometryInstance3D", true, false):
+				roofs.append(snappedf((child as GeometryInstance3D).transparency, 0.01))
+	around.append("vistos=%s abertos=%s faded=%s kind=%s stage=%s teto=%s" % [rig.seen_ids().keys(), app.world_view.buildings.opened.keys(), app.world_view.buildings.faded.keys(), app.store.kind, app.stage.active, roofs])
+	var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+	var near_ids: Array = []
+	if own != null:
+		near_ids = app.world_view.npcs.cell_members.get(Grid.to_cell(own.position), [])
+	around.append("jogador=%s ativo=%s escondidos=%s mesma_celula=%s marcado=%s" % [app.player_hud.npc_id, app.player_hud.is_active, app._eye_hidden.keys(), near_ids, app._marked])
+	return "camdump: mode=%s following=%s body=%s cam=%s arm=%s lift=%s shoulder=%s caixas=%s" % [rig.mode, rig.following != null, body, cam, snappedf(rig.arm, 0.01), snappedf(rig.lift, 0.01), snappedf(rig.shoulder, 0.01), around]
+
+
 static func _street_npc(app: Node) -> int:
 	var covered := {}
 	for building in app.store.buildings.values():
@@ -479,3 +700,41 @@ static func _demo(app: Node, which: String) -> void:
 		"vendas":
 			app.economy.mode = "trades"; app.economy.is_open = true; app.economy.visible = true; app.economy._title.text = "Vendas de local 0"
 			app.economy._render(ok.call({"workplaceId": 0, "fromDay": 0, "toDay": 29, "days": [{"day": 3, "resourceId": 1, "quantity": 30, "value": 30, "purchases": 2}, {"day": 4, "resourceId": 2, "quantity": 20, "value": 20, "purchases": 1}]}))
+
+
+## AD-197t: preenche o criador (`campo=valor` separados por vírgula): name, sex (0 sortear, 1 mulher, 2 homem), age, profession (índice),
+## role (newcomer, child, sibling, spouse, relative), family (índice da lista), origin (índice), money, health, height, outfit (índice),
+## look.<gene> e trait.<traço>. Espera a prévia do motor ao fim.
+static func _creator_set(app: Node, text: String) -> void:
+	var designer = app.creator.designer
+	for pair in text.split(",", false):
+		var key: String = pair.get_slice("=", 0)
+		var value: String = pair.get_slice("=", 1)
+		match key:
+			"name":
+				designer.name_edit.text = value
+			"sex":
+				designer.sex_select.select(int(value))
+			"profession":
+				designer.profession_select.select(int(value))
+			"role":
+				for i in designer.ROLES.size():
+					if designer.ROLES[i][0] == value:
+						designer.role_select.select(i)
+				designer._refill_families()
+			"family":
+				designer.family_select.select(int(value))
+				designer._refill_vias()
+			"via":
+				designer.via_select.select(int(value))
+			"origin":
+				designer.origin_select.select(int(value))
+			"outfit":
+				designer.outfit_select.select(int(value))
+			"age", "money", "health":
+				designer.set_field(key, float(value))
+			"height":
+				designer.set_field("heightM", float(value))
+			_:
+				designer.set_field(key, float(value))
+	await designer.refresh()

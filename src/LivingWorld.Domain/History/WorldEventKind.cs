@@ -407,4 +407,11 @@ public enum WorldEventKind
 
     /// <summary>Um pai ou uma mãe abandonou o filho dependente (AD-197d, ordem de quem o possui) — payload: <c>paiId|filhoId|casaNovaId</c>.</summary>
     ChildAbandoned,
+    /// <summary>Um recém-chegado montado no criador de personagem (AD-197t) se instalou na cidade, vindo de fora — payload:
+    /// <c>npcId|cidadeId|origemCidadeId (vazio = de fora do mundo)|dinheiro</c>.</summary>
+    CharacterArrived,
+
+    /// <summary>Uma pessoa montada no criador de personagem (AD-197t) entrou numa família da cidade — payload:
+    /// <c>npcId|cidadeId|papel (child, sibling, spouse, relative)|parenteId|dinheiro</c>.</summary>
+    CharacterJoinedFamily,
 }

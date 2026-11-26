@@ -1,0 +1,46 @@
+{
+  "character": {
+    "ageYears": "number",
+    "cityId": "string",
+    "cityName": "string",
+    "cultureId": "number",
+    "health": "number",
+    "household": "number",
+    "look": {
+      "build": "number",
+      "eyeTone": "number",
+      "faceShape": "number",
+      "hairCurl": "number",
+      "hairTone": "number",
+      "heightM": "number",
+      "outfit": "number",
+      "skinTone": "number",
+      "weightKg": "number"
+    },
+    "money": "number",
+    "name": "string",
+    "outfitName": "string",
+    "personality": {
+      "agreeableness": "number",
+      "altruism": "number",
+      "ambition": "number",
+      "conscientiousness": "number",
+      "emotionalStability": "number",
+      "extroversion": "number",
+      "impulsivity": "number",
+      "loyalty": "number",
+      "openness": "number",
+      "riskAversion": "number"
+    },
+    "profession": "string",
+    "professionId": "number",
+    "role": {
+      "fromCityId": "string",
+      "kind": "string",
+      "relativeId": "number",
+      "relativeName": "string",
+      "viaId": "number"
+    },
+    "sex": "string"
+  }
+}

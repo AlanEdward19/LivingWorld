@@ -88,6 +88,7 @@
       },
       "lod": "number",
       "memories": "[]",
+      "money": "number",
       "motherId": "null",
       "name": "string",
       "personality": {

@@ -15,21 +15,29 @@ namespace LivingWorld.Simulation.Players;
 /// Andar gasta sono na medida do tempo andado. Determinístico: tudo é inteiro em milésimos e o tempo é o do mundo.</summary>
 public static class PlayerWalk
 {
-    /// <summary>Velocidade do corpo agora indo de <paramref name="from"/> para <paramref name="to"/> (vizinha), em m/s.</summary>
-    public static double SpeedMps(WorldState world, Npc npc, CellCoord from, CellCoord to)
+    /// <summary>Velocidade do corpo agora indo de <paramref name="from"/> para <paramref name="to"/> (vizinha), em m/s; correndo
+    /// (<paramref name="running"/>, AD-197u), <see cref="PlayerRules.RunFactor"/> vezes, até o teto de <see cref="PlayerRules.RunMaxMps"/>.</summary>
+    public static double SpeedMps(WorldState world, Npc npc, CellCoord from, CellCoord to, bool running = false)
     {
-        // a referência é a passada no chão mais fácil do mapa (o terreno de menor peso): o fator diz quanto este chão, este corpo, esta
-        // carga, este tempo e este cansaço alongam o passo
-        var weights = world.Map.Cost.TerrainWeight;
-        double easiest = weights.Count == 0 ? 1.0 : Math.Max(0.01, weights.Values.Min());
-        double reference = world.Map.Cost.Base * easiest * WorldMillis.PerHour * (from.X != to.X && from.Y != to.Y ? 1.41421356237309515 : 1.0);
+        if (!world.Map.TryGetCell(from, out _) || !world.Map.TryGetCell(to, out _)) return world.Players.WalkMps;
+        // AD-197u: a referência é a passada NESTE par de células (terreno e subida do mapa, a conta de MovementCost.Between), não a do
+        // terreno mais fácil do mapa: o peso de terreno e a altitude do mapa são a escala de 30 min por célula do mundo, e contá-los de
+        // novo num passo de 1,5 m fazia um adulto descansado andar a 0,47 m/s em mata (3× a referência da planície) e a 0,19 em morro.
+        // Ficam como freios o corpo e a saúde, a carga, o cansaço, a água, o tempo (lama, neve: WeatherNow) e o chão do dia.
+        double reference = Math.Max(1.0, LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, from, to) * WorldMillis.PerHour);
         // a rua calçada encurta a viagem longa (menos desvio, chão firme), mas ninguém anda mais que um passo largo: piso de 0,8
         // (1,4 m/s → no máximo 1,75 m/s)
-        double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / Math.Max(1.0, reference));
-        return world.Players.WalkMps / factor;
+        double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
+        double walk = world.Players.WalkMps / factor;
+        return running ? Math.Max(walk, Math.Min(walk * world.Players.RunFactor, world.Players.RunMaxMps)) : walk;
     }
 
-    public static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, int dx, int dy)
+    /// <summary>AD-197u: o corpo aguenta esforço (correr, pular): descansado (sono não abaixo de <see cref="PlayerRules.Tired"/>) e com
+    /// saúde (não abaixo de <see cref="PlayerRules.ExertionMinHealth"/>).</summary>
+    public static bool CanExert(WorldState world, Npc npc) =>
+        npc.SleepNeed.ValueAtMs(world.CurrentDate.TotalMilliseconds) >= world.Players.Tired && npc.Health >= world.Players.ExertionMinHealth;
+
+    public static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, int dx, int dy, bool run = false)
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
@@ -42,7 +50,9 @@ public static class PlayerWalk
         if (elapsed > 0 && (pose.HeadingX != 0 || pose.HeadingY != 0))
             pose = Advance(world, ctx, npc, pose, elapsed);
         var (hx, hy) = Normalized(dx, dy);
-        npc.SetFine(pose with { HeadingX = hx, HeadingY = hy, AtMs = now });
+        // AD-197u: cansado ou ferido demais, o corpo anda em vez de correr (a resposta diz running: false)
+        bool running = run && (hx != 0 || hy != 0) && CanExert(world, npc);
+        npc.SetFine(pose with { HeadingX = hx, HeadingY = hy, AtMs = now, Run = running });
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -51,7 +61,8 @@ public static class PlayerWalk
     {
         var cell = new CellCoord(pose.CellX, pose.CellY);
         var ahead = new CellCoord(cell.X + Math.Sign(pose.HeadingX), cell.Y + Math.Sign(pose.HeadingY));
-        double mps = SpeedMps(world, npc, cell, ahead);
+        bool running = pose.Run && CanExert(world, npc); // o fôlego pode acabar no meio do trecho: segue andando
+        double mps = SpeedMps(world, npc, cell, ahead, running);
         double cellsPerMs = mps / world.Players.CellM / 1000.0;
         long distance = (long)Math.Round(cellsPerMs * elapsed * FinePose.PerCell); // milésimos de célula
         long x = pose.X, y = pose.Y, walked = 0;
@@ -66,7 +77,8 @@ public static class PlayerWalk
             walked += chunk;
         }
         if (walked > 0)
-            npc.Step(npc.StepReadyAtMs, world.Players.StepSleep * elapsed * walked / Math.Max(1, distance) / (double)WorldMillis.PerHour,
+            npc.Step(npc.StepReadyAtMs,
+                world.Players.StepSleep * (running ? world.Players.RunSleepFactor : 1.0) * elapsed * walked / Math.Max(1, distance) / (double)WorldMillis.PerHour,
                 world.CurrentDate.TotalMilliseconds);
         return pose with { X = x, Y = y };
     }

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Simulation.Players;
 
@@ -9,7 +11,8 @@ public sealed record IncarnateRequest(string? PlayerId);
 /// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
 public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
 /// <summary>Passo do jogador (AD-197e): direção −1..1 em cada eixo, intenção e não posição.</summary>
-public sealed record PlayerMoveRequest(int Dx, int Dy);
+/// AD-197u: <c>Run</c> (opcional) pede correr no <c>walk</c>; o <c>move</c> não usa.
+public sealed record PlayerMoveRequest(int Dx, int Dy, bool? Run = null);
 /// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
 public sealed record PlayerStrikeRequest(long NpcId);
 /// <summary>AD-197d: interagir com o que está perto (<c>GET /players/{playerId}/reach</c> diz o quê): <c>Kind</c> (door, stock, stall,
@@ -17,6 +20,12 @@ public sealed record PlayerStrikeRequest(long NpcId);
 public sealed record PlayerInteractRequest(string Kind, long Id, string Verb, int? ResourceId = null, long? Quantity = null);
 /// <summary>AD-197c: dormir até a hora do dia <c>UntilHour</c> (0 até horas do dia − 1) ou, sem ela, acelerando até descansar.</summary>
 public sealed record PlayerSleepRequest(int? UntilHour = null);
+/// <summary>AD-197q: pedir uma amostra do agregado de <c>CityId</c> ao criador de personagem. Filtro opcional (<c>Sex</c>: Female/Male,
+/// faixa de idade, ofício por id) e <c>Count</c> (1 a 12; padrão 6). Cada pedido é uma amostra nova, registrada.</summary>
+public sealed record PlayerCandidatesRequest(Guid CityId, string? Sex = null, int? MinAge = null, int? MaxAge = null, int? ProfessionId = null,
+    int? Count = null);
+/// <summary>AD-197q: entrar como <c>NpcId</c>, candidato da amostra <c>Sample</c> de <c>CityId</c> que este jogador pediu.</summary>
+public sealed record PlayerCreateRequest(Guid CityId, long NpcId, long Sample);
 /// <summary>Sessão nova (ADR-0048): <c>Authorization: Bearer {SessionToken}</c> nas rotas e no canal do jogador.</summary>
 public sealed record SessionResponse(string SessionToken, string PlayerId);
 
@@ -39,6 +48,36 @@ public static class PlayerEndpoints
         app.MapPost("/players/{npcId:long}/incarnate", (HttpContext http, long npcId, IncarnateRequest request) =>
             Run(http, tokens, policy.Required, request.PlayerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Incarnate, npcId)));
 
+        // AD-197q: criador de personagem pelo motor — de onde dá para sair (só lê), a amostra do agregado (registrada) e entrar como
+        // um dos candidatos (materializa e encarna); agregado vazio ou ninguém no filtro é 409 sem efeito
+        app.MapGet("/players/origins", () => Results.Ok(gateway.Origins()));
+        app.MapPost("/players/{playerId}/candidates", (HttpContext http, string playerId, PlayerCandidatesRequest request) =>
+        {
+            if (!TryParseFilter(request.Sex, request.MinAge, request.MaxAge, request.ProfessionId, out var filter))
+                return Results.BadRequest(new { error = "sex: Female ou Male" });
+            return Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Sample, CityId: request.CityId,
+                Filter: filter, Count: request.Count));
+        });
+        app.MapPost("/players/{playerId}/create", (HttpContext http, string playerId, PlayerCreateRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Create, request.NpcId,
+                CityId: request.CityId, SampleNumber: request.Sample)));
+
+        // AD-197t: criador de personagem de verdade — o que a cidade oferece (só lê), a prévia validada pelo motor (só lê, não registra)
+        // e a criação (nome, idade, traços, família ou chegada, dinheiro, aparência); incoerência é 409 com o motivo e o mundo intacto
+        app.MapGet("/players/origins/{cityId:guid}", (Guid cityId) => Reply(gateway.CityOptions(cityId)));
+        app.MapPost("/players/{playerId}/character/preview", (HttpContext http, string playerId, JsonObject body) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            if (gateway.PauseRefusal() is { } paused) return Reply(paused);
+            return TryParseSpec(body, out var spec, out var error) ? Reply(gateway.Preview(playerId, spec)) : Results.BadRequest(new { error });
+        });
+        app.MapPost("/players/{playerId}/character", (HttpContext http, string playerId, JsonObject body) =>
+        {
+            if (gateway.PauseRefusal() is { } paused) return Reply(paused);
+            return !TryParseSpec(body, out var spec, out var error) ? Results.BadRequest(new { error })
+                : Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Character, Spec: spec));
+        });
+
         app.MapPost("/players/{playerId}/action", (HttpContext http, string playerId, PlayerActionRequest request) =>
         {
             if (!TryParseAction(request.Action, out var action)) return Results.BadRequest(new { error = "action: desconhecida" });
@@ -55,7 +94,11 @@ public static class PlayerEndpoints
 
         // AD-197k: o passo solto (rumo em milésimos); o canal é o caminho de sempre, a rota serve a quem não o abre
         app.MapPost("/players/{playerId}/walk", (HttpContext http, string playerId, PlayerMoveRequest request) =>
-            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy)));
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy, Run: request.Run == true)));
+
+        // AD-197u: pular (corpo vazio ou {}): o motor decide pelo corpo e pelo fôlego; 409 com o motivo; 200 = a pose e airMs
+        app.MapPost("/players/{playerId}/jump", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Jump)));
 
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
@@ -113,6 +156,48 @@ public static class PlayerEndpoints
             return session == playerId ? null : Results.StatusCode(StatusCodes.Status403Forbidden);
         }
         return authRequired ? Results.StatusCode(StatusCodes.Status401Unauthorized) : null;
+    }
+
+    private static readonly JsonSerializerOptions SpecJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    private static IResult Reply(PlayerReply reply) =>
+        reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
+
+    /// <summary>AD-197t: a escolha do criador vinda de JSON (rota ou canal); forma errada ou sexo desconhecido é 400.</summary>
+    internal static bool TryParseSpec(JsonNode? node, out CharacterSpec spec, out string error)
+    {
+        spec = null!;
+        error = "";
+        try
+        {
+            var parsed = node?.Deserialize<CharacterSpec>(SpecJson);
+            if (parsed is null || parsed.CityId == Guid.Empty) { error = "cityId: obrigatório"; return false; }
+            if (parsed.Sex is { } sex && !Enum.IsDefined(sex)) { error = "sex: Female ou Male"; return false; }
+            spec = parsed;
+            return true;
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException or NotSupportedException)
+        {
+            error = "character: forma inválida";
+            return false;
+        }
+    }
+
+    /// <summary>AD-197q: o filtro do criador; sexo desconhecido é recusado (400).</summary>
+    internal static bool TryParseFilter(string? sex, int? minAge, int? maxAge, int? professionId, out CharacterFilter filter)
+    {
+        filter = CharacterFilter.None;
+        LivingWorld.Domain.Population.Sex? parsed = null;
+        if (!string.IsNullOrWhiteSpace(sex))
+        {
+            if (!Enum.TryParse<LivingWorld.Domain.Population.Sex>(sex, ignoreCase: true, out var value) || !Enum.IsDefined(value)) return false;
+            parsed = value;
+        }
+        filter = new CharacterFilter(parsed, minAge, maxAge, professionId);
+        return true;
     }
 
     internal static bool TryParseAction(string? text, out ActionType? action)

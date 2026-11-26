@@ -8,7 +8,10 @@ const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
-const WALL_HEIGHT := 0.9
+## #222: a parede tem a altura do andar (o motor diz os metros); antes 0,9 unidade = 1,35 m, mais baixa que uma pessoa
+static func wall_height() -> float: return Grid.floor_height() * 0.92
+static func cutaway_height() -> float: return Grid.units(0.45) ## as voltadas para a câmera ficam na altura do joelho
+const WALL_HEIGHT := 0.9 ## (legado: só para mundos sem escala; use wall_height())
 const WALL_STONE := 0
 const WALL_WOOD := 1
 const DOOR := 2
@@ -30,6 +33,8 @@ var _occupants: Array = []
 var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
 var _center := Vector3.ZERO
+var _level_materials: Dictionary = {} ## célula local -> material do andar sendo montado (para a parede fina saber o lado do cômodo)
+const WALL_THICKNESS := 0.22 ## #222: a parede é uma placa fina na borda do cômodo (antes um cubo de célula inteira, 1,5 m)
 var _view_dir := Vector3.ZERO
 
 
@@ -44,6 +49,9 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		var node := Node3D.new()
 		node.name = "Floor_%d" % level
 		node.position.y = level * Grid.floor_height()
+		_level_materials = {}
+		for entry in floor_layout.cells:
+			_level_materials[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
 		for entry in floor_layout.cells:
 			_add_cell(node, entry, level)
 		add_child(node)
@@ -174,18 +182,54 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 	var mesh := BoxMesh.new()
 	match material:
 		WALL_STONE, WALL_WOOD:
-			mesh.size = Vector3(Grid.CELL, WALL_HEIGHT, Grid.CELL)
-			node.material_override = _material(Color("9a948a") if material == WALL_STONE else Color("a27b52"))
-			node.position = Grid.to_world(cell, WALL_HEIGHT / 2.0)
-			_walls.append({"node": node, "mesh": mesh, "cell": cell})
-		STAIR:
-			mesh.size = Vector3(Grid.CELL * 0.9, 0.5, Grid.CELL * 0.9)
-			node.material_override = _material(Color("c9b28a"))
-			node.position = Grid.to_world(cell, 0.25)
-		DOOR:
-			mesh.size = Vector3(Grid.CELL, 0.5, Grid.CELL)
-			node.material_override = _material(Color("3b2a20"))
-			node.position = Grid.to_world(cell, 0.25)
+			# #222: placas finas nas bordas que dão para o cômodo (chão, escada, porta); a célula da parede vira chão escuro
+			var color := Color("9a948a") if material == WALL_STONE else Color("a27b52")
+			var local := Vector2i(int(entry.cell.x), int(entry.cell.y))
+			var sides := 0
+			for side in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var other = _level_materials.get(local + side)
+				if other == null or int(other) in [WALL_STONE, WALL_WOOD]:
+					continue
+				sides += 1
+				var panel := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				box.size = Vector3(Grid.CELL if side.x == 0 else WALL_THICKNESS, wall_height(), Grid.CELL if side.y == 0 else WALL_THICKNESS)
+				panel.mesh = box
+				panel.material_override = _material(color)
+				var edge := Vector3(side.x, 0, side.y) * (Grid.CELL / 2.0 - WALL_THICKNESS / 2.0)
+				panel.position = Grid.to_world(cell, wall_height() / 2.0) + edge
+				parent.add_child(panel)
+				_walls.append({"node": panel, "mesh": box, "cell": cell, "edge": edge})
+			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL) # a célula da parede: chão escuro (o cômodo é o que fica dentro das placas)
+			node.material_override = _material(color.darkened(0.35))
+			node.position = Grid.to_world(cell, 0.0)
+		STAIR: # #222: degraus que sobem até o andar de cima (antes um bloco chato)
+			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL)
+			node.material_override = _material(Color("c9b896"))
+			node.position = Grid.to_world(cell, 0.0)
+			var steps := 6
+			for k in steps:
+				var step := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				var rise := Grid.floor_height() / float(steps)
+				box.size = Vector3(Grid.CELL * 0.85, rise * (k + 1), Grid.CELL / float(steps))
+				step.mesh = box
+				step.material_override = _material(Color("b08a5a"))
+				step.position = Grid.to_world(cell, rise * (k + 1) / 2.0) + Vector3(0, 0, -Grid.CELL / 2.0 + Grid.CELL / float(steps) * (k + 0.5))
+				parent.add_child(step)
+		DOOR: # #222: vão da porta com verga em cima (passa-se por ele), não um bloco
+			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL)
+			node.material_override = _material(Color("8a6a43"))
+			node.position = Grid.to_world(cell, 0.0)
+			var lintel := MeshInstance3D.new()
+			var top := BoxMesh.new()
+			var door_h := Grid.units(Grid.door_meters)
+			top.size = Vector3(Grid.CELL, maxf(0.05, wall_height() - door_h), Grid.CELL)
+			lintel.mesh = top
+			lintel.material_override = _material(Color("6b4a2b"))
+			lintel.position = Grid.to_world(cell, door_h + top.size.y / 2.0)
+			parent.add_child(lintel)
+			_walls.append({"node": lintel, "mesh": top, "cell": cell, "lintel": true})
 		_:
 			mesh.size = Vector3(Grid.CELL, 0.08, Grid.CELL)
 			node.material_override = _material(Color("c9b896") if (cell.x + cell.y + level) % 2 == 0 else Color("bfae8c"))
@@ -335,11 +379,15 @@ func set_view_direction(direction: Vector3) -> void:
 	_view_dir = flat
 	for wall in _walls:
 		var cell: Vector2i = wall.cell
-		var offset := Grid.to_world(cell) - _center
-		var height := CUTAWAY_HEIGHT if offset.dot(flat) > 0.4 else WALL_HEIGHT
+		var offset := Grid.to_world(cell) + Vector3(wall.get("edge", Vector3.ZERO)) * 2.0 - _center
+		var near: bool = offset.dot(flat) > 0.4
+		var wall_node: Node3D = wall.node
+		if wall.get("lintel", false): # a verga some no lado cortado (a parede ali está na altura do joelho)
+			wall_node.visible = not near
+			continue
+		var height := cutaway_height() if near else wall_height()
 		var box: BoxMesh = wall.mesh
 		box.size = Vector3(box.size.x, height, box.size.z)
-		var wall_node: Node3D = wall.node
 		wall_node.position = Vector3(wall_node.position.x, height / 2.0, wall_node.position.z)
 
 

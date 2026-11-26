@@ -47,10 +47,22 @@ public static class PlayerCommands
         if (!result.IsSuccess) return result;
         if (mode == PossessionMode.Full) npc.SetPossession(PossessionMode.Full, ctx.CurrentTick); // AD-197e: a pessoa fica presa
         else PossessionContest.Begin(world, ctx, npc); // AD-197f: a disputa de vontade começa
+        StopOnPossession(world, npc);
         // AD-196: encarnar não é fato do mundo (ninguém dentro dele percebe quem conduz): fica no registro de sessões do hospedeiro
         if (!world.Players.Enabled)
             ctx.LogEvent(WorldEventKind.PlayerIncarnated, $"{npc.Id.Value}|{playerId}", sourceSystem: "PlayerCommands");
         return result;
+    }
+
+    /// <summary>#222: possuído, o corpo para o que fazia (a viagem, o trabalho, a refeição, o sono) e fica à toa esperando o jogador;
+    /// antes a ação do motor seguia e o corpo "não parava". Só no caminho do jogador; o tick comum não muda.</summary>
+    internal static void StopOnPossession(WorldState world, Npc npc)
+    {
+        TakeTheWheel(world, npc);
+        if (npc.CurrentAction != ActionType.Idle)
+            npc.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds);
+        npc.SetControlledAction(ActionType.Idle);
+        WakeNow(world, npc);
     }
 
     /// <summary><paramref name="action"/> nulo devolve a escolha ao motor. <paramref name="powerId"/> só vale com

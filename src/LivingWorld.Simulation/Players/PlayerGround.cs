@@ -76,7 +76,16 @@ public static class PlayerGround
     /// <summary>Quem está em <paramref name="cell"/> no andar <paramref name="floor"/> (do prédio <paramref name="building"/>, acima do térreo).</summary>
     public static Npc? PersonAt(WorldState world, Npc self, CellCoord cell, int floor, BuildingId? building)
     {
-        Npc? found = null;
+        CrowdAt(world, self, cell, floor, building, out var found);
+        return found;
+    }
+
+    /// <summary>AD-197u: quantas pessoas (vivas, que não sejam <paramref name="self"/>) estão em <paramref name="cell"/> no andar
+    /// <paramref name="floor"/>, e a de menor id entre elas (<paramref name="first"/>). Uma só passada pelos vivos.</summary>
+    public static int CrowdAt(WorldState world, Npc self, CellCoord cell, int floor, BuildingId? building, out Npc? first)
+    {
+        first = null;
+        int count = 0;
         foreach (var other in world.AliveNpcIndex.Alive)
         {
             if (other.Id == self.Id || other.City != self.City || FloorOf(other) != floor) continue;
@@ -84,9 +93,10 @@ public static class PlayerGround
             if (other.CurrentAction != ActionType.Travel && other.Interior is null && other.CurrentLocation != cell)
                 continue; // parado em outra célula: não precisa de pose
             if (PoseOf(world, other) != cell) continue;
-            if (found is null || other.Id.Value < found.Id.Value) found = other;
+            count++;
+            if (first is null || other.Id.Value < first.Id.Value) first = other;
         }
-        return found;
+        return count;
     }
 
     /// <summary>Dá para pisar em <paramref name="cell"/> no térreo? Dentro do mapa; fora de prédio, sim; dentro, se ali não é parede.</summary>
@@ -115,7 +125,9 @@ public static class PlayerGround
         else if (from.X != to.X && from.Y != to.Y
                  && (!Open(world, new CellCoord(to.X, from.Y), thereId, floor) || !Open(world, new CellCoord(from.X, to.Y), thereId, floor)))
             return Result<Unit>.Fail("move: canto de parede");
-        if (PersonAt(world, npc, to) is { } someone) return Result<Unit>.Fail($"move: {someone.Name} está ali");
+        // AD-197u: a célula (1,5 m, 2,25 m²) comporta gente; só barra quando já está cheia (PlayerRules.CellCrowd)
+        int crowd = CrowdAt(world, npc, to, floor, npc.Interior?.Building, out var someone);
+        if (crowd > 0 && crowd >= world.Players.CellCrowd) return Result<Unit>.Fail($"move: {someone!.Name} está ali");
         return Result<Unit>.Ok(Unit.Value);
     }
 

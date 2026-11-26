@@ -110,14 +110,16 @@ func test_minimap_maps_cells_and_requests_pan() -> void:
 	map.free()
 
 
-func test_toasts_keep_five_and_full_history() -> void:
+func test_toasts_keep_three_no_repeats_and_full_history() -> void:
 	var toasts := Toasts.new()
 	for i in 7:
 		toasts.push("evento %d" % i)
+	toasts.push("evento 6")
 
-	eq(toasts.visible_texts().size(), 5, "no máximo 5 avisos na tela")
-	eq(toasts.visible_texts()[0], "evento 2", "os mais antigos saem")
-	eq(toasts.history.size(), 7, "o histórico guarda todos")
+	eq(toasts.visible_texts().size(), 3, "no máximo 3 avisos na tela (#222)")
+	eq(toasts.visible_texts()[0], "evento 4", "os mais antigos saem")
+	eq(toasts.history.size(), 8, "o histórico guarda todos")
+	eq(toasts.visible_texts().count("evento 6"), 1, "o mesmo aviso não se repete na tela")
 	toasts.free()
 
 
@@ -175,12 +177,15 @@ func test_hover_text_comes_from_store_and_server_labels() -> void:
 	app.queue_free()
 
 
-func test_delta_events_become_toasts_with_server_text() -> void:
+func test_delta_events_go_to_the_list_with_server_text_not_to_the_middle_of_the_screen() -> void:
 	var app = await _app_with(_online_transport())
 
 	app._on_delta(Fx.delta(0, 1, {"events": [{"atMs": 5 * 3600000, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
 
-	eq(app.toasts.visible_texts(), ["Nasceu uma criança"], "o texto do aviso vem do servidor")
+	eq(app.toasts.visible_texts(), [], "#222: acontecimento não vira aviso no meio da tela")
+	eq(app.toasts.history, ["Nasceu uma criança"], "o texto do servidor fica no histórico")
+	check("Nasceu uma criança" in app.timeline.row_text(0), "e na lista de acontecimentos: " + app.timeline.row_text(0))
+	check("1 novo" in app.timeline._collapse.text, "o título da lista recolhida conta os novos: " + app.timeline._collapse.text)
 	app.queue_free()
 
 

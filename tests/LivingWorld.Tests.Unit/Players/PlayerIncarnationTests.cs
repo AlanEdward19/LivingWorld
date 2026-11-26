@@ -41,7 +41,7 @@ public class PlayerIncarnationTests
         JsonNode.Parse(JsonSerializer.Serialize(npc, LivingWorld.Simulation.Core.WorldSnapshot.SnapshotJsonOptions))!.AsObject();
 
     [Fact]
-    public void Incarnating_a_free_living_npc_changes_only_the_controller()
+    public void Incarnating_a_free_living_npc_changes_only_the_controller_and_stops_the_body()
     {
         var (world, _, _, ctx) = Village(1);
         var npc = Pick(world);
@@ -56,7 +56,14 @@ public class PlayerIncarnationTests
         after.Remove("ControllerId");
         Assert.NotNull(after["Will"]); // AD-197f: a posse comum começa a disputa de vontade da pessoa (estado real dela)
         after.Remove("Will");
-        Assert.Equal(before.ToJsonString(), after.ToJsonString());
+        // #222: possuído, o corpo para o que fazia e fica à toa esperando o jogador (ação, pose da ação e posição de pé no mundo)
+        var changed = after.Select(p => p.Key).Union(before.Select(p => p.Key))
+            .Where(k => (before[k]?.ToJsonString() ?? "") != (after[k]?.ToJsonString() ?? "")).ToList();
+        string[] stopping = ["CurrentAction", "ControlledAction", "ActionStartedAtMs", "ActionStartedTick", "ActionStartedAtTick", "ActionPhaseMs", "CurrentLocation",
+            "Interior", "LastMovedTick", "LastMovedAtHour", "TravelLegEndMs", "TravelLegTo", "Fine", "NextWakeTick"];
+        Assert.All(changed, k => Assert.Contains(k, stopping));
+        Assert.Equal(LivingWorld.Domain.Behavior.ActionType.Idle, npc.CurrentAction);
+        Assert.Equal(LivingWorld.Domain.Behavior.ActionType.Idle, npc.ControlledAction);
     }
 
     [Fact]
@@ -85,6 +92,10 @@ public class PlayerIncarnationTests
         var controlled = Pick(b);
         var twin = a.FindNpc(controlled.Id)!;
         Assert.True(PlayerCommands.Incarnate(b, ctxB, controlled.Id, "alan").IsSuccess);
+        // #222: a posse para o corpo; para medir a paridade, o gêmeo para igual e os dois voltam à escolha do motor
+        PlayerCommands.StopOnPossession(a, twin);
+        twin.SetControlledAction(null);
+        Assert.True(PlayerCommands.Act(b, controlled.Id, "alan", null).IsSuccess);
 
         clockA.Run(a, a.Calendar.HoursPerYear);
         clockB.Run(b, b.Calendar.HoursPerYear);

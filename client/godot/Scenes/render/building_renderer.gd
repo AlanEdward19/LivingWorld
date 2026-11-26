@@ -72,15 +72,23 @@ func lit_count(id: int) -> int:
 
 
 func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
+	var was_faded := faded.has(int(info.id)) # AD-197s: redesenhar (a pessoa nova mudou o estado do prédio) não pode apagar a translucidez
 	remove(int(info.id))
+	if was_faded:
+		faded[int(info.id)] = true
+	var node := _draw(info, state)
+	if xray or was_faded or opened.has(int(info.id)):
+		_fade(int(info.id), FADE if was_faded else 0.0)
+	return node
+
+
+func _draw(info: Dictionary, state: Dictionary) -> Node3D:
 	var work: Dictionary = work_of.call(int(info.id))
 	dressed[int(info.id)] = signature(state, work)
 	if not work.is_empty() and not info.footprint.is_empty():
 		var site := Site.make(info, work, Grid.floor_height())
 		add_child(site)
 		nodes[int(info.id)] = site
-		if xray:
-			_fade(int(info.id), 0.0)
 		return site
 	var drawn := info
 	if info.footprint.is_empty():
@@ -91,8 +99,6 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var node := make_building(drawn, state)
 	add_child(node)
 	nodes[int(info.id)] = node
-	if xray:
-		_fade(int(info.id), 0.0)
 	return node
 
 
@@ -101,8 +107,25 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
 const XRAY := 0.88 ## raio-x (AD-177): paredes de todos os prédios translúcidas
 const XRAY_ROOF := 0.96 ## e o telhado quase some
+const ROOF_EAVE_M := 0.3 ## beiral do telhado de cada lado (metros)
+const ROOF_OPEN := 0.97 ## AD-197s: o telhado do prédio em que o jogador está (3ª pessoa de cima) quase some
 var faded: Dictionary = {} ## id -> true (translúcidos agora)
+var opened: Dictionary = {} ## AD-197s: id -> true (o corpo do jogador está dentro: telhado aberto)
 var xray := false
+
+
+## AD-197s: prédios em que o corpo do jogador está: o telhado some para a câmera olhar de cima.
+func set_opened(ids: Dictionary) -> void:
+	var changed := {}
+	for id in opened:
+		if not ids.has(id):
+			changed[id] = true
+	for id in ids:
+		if not opened.has(id):
+			changed[id] = true
+	opened = ids.duplicate()
+	for id in changed:
+		_fade(id, FADE if faded.has(id) else 0.0)
 
 
 ## Raio-x: todos os prédios translúcidos (telhado quase sumido) para ver ruas, lotes e quem anda entre as casas.
@@ -152,6 +175,8 @@ func _fade(id: int, amount: float) -> void:
 		var value := amount
 		if xray:
 			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
+		if opened.has(id) and child.name.begins_with("Roof"):
+			value = maxf(value, ROOF_OPEN)
 		(child as GeometryInstance3D).transparency = value
 		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua
@@ -238,12 +263,14 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
 	var door_at := Vector3.INF
 	var door_out := Vector3(0, 0, 1)
+	var walls: Array = [] # AD-197s2: as caixas sólidas das células de parede (a câmera do jogador fica no cômodo, fora delas)
 	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
 		var material: int = cells[cell]
 		match material:
 			MATERIAL_WALL_STONE, MATERIAL_WALL_WOOD:
+				walls.append(AABB(Vector3(cell.x, 0, cell.y), Vector3(1, height, 1)))
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[material])
 				_box(root, Vector3(1.04, 0.12, 1.04), Grid.to_world(cell, 0.06), trim) # rodapé
 				for level in range(1, floors):
@@ -260,6 +287,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 							window.name = "Window"
 							windows.append(window)
 			MATERIAL_DOOR:
+				walls.append(AABB(Vector3(cell.x, 0, cell.y), Vector3(1, height, 1)))
 				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[0])
 				for dir in DIRS:
 					if not cells.has(cell + dir):
@@ -290,7 +318,8 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	if rectangular:
 		var prism := PrismMesh.new()
 		var along_x := span.x >= span.y
-		prism.size = Vector3((span.x if along_x else span.y) + 0.4, float(form.pitch), (span.y if along_x else span.x) + 0.4)
+		var eave := Grid.units(ROOF_EAVE_M) # AD-197s3: beiral em metros do motor (a câmera do jogador usa a mesma casca)
+		prism.size = Vector3((span.x if along_x else span.y) + eave * 2.0, float(form.pitch), (span.y if along_x else span.x) + eave * 2.0)
 		var ridge := MeshInstance3D.new()
 		ridge.mesh = prism
 		ridge.material_override = roof
@@ -315,8 +344,8 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 			root.add_child(node)
 	if info.type == -1:
 		var chimney_cell: Vector2i = min_cell
-		_box(root, Vector3(0.22, 0.7, 0.22), Grid.to_world(chimney_cell, height + 0.55) + Vector3(0.1, 0, 0.1), _flat_material(Color("7a6a5c")))
-		root.add_child(_smoke(Grid.to_world(chimney_cell, height + 0.95) + Vector3(0.1, 0, 0.1)))
+		_box(root, Vector3(Dress.u(0.22), Dress.u(0.7), Dress.u(0.22)), Grid.to_world(chimney_cell, height + Dress.u(0.55)) + Vector3(Dress.u(0.1), 0, Dress.u(0.1)), _flat_material(Color("7a6a5c")))
+		root.add_child(_smoke(Grid.to_world(chimney_cell, height + Dress.u(0.95)) + Vector3(Dress.u(0.1), 0, Dress.u(0.1))))
 	if not state.is_empty():
 		var center := Vector3(min_cell.x + span.x / 2.0, height, min_cell.y + span.y / 2.0)
 		if door_at == Vector3.INF:
@@ -335,7 +364,12 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	shape.position = Vector3(min_cell.x + span.x / 2.0, (height + 0.6) / 2.0, min_cell.y + span.y / 2.0)
 	body.add_child(shape)
 	root.add_child(body)
-	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + 0.9, span.y)))
+	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + Dress.u(0.9), span.y)))
+	root.set_meta("walls", walls)
+	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
+	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
+	var eave_shell := Grid.units(ROOF_EAVE_M)
+	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + Dress.u(0.9), roof_top + Dress.u(0.1)), span.y + eave_shell * 2.0)))
 	return root
 
 

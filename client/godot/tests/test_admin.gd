@@ -256,7 +256,7 @@ func test_without_a_token_the_console_does_not_appear_or_open() -> void:
 	var made := await _app(false)
 	var app = made[0]
 
-	eq(_find_button(app, "Console (F8)"), null, "sem LW_ADMIN_TOKEN não há botão")
+	eq(_find_button(app, "Admin"), null, "sem LW_ADMIN_TOKEN não há botão")
 	var key := InputEventKey.new()
 	key.keycode = KEY_F8
 	key.pressed = true
@@ -277,7 +277,7 @@ func test_with_a_token_f8_and_the_button_toggle_and_esc_closes_and_results_open_
 	eq(app.admin_window.is_open, true, "F8 abre")
 	app._unhandled_input(key)
 	eq(app.admin_window.is_open, false, "F8 fecha")
-	_find_button(app, "Console (F8)").pressed.emit()
+	_find_button(app, "Admin").pressed.emit()
 	eq(app.admin_window.is_open, true, "o botão abre")
 
 	app.admin_window.search_input.text = "ana"
