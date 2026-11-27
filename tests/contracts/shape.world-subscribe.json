@@ -298,6 +298,7 @@
               }
             ],
             "inside": "number",
+            "outdoors?": "number",
             "pooled": "number",
             "temperatureC": "number"
           },
