@@ -32,10 +32,10 @@ var server_online := false
 ## ler uma vez só, ao criar o menu, deixava todo mundo aberto pausado.
 var can_run_clock: bool:
 	get:
-		return _run_override or OS.get_environment("LW_ADMIN_TOKEN") != ""
+		return bool(_run_override) if _run_override != null else OS.get_environment("LW_ADMIN_TOKEN") != ""
 	set(value):
 		_run_override = value
-var _run_override := false
+var _run_override: Variant = null ## atribuído (testes, quem decide): vale o valor; senão, o ambiente na hora
 var backdrop: Node3D
 var title: Control
 var offline: Control
