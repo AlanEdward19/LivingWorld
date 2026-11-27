@@ -1,5 +1,4 @@
 using System.Text.Json;
-using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
