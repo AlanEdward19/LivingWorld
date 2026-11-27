@@ -48,6 +48,7 @@ public static class PlayerCommands
         if (mode == PossessionMode.Full) npc.SetPossession(PossessionMode.Full, ctx.CurrentTick); // AD-197e: a pessoa fica presa
         else PossessionContest.Begin(world, ctx, npc); // AD-197f: a disputa de vontade começa
         StopOnPossession(world, npc);
+        PlayerSettle.OutOfTheWall(world, ctx, npc); // #227: nunca preso na parede de um prédio (só o corpo conduzido; o sumiço não passa por aqui)
         // AD-196: encarnar não é fato do mundo (ninguém dentro dele percebe quem conduz): fica no registro de sessões do hospedeiro
         if (!world.Players.Enabled)
             ctx.LogEvent(WorldEventKind.PlayerIncarnated, $"{npc.Id.Value}|{playerId}", sourceSystem: "PlayerCommands");
