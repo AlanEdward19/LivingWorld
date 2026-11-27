@@ -22,6 +22,12 @@
     "floor": "number",
     "fx": "number",
     "fy": "number",
+    "ground": {
+      "cause": "string",
+      "slowPct": "number",
+      "terrain": "number",
+      "terrainPct": "number"
+    },
     "npcId": "number",
     "playerId": "string",
     "readyInMs": "number",
