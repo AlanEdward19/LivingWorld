@@ -252,6 +252,29 @@ func _app(enabled: bool, status: Dictionary = {}) -> Array:
 	return [app, transport]
 
 
+func test_entering_a_loaded_world_releases_the_clock_when_the_player_holds_it_or_says_why_not() -> void:
+	# #237: o servidor abre o mundo salvo pausado; quem tem o relógio solta ao entrar, quem não tem vê por quê
+	var stopped := {"isPaused": true, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "tickDeltaMs": 3600000, "year": 0, "pausedBy": null}
+	var made := await _app(true, stopped)
+	var app = made[0]
+	var transport = made[1]
+	transport.on("POST /simulation/resume", {"status": 200, "body": null})
+	await app.start_clock_on_entry()
+	eq(transport.count_calls("POST /simulation/resume"), 1, "com o relógio nas mãos, entrar solta o tempo")
+	app.queue_free()
+	var locked := await _app(false, stopped)
+	var locked_app = locked[0]
+	await locked_app.start_clock_on_entry()
+	eq(locked[1].count_calls("POST /simulation/resume"), 0, "sem o relógio, não tenta soltar")
+	locked_app.queue_free()
+	var by_admin := stopped.duplicate()
+	by_admin["pausedBy"] = "alan"
+	var held := await _app(true, by_admin)
+	await held[0].start_clock_on_entry()
+	eq(held[1].count_calls("POST /simulation/resume"), 0, "pausa de um operador é respeitada")
+	held[0].queue_free()
+
+
 func test_without_a_token_the_console_does_not_appear_or_open() -> void:
 	var made := await _app(false)
 	var app = made[0]

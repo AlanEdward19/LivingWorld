@@ -57,12 +57,24 @@ public sealed partial class PlayerCommandGateway(
     /// continuam aceitos (só a pausa do admin recusa). Trocável nos testes para um relógio falso.</summary>
     public PopupHold Hold { get; set; } = new(TimeProvider.System);
 
-    /// <summary>O mundo está parado por um popup: hold vivo, só um jogador conectado e no máximo um corpo conduzido no mundo.</summary>
+    private Guid _holdWorld;
+
+    /// <summary>Liga/solta o hold do jogador e lembra de qual mundo ele é (trocar de mundo o derruba).</summary>
+    public bool SetHold(string playerId, bool on)
+    {
+        bool held = Hold.Set(playerId, on);
+        if (held) _holdWorld = library.CurrentId;
+        return held;
+    }
+
+    /// <summary>O mundo está parado por um popup: hold vivo, só um jogador conectado e no máximo um corpo conduzido no mundo.
+    /// Um hold pedido em outro mundo (carregar/criar no meio) não vale: o mundo novo anda sem esperar o popup do antigo.</summary>
     public bool PopupHolding
     {
         get
         {
             if (!Hold.IsActive) return false;
+            if (_holdWorld != library.CurrentId) { Hold.Clear(); return false; }
             lock (library.Gate) return PlayerService.PlayersPresent(host.Current) <= 1;
         }
     }

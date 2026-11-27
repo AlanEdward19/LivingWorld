@@ -28,7 +28,14 @@ var local_server ## LocalServer do Boot (vive além do menu); nulo = o cliente n
 var settings
 var server_online := false
 ## O token de admin da sessão (LW_ADMIN_TOKEN, posto pelo lançador) deixa pedir o mundo já rodando ao criar ou abrir.
-var can_run_clock := OS.get_environment("LW_ADMIN_TOKEN") != ""
+## #237: lido na hora de usar (o token entra no ambiente DEPOIS do menu existir quando o próprio cliente liga a API ou lê o api.state);
+## ler uma vez só, ao criar o menu, deixava todo mundo aberto pausado.
+var can_run_clock: bool:
+	get:
+		return _run_override or OS.get_environment("LW_ADMIN_TOKEN") != ""
+	set(value):
+		_run_override = value
+var _run_override := false
 var backdrop: Node3D
 var title: Control
 var offline: Control

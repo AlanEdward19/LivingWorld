@@ -355,6 +355,23 @@ func test_create_asks_the_server_for_a_running_world_when_the_session_has_the_to
 	_done(menu)
 
 
+func test_can_run_clock_reads_the_token_when_used_not_when_the_menu_is_built() -> void:
+	# #237: o token entra no ambiente depois do menu (o cliente liga a API ou lê o api.state): pedir rodando tem de valer
+	var saved := OS.get_environment("LW_ADMIN_TOKEN")
+	OS.unset_environment("LW_ADMIN_TOKEN")
+	var menu := _menu(_transport())
+	check(not menu.can_run_clock, "sem token, não pede rodando")
+	OS.set_environment("LW_ADMIN_TOKEN", "tok-sessao")
+	check(menu.can_run_clock, "o token chegou depois do menu: passa a pedir rodando")
+	menu.show_saved_worlds()
+	check(menu.saved_worlds_screen.start_running, "Mundos salvos abre o mundo rodando")
+	if saved == "":
+		OS.unset_environment("LW_ADMIN_TOKEN")
+	else:
+		OS.set_environment("LW_ADMIN_TOKEN", saved)
+	_done(menu)
+
+
 func test_failed_job_shows_the_server_reason_and_stays_in_the_wizard() -> void:
 	var transport := _transport()
 	transport.on("GET /worlds/create/jobs/", job_route(true, 409, "Já existe um mundo salvo com esta seed."))

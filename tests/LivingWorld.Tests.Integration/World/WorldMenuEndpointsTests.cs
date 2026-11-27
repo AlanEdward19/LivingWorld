@@ -203,6 +203,31 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
     }
 
     [Fact]
+    public async Task Loading_a_saved_world_with_the_token_makes_the_clock_advance_and_a_popup_hold_of_the_old_world_does_not_stop_it()
+    {
+        // #237: carregar um mundo salvo tem de deixá-lo andando (como o mundo novo) e a pausa de popup do mundo anterior não o segura
+        var admin = _factory.CreateAdminClient();
+        var simulation = _factory.Services.GetRequiredService<SimulationHost>();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var loop = _factory.Services.GetRequiredService<LivingWorld.Api.Simulation.TickLoopService>();
+        var gateway = _factory.Services.GetRequiredService<LivingWorld.Api.Players.PlayerCommandGateway>();
+        await admin.PostAsJsonAsync("/worlds/create?startRunning=true", Request(76101, "Salvo A"));
+        await admin.PostAsJsonAsync("/worlds/create", Request(76102, "Salvo B"));
+        gateway.Hold.Connected("jogador-237");
+        Assert.True(gateway.SetHold("jogador-237", true)); // popup aberto no mundo B
+        Assert.True(gateway.PopupHolding);
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"/worlds/{WorldIdentity.WorldIdFor(76101)}/load?startRunning=true", null)).StatusCode);
+
+        Assert.False(simulation.IsPaused);
+        Assert.False(gateway.PopupHolding); // o hold era do outro mundo
+        long before = worldHost.Current.CurrentDate.TotalHours;
+        for (int i = 0; i < 3; i++) loop.RunOneCycle();
+        Assert.True(worldHost.Current.CurrentDate.TotalHours > before, "o relógio do mundo carregado tem de andar");
+        gateway.Hold.Disconnected("jogador-237");
+    }
+
+    [Fact]
     public async Task Async_creation_reports_real_stages_and_ends_with_the_same_answer_as_create()
     {
         var client = _factory.CreateClient();

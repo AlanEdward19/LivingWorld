@@ -35,3 +35,10 @@ func _send(on: bool) -> void:
 		return
 	sent.append(on)
 	api.player_hold(on)
+
+
+## #237: o app saiu (voltar ao menu, trocar de mundo): o hold não pode ficar preso; solta já em vez de esperar os 30 s do servidor.
+func _exit_tree() -> void:
+	if held:
+		held = false
+		_send(false)
