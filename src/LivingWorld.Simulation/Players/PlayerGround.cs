@@ -65,6 +65,23 @@ public static class PlayerGround
             : npc.CurrentLocation;
     }
 
+    /// <summary>#237: o prédio em cuja planta o corpo está de verdade: o do <see cref="Npc.Interior"/> se a célula local é da planta
+    /// (qualquer célula nos andares de cima; no térreo, célula coberta pela planta), ou o que cobre a célula onde ele está no chão.
+    /// O posto de trabalho no campo (<see cref="InteriorEntry.TryStand"/>) guarda o prédio com célula local FORA da planta: ali o corpo
+    /// está na rua, não dentro. Nulo na rua.</summary>
+    public static long? InsideBuilding(WorldState world, Npc npc)
+    {
+        if (npc.Interior is { } inside)
+        {
+            if (world.FindBuilding(inside.Building) is { Position: not null } building
+                && (inside.Floor.Value > 0 || BuildingLayoutCache.Of(building).CoversGround(inside.LocalCell)))
+                return inside.Building.Value;
+            return null;
+        }
+
+        return At(world, npc.CurrentLocation)?.Building.Id.Value;
+    }
+
     /// <summary>Os dois estão no mesmo espaço: o mesmo andar e, acima do térreo, o mesmo prédio.</summary>
     public static bool SameLevel(Npc a, Npc b) =>
         FloorOf(a) == FloorOf(b) && (FloorOf(a) == 0 || a.Interior!.Building == b.Interior!.Building);
