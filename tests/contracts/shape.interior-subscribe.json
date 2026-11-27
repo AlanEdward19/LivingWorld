@@ -28,13 +28,56 @@
               "material": "number"
             }
           ],
-          "level": "number"
+          "doors": [
+            {
+              "a": {
+                "x": "number",
+                "y": "number"
+              },
+              "b": {
+                "x": "number",
+                "y": "number"
+              },
+              "material": "number"
+            }
+          ],
+          "level": "number",
+          "walls": [
+            {
+              "a": {
+                "x": "number",
+                "y": "number"
+              },
+              "b": {
+                "x": "number",
+                "y": "number"
+              },
+              "material": "number"
+            }
+          ]
         }
       ],
       "floors": "number"
     },
     "occupancyModeled": "boolean",
-    "occupants": "[]"
+    "occupants": "[]",
+    "rooms": [
+      {
+        "doors": "[]",
+        "rooms": [
+          {
+            "cells": [
+              {
+                "x": "number",
+                "y": "number"
+              }
+            ],
+            "kind": "null"
+          }
+        ],
+        "walls": "[]"
+      }
+    ]
   },
   "scope": {
     "kind": "number",
