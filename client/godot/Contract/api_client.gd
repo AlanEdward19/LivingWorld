@@ -291,6 +291,12 @@ func player_jump(player_id: String) -> Dictionary:
 	return _checked("/players/jump", {"status": response.status, "body": response.body}, "")
 
 
+## #241: interrompe a ação que ocupa o corpo (cortar lenha...); o motor deixa a parte proporcional e devolve a pose, ou 409 sem ação.
+func player_interrupt(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "interrupt"}, "POST", "/players/%s/interrupt" % player_id.uri_encode(), {})
+	return _checked("/players/interrupt", {"status": response.status, "body": response.body}, "")
+
+
 ## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.
 func player_strike(player_id: String, npc_id: int) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "strike", "npcId": npc_id}, "POST", "/players/%s/strike" % player_id.uri_encode(), {"npcId": npc_id})

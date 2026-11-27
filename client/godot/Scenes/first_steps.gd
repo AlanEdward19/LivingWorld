@@ -38,7 +38,7 @@ const PLAYER_ACTIONS: Array[Array] = [
 	["Comprar e vender", "junto à banca de uma oficina: E e o número da opção"],
 	["Trabalhar", "no posto do seu emprego (oficina ou lavoura): segure E e escolha Trabalhar"],
 	["Beber e encher o cântaro", "colado na água (rio, lago, fonte): E"],
-	["Coletar madeira", "na mata, fora da cidade: segure E e escolha Coletar"],
+	["Cortar lenha", "junto de uma árvore, fora da cidade: segure E e escolha Cortar lenha"],
 	["Usar a mobília", "dentro da sua casa ou do seu posto, junto ao objeto: E"],
 	["Entrar, sair e subir", "na porta ou na escada do prédio: E"],
 	["Recolher espólio", "onde alguém deixou coisas no chão: E"],

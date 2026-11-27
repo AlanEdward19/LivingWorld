@@ -30,7 +30,8 @@ public sealed record PlayerPose(
     double CellMeters, bool Running,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CombatView? Combat = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.WalkDrag? Ground = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.WalkDrag? Ground = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.BusyView? Busy = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -118,6 +119,7 @@ public sealed partial class PlayerCommandGateway(
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
                 PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy, command.Run), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Jump => Map(players.Jump(world, playerId), air => PoseOf(world, playerId, air)),
+                PlayerCommandKind.Interrupt => Map(players.Interrupt(world, playerId), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
                     command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
                 PlayerCommandKind.Sample => Map(players.Sample(world, playerId, new CityId(command.CityId ?? Guid.Empty),
@@ -257,7 +259,8 @@ public sealed partial class PlayerCommandGateway(
             running,
             airMs,
             PlayerCombat.View(world, npc),
-            WalkGround(world, npc));
+            WalkGround(world, npc),
+            LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc));
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>

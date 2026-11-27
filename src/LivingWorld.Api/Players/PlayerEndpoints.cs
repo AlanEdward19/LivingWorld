@@ -100,6 +100,10 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/jump", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Jump)));
 
+        // #241: interromper a ação que ocupa o corpo (cortar lenha...): o motor deixa a parte proporcional; 409 sem ação em andamento
+        app.MapPost("/players/{playerId}/interrupt", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Interrupt)));
+
         // #234: esquiva e bloqueio (janela curta, recarga da guarda); 200 = a pose com o combate, 409 com o motivo
         app.MapPost("/players/{playerId}/dodge", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Dodge)));

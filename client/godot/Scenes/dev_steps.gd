@@ -429,6 +429,38 @@ static func run(app: Node, steps: Array) -> void:
 				var walk_release: InputEventKey = walk_press.duplicate()
 				walk_release.pressed = false
 				Input.parse_input_event(walk_release)
+			"walkto": # #241: só captura: `walkto:x,y[,s]` vira o olhar para o ponto (células) e anda de W até ficar a menos de 1,2 m, ou s segundos (padrão 40)
+				var goal := Vector2(float(arg.get_slice(",", 0)), float(arg.get_slice(",", 1)))
+				var limit := float(arg.get_slice(",", 2)) if arg.count(",") >= 2 else 40.0
+				var first = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+				if first != null: # o olhar já vai ao ponto antes de apertar W (o motor ainda não deu a posição fina)
+					var from_start := goal - Vector2(first.position.x, first.position.z)
+					app.rig.yaw = atan2(-from_start.x, -from_start.y)
+					app.rig.view_yaw = app.rig.yaw
+				var w_press := InputEventKey.new()
+				w_press.keycode = KEY_W
+				w_press.physical_keycode = KEY_W
+				w_press.pressed = true
+				Input.parse_input_event(w_press)
+				var spent := 0.0
+				while spent < limit:
+					var here: Vector2 = app.player_hud.fine
+					var gap := goal - here
+					if here != Vector2.INF and gap.length() * preload("res://Scenes/grid.gd").cell_meters < 1.2:
+						break
+					if here != Vector2.INF:
+						app.rig.yaw = atan2(-gap.x, -gap.y)
+						app.rig.view_yaw = app.rig.yaw
+					await app.get_tree().create_timer(0.1).timeout
+					spent += 0.1
+				var w_release: InputEventKey = w_press.duplicate()
+				w_release.pressed = false
+				Input.parse_input_event(w_release)
+				print("walkto: fine=", app.player_hud.fine, " em ", snappedf(spent, 0.1), " s")
+			"busy": # #241: só captura: `busy:gather,60` finge a pose do motor com a ação em andamento (60 s, 40% feitos), para ver a barra, o gesto e o bloqueio do WASD
+				var seconds := float(arg.get_slice(",", 1)) if "," in arg else 60.0
+				var scale: float = float(app.player_hud.time_view.get("timeScale", 1.0)) if app.player_hud.time_view.get("timeScale") != null else 1.0
+				app.player_hud.apply_pose({"busy": {"action": arg.get_slice(",", 0), "untilMs": 0, "totalMs": int(seconds * 1000.0 * scale), "remainingMs": int(seconds * 600.0 * scale)}})
 			"gesture": # #224: `gesture:reach` toca um gesto no corpo do jogador (captura das animações)
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
 				if own != null:

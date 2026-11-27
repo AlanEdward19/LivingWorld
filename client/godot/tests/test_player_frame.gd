@@ -88,7 +88,7 @@ func test_space_jumps_when_the_engine_allows_and_says_why_when_not() -> void:
 	var warnings: Array = []
 	hud.warning.connect(func(t: String): warnings.append(t))
 	await hud.jump()
-	eq(warnings, ["cansada demais para pular"], "a recusa do motor aparece")
+	eq(warnings, ["Cansada demais para pular."], "a recusa do motor aparece")
 	eq(air.size(), 1, "e o corpo não pula")
 	_free(made)
 

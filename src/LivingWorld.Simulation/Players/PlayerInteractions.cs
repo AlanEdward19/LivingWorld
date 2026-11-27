@@ -16,7 +16,15 @@ public sealed record InteractionResource(int ResourceId, long Quantity, long Pri
 /// <c>stock</c> (casa: take, deposit), <c>stall</c> (oficina com preço: buy, sell), <c>bed</c> (casa: sleep), <c>person</c> (pessoa:
 /// talk, strike, abandon), <c>house</c> (a própria casa: sell), <c>nature</c> (mata ao alcance: gather, #239). O cliente mostra só isto.</summary>
 public sealed record InteractionOffer(
-    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources);
+    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources)
+{
+    /// <summary>#241: onde está o alvo em células (fração), quando não é o centro da célula (a árvore da <c>nature</c>): o cliente mira o tronco.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? Fx { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? Fy { get; init; }
+}
 
 /// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca).</summary>
 public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value);

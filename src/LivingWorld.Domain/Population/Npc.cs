@@ -597,7 +597,7 @@ public sealed class Npc
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
         long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
-        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null)
+        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null, BodyTask? bodyTask = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -632,6 +632,7 @@ public sealed class Npc
         Fine = fine;
         JumpUntilMs = jumpUntilMs;
         Combat = combat;
+        BodyTask = bodyTask;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -927,6 +928,17 @@ public sealed class Npc
     {
         JumpUntilMs = untilMs;
         if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
+    /// <summary>#241: a tarefa em curso que ocupa o corpo do jogador (cortar lenha...). Nula enquanto nunca houve; vencida (agora ≥
+    /// <c>UntilMs</c>) vale como livre.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BodyTask? BodyTask { get; private set; }
+
+    public void SetBodyTask(BodyTask? task)
+    {
+        BodyTask = task;
         TouchCanonical();
     }
 

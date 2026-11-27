@@ -166,29 +166,31 @@ public static partial class PlayerInteractions
         if (!world.StreetsOn || rules.HouseGatherHours <= 0 || rules.HouseMaterialUnits <= 0 || npc.IsCarrying
             || world.CurrentDate.TotalMilliseconds < npc.StepReadyAtMs) return;
         var resource = new ResourceType(rules.HouseMaterialResourceId);
-        var spot = CellWithinReach(world, npc, at, c => PlayerNature.IsWild(world, c, resource));
-        if (spot is { } cell)
-            offers.Add(Offer("nature", WaterId(cell), "", ["gather"], cell, [new InteractionResource(resource.Id, Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), 0)]));
+        if (PlayerNature.NearestWithinReach(world, at, npc.Fine) is not { } tree) return;
+        var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
+        var (units, _) = PlayerTasks.CutSession(world, npc, resource, home ?? tree.Cell, tree.Cell, null);
+        var offer = Offer("nature", WaterId(tree.Cell), "Árvore", ["gather"], tree.Cell, [new InteractionResource(resource.Id, units, 0)]);
+        offers.Add(offer with { Fx = tree.FineX / (double)FinePose.PerCell, Fy = tree.FineY / (double)FinePose.PerCell });
     }
 
-    /// <summary>#239: buscar material na natureza pela conta do NPC da obra: as horas de cortar (<c>WorkHaul.CutHours</c>, a mesma da
-    /// viagem de quem sai da casa dele à mata) por <paramref name="quantity"/> unidades, no limite de carga dele (<c>CapacityUnits</c>);
-    /// o corpo fica ocupado esse tempo (o mundo anda; nem anda nem busca de novo antes) e a carga vai nas mãos, de onde segue para a
-    /// despensa (guardar) como a de qualquer NPC. Entra na economia como produzida ao ser pega.</summary>
+    /// <summary>#239/#241: cortar lenha na árvore ao alcance. O corte leva o tempo dos NPCs da obra por unidade
+    /// (<c>WorkHaul.CutHours</c>, <see cref="PlayerTasks.CutSession"/>: uma jornada, no limite de carga); só o corte, a viagem o jogador
+    /// anda. O corpo fica ocupado esse tempo (<see cref="BodyTask"/>: nem anda nem corta de novo antes; <see cref="PlayerTasks.Interrupt"/>
+    /// para antes e deixa a parte proporcional) e a carga vai nas mãos, de onde segue para a despensa como a de qualquer NPC.</summary>
     private static Result<InteractionResult> Gather(WorldState world, Npc npc, InteractionOffer offer, long? quantity)
     {
         var resource = new ResourceType(offer.Resources[0].ResourceId);
-        long cap = Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), units = Math.Min(quantity ?? cap, cap);
-        if (units <= 0) return Fail("interact: quantidade deve ser > 0");
+        if (quantity is <= 0) return Fail("interact: quantidade deve ser > 0");
         long now = world.CurrentDate.TotalMilliseconds;
-        if (now < npc.StepReadyAtMs) return Fail($"{PlayerCommands.Conflict} gather: o corpo ainda está ocupado (faltam {npc.StepReadyAtMs - now} ms)");
+        if (now < npc.StepReadyAtMs) return Fail($"{PlayerCommands.Conflict} gather: o corpo ainda está ocupado");
         var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
         var wood = new CellCoord(offer.X, offer.Y);
-        long hours = Cities.Works.WorkHaul.CutHours(world, home ?? wood, wood, units);
+        var (units, duration) = PlayerTasks.CutSession(world, npc, resource, home ?? wood, wood, quantity);
         var held = npc.PickUp(resource, units, Math.Max(units, npc.CarryCapacity));
         if (!held.IsSuccess) return Fail(held.Error!);
         PlayerCommands.TakeTheWheel(world, npc);
-        npc.Step(now + hours * WorldMillis.PerHour, 0, now);
+        npc.Step(now + duration, 0, now);
+        npc.SetBodyTask(new BodyTask(PlayerTasks.Gather, now, now + duration) { ResourceId = resource.Id, Units = units });
         world.RecordResourceProduced(resource, units);
         return Done(offer, "gather", units, 0);
     }

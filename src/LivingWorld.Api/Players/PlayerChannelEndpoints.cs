@@ -100,6 +100,7 @@ public static class PlayerChannelEndpoints
                 "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
                     Run: node?["run"]?.GetValue<bool>() ?? false),
                 "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
+                "interrupt" => new PlayerCommandRequest(PlayerCommandKind.Interrupt), // #241: para a ação em andamento
                 "dodge" => new PlayerCommandRequest(PlayerCommandKind.Dodge), // #234: esquiva e bloqueio (janela curta)
                 "block" => new PlayerCommandRequest(PlayerCommandKind.Block),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),

@@ -108,3 +108,4 @@ acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperat
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
 
 **Popup (#240)**: toda janela central entra no registro único com UMA chamada, `app.modal.watch(controle)` (ou `app.modal.set_open(chave, on)`); aberto, some mira/anel/dica do E/números, E e clique não disparam e o app pede o hold (pausa do mundo só single player) ao motor.
+#241 (ação em andamento: barra, gesto de machado em laço, bloqueio do WASD, Espaço interrompe; árvore como mata), contra `4cf95790` (3 rodadas alternadas): `stress` 116,0/116,7/117,2 → 116,1/116,5/116,3 (mediana 116,7 → 116,3, ruído). Motor: a oferta `nature` olha 25 células só com as mãos livres, sem custo por NPC-tick.

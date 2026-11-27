@@ -66,6 +66,25 @@ static func plateau(t: float, edge: float = 0.22) -> float:
 	return smoothstep(0.0, 1.0, clampf(minf(x / edge, (1.0 - x) / edge), 0.0, 1.0))
 
 
+const CHOP_PERIOD := 1.15 ## s por golpe de machado (levantar, descer, recuperar)
+
+
+## #241: o golpe de machado em laço (u em [0,1) do ciclo): 0 = machado embaixo, 1 = no alto. Sobe devagar (0 a 55%), desce num golpe
+## seco (55 a 68%) e recupera embaixo até o ciclo fechar.
+static func chop_swing(u: float) -> float:
+	var x := fposmod(u, 1.0)
+	if x < 0.55:
+		return smoothstep(0.0, 1.0, x / 0.55)
+	if x < 0.68:
+		return 1.0 - smoothstep(0.0, 1.0, (x - 0.55) / 0.13)
+	return 0.0
+
+
+## #241: peso de um gesto em laço (o corpo entra e sai da pose em `edge` s, e fica nela o resto do tempo): não escala com a duração.
+static func loop_weight(elapsed: float, length: float, edge: float = 0.25) -> float:
+	return smoothstep(0.0, 1.0, clampf(minf(elapsed, length - elapsed) / maxf(edge, 0.001), 0.0, 1.0))
+
+
 ## Altura da rota (pontos com `along` acumulado) na distância `d`: o chão sob o pé que vai à frente. Rota sem altura = 0.
 static func route_height(points: PackedVector3Array, along: PackedFloat32Array, d: float) -> float:
 	var n := points.size()
