@@ -651,6 +651,33 @@ func player_released() -> void:
 	set_player_mode(false)
 
 
+## #229: o que o corpo do jogador pode tocar ao redor de `center` (células): paredes de prédios num raio curto e quem está nas
+## células vizinhas. Nada de colisor de cidade inteira nem de NPC longe: custo ~ vizinhança, lido a cada 0,25 s ou ao mudar de célula.
+const NEAR_REACH := 4.0 ## células ao redor do corpo
+func player_neighborhood(center: Vector2) -> Array:
+	var obstacles: Array = []
+	var people: Array = []
+	if world_view == null or world_view.buildings == null:
+		return [obstacles, people]
+	for id in world_view.buildings.nodes:
+		var node: Node = world_view.buildings.nodes[id]
+		var box: AABB = node.get_meta("box", AABB())
+		if box.size == Vector3.ZERO or center.x < box.position.x - NEAR_REACH or center.x > box.end.x + NEAR_REACH \
+				or center.y < box.position.z - NEAR_REACH or center.y > box.end.z + NEAR_REACH:
+			continue
+		for wall: AABB in node.get_meta("solid", []):
+			if absf(wall.position.x + 0.5 - center.x) <= NEAR_REACH and absf(wall.position.z + 0.5 - center.y) <= NEAR_REACH:
+				obstacles.append([Rect2(wall.position.x, wall.position.z, wall.size.x, wall.size.z), wall.size.y])
+	var base := Vector2i(floori(center.x), floori(center.y))
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			for id in world_view.npcs.cell_members.get(base + Vector2i(dx, dy), []):
+				var other = world_view.npc_nodes.get(id)
+				if other != null and id != player_hud.npc_id:
+					people.append(Vector2(other.position.x, other.position.z) / Grid.CELL)
+	return [obstacles, people]
+
+
 ## AD-197k: a posição fina do corpo (prevista ou a do motor) move o boneco do jogador.
 func _on_player_fine(at: Vector2) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)

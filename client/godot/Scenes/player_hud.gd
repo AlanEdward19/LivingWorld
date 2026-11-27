@@ -3,6 +3,7 @@ extends PanelContainer
 ## O motor decide se a ação cabe: aqui só se pede. Sair não congela o personagem: ele desaparece do mundo.
 const WorldTime := preload("res://Contract/world_time.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const PlayerBody := preload("res://Scenes/player_body.gd")
 
 signal released()
 signal warning(text: String)
@@ -518,8 +519,12 @@ const WALK_SEND := 0.1 ## s entre rumos enviados com a tecla segurada (o motor a
 var _blocked := false
 var _last_server := Vector2.INF
 var _last_server_at := 0
-const RECONCILE_SNAP := 0.6 ## células: acima disso a previsão salta para o motor
-const RECONCILE_BLEND := 0.3 ## fração do erro absorvida por resposta (a cada ~0,1 s)
+var body := PlayerBody.new() ## #229: o controlador cinemático local (aceleração, colisão, reconciliação com o motor)
+var neighborhood: Callable = Callable() ## #229: o app liga: (centro: Vector2) -> [obstáculos [[Rect2, topo]], pessoas [Vector2]], só ao redor do corpo
+const NEIGHBORHOOD_EVERY := 0.25 ## s entre leituras da vizinhança (e ao mudar de célula)
+var _near_clock := 0.0
+var _near_cell := Vector2i(1 << 30, 1 << 30)
+var _still_responses := 0
 var fine := Vector2.INF ## posição fina do corpo (células, absoluta): a do motor, mais a previsão desde a última resposta
 var speed_cells := 0.0 ## células por segundo real (m/s do motor / metros por célula, na escala do relógio)
 var _walk_dir := Vector2.ZERO
@@ -539,9 +544,14 @@ func walk_direction(keys: Vector2i) -> Vector2:
 func glide(direction: Vector2, delta: float) -> void:
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
-	if fine != Vector2.INF and direction != Vector2.ZERO and speed_cells > 0.0 and not _blocked:
-		fine += direction * speed_cells * delta
-		glided.emit(fine)
+	if fine != Vector2.INF and (speed_cells > 0.0 or body.settling()):
+		if body.pos != fine:
+			body.place(fine) # a posição fina foi posta de fora (ex.: o app): o corpo parte dela
+		_refresh_neighborhood(delta)
+		body.advance(Vector2.ZERO if _blocked else direction, speed_cells, delta)
+		if body.pos != fine:
+			fine = body.pos
+			glided.emit(fine)
 	_walk_clock += delta
 	var run := direction != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT)
 	var changed := direction != _walk_dir or run != _walk_run
@@ -550,6 +560,18 @@ func glide(direction: Vector2, delta: float) -> void:
 		_walk_dir = direction
 		_walk_run = run
 		send_walk(direction, run)
+
+
+## #229: a vizinhança do corpo (paredes e gente por perto) só é relida a cada NEIGHBORHOOD_EVERY s ou ao mudar de célula.
+func _refresh_neighborhood(delta: float) -> void:
+	_near_clock += delta
+	var cell := Vector2i(floori(body.pos.x), floori(body.pos.y))
+	if not neighborhood.is_valid() or (cell == _near_cell and _near_clock < NEIGHBORHOOD_EVERY):
+		return
+	_near_cell = cell
+	_near_clock = 0.0
+	var near: Array = neighborhood.call(body.pos)
+	body.set_neighborhood(near[0], near[1])
 
 
 var _walk_run := false
@@ -610,17 +632,21 @@ var _jumping := false
 func apply_pose(pose: Dictionary) -> void:
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
-		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar
+		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
+		# #229: só vale com duas respostas paradas seguidas (a aceleração suave não é recusa)
 		var now := Time.get_ticks_msec()
 		if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
 			var expected := speed_cells * float(now - _last_server_at) / 1000.0
-			_blocked = expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
-			if _blocked:
-				fine = server
+			var still := expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
+			_still_responses = _still_responses + 1 if still else 0
+			if _still_responses >= 2 and not _blocked:
+				_blocked = true
+				body.stop()
 		_last_server = server
 		_last_server_at = now
-		# #222: a posição do motor manda, mas sem tranco: erro pequeno (latência) é absorvido aos poucos; grande (parede, recusa) salta
-		fine = server if fine == Vector2.INF or fine.distance_to(server) > RECONCILE_SNAP else fine.lerp(server, RECONCILE_BLEND)
+		# #229: a posição do motor manda, mas o corpo converge a ela aos poucos (latência é tolerada; erro grande salta)
+		body.reconcile(server)
+		fine = body.pos
 		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
 		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(float(pose.get("cellMeters", 1.5)), 0.01) * scale
 		settled.emit(fine)

@@ -229,6 +229,7 @@ static func _side(app, ui: Control) -> void:
 		app.conversation.attach(id, name, session))
 	app.player_hud.struck.connect(app._on_player_struck)
 	app.player_hud.glided.connect(app._on_player_fine)
+	app.player_hud.neighborhood = app.player_neighborhood # #229: paredes e gente ao redor do corpo
 	app.player_hud.settled.connect(app._on_player_fine)
 	app.player_hud.menu_toggled.connect(app._on_player_menu)
 	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
