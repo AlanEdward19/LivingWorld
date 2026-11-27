@@ -382,6 +382,7 @@
               "resourceName?": "string"
             }
           ],
+          "combat?": "string",
           "dominantEmotion?": "string",
           "emotions": {
             "anger": "number",

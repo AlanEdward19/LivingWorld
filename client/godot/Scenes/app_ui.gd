@@ -19,6 +19,7 @@ const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const AimHighlight := preload("res://Scenes/aim_highlight.gd")
+const ReachRing := preload("res://Scenes/reach_ring.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
@@ -234,6 +235,10 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.input_blocked = func() -> bool: return app.conversation != null and app.conversation.is_open
 	app.player_hud.target_changed.connect(app._on_player_target)
 	app.player_hud.struck.connect(app._on_player_struck)
+	app.player_hud.struck_result.connect(app._on_player_struck_result) # #234: combate: reação no alvo e no corpo pelo resultado do motor
+	app.player_hud.defended.connect(app._on_player_defended)
+	app.player_hud.guard_changed.connect(app._on_player_guard_changed)
+	app.player_hud.incoming.connect(app._on_player_incoming)
 	app.player_hud.glided.connect(app._on_player_fine)
 	app.player_hud.neighborhood = app.player_neighborhood # #229: paredes e gente ao redor do corpo
 	app.player_hud.settled.connect(app._on_player_fine)
@@ -423,6 +428,8 @@ static func build_scene(app) -> void:
 	app.add_child(app.world_view)
 	app.aim_highlight = AimHighlight.new() # #233: o anel do alvo do E
 	app.world_view.add_child(app.aim_highlight)
+	app.reach_ring = ReachRing.new() # #234: o alcance do golpe em volta do corpo quando mira alguém
+	app.world_view.add_child(app.reach_ring)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
 	app.rig.walking = func() -> bool: return app.player_hud != null and app.player_hud.is_active # AD-197e: WASD/setas andam com o personagem
@@ -478,7 +485,9 @@ static func _wire_feedback(app) -> void:
 	app.add_child(fb)
 	app.feedback = fb
 	app.player_hud.acted.connect(fb.on_acted)
-	app.player_hud.struck_hit.connect(fb.on_struck_hit)
+	app.player_hud.struck_result.connect(fb.on_struck_result)
+	app.player_hud.defended.connect(fb.on_defended)
+	app.player_hud.incoming.connect(fb.on_incoming)
 	app.player_hud.refused.connect(fb.on_refused)
 	app.player_hud.jumped.connect(fb.on_jumped)
 	app.player_hud.sheet_read.connect(fb.note_sheet)

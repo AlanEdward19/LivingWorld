@@ -76,6 +76,23 @@ public class ObservableScopeProjectionTests
     }
 
     [Fact]
+    public void Combat_reaction_in_course_is_projected_and_omitted_when_over_or_absent()
+    {
+        var (world, scope, npc) = CityWorld();
+        long now = world.CurrentDate.TotalMilliseconds;
+        Assert.Null(ObservableOf(world, scope, npc.Id).Combat);
+
+        npc.SetCombat(new CombatState { Reaction = CombatReaction.Flee, ReactionUntilMs = now + 2000 });
+        Assert.Equal("flee", ObservableOf(world, scope, npc.Id).Combat);
+
+        npc.SetCombat(new CombatState { Reaction = CombatReaction.CallHelp, ReactionUntilMs = now + 2000 });
+        Assert.Equal("callHelp", ObservableOf(world, scope, npc.Id).Combat);
+
+        npc.SetCombat(new CombatState { Reaction = CombatReaction.Retaliate, ReactionUntilMs = now - 1 });
+        Assert.Null(ObservableOf(world, scope, npc.Id).Combat); // a reação passou: omitida (campo opcional)
+    }
+
+    [Fact]
     public void Strong_grief_is_mourning_and_the_dominant_emotion()
     {
         var (world, scope, npc) = CityWorld();

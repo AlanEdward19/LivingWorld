@@ -86,6 +86,7 @@ static func observable(raw: Variant) -> Dictionary:
 		"emotions": emotions,
 		"dominant": _s(raw, "dominantEmotion", "") if raw.get("dominantEmotion") != null else "",
 		"mourning": _b(raw, "mourning", false), "carried": carried,
+		"combat": _s(raw, "combat", "") if raw.get("combat") != null else "", # #234: reação de briga em curso (omitida sem briga)
 		"held": {"item_id": _i(held, "itemId", 0), "design_id": _i(held, "designId", 0)} if held is Dictionary else {},
 	}
 

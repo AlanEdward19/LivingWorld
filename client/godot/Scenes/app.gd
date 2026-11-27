@@ -85,6 +85,7 @@ var time_label: Label
 var top_bar: Control ## #222: a barra do espectador (some no modo jogador)
 var player_frame ## #222: PlayerFrame
 var aim_highlight ## #233: AimHighlight, o anel do alvo do E
+var reach_ring ## #234: ReachRing, o alcance do golpe em volta do corpo quando mira alguém
 var weather_label: Label ## AD-180: indicador do tempo do dia
 var loading: Control
 var tooltip: PanelContainer
@@ -729,6 +730,11 @@ func _on_player_target(kind: String, id: int, cell: Vector2) -> void:
 	if aim_highlight == null:
 		return
 	var own = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null else null
+	if reach_ring != null: # #234: o anel de alcance do golpe só enquanto a mira está numa pessoa
+		if kind == "person" and own != null and cell != Vector2.INF:
+			reach_ring.show_around(own, player_hud.combat.reach_m)
+		else:
+			reach_ring.clear()
 	if kind == "" or cell == Vector2.INF or own == null:
 		aim_highlight.clear()
 		return
@@ -748,6 +754,9 @@ const GESTURE_BY_VERB := {"take": "reach", "collect": "reach", "fill": "reach", 
 	"down": "climb", "talk": "talk", "socialize": "talk", "work": "work", "sleep": "rest", "idle": "rest"}
 
 
+const DEFENSE_BY_OUTCOME := {"Hit": "hurt", "Dodged": "dodge", "Blocked": "block", "Missed": "dodge"} ## #234: resultado do motor -> reação no corpo
+
+
 func _on_player_acted(verb: String) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null and GESTURE_BY_VERB.has(verb):
@@ -764,6 +773,40 @@ func _on_player_struck(_target: int) -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
 		node.play_strike()
+
+
+## #234: o que o motor respondeu ao golpe vira reação no alvo (ferida, esquiva ou bloqueio distintos) e, num acerto, o alvo olha para quem bateu.
+func _on_player_struck_result(target: int, body: Dictionary) -> void:
+	var node = world_view.npc_nodes.get(target)
+	if node != null:
+		node.play_defense(DEFENSE_BY_OUTCOME.get(String(body.get("outcome", "Hit")), "hurt"))
+
+
+## #234: a defesa aceita: a esquiva desvia o corpo; o bloqueio levanta a guarda (fica enquanto o motor diz `guard`).
+func _on_player_defended(kind: String) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node == null:
+		return
+	if kind == "Dodge":
+		node.play_defense("dodge")
+	else:
+		node.set_guard(true)
+
+
+func _on_player_guard_changed(kind: String) -> void:
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null:
+		node.set_guard(kind == "Block")
+
+
+## #234: golpe recebido pelo corpo (`lastIncoming`): quem bateu golpeia (revide animado), o corpo sente (ferida, esquiva ou bloqueio).
+func _on_player_incoming(outcome: String, _damage: int, by: int) -> void:
+	var attacker = world_view.npc_nodes.get(by)
+	if attacker != null and not attacker.striking():
+		attacker.play_strike()
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node != null and outcome != "Missed":
+		node.play_defense(DEFENSE_BY_OUTCOME.get(outcome, "hurt"))
 
 
 ## AD-197j: a mira (uma cruz no centro) só no modo jogador.

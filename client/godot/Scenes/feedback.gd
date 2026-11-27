@@ -10,6 +10,8 @@ const Grid := preload("res://Scenes/grid.gd")
 const VOICES := 6
 const PUFFS := 4 ## partículas de poeira/impacto: o pool nunca cresce
 const FLOATERS := 6
+const DAMAGE_LABELS := 4 ## #234: números de dano sobre o alvo (pool fixo)
+const DAMAGE_S := 0.9
 const FLOAT_S := 1.3
 const ARM_S := 4.0 ## depois de uma ação aceita, as mudanças da ficha viram números por este tempo
 const STRONG_AIR_S := 0.55 ## pulo mais longo que isto estremece a câmera no pouso
@@ -29,6 +31,11 @@ var shake_cb: Callable = func(_amount: float) -> void: pass
 var played: Array[String] = [] ## últimos sons pedidos (testes); só entra o que passaria do silêncio
 var puff_log := 0 ## poeiras emitidas (testes)
 var floaters_shown := 0
+var damage_shown: Array = [] ## #234: números de dano mostrados {amount, own} (testes)
+var _dmg_labels: Array[Label3D] = []
+var _dmg_ages: Array[float] = []
+var _dmg_base: Array[float] = []
+var _dmg_next := 0
 var _streams: Dictionary = {}
 var _voices: Array[AudioStreamPlayer] = []
 var _next_voice := 0
@@ -85,6 +92,18 @@ func _ready() -> void:
 		puff.scale_amount_max = 1.1
 		add_child(puff)
 		_puffs.append(puff)
+	for i in DAMAGE_LABELS:
+		var label := Label3D.new()
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.pixel_size = 0.008
+		label.font_size = 56
+		label.outline_size = 14
+		label.no_depth_test = true
+		label.visible = false
+		add_child(label)
+		_dmg_labels.append(label)
+		_dmg_ages.append(DAMAGE_S)
+		_dmg_base.append(0.0)
 	var layer := CanvasLayer.new()
 	layer.layer = 5
 	add_child(layer)
@@ -114,6 +133,15 @@ func _process(delta: float) -> void:
 			_lands.remove_at(i)
 			_land_air.remove_at(i)
 			_land(air)
+	for i in _dmg_labels.size():
+		if _dmg_ages[i] >= DAMAGE_S:
+			continue
+		_dmg_ages[i] += delta
+		var d := _dmg_ages[i] / DAMAGE_S
+		_dmg_labels[i].position.y = _dmg_base[i] + 0.7 * d
+		_dmg_labels[i].modulate.a = 1.0 - smoothstep(0.5, 1.0, d)
+		if _dmg_ages[i] >= DAMAGE_S:
+			_dmg_labels[i].visible = false
 	var size := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(1280, 720)
 	for i in FLOATERS:
 		if _ages[i] >= FLOAT_S:
@@ -168,15 +196,69 @@ func on_acted(verb: String) -> void:
 		play(String(SOUND_BY_VERB[verb]), _body_pos())
 
 
-## O golpe foi aceito pelo motor: impacto no alvo, poeira e um tranco curto.
+## O golpe foi aceito pelo motor: impacto no alvo, poeira e um tranco curto (sem número: o dano só vem com a resposta).
 func on_struck_hit(target: int) -> void:
+	on_struck_result(target, {"outcome": "Hit"})
+
+
+## #234: o resultado que o motor devolveu ao golpe (`outcome`, `damage`, `lethal`). O número de dano sai SOBRE O ALVO só com
+## acerto confirmado e dano real; esquiva e bloqueio têm som e efeito próprios e nenhum número.
+func on_struck_result(target: int, body: Dictionary) -> void:
 	_armed = ARM_S
 	var node = node_of.call(target)
 	var at: Vector3 = node.position if node != null and is_instance_valid(node) else _body_pos()
-	play("hit", at)
-	puff(at + Vector3(0, 0.6, 0), 1.0)
-	shake_cb.call(0.3)
-	_float("golpe", Color("f2c14e"))
+	var damage := int(body.get("damage", 0)) if body.get("damage") != null else 0
+	match String(body.get("outcome", "Hit")):
+		"Hit":
+			play("hit", at)
+			puff(at + Vector3(0, 0.6, 0), 1.0)
+			shake_cb.call(0.5 if bool(body.get("lethal", false)) else 0.3)
+			if damage > 0:
+				show_damage(at, damage, Color("ff5a4a") if bool(body.get("lethal", false)) else Color("f2c14e"))
+		"Blocked":
+			play("guard", at)
+			puff(at + Vector3(0, 0.6, 0), 0.4)
+		_: # Dodged, Missed
+			play("swish", at)
+
+
+## #234: a defesa que o motor aceitou: esquiva sopra, bloqueio estala (e a guarda aparece no corpo).
+func on_defended(kind: String) -> void:
+	play("swish" if kind == "Dodge" else "guard", _body_pos())
+
+
+## #234: o golpe que o corpo do jogador recebeu (`lastIncoming`): acerto machuca, esquiva e bloqueio têm efeito próprio.
+func on_incoming(outcome: String, damage: int, _by: int) -> void:
+	var at := _body_pos()
+	match outcome:
+		"Hit":
+			play("hit", at)
+			shake_cb.call(0.35)
+			if damage > 0:
+				show_damage(at, damage, Color("e8665a"), true)
+		"Blocked":
+			play("guard", at)
+			shake_cb.call(0.1)
+		"Dodged", "Missed":
+			play("swish", at)
+
+
+## Número de dano que sobe sobre `at` (o alvo) e some: um pool fixo de rótulos 3D.
+func show_damage(at: Vector3, amount: int, color: Color, own: bool = false) -> void:
+	damage_shown.append({"amount": amount, "own": own})
+	if damage_shown.size() > 32:
+		damage_shown.remove_at(0)
+	if _dmg_labels.is_empty():
+		return
+	var i := _dmg_next
+	_dmg_next = (_dmg_next + 1) % _dmg_labels.size()
+	var label := _dmg_labels[i]
+	label.text = "−%d" % amount
+	label.modulate = color
+	label.position = at + Vector3(0, 1.5, 0)
+	_dmg_base[i] = label.position.y
+	label.visible = true
+	_dmg_ages[i] = 0.0
 
 
 ## O motor recusou: só um som baixo e neutro. Nenhum som, poeira ou número da ação.
@@ -291,4 +373,4 @@ func _float(text: String, color: Color) -> void:
 
 
 func pool_sizes() -> Array[int]:
-	return [_voices.size(), _puffs.size(), _labels.size()]
+	return [_voices.size(), _puffs.size(), _labels.size(), _dmg_labels.size()]

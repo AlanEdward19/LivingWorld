@@ -13,6 +13,7 @@ novo, sem mudar ordem de nada. Sem assinante o laço não projeta (`TickLoopServ
 | idem | `illness{diseaseId,symptomatic,bedridden}` | infecção ativa |
 | idem | `emotions{grief,fear,anger,joy,shame,loneliness}`, `dominantEmotion`, `mourning` | emoção em décimos; luto = tristeza ≥ 0,1 |
 | idem | `carried[]{resourceId,quantity,resourceName}`, `held{itemId,designId}` | carga pessoal e recipiente |
+| idem (#234) | `combat` (opcional) | reação de briga em curso: `retaliate`, `flee`, `callHelp`, `recoil`; omitida sem briga ou depois de `ReactionUntilMs` |
 | `cities[].density` (Mundo) | `inside`, `pooled`, `actions[]{action,count}`, `temperatureC` | quem está dentro, sem mandar cada um |
 | `buildings[]` | `floors`, `groundFootprint[]`, `value`, `lodging` | planta completa: prédio novo desenha pelo delta |
 | `npcs[]` (AD-185) | `routeDepartedTick`, `routeOver[]` (índices em `route`) | saída da viagem; células por cima (escada, laje, telhado) |

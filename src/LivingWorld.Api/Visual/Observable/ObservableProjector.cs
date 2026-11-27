@@ -107,7 +107,8 @@ public static class ObservableProjector
         string lifeStage = world.LifeStageRules.LifeStageOf(age).ToString();
         string? profession = ctx.Names.Profession(npc.Profession.Id);
         bool mourning = PsycheMechanic.Mourns(affect); // AD-183: o critério do motor, não um limiar de tela
-        if (previous is not null && previous.Mourning == mourning && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
+        string? combat = CombatOf(world, npc);
+        if (previous is not null && previous.Mourning == mourning && previous.Combat == combat && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
             && ReferenceEquals(previous.Held, held) && ReferenceEquals(previous.Illness, illness)
             && ReferenceEquals(previous.Pregnancy, pregnancy) && previous.AgeYears == age && previous.HeightCm == heightCm
             && previous.GrowthFraction == growth && previous.ProfessionId == npc.Profession.Id && previous.Name == npc.Name
@@ -115,8 +116,20 @@ public static class ObservableProjector
             return previous;
         return new NpcObservable(
             npc.Name, sex, age, lifeStage, npc.Profession.Id, profession, heightCm, growth,
-            pregnancy, illness, emotions, Dominant(emotions), mourning, carried, held);
+            pregnancy, illness, emotions, Dominant(emotions), mourning, carried, held, combat);
     }
+
+    /// <summary>#234: a reação de briga ainda em curso (até o instante marcado pelo motor); só leitura, nula sem briga.</summary>
+    private static string? CombatOf(WorldState world, Npc npc) =>
+        npc.Combat is { Reaction: not CombatReaction.None } c && world.CurrentDate.TotalMilliseconds <= c.ReactionUntilMs
+            ? c.Reaction switch
+            {
+                CombatReaction.Retaliate => "retaliate",
+                CombatReaction.Flee => "flee",
+                CombatReaction.CallHelp => "callHelp",
+                _ => "recoil",
+            }
+            : null;
 
     private static IReadOnlyList<CarriedVisual> CarriedOf(ObservableContext ctx, Npc npc, IReadOnlyList<CarriedVisual>? previous)
     {

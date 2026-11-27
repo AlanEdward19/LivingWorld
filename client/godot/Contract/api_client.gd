@@ -291,6 +291,18 @@ func player_strike(player_id: String, npc_id: int) -> Dictionary:
 	return _checked("/players/strike", {"status": response.status, "body": response.body}, "")
 
 
+## #234: esquiva (janela curta de evitar o golpe); o motor responde a `pose` com `combat`, ou 409 na recarga da guarda.
+func player_dodge(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "dodge"}, "POST", "/players/%s/dodge" % player_id.uri_encode(), {})
+	return _checked("/players/dodge", {"status": response.status, "body": response.body}, "")
+
+
+## #234: bloqueio (segurar a guarda): deixa passar só parte do golpe; 409 na recarga.
+func player_block(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "block"}, "POST", "/players/%s/block" % player_id.uri_encode(), {})
+	return _checked("/players/block", {"status": response.status, "body": response.body}, "")
+
+
 ## AD-197d: o que o corpo alcança agora e o que dá para fazer ali (`{offers:[{kind,id,label,verbs,x,y,resources}]}`), do motor.
 func player_reach(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "reach"}, "GET", "/players/%s/reach" % player_id.uri_encode(), null)
