@@ -299,7 +299,7 @@ internal static class WorkHaul
     }
 
     /// <summary>Até onde, em células do lote, a obra procura a árvore viva mais perto (a mata fica fora do contorno da cidade).</summary>
-    private const int TreeSearchRadius = 40;
+    private const int TreeSearchRadius = 12;
 
     /// <summary>Até onde, em células, o corte procura outra árvore viva quando a da viagem acaba.</summary>
     private const int NextTreeRadius = 6;
