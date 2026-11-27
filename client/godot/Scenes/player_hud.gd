@@ -308,10 +308,16 @@ var _hint_look := Vector2.ZERO
 const HINT_TURN := 0.996 ## cosseno entre o olhar da dica e o de agora (≈5°): girar mais que isso refaz a escolha do alvo
 
 
+## A câmera girou o bastante desde a escolha do alvo (só com o olhar ligado).
+func _look_turned() -> bool:
+	var look: Vector2 = aim_look.call()
+	return look.length() > 0.001 and (_hint_look.length() < 0.001 or look.normalized().dot(_hint_look.normalized()) < HINT_TURN)
+
+
 func set_reach_hint(from: Array) -> void:
 	_hint_from = from
-	_hint_look = heading.call()
-	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, heading.call()), building_id)
+	_hint_look = aim_look.call()
+	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, aim_look.call()), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
 	_hint_offer = {}
 	if not entries.is_empty():
@@ -362,7 +368,7 @@ func hint_out_of_reach() -> bool:
 ## uma dica de alcance na tela). A leitura que falha não deixa a dica velha: sem resposta do motor, a tela não afirma nada.
 func _refresh_reach_hint(delta: float) -> void:
 	reach_clock += delta
-	if rpg and not _hint_from.is_empty() and not _busy and heading.call().normalized().dot(_hint_look.normalized()) < HINT_TURN:
+	if rpg and not _hint_from.is_empty() and not _busy and _look_turned():
 		set_reach_hint(_hint_from) # #243: a câmera girou: o alvo do E é o que está sob a mira agora, sem nova leitura do motor
 	if rpg and hint_out_of_reach():
 		set_reach_hint([]) # #237: saiu do alcance: a dica some agora, e a próxima leitura já pode vir
@@ -537,6 +543,7 @@ func act(action: String, power_id: String = "") -> void:
 const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vector2i(0, 1), KEY_DOWN: Vector2i(0, 1),
 	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
 const STEP_INTERVAL := 0.35 ## s entre passos com a tecla segurada (andar; o motor ainda não limita a velocidade, ver issue)
+var aim_look: Callable = func() -> Vector2: return Vector2.ZERO ## #243: para onde a câmera olha no chão (x, z): a ação principal do E é a do alvo à frente; sem câmera ligada, sem mira (a ordem de sempre)
 var heading: Callable = func() -> Vector2: return Vector2(0, -1) ## para onde a câmera olha no chão (x, z); o app liga o rig
 var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## AD-197j: o app liga o catálogo de recursos
 var step_seconds := STEP_INTERVAL ## AD-197j: quanto o último passo durou no corpo (o motor diz `readyInMs`), em segundos reais
@@ -1112,7 +1119,7 @@ func _reach_entries() -> Array:
 			_lost("Você não controla mais %s." % npc_name)
 		return []
 	offers = response.body.get("offers", [])
-	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, heading.call()), building_id)
+	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id)
 
 
 ## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
@@ -1141,7 +1148,7 @@ func open_interactions() -> void:
 		return
 	offers = response.body.get("offers", [])
 	if rpg and frame != null:
-		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, heading.call()))
+		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()))
 		menu_toggled.emit(true)
 		return
 	show_menu(menu_entries(offers, resource_name_of))

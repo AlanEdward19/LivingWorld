@@ -229,6 +229,7 @@ static func _side(app, ui: Control) -> void:
 	ui.add_child(app.player_hud)
 	# AD-197d/197j: WASD relativo ao olhar da câmera; o passo previsto e corrigido pelo motor; golpe, nomes e mira
 	app.player_hud.heading = app.rig.heading
+	app.player_hud.aim_look = app.rig.heading # #243: o alvo do E é o que está sob o olhar
 	app.player_hud.predicted.connect(app._on_player_predicted)
 	app.player_hud.confirmed.connect(app._on_player_confirmed)
 	app.player_hud.rejected.connect(app._on_player_rejected)

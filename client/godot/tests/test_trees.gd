@@ -161,7 +161,7 @@ func test_the_prompt_follows_the_camera_between_a_tree_and_a_person_next_to_it()
 	var made: Array = await _hud(FakeTransport.new())
 	var hud = made[0]
 	var look := [Vector2(1, 0)] # a lambda captura por valor: o olhar mora num array que o teste muda
-	hud.heading = func() -> Vector2: return look[0]
+	hud.aim_look = func() -> Vector2: return look[0]
 	hud.fine = Vector2(10.0, 10.0)
 	var offers := [_offer("person", 77, 10.0, 8.0, ["talk"], {"label": "Caio"}),
 		_offer("nature", 1, 11.0, 10.3, ["gather"], {"fx": 11.0, "fy": 10.3, "resources": [{"resourceId": 3, "quantity": 4, "price": 0}]})]
