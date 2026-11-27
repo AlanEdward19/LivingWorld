@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Shared;
 
@@ -55,7 +56,68 @@ public static class ObjectCatalogScenarioLoader
                 furnishings[key] = list;
             }
         }
-        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings));
+        var rooms = ParseRooms(root["Rooms"]);
+        if (!rooms.IsSuccess) return Fail(rooms.Error!);
+        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value));
+    }
+
+    /// <summary>#226: o bloco opcional <c>Rooms</c> ({kinds:[{id,uses:[ActionType],weight,minCells}], plans:{"default"|id[@up]:[ids]}}): os tipos de cômodo e o
+    /// plano de cada tipo de prédio. Ausente = sem cômodos (um cômodo só por andar).</summary>
+    private static Result<RoomCatalog?> ParseRooms(JsonNode? node)
+    {
+        if (node is null) return Result<RoomCatalog?>.Ok(null);
+        if (node is not JsonObject block || block["kinds"] is not JsonArray kindArray) return Result<RoomCatalog?>.Fail("Rooms.kinds: precisa ser uma lista");
+        var kinds = new List<RoomKind>();
+        for (int i = 0; i < kindArray.Count; i++)
+        {
+            var at = $"Rooms.kinds[{i}]";
+            if (kindArray[i] is not JsonObject o || !TryString(o["id"], out var id) || id.Length == 0) return Result<RoomCatalog?>.Fail($"{at}.id: texto obrigatório");
+            if (kinds.Any(k => k.Id == id)) return Result<RoomCatalog?>.Fail($"{at}.id: '{id}' duplicado");
+            var uses = new List<int>();
+            if (o["uses"] is not null)
+            {
+                if (o["uses"] is not JsonArray useArray) return Result<RoomCatalog?>.Fail($"{at}.uses: precisa ser uma lista de ids de ActionType");
+                foreach (var use in useArray)
+                {
+                    if (use is not JsonValue uv || !uv.TryGetValue(out int action) || !Enum.IsDefined((LivingWorld.Domain.Behavior.ActionType)action))
+                        return Result<RoomCatalog?>.Fail($"{at}.uses: id de ActionType inválido");
+                    uses.Add(action);
+                }
+            }
+
+            double weight = 1;
+            if (o["weight"] is not null && !(o["weight"] is JsonValue wv && wv.TryGetValue(out weight) && double.IsFinite(weight) && weight > 0))
+                return Result<RoomCatalog?>.Fail($"{at}.weight: número maior que 0");
+            int minCells = 1;
+            if (o["minCells"] is not null && !(o["minCells"] is JsonValue mv && mv.TryGetValue(out minCells) && minCells >= 1))
+                return Result<RoomCatalog?>.Fail($"{at}.minCells: inteiro maior ou igual a 1");
+            kinds.Add(new RoomKind(id, uses, weight, minCells));
+        }
+
+        var plans = new Dictionary<string, IReadOnlyList<string>>();
+        if (block["plans"] is not null)
+        {
+            if (block["plans"] is not JsonObject table) return Result<RoomCatalog?>.Fail("Rooms.plans: precisa ser um objeto");
+            foreach (var (key, value) in table)
+            {
+                var bare = key.EndsWith(RoomCatalog.UpperSuffix, StringComparison.Ordinal) ? key[..^RoomCatalog.UpperSuffix.Length] : key;
+                if (bare != "default" && !(int.TryParse(bare, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId)
+                        && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == bare))
+                    return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: a chave é 'default' ou o id do tipo de prédio (com '@up' para os andares de cima)");
+                if (value is not JsonArray ids) return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: precisa ser uma lista de ids");
+                var list = new List<string>();
+                foreach (var entry in ids)
+                {
+                    if (entry is not JsonValue v || !v.TryGetValue(out string? kindId) || kinds.All(k => k.Id != kindId))
+                        return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: cômodo '{entry}' não existe em Rooms.kinds");
+                    list.Add(kindId);
+                }
+
+                plans[key] = list;
+            }
+        }
+
+        return Result<RoomCatalog?>.Ok(new RoomCatalog(kinds, plans));
     }
 
     private static Result<ObjectCatalog?> Fail(string error) => Result<ObjectCatalog?>.Fail(error);

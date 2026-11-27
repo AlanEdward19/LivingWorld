@@ -235,7 +235,9 @@
             "value": "string"
           },
           "floors": "number",
+          "groundDoors?": "[]",
           "groundFootprint": "[]",
+          "groundWalls?": "[]",
           "id": {
             "value": "number"
           },

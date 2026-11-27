@@ -222,7 +222,10 @@ public static class ObservableProjector
         return Plans.GetOrAdd((building.Id.Value, building.BuildingTypeId, orientation), key =>
         {
             var layout = BuildingLayoutGenerator.Generate(new BuildingId(key.Item1), key.Item2, key.Item3);
-            return new BuildingPlan(layout.Floors, new ValueList<FootprintCell>(layout.FloorLayouts[0].Cells.ToArray()));
+            var ground = layout.FloorLayouts[0];
+            return new BuildingPlan(layout.Floors, new ValueList<FootprintCell>(ground.Cells.ToArray()),
+                new ValueList<LivingWorld.Domain.Cities.Buildings.WallSegment>((ground.Walls ?? []).ToArray()),
+                new ValueList<LivingWorld.Domain.Cities.Buildings.WallSegment>((ground.Doors ?? []).ToArray()));
         });
     }
 

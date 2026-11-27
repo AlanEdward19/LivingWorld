@@ -21,7 +21,8 @@ public sealed record InteriorOccupant(
 /// por trás.</summary>
 public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants,
     BuildingLayout Layout,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorObjects? Objects = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorObjects? Objects = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FloorRooms>? Rooms = null);
 
 /// <summary>Peça de mobília: id do catálogo + índice de variação determinístico (ADR-0034). O cliente compartilha mesh/material por (Id, Variation).</summary>
 /// <summary>#237: <c>Floor</c>, <c>Cell</c> (local da planta) e <c>Facing</c> (graus em torno de Y, fundo da peça para a parede) são o lugar que o motor deu à peça
@@ -66,7 +67,7 @@ public static class InteriorProjector
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
-            layout, BuildObjects(world, building)));
+            layout, BuildObjects(world, building), LivingWorld.Simulation.Cities.BuildingRooms.Of(building, world.ObjectCatalog).Floors));
     }
 
     /// <summary>Id do primeiro objeto da mobília do tipo de prédio que atende à ação do NPC e que ele pode usar (mesma regra do motor,

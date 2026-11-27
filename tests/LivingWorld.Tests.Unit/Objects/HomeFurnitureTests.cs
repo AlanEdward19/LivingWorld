@@ -42,15 +42,14 @@ public class HomeFurnitureTests
                     var cells = floor.Select(s => s.Cell).ToList();
                     Assert.Equal(cells.Count, cells.Distinct().Count()); // uma peça por célula
                     var start = FurniturePlanner.StartOf(plan, floor.Key)!.Value;
-                    var entry = FurniturePlanner.EntryOf(plan, start, floor.Key);
                     foreach (var cell in cells)
                     {
                         Assert.Equal(BuildingMaterial.Floor, plan[cell]); // nem parede, nem porta, nem escada
-                        Assert.NotEqual(entry, cell); // nem a célula à frente da porta
                         placed++;
                     }
 
-                    Assert.True(FurniturePlanner.AllReachable(walkable, cells.ToHashSet(), start), $"caminho fechado em {building.Id} tipo {building.BuildingTypeId}");
+                    var walls = FurniturePlanner.WallsOf(layout.FloorLayouts[floor.Key], BuildingRooms.Of(building, catalog).Floors[floor.Key]);
+                    Assert.True(FurniturePlanner.AllReachable(walkable, cells.ToHashSet(), start, walls), $"caminho fechado em {building.Id} tipo {building.BuildingTypeId}");
                 }
             }
 
@@ -66,8 +65,8 @@ public class HomeFurnitureTests
             var layout = BuildingLayoutGenerator.Generate(building);
             foreach (var spot in HomeFurniture.Of(building, catalog).Where(p => p.Spot is not null).Select(p => p.Spot!.Value))
             {
-                var (plan, _) = Floor(layout, spot.Floor);
-                Assert.Equal(spot.Facing, FurniturePlanner.FacingOf(plan, spot.Cell) ?? 0);
+                var walls = FurniturePlanner.WallsOf(layout.FloorLayouts[spot.Floor], BuildingRooms.Of(building, catalog).Floors[spot.Floor]);
+                Assert.Equal(spot.Facing, FurniturePlanner.FacingOf(walls, spot.Cell) ?? 0);
                 Assert.Contains(spot.Facing, new[] { 0, 90, 180, 270 });
             }
         }

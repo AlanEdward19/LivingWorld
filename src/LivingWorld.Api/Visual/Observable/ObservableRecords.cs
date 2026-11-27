@@ -167,7 +167,11 @@ public sealed record EventInvolved(
     long? WorkId = null);
 
 /// <summary>Planta e andares de um prédio (pura do id, tipo e orientação): guardada por chave para não regerar todo tick.</summary>
-public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint);
+/// <summary>#226: <c>GroundWalls</c> são as paredes de fora do térreo (uma por aresta da borda, sem a abertura) e <c>GroundDoors</c> a abertura da porta: a parede
+/// não ocupa célula, o cliente desenha onde o motor diz.</summary>
+public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundWalls = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundDoors = null);
 
 /// <summary>Camada <c>Climate</c> (AD-170): estação do mundo e clima por região (temperatura na célula representativa, fator de safra
 /// do ano e seca).</summary>

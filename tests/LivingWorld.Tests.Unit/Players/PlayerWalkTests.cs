@@ -104,7 +104,10 @@ public class PlayerWalkTests
         var w = arm.World;
         var house = w.Buildings.Where(b => b.Position is not null && b.CompletedAtTick <= w.CurrentDate.TotalHours).OrderBy(b => b.Id.Value).First();
         var origin = house.Position!.Value;
-        var wall = BuildingFootprintGenerator.Generate(house).Where(c => !InteriorWalkability.IsWalkable(c.Material))
+        // #226: a parede é aresta: a célula de borda (que não é a da porta) com chão aberto a oeste; entrar nela pelo oeste atravessaria a parede
+        var footprint = BuildingFootprintGenerator.Generate(house);
+        var doorCell = BuildingFootprintGenerator.DoorOf(footprint).Door;
+        var wall = footprint.Where(c => c.Cell != doorCell && !footprint.Any(o => o.Cell == new CellCoord(c.Cell.X - 1, c.Cell.Y)))
             .Select(c => new CellCoord(origin.X + c.Cell.X, origin.Y + c.Cell.Y))
             .Select(c => (Wall: c, Out: new CellCoord(c.X - 1, c.Y)))
             .First(p => PlayerGround.At(w, p.Out) is null && w.Map.TryGetCell(p.Out, out _) && PlayerGround.PersonAt(w, npc, p.Out) is null);

@@ -27,7 +27,9 @@ public sealed record CityResidentMarker(
 /// iteração que o anel client-side usa hoje.</summary>
 public sealed record CityBuildingMarker(
     BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0,
-    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null, long Value = 0, LodgingMarker? Lodging = null);
+    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null, long Value = 0, LodgingMarker? Lodging = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundWalls = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundDoors = null);
 
 /// <summary>Hospedagem de um prédio (lodging-and-rent): vagas, vagas ocupadas por domicílios, aluguel mensal e diária de hoje —
 /// o preço já acompanha local e demanda. Só existe em prédio cujo tipo declara <c>Lodging</c>.</summary>
@@ -115,7 +117,8 @@ public static class CityProjector
 
                 return new CityBuildingMarker(
                     b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation,
-                    layout.Floors, layout.FloorLayouts[0].Cells, value, lodging);
+                    layout.Floors, layout.FloorLayouts[0].Cells, value, lodging,
+                    layout.FloorLayouts[0].Walls, layout.FloorLayouts[0].Doors);
             })
             .OfType<CityBuildingMarker>()
             .ToList();

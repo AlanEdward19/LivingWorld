@@ -17,7 +17,12 @@ namespace LivingWorld.Simulation.Players;
 public static class PlayerGround
 {
     /// <summary>O prédio cuja planta cobre a célula, com o material do andar ali e a porta e a soleira dele (coordenadas do mundo).</summary>
-    public readonly record struct Spot(Building Building, BuildingMaterial Material, CellCoord Door, CellCoord Doorstep);
+    public readonly record struct Spot(Building Building, BuildingMaterial Material, CellCoord Door, CellCoord Doorstep, CellCoord Origin, IReadOnlySet<WallEdge> Walls)
+    {
+        /// <summary>#226: a aresta entre as células <paramref name="a"/> e <paramref name="b"/> (do mundo, vizinhas) é parede deste prédio neste andar (de fora ou de cômodo)?</summary>
+        public bool Closed(CellCoord a, CellCoord b) =>
+            Walls.Contains(WallEdge.Between(new CellCoord(a.X - Origin.X, a.Y - Origin.Y), new CellCoord(b.X - Origin.X, b.Y - Origin.Y)));
+    }
 
     /// <summary>O prédio concluído que cobre <paramref name="cell"/> no andar <paramref name="floor"/>, ou nulo (chão aberto, ou o
     /// prédio não tem esse andar).</summary>
@@ -37,7 +42,8 @@ public static class PlayerGround
             var material = layouts[floor].Cells.First(c => c.Cell == local).Material;
             var (door, facing) = LotGeometry.DoorOf(footprint);
             var doorCell = new CellCoord(origin.X + door.X, origin.Y + door.Y);
-            return new Spot(building, material, doorCell, new CellCoord(doorCell.X + facing.X, doorCell.Y + facing.Y));
+            return new Spot(building, material, doorCell, new CellCoord(doorCell.X + facing.X, doorCell.Y + facing.Y), origin,
+                BuildingRooms.Of(building, world.ObjectCatalog).Blocked[floor]);
         }
         return null;
     }
@@ -142,19 +148,26 @@ public static class PlayerGround
         if (!world.Map.TryGetCell(to, out _)) return "move: fora do mapa";
         var here = at(from);
         var there = at(to);
-        if (there is { } t && !InteriorWalkability.IsWalkable(t.Material)) return "move: parede";
         long hereId = here?.Building.Id.Value ?? -1, thereId = there?.Building.Id.Value ?? -1;
         if (floor > 0 && (there is null || thereId != ownBuilding?.Value))
             return "move: parede (no andar de cima só se anda dentro do prédio)";
         if (hereId != thereId)
         {
+            // #226: a parede é aresta: de fora para dentro só pela abertura da porta (da soleira para a célula da porta, em linha reta)
             bool entering = here is null && there is { } inn && to == inn.Door && from == inn.Doorstep;
             bool leaving = there is null && here is { } outn && from == outn.Door && to == outn.Doorstep;
             if (!entering && !leaving) return "move: parede (entra e sai só pela porta)";
         }
-        else if (from.X != to.X && from.Y != to.Y
-                 && (!Open(world, new CellCoord(to.X, from.Y), thereId, at) || !Open(world, new CellCoord(from.X, to.Y), thereId, at)))
-            return "move: canto de parede";
+        else if (from.X != to.X && from.Y != to.Y)
+        {
+            // diagonal: as duas vias (por cada canto) precisam estar abertas, sem cortar a ponta de uma parede
+            var c1 = new CellCoord(to.X, from.Y);
+            var c2 = new CellCoord(from.X, to.Y);
+            if (!Open(world, c1, thereId, at) || !Open(world, c2, thereId, at)
+                || (there is { } t && (t.Closed(from, c1) || t.Closed(c1, to) || t.Closed(from, c2) || t.Closed(c2, to))))
+                return "move: canto de parede";
+        }
+        else if (there is { } wall && wall.Closed(from, to)) return "move: parede";
         return null;
     }
 
@@ -177,11 +190,13 @@ public static class PlayerGround
             var (door, facing) = LotGeometry.DoorOf(footprint);
             var doorCell = new CellCoord(origin.X + door.X, origin.Y + door.Y);
             var doorstep = new CellCoord(doorCell.X + facing.X, doorCell.Y + facing.Y);
+            IReadOnlySet<WallEdge>? walls = null;
             foreach (var cell in layouts[floor].Cells)
             {
                 var world0 = new CellCoord(origin.X + cell.Cell.X, origin.Y + cell.Cell.Y);
                 if (world0.X >= x0 && world0.X < x0 + side && world0.Y >= y0 && world0.Y < y0 + side)
-                    spots[world0] = new Spot(building, cell.Material, doorCell, doorstep);
+                    spots[world0] = new Spot(building, cell.Material, doorCell, doorstep, origin,
+                        walls ??= BuildingRooms.Of(building, world.ObjectCatalog).Blocked[floor]);
             }
         }
         Spot? Lookup(CellCoord c) => spots.TryGetValue(c, out var spot) ? spot : null;
@@ -208,6 +223,6 @@ public static class PlayerGround
     {
         if (!world.Map.TryGetCell(cell, out _)) return false;
         var spot = at(cell);
-        return (spot?.Building.Id.Value ?? -1) == buildingId && (spot is not { } s || InteriorWalkability.IsWalkable(s.Material));
+        return (spot?.Building.Id.Value ?? -1) == buildingId;
     }
 }

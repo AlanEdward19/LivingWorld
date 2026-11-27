@@ -24,7 +24,7 @@ O corpo conduzido anda solto, em frações de célula, à velocidade real do cor
   vizinha (`(dy+1)*3+(dx+1)`). É `PlayerGround.TerrainRefusal` (a mesma do passo do motor): fora do mapa, parede, só entra e
   sai pela porta a partir da soleira, entre prédios nunca, andar de cima só dentro do prédio, canto de parede na diagonal.
 - O cliente anda em trechos de 0,25 célula como o motor, desliza pelo eixo livre e consulta a máscara a cada troca de
-  célula; sem a máscara (ainda não chegou) usa o controle antigo. Quando o #226 trocar parede-célula por aresta, só o
-  motor muda: a máscara acompanha.
+  célula; sem a máscara (ainda não chegou) usa o controle antigo. Com o #226 a parede virou aresta e só o
+  motor mudou: a máscara acompanha ([house-rooms.md](house-rooms.md)).
 - Gente: sem desvio nem lentidão por geometria. Só a célula cheia (`crowdLimit`, `PlayerRules.CellCrowd`) barra, como no motor.
-- Até o #226 o motor barra a célula inteira de parede: dentro de casa o corpo para uma célula antes do painel desenhado.
+- Desde o #226 a parede é aresta: o passo é barrado pela aresta (de fora ou de cômodo), não pela célula; motor e painel desenhado concordam.
