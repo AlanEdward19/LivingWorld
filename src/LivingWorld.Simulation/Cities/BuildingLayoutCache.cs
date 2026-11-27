@@ -9,10 +9,12 @@ namespace LivingWorld.Simulation.Cities;
 internal sealed class CachedBuildingLayout
 {
     private readonly HashSet<CellCoord>[] _walkableSets;
+    private readonly HashSet<CellCoord> _ground;
 
     public CachedBuildingLayout(BuildingLayout layout)
     {
         Layout = layout;
+        _ground = [.. layout.FloorLayouts[0].Cells.Select(c => c.Cell)];
         WalkableByFloor = new FootprintCell[layout.FloorLayouts.Count][];
         _walkableSets = new HashSet<CellCoord>[layout.FloorLayouts.Count];
         for (int level = 0; level < WalkableByFloor.Length; level++)
@@ -31,6 +33,9 @@ internal sealed class CachedBuildingLayout
     public FootprintCell[][] WalkableByFloor { get; }
 
     public bool IsWalkable(int floor, CellCoord localCell) => _walkableSets[floor].Contains(localCell);
+
+    /// <summary>A célula (local) é da planta do térreo (parede ou piso); fora dela é chão aberto.</summary>
+    public bool CoversGround(CellCoord localCell) => _ground.Contains(localCell);
 }
 
 /// <summary>Planta por prédio, gerada uma vez. A planta é função pura de <c>(Id, BuildingTypeId, Orientation)</c>, os três

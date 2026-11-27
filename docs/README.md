@@ -27,6 +27,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Toda construção é obra: casa, oficina, jornal que disputa a mão (AD-184) | [build-works.md](domain/build-works.md) |
 | Material de verdade no canteiro e o dia perdido pelo tempo (AD-194) | [work-material.md](domain/work-material.md) |
 | Bairro denso: sujeira da casa, higiene na doença, como cada um vê o bairro, onde morar (AD-192) | [dense-quarter.md](domain/dense-quarter.md) |
+| Onde cada trabalhador fica ao trabalhar: posto, campo da lavoura, lotação por célula (#223) | [work-stands.md](domain/work-stands.md) |
 | Mapa, regiões, biomas, terreno, camadas de visualização | [world-map.md](domain/world-map.md) |
 | Estações, temperatura, tempo do dia (chuva, neve, lama, seca, luz) e o que ele muda | [climate.md](domain/climate.md) |
 | Event log, linha do tempo, dinastias, crônicas | [history.md](domain/history.md) |
