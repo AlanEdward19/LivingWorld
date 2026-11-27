@@ -537,6 +537,14 @@ public class ApiContractTests
                     else if (obj.TryGetPropertyValue(key + "?", out var optional) && optional is JsonValue o && o.GetValueKind() == System.Text.Json.JsonValueKind.String && o.GetValue<string>() == "null")
                         obj[key + "?"] = typed(); // AD-172: forma juntada de amostras já marca o opcional
                 }
+                // #234: `combat` do observável só vem em briga (omitido quando nulo): entra no contrato como opcional tipado
+                if (obj.ContainsKey("mourning") && obj.ContainsKey("emotions") && !obj.ContainsKey("combat?"))
+                {
+                    obj["combat?"] = "string";
+                    var ordered = obj.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => (p.Key, p.Value)).ToList();
+                    obj.Clear();
+                    foreach (var (key, value) in ordered) obj[key] = value;
+                }
                 foreach (var child in obj.Select(p => p.Value).ToList()) Walk(child);
             }
             else if (n is JsonArray arr)

@@ -417,6 +417,7 @@ func _set_hat(kind: String) -> void:
 ## Corpo pelo estado (ADR-0047 etapa 3): escala por altura e idade, roupa e chapéu do ofício, cabelo pelo sexo, barriga de
 ## gravidez, palidez e cama de doente, roupa de luto, carga nas costas, recipiente e ferramenta. Só muda o que mudou.
 func apply_observable(obs: Dictionary, catalog = null) -> void:
+	set_combat_reaction(String(obs.get("combat", ""))) # #234: a briga em curso vale mesmo sem mudar o corpo
 	var next := Look.spec_of(obs, catalog)
 	if next == spec:
 		return
@@ -870,12 +871,74 @@ func _reset_pose() -> void:
 		_shirt.emission = Color.BLACK
 
 
-const STRIKE_TIME := 0.35 ## s do golpe (AD-197j): o braço vai acima da cabeça e desce
+const STRIKE_TIME := 0.42 ## s do golpe (AD-197j, #234): antecipação (braço sobe), impacto (desce rápido) e recuo (volta)
+const STRIKE_WINDUP := 0.4 ## fração do golpe na antecipação
+const STRIKE_IMPACT := 0.6 ## fração em que o impacto termina e o recuo começa
 
 
 ## AD-197j: o golpe que o motor aceitou (ou tentou): o braço da frente desce no alvo.
 func play_strike() -> void:
 	_strike_until = _clock + STRIKE_TIME
+
+
+## #234: a fase do golpe (k de 0 a 1): "windup" (antecipação), "impact" (impacto) ou "recover" (recuo).
+static func strike_phase(k: float) -> String:
+	return "windup" if k < STRIKE_WINDUP else ("impact" if k < STRIKE_IMPACT else "recover")
+
+
+## #234: o braço da frente no golpe (rotação em x): sobe devagar, desce rápido, volta ao repouso.
+static func strike_arm(k: float) -> float:
+	if k < STRIKE_WINDUP:
+		return lerpf(0.0, -2.6, k / STRIKE_WINDUP)
+	if k < STRIKE_IMPACT:
+		return lerpf(-2.6, 0.5, (k - STRIKE_WINDUP) / (STRIKE_IMPACT - STRIKE_WINDUP))
+	return lerpf(0.5, 0.0, (k - STRIKE_IMPACT) / (1.0 - STRIKE_IMPACT))
+
+
+func striking() -> bool:
+	return _clock < _strike_until
+
+
+const DEFENSE_TIME := {"dodge": 0.38, "block": 0.32, "hurt": 0.4, "recoil": 0.3} ## s de cada reação no corpo
+var _defense := ""
+var _defense_from := -1.0
+var guarding := false ## #234: a guarda do motor vale agora (braços cruzados à frente)
+var combat_reaction := "" ## #234: a reação de briga em curso que o motor projetou (retaliate, flee, callHelp, recoil)
+
+
+## #234: reação do corpo ao golpe recebido: esquiva (desvia e agacha), bloqueio (braços à frente), ferida (tranco para trás)
+## ou recuo (passo atrás).
+func play_defense(kind: String) -> void:
+	if not DEFENSE_TIME.has(kind):
+		return
+	_defense = kind
+	_defense_from = _clock
+
+
+func defense_playing() -> String:
+	return _defense if _defense_from >= 0.0 and _clock < _defense_from + float(DEFENSE_TIME.get(_defense, 0.0)) else ""
+
+
+func set_guard(on: bool) -> void:
+	guarding = on
+
+
+## #234: o que o motor projetou da briga deste NPC (campo opcional `combat` do observável). Fugir é correr; revidar é golpear;
+## pedir ajuda é chamar (e correr); recuar é o passo atrás. Só reage quando a reação muda, e nunca no corpo do jogador.
+func set_combat_reaction(kind: String) -> void:
+	if kind == combat_reaction:
+		return
+	combat_reaction = kind
+	if is_self:
+		return
+	running = kind == "flee" or kind == "callHelp"
+	match kind:
+		"retaliate":
+			play_strike()
+		"callHelp":
+			play_gesture("call", 1.4)
+		"recoil":
+			play_defense("recoil")
 
 
 ## #222: o pulo que o motor deixou: o corpo sobe e desce em `air_s` segundos (parábola), pernas encolhidas no alto.
@@ -886,7 +949,7 @@ func play_jump(air_s: float) -> void:
 
 ## #224: gesto curto por cima da pose (o verbo que o motor aceitou: pegar, dar, beber, comer, empurrar a porta, subir, conversar,
 ## trabalhar). Toca igual em 1ª e 3ª pessoa; em 1ª as mãos sobem para dentro do quadro.
-const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest"]
+const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call"]
 var _gesture := ""
 var _gesture_from := -1.0
 var _gesture_len := 0.0
@@ -953,6 +1016,37 @@ func _apply_gesture(amplitude: float = -1.0) -> void:
 		"rest": # deixa o corpo cair (deitar, sentar)
 			_body.position.y = -0.1 * k
 			_head.rotation.x = 0.3 * k
+		"call": # #234: pedir ajuda: os dois braços para o alto, acenando
+			_arms[0].rotation.x = -2.8 * k
+			_arms[1].rotation.x = -2.9 * k
+			_arms[0].rotation.z = -0.3 * k + sin(_clock * 11.0) * 0.35 * k
+			_arms[1].rotation.z = 0.3 * k + sin(_clock * 11.0 + 1.0) * 0.35 * k
+			_head.rotation.x = -0.25 * k
+
+
+func _apply_defense() -> void:
+	var t := (_clock - _defense_from) / float(DEFENSE_TIME[_defense])
+	var k := sin(clampf(t, 0.0, 1.0) * PI)
+	match _defense:
+		"dodge": # desvia para o lado e agacha
+			_body.rotation.z = 0.35 * k
+			_body.position.x = 0.14 * k
+			_body.position.y = -0.1 * k
+			_legs[0].rotation.x = 0.35 * k
+			_legs[1].rotation.x = 0.35 * k
+		"block": # braços à frente, ombros encolhidos
+			_arms[0].rotation.x = -1.7 * k
+			_arms[1].rotation.x = -1.7 * k
+			_body.rotation.x = 0.18 * k
+		"hurt": # o tranco do golpe: corpo e cabeça para trás, braços soltos
+			_body.rotation.x = -0.32 * k
+			_head.rotation.x = -0.35 * k
+			_arms[0].rotation.x = 0.7 * k
+			_arms[1].rotation.x = 0.7 * k
+		"recoil": # um passo atrás
+			_body.rotation.x = -0.14 * k
+			_legs[0].rotation.x = 0.35 * k
+			_legs[1].rotation.x = -0.3 * k
 
 
 var _jump_from := -1.0
@@ -1068,10 +1162,18 @@ func _animate(dt: float) -> void:
 			for i in _legs.size():
 				_legs[i].position.y += lift
 				_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
-	if _clock < _strike_until: # por cima da pose: o golpe
+	if guarding: # #234: a guarda do motor: braços cruzados à frente, corpo firme
+		_arms[0].rotation.x = -1.7
+		_arms[1].rotation.x = -1.7
+		_arms[0].rotation.z = 0.35
+		_arms[1].rotation.z = -0.35
+		_body.rotation.x = 0.12
+	if defense_playing() != "":
+		_apply_defense()
+	if _clock < _strike_until: # por cima da pose: o golpe (antecipação, impacto, recuo)
 		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
-		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)
-		_body.rotation.x = lerpf(-0.1, 0.25, k)
+		_arms[1].rotation.x = strike_arm(k)
+		_body.rotation.x = lerpf(-0.1, 0.25, clampf(k / STRIKE_IMPACT, 0.0, 1.0)) * (1.0 - maxf(0.0, (k - STRIKE_IMPACT) / (1.0 - STRIKE_IMPACT)))
 	if rig_on:
 		_rig.finalize(self, effective == "sleep")
 	if _ring != null and (_selected or _hovered):

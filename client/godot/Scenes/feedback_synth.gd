@@ -4,7 +4,7 @@ extends RefCounted
 
 const MIX_RATE := 22050
 const KINDS: Array[String] = ["step_dirt", "step_gravel", "step_stone", "step_grass", "step_wood", "land", "hit", "door",
-	"coin", "eat", "drink", "deny"]
+	"coin", "eat", "drink", "deny", "swish", "guard"]
 const SURFACE_STEP := {"dirt": "step_dirt", "gravel": "step_gravel", "stone": "step_stone", "grass": "step_grass", "wood": "step_wood"}
 
 
@@ -27,6 +27,8 @@ static func samples(kind: String) -> PackedFloat32Array:
 		"eat": return _crunches()
 		"drink": return _gulps()
 		"deny": return _deny()
+		"swish": return _step(0.16, 0.8, 0.0, 0.0, 8) # #234: o golpe que passou direto (esquiva, erro)
+		"guard": return _step(0.09, 0.7, 0.0, 0.0, 9, 1700.0) # #234: o golpe que bateu na guarda
 	return PackedFloat32Array()
 
 

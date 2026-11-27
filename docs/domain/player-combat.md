@@ -36,3 +36,18 @@ relativa, propensão a briga e cuidado pelo agressor (`PossessionWill.CareFor`);
   `guardMs`, `guardReadyInMs`, `lastIncoming` {outcome Hit|Dodged|Blocked|Missed, damage, by, agoMs},
   `reachMeters`. Os `walk` seguintes trazem o mesmo `pose`: é por ele que o revide chega ao cliente.
 - Canal: `{"command":"dodge"}`, `{"command":"block"}`; rotas `POST /players/{id}/dodge|block`.
+
+## Reação dos NPCs na projeção (`npcs[].observable.combat`)
+Campo **opcional** (omitido sem briga, sem custo no delta): `retaliate`, `flee`, `callHelp` ou `recoil`, enquanto
+`ReactionUntilMs` não passou (`ObservableProjector.CombatOf`, só leitura, sem RNG). Mudar a reação muda o observável.
+
+## Cliente Godot (`client/godot`)
+- **Comandos**: `player_dodge`/`player_block` (ws, como `walk`). Clique bate; botão direito ou **F** bloqueia (segure: renova
+  a guarda quando o motor deixa); **Ctrl/Alt** ou duplo toque numa direção esquiva. Q, E, I/Tab, C, J seguem livres.
+- **Estado**: `Scenes/combat_view.gd` guarda só o que o motor disse (recarga, guarda, alcance, último golpe recebido, sem repetir).
+- **Corpo** (`npc_actor.gd`): golpe em três tempos (antecipação, impacto, recuo); ferida, esquiva, bloqueio e recuo são poses
+  distintas; guarda visível enquanto `guard`. Pela projeção: fugir = correr, revidar = golpe, pedir ajuda = gesto de chamar.
+- **Retorno** (`feedback.gd`): número de dano **sobre o alvo** só com `outcome` Hit e `damage` > 0; esquiva/bloqueio têm som
+  próprio e nenhum número; recusa só o som neutro e o motivo do motor em aviso discreto.
+- **HUD**: barra fina de recarga sob a mira, palavra "Guarda", anel de alcance (`reach_ring.gd`) quando a mira está numa pessoa.
+

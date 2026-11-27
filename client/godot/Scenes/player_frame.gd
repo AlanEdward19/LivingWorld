@@ -9,6 +9,8 @@ const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("
 	["sleep", "Sono", Color("9b7fd1")]]
 const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
+const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
+const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
 const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro, a mira, fica limpo)
 const WHEEL_AIM_CLEAR := 30.0 ## px de folga em volta da mira (centro da tela) sem botão
 const WHEEL_GAP := 8.0 ## px livres entre dois botões
@@ -31,6 +33,8 @@ var inventory_box: VBoxContainer
 var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var entries: Array = []
+var cooldown: ProgressBar ## #234
+var guard_label: Label ## #234
 var _engine_action := ""
 var _motion := "" ## #228: "Andando"/"Correndo" enquanto o próprio corpo se move pela previsão local; vazio: vale a ação do motor
 
@@ -104,7 +108,7 @@ func _init() -> void:
 	prompt.visible = false
 	add_child(prompt)
 	hints = _label(13, Color(1, 1, 1, 0.75))
-	hints.text = HINTS
+	hints.text = HINTS + COMBAT_HINTS
 	hints.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	hints.offset_top = -30
 	hints.offset_bottom = -10
@@ -113,6 +117,29 @@ func _init() -> void:
 	hints.add_theme_constant_override("outline_size", 5)
 	hints.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	add_child(hints)
+	cooldown = ProgressBar.new() # #234: recarga discreta sob a mira (só enquanto o corpo se recupera do golpe)
+	cooldown.show_percentage = false
+	cooldown.max_value = 1.0
+	cooldown.custom_minimum_size = Vector2(64, 4)
+	cooldown.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	cooldown.offset_left = -32
+	cooldown.offset_right = 32
+	cooldown.offset_top = 26
+	cooldown.offset_bottom = 30
+	cooldown.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.1), 2))
+	cooldown.add_theme_stylebox_override("fill", _style(Color(1, 0.8, 0.45, 0.7), 2))
+	cooldown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cooldown.visible = false
+	add_child(cooldown)
+	guard_label = _label(13, Color("9ad0ff"))
+	guard_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	guard_label.offset_top = 34
+	guard_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	guard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guard_label.add_theme_constant_override("outline_size", 5)
+	guard_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	guard_label.visible = false
+	add_child(guard_label)
 	menu_panel = Control.new()
 	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	menu_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -173,6 +200,20 @@ func set_motion(kind: String) -> void:
 		return
 	_motion = kind
 	_show_action()
+
+
+## #234: o combate lido do motor: `strike_wait_ms` (recarga do golpe), `guard` ("Block" ou "Dodge" enquanto vale) e a recarga da guarda.
+## A barra só aparece enquanto falta recarga; a guarda mostra uma palavra. Nada aparece fora de briga.
+func set_combat(strike_wait_ms: int, guard: String, guard_wait_ms: int) -> void:
+	var waiting := strike_wait_ms > 0
+	if cooldown.visible != waiting:
+		cooldown.visible = waiting
+	if waiting:
+		cooldown.value = clampf(1.0 - float(strike_wait_ms) / COOLDOWN_MAX_MS, 0.0, 1.0)
+	var text := ("Guarda" if guard == "Block" else "Esquiva") if guard != "" else ("Guarda recarregando" if guard_wait_ms > 0 else "")
+	if guard_label.text != text:
+		guard_label.text = text
+	guard_label.visible = text != ""
 
 
 func _show_action() -> void:

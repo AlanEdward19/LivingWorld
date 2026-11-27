@@ -4,6 +4,7 @@ extends PanelContainer
 const WorldTime := preload("res://Contract/world_time.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const PlayerBody := preload("res://Scenes/player_body.gd")
+const CombatView := preload("res://Scenes/combat_view.gd")
 
 signal released()
 signal warning(text: String)
@@ -21,6 +22,10 @@ signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto 
 signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
 signal refused() ## #232: o motor recusou uma ação (o app toca só o som discreto de recusa)
 signal struck_hit(target: int) ## #232: o motor aceitou o golpe
+signal struck_result(target: int, body: Dictionary) ## #234: o que o motor devolveu ao golpe (outcome, damage, lethal, reaction)
+signal defended(kind: String) ## #234: o motor aceitou a defesa ("Dodge" ou "Block")
+signal guard_changed(kind: String) ## #234: a guarda do corpo mudou ("" = baixou)
+signal incoming(outcome: String, damage: int, by: int) ## #234: golpe recebido pelo corpo (Hit, Dodged, Blocked, Missed)
 signal sheet_read(body: Dictionary) ## #232: ficha do corpo lida do motor (números subindo pelo que mudou)
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
@@ -364,6 +369,7 @@ func _became(id: int, name: String) -> void:
 	_set_actions_enabled(true)
 	npc_id = id
 	npc_name = name
+	_reset_combat()
 	is_active = true
 	current_action = ""
 	visible = true
@@ -511,6 +517,7 @@ func _process(delta: float) -> void:
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
 	_refresh_goals(delta)
+	_hold_guard()
 	_paused_note_clock = maxf(0.0, _paused_note_clock - delta)
 
 
@@ -693,9 +700,18 @@ func jump() -> void:
 
 var _jumping := false
 
+var combat := CombatView.new() ## #234: recarga, guarda, alcance e último golpe recebido, como o motor disse
+var _guard_shown := "" ## a guarda que o app já mostra no corpo (para avisar só quando muda)
+var _guard_busy := false
+var _block_held := false ## botão direito ou F segurados: renova a guarda quando o motor deixa
+var _tap_key := -1 ## duplo toque de direção esquiva: a última direção tocada e quando
+var _tap_at := -1_000_000
+const DOUBLE_TAP_MS := 260
+
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary) -> void:
+	note_combat(pose)
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
 		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
@@ -731,6 +747,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			interact(entry)
 			return
+	if combat_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg:
@@ -1021,25 +1040,134 @@ func _offer_label(entry: Dictionary) -> String:
 	return ""
 
 
-## Clique: golpe no NPC sob a mira; o motor decide alcance e vontade.
+## Clique: golpe no NPC sob a mira; o motor decide alcance, recarga e vontade. O braço sobe já só se o corpo está pronto
+## (recarga lida do motor); o que acertou, o dano e a reação do alvo vêm na resposta.
 func strike(target: int) -> void:
 	if not is_active or _busy or target < 0 or target == npc_id:
 		return
 	_busy = true
 	var started := Time.get_ticks_usec()
-	struck.emit(target) # o braço desce já (previsão); o motor diz se acertou
+	var swung := combat.strike_ready(Time.get_ticks_msec())
+	if swung:
+		struck.emit(target) # o braço sobe já (previsão); o motor diz se acertou
 	var response: Dictionary = await api.player_strike(player_id, target)
 	_note_latency(started)
 	_busy = false
 	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var body: Dictionary = response.body
+		if not swung:
+			struck.emit(target) # sem previsão: o braço sobe quando o motor aceita
+		combat.note_strike(int(body.get("readyInMs", 0)), Time.get_ticks_msec())
+		if body.get("pose") is Dictionary:
+			note_combat(body.pose)
+		struck_hit.emit(target)
+		struck_result.emit(target, body)
+		_body_clock = BODY_EVERY
 		return
 	if response.ok:
 		struck_hit.emit(target)
 		_body_clock = BODY_EVERY
 		return
 	refused.emit()
-	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
-	warning.emit(error.trim_prefix("conflict: recusa: ") if error != "" else "O golpe não saiu (erro %d)." % response.status)
+	warning.emit(CombatView.refusal_text(response.status, response.body, "O golpe não saiu"))
+
+
+## #234: lê o `pose.combat` (de qualquer resposta com pose): recarga, guarda, alcance e golpes recebidos novos.
+func note_combat(pose: Dictionary) -> void:
+	for event in combat.note_pose(pose, Time.get_ticks_msec()):
+		incoming.emit(String(event.outcome), int(event.damage), int(event.by))
+		if event.outcome == "Hit":
+			_body_clock = BODY_EVERY # a saúde mudou: a barra lê já
+	_sync_guard()
+
+
+## A guarda que vale agora no corpo ("" quando a janela do motor acabou); avisa o app só quando muda.
+func _sync_guard() -> void:
+	var now := "" if not combat.guarding(Time.get_ticks_msec()) else combat.guard
+	if now != _guard_shown:
+		_guard_shown = now
+		guard_changed.emit(now)
+	if frame != null:
+		frame.set_combat(combat.strike_wait_ms(Time.get_ticks_msec()), now, combat.guard_wait_ms(Time.get_ticks_msec()))
+
+
+## #234: bloquear (botão direito ou F, segure): o motor decide a janela e a recarga; recusa mostra o motivo dele.
+func block() -> void:
+	await _defend("block")
+
+
+## #234: esquivar (Ctrl, Alt ou duplo toque numa direção).
+func dodge() -> void:
+	await _defend("dodge")
+
+
+func _defend(kind: String) -> void:
+	if not is_active or _guard_busy:
+		return
+	_guard_busy = true
+	var response: Dictionary = await (api.player_block(player_id) if kind == "block" else api.player_dodge(player_id))
+	_guard_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var body: Dictionary = response.body
+		note_combat(body.get("pose", body) if body.get("pose", body) is Dictionary else body)
+		defended.emit("Block" if kind == "block" else "Dodge")
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		refused.emit()
+		warning.emit(CombatView.refusal_text(response.status, response.body, "A defesa não saiu"))
+
+
+## #234: teclas e botões de combate; devolve se tratou o evento. F e botão direito seguram a guarda; Ctrl/Alt esquivam.
+func combat_input(event: InputEvent) -> bool:
+	if not is_active or not rpg or (input_blocked.is_valid() and input_blocked.call()):
+		return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		_block_held = event.pressed
+		if event.pressed:
+			block()
+		return true
+	if event is InputEventKey and not event.echo:
+		if event.keycode == KEY_F:
+			_block_held = event.pressed
+			if event.pressed:
+				block()
+			return true
+		if event.pressed and event.keycode in [KEY_CTRL, KEY_ALT]:
+			dodge()
+			return true
+		if event.pressed and STEP_KEYS.has(event.keycode):
+			var now := Time.get_ticks_msec()
+			if event.keycode == _tap_key and now - _tap_at <= DOUBLE_TAP_MS:
+				_tap_key = -1
+				dodge() # duplo toque na mesma direção
+			else:
+				_tap_key = event.keycode
+				_tap_at = now
+			return false # o passo segue pelo `_process` (o toque não é consumido)
+	return false
+
+
+func _reset_combat() -> void:
+	combat.reset()
+	_block_held = false
+	_tap_key = -1
+	if _guard_shown != "":
+		_guard_shown = ""
+		guard_changed.emit("")
+	if frame != null:
+		frame.set_combat(0, "", 0)
+
+
+## Segurando a guarda: quando a janela acaba e o motor deixa, renova (o corpo continua protegido enquanto o jogador segura).
+func _hold_guard() -> void:
+	_sync_guard()
+	if _block_held and not _guard_busy and not combat.guarding(Time.get_ticks_msec()) and combat.guard_ready(Time.get_ticks_msec()):
+		block()
 
 
 func logout() -> void:
@@ -1098,6 +1226,7 @@ func action_text(action: String) -> String:
 
 func _lost(text: String) -> void:
 	is_active = false
+	_reset_combat()
 	set_rpg(false)
 	apply_time({})
 	current_action = ""

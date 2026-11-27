@@ -9,7 +9,7 @@ namespace LivingWorld.Api.Visual.Observable;
 // mudou de um jeito que se vê.
 
 /// <summary>Sinais visíveis de um NPC no escopo que mudam devagar: nome, sexo, idade e estágio, ofício, corpo, gravidez já aparente,
-/// doença, emoções e o que leva consigo. A ação com alvo, o início e a intenção ficam no próprio <c>NpcVisual</c> (mudam junto com a
+/// doença, emoções e o que leva consigo. #234: <c>Combat</c> é a reação de briga em curso (retaliate, flee, callHelp, recoil), omitida sem briga. A ação com alvo, o início e a intenção ficam no próprio <c>NpcVisual</c> (mudam junto com a
 /// posição).</summary>
 public sealed record NpcObservable(
     string Name,
@@ -26,7 +26,9 @@ public sealed record NpcObservable(
     string? DominantEmotion,
     bool Mourning,
     IReadOnlyList<CarriedVisual> Carried,
-    HeldObjectVisual? Held);
+    HeldObjectVisual? Held,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    string? Combat = null);
 
 /// <summary>Gravidez só depois de aparecer (<c>Intimacy.ShowsAfterDays</c>, o mesmo marco em que a vila reage); fração da gestação
 /// em vigésimos.</summary>
