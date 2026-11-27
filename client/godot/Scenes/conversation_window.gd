@@ -6,6 +6,7 @@ extends PanelContainer
 signal closed()
 signal warning(text: String)
 
+const HISTORY_MIN_HEIGHT := 110.0 ## #237: o histórico nunca encolhe a ponto de cortar linhas (cabem as últimas falas)
 const REPLY_TIMEOUT := 8.0 ## orçamento do servidor (5 s) + margem
 const REFUSALS := {
 	"RejectedBusy": "%s está ocupado e não pode conversar agora.",
@@ -30,6 +31,7 @@ var waiting := false
 var lines: Array = [] ## [{who, text, emotion}] em ordem
 var status_text := ""
 var input: LineEdit
+var hides: Array = [] ## #237: controles que a janela cobre (a dica de teclas do HUD): somem enquanto a conversa está aberta e voltam ao fechar
 var game_style := false ## #233: modo jogador: a fala do NPC em destaque, escolhas numeradas (1–5) e texto livre com Enter
 var choices_row: HFlowContainer
 var spoken: Label ## a última fala do NPC, grande
@@ -44,6 +46,7 @@ var _request := 0
 
 func _init() -> void:
 	visible = false
+	grow_vertical = Control.GROW_DIRECTION_BEGIN # #237: se o conteúdo pedir mais altura, o painel cresce para cima (nunca para baixo da tela)
 	var box := VBoxContainer.new()
 	add_child(box)
 	var header := HBoxContainer.new()
@@ -59,6 +62,7 @@ func _init() -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.custom_minimum_size.y = HISTORY_MIN_HEIGHT
 	box.add_child(_scroll)
 	_history = VBoxContainer.new()
 	_history.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -132,6 +136,9 @@ func _open(id: int, name: String, session: int) -> void:
 	waiting = false
 	is_open = true
 	visible = true
+	for covered in hides:
+		if is_instance_valid(covered):
+			covered.visible = false
 	_title.text = "Conversando com %s" % name
 	_rebuild()
 	_set_status("")
@@ -221,6 +228,9 @@ func _close() -> void:
 	_request += 1
 	visible = false
 	session_id = -1
+	for covered in hides:
+		if is_instance_valid(covered):
+			covered.visible = true
 	closed.emit()
 
 
@@ -234,8 +244,17 @@ func _add_line(who: String, text: String, emotion: String) -> void:
 
 
 func _scroll_down() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame # o rótulo novo só ganha altura depois do layout; sem isto a rolagem pára na penúltima linha
 	if is_inside_tree():
 		_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+
+
+## Verdadeiro quando a rolagem está no fim (a última fala inteira à vista).
+func at_bottom() -> bool:
+	var bar := _scroll.get_v_scroll_bar()
+	return bar.max_value - bar.page - _scroll.scroll_vertical <= 1.0
 
 
 func _rebuild() -> void:

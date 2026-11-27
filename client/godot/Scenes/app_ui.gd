@@ -331,6 +331,8 @@ static func _windows(app, ui: Control) -> void:
 	app.conversation = ConversationWindow.new()
 	app.conversation.api = app.api
 	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar
+	if app.player_frame != null:
+		app.conversation.hides = [app.player_frame.hints] # #237: a dica de teclas fica atrás do painel de conversa: some enquanto ele está aberto
 	app.conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
 	app.conversation.anchor_top = 1.0 # faixa fixa na base da tela
 	app.conversation.offset_left = 310

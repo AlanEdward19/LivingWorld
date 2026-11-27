@@ -38,7 +38,7 @@ public sealed class ConversationOrchestrator
         if (_sessions.SendPlayerMessage(session.SessionId, playerUtterance, ctx) != SendMessageResult.Ok)
             return FallbackResponder.Respond(npc);
 
-        var context = LlmContextAssembler.Assemble(world, npc, session, playerUtterance, allowedIntents, allowedActions);
+        var context = LlmContextAssembler.Assemble(world, npc, session, playerUtterance, allowedIntents, allowedActions, tick: ctx.CurrentTick);
 
         LlmResponse response;
         using (var budget = new CancellationTokenSource(_budgetPerInteraction))

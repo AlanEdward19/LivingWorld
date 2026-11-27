@@ -27,7 +27,21 @@ public sealed record LlmContext(
     IReadOnlyList<MemoryCandidate>? RelevantMemories = null,
     IReadOnlyList<string>? AllowedActions = null,
     long? SessionId = null,
-    long? SessionOpenedAtTick = null);
+    long? SessionOpenedAtTick = null,
+    NpcDialogueState? State = null);
+
+/// <summary>#237: o que o motor já sabe do NPC e da relação dele com quem fala, lido do estado (nunca inventado pelo
+/// provider): é com isto que o provider "sem LLM" monta a fala. Opcional — quem não o preenche mantém o contrato antigo.</summary>
+/// <param name="UrgentNeed">Necessidade mais urgente (<c>hunger</c>, <c>thirst</c>, <c>sleep</c> ou <c>social</c>); null se nenhuma aperta.</param>
+/// <param name="Affection">Afeto do NPC por quem fala (0 a 100; 0 = desconhecidos); null se ainda não se conhecem.</param>
+public sealed record NpcDialogueState(
+    int Health,
+    string? UrgentNeed,
+    double? Affection,
+    double? Trust,
+    int Agreeableness,
+    int Extroversion,
+    int Altruism);
 
 public sealed record MemoryCandidate(string Event, int Importance);
 

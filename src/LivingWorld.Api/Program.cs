@@ -220,13 +220,14 @@ app.MapPost("/npcs/{id:long}/materialize", (long id, LivingWorld.Api.Visual.Obse
     return result.IsSuccess ? Results.Ok(LivingWorld.Api.Visual.Observable.EntityInspectionQuery.Named(result.Value!, names.For(worldHost.Current.PeriodId))) : Results.NotFound();
 });
 
-// LLM_PROVIDER escolhe o provider real de diálogo; default "fake" para não mudar nenhum
-// comportamento existente (gate/testes seguem sempre em FakeLlmProvider).
+// LLM_PROVIDER escolhe o provider de diálogo. Sem valor (o jogo local, sem chave de LLM): "rules" (#237), o NPC responde por
+// regra a partir do estado do motor. "fake" é o eco determinístico de testes/gate; "ollama" é a LLM de verdade.
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 {
     "ollama" => new OllamaLlmProvider(new HttpClient(LivingWorld.AI.EgressGuard.Handler())),
     "null" => new NullLlmProvider(),
-    _ => new FakeLlmProvider(),
+    "fake" => new FakeLlmProvider(),
+    _ => new RuleBasedLlmProvider(),
 };
 
 var effects = new ConversationEffectsApplier();
