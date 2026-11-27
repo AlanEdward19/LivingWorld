@@ -21,6 +21,8 @@ func _init(p_app) -> void:
 
 
 func enter_scope(kind: String, ref_id: String) -> void:
+	if app.stage.active or interior_building >= 0:
+		leave_focus() # #237: pedir outro escopo (zoom out, outra cidade) nunca deixa a casa em foco para trás
 	world_ref = [kind, ref_id]
 	await app.stream.subscribe(kind, ref_id)
 
@@ -39,12 +41,16 @@ func on_snapshot(envelope: Dictionary) -> void:
 		app.rig.fit_to_map(maxi(app.store.map_size.x, app.store.map_size.y))
 		app._load_names()
 	if kind == "Interior":
+		if interior_building < 0:
+			return # #237: snapshot atrasado de uma casa que já não está em foco: não a reabre
 		if app.stage.active and app.stage.interior_view.floor_count == int(app.store.interior.floors):
 			app.stage.interior_view.set_occupants(app.store.interior.occupants) # reenvio do snapshot pelo canal: só atualiza
 			app.stage.interior_view.apply_names(app.store.names)
 		else:
 			_enter_interior_view()
 		return
+	if app.stage.active:
+		leave_focus() # #237: chegou o snapshot de cidade/mundo com a casa ainda em foco: o foco acabou
 	app.rig.set_scope(kind)
 	app.list_panel.city_filter = app.store.city.id if kind == "City" else ""
 	if app.list_panel.visible:
@@ -153,6 +159,8 @@ func _enter_interior_view() -> void:
 		if app.player_hud.fine != Vector2.INF and app.stage.interior_view.is_wall_cell(body_cell, app.player_hud.floor_level):
 			# #227: o motor pôs o corpo numa célula de parede (o NPC estava "em casa" sem lugar na planta): ele veda todo passo daí
 			app.player_hud.warning.emit("O motor pôs este corpo dentro de uma parede da casa e não deixa andar: solte-o (Esc → Sair) e escolha outra pessoa.")
+	if driven:
+		app._keep_the_body() # #237: a câmera já segue o corpo da casa neste quadro (o do mundo fica parado enquanto a casa está em foco)
 	if driven: # #227: o jogador entra no foco com a câmera dele (3ª ou 1ª pessoa), não com a do observador; troca sem corte seco
 		app.rig.begin_blend()
 	elif marker != null and not app.director.active():
@@ -165,10 +173,27 @@ func _enter_interior_view() -> void:
 func exit_building() -> void:
 	if not app.stage.active and interior_building < 0:
 		return
+	leave_focus()
+	await app.stream.subscribe(previous_scope[0], previous_scope[1])
+
+
+## #237: desmonta o foco da casa por inteiro e sem esperar a rede: a casa some do desenho, o mundo volta (visível, processando), o corpo
+## do jogador passa para o desenho do mundo no lugar em que estava e a câmera o segue neste mesmo quadro (sem corte seco).
+func leave_focus() -> void:
+	var driven: bool = app.player_hud != null and app.player_hud.is_active
+	var inside = app.stage.interior_view.occupant_nodes.get(app.player_hud.npc_id) if driven else null
+	var at := Vector2.INF
+	if inside != null and is_instance_valid(inside):
+		at = Vector2(inside.position.x, inside.position.z) / Grid.CELL
 	app.rig.begin_blend() # #227: sai sem corte seco; a posse e a câmera do jogador ficam
 	app.stage.leave()
 	interior_building = -1
-	await app.stream.subscribe(previous_scope[0], previous_scope[1])
+	app._inside_by_body = -1
+	if driven:
+		var body = app.world_view.npc_nodes.get(app.player_hud.npc_id)
+		if body != null and at != Vector2.INF:
+			body.set_fine(at) # o corpo do mundo esteve parado durante a casa: vem para onde o jogador está
+		app._keep_the_body()
 
 
 func on_interior_changed() -> void:

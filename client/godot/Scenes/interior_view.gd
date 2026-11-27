@@ -45,8 +45,15 @@ var immersive := false ## #227: o jogador está na casa: nada de corte de maquet
 
 
 ## `info` = WorldStore.interior: {building, floors, layout:[{level, cells:[{cell, material}]}], occupants}
+## #237: a casa deixa de existir no desenho (pisos, paredes, forro, teto e ocupantes); `show_interior` a monta de novo.
+func close() -> void:
+	_clear()
+	visible = false
+
+
 func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: int = -1, lodging_units: int = 0) -> void:
 	_clear()
+	visible = true
 	origin = p_origin
 	_labels = labels
 	floor_count = int(info.floors)

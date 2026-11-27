@@ -913,14 +913,27 @@ var _pose_asked_ms := -10000
 ## #227: o motor diz onde o corpo está (prédio e andar). Dentro de um prédio o app entra na casa em foco com a câmera do jogador;
 ## o motor diz que saiu e o app volta ao mundo, sem corte seco. A posse e o modo de câmera não mudam em nenhum dos dois.
 func _on_player_placed(building: int, floor_level: int) -> void:
-	if player_hud == null or not player_hud.is_active or stage == null:
+	_pose_building = building # #237: a pose mais nova nunca se perde: se chegou no meio de uma troca, a conciliação a aplica ao terminar
+	_pose_floor = floor_level
+	await _reconcile_placement()
+
+
+var _pose_building := -1
+var _pose_floor := 0
+
+
+## #237: põe o desenho de acordo com a última pose do motor (entrar, sair, trocar de andar).
+func _reconcile_placement() -> void:
+	if player_hud == null or not player_hud.is_active or stage == null or _inside_busy:
 		return
-	if building >= 0 and not stage.active and not _inside_busy and _inside_by_body != building and store.kind in ["City", "World"]:
+	var building := _pose_building
+	var floor_level := _pose_floor
+	if building >= 0 and not stage.active and _inside_by_body != building and store.kind in ["City", "World"]:
 		_inside_busy = true
 		_inside_by_body = building
 		await enter_building(building)
 		_inside_busy = false
-	elif building < 0 and _inside_by_body >= 0 and not _inside_busy:
+	elif building < 0 and _inside_by_body >= 0:
 		_inside_busy = true
 		_inside_by_body = -1
 		await exit_building()
@@ -929,6 +942,8 @@ func _on_player_placed(building: int, floor_level: int) -> void:
 			and floor_level < stage.interior_view.floor_count:
 		stage.set_floor(floor_level) # o corpo subiu a escada: o andar visível o acompanha
 		stage.interior_view.place_guided(floor_level)
+	if _pose_building != building: # chegou outra pose durante a troca
+		await _reconcile_placement()
 
 
 func _keep_the_body() -> void:
