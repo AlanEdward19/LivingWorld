@@ -7,6 +7,8 @@ const Anim := preload("res://Scenes/animation_catalog.gd")
 const Look := preload("res://Scenes/npc_look.gd")
 const Props := preload("res://Scenes/npc_props.gd")
 const RouteWalk := preload("res://Scenes/route_walk.gd")
+const Rig := preload("res://Scenes/npc_rig.gd")
+const BodyPose := preload("res://Scenes/body_pose.gd")
 
 const LEG_X := 0.08
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
@@ -36,6 +38,19 @@ var action := -1
 var pose := Anim.NEUTRAL_POSE
 var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre. AD-197t: quem o jogador montou traz também eye_tone, face_shape e outfit
 var _eyes: Array[MeshInstance3D] = [] ## só em quem tem eye_tone (a pessoa montada no criador): não custa nós nos demais
+var _rig = null ## #230: esqueleto articulado (npc_rig.gd), só de perto; longe é null e não custa nada
+var full_rig := false: ## prévia do criador: sempre articulado e com rosto
+	set(value):
+		full_rig = value
+		if value:
+			set_detail(true)
+		_sync_rig()
+var ground_probe := Callable() ## (Vector3 do mundo) -> altura do chão ou NAN: o pé acompanha o terreno; sem ele usa as alturas da rota
+var _pants_color := Color("5a5a66")
+var _torso_base := Vector3.ONE
+var _head_base := Vector3.ONE
+var _head_mult := Vector3.ONE
+var _gesture_target := Vector3.INF
 var _outfit_color: Variant = null ## cor do traje escolhido; vence a camisa do ofício
 var label_text := ""
 var display_name := ""
@@ -121,15 +136,19 @@ func apply_look(p_look: Dictionary) -> void:
 	var curl := float(look.hair_curl) / 100.0
 	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
 	var width := 0.85 + 0.4 * float(look.build) / 100.0
-	_torso.scale = Vector3(width, 1.0, width)
+	_torso_base = Vector3(width, 1.0, width)
+	_torso.scale = _torso_base
 	_apply_made_look()
+	if _rig != null:
+		_rig.refit(self)
 
 
 ## AD-197t: o que só o criador de personagem manda: olhos, rosto (largura da cabeça) e traje. Quem não tem não cria nada.
 func _apply_made_look() -> void:
 	if look.has("face_shape"):
 		var wide := 0.88 + 0.3 * float(look.face_shape) / 100.0
-		_head.scale = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
+		_head_base = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
+		_apply_head_scale()
 	if look.has("eye_tone"):
 		if _eyes.is_empty():
 			var mesh := _shared_mesh("eye", func():
@@ -147,6 +166,10 @@ func _apply_made_look() -> void:
 	if look.has("outfit"):
 		_outfit_color = OUTFIT_COLORS[clampi(int(look.outfit), 0, OUTFIT_COLORS.size() - 1)]
 		_shirt.albedo_color = _outfit_color
+
+
+func _apply_head_scale() -> void:
+	_head.scale = _head_base * _head_mult
 
 
 ## Materiais sem emissão variável são compartilhados entre todos os NPCs (menos memória e trocas de estado).
@@ -189,7 +212,8 @@ func _build() -> void:
 	rng.seed = npc_id * 7919 + 17
 	var hue := rng.randf()
 	_shirt = _mat(Color.from_hsv(hue, 0.55, 0.8))
-	var pants := _shared_mat(Color.from_hsv(snappedf(fmod(hue + 0.5, 1.0), 0.1), 0.35, 0.4))
+	_pants_color = Color.from_hsv(snappedf(fmod(hue + 0.5, 1.0), 0.1), 0.35, 0.4)
+	var pants := _shared_mat(_pants_color)
 	_skin_color = SKIN_TONES[rng.randi() % SKIN_TONES.size()]
 	var skin := _shared_mat(_skin_color)
 	var hair := _shared_mat(HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
@@ -249,6 +273,8 @@ func _build() -> void:
 func _get_tool() -> Node3D:
 	if _tool == null:
 		_tool = Props.tool(_arms[1], _tool_kind)
+		if _rig != null and _rig.active:
+			_rig.attach_new_prop(_tool, false)
 	return _tool
 
 
@@ -412,6 +438,8 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 		_hair_mesh.position = Vector3(0, 0.04, -0.02)
 	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
 	_skin_mesh.material_override = _shared_mat(skin)
+	if _rig != null:
+		_rig.refit(self)
 	_set_tool_kind("hammer" if site_work else String(spec.tool))
 	if float(spec.belly) > 0.0:
 		if _belly == null:
@@ -440,6 +468,8 @@ func _refresh_held() -> void:
 	var wants: bool = not spec.get("held", {}).is_empty()
 	if wants and _held == null:
 		_held = Props.held(_arms[0], "cylinder", held_color)
+		if _rig != null and _rig.active:
+			_rig.attach_new_prop(_held, true)
 	if _held != null:
 		_held.material_override = Props.material(held_color)
 		_held.visible = wants and near_detail
@@ -458,6 +488,7 @@ func set_detail(value: bool) -> void:
 	if near_detail == value:
 		return
 	near_detail = value
+	_sync_rig()
 	_sync_props()
 	_refresh_held()
 	_refresh_face()
@@ -489,6 +520,7 @@ func set_far(value: bool) -> void:
 	if far_lod == value:
 		return
 	far_lod = value
+	_sync_rig()
 	for limb in _arms + _legs:
 		limb.visible = not value
 	for part in _shadow_parts:
@@ -502,6 +534,7 @@ func set_bubble(value: bool) -> void:
 	if bubble == value:
 		return
 	bubble = value
+	_sync_rig()
 	_body.visible = not value
 	for leg in _legs:
 		leg.visible = not value
@@ -524,6 +557,40 @@ func set_bubble(value: bool) -> void:
 		_reset_pose()
 	elif _bubble_node != null:
 		_bubble_node.visible = false
+
+
+## #230: o rig só existe para quem está perto, é o corpo do jogador ou a prévia; ao sair de cena (longe/bolha) os nós são liberados.
+func _sync_rig() -> void:
+	if _body == null:
+		return
+	var want := (near_detail or driven or full_rig) and not far_lod and not bubble
+	if not want and _rig != null and (far_lod or bubble):
+		_rig.deactivate(self, true)
+		_rig = null
+		return
+	var on: bool = _rig != null and _rig.active
+	if want == on:
+		return
+	if want:
+		if _rig == null:
+			_rig = Rig.new()
+		_rig.activate(self)
+	else:
+		_rig.deactivate(self, false)
+
+
+## Altura do chão sob o pé que vai `ahead` à frente, relativa ao corpo (unidades do boneco): o pé sobe o degrau e desce a rampa.
+func foot_ground(ahead: float) -> float:
+	var raw := 0.0
+	if ground_probe.is_valid():
+		var fwd := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+		var y: Variant = ground_probe.call(position + fwd * ahead * scale.x)
+		if y is float and not is_nan(y):
+			raw = float(y) - position.y
+	elif walk != null and not walk.done:
+		var d: float = walk.fraction(world_tick) * walk.total
+		raw = BodyPose.route_height(walk.points, walk.along, d + ahead * scale.x) - BodyPose.route_height(walk.points, walk.along, d)
+	return clampf(raw / maxf(scale.y, 0.01), -BodyPose.MAX_STEP, BodyPose.MAX_STEP)
 
 
 func _sync_props() -> void:
@@ -639,7 +706,10 @@ func base_position() -> Vector3:
 	return _from.lerp(_to, _t)
 
 
-var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+var driven := false: ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+	set(value):
+		driven = value
+		_sync_rig() # #230: o corpo do jogador é sempre articulado
 
 
 ## AD-197k: a posição fina (células, absoluta) do corpo do jogador; vira para onde anda.
@@ -735,7 +805,7 @@ func animate(dt: float) -> void:
 		return
 	_clock += dt
 	if not far_lod and not bubble:
-		_animate()
+		_animate(dt)
 
 
 func advance(dt: float) -> void:
@@ -786,7 +856,9 @@ func _reset_pose() -> void:
 		limb.rotation = Vector3.ZERO
 	for i in _legs.size():
 		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
-	_torso.scale = Vector3.ONE
+	_torso.scale = _torso_base
+	if _rig != null and _rig.active:
+		_rig.reset_joints()
 	if _shirt.emission != Color.BLACK: # só o poder acende a roupa: não reenvia o material de 500 NPCs a cada quadro
 		_shirt.emission = Color.BLACK
 
@@ -814,9 +886,11 @@ var _gesture_len := 0.0
 var running := false ## #224: o motor disse que o corpo corre (só o do jogador): passada mais larga e rápida, corpo inclinado
 
 
-func play_gesture(kind: String, seconds: float = 0.9) -> void:
+## `target` (ponto do mundo, opcional): onde a mão vai (o objeto pego/empurrado); sem ele usa o ponto típico do gesto à frente do corpo.
+func play_gesture(kind: String, seconds: float = 0.9, target: Vector3 = Vector3.INF) -> void:
 	if not kind in GESTURES:
 		return
+	_gesture_target = Vector3.INF if target == Vector3.INF else Basis(Vector3.UP, rotation.y).inverse() * (target - position) / maxf(scale.x, 0.01)
 	_gesture = kind
 	_gesture_from = _clock
 	_gesture_len = maxf(0.2, seconds)
@@ -826,9 +900,10 @@ func gesture_playing() -> String:
 	return _gesture if _gesture_from >= 0.0 and _clock < _gesture_from + _gesture_len else ""
 
 
-func _apply_gesture() -> void:
+## `amplitude` < 0: envelope em seno (corpo sem rig). O rig passa 1 e mistura por conta própria (envelope de platô).
+func _apply_gesture(amplitude: float = -1.0) -> void:
 	var t := (_clock - _gesture_from) / _gesture_len
-	var k := sin(clampf(t, 0.0, 1.0) * PI) # sobe e volta
+	var k := sin(clampf(t, 0.0, 1.0) * PI) if amplitude < 0.0 else amplitude # sobe e volta
 	match _gesture:
 		"reach": # agacha e estende as duas mãos ao chão/à prateleira (pegar, recolher, encher o cântaro)
 			_body.rotation.x = 0.55 * k
@@ -881,16 +956,18 @@ const JUMP_HEIGHT := 0.22 ## altura do salto em unidades do boneco (~0,4 m num a
 var _strike_until := -1.0
 
 
-func _animate() -> void:
+func _animate(dt: float) -> void:
 	_reset_pose()
+	var rig_on: bool = _rig != null and _rig.active
 	var phase := _clock * 7.0 + float(npc_id)
 	var lying: bool = String(spec.get("sick_pose", "")) == "bed"
-	var effective := "walk" if (is_moving() and pose != "sleep" and not lying) else ("sleep" if lying else pose)
+	var moving := is_moving() and pose != "sleep" and not lying
+	var effective := "walk" if moving else ("sleep" if lying else pose)
 	if not is_moving() and face_point != Vector3.INF and effective != "sleep":
 		var to := face_point - position
 		if to.length() > 0.2:
 			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), 0.25)
-	match effective:
+	match "idle" if (rig_on and effective == "walk") else effective: # com rig a caminhada é uma camada (abaixo), não uma pose
 		"walk":
 			var swing := sin(phase * 1.3)
 			_legs[0].rotation.x = swing * 0.7
@@ -959,7 +1036,9 @@ func _animate() -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
-	if effective == "walk" and running: # #224: correr: passada mais rápida e larga, corpo inclinado
+	if rig_on:
+		_rig.locomotion(self, dt, moving)
+	if effective == "walk" and running and not rig_on: # #224: correr: passada mais rápida e larga, corpo inclinado
 		var stride := sin(_clock * 15.0 + float(npc_id))
 		_legs[0].rotation.x = stride * 1.0
 		_legs[1].rotation.x = -stride * 1.0
@@ -968,17 +1047,25 @@ func _animate() -> void:
 		_body.rotation.x = 0.25
 		_body.position.y = absf(stride) * 0.06
 	if gesture_playing() != "": # por cima da pose: o gesto do verbo aceito
-		_apply_gesture()
+		if rig_on:
+			_rig.gesture(self)
+		else:
+			_apply_gesture()
 	if _jump_from >= 0.0 and _clock < _jump_from + _jump_air: # por cima da pose: o pulo
 		var t := (_clock - _jump_from) / _jump_air
 		var lift := 4.0 * JUMP_HEIGHT * t * (1.0 - t)
 		_body.position.y += lift
-		for i in _legs.size():
-			_legs[i].position.y += lift
-			_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
+		if rig_on:
+			_rig.air(lift, sin(t * PI))
+		else:
+			for i in _legs.size():
+				_legs[i].position.y += lift
+				_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
 	if _clock < _strike_until: # por cima da pose: o golpe
 		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
 		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)
 		_body.rotation.x = lerpf(-0.1, 0.25, k)
+	if rig_on:
+		_rig.finalize(self, effective == "sleep")
 	if _ring != null and (_selected or _hovered):
 		_ring.rotation.y = _clock * 1.5
