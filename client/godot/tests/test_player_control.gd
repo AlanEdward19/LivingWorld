@@ -150,6 +150,10 @@ func test_the_interaction_menu_shows_only_what_the_engine_offers_and_sends_the_c
 	eq(opened, [[9, "Bia", 77]], "a conversa aceita pelo motor abre o chat de sempre")
 	eq(hud.menu.visible, false, "o menu fecha depois da escolha")
 	eq(PlayerHud.menu_entries([]), [], "sem oferta, nenhuma linha")
+	# #239: a mata ao alcance oferece coletar o recurso que o motor diz, com o nome dele
+	var woods := PlayerHud.menu_entries([{"kind": "nature", "id": 5, "verbs": ["gather"], "x": 1, "y": 1,
+		"resources": [{"resourceId": 3, "quantity": 2, "price": 0}]}], func(id: int) -> String: return "Madeira")
+	eq([woods[0].text, woods[0].verb, woods[0].resource], ["Mata: Coletar Madeira", "gather", 3], "coletar na mata, pelo recurso do motor")
 	hud.queue_free()
 
 

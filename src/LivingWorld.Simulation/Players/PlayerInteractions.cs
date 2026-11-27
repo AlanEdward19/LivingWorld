@@ -14,7 +14,7 @@ public sealed record InteractionResource(int ResourceId, long Quantity, long Pri
 
 /// <summary>O que o corpo conduzido alcança agora e o que pode fazer ali (AD-197d). <c>Kind</c>: <c>door</c> (prédio: enter, exit),
 /// <c>stock</c> (casa: take, deposit), <c>stall</c> (oficina com preço: buy, sell), <c>bed</c> (casa: sleep), <c>person</c> (pessoa:
-/// talk, strike, abandon), <c>house</c> (a própria casa: sell). O cliente mostra só isto.</summary>
+/// talk, strike, abandon), <c>house</c> (a própria casa: sell), <c>nature</c> (mata ao alcance: gather, #239). O cliente mostra só isto.</summary>
 public sealed record InteractionOffer(
     string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources);
 
@@ -105,6 +105,7 @@ public static partial class PlayerInteractions
             ("item", _) => Carry(world, npc, offer, verb),
             ("workshop" or "field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
                 ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
+            ("nature", "gather") => Gather(world, npc, offer, quantity),
             ("water", _) => Water(world, npc, offer, verb),
             ("leaving", _) => Collect(world, ctx, npc, offer),
             ("stock", "take") => Take(world, npc, world.FindHousehold(new HouseholdId(id))!, resourceId, quantity, offer),

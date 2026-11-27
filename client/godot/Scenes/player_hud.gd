@@ -840,10 +840,10 @@ func latency_median_ms() -> float:
 const OBJECT_TEXT := {"table": "Mesa", "bench": "Banco", "crate": "Caixote", "barrel": "Barril", "counter": "Balcão", "shelf": "Prateleira",
 	"bed": "Cama", "chest": "Baú", "anvil": "Bigorna"}
 const KIND_TEXT := {"counter": "Balcão", "door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
-	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
+	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio", "nature": "Mata"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
-	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "gather": "Coletar", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
 	"socialize": "Conversar", "idle": "Descansar"}
 
 
@@ -965,7 +965,7 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
 		for verb in offer.get("verbs", []):
 			var resources: Array = offer.get("resources", [])
-			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():
+			if String(verb) in ["buy", "take", "steal", "gather"] and not resources.is_empty():
 				for item in resources:
 					if int(item.get("quantity", 0)) <= 0:
 						continue
