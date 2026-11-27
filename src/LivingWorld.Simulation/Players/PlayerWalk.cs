@@ -41,6 +41,9 @@ public static class PlayerWalk
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
+        // #239: quem corta na mata está ocupado (o passo dura segundos; a tarefa, horas): não sai andando antes de acabar
+        if ((dx != 0 || dy != 0) && npc.StepReadyAtMs - now > PlayerInteractions.LongTaskMs)
+            return Result<Unit>.Fail($"{PlayerCommands.Conflict} walk: o corpo está ocupado (faltam {npc.StepReadyAtMs - now} ms)");
         var cell = PlayerGround.PoseOf(world, npc);
         var pose = npc.Fine is { } f && f.CellX == cell.X && f.CellY == cell.Y
             ? f

@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
@@ -68,16 +69,9 @@ public static partial class PlayerInteractions
             if (verbs.Count > 0) offers.Add(Offer("workshop", shop.Id.Value, "", verbs, shop.Location, stock));
         }
 
-        if (WaterFetch.On(world))
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    var cell = new CellCoord(at.X + dx, at.Y + dy);
-                    if (!world.Map.TryGetCell(cell, out var water) || !water.HasWater) continue;
-                    offers.Add(Offer("water", WaterId(cell), "", household is null ? ["drink"] : ["drink", "fill"], cell));
-                    dy = 2;
-                    break;
-                }
+        if (WaterFetch.On(world) && inside is null && WaterWithinReach(world, npc, at) is { } spring)
+            offers.Add(Offer("water", WaterId(spring), "", household is null ? ["drink"] : ["drink", "fill"], spring));
+        if (inside is null) GatherOffers(world, npc, at, offers);
 
         // AD-197n: recipientes e veículos inventados pela casa (os designs da invenção que ela fez): levar um é o que o NPC faz ao sair
         // com ele (a carga, a água e a compra passam a caber nele; o veículo enche o barril na fonte); devolver, ao chegar
@@ -131,6 +125,72 @@ public static partial class PlayerInteractions
     {
         world.Invention!.Hold(npc.Id.Value, verb == "take" ? offer.Id : 0);
         return Done(offer, verb, 1, 0);
+    }
+
+    /// <summary>#239: acima disto o corpo está numa tarefa longa (cortar na mata), não no passo de um segundo: não anda até acabar.</summary>
+    public const long LongTaskMs = 5 * 60_000;
+
+    /// <summary>#237: o alcance da água, em milésimos de célula, do corpo (posição fina) à borda mais perto da célula d'água: uma célula
+    /// (1,5 m, o braço e uma inclinada). Antes valia a vizinhança 3×3 da célula do corpo, até ~3 m da água e através da parede.</summary>
+    public const long WaterReachThousandths = FinePose.PerCell;
+
+    /// <summary>A célula d'água ao alcance do corpo agora (a mais perto; empate: menor linha, depois coluna), ou nula.</summary>
+    private static CellCoord? WaterWithinReach(WorldState world, Npc npc, CellCoord at) => CellWithinReach(world, npc, at, c => c.HasWater);
+
+    /// <summary>A célula que cumpre <paramref name="wanted"/> e está ao alcance do corpo (a mais perto, pela borda; empate: menor linha, depois
+    /// coluna), ou nula. O corpo solto conta pela posição fina; sem ela, pelo centro da célula.</summary>
+    private static CellCoord? CellWithinReach(WorldState world, Npc npc, CellCoord at, Func<MapCell, bool> wanted)
+    {
+        var fine = npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? f : new FinePose(at.X * FinePose.PerCell + 500, at.Y * FinePose.PerCell + 500, 0, 0, 0);
+        CellCoord? best = null;
+        long bestD2 = long.MaxValue;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                var cell = new CellCoord(at.X + dx, at.Y + dy);
+                if (!world.Map.TryGetCell(cell, out var found) || !wanted(found)) continue;
+                long gx = Math.Max(Math.Max(cell.X * FinePose.PerCell - fine.X, fine.X - (cell.X + 1) * FinePose.PerCell), 0);
+                long gy = Math.Max(Math.Max(cell.Y * FinePose.PerCell - fine.Y, fine.Y - (cell.Y + 1) * FinePose.PerCell), 0);
+                long d2 = gx * gx + gy * gy;
+                if (d2 > WaterReachThousandths * WaterReachThousandths || d2 >= bestD2) continue;
+                (best, bestD2) = (cell, d2);
+            }
+        return best;
+    }
+
+    /// <summary>#239: a mata ao alcance, com o que o motor diz que a célula tem e o que os NPCs da obra buscam na natureza
+    /// (<c>StreetRules.HouseMaterialResourceId</c>, AD-194/195). Fora de prédio e de célula construída, com as mãos e o corpo livres.</summary>
+    private static void GatherOffers(WorldState world, Npc npc, CellCoord at, List<InteractionOffer> offers)
+    {
+        var rules = world.StreetRules;
+        if (!world.StreetsOn || rules.HouseGatherHours <= 0 || rules.HouseMaterialUnits <= 0 || npc.IsCarrying
+            || world.CurrentDate.TotalMilliseconds < npc.StepReadyAtMs) return;
+        var resource = new ResourceType(rules.HouseMaterialResourceId);
+        var spot = CellWithinReach(world, npc, at, c => PlayerNature.IsWild(world, c, resource));
+        if (spot is { } cell)
+            offers.Add(Offer("nature", WaterId(cell), "", ["gather"], cell, [new InteractionResource(resource.Id, Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), 0)]));
+    }
+
+    /// <summary>#239: buscar material na natureza pela conta do NPC da obra: as horas de cortar (<c>WorkHaul.CutHours</c>, a mesma da
+    /// viagem de quem sai da casa dele à mata) por <paramref name="quantity"/> unidades, no limite de carga dele (<c>CapacityUnits</c>);
+    /// o corpo fica ocupado esse tempo (o mundo anda; nem anda nem busca de novo antes) e a carga vai nas mãos, de onde segue para a
+    /// despensa (guardar) como a de qualquer NPC. Entra na economia como produzida ao ser pega.</summary>
+    private static Result<InteractionResult> Gather(WorldState world, Npc npc, InteractionOffer offer, long? quantity)
+    {
+        var resource = new ResourceType(offer.Resources[0].ResourceId);
+        long cap = Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), units = Math.Min(quantity ?? cap, cap);
+        if (units <= 0) return Fail("interact: quantidade deve ser > 0");
+        long now = world.CurrentDate.TotalMilliseconds;
+        if (now < npc.StepReadyAtMs) return Fail($"{PlayerCommands.Conflict} gather: o corpo ainda está ocupado (faltam {npc.StepReadyAtMs - now} ms)");
+        var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
+        var wood = new CellCoord(offer.X, offer.Y);
+        long hours = Cities.Works.WorkHaul.CutHours(world, home ?? wood, wood, units);
+        var held = npc.PickUp(resource, units, Math.Max(units, npc.CarryCapacity));
+        if (!held.IsSuccess) return Fail(held.Error!);
+        PlayerCommands.TakeTheWheel(world, npc);
+        npc.Step(now + hours * WorldMillis.PerHour, 0, now);
+        world.RecordResourceProduced(resource, units);
+        return Done(offer, "gather", units, 0);
     }
 
     /// <summary>Uma célula como id de oferta (x na parte alta, y na baixa).</summary>

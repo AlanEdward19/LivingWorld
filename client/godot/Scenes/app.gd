@@ -751,7 +751,7 @@ func aim_point() -> Vector2:
 
 ## AD-197j: o golpe saiu: o braço do personagem desce (a mesma pose para quem olha de fora).
 ## #224: verbo aceito pelo motor -> gesto no corpo (o mesmo em 1ª e 3ª pessoa).
-const GESTURE_BY_VERB := {"take": "reach", "collect": "reach", "fill": "reach", "steal": "reach", "deposit": "give", "return": "give",
+const GESTURE_BY_VERB := {"take": "reach", "collect": "reach", "gather": "reach", "fill": "reach", "steal": "reach", "deposit": "give", "return": "give",
 	"buy": "give", "sell": "give", "abandon": "give", "drink": "drink", "eat": "eat", "enter": "push", "exit": "push", "up": "climb",
 	"down": "climb", "talk": "talk", "socialize": "talk", "work": "work", "sleep": "rest", "idle": "rest"}
 

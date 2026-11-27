@@ -19,7 +19,7 @@ nascem do estado do motor, na hora do pedido. Só leitura, sem RNG novo, sem LLM
 ## O próximo passo (`step`)
 Sempre algo que os comandos de hoje fazem: `interact` (a oferta de `/reach` já está ao alcance: `kind`, `targetId`, `verb`,
 `resourceId`), `go` (andar até a célula `x,y`; `distance` em células) ou `act` (a ação em `verb`). `none` só se o mundo não
-oferece nada. Escolha por alcance e distância, desempate por id: determinístico.
+oferece nada. Alcance curto: a água a ≤ 1 célula da posição fina; `nature`/`gather` (#239) na mata, com as horas e a carga dos NPCs da obra. Escolha por alcance e distância, desempate por id: determinístico.
 
 ## Habilidades (`PlayerSkills`)
 O ganho é o do motor (`SkillPracticeSystem.PracticeGain`): quem está em `Work` no próprio posto sobe, NPC ou jogador, pelo mesmo
