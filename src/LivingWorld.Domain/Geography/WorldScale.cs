@@ -22,4 +22,8 @@ public static class WorldScale
 
     /// <summary>Passo de referência de um adulto descansado em chão leve (m/s).</summary>
     public const double ReferenceWalkMps = 1.4;
+
+    /// <summary>AD-197o2: horas para atravessar uma célula de terreno leve no passo de referência (~1,07 s): o <c>CostWeights.Base</c>
+    /// padrão do mundo do menu e da vila de código. A viagem dos NPCs custa metros reais, a mesma régua do passo do jogador.</summary>
+    public const double CellBaseHours = CellMeters / ReferenceWalkMps / 3600.0;
 }

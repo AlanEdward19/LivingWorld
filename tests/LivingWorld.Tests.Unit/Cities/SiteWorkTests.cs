@@ -16,11 +16,13 @@ namespace LivingWorld.Tests.Unit.Cities;
 /// anda pelas horas de quem está no trecho, pagas por hora; carga a pé alonga o passo.</summary>
 public class SiteWorkTests
 {
+    // AD-197o2: a obra de rua poupa tempo de caminhada e a vila de 1,5 m por célula se atravessa em um minuto; as obras são testadas num
+    // mapa de região (célula de ~250 m), onde calçar o trecho passado poupa horas de verdade
     /// <summary>Vila de código com as oficinas fechadas (ninguém tem emprego: todo adulto pode ser diarista), a técnica de calçar
     /// adotada e uma célula de terra muito passada no largo, longe de casa (paga o tesouro). Abre a obra.</summary>
     private static (WorldState World, WorldClock Clock, PavingWork Work, int Index) WorldWithOpenWork(ulong seed = 5, StreetRules? streets = null, long wallet = 0, long? hours = null)
     {
-        var (world, clock) = ScenarioRunner.Create(seed, cityLayout: streets is null ? null : CityLayoutRules.Default with { Streets = streets });
+        var (world, clock) = ScenarioRunner.Create(seed, costWeights: ScenarioRunner.RegionalCostWeights, cityLayout: streets is null ? null : CityLayoutRules.Default with { Streets = streets });
         foreach (var shop in world.Workplaces)
         {
             shop.SetClosed(true);
@@ -180,7 +182,7 @@ public class SiteWorkTests
         Assert.True(Mobility.LoadFactorOfKg(rules, 20) > 1.0);
         Assert.Equal(Mobility.LoadFactorOfKg(rules, rules.CarryMaxKg), Mobility.LoadFactorOfKg(rules, rules.CarryMaxKg * 3));
 
-        var (world, _) = ScenarioRunner.Create(4);
+        var (world, _) = ScenarioRunner.Create(4, costWeights: ScenarioRunner.RegionalCostWeights);
         var npc = world.Npcs.First(n => n.IsAlive && n.Household is not null);
         var home = world.FindHousehold(npc.Household!.Value)!;
         var far = world.Workplaces.OrderByDescending(w => Math.Abs(w.Location.X - home.Location.X) + Math.Abs(w.Location.Y - home.Location.Y)).First().Location;
@@ -191,7 +193,7 @@ public class SiteWorkTests
         Assert.True(loaded >= empty, $"carregado {loaded} h, vazio {empty} h");
 
         // o material da obra: horas da célula com a ida carregada passam as de ir e voltar vazio
-        var noLoad = ScenarioRunner.Create(4, cityLayout: CityLayoutRules.Default with { Streets = rules with { SiteLoadKg = 0 } }).World;
+        var noLoad = ScenarioRunner.Create(4, costWeights: ScenarioRunner.RegionalCostWeights, cityLayout: CityLayoutRules.Default with { Streets = rules with { SiteLoadKg = 0 } }).World;
         var cell = world.ActiveCities().First().Location;
         Assert.True(PavingDecision.HoursFor(world, cell, GroundSurface.Gravel) >= PavingDecision.HoursFor(noLoad, cell, GroundSurface.Gravel));
     }

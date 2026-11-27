@@ -34,7 +34,7 @@ public class TechDiscoveryTests
         {
             Recipes = ScenarioRunner.DefaultEconomyCatalog.Recipes.ToDictionary(kv => kv.Key, kv => kv.Value with { Tool = null }),
         };
-        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules, economyCatalog: noTools, cityLayout: MobilityOnly);
+        var (world, clock) = ScenarioRunner.Create(seed, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: rules, economyCatalog: noTools, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, 5000);
         return (world, clock);
     }
@@ -44,7 +44,7 @@ public class TechDiscoveryTests
     [Fact]
     public void Disabled_by_default_nothing_emerges()
     {
-        var (world, clock) = ScenarioRunner.Create(1);
+        var (world, clock) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights);
         world.ActiveCities().First().DepositStock(Iron, 5000);
 
         clock.Run(world, 17280);
@@ -88,7 +88,7 @@ public class TechDiscoveryTests
     [Fact]
     public void Without_enough_stock_no_prototype_starts()
     {
-        var (world, clock) = ScenarioRunner.Create(2, emergenceRules: Pressured, cityLayout: MobilityOnly);
+        var (world, clock) = ScenarioRunner.Create(2, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Pressured, cityLayout: MobilityOnly);
         world.ActiveCities().First().DepositStock(Iron, Pressured.PrototypeResourceCost - 1);
 
         clock.Run(world, world.Calendar.HoursPerYear * 2);
@@ -167,7 +167,7 @@ public class TechDiscoveryTests
     [Fact]
     public void An_adopted_technology_shortens_the_trip_and_so_the_pantry_the_household_keeps()
     {
-        var (world, _) = ScenarioRunner.Create(7, emergenceRules: Pressured, cityLayout: MobilityOnly);
+        var (world, _) = ScenarioRunner.Create(7, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Pressured, cityLayout: MobilityOnly);
         var buyer = world.Npcs.First(n => n.Household is not null);
         var household = world.FindHousehold(buyer.Household!.Value)!;
         var index = MarketIndex.BuildForTick(world);
@@ -187,7 +187,7 @@ public class TechDiscoveryTests
     public void A_technology_spreads_to_a_city_of_the_same_culture_through_a_strong_tie()
     {
         // AD-180: os dois sem casa dormiriam ao relento e o inverno mataria quem carrega o vínculo; o teste é da difusão pelo vínculo
-        var (world, clock) = ScenarioRunner.Create(8, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly,
+        var (world, clock) = ScenarioRunner.Create(8, costWeights: ScenarioRunner.RegionalCostWeights, initialPopulation: 0, emergenceRules: Pressured, cityLayout: MobilityOnly,
             climateRules: LivingWorld.Domain.Climate.ClimateRules.Default with { Weather = null });
         var home = world.ActiveCities().First();
         var other = new LivingWorld.Domain.Cities.City(

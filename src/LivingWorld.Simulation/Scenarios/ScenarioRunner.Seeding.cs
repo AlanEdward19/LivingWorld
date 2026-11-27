@@ -18,8 +18,8 @@ namespace LivingWorld.Simulation.Scenarios;
 // Parte de ScenarioRunner — mapa inicial e semeadura de locais de trabalho e estoque. Os padrões estáticos ficam em ScenarioRunner.cs (ordem de inicialização).
 public static partial class ScenarioRunner
 {
-    public static WorldMap DefaultMap(ulong seed) =>
-        MapGenerator.Generate(seed, width: 10, height: 10, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
+    public static WorldMap DefaultMap(ulong seed, CostWeights? cost = null) =>
+        MapGenerator.Generate(seed, width: 10, height: 10, regionSize: 5, DefaultCatalog, cost ?? DefaultCostWeights, [])
             .Value ?? throw new InvalidOperationException("gerador default falhou — bug no gerador, não no cenário");
 
     internal static int InitialMapSideForPopulation(int initialPopulation)
@@ -32,10 +32,10 @@ public static partial class ScenarioRunner
         return Math.Max(10, roundedSide);
     }
 
-    internal static WorldMap InitialMap(ulong seed, int initialPopulation)
+    internal static WorldMap InitialMap(ulong seed, int initialPopulation, CostWeights? cost = null)
     {
         int side = InitialMapSideForPopulation(initialPopulation);
-        return MapGenerator.Generate(seed, side, side, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
+        return MapGenerator.Generate(seed, side, side, regionSize: 5, DefaultCatalog, cost ?? DefaultCostWeights, [])
             .Value ?? throw new InvalidOperationException("gerador de mapa inicial falhou — bug no gerador, não no cenário");
     }
 

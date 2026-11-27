@@ -34,7 +34,7 @@ public class ProvisioningRealismTests
         bool topUp = false)
     {
         var world = new WorldState(
-            Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
+            Calendar, 1, ScenarioRunner.DefaultMap(1, ScenarioRunner.RegionalCostWeights), ScenarioRunner.DefaultPopulationCatalog, // AD-197o2: o mercado a horas de caminho é de mapa de região
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(),
             familyRules: topUp ? ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured } : ScenarioRunner.DefaultFamilyRules,
