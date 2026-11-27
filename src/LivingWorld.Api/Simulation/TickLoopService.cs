@@ -51,16 +51,25 @@ public sealed class TickLoopService(
         }
     }
 
+    /// <summary>#248: o ritmo é por PRAZO (<see cref="LoopPacer"/>), não "ciclo + espera": a espera de 1/tps depois de um ciclo que demora c ms
+    /// dava um período de 1/tps + c e o mundo andava mais devagar que o relógio real (o cliente, que prevê em tempo real, passava à frente
+    /// do corpo e era puxado de volta).</summary>
     private async Task RunLoopAsync(CancellationToken token)
     {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var pacer = new LoopPacer();
         while (!token.IsCancellationRequested)
         {
             RunOneCycle();
 
             // AD-197c: a velocidade do laço é a do ritmo em vigor (tempo real: 20 ticks por segundo; rápido: a do admin)
             double tps = simulationHost.IsPaused ? simulationHost.TicksPerSecond : simulationHost.LastPlan.TicksPerSecond;
-            double delaySeconds = 1.0 / Math.Max(tps, 0.01);
-            try { await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token); }
+            double delayMs = pacer.DelayMs(clock.Elapsed.TotalMilliseconds, tps);
+            try
+            {
+                if (delayMs > 0) await Task.Delay(TimeSpan.FromMilliseconds(delayMs), token);
+                else await Task.Yield(); // atrasado: o próximo ciclo já, sem prender a thread
+            }
             catch (OperationCanceledException) { }
         }
     }

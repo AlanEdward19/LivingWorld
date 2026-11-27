@@ -36,7 +36,7 @@ public sealed record PlayerCommandRecord(
     bool Refused = false, string? Reason = null, int? DeltaMs = null, long? Ticks = null, long? UntilMs = null,
     string? Interaction = null, string? Verb = null, int? ResourceId = null, long? Quantity = null,
     Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null, bool? Run = null);
+    CharacterSpec? Spec = null, bool? Run = null, int? Seq = null);
 
 /// <summary>Registro de sessões do hospedeiro (AD-196): quem encarnou, agiu, andou, golpeou e saiu, na ordem em que o mundo
 /// aplicou. Fica fora do snapshot e do hash (não é fato do mundo); reaplicar o registro a partir do snapshot do começo reproduz o
@@ -185,14 +185,14 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     }
 
     /// <summary>AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para): o motor anda o corpo pelo rumo anterior até agora.</summary>
-    public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy, bool run = false)
+    public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy, bool run = false, int seq = 0)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         EndSkipOnCommand(world, playerId);
-        var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy, run);
+        var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy, run, seq);
         if (result.IsSuccess)
-            Record(world, playerId, PlayerCommandKind.Walk, npc.Id.Value, new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Walk, Dx: dx, Dy: dy, Run: run ? true : null));
+            Record(world, playerId, PlayerCommandKind.Walk, npc.Id.Value, new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Walk, Dx: dx, Dy: dy, Run: run ? true : null, Seq: seq > 0 ? seq : null));
         return result;
     }
 
@@ -343,7 +343,7 @@ public static class PlayerReplay
                 PlayerCommandKind.Sleep => service.Sleep(world, record.PlayerId, record.UntilMs).IsSuccess,
                 PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
-                PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true).IsSuccess,
+                PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true, record.Seq ?? 0).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Interrupt => service.Interrupt(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,

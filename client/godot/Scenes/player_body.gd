@@ -15,6 +15,8 @@ const STEP_HEIGHT := 0.3 ## altura (mundo) até a qual um obstáculo é degrau e
 const SNAP_DISTANCE := 2.0 ## células: erro maior que isto vira salto (teleporte do motor, erro grande)
 const LEAD_ALLOWANCE := 0.35 ## s de dianteira sobre o motor que são latência normal, não erro
 const CONVERGE_RATE := 10.0 ## 1/s: quão rápido o erro fora da tolerância é absorvido
+const CHUNK := 0.25 ## #248: células por trecho do passo (o mesmo do motor: PlayerWalk.Advance)
+const DEADBAND := 0.01 ## #248: células de erro que não vale corrigir
 
 var pos := Vector2.INF
 var velocity := Vector2.ZERO
@@ -23,6 +25,10 @@ var step_height := STEP_HEIGHT
 var walls: Array[Rect2] = [] ## paredes sólidas (células, absolutas) da vizinhança
 var people: Array[Vector2] = [] ## quem está ao redor (posição fina), sem o próprio corpo
 var _correction := Vector2.ZERO ## erro pendente a absorver aos poucos
+## #248: com a máscara do motor (`GroundGrid`) o passo segue as MESMAS regras do motor (parede, porta, canto, borda e célula cheia de gente),
+## sem aceleração própria nem paredes finas: o corpo anda onde o motor anda e a reconciliação é só latência. Sem máscara, o controle antigo.
+var ground = null
+var crowd := {} ## Vector2i (célula) -> quantas pessoas, ao redor
 
 
 ## Troca a vizinhança: `obstacles` = [[Rect2, topo]]; o que não passa de step_height é degrau e não bloqueia.
@@ -32,8 +38,11 @@ func set_neighborhood(obstacles: Array, around: Array) -> void:
 		if float(entry[1]) > step_height:
 			walls.append(entry[0])
 	people.clear()
+	crowd.clear()
 	for p in around:
 		people.append(p)
+		var cell := Vector2i(floori(p.x), floori(p.y))
+		crowd[cell] = int(crowd.get(cell, 0)) + 1
 
 
 func place(at: Vector2) -> void:
@@ -55,6 +64,8 @@ func stop() -> void:
 func advance(direction: Vector2, speed: float, delta: float) -> Vector2:
 	if pos == Vector2.INF or delta <= 0.0:
 		return pos
+	if ground != null and ground.is_valid():
+		return _advance_on_ground(direction, speed, delta)
 	var rate: float
 	if direction == Vector2.ZERO:
 		rate = maxf(velocity.length(), 0.5) / BRAKE_TIME
@@ -141,3 +152,73 @@ func reconcile(server: Vector2) -> void:
 		var lead := speed * LEAD_ALLOWANCE
 		error -= forward * clampf(along, -lead, 0.0)
 	_correction = error
+
+
+## #248: um quadro pelas regras do motor: velocidade cheia no rumo (o motor não acelera), passo por trechos, a máscara decide cada troca de célula.
+func _advance_on_ground(direction: Vector2, speed: float, delta: float) -> Vector2:
+	var nudge := _correction * (1.0 - exp(-CONVERGE_RATE * delta))
+	_correction -= nudge
+	var start := pos
+	if direction != Vector2.ZERO and speed > 0.0:
+		pos = walk_through(pos, direction, speed * delta)
+	velocity = (pos - start) / delta
+	if nudge.length_squared() > 0.0:
+		pos = walk_through(pos, nudge.normalized(), nudge.length())
+	return pos
+
+
+## #248: anda `distance` células de `from` no rumo unitário `heading`, como o motor: trechos de no máximo CHUNK; em cada um tenta o passo
+## inteiro e, barrado, desliza pelo eixo livre; barrado nos dois, para onde está. Pura (não mexe no corpo).
+func walk_through(from: Vector2, heading: Vector2, distance: float) -> Vector2:
+	var at := from
+	var walked := 0.0
+	while walked < distance - 0.000001:
+		var chunk := minf(CHUNK, distance - walked)
+		var target := Vector2(at.x + chunk * heading.x, at.y + chunk * heading.y)
+		var next := _try_enter(at, target)
+		if next == Vector2.INF:
+			next = _try_enter(at, Vector2(target.x, at.y))
+		if next == Vector2.INF:
+			next = _try_enter(at, Vector2(at.x, target.y))
+		if next == Vector2.INF:
+			break
+		at = next
+		walked += chunk
+	return at
+
+
+## Vai a `to` se a célula de lá é a mesma ou se o chão (e a célula cheia) deixa passar; senão INF.
+func _try_enter(from: Vector2, to: Vector2) -> Vector2:
+	if to == from:
+		return Vector2.INF
+	var a := Vector2i(floori(from.x), floori(from.y))
+	var b := Vector2i(floori(to.x), floori(to.y))
+	if a != b:
+		if not ground.can_step(a, b):
+			return Vector2.INF
+		var here := int(crowd.get(b, 0))
+		if here > 0 and here >= ground.crowd_limit:
+			return Vector2.INF
+	return to
+
+
+## #248: onde o motor estará depois de `segments` ([[rumo unitário, células/s, segundos], ...]) partindo de `from`, pela mesma regra do chão.
+func replay(from: Vector2, segments: Array) -> Vector2:
+	var at := from
+	if ground == null or not ground.is_valid():
+		return at
+	for segment in segments:
+		var heading: Vector2 = segment[0]
+		if heading != Vector2.ZERO and float(segment[2]) > 0.0:
+			at = walk_through(at, heading, float(segment[1]) * float(segment[2]))
+	return at
+
+
+## #248: `target` é onde o motor deve estar AGORA (pose dele mais o que ele ainda não viu, reaplicado): o corpo converge a isso aos poucos;
+## erro grande salta (teleporte do motor).
+func reconcile_to(target: Vector2) -> void:
+	if pos == Vector2.INF or pos.distance_to(target) > SNAP_DISTANCE:
+		place(target)
+		return
+	var error := target - pos
+	_correction = error if error.length() > DEADBAND else Vector2.ZERO

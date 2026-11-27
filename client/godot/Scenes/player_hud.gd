@@ -6,6 +6,7 @@ const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const PlayerBody := preload("res://Scenes/player_body.gd")
 const CombatView := preload("res://Scenes/combat_view.gd")
 const BodyBusy := preload("res://Scenes/body_busy.gd")
+const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
 signal warning(text: String)
@@ -435,6 +436,9 @@ func _became(id: int, name: String) -> void:
 	npc_name = name
 	_reset_combat()
 	is_active = true
+	ground = null # #248: o chão é o do corpo novo
+	body.ground = null
+	_inputs.clear()
 	current_action = ""
 	visible = true
 	_title.text = "Você é %s" % name
@@ -699,7 +703,14 @@ func _refresh_body(delta: float) -> void:
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
-const WALK_SEND := 0.1 ## s entre rumos enviados com a tecla segurada (o motor anda o corpo pelo tempo de mundo entre eles)
+## #248: o motor anda o corpo a cada tick pelo rumo mantido; o cliente só renova o rumo (WALK_SEND é o "ainda estou aqui") e o manda NA HORA
+## que muda. Cada comando tem número; a pose do motor devolve o último aplicado e o cliente reaplica o que o motor ainda não viu.
+const WALK_SEND := 0.1 ## s entre rumos renovados com a tecla segurada (o motor para se ficar ~1 s sem notícia)
+const TURN_SEND := 0.03 ## rad: mudança de rumo que vale mandar já
+const GROUND_RADIUS := 8 ## células de cada lado da janela de chão pedida ao motor
+const GROUND_EDGE := 3 ## pede outra janela quando o corpo chega a esta distância da borda
+const GROUND_MIN_GAP := 0.4 ## s entre pedidos de janela
+const MAX_OWD_MS := 400.0 ## teto da meia ida e volta usada na reaplicação
 var _blocked := false
 var _last_server := Vector2.INF
 var _last_server_at := 0
@@ -714,6 +725,15 @@ var speed_cells := 0.0 ## células por segundo real (m/s do motor / metros por c
 var _walk_dir := Vector2.ZERO
 var _walk_clock := 0.0
 var _walk_busy := false
+var ground = null ## #248: a máscara de passos que o motor deu (GroundGrid); nula até a primeira resposta
+var _ground_busy := false
+var _ground_clock := 0.0
+var _cell_meters := 1.5
+var _walk_seq := 0 ## #248: número do último comando de andar mandado
+var _inputs: Array = [] ## #248: os últimos comandos de andar: {seq, dir, at (ms)}
+## #248: medida do passo: quadros, puxões (um quadro que desloca o corpo mais de 0,3 m além do passo), o que a correção absorveu e saltos
+var walk_stats := {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}
+var _back_run := 0.0
 
 
 func walk_direction(keys: Vector2i) -> Vector2:
@@ -727,18 +747,23 @@ func walk_direction(keys: Vector2i) -> Vector2:
 const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cartão
 
 
-## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
+## Anda a tela já (previsão) e renova o rumo ao motor: na hora se mudou, a cada WALK_SEND se segura, uma vez ao parar.
 func glide(direction: Vector2, delta: float) -> void:
 	if busy.active():
 		direction = Vector2.ZERO # #241: ocupado, o corpo não anda (o motor recusaria); não manda passo
 	var run_now := Input.is_key_pressed(KEY_SHIFT) and running
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
+	if fine != Vector2.INF:
+		_ensure_ground(delta)
 	if fine != Vector2.INF and (speed_cells > 0.0 or body.settling()):
 		if body.pos != fine:
 			body.place(fine) # a posição fina foi posta de fora (ex.: o app): o corpo parte dela
 		_refresh_neighborhood(delta)
-		body.advance(Vector2.ZERO if _blocked else direction, speed_cells, delta)
+		var before := body.pos
+		var on_ground: bool = body.ground != null and body.ground.is_valid()
+		body.advance(Vector2.ZERO if (_blocked and not on_ground) else direction, speed_cells, delta)
+		_note_frame(before, body.pos, delta, direction)
 		if body.pos != fine:
 			fine = body.pos
 			glided.emit(fine)
@@ -746,12 +771,73 @@ func glide(direction: Vector2, delta: float) -> void:
 		frame.set_motion(("Correndo" if run_now else "Andando") if body.velocity.length() > MOVING_SPEED else "")
 	_walk_clock += delta
 	var run := direction != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT)
-	var changed := direction != _walk_dir or run != _walk_run
+	var changed := _turned(direction) or run != _walk_run
 	if (changed or (direction != Vector2.ZERO and _walk_clock >= WALK_SEND)) and not _walk_busy:
 		_walk_clock = 0.0
 		_walk_dir = direction
 		_walk_run = run
 		send_walk(direction, run)
+
+
+## #248: o relógio (ms) das respostas e dos comandos; os testes põem um relógio simulado.
+var clock: Callable = Callable()
+
+
+func _now() -> int:
+	return int(clock.call()) if clock.is_valid() else Time.get_ticks_msec()
+
+
+## #248: o rumo mudou o bastante para valer mandar já (parar e arrancar sempre valem)?
+func _turned(direction: Vector2) -> bool:
+	if (direction == Vector2.ZERO) != (_walk_dir == Vector2.ZERO):
+		return true
+	return direction != Vector2.ZERO and absf(direction.angle_to(_walk_dir)) > TURN_SEND
+
+
+## #248: mede o quadro: puxão = deslocamento do corpo na tela maior que o passo previsto mais 0,3 m (correção que se vê, ou salto).
+func _note_frame(before: Vector2, after: Vector2, delta: float, direction: Vector2) -> void:
+	var walking := direction != Vector2.ZERO
+	walk_stats.frames += 1
+	var cell_m := maxf(float(_cell_meters), 0.01)
+	var allowed := (speed_cells * delta * 1.1 if walking else 0.0) + 0.002
+	var excess_m := maxf(after.distance_to(before) - allowed, 0.0) * cell_m
+	walk_stats.worst_m = maxf(float(walk_stats.worst_m), excess_m)
+	if excess_m > 0.3:
+		walk_stats.pulls += 1
+		walk_stats.pull_m += excess_m
+	var along := (after - before).dot(direction) if walking else 0.0 # recuo: o corpo anda contra o rumo que o jogador segura
+	if along < -0.0005:
+		_back_run += -along
+		walk_stats.back_m += -along * cell_m
+	elif _back_run > 0.0 and along > 0.0005:
+		if _back_run * cell_m > 0.1:
+			walk_stats.back_events += 1
+		_back_run = 0.0
+
+
+## #248: pede a janela de chão ao motor quando falta, o corpo chega perto da borda ou o andar/prédio mudou.
+func _ensure_ground(delta: float) -> void:
+	_ground_clock += delta
+	if _ground_busy or not is_active or _ground_clock < GROUND_MIN_GAP:
+		return
+	var cell := Vector2i(floori(fine.x), floori(fine.y))
+	if ground != null and ground.is_valid() and ground.covers(cell, GROUND_EDGE) and ground.floor_level == floor_level and ground.building_id == building_id:
+		return
+	_ground_clock = 0.0
+	_fetch_ground()
+
+
+func _fetch_ground() -> void:
+	_ground_busy = true
+	var response: Dictionary = await api.player_ground(player_id, GROUND_RADIUS)
+	_ground_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var grid = GroundGrid.from_body(response.body)
+		if grid.is_valid():
+			ground = grid
+			body.ground = grid
 
 
 ## #229: a vizinhança do corpo (paredes e gente por perto) só é relida a cada NEIGHBORHOOD_EVERY s ou ao mudar de célula.
@@ -775,19 +861,24 @@ var running := false ## #222: o motor disse que o corpo está correndo (Shift); 
 ## #227: pergunta ao motor a pose agora (parado): é ela que diz se o corpo está num prédio (o app pede quando o desenho sugere que sim).
 func sync_pose() -> void:
 	if is_active and not _walk_busy:
-		send_walk(Vector2.ZERO)
+		send_walk(_walk_dir, _walk_run) # #248: pergunta a pose sem mudar o rumo que o corpo segue
 
 
 func send_walk(direction: Vector2, run: bool = false) -> void:
 	_walk_busy = true
 	var started := Time.get_ticks_usec()
-	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0), run)
+	_walk_seq += 1
+	var seq := _walk_seq
+	_inputs.append({"seq": seq, "dir": direction, "at": _now()})
+	while _inputs.size() > 32:
+		_inputs.pop_front()
+	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0), run, seq)
 	_note_latency(started)
 	_walk_busy = false
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
-		apply_pose(response.body)
+		apply_pose(response.body, true)
 		running = bool(response.body.get("running", false))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
@@ -920,7 +1011,7 @@ const DOUBLE_TAP_MS := 260
 
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
-func apply_pose(pose: Dictionary) -> void:
+func apply_pose(pose: Dictionary, from_walk: bool = false) -> void:
 	note_combat(pose)
 	_note_busy(pose)
 	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
@@ -930,24 +1021,64 @@ func apply_pose(pose: Dictionary) -> void:
 		frame.set_ground(pose.get("ground")) # #238: o chão sob o corpo e o que atrasa o passo, como o motor diz
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
-		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
-		# #229: só vale com duas respostas paradas seguidas (a aceleração suave não é recusa)
-		var now := Time.get_ticks_msec()
-		if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
-			var expected := speed_cells * float(now - _last_server_at) / 1000.0
-			var still := expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
-			_still_responses = _still_responses + 1 if still else 0
-			if _still_responses >= 2 and not _blocked:
-				_blocked = true
-				body.stop()
+		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		_cell_meters = float(pose.get("cellMeters", 1.5))
+		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(_cell_meters, 0.01) * scale
+		var on_ground: bool = body.ground != null and body.ground.is_valid()
+		var now := _now()
+		if body.pos != Vector2.INF and from_walk:
+			var gap_m := body.pos.distance_to(server) * _cell_meters # medida: o quanto o corpo na tela estava longe da pose crua do motor
+			walk_stats.gap_worst_m = maxf(float(walk_stats.gap_worst_m), gap_m)
+			walk_stats.gap_mean_m += (gap_m - float(walk_stats.gap_mean_m)) / float(walk_stats.replies + 1)
+		walk_stats.replies += 1
+		if on_ground:
+			# #248: o motor anda o corpo sozinho pelo rumo mantido; a pose dele (mais o que ele ainda não viu, reaplicado com as mesmas regras de
+			# chão) diz onde ele está agora, e o corpo converge aí. Resposta de outro comando (não de andar) só vale se o corpo está parado.
+			if from_walk:
+				var before_pos := body.pos
+				body.reconcile_to(_engine_now(server, int(pose.get("seq", 0)), now))
+				if body.pos != before_pos:
+					walk_stats.snaps += 1
+			elif body.pos == Vector2.INF or (_walk_dir == Vector2.ZERO and body.velocity == Vector2.ZERO):
+				body.reconcile_to(server)
+		else:
+			# o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
+			# #229: só vale com duas respostas paradas seguidas (a aceleração suave não é recusa)
+			if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
+				var expected := speed_cells * float(now - _last_server_at) / 1000.0
+				var still := expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
+				_still_responses = _still_responses + 1 if still else 0
+				if _still_responses >= 2 and not _blocked:
+					_blocked = true
+					body.stop()
+			body.reconcile(server)
 		_last_server = server
 		_last_server_at = now
-		# #229: a posição do motor manda, mas o corpo converge a ela aos poucos (latência é tolerada; erro grande salta)
-		body.reconcile(server)
 		fine = body.pos
-		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
-		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(float(pose.get("cellMeters", 1.5)), 0.01) * scale
 		settled.emit(fine)
+
+
+## #248: onde o motor está AGORA: a pose dele (do instante em que aplicou o comando `acked`, a meia ida e volta atrás) andada pelo rumo desse
+## comando até o próximo que ele ainda não viu, e assim por diante até agora. Sem o comando na lista, a pose crua.
+func _engine_now(server: Vector2, acked: int, now: int) -> Vector2:
+	var entry: Dictionary = {}
+	for input in _inputs:
+		if int(input.seq) == acked:
+			entry = input
+	if entry.is_empty():
+		return server
+	var owd := clampf(float(now - int(entry.at)) * 0.5, 0.0, MAX_OWD_MS)
+	var t := float(now) - owd
+	var heading: Vector2 = entry.dir
+	var segments: Array = []
+	for later in _inputs:
+		if int(later.seq) > acked:
+			var applies := maxf(t, float(later.at) + owd)
+			segments.append([heading, speed_cells, (applies - t) / 1000.0])
+			t = applies
+			heading = later.dir
+	segments.append([heading, speed_cells, maxf(float(now) - t, 0.0) / 1000.0])
+	return body.replay(server, segments)
 
 
 func _unhandled_input(event: InputEvent) -> void:

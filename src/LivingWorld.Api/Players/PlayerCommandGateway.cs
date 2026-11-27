@@ -15,7 +15,7 @@ public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = 
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
     long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null, bool Run = false);
+    CharacterSpec? Spec = null, bool Run = false, int Seq = 0);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -24,14 +24,17 @@ public sealed record PlayerTimeView(
     string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
     string? LastWakeReason);
 
-/// <summary>A pose do corpo do jogador na resposta de um comando. <c>AirMs</c> (ms no ar) só na resposta do pulo (AD-197u).</summary>
+/// <summary>A pose do corpo do jogador na resposta de um comando. <c>AirMs</c> (ms no ar) só na resposta do pulo (AD-197u). #248: <c>Seq</c> é o
+/// último número de comando de andar aplicado e <c>AtMs</c> o instante de mundo da pose.</summary>
 public sealed record PlayerPose(
     string PlayerId, long NpcId, int X, int Y, long? BuildingId, int Floor, long ReadyInMs, double Fx, double Fy, double SpeedMps,
     double CellMeters, bool Running,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CombatView? Combat = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.WalkDrag? Ground = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.BusyView? Busy = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.BusyView? Busy = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int Seq = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] long AtMs = 0);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -117,7 +120,7 @@ public sealed partial class PlayerCommandGateway(
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
-                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy, command.Run), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy, command.Run, command.Seq), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Jump => Map(players.Jump(world, playerId), air => PoseOf(world, playerId, air)),
                 PlayerCommandKind.Interrupt => Map(players.Interrupt(world, playerId), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
@@ -262,7 +265,9 @@ public sealed partial class PlayerCommandGateway(
             WalkGround(world, npc),
             LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is { } busy
                 ? busy with { Accelerated = players.Skip is { Task: true } skip && skip.PlayerId == playerId }
-                : null);
+                : null,
+            npc.Fine?.Seq ?? 0, // #248: o último número de comando de andar que o motor aplicou; o cliente reaplica os seguintes
+            world.CurrentDate.TotalMilliseconds); // #248: o instante de mundo (ms) desta pose
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>
@@ -326,6 +331,31 @@ public sealed partial class PlayerCommandGateway(
                 trees = LivingWorld.Simulation.Players.PlayerNature.Touched(world)
                     .Select(t => new { x = t.Cell.X, y = t.Cell.Y, left = t.Left, capacity = t.Capacity, stage = LivingWorld.Simulation.Players.PlayerNature.StageOf(t.Left, t.Capacity) })
                     .ToList(),
+            };
+        }
+    }
+
+    /// <summary>#248: a máscara de passos ao redor do corpo (a regra do chão do motor: parede, porta, soleira, canto, entre prédios, borda) e
+    /// quantas pessoas a célula comporta: o cliente prevê o passo consultando isto, sem regra própria. <c>x</c>/<c>y</c> é a célula do canto
+    /// de cima à esquerda; <c>mask</c>, <c>size</c>×<c>size</c> linha a linha, um bit por vizinha (<c>(dy+1)*3+(dx+1)</c>). Nulo sem corpo.</summary>
+    public object? Ground(string playerId, int radius)
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            if (PlayerCommands.ControlledBy(world, playerId) is not { } npc) return null;
+            radius = Math.Clamp(radius, 2, 12);
+            var at = PlayerGround.PoseOf(world, npc);
+            int floor = PlayerGround.FloorOf(npc);
+            return new
+            {
+                x = at.X - radius,
+                y = at.Y - radius,
+                size = 2 * radius + 1,
+                floor,
+                buildingId = PlayerGround.InsideBuilding(world, npc),
+                crowdLimit = world.Players.CellCrowd,
+                mask = PlayerGround.Mask(world, floor, npc.Interior?.Building, at, radius),
             };
         }
     }

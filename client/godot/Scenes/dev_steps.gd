@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -502,6 +502,43 @@ static func run(app: Node, steps: Array) -> void:
 				w_release.pressed = false
 				Input.parse_input_event(w_release)
 				print("walkto: fine=", app.player_hud.fine, " em ", snappedf(spent, 0.1), " s")
+			"walkstats": # #248: imprime a medida do passo (puxões > 0,3 m, saltos, pior deslocamento extra); `walkstats:reset` zera
+				if arg == "reset":
+					app.player_hud.walk_stats = {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}
+				print("walkstats: ", app.player_hud.walk_stats, " fine=", app.player_hud.fine)
+			"walkloop": # #248: `walkloop:S` anda S s com W segurado, virando o olhar a cada ~2,5 s (reta, curva, parada) e imprime a medida
+				var span := float(arg) if arg != "" else 30.0
+				app.player_hud.walk_stats = {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}
+				var loop_press := InputEventKey.new()
+				loop_press.keycode = KEY_W
+				loop_press.physical_keycode = KEY_W
+				loop_press.pressed = true
+				var turns := RandomNumberGenerator.new()
+				turns.seed = 248
+				var spent2 := 0.0
+				var next_turn := 0.0
+				var held := false
+				while spent2 < span:
+					if spent2 >= next_turn:
+						next_turn = spent2 + turns.randf_range(1.5, 3.5)
+						if turns.randf() < 0.18 and held: # pára um instante
+							var up: InputEventKey = loop_press.duplicate()
+							up.pressed = false
+							Input.parse_input_event(up)
+							held = false
+							next_turn = spent2 + 0.6
+						else:
+							app.rig.yaw += deg_to_rad(turns.randf_range(-80.0, 80.0))
+							app.rig.view_yaw = app.rig.yaw
+							if not held:
+								Input.parse_input_event(loop_press)
+								held = true
+					await app.get_tree().create_timer(0.1).timeout
+					spent2 += 0.1
+				var loop_release: InputEventKey = loop_press.duplicate()
+				loop_release.pressed = false
+				Input.parse_input_event(loop_release)
+				print("walkloop: ", span, " s ", app.player_hud.walk_stats, " fine=", app.player_hud.fine)
 			"busy": # #241: só captura: `busy:gather,60` finge a pose do motor com a ação em andamento (60 s, 40% feitos), para ver a barra, o gesto e o bloqueio do WASD
 				var seconds := float(arg.get_slice(",", 1)) if "," in arg else 60.0
 				var scale: float = float(app.player_hud.time_view.get("timeScale", 1.0)) if app.player_hud.time_view.get("timeScale") != null else 1.0

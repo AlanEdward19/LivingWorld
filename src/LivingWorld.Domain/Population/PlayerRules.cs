@@ -101,6 +101,10 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? WalkHoldMs { get; init; }
 
+    /// <summary>#248: quanto tempo REAL (ms) o corpo segue o rumo sem notícia do cliente antes de parar (o cliente manda a cada ~100 ms; sumiu, para).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? WalkIdleStopMs { get; init; }
+
     // --- AD-197u: multidão na célula, correr e pular. Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
 
     /// <summary>AD-197u: quantas pessoas cabem numa célula de 1,5 m (2,25 m²) antes de ela barrar o passo de mais uma.</summary>
@@ -169,6 +173,8 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? LivingWorld.Domain.Geography.WorldScale.ReferenceWalkMps;
     [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? LivingWorld.Domain.Geography.WorldScale.CellMeters;
     [System.Text.Json.Serialization.JsonIgnore] public int WalkHold => WalkHoldMs ?? 300;
+    /// <summary>#248: o prazo sem comando, em ms de MUNDO (o tempo real do prazo vezes a escala do relógio).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public long WalkIdleStop => (long)Math.Round((WalkIdleStopMs ?? 1000) * Math.Max(1.0, Time.TimeScale));
 
     [System.Text.Json.Serialization.JsonIgnore] public bool PaceOn => BodyPace ?? true;
     [System.Text.Json.Serialization.JsonIgnore] public double StepSleep => StepSleepPerHour ?? 3.0;
