@@ -133,7 +133,7 @@ public static class PlayerChannelEndpoints
         // #240: pausa de popup ({"command":"hold","on":true}, renovada pelo cliente): honrada só para o único conectado; vence em 30 s sem renovar
         if (command == "hold")
         {
-            bool held = gateway.Hold.Set(playerId, node?["on"]?.GetValue<bool>() ?? false);
+            bool held = gateway.SetHold(playerId, node?["on"]?.GetValue<bool>() ?? false);
             return new JsonObject
             {
                 ["seq"] = seq,

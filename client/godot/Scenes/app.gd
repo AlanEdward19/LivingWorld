@@ -126,6 +126,20 @@ func _ready() -> void:
 	var steps := DevSteps.parse(OS.get_cmdline_user_args())
 	if not steps.is_empty() and not MenuSteps.is_menu(steps): # roteiro do menu roda o resto ele mesmo
 		await DevSteps.run(self, steps)
+	elif steps.is_empty():
+		await start_clock_on_entry()
+
+
+## #237: entrar num mundo (Continuar ou Mundos salvos) deixa o tempo andando, como no mundo novo: o servidor abre o mundo salvo
+## pausado, então quem tem o relógio solta aqui; quem não tem vê por que está parado e como soltar.
+func start_clock_on_entry() -> void:
+	if clock_panel == null or not bool(clock_panel.status.get("isPaused", false)) or clock_panel.status.get("pausedBy") != null:
+		return # rodando, ou parado de propósito por um operador (a faixa do topo diz quem e por quê)
+	if clock_panel.can_control:
+		await clock_panel.command("resume")
+		toasts.push("O tempo está correndo.")
+	else:
+		toasts.push("O mundo está parado. " + AppUi.NO_ADMIN)
 
 
 ## `p_transport`: HttpTransport em produção, FakeTransport nos testes.

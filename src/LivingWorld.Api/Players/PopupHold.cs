@@ -34,6 +34,12 @@ public sealed class PopupHold(TimeProvider clock)
         get { lock (_gate) return _sockets.Count; }
     }
 
+    /// <summary>Solta todo hold (troca de mundo).</summary>
+    public void Clear()
+    {
+        lock (_gate) _expires.Clear();
+    }
+
     /// <summary>Liga (ou renova) / solta o hold de <paramref name="playerId"/>. Devolve se o servidor o honra agora: só o único conectado.</summary>
     public bool Set(string playerId, bool on)
     {

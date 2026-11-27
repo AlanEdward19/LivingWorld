@@ -165,6 +165,26 @@ func test_hold_is_requested_on_open_and_released_on_close_only_with_a_channel() 
 	hold.queue_free()
 
 
+func test_hold_is_released_when_the_app_leaves_the_tree_so_it_never_outlives_the_world() -> void:
+	# #237: voltar ao menu / trocar de mundo com popup aberto não deixa o hold preso
+	var transport := FakeTransport.new()
+	transport.channel_replier = func(command: Dictionary) -> Dictionary:
+		return {"seq": command.seq, "ok": true, "status": 200, "body": {"held": command.on}}
+	var api := ApiClient.new(transport)
+	api.player_token = "tok"
+	api.open_player_channel()
+	var modal := Modal.new()
+	var hold := PopupHold.new()
+	hold.api = api
+	hold.bind(modal)
+	tree.root.add_child(hold)
+	modal.open("pausa")
+	await tree.process_frame
+	hold.free() # o app inteiro sai da árvore com o popup aberto
+	var sent: Array = api.player_channel.sent.map(func(c): return c.on)
+	eq(sent, [true, false], "ao sair da árvore o hold é solto")
+
+
 func test_the_app_hides_crosshair_ring_prompt_and_asks_for_the_hold_then_restores() -> void:
 	var transport := FakeTransport.new()
 	transport.channel_replier = func(command: Dictionary) -> Dictionary:
