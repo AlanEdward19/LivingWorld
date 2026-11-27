@@ -138,3 +138,38 @@ func test_the_hud_predicts_with_the_body_and_stops_at_nearby_walls() -> void:
 	hud.apply_pose({"fx": 6.0, "fy": 5.5, "speedMps": 1.4, "cellMeters": 1.5})
 	check(hud.fine.distance_to(Vector2(6.0, 5.5)) < 1.0, "a pose do motor converge, sem teleporte")
 	hud.free()
+
+
+## #226: o `solid` do prédio no mundo são painéis finos do contorno (não células inteiras) e a porta continua passável.
+func test_a_world_building_solid_is_thin_panels_and_the_door_passes() -> void:
+	var WorldView := preload("res://Scenes/world_view.gd")
+	var view := WorldView.new()
+	var footprint: Array = []
+	for y in 4:
+		for x in 4:
+			var material := 3
+			if x == 0 or y == 0 or x == 3 or y == 3:
+				material = 1
+			if x == 1 and y == 3:
+				material = 2
+			footprint.append({"cell": Vector2i(x, y), "material": material})
+	var node: Node3D = view._make_building({"id": 1, "type": -1, "cell": Vector2i(20, 20), "floors": 1, "orientation": 0, "footprint": footprint})
+	var solid: Array = node.get_meta("solid")
+	check(not solid.is_empty(), "há paredes sólidas")
+	var covered := 0.0
+	var obstacles: Array = []
+	for wall: AABB in solid:
+		check(minf(wall.size.x, wall.size.z) < 0.3, "painel fino (%s)" % wall.size)
+		covered += wall.size.x * wall.size.z
+		obstacles.append([Rect2(wall.position.x, wall.position.z, wall.size.x, wall.size.z), wall.size.y])
+	check(covered < 16.0 * 0.4, "o contorno ocupa menos de 40%% da planta de 4x4 (%s)" % covered)
+	var body := _body(Vector2(21.5, 23.5)) # dentro, junto da porta (célula 1,3)
+	body.set_neighborhood(obstacles, [])
+	for i in 120:
+		body.advance(Vector2.DOWN, 2.0, DT)
+	check(body.pos.y > 24.5, "sai pela porta, que não é parede (y=%s)" % body.pos.y)
+	body.place(Vector2(22.5, 23.5))
+	for i in 120:
+		body.advance(Vector2.DOWN, 2.0, DT)
+	check(body.pos.y < 24.0, "ao lado da porta o painel segura (y=%s)" % body.pos.y)
+	view.free()
