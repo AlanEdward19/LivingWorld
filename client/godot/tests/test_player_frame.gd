@@ -259,8 +259,8 @@ func test_the_admin_possesses_fully_and_others_incarnate() -> void:
 
 ## #233: a dica da mira diz o verbo (com ícone) e o alvo; a roda põe as fatias em círculo, a primeira no alto.
 func test_the_prompt_says_verb_and_target_and_the_wheel_is_a_circle() -> void:
-	eq(PlayerFrame.prompt_text("Caio: Conversar"), "💬 Conversar · Caio")
-	eq(PlayerFrame.prompt_text("Banca: Comprar comida (4)"), "🛒 Comprar comida (4) · Banca")
+	eq(PlayerFrame.prompt_text("Caio: Conversar"), "Conversar · Caio")
+	eq(PlayerFrame.prompt_text("Banca: Comprar comida (4)"), "Comprar comida (4) · Banca")
 	eq(PlayerFrame.prompt_text("Mesa"), "Mesa", "sem alvo e verbo, a linha do motor como veio")
 	var first := PlayerFrame.wheel_offset(0, 4)
 	check(absf(first.x) < 0.01 and first.y < 0.0, "a primeira fatia fica no alto")
@@ -269,6 +269,50 @@ func test_the_prompt_says_verb_and_target_and_the_wheel_is_a_circle() -> void:
 	for i in 6:
 		seen[PlayerFrame.wheel_offset(i, 6)] = true
 	eq(seen.size(), 6, "nenhuma fatia sobre a outra")
+
+
+## #228: de 1 a 8 entradas os botões da roda não se cobrem, nem o título nem a mira (o centro fica limpo).
+func test_the_wheel_buttons_never_overlap_for_one_to_eight_entries() -> void:
+	for n in range(1, 9):
+		var rects := PlayerFrame.wheel_rects(n)
+		for i in rects.size():
+			check(not rects[i].has_point(Vector2.ZERO) and not rects[i].grow(PlayerFrame.WHEEL_AIM_CLEAR).has_point(Vector2.ZERO), "centro livre (%d entradas, fatia %d)" % [n, i])
+			for j in range(i + 1, rects.size()):
+				check(not rects[i].intersects(rects[j]), "fatias %d e %d sem cobrir (%d entradas)" % [i, j, n])
+		var frame := PlayerFrame.new()
+		var list: Array = []
+		for i in n:
+			list.append({"text": "Alvo %d: Trabalhar Lavoura" % i, "verb": "work", "kind": "thing", "id": i})
+		frame.show_menu(list)
+		var title: Label = frame.menu_box.get_child(0)
+		var title_rect := Rect2(title.position, title.size)
+		for rect in rects:
+			check(not title_rect.intersects(rect), "o título não cobre botão (%d entradas)" % n)
+		check(not title_rect.has_point(Vector2.ZERO), "o título fica fora da mira (%d entradas)" % n)
+		frame.free()
+
+
+## #228: o cartão diz "Andando"/"Correndo" enquanto o corpo se move pela previsão, e volta à ação do motor ao parar.
+func test_the_card_says_walking_while_the_body_moves_and_the_engine_action_when_still() -> void:
+	var frame := PlayerFrame.new()
+	frame.set_body("Ana", "Parado", {})
+	eq(frame.action_label.text, "Parado")
+	frame.set_motion("Andando")
+	eq(frame.action_label.text, "Andando")
+	frame.set_body("Ana", "Parado", {}) # a ficha do motor chega andando: o cartão segue dizendo o movimento
+	eq(frame.action_label.text, "Andando")
+	frame.set_motion("Correndo")
+	eq(frame.action_label.text, "Correndo")
+	frame.set_motion("")
+	eq(frame.action_label.text, "Parado", "parou: volta à ação do motor")
+	frame.free()
+
+
+## #228: nenhum emoji sem glifo na fonte da roda e do prompt (aparecia um quadrado).
+func test_the_prompt_and_the_wheel_use_no_emoji() -> void:
+	for line in ["Caio: Conversar", "Banca: Comprar comida (5)", "Campo: Trabalhar Lavoura", "Porta: Entrar"]:
+		for ch in PlayerFrame.prompt_text(line):
+			check(ch.unicode_at(0) < 0x2000, "só letras e pontuação comum (%s)" % line)
 
 
 ## #233: toque em E faz a ação principal (a primeira linha do motor), sem abrir roda; segurar abre a roda.

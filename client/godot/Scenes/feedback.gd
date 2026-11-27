@@ -16,8 +16,8 @@ const STRONG_AIR_S := 0.55 ## pulo mais longo que isto estremece a câmera no po
 const FULL_DB_M := 2.0 ## até aqui, volume cheio; depois cai 6 dB a cada dobro da distância
 const SILENT_M := 24.0
 const SOUND_BY_VERB := {"enter": "door", "exit": "door", "buy": "coin", "sell": "coin", "eat": "eat", "drink": "drink"}
-const SHEET_KEYS := [["health", "♥", "saúde", Color("e8665a")], ["hunger", "🍞", "comida", Color("e0a43a")],
-	["thirst", "💧", "água", Color("4aa3df")], ["sleep", "☾", "sono", Color("9b7fd1")]]
+const SHEET_KEYS := [["health", "", "saúde", Color("e8665a")], ["hunger", "", "comida", Color("e0a43a")],
+	["thirst", "", "água", Color("4aa3df")], ["sleep", "", "sono", Color("9b7fd1")]]
 const MIN_DELTA := 1.0 ## diferenças menores que isto são ruído da ficha, não retorno
 
 var settings ## GameSettings (nulo nos testes): volume dos efeitos
@@ -176,7 +176,7 @@ func on_struck_hit(target: int) -> void:
 	play("hit", at)
 	puff(at + Vector3(0, 0.6, 0), 1.0)
 	shake_cb.call(0.3)
-	_float("💥 golpe", Color("f2c14e"))
+	_float("golpe", Color("f2c14e"))
 
 
 ## O motor recusou: só um som baixo e neutro. Nenhum som, poeira ou número da ação.
@@ -222,7 +222,7 @@ static func sheet_changes(before: Dictionary, after: Dictionary) -> Array:
 	if before.get("money") != null and after.get("money") != null:
 		var d := int(after.money) - int(before.money)
 		if d != 0:
-			out.append({"text": "%s dinheiro" % _signed(d, "💰"), "color": Color("f2c14e") if d > 0 else Color("e8665a")})
+			out.append({"text": "%s dinheiro" % _signed(d, ""), "color": Color("f2c14e") if d > 0 else Color("e8665a")})
 	for spec in SHEET_KEYS:
 		var key: String = spec[0]
 		if before.get(key) == null or after.get(key) == null:
@@ -234,7 +234,7 @@ static func sheet_changes(before: Dictionary, after: Dictionary) -> Array:
 
 
 static func _signed(value: int, icon: String) -> String:
-	return "%s%s%d" % [icon + " ", "+" if value > 0 else "−", absi(value)]
+	return "%s%s%d" % [icon + " " if icon != "" else "", "+" if value > 0 else "−", absi(value)] # #228: sem emoji (a fonte do jogo não tem o glifo)
 
 
 ## ---- saídas -------------------------------------------------------------------------------------------------------

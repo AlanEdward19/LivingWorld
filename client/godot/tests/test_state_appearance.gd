@@ -169,6 +169,7 @@ func test_world_map_shows_density_fauna_groups_and_lod_levels() -> void:
 	eq(WorldView.lod_for("World", 5.0), "near", "quem está no campo também, de perto")
 	eq(WorldView.lod_for("City", 12.0), "city")
 	eq(WorldView.lod_for("City", 5.0), "near")
+	eq(WorldView.lod_for("City", 22.0, true), "near", "#228: no modo jogador o detalhe do corpo vale (o zoom da isométrica não conta)")
 	app.queue_free()
 
 

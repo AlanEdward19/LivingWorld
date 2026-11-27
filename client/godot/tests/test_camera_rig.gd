@@ -431,6 +431,24 @@ func test_inside_a_tiny_house_the_camera_goes_above_the_roof() -> void:
 	rig.free()
 
 
+## #228: corpo dentro de um prédio pequeno com paredes (um local de trabalho de 4x4): nunca a vista aérea; câmera na altura de gente.
+func test_inside_a_small_walled_building_the_view_is_never_aerial() -> void:
+	var boxes := _walled(4)
+	for at in [Vector3(1.5, 0, 1.5), Vector3(1.1, 0, 2.5), Vector3(2.5, 0, 1.9), Vector3(1.0, 0, 1.0)]:
+		for yaw in [0.0, PI / 2.0, PI, -PI / 2.0, 0.8]:
+			var made := _body_rig(boxes, at, yaw)
+			var rig = made[0]
+			rig.pitch = deg_to_rad(-15.0)
+			rig.set_mode(rig.THIRD)
+			rig.follow(made[1])
+			var forward: Vector3 = -_camera_world(rig).basis.z
+			var label := "corpo %s giro %s" % [at, snappedf(yaw, 0.01)]
+			check(forward.y > -sin(deg_to_rad(50.0)), "olha de lado, não de cima (%s: %s)" % [label, forward.y])
+			check(rig.lift < Grid.floor_height(), "sobe menos que um andar (%s: %s)" % [label, rig.lift])
+			check(made[3].has(7), "o prédio abre (%s)" % label)
+			rig.free()
+
+
 ## A distância de cômodo vem dos metros do motor: outra escala de célula, outro valor em unidades.
 func test_room_distance_follows_the_engine_scale() -> void:
 	var before := Grid.cell_meters

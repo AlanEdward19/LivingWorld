@@ -8,10 +8,10 @@ signal chosen(entry: Dictionary)
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
 const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
-const VERB_ICON := {"Conversar": "💬", "Comprar": "🛒", "Vender": "💰", "Pegar": "✋", "Entrar": "🚪", "Sair": "🚪", "Dormir": "🛏",
-	"Comer": "🍞", "Beber": "💧", "Trabalhar": "🔨", "Subir": "⬆", "Descer": "⬇", "Recolher": "✋", "Furtar": "🤫", "Devolver": "↩"}
-const WHEEL_RADIUS := 128.0 ## px do centro da tela até o centro de cada fatia da roda
-const WHEEL_BUTTON := Vector2(190, 34)
+const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro, a mira, fica limpo)
+const WHEEL_AIM_CLEAR := 30.0 ## px de folga em volta da mira (centro da tela) sem botão
+const WHEEL_GAP := 8.0 ## px livres entre dois botões
+const WHEEL_BUTTON := Vector2(232, 34)
 const MENU_MAX := 8 ## linhas no menu do E (o resto fica de fora: quem está mais perto primeiro)
 const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próximas)
 
@@ -28,6 +28,8 @@ var menu_box: Control
 var inventory: PanelContainer ## #233: a mochila (tecla I ou Tab)
 var inventory_box: VBoxContainer
 var entries: Array = []
+var _engine_action := ""
+var _motion := "" ## #228: "Andando"/"Correndo" enquanto o próprio corpo se move pela previsão local; vazio: vale a ação do motor
 
 
 func _init() -> void:
@@ -143,13 +145,27 @@ static func _label(size: int, color: Color) -> Label:
 ## O corpo como o motor o diz (ficha `/npcs/{id}`): nome, o que faz e as quatro barras.
 func set_body(name: String, action: String, needs: Dictionary) -> void:
 	name_label.text = name
-	action_label.text = action
-	action_label.visible = action != ""
+	_engine_action = action
+	_show_action()
 	for key in bars:
 		if needs.has(key) and needs[key] != null:
 			var value := float(needs[key])
 			bars[key].value = value
 			bars[key].modulate = Color.WHITE if value >= 25.0 else Color(1.0, 0.55, 0.55)
+
+
+## #228: o próprio corpo anda pela previsão local (permitida só para ele): o cartão diz "Andando"/"Correndo"; "" volta à ação do motor.
+func set_motion(kind: String) -> void:
+	if kind == _motion:
+		return
+	_motion = kind
+	_show_action()
+
+
+func _show_action() -> void:
+	var text := _motion if _motion != "" else _engine_action
+	action_label.text = text
+	action_label.visible = text != ""
 
 
 ## #222: "Dinheiro 120 · Leva 3 Comida" (o que o motor diz; sem campo, nada).
@@ -167,27 +183,55 @@ func set_clock(text: String) -> void:
 	clock_label.text = text
 
 
-## A dica sob a mira: "E  🛒 Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").
+## A dica sob a mira: "E  Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").
 func set_prompt(text: String) -> void:
 	prompt.text = ("E   " + prompt_text(text)) if text != "" else ""
 	prompt.visible = text != "" and not menu_panel.visible
 
 
-## #233: "Caio: Conversar" -> "💬 Conversar · Caio" (verbo primeiro, o alvo depois; sem ícone para verbo desconhecido).
+## #233: "Caio: Conversar" -> "Conversar · Caio" (verbo primeiro, o alvo depois).
 static func prompt_text(line: String) -> String:
 	var cut := line.find(": ")
 	if cut < 0:
 		return line
 	var target := line.substr(0, cut)
 	var verb := line.substr(cut + 2)
-	var icon := String(VERB_ICON.get(verb.get_slice(" ", 0), ""))
-	return "%s%s · %s" % [icon + " " if icon != "" else "", verb, target]
+	return "%s · %s" % [verb, target] # #228: sem emoji: a fonte do jogo não tem o glifo (aparecia um quadrado)
 
 
-## #233: o ponto (em 0..1 do raio) onde a fatia `i` de `n` fica na roda: a primeira no alto, em sentido horário.
-static func wheel_offset(i: int, n: int) -> Vector2:
+## #228: raio da roda para `n` fatias de ângulo igual: cresce de WHEEL_MIN_RADIUS até nenhum botão (com WHEEL_GAP) tocar outro.
+static func wheel_radius(n: int) -> float:
+	var radius := WHEEL_MIN_RADIUS
+	while radius < 600.0 and _wheel_overlaps(n, radius):
+		radius += 6.0
+	return radius
+
+
+static func _wheel_overlaps(n: int, radius: float) -> bool:
+	var rects := wheel_rects(n, radius)
+	for rect in rects:
+		if rect.grow(WHEEL_AIM_CLEAR).has_point(Vector2.ZERO):
+			return true # cobre a mira
+	for i in rects.size():
+		for j in range(i + 1, rects.size()):
+			if rects[i].grow(WHEEL_GAP * 0.5).intersects(rects[j].grow(WHEEL_GAP * 0.5)):
+				return true
+	return false
+
+
+## #233/#228: o centro da fatia `i` de `n` (px do centro da tela): ângulo igual, a primeira no alto, em sentido horário.
+static func wheel_offset(i: int, n: int, radius: float = -1.0) -> Vector2:
 	var angle := -PI / 2.0 + TAU * float(i) / float(maxi(n, 1))
-	return Vector2(cos(angle) * 1.45, sin(angle)) * WHEEL_RADIUS
+	return Vector2(cos(angle), sin(angle)) * (radius if radius > 0.0 else wheel_radius(n))
+
+
+## #228: os retângulos dos botões da roda (px, a partir do centro da tela).
+static func wheel_rects(n: int, radius: float = -1.0) -> Array[Rect2]:
+	var r := radius if radius > 0.0 else wheel_radius(n)
+	var out: Array[Rect2] = []
+	for i in n:
+		out.append(Rect2(wheel_offset(i, n, r) - WHEEL_BUTTON / 2.0, WHEEL_BUTTON))
+	return out
 
 
 ## #233: a mochila como o motor diz (ficha): dinheiro e o que leva nas mãos; sem dado, "vazia".
@@ -251,16 +295,17 @@ func show_menu(list: Array) -> void:
 	var title := _label(15, Color("ffe9a6"))
 	title.text = ("O que fazer\n1–%d escolhe · Esc fecha" % list.size()) if not list.is_empty() else "Nada ao alcance\nEsc fecha"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.size = Vector2(220, 40)
-	title.position = Vector2(-110, -20)
+	title.size = Vector2(240, 40)
+	title.position = Vector2(-120, -(wheel_radius(list.size()) + WHEEL_BUTTON.y / 2.0 + 52.0)) # #228: acima da roda, longe da mira
 	menu_box.add_child(title)
+	var radius := wheel_radius(list.size())
 	for i in list.size():
 		var entry: Dictionary = list[i]
 		var button := Button.new()
 		button.text = "%d   %s" % [i + 1, prompt_text(String(entry.text))]
 		button.focus_mode = Control.FOCUS_NONE
 		button.size = WHEEL_BUTTON
-		button.position = wheel_offset(i, list.size()) - WHEEL_BUTTON / 2.0
+		button.position = wheel_offset(i, list.size(), radius) - WHEEL_BUTTON / 2.0
 		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.85), 16))
 		button.pressed.connect(func(): chosen.emit(entry))
 		menu_box.add_child(button)

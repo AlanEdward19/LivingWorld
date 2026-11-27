@@ -58,20 +58,35 @@ func test_low_obstacles_are_steps_not_walls() -> void:
 	check(body.pos.x > 7.2, "degrau baixo é pisado por cima (x=%s)" % body.pos.x)
 
 
-func test_people_push_softly_and_are_never_crossed() -> void:
+func test_a_person_ahead_is_slipped_past_softly_never_a_wall() -> void:
 	var body := _body()
 	var other := Vector2(6.5, 5.5)
 	body.set_neighborhood([], [other])
-	var closest := 99.0
 	var longest_jump := 0.0
 	for i in 240:
 		var before := body.pos
 		body.advance(Vector2.RIGHT, SPEED, DT)
-		closest = minf(closest, body.pos.distance_to(other))
 		longest_jump = maxf(longest_jump, body.pos.distance_to(before))
-	check(body.pos.x < other.x, "não atravessa a pessoa (x=%s)" % body.pos.x)
-	check(closest > 0.3, "fica a uma distância de corpo (%s)" % closest)
-	check(longest_jump <= SPEED * DT * 1.01 + 0.05, "o empurrão é macio, sem tranco (%s)" % longest_jump)
+	check(body.pos.x > other.x + 0.5, "passa pela pessoa em vez de parar nela (x=%s)" % body.pos.x)
+	check(longest_jump <= SPEED * DT * 1.01 + 0.05, "o desvio é macio, sem tranco (%s)" % longest_jump)
+
+
+## #228: ~20 pessoas em volta (3 por célula): segurar W e Shift+W continua avançando; paredes seguem sólidas.
+func test_a_crowd_slows_the_body_but_never_blocks_it() -> void:
+	for run in [1.0, 1.6]:
+		var body := _body(Vector2(10.5, 10.5))
+		var crowd: Array = []
+		for i in 21: # 7 células com 3 por célula, em volta do caminho
+			crowd.append(Vector2(11.0 + float(i / 3), 10.5 + (float(i % 3) - 1.0) * 0.3))
+		body.set_neighborhood([], crowd)
+		for i in 150: # 2,5 s
+			body.advance(Vector2.RIGHT, SPEED * run, DT)
+		check(body.pos.x - 10.5 > SPEED * run * 2.5 * 0.4, "avança na multidão (correr %s: %s células)" % [run, body.pos.x - 10.5])
+	var walled := _body(Vector2(10.5, 10.5))
+	walled.set_neighborhood([[Rect2(11.5, 9.0, 0.3, 3.0), 2.0]], [Vector2(11.0, 10.5), Vector2(11.0, 10.8)])
+	for i in 150:
+		walled.advance(Vector2.RIGHT, SPEED, DT)
+	check(walled.pos.x < 11.5, "a parede segue sólida (x=%s)" % walled.pos.x)
 
 
 func test_a_pose_in_front_of_the_prediction_or_slightly_behind_does_not_pull_the_body_back() -> void:
