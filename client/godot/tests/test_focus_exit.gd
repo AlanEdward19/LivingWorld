@@ -53,7 +53,6 @@ func _world_back(app: Node, why: String) -> void:
 	eq(app.stage.active, false, why + ": a casa não fica desenhada")
 	eq(app.world_view.visible, true, why + ": o mundo volta a ser desenhado")
 	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, why + ": e atualizado")
-	eq(app.stage.backdrop.visible, false, why + ": o fundo da casa some")
 	eq(app.stage.interior_view.visible, false, why + ": a casa sai do desenho")
 	eq(app.stage.interior_view.floor_nodes.size(), 0, why + ": sem pisos nem paredes no lugar do prédio")
 	eq(app.stage.floor_label.visible, false, why + ": o rótulo do andar some")
@@ -65,23 +64,26 @@ func test_leaving_the_building_by_pose_tears_the_house_down() -> void:
 	var app = await _player_app()
 	await app._on_player_placed(4, 0)
 	eq(app.stage.active, true, "a pose com prédio entra na casa")
-	eq(app.world_view.visible, false, "e o mundo some")
+	eq(app.world_view.visible, true, "#249: e o mundo continua à vista")
 	await app._on_player_placed(-1, 0)
 	_world_back(app, "pose sem prédio")
 	app.queue_free()
 
 
-## No quadro da saída (antes de o snapshot da cidade chegar) o corpo do mundo, que esteve parado, já está onde o jogador está e a câmera o segue.
+## #249: a figura do jogador é a MESMA antes, durante e depois da casa (nenhum boneco novo), e a câmera nunca troca de alvo.
 func test_the_body_and_the_camera_cross_the_door_in_the_same_frame() -> void:
 	var app = await _player_app()
+	var street: Node3D = app.world_view.npc_nodes[BODY]
 	await app._on_player_placed(4, 0)
 	var inside: Node3D = app.player_actor()
+	check(inside == street, "dentro da casa o corpo é o mesmo boneco da rua")
+	check(app.rig.following == street, "a câmera segue o mesmo alvo, sem troca")
 	inside.set_fine(Vector2(5.5, 6.5)) # o jogador andou dentro da casa
 	app.session.leave_focus()
 	var outside: Node3D = app.world_view.npc_nodes[BODY]
-	check(Vector2(outside.position.x, outside.position.z).distance_to(Vector2(5.5, 6.5) * Grid.CELL) < 0.01, "o corpo do mundo reaparece onde o jogador estava")
-	check(app.rig.following == outside, "e a câmera já o segue, no mesmo quadro da saída")
-	check(app.rig.target.distance_to(outside.position) < 0.01, "com o alvo no corpo (sem esperar a próxima pose)")
+	check(outside == street, "ao sair continua o mesmo boneco")
+	check(Vector2(outside.position.x, outside.position.z).distance_to(Vector2(5.5, 6.5) * Grid.CELL) < 0.01, "onde o jogador estava")
+	check(app.rig.following == outside, "a câmera segue o mesmo alvo")
 	app.queue_free()
 
 
@@ -188,6 +190,7 @@ func test_a_pose_inside_with_the_body_in_the_plan_puts_the_body_on_the_stage() -
 	app.player_hud.fine = Vector2(1.5, 1.5)
 	await app._on_player_placed(4, 0)
 	eq(app.stage.active, true, "corpo dentro da planta: a casa abre")
-	check(app.stage.interior_view.occupant_nodes.has(BODY), "o corpo está no palco da casa")
+	eq(app.stage.interior_view.guided_id, BODY, "o corpo está na casa em foco (adotado: o mesmo boneco da rua)")
+	check(not app.stage.interior_view.occupant_nodes.has(BODY), "sem segundo boneco do corpo")
 	check(app.stage.interior_view.covers(Vector2i(1, 1), 0), "a célula do corpo é da planta")
 	app.queue_free()

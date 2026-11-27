@@ -32,6 +32,8 @@ static func run(app: Node, steps: Array) -> void:
 				await RenderingServer.frame_post_draw
 				app.get_viewport().get_texture().get_image().save_png(arg)
 				print("shot ", arg)
+				if app.get_node_or_null("FrameMeter") != null:
+					app.get_node("FrameMeter").ignore(3) # o PNG custa ~130 ms: não é quadro do jogo
 			"city": # `city:<id>` entra nessa cidade (AD-193: a fumaça escolhe a que tem obra); sem id, a primeira
 				var ids: Array = app.store.cities.keys()
 				if arg != "":
@@ -590,6 +592,24 @@ static func run(app: Node, steps: Array) -> void:
 					if app.world_view.buildings.faded.has(bid):
 						faded += 1
 				print("wv: prédios=", app.world_view.buildings.nodes.size(), " visíveis=", shown, " translúcidos=", faded, " mundo_visivel=", app.world_view.visible, " processo=", app.world_view.process_mode, " opened=", app.rig.opened_ids().keys(), " escopo=", app.store.kind, " casa=", app.stage.active, " cena=", app.store.cities.size())
+			"meter": # #249: `meter:rótulo` imprime a medida do trecho (quadros, pior quadro, > 100 ms, salto da câmera, quadros sem figura) e começa outro
+				var meter = app.get_node_or_null("FrameMeter")
+				if meter == null:
+					meter = preload("res://Scenes/frame_meter.gd").new()
+					meter.name = "FrameMeter"
+					meter.app = app
+					app.add_child(meter)
+				else:
+					print(meter.report(arg))
+					meter.reset()
+			"cost": # #249: custo somado desde o último `cost` (snapshot por escopo e cada camada do redesenho) em ms/vezes
+				print("cost[", arg, "]: ", FrameCost.report())
+				FrameCost.reset()
+			"scopeinfo": # #249: onde está cada coisa agora (escopo desenhado, casa, assinatura do interior, figura do jogador)
+				var own2 = app.world_view.npc_nodes.get(app.player_hud.npc_id) if app.player_hud.is_active else null
+				print("scopeinfo: escopo=", app.store.kind, " casa=", app.stage.active, " mundo_visivel=", app.world_view.visible, " interior_assinado=", app.get("interior_stream").ref_id if app.get("interior_stream") != null else "-",
+					"/", app.get("interior_stream").state if app.get("interior_stream") != null else "-", " figura=", own2.get_instance_id() if own2 != null else 0, " ator=", app.player_actor().get_instance_id() if app.player_actor() != null else 0,
+					" npcs=", app.world_view.npc_nodes.size(), " predio_do_motor=", app.player_hud.building_id if app.player_hud.is_active else -2, " ocupantes_casa=", app.stage.interior_view.occupant_nodes.keys())
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()

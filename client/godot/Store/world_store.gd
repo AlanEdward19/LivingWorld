@@ -31,6 +31,7 @@ const ScopeDelta := preload("res://Store/scope_delta.gd")
 const Works := preload("res://Store/work_book.gd")
 
 var kind := ""
+var terrain_rev := 0 ## #249: sobe quando o terreno ou os rios mudam de verdade (o desenho do chão só refaz nesse caso)
 var map_size := Vector2i.ZERO
 var rivers: Dictionary = {} ## Vector2i -> true
 var roads: Dictionary = {} ## Vector2i -> rua do motor (Ground.road: cidade, superfície, uso, pisoteio, obra, extra)
@@ -93,40 +94,50 @@ func weather_at(cell: Vector2i) -> Dictionary:
 	return climate.get("weather", {})
 
 
+## #249: o snapshot de interior (a casa em foco, assinatura à parte) não troca o escopo desenhado: `kind` segue o do mundo/cidade
+## que continua carregado e vivo; só `interior` muda.
 func apply_snapshot(envelope: Dictionary) -> void:
-	kind = scope_name(envelope.scope.kind)
+	var scope := scope_name(envelope.scope.kind)
 	var cursor = envelope.get("cursor")
-	last_tick = WorldTime.hours_of(cursor, "atMs", -1) if cursor is Dictionary else -1
 	var payload = envelope.get("payload")
+	if scope != "Interior":
+		kind = scope
+		last_tick = WorldTime.hours_of(cursor, "atMs", -1) if cursor is Dictionary else -1
 	if payload == null:
-		npcs.clear()
-		buildings.clear()
-		processes.clear()
-		_clear_observable()
-		reloaded.emit(kind)
+		if scope != "Interior":
+			npcs.clear()
+			buildings.clear()
+			processes.clear()
+			_clear_observable()
+		reloaded.emit(scope)
 		return
-	match kind:
+	match scope:
 		"World":
 			_load_world(payload)
 		"City":
 			_load_city(payload)
 		"Interior":
 			_load_interior(payload)
-	reloaded.emit(kind)
+	reloaded.emit(scope)
 
 
 func _load_world(payload: Dictionary) -> void:
 	map_size = Vector2i(int(payload.width), int(payload.height))
 	var layer = payload.get("layers", {}).get("Terrain")
+	var fresh_terrain: Dictionary = terrain
 	if layer != null and layer.get("isModeled", false):
-		terrain.clear()
+		fresh_terrain = {}
 		for entry in layer.payload:
-			terrain[cell_of(entry.key)] = int(entry.value.id)
+			fresh_terrain[cell_of(entry.key)] = int(entry.value.id)
 	var river_layer = payload.get("layers", {}).get("Rivers")
-	rivers.clear()
+	var fresh_rivers := {}
 	if river_layer != null and river_layer.get("isModeled", false):
 		for entry in river_layer.payload:
-			rivers[cell_of(entry)] = true
+			fresh_rivers[cell_of(entry)] = true
+	if fresh_terrain != terrain or fresh_rivers != rivers:
+		terrain_rev += 1
+	terrain = fresh_terrain
+	rivers = fresh_rivers
 	_load_roads(payload.get("livingState"), payload.get("layers", {}).get("Roads"))
 	var climate_layer = payload.get("layers", {}).get("Climate")
 	climate_regions = Parse.climate_regions(climate_layer.payload.get("regions", [])) if climate_layer is Dictionary \

@@ -51,9 +51,10 @@ func test_enter_subscribes_and_focuses_the_house() -> void:
 	await app.enter_building(4)
 
 	check(transport.calls.any(func(c): return c.begins_with("GET /visual/subscribe?scope=Interior&refId=4")), "assina o escopo interior do prédio 4")
-	eq(app.world_view.visible, false, "a casa em foco: o resto do mundo não é desenhado")
-	eq(app.world_view.process_mode, Node.PROCESS_MODE_DISABLED, "nem atualizado")
-	eq(app.stage.backdrop.visible, true, "fundo fora de foco no lugar do mundo")
+	eq(app.world_view.visible, true, "#249: a casa em foco não esconde o mundo: a cidade segue desenhada")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizada")
+	eq(app.stream.scope_kind, "World", "a assinatura do mundo segue aberta")
+	eq(app.interior_stream.scope_kind, "Interior", "a casa tem assinatura própria")
 	eq(app.stage.active, true)
 	eq(app.stage.interior_view.floor_count, 2)
 	app.queue_free()
@@ -162,7 +163,7 @@ func test_exit_returns_to_the_previous_city_scope() -> void:
 
 	await app.exit_building()
 
-	eq(transport.count_calls("GET /visual/subscribe?scope=City"), before + 1, "volta à CIDADE, não ao mundo")
+	eq(transport.count_calls("GET /visual/subscribe?scope=City"), before, "#249: sair da casa não pede a cidade de novo: ela nunca saiu")
 	eq(app.store.kind, "City")
 	eq(app.list_panel.city_filter, "city-a", "a lista segue o escopo atual")
 	app.queue_free()
@@ -199,13 +200,13 @@ func test_exit_restores_exterior_and_scope() -> void:
 
 	await app.exit_building()
 
-	eq(app.world_view.visible, true, "mundo desenhado de novo")
-	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado de novo")
+	eq(app.world_view.visible, true, "mundo desenhado")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado")
 	eq(app.stage.active, false)
 	for id in app.world_view.buildings.nodes:
 		check((app.world_view.buildings.nodes[id] as Node3D).is_visible_in_tree(), "#227: ao sair, o prédio %s do mundo volta a se desenhar" % id)
 	check(app.stage.interior_view.ceiling == null or not app.stage.interior_view.ceiling.visible, "#227: o forro da casa não fica no mundo")
-	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before + 1, "volta à assinatura anterior (Mundo)")
+	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before, "#249: sair da casa não refaz a assinatura do mundo")
 	eq(app.store.kind, "World")
 	app.queue_free()
 

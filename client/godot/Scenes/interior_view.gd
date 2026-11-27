@@ -50,6 +50,7 @@ var immersive := false ## #227: o jogador está na casa: nada de corte de maquet
 ## `info` = WorldStore.interior: {building, floors, layout:[{level, cells:[{cell, material}]}], occupants}
 ## #237: a casa deixa de existir no desenho (pisos, paredes, forro, teto e ocupantes); `show_interior` a monta de novo.
 func close() -> void:
+	release_guided() # #249: o corpo adotado volta ao térreo do mundo (a figura é a mesma e não é da casa)
 	_clear()
 	visible = false
 
@@ -433,10 +434,10 @@ func _clear() -> void:
 	_walls.clear()
 	_panels.clear()
 	_plans.clear()
-	guided_id = -1
 	_view_dir = Vector3.ZERO
 	_immersive_applied = false
 	_last_fade_at = Vector3(INF, INF, INF)
+	_last_chest = Vector3(INF, INF, INF)
 	for node in floor_nodes.values():
 		node.free()
 	floor_nodes.clear()
@@ -475,6 +476,8 @@ const FADE_WALL_FAR := 0.7
 const FADE_LID_NEAR := 0.9 ## forro em volta da câmera: o círculo de baixo dela some, o resto fica
 const FADE_LID_FAR := 1.8
 var _last_fade_at := Vector3(INF, INF, INF)
+var _last_chest := Vector3(INF, INF, INF)
+const WALL_BETWEEN := 0.88 ## `transparency` da parede entre a câmera e o corpo
 
 
 ## #227: com a câmera do jogador dentro da casa, paredes e forro perto dela ficam translúcidos (nada opaco tampa a tela); fora, tudo opaco.
@@ -482,15 +485,22 @@ func update_near(camera_pos: Vector3) -> void:
 	if not immersive:
 		if _last_fade_at.x != INF:
 			_last_fade_at = Vector3(INF, INF, INF)
+			_last_chest = Vector3(INF, INF, INF)
 			_set_fade(_walls, 1.0)
 			if ceiling != null:
 				for lid in ceiling.get_children():
 					(lid as GeometryInstance3D).transparency = 0.0
 		return
 	var at := to_local(camera_pos)
-	if _last_fade_at.distance_to(at) < 0.01:
+	var chest := Vector3.INF # #249: o peito do corpo adotado: a parede entre a câmera e ele fica translúcida (a rua e a casa se veem dos dois lados)
+	if _adopted != null and is_instance_valid(_adopted) and _adopted.is_inside_tree():
+		chest = to_local(_adopted.global_position) + Vector3(0, wall_height() * 0.55, 0)
+	var same_chest: bool = (chest == Vector3.INF and _last_chest == Vector3.INF) \
+		or (chest != Vector3.INF and _last_chest != Vector3.INF and _last_chest.distance_to(chest) < 0.01)
+	if same_chest and _last_fade_at.distance_to(at) < 0.01:
 		return
 	_last_fade_at = at
+	_last_chest = chest
 	for wall in _walls:
 		if wall.get("lintel", false):
 			continue
@@ -498,7 +508,10 @@ func update_near(camera_pos: Vector3) -> void:
 		var half: Vector3 = (wall.mesh as BoxMesh).size * 0.5
 		var closest := Vector3(clampf(at.x, node.position.x - half.x, node.position.x + half.x), clampf(at.y, node.position.y - half.y, node.position.y + half.y),
 			clampf(at.z, node.position.z - half.z, node.position.z + half.z))
-		node.transparency = 1.0 - smoothstep(FADE_WALL_NEAR, FADE_WALL_FAR, closest.distance_to(at))
+		var fade := 1.0 - smoothstep(FADE_WALL_NEAR, FADE_WALL_FAR, closest.distance_to(at))
+		if chest != Vector3.INF and _segment_hits_box(at, chest, node.position, half):
+			fade = maxf(fade, WALL_BETWEEN) # entre a câmera e o corpo: translúcida (não some: ainda se lê a planta)
+		node.transparency = fade
 	if ceiling != null:
 		for lid in ceiling.get_children():
 			var node := lid as MeshInstance3D
@@ -506,46 +519,71 @@ func update_near(camera_pos: Vector3) -> void:
 			node.transparency = 1.0 - smoothstep(FADE_LID_NEAR, FADE_LID_FAR, flat)
 
 
+## O segmento `a`→`b` cruza a caixa de centro `center` e meia-medida `half`? (teste de lajes)
+static func _segment_hits_box(a: Vector3, b: Vector3, center: Vector3, half: Vector3) -> bool:
+	var d := b - a
+	var t0 := 0.0
+	var t1 := 1.0
+	for axis in 3:
+		var lo: float = center[axis] - half[axis]
+		var hi: float = center[axis] + half[axis]
+		if absf(d[axis]) < 0.000001:
+			if a[axis] < lo or a[axis] > hi:
+				return false
+			continue
+		var ta: float = (lo - a[axis]) / d[axis]
+		var tb: float = (hi - a[axis]) / d[axis]
+		t0 = maxf(t0, minf(ta, tb))
+		t1 = minf(t1, maxf(ta, tb))
+		if t0 > t1:
+			return false
+	return true
+
+
 func _set_fade(walls: Array, opacity: float) -> void:
 	for wall in walls:
 		(wall.node as GeometryInstance3D).transparency = 1.0 - opacity
 
 
-## #227: o corpo do jogador anda pela planta do prédio no mundo (o motor não o lista como ocupante): a casa em foco o desenha como
-## ocupante guiado, com a aparência e a posição do boneco do mundo, no andar `level`. O motor continua dizendo onde ele está.
+## #227/#249: o corpo do jogador anda pela planta do prédio no mundo; a casa em foco ADOTA o boneco dele (o mesmo da rua, a mesma
+## instância: nenhuma figura nova, nenhuma troca de roupa, escala ou câmera) e o põe no andar `level`. O motor continua dizendo onde ele está.
+## O boneco segue filho do mundo e movido por ele; a casa só mexe na altura e nunca o libera (`free`).
 var guided_id := -1
+var _adopted: Node3D = null
 
 
 func guide_body(id: int, from_actor: Node3D, level: int) -> Node3D:
-	var actor = occupant_nodes.get(id)
-	if actor == null:
-		actor = NpcFigure.create(self, id, from_actor.cell, -1, _labels, from_actor.look, figure_context)
-		occupant_nodes[id] = actor
-		actor.position = from_actor.position
-		if actor.spec.is_empty(): # sem o dado do motor para vestir: ao menos a escala e o ofício que o boneco do mundo já mostra
-			actor.scale = from_actor.scale
+	if guided_id >= 0 and guided_id != id:
+		release_guided()
 	guided_id = id
-	actor.driven = true
-	actor.set_self(true)
+	_adopted = from_actor
+	from_actor.driven = true
+	from_actor.set_self(true)
+	from_actor.visible = true
 	place_guided(level)
-	return actor
+	return from_actor
 
 
+## O corpo adotado volta a ser só do mundo: ao chão do térreo (a altura que a casa deu some com ela).
 func release_guided() -> void:
-	var actor = occupant_nodes.get(guided_id)
-	if actor != null and not _occupants.any(func(o): return (int(o.npc.value) if o.npc is Dictionary else int(o.npc)) == guided_id):
-		actor.free()
-		occupant_nodes.erase(guided_id)
+	if _adopted != null and is_instance_valid(_adopted):
+		_set_height(_adopted, 0.0)
+	_adopted = null
 	guided_id = -1
 
 
 func place_guided(level: int) -> void:
-	var actor = occupant_nodes.get(guided_id)
-	if actor == null:
+	if _adopted == null or not is_instance_valid(_adopted):
 		return
-	actor.position.y = level * Grid.floor_height()
-	actor.set_meta("floor", level)
-	_apply_occupant_visibility()
+	_set_height(_adopted, level * Grid.floor_height())
+	_adopted.set_meta("floor", level)
+
+
+## Altura do boneco (e a que a interpolação do passo usa): subir a escada muda só o y.
+func _set_height(actor: Node3D, height: float) -> void:
+	actor.position.y = height
+	actor._from.y = height
+	actor._to.y = height
 
 
 func set_occupants(occupants: Array) -> void:
@@ -555,6 +593,8 @@ func set_occupants(occupants: Array) -> void:
 	for occupant in occupants:
 		var id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
 		wanted[id] = occupant
+		if id == guided_id:
+			continue # #249: é o corpo do jogador, adotado: já é a figura do mundo, a casa não faz outra
 		var cell: Vector2i = origin + Vector2i(int(occupant.localCell.x), int(occupant.localCell.y))
 		var level: int = int(occupant.floor.value) if occupant.floor is Dictionary else int(occupant.floor)
 		var action: int = -1 if occupant.get("action") == null else int(occupant.action)
@@ -575,7 +615,7 @@ func set_occupants(occupants: Array) -> void:
 			actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():
-		if not wanted.has(id) and id != guided_id:
+		if not wanted.has(id):
 			occupant_nodes[id].free()
 			occupant_nodes.erase(id)
 	_apply_occupant_visibility()

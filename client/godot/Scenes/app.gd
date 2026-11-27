@@ -40,6 +40,7 @@ const RoadBook := preload("res://Store/road_book.gd")
 var transport
 var api ## WorldReader: a camada única de leitura (todo painel recebe este objeto)
 var stream
+var interior_stream ## #249: a casa em foco (ou a mais perto do corpo) tem assinatura própria: a do mundo/cidade segue viva ao entrar
 var store
 var labels
 var registry
@@ -178,6 +179,15 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
 	stream.contract_error.connect(_on_contract_error)
 	stream.scope_gone.connect(session.on_scope_gone)
+	interior_stream = CursorStream.new(transport, get_tree())
+	interior_stream.validate_shapes = validate_shapes
+	interior_stream.delta_check_every = stream.delta_check_every
+	if sleeper.is_valid():
+		interior_stream.sleeper = sleeper
+	interior_stream.snapshot_received.connect(_on_snapshot)
+	interior_stream.delta_applied.connect(_on_delta)
+	interior_stream.contract_error.connect(_on_contract_error)
+	interior_stream.scope_gone.connect(session.on_scope_gone)
 	road_sync = RoadSync.new()
 	road_sync.setup(self)
 	add_child(road_sync)
@@ -307,7 +317,6 @@ func _process(delta: float) -> void:
 		world_button.visible = store.kind == "City" and not stage.active
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
-		stage.set_daylight(day_cycle.daylight())
 		ambience.set_daylight(day_cycle.daylight())
 	if director != null:
 		director.watch_step(delta)
@@ -699,6 +708,8 @@ func player_released() -> void:
 		node.driven = false
 		node.set_self(false)
 		node.set_first_person(false)
+		if node.has_meta("orphan"):
+			world_view.npcs.on_removed(player_hud.npc_id) # #249: o corpo que sobrou de outro escopo some ao soltar a posse
 	unfollow()
 	rig.set_mode(rig.ISO)
 	set_player_mode(false)
@@ -1074,14 +1085,15 @@ func _keep_the_body() -> void:
 		_seek_body()
 
 
-## #227: o corpo do jogador onde ele está desenhado: dentro da casa em foco é o ocupante do interior (a posse e a câmera o seguem
-## sem trocar de modo); fora, o boneco do mundo.
+## #227/#249: o corpo do jogador onde ele está desenhado: o boneco do mundo, na rua e dentro da casa em foco (a mesma instância; a
+## posse e a câmera o seguem sem trocar de alvo). Só sem boneco no mundo vale o ocupante do interior.
 func player_actor() -> Node3D:
+	var own = world_view.npc_nodes.get(player_hud.npc_id)
+	if own != null and is_instance_valid(own):
+		return own # #249: a mesma figura na rua e dentro da casa (a casa em foco a adota; não há segundo boneco)
 	if stage != null and stage.active:
-		var inside = stage.interior_view.occupant_nodes.get(player_hud.npc_id)
-		if inside != null:
-			return inside
-	return world_view.npc_nodes.get(player_hud.npc_id)
+		return stage.interior_view.occupant_nodes.get(player_hud.npc_id)
+	return null
 
 
 ## #237: o corpo cruzou a borda da cidade (ou entrou nela): pede já o escopo certo, sem esperar o boneco sumir. Não mexe dentro de casa.
@@ -1114,6 +1126,7 @@ func _seek_body() -> void:
 func _player_view_effects() -> void:
 	_keep_the_body()
 	_follow_body_scope()
+	session.warm_interior_near_body(get_process_delta_time())
 	if player_hud != null and player_hud.is_active and rig.mode != rig.ISO and _inside_by_body < 0 and not stage.active \
 			and not rig.opened_ids().is_empty() and Time.get_ticks_msec() - _pose_asked_ms > 1500:
 		_pose_asked_ms = Time.get_ticks_msec() # #227: o desenho sugere o corpo num prédio: o motor diz se está (a pose traz o prédio)
@@ -1174,14 +1187,15 @@ func _player_view_effects() -> void:
 ## AD-197p: as caixas desenhadas dos prédios perto do corpo ([id, AABB]), para o braço de mola da 3ª pessoa.
 func camera_blockers() -> Array:
 	var out: Array = []
-	if stage != null and stage.active: # #227: na casa em foco só contam os painéis finos dela (nenhuma casca de prédio do mundo)
-		if player_hud != null and player_hud.is_active:
-			out.append([-1, stage.interior_view.floor_box(), stage.interior_view.floor_box(), stage.interior_view.wall_boxes(), true])
-		return out
+	if stage != null and stage.active and player_hud != null and player_hud.is_active:
+		# #227: na casa em foco contam os painéis finos dela; #249: e as cascas dos vizinhos (o mundo segue desenhado em volta)
+		out.append([-1, stage.interior_view.floor_box(), stage.interior_view.floor_box(), stage.interior_view.wall_boxes(), true])
 	if world_view == null or world_view.buildings == null:
 		return out
 	var near: Vector3 = rig.target
 	for id in world_view.buildings.nodes:
+		if stage != null and stage.active and id == stage.covered_building:
+			continue # a casa em foco substitui este prédio
 		var node: Node = world_view.buildings.nodes[id]
 		var box: AABB = node.get_meta("box", AABB())
 		if box.size == Vector3.ZERO:

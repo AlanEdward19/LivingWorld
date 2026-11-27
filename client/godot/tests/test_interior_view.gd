@@ -87,15 +87,14 @@ func test_floor_switch_shows_only_its_occupants() -> void:
 	view.free()
 
 
-func test_stage_enter_and_leave_hide_and_restore_the_world() -> void:
+func test_stage_enter_and_leave_cover_only_the_building_and_keep_the_world() -> void:
 	var world := Node3D.new()
 	var stage := InteriorStage.new()
 	stage.world = world
 	var camera := Camera3D.new()
 	stage.enter(_info(), Vector2i(10, 10), ActionLabels.new(), camera)
-	eq(world.visible, false, "o mundo não é desenhado com a casa em foco")
-	eq(world.process_mode, Node.PROCESS_MODE_DISABLED, "nem atualizado")
-	eq(stage.backdrop.visible, true, "fundo fora de foco")
+	eq(world.visible, true, "#249: o mundo segue desenhado com a casa em foco")
+	eq(world.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado")
 	eq(stage.active, true)
 	check(stage.find_children("*", "SubViewport", true, false).is_empty(), "sem cena separada")
 	var middle: Vector3 = stage.interior_view.center()
@@ -103,9 +102,7 @@ func test_stage_enter_and_leave_hide_and_restore_the_world() -> void:
 
 	stage.leave()
 
-	eq(world.visible, true, "mundo de volta ao sair")
-	eq(world.process_mode, Node.PROCESS_MODE_INHERIT)
-	eq(stage.backdrop.visible, false)
+	eq(world.visible, true, "mundo igual ao sair")
 	eq(stage.active, false)
 	stage.free()
 	world.free()
@@ -200,23 +197,25 @@ func test_player_inside_keeps_every_wall_full_height_and_exposes_the_floor_boxes
 const LOOK := {"skin_tone": 0.4, "hair_tone": 0.2, "hair_curl": 0.5, "build": 0.5}
 
 
-func test_the_body_walking_the_plan_is_drawn_as_a_guided_occupant_that_survives_updates_and_is_released() -> void:
+func test_the_body_walking_the_plan_is_the_same_street_figure_adopted_by_the_house_and_released() -> void:
 	var view := InteriorView.new()
 	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
 	var world_actor = preload("res://Scenes/npc_actor.gd").new()
 	world_actor.setup(77, Vector2i(11, 11), -1, ActionLabels.new(), LOOK)
 	world_actor.position = Vector3(11.5, 0, 11.5)
 	var guided = view.guide_body(77, world_actor, 1)
-	eq(view.occupant_nodes.get(77), guided, "o corpo vira ocupante guiado")
+	check(guided == world_actor, "#249: a casa adota o boneco da rua, não faz outro")
+	check(not view.occupant_nodes.has(77), "e não o guarda como ocupante dela (o mundo é o dono)")
 	eq(guided.driven, true, "guiado pela posição fina do motor")
 	eq(guided.look, LOOK, "com a aparência do boneco do mundo")
 	check(is_equal_approx(guided.position.y, Grid.floor_height()), "no andar que o motor diz")
 	view.set_floor(1)
 	eq(guided.visible, true, "visível no andar dele")
 	view.set_occupants(_info().occupants)
-	check(view.occupant_nodes.has(77), "uma atualização dos ocupantes não o apaga")
+	check(not view.occupant_nodes.has(77), "uma atualização dos ocupantes não cria um segundo boneco dele")
 	view.release_guided()
-	check(not view.occupant_nodes.has(77), "solto, some")
+	check(is_instance_valid(world_actor), "solto, o boneco do mundo continua existindo")
+	check(is_equal_approx(world_actor.position.y, 0.0), "e volta ao chão")
 	world_actor.free()
 
 

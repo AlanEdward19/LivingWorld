@@ -19,14 +19,67 @@ var dressed: Dictionary = {} ## id -> assinatura do estado desenhado (estilo, pl
 var work_of: Callable = func(_id: int) -> Dictionary: return {} ## AD-193: obra do canteiro (o world_view liga à store)
 
 
-func rebuild(store) -> void:
-	for node in nodes.values():
-		_dispose(node)
-	nodes.clear()
+## #249: aplica a diferença: o prédio que continua igual (mesma planta e mesmo estado desenhado) fica na mesma instância. O que falta
+## desenhar entra por fatias de ~`SLICE_MS` por quadro, do mais perto de `center` para o mais longe: trocar de escopo não custa um quadro
+## de centenas de ms numa cidade grande (a cidade aparece em poucos quadros, o que importa primeiro).
+const SLICE_MS := 8.0
+var _pending: Array = []
+var _store
+
+
+func rebuild(store, center: Vector3 = Vector3.INF) -> void:
+	_store = store
+	_pending.clear()
 	if store.kind != "City":
+		for node in nodes.values():
+			_dispose(node)
+		nodes.clear()
+		_info_signature.clear()
 		return
+	for id in nodes.keys():
+		if not store.buildings.has(id):
+			remove(id)
 	for id in store.buildings:
-		upsert(store.buildings[id], store.building_states.get(id, {}))
+		if _needs_drawing(store, id):
+			_pending.append(id)
+		else:
+			set_lit(int(id), bool(store.building_states.get(id, {}).get("lit", false)))
+	if center != Vector3.INF:
+		_pending.sort_custom(func(a, b) -> bool:
+			return Vector2(store.buildings[a].cell).distance_squared_to(Vector2(center.x, center.z)) < Vector2(store.buildings[b].cell).distance_squared_to(Vector2(center.x, center.z)))
+	step(SLICE_MS * 1.5)
+
+
+func _needs_drawing(store, id: Variant) -> bool:
+	var info: Dictionary = store.buildings[id]
+	var state: Dictionary = store.building_states.get(id, {})
+	return not (nodes.has(id) and _info_signature.get(id, -1) == info.hash() \
+		and String(dressed.get(id, "")) == signature(state, work_of.call(int(id))))
+
+
+## Desenha da fila até `budget_ms`; o resto fica para os próximos quadros.
+func step(budget_ms: float = SLICE_MS) -> void:
+	if _pending.is_empty() or _store == null:
+		return
+	var started := Time.get_ticks_usec()
+	while not _pending.is_empty():
+		var id = _pending.pop_front()
+		if _store.buildings.has(id) and _needs_drawing(_store, id):
+			upsert(_store.buildings[id], _store.building_states.get(id, {}))
+		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
+			break
+
+
+func _process(_delta: float) -> void:
+	step()
+	_reap()
+
+
+func pending_count() -> int:
+	return _pending.size()
+
+
+var _info_signature: Dictionary = {} ## id -> hash da planta desenhada (a diferença do `rebuild`)
 
 
 ## Desenha (ou redesenha) um prédio. Sem planta (veio por delta e o snapshot ainda não chegou), usa um canteiro
@@ -86,6 +139,7 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 func _draw(info: Dictionary, state: Dictionary) -> Node3D:
 	var work: Dictionary = work_of.call(int(info.id))
 	dressed[int(info.id)] = signature(state, work)
+	_info_signature[int(info.id)] = info.hash()
 	if not work.is_empty() and not info.footprint.is_empty():
 		var site := Site.make(info, work, Grid.floor_height())
 		add_child(site)
@@ -230,17 +284,34 @@ func passes_mouse(id: int) -> bool:
 
 func remove(id: int) -> void:
 	dressed.erase(id)
+	_info_signature.erase(id)
 	faded.erase(id)
 	if nodes.has(id):
 		_dispose(nodes[id])
 		nodes.erase(id)
 
 
+## #249: o prédio que sai some do desenho na hora, mas o nó só é liberado aos poucos (uma cidade inteira de uma vez custava um quadro).
+const REAP_PER_FRAME := 6
+var _dying: Array = []
+
+
 func _dispose(node: Node) -> void:
 	if node.is_inside_tree():
-		node.queue_free()
+		if node is Node3D:
+			(node as Node3D).visible = false
+		_dying.append(node)
 	else:
 		node.free()
+
+
+func _reap() -> void:
+	var count := 0
+	while not _dying.is_empty() and count < REAP_PER_FRAME:
+		var node = _dying.pop_front()
+		if is_instance_valid(node):
+			node.queue_free()
+		count += 1
 
 
 const WALL_COLORS := {

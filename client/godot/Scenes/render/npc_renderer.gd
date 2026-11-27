@@ -198,11 +198,94 @@ func rebuild() -> void:
 		spawn(store.npcs[id])
 
 
+## #249: snapshot novo com o escopo já desenhado (reenvio do canal, volta de outra cidade): aplica a DIFERENÇA em vez de refazer todos
+## os bonecos. Quem saiu do escopo sai; quem é novo nasce; quem continua fica na mesma instância (posição, passo e figura), só vai à
+## célula e à ação que o motor diz agora e redesenha o que mudou (aparência ou sinais visíveis).
+func sync(center: Vector3 = Vector3.INF) -> void:
+	for id in nodes.keys():
+		if not store.npcs.has(id):
+			on_removed(id) # (o corpo do jogador atravessa a troca de escopo na mesma figura: `on_removed` o guarda)
+	_hovered = -1
+	_spawn_queue.clear()
+	for id in store.npcs:
+		var info: Dictionary = store.npcs[id]
+		var actor = nodes.get(id)
+		if actor == null:
+			_spawn_queue.append(id)
+			continue
+		actor.remove_meta("orphan")
+		if actor.look != info.get("look", {}) and not actor.driven:
+			on_removed(id) # a aparência mudou de verdade (genes novos): corpo novo
+			_spawn_queue.append(id)
+			continue
+		if actor.cell != info.cell or actor.action != info.action or actor.walk != null or not info.get("route", []).is_empty():
+			on_changed(id, actor.cell, info.cell, info.action)
+		var obs_signature: int = info.get("obs", {}).hash()
+		if int(actor.get_meta("obs_signature", 0)) != obs_signature:
+			actor.set_meta("obs_signature", obs_signature)
+			apply_observable(int(id))
+		if store.names.has(id):
+			actor.set_display_name(store.names[id])
+		actor.visible = not interior_hidden.has(id)
+	if center != Vector3.INF:
+		_spawn_queue.sort_custom(func(a, b) -> bool:
+			return Vector2(store.npcs[a].cell).distance_squared_to(Vector2(center.x, center.z)) < Vector2(store.npcs[b].cell).distance_squared_to(Vector2(center.x, center.z)))
+	spawn_step(SPAWN_SLICE_MS * 1.5)
+
+
+## Quem ainda não nasceu (snapshot grande): nasce por fatias de ~`SPAWN_SLICE_MS` por quadro, do mais perto da câmera para o mais longe.
+const SPAWN_SLICE_MS := 6.0
+var _spawn_queue: Array = []
+
+
+func spawn_step(budget_ms: float = SPAWN_SLICE_MS) -> void:
+	if _spawn_queue.is_empty():
+		return
+	var started := Time.get_ticks_usec()
+	while not _spawn_queue.is_empty():
+		var id = _spawn_queue.pop_front()
+		if store.npcs.has(id) and not nodes.has(id):
+			spawn(store.npcs[id])
+		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
+			break
+
+
+## #249: gente que está na casa em foco é desenhada pelo interior; o boneco do mundo da mesma pessoa não fica sobreposto.
+var interior_hidden: Dictionary = {}
+
+
+func set_interior_hidden(ids: Dictionary) -> void:
+	var before := interior_hidden
+	interior_hidden = ids
+	for id in before:
+		if not ids.has(id) and nodes.has(id):
+			nodes[id].visible = true
+	for id in ids:
+		if nodes.has(id):
+			nodes[id].visible = false
+
+
+## #249: quem sai do escopo some do desenho na hora, mas o boneco (articulado, com muitas peças) só é liberado aos poucos.
+const REAP_PER_FRAME := 5
+var _dying: Array = []
+
+
 func _dispose(node: Node) -> void:
 	if node.is_inside_tree():
-		node.queue_free()
+		if node is Node3D:
+			(node as Node3D).visible = false
+		_dying.append(node)
 	else:
 		node.free()
+
+
+func _reap() -> void:
+	var count := 0
+	while not _dying.is_empty() and count < REAP_PER_FRAME:
+		var node = _dying.pop_front()
+		if is_instance_valid(node):
+			node.queue_free()
+		count += 1
 
 
 func spawn(info: Dictionary) -> void:
@@ -220,6 +303,9 @@ func spawn(info: Dictionary) -> void:
 		actor.position = actor.walk.position
 	apply_known_model(int(info.id))
 	apply_observable(int(info.id))
+	actor.set_meta("obs_signature", info.get("obs", {}).hash())
+	if interior_hidden.has(info.id):
+		actor.visible = false
 
 
 ## Profissão e idade de quem já teve a ficha lida (o corpo deixa de ser o modelo base também depois de trocar de escopo).
@@ -390,6 +476,9 @@ func over_heights(cells: Array, over: Array) -> Dictionary:
 
 func on_removed(id: int) -> void:
 	var actor = nodes.get(id)
+	if actor != null and actor.driven:
+		actor.set_meta("orphan", true) # #249: o corpo do jogador (posse) não some com o escopo: a mesma figura segue até o escopo novo trazê-lo (ou a posse acabar)
+		return
 	if actor != null:
 		if actor.walk == null:
 			_leave(id, actor.cell)
@@ -454,6 +543,8 @@ func refresh_links() -> void:
 
 func advance(delta: float, view_center: Vector3, view_radius: float, far_zoom: bool, bubble_zoom: bool) -> void:
 	_frame += 1
+	spawn_step()
+	_reap()
 	if not bubble_zoom and not (far_zoom and nodes.size() > 150):
 		var steered := Time.get_ticks_usec()
 		_separate()

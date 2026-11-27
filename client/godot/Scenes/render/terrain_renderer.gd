@@ -18,8 +18,18 @@ var _base: Array = [] ## [cor, água] por instância: a estação recolore sem r
 var _season_key := "-"
 
 
+var _drawn_signature := "" ## #249: o que o chão desenhado representa (terreno, rios, tamanho, cidades); igual = nada a refazer
+
+
 func rebuild(p_store) -> void:
 	store = p_store
+	var rects_now: Array = []
+	for id in store.cities:
+		rects_now.append(store.cities[id].bounds)
+	var signature := "%d|%s|%d|%d|%d" % [store.terrain_rev, store.map_size, rects_now.hash(), store.terrain.size(), store.rivers.size()]
+	if terrain_root != null and signature == _drawn_signature:
+		return # troca de escopo (mundo, cidade, reenvio do canal): o terreno é o mesmo, fica como está
+	_drawn_signature = signature
 	if terrain_root != null:
 		if terrain_root.is_inside_tree():
 			terrain_root.queue_free()
