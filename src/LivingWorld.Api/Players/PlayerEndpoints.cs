@@ -100,6 +100,12 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/jump", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Jump)));
 
+        // #234: esquiva e bloqueio (janela curta, recarga da guarda); 200 = a pose com o combate, 409 com o motivo
+        app.MapPost("/players/{playerId}/dodge", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Dodge)));
+        app.MapPost("/players/{playerId}/block", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Block)));
+
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
 

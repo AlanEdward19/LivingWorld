@@ -174,6 +174,53 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore] public double StepSleep => StepSleepPerHour ?? 3.0;
     [System.Text.Json.Serialization.JsonIgnore] public double Tired => TiredBelow ?? 50.0;
 
+    // --- #234: combate (alcance, recarga, esquiva, bloqueio, reação). Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
+
+    /// <summary>Falso desliga o combate com tempo (volta ao golpe imediato do AD-197e): sem alcance em metros, recarga, guarda nem reação.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CombatTiming { get; init; }
+
+    /// <summary>Alcance do golpe (m) entre o corpo e o alvo: 2,2 m cobre toda célula vizinha de 1,5 m (centro a centro, até 2,12 m na
+    /// diagonal) e deixa o passo fino fugir do golpe (escolha do modelo).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? StrikeReachMeters { get; init; }
+
+    /// <summary>Recarga do golpe (ms) de um adulto de força média; o corpo (força) escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? StrikeCooldownMsValue { get; init; }
+
+    /// <summary>Janela (ms) da esquiva e recarga até levantar a guarda de novo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? DodgeWindowMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? BlockWindowMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? GuardCooldownMsValue { get; init; }
+
+    /// <summary>Chance base (0–1) de a esquiva evitar o golpe de um corpo de força média e descansado; o corpo escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? DodgeChanceValue { get; init; }
+
+    /// <summary>Fração do dano que passa pelo bloqueio (menor = bloqueia mais).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? BlockPassesValue { get; init; }
+
+    /// <summary>Tempo (ms) que quem apanhou leva para revidar, de um impulsivo (0,5×) a um calmo (1,5×).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetaliateWindupMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public bool CombatOn => Enabled && (CombatTiming ?? true);
+    [System.Text.Json.Serialization.JsonIgnore] public double StrikeReachM => StrikeReachMeters ?? 2.2;
+    [System.Text.Json.Serialization.JsonIgnore] public int StrikeCooldownMs => StrikeCooldownMsValue ?? 900;
+    [System.Text.Json.Serialization.JsonIgnore] public int DodgeWindowMs => DodgeWindowMsValue ?? 350;
+    [System.Text.Json.Serialization.JsonIgnore] public int BlockWindowMs => BlockWindowMsValue ?? 700;
+    [System.Text.Json.Serialization.JsonIgnore] public int GuardCooldownMs => GuardCooldownMsValue ?? 1200;
+    [System.Text.Json.Serialization.JsonIgnore] public double DodgeChance => DodgeChanceValue ?? 0.7;
+    [System.Text.Json.Serialization.JsonIgnore] public double BlockPasses => BlockPassesValue ?? 0.3;
+    [System.Text.Json.Serialization.JsonIgnore] public int RetaliateWindupMs => RetaliateWindupMsValue ?? 600;
+
     public static readonly PlayerRules Default = new();
 
     public static readonly PlayerRules Off = new() { Enabled = false };

@@ -186,32 +186,49 @@ public static class PlayerCommands
     /// a pessoa recusa ferir quem ela valoriza muito (<see cref="PossessionWill"/>); na plena ela não recusa, mas sofre presa.</summary>
     public static Result<Unit> Strike(WorldState world, TickContext ctx, NpcId npcId, string playerId, NpcId targetId)
     {
+        var done = StrikeWithResult(world, ctx, npcId, playerId, targetId);
+        return done.IsSuccess ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail(done.Error!);
+    }
+
+    /// <summary>#234: o golpe com o que o cliente precisa (<see cref="StrikeResult"/>). O alcance é em metros e há recarga
+    /// (<see cref="PlayerCombat.StrikeRefusal"/>, que fica no lugar do alcance de uma célula; <c>CombatTiming</c> desligado volta a ele e ao golpe imediato); o alvo
+    /// atingido decide o que faz (<see cref="PlayerCombat"/>).</summary>
+    public static Result<StrikeResult> StrikeWithResult(WorldState world, TickContext ctx, NpcId npcId, string playerId, NpcId targetId)
+    {
         var npc = world.FindNpc(npcId);
-        if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
-        if (PossessedByPower(world, npc) is { } taken) return taken;
+        if (npc is null || npc.ControllerId != playerId) return Result<StrikeResult>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return Result<StrikeResult>.Fail(taken.Error!);
         if (world.FindNpc(targetId) is not { IsAlive: true } target || target.Id == npc.Id)
-            return Result<Unit>.Fail($"{NotFound} alvo ausente ou morto");
+            return Result<StrikeResult>.Fail($"{NotFound} alvo ausente ou morto");
         // AD-197c: no passo fino o alcance é o da pose de agora (quem passa pela rua no meio da viagem está ao alcance)
-        if (LivingWorld.Simulation.Behavior.Decision.TravelPose.Reach(world, npc, target) > 1)
-            return Result<Unit>.Fail("strike: alvo fora do alcance");
-        if (!world.CrimeOn) return Result<Unit>.Fail("strike: violência desligada no cenário");
+        if (!world.Players.CombatOn && LivingWorld.Simulation.Behavior.Decision.TravelPose.Reach(world, npc, target) > 1)
+            return Result<StrikeResult>.Fail("strike: alvo fora do alcance");
+        if (!world.CrimeOn) return Result<StrikeResult>.Fail("strike: violência desligada no cenário");
+        if (PlayerCombat.StrikeRefusal(world, npc, target) is { } tooFar) return Result<StrikeResult>.Fail(tooFar); // #234: metros e recarga
 
         // o quanto ferir vai contra a pessoa: vínculo (AD-197e) e, com a disputa de vontade, também os valores (AD-197f)
         double care = PossessionContest.On(world) ? PossessionContest.HarmWeight(world, npc, target) : PossessionWill.CareFor(world, npc, target);
         bool against = world.Players.Enabled && care >= world.Players.RefuseHarmCare; // LW_AD196=off: sem vontade na posse
         // AD-197f: na posse comum é uma disputa de vontade (valores, vínculos, cansaço, controle)
         if (npc.ControlMode != PossessionMode.Full && PossessionContest.Refuses(world, npc, target, ctx.CurrentTick))
-            return Result<Unit>.Fail(string.Create(CultureInfo.InvariantCulture,
+            return Result<StrikeResult>.Fail(string.Create(CultureInfo.InvariantCulture,
                 $"{Refused} {npc.Name} não fere {target.Name} (peso {PossessionContest.HarmWeight(world, npc, target):0})"));
         if (npc.ControlMode == PossessionMode.Full)
             npc.RecordCaptiveObjection(target.Id.Value, against ? (int)Math.Round(care) : 0, ctx.CurrentTick);
 
-        long tick = ctx.CurrentTick;
-        LivingWorld.Simulation.Crime.Violence.Fight(world, ctx, npc, target, "jogador",
-            ctx.OneShot($"player-strike-{npc.Id.Value}-{target.Id.Value}-{tick}"));
+        var result = PlayerCombat.Strike(world, ctx, npc, target); // fere pelo caminho da briga e o alvo decide a reação (#234)
         PossessionWitness.OnStrike(world, ctx, npc, target); // AD-197f: quem convive estranha
-        WakeNow(world, target); // AD-197c: quem apanha reage já, não na hora cheia
-        return Result<Unit>.Ok(Unit.Value);
+        if (!world.Players.CombatOn || result.Reaction == CombatReaction.None) WakeNow(world, target); // AD-197c: quem apanha reage já
+        return Result<StrikeResult>.Ok(result);
+    }
+
+    /// <summary>#234: o corpo levanta a guarda (esquiva ou bloqueio) por uma janela curta. Recusa não muda o mundo.</summary>
+    public static Result<Unit> Guard(WorldState world, NpcId npcId, string playerId, CombatGuard guard)
+    {
+        var npc = world.FindNpc(npcId);
+        if (npc is null || npc.ControllerId != playerId) return Result<Unit>.Fail($"{NotFound} jogador não controla este NPC");
+        if (PossessedByPower(world, npc) is { } taken) return taken;
+        return PlayerCombat.Guard(world, npc, guard);
     }
 
     /// <summary>Logout: o NPC some pelo mesmo caminho do NPC do motor que some (<see cref="Disappearance"/>). Quem estava preso na

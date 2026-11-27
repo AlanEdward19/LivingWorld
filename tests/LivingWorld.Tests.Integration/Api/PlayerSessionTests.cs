@@ -160,6 +160,52 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, released.StatusCode);
     }
 
+    /// <summary>#234: o golpe responde o que o cliente anima (resultado, dano, reação do alvo, recarga) e a pose com o combate; a
+    /// esquiva e o bloqueio têm rota e canal, e a recarga da guarda e do golpe recusa com 409 e o motivo.</summary>
+    [Fact]
+    public async Task Strike_dodge_and_block_answer_what_the_client_animates_over_http_and_the_channel()
+    {
+        _factory.Services.GetRequiredService<SimulationHost>().Resume();
+        var (client, session) = await Session();
+        client.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // posse plena: sem recusa de valores
+        var world = World();
+        var body = world.Npcs.First(n => n.IsAlive && n.ControllerId is null && n.DisappearedAtTick is null);
+        var target = world.Npcs.First(n => n.IsAlive && n.ControllerId is null && n.DisappearedAtTick is null && n.Id != body.Id && n.City == body.City);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/players/{body.Id.Value}/possess", null)).StatusCode);
+        target.ExitBuilding();
+        target.MoveTo(body.CurrentLocation, world.CurrentDate.TotalHours);
+
+        var strike = await client.PostAsJsonAsync($"/players/{session.PlayerId}/strike", new { npcId = target.Id.Value });
+        Assert.Equal(HttpStatusCode.OK, strike.StatusCode);
+        var hit = JsonNode.Parse(await strike.Content.ReadAsStringAsync())!;
+        Assert.Equal("Hit", hit["outcome"]!.GetValue<string>());
+        Assert.True(hit["damage"]!.GetValue<int>() > 0 || hit["lethal"]!.GetValue<bool>());
+        Assert.True(hit["readyInMs"]!.GetValue<long>() > 0);
+        var shape = LivingWorld.Tests.Integration.Visual.ApiContractTests.ShapeOf(hit)!;
+        LivingWorld.Tests.Integration.Visual.ApiContractTests.Optional(shape, "reaction", "string"); // só quem apanhou e ficou vivo reage
+        LivingWorld.Tests.Integration.Visual.ApiContractTests.Optional(shape["pose"]!, "buildingId", "number"); // nulo na rua
+        var combat = shape["pose"]!["combat"]!;
+        LivingWorld.Tests.Integration.Visual.ApiContractTests.Optional(combat, "guard", "string");
+        LivingWorld.Tests.Integration.Visual.ApiContractTests.Optional(combat, "lastIncoming", new JsonObject { ["agoMs"] = "number", ["by"] = "number", ["damage"] = "number", ["outcome"] = "string" });
+        LivingWorld.Tests.Integration.Visual.ApiContractTests.AssertMatchesContract("shape.player-strike.json", shape);
+
+        target.MoveTo(body.CurrentLocation, world.CurrentDate.TotalHours); // quem apanhou pode ter recuado ou fugido
+        var again = await client.PostAsJsonAsync($"/players/{session.PlayerId}/strike", new { npcId = target.Id.Value });
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode); // ainda se recupera do golpe
+        Assert.Contains("ainda se recupera", await again.Content.ReadAsStringAsync());
+
+        var dodge = await client.PostAsync($"/players/{session.PlayerId}/dodge", null);
+        Assert.Equal(HttpStatusCode.OK, dodge.StatusCode);
+        var pose = JsonNode.Parse(await dodge.Content.ReadAsStringAsync())!;
+        Assert.Equal("Dodge", pose["combat"]!["guard"]!.GetValue<string>());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync($"/players/{session.PlayerId}/block", null)).StatusCode); // a guarda recarrega
+
+        using var socket = await Channel(session.SessionToken);
+        var blocked = await Send(socket, """{"seq":1,"command":"block"}""");
+        Assert.Equal(409, blocked["status"]!.GetValue<int>());
+        await client.PostAsync($"/players/{session.PlayerId}/logout", null);
+    }
+
     [Theory]
     [InlineData("http://127.0.0.1:5214", false)]
     [InlineData("http://localhost:5214", false)]
@@ -216,7 +262,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
                 && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains("POST"))
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/accelerate",
-            "/players/{playerId}/action", "/players/{playerId}/candidates", "/players/{playerId}/character", "/players/{playerId}/character/preview", "/players/{playerId}/create", "/players/{playerId}/interact", "/players/{playerId}/jump", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
+            "/players/{playerId}/action", "/players/{playerId}/block", "/players/{playerId}/candidates", "/players/{playerId}/character", "/players/{playerId}/character/preview", "/players/{playerId}/create", "/players/{playerId}/dodge", "/players/{playerId}/interact", "/players/{playerId}/jump", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
             "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
@@ -234,7 +280,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
         using (var socket = await Channel(session.SessionToken))
             foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"move","dx":1,"dy":0}""",
                 $$"""{"seq":4,"command":"strike","npcId":{{other}}}""", """{"seq":6,"command":"sleep","untilHour":6}""",
-                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0,"run":true}""", """{"seq":13,"command":"jump"}""",
+                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0,"run":true}""", """{"seq":13,"command":"jump"}""", """{"seq":14,"command":"dodge"}""", """{"seq":15,"command":"block"}""",
                 """{"seq":7,"command":"accelerate"}""", """{"seq":8,"command":"wake"}""", """{"seq":5,"command":"logout"}""",
                 $$"""{"seq":11,"command":"candidates","cityId":"{{World().ActiveCities().First().Id.Value}}"}""",
                 $$"""{"seq":12,"command":"create","cityId":"{{World().ActiveCities().First().Id.Value}}","npcId":{{other}},"sample":0}""" })
