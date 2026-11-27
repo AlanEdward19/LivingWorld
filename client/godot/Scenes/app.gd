@@ -64,6 +64,7 @@ var brain_panel
 var conversation
 var narrative
 var player_hud
+var feedback ## #232: sons, poeira e números do retorno de ação
 var creator ## AD-197q: criador de personagem pelo motor
 var admin_window
 var family_builder

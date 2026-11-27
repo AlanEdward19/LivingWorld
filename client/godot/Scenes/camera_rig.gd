@@ -113,6 +113,14 @@ var _goal := Vector3.ZERO
 var _goal_active := false
 var _requested := false
 var _pivot: Node3D
+const SHAKE_DECAY := 2.4 ## por segundo: um tranco cheio some em ~0,4 s, em qualquer FPS
+const SHAKE_M := 0.05 ## deslocamento máximo (metros do corpo) com o tranco cheio
+const SHAKE_ROLL := 0.012 ## rad
+var shake_enabled := true ## Opções: desligar o tremor
+var shake_amount := 0.0 ## 0..1, decai com o tempo real
+var shake_offset := Vector3.ZERO
+var shake_roll := 0.0
+var _shake_t := 0.0
 
 
 func _init() -> void:
@@ -150,6 +158,9 @@ func _apply() -> void:
 	_has_xf = true
 	if _blend_t < 1.0:
 		_apply_blend()
+	elif shake_amount > 0.0: # #232: o tremor entra por cima da câmera já posta (as molas e o enquadramento não o veem)
+		camera.position += shake_offset
+		camera.rotation.z += shake_roll
 
 
 ## Onde a câmera está no mundo, pelas propriedades (vale fora da árvore, onde `global_transform` não vale).
@@ -418,7 +429,30 @@ func release() -> void:
 	following = null
 
 
+## #232: tranco curto (golpe, pouso forte). Soma até 1; nada em 1ª/3ª pessoa fora do modo jogador ou com a opção desligada.
+func add_shake(amount: float) -> void:
+	if shake_enabled and mode != ISO:
+		shake_amount = minf(shake_amount + amount, 1.0)
+
+
+## Decai o tranco e calcula o deslocamento deste quadro (independe do FPS: só `delta`).
+func step_shake(delta: float) -> void:
+	if shake_amount <= 0.0:
+		return
+	shake_amount = maxf(shake_amount - SHAKE_DECAY * delta, 0.0)
+	_shake_t += delta
+	var k := shake_amount * shake_amount
+	shake_offset = Vector3(sin(_shake_t * 47.0), sin(_shake_t * 61.0 + 1.3), 0.0) * (k * Grid.units(SHAKE_M))
+	shake_roll = sin(_shake_t * 53.0 + 0.7) * k * SHAKE_ROLL
+	if shake_amount <= 0.0:
+		shake_offset = Vector3.ZERO
+		shake_roll = 0.0
+
+
 func _process(delta: float) -> void:
+	step_shake(delta)
+	if shake_amount > 0.0 and following == null and mode != ISO:
+		_apply()
 	if absf(_zoom_goal - zoom_size) > 0.001:
 		_apply_zoom(zoom_size * pow(_zoom_goal / zoom_size, clampf(delta * 9.0, 0.0, 1.0)))
 	if _goal_active:

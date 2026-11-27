@@ -559,6 +559,13 @@ func set_bubble(value: bool) -> void:
 		_bubble_node.visible = false
 
 
+## #232: fase, peso e corrida da passada do rig ([] sem rig): o tempo dos passos do corpo do jogador.
+func step_state() -> Array:
+	if _rig == null or not _rig.active:
+		return []
+	return [_rig.phase, _rig.gait, _rig.run]
+
+
 ## #230: o rig só existe para quem está perto, é o corpo do jogador ou a prévia; ao sair de cena (longe/bolha) os nós são liberados.
 func _sync_rig() -> void:
 	if _body == null:
