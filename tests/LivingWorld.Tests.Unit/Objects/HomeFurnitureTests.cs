@@ -100,4 +100,23 @@ public class HomeFurnitureTests
             }
         }
     }
+
+    [Fact]
+    public void The_resting_places_are_kept_but_never_change_the_answer_and_follow_the_catalog_in_use()
+    {
+        // #242: a lista dos lugares de dormir é guardada por prédio e catálogo; guardada ou não, o lugar de cada pessoa é o mesmo
+        var catalog = ObjectCatalogTests.SampleCatalog();
+        foreach (var building in Houses())
+        {
+            var first = Enumerable.Range(1, 12).Select(n => BuildingOccupancySystem.Place(new NpcId(n), building, groundOnly: false, catalog)).ToList();
+            var again = Enumerable.Range(1, 12).Select(n => BuildingOccupancySystem.Place(new NpcId(n), building, groundOnly: false, catalog)).ToList();
+            Assert.Equal(first, again);
+            // sem catálogo (sem cama), outro catálogo na mesma casa: o lugar sai da planta, não da lista guardada para a cama
+            var bare = Enumerable.Range(1, 12).Select(n => BuildingOccupancySystem.Place(new NpcId(n), building, groundOnly: false, null)).ToList();
+            var layout = BuildingLayoutGenerator.Generate(building);
+            foreach (var (_, floor, cell) in bare)
+                Assert.Contains(layout.FloorLayouts[floor.Value].Cells, c => c.Cell == cell);
+            Assert.Equal(first, Enumerable.Range(1, 12).Select(n => BuildingOccupancySystem.Place(new NpcId(n), building, groundOnly: false, catalog)).ToList());
+        }
+    }
 }
