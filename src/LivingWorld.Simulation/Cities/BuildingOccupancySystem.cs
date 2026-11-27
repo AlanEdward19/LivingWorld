@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Population;
@@ -21,12 +22,15 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
 {
     public const string SystemName = "building-occupancy";
 
+    private readonly Dictionary<CellCoord, int> _crowd = []; // reaproveitado a cada tick (a simulação é sequencial)
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
 
     public void Tick(WorldState world, TickContext ctx)
     {
         var npcs = world.Npcs;
+        Dictionary<CellCoord, int>? crowd = null; // quantos em cada célula do chão (mundo); só montado se alguém entra para trabalhar
         for (int i = 0; i < npcs.Count; i++)
         {
             var npc = npcs[i];
@@ -38,23 +42,71 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
             var target = TargetBuilding(world, npc);
             if (target is null)
             {
-                if (npc.Interior is not null) npc.ExitBuilding();
+                if (npc.Interior is not null)
+                {
+                    Release(world, npc, crowd);
+                    npc.ExitBuilding();
+                }
+
                 continue;
             }
 
             // Andar e célula são puros em (NpcId, BuildingId): quem já está no prédio certo não muda de lugar.
             if (npc.Interior?.Building == target.Value.Building.Id) continue;
+            if (target.Value.Workplace is { } workplace && target.Value.Building.Position is not null)
+            {
+                // #223: o posto vem do ofício e do lugar, com lotação por célula
+                crowd ??= CrowdOnGround(world);
+                Release(world, npc, crowd);
+                var cells = WorkStands.StandsOf(world, target.Value.Building, workplace);
+                if (WorkStands.Pick(world, cells, crowd) is { } stand && InteriorEntry.TryStand(world, npc, target.Value.Building.Id, stand).IsSuccess)
+                    crowd[stand] = crowd.GetValueOrDefault(stand) + 1;
+                else if (npc.Interior is not null)
+                    npc.ExitBuilding(); // sem vaga em nenhum posto: espera fora, não se empilha
+                continue;
+            }
+
+            Release(world, npc, crowd);
             var (building, floor, cell) = Place(npc.Id, target.Value.Building, target.Value.GroundOnly);
-            InteriorEntry.TryEnter(world, npc, building, floor, cell);
+            if (InteriorEntry.TryEnter(world, npc, building, floor, cell).IsSuccess && floor.Value == 0 && crowd is not null
+                && building.Value == target.Value.Building.Id.Value && target.Value.Building.Position is { } origin)
+            {
+                var at = new CellCoord(origin.X + cell.X, origin.Y + cell.Y);
+                crowd[at] = crowd.GetValueOrDefault(at) + 1;
+            }
         }
     }
 
-    private static (Building Building, bool GroundOnly)? TargetBuilding(WorldState world, Npc npc)
+    /// <summary>Quantos NPCs vivos estão em cada célula do térreo (a pose dentro de prédio, em coordenadas do mundo).</summary>
+    private Dictionary<CellCoord, int> CrowdOnGround(WorldState world)
+    {
+        var crowd = _crowd;
+        crowd.Clear();
+        var npcs = world.Npcs;
+        for (int i = 0; i < npcs.Count; i++)
+            if (npcs[i] is { IsAlive: true, Interior: { Floor.Value: 0 } inside } npc && world.FindBuilding(inside.Building) is { Position: { } origin })
+            {
+                var at = new CellCoord(origin.X + inside.LocalCell.X, origin.Y + inside.LocalCell.Y);
+                crowd[at] = crowd.GetValueOrDefault(at) + 1;
+            }
+
+        return crowd;
+    }
+
+    private static void Release(WorldState world, Npc npc, Dictionary<CellCoord, int>? crowd)
+    {
+        if (crowd is null || npc.Interior is not { Floor.Value: 0 } inside || world.FindBuilding(inside.Building) is not { Position: { } origin }) return;
+        var at = new CellCoord(origin.X + inside.LocalCell.X, origin.Y + inside.LocalCell.Y);
+        if (crowd.TryGetValue(at, out int count)) crowd[at] = Math.Max(0, count - 1);
+    }
+
+    private static (Building Building, bool GroundOnly, Workplace? Workplace)? TargetBuilding(WorldState world, Npc npc)
     {
         if (!npc.IsAlive) return null;
 
         BuildingId? target = null;
         bool ground = false;
+        Workplace? work = null;
         switch (npc.CurrentAction)
         {
             case ActionType.Sleep:
@@ -66,12 +118,15 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
                 ground = true;
                 if (npc.Employer is { } employerId && world.FindWorkplace(employerId) is { Building: { } workplaceBuilding } workplace
                     && npc.CurrentLocation == workplace.Location)
+                {
                     target = workplaceBuilding;
+                    work = workplace;
+                }
                 break;
         }
 
         if (target is not { } buildingId || world.FindBuilding(buildingId) is not { } building) return null;
-        return (building, ground);
+        return (building, ground, work);
     }
 
     /// <summary>Andar (térreo quando <paramref name="groundOnly"/>) e célula caminhável, escolhidos só por hash

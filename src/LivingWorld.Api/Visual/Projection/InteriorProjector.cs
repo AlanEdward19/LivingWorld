@@ -37,24 +37,31 @@ public static class InteriorProjector
     {
         var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);
         if (building is null) return null;
+        var plan = BuildingLayoutGenerator.Generate(building);
         return world.Npcs
-            .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
+            .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(plan, interior))
             .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world.ObjectCatalog, building.BuildingTypeId, n)))
             .ToArray();
     }
+
+    /// <summary>#223: quem trabalha no campo em volta do prédio (posto fora da planta) não é ocupante do interior.</summary>
+    private static bool IsInside(BuildingLayout layout, LivingWorld.Domain.Population.InteriorOccupancy interior) =>
+        interior.Floor.Value >= 0 && interior.Floor.Value < layout.FloorLayouts.Count
+        && layout.FloorLayouts[interior.Floor.Value].Cells.Any(c => c.Cell == interior.LocalCell);
 
     public static Result<InteriorSnapshot> Build(WorldState world, BuildingId buildingId)
     {
         var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);
         if (building is null) return Result<InteriorSnapshot>.Fail($"prédio {buildingId} não encontrado");
 
+        var layout = BuildingLayoutGenerator.Generate(building);
         var occupants = world.Npcs
-            .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
+            .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(layout, interior))
             .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world.ObjectCatalog, building.BuildingTypeId, n)))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
-            BuildingLayoutGenerator.Generate(building), BuildObjects(world.ObjectCatalog, building.BuildingTypeId)));
+            layout, BuildObjects(world.ObjectCatalog, building.BuildingTypeId)));
     }
 
     /// <summary>Id do primeiro objeto da mobília do tipo de prédio que atende à ação do NPC e que ele pode usar (mesma regra do motor,
