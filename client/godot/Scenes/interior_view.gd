@@ -325,6 +325,11 @@ func is_wall_cell(cell: Vector2i, level: int = 0) -> bool:
 	return plan.has(local) and WallPanels.is_wall(int(plan[local]))
 
 
+## #237: a célula absoluta `cell` é da planta do motor naquele andar (parede ou piso)? Fora dela é rua, não a casa.
+func covers(cell: Vector2i, level: int = 0) -> bool:
+	return _plans.get(level, {}).has(cell - origin)
+
+
 ## #226/#229: o que o corpo do jogador toca no andar visível ao redor de `center` (células): [[Rect2, altura]].
 func obstacles_near(center: Vector2, reach: float, level: int = -1) -> Array:
 	var out: Array = []

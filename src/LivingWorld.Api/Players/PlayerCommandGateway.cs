@@ -247,7 +247,7 @@ public sealed partial class PlayerCommandGateway(
             npc.Id.Value,
             npc.CurrentLocation.X,
             npc.CurrentLocation.Y,
-            npc.Interior?.Building.Value ?? PlayerGround.At(world, npc.CurrentLocation)?.Building.Id.Value,
+            PlayerGround.InsideBuilding(world, npc),
             PlayerGround.FloorOf(npc),
             Math.Max(0, npc.StepReadyAtMs - world.CurrentDate.TotalMilliseconds),
             (npc.Fine?.X ?? npc.CurrentLocation.X * FinePose.PerCell + 500) / (double)FinePose.PerCell,

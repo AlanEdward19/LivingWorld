@@ -18,13 +18,26 @@ internal static class PlayerSettle
     /// <summary>Põe o corpo em chão andável se a pose dele é célula sólida do térreo de um prédio; devolve se mexeu.</summary>
     public static bool OutOfTheWall(WorldState world, TickContext ctx, Npc npc)
     {
-        if (npc.Interior is not null) return false; // a entrada no prédio já validou a célula contra a planta
+        if (npc.Interior is not null) return LeaveTheField(world, ctx, npc); // a entrada no prédio já validou a célula contra a planta
         var pose = PlayerGround.PoseOf(world, npc);
         if (PlayerGround.At(world, pose) is not { } spot || InteriorWalkability.IsWalkable(spot.Material)) return false;
         var origin = spot.Building.Position!.Value;
         var target = NearestFloor(spot.Building, origin, new CellCoord(pose.X - origin.X, pose.Y - origin.Y)) ?? spot.Doorstep;
         npc.MoveTo(target, ctx.CurrentTick);
         if (npc.Fine is not null) npc.SetFine(null); // a posição contínua partiria da parede de novo
+        return true;
+    }
+
+    /// <summary>#237: o posto de trabalho no campo guarda o prédio com a célula local fora da planta (a pose é uma célula do chão aberto).
+    /// Para conduzir, o corpo é de quem está na rua: vai para a célula da pose (o campo) e sai do prédio, em vez de o app entrar numa
+    /// casa em que ele não está. Dentro da planta (ou nos andares de cima) nada muda.</summary>
+    private static bool LeaveTheField(WorldState world, TickContext ctx, Npc npc)
+    {
+        if (PlayerGround.InsideBuilding(world, npc) is not null) return false;
+        var pose = PlayerGround.PoseOf(world, npc);
+        npc.ExitBuilding();
+        if (npc.CurrentLocation != pose) npc.MoveTo(pose, ctx.CurrentTick);
+        if (npc.Fine is not null) npc.SetFine(null);
         return true;
     }
 

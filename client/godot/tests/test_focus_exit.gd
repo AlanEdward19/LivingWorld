@@ -167,3 +167,27 @@ func _asked(fake, part: String) -> int:
 		if part in c:
 			n += 1
 	return n
+
+
+## #237: a pose diz "dentro" mas a célula do corpo não é da planta (posto de trabalho no campo): nenhum palco sem fim com a casa longe,
+## o corpo segue no mundo e a mesma pose não reabre a casa a cada passo. Com o corpo dentro da planta, a casa abre e o corpo está no palco.
+func test_a_pose_inside_with_the_body_outside_the_plan_does_not_open_the_house() -> void:
+	var app = await _player_app()
+	app.player_hud.fine = Vector2(40.5, 40.5) # fora da planta 3x3 da casa
+	await app._on_player_placed(4, 0)
+	eq(app.stage.active, false, "corpo fora da planta: a casa não fica desenhada")
+	eq(app.world_view.visible, true, "e o mundo continua desenhado")
+	eq(app.session.interior_building, -1, "nenhum prédio em foco")
+	await app._on_player_placed(4, 0)
+	eq(app.stage.active, false, "a mesma pose de novo não reabre a casa")
+	app.queue_free()
+
+
+func test_a_pose_inside_with_the_body_in_the_plan_puts_the_body_on_the_stage() -> void:
+	var app = await _player_app()
+	app.player_hud.fine = Vector2(1.5, 1.5)
+	await app._on_player_placed(4, 0)
+	eq(app.stage.active, true, "corpo dentro da planta: a casa abre")
+	check(app.stage.interior_view.occupant_nodes.has(BODY), "o corpo está no palco da casa")
+	check(app.stage.interior_view.covers(Vector2i(1, 1), 0), "a célula do corpo é da planta")
+	app.queue_free()

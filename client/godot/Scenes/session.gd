@@ -169,6 +169,15 @@ func _enter_interior_view() -> void:
 			app.registry.objects[String(descriptor.id)] = descriptor
 	var title: String = app.registry.title_of(Registry.ref(Registry.BUILDING, interior_building))
 	app.breadcrumb.text = "%s › %s" % [crumb_before, title]
+	if driven and app.player_hud.fine != Vector2.INF and app.player_hud.floor_level == 0 \
+			and not app.stage.interior_view.covers(Vector2i(floori(app.player_hud.fine.x), floori(app.player_hud.fine.y)), 0):
+		# #237: a pose diz "dentro" mas a célula do corpo não é da planta (posto de trabalho no campo): o corpo está na rua, não há casa
+		# para desenhar em volta dele. O motor já não diz isso; é só a rede de segurança (a casa não vira palco sem fim com a casa longe)
+		app.player_hud.warning.emit("O corpo está fora da casa: o foco da casa foi desfeito.")
+		var shown := interior_building
+		leave_focus()
+		app._inside_by_body = shown # tratado: a próxima pose igual não pede a casa de novo
+		return
 	var world_own = app.world_view.npc_nodes.get(app.player_hud.npc_id) if driven else null
 	if world_own != null and not app.stage.interior_view.occupant_nodes.has(app.player_hud.npc_id):
 		app.stage.interior_view.guide_body(app.player_hud.npc_id, world_own, app.player_hud.floor_level)
