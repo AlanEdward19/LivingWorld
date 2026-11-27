@@ -192,3 +192,21 @@ func test_the_body_walking_the_plan_is_drawn_as_a_guided_occupant_that_survives_
 	view.release_guided()
 	check(not view.occupant_nodes.has(77), "solto, some")
 	world_actor.free()
+
+
+## #227: o forro só aparece com o jogador dentro e a câmera abaixo dele; fica sobre as paredes do andar visível (sem céu entre elas).
+func test_the_ceiling_shows_only_when_the_camera_is_inside_and_below_it() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	check(view.ceiling != null and not view.ceiling.visible, "sem jogador, sem forro")
+	view.update_ceiling(0.5)
+	check(not view.ceiling.visible, "o observador vê a casa aberta, de maquete")
+	view.immersive = true
+	view.update_ceiling(view.ceiling.position.y - 0.3)
+	check(view.ceiling.visible, "câmera de gente dentro da casa: forro")
+	check(view.ceiling.position.y >= InteriorView.wall_height(), "o forro assenta sobre as paredes (%s)" % view.ceiling.position.y)
+	view.update_ceiling(view.ceiling.position.y + 3.0)
+	check(not view.ceiling.visible, "câmera acima do forro: some")
+	view.set_floor(1)
+	check(view.ceiling.position.y > InteriorView.wall_height() + InteriorView.Grid.floor_height() * 0.5, "o forro sobe com o andar")
+	view.free()

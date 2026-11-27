@@ -386,3 +386,15 @@ func test_the_backpack_opens_with_i_or_tab_and_shows_what_the_engine_says() -> v
 		hud._unhandled_input(key)
 		check(not hud.frame.inventory_open(), "a mesma tecla fecha")
 	_free(made)
+
+
+## #227: a dica de teclas tem duas linhas, cada uma cabe em 1280 px, e nenhuma tecla some.
+func test_the_key_hints_fit_in_1280_in_two_lines() -> void:
+	var text: String = PlayerFrame.hint_text()
+	var lines := text.split("\n")
+	eq(lines.size(), 2, "duas linhas")
+	var font := ThemeDB.fallback_font
+	for line in lines:
+		check(font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x < 1280.0 - 40.0, "a linha cabe em 1280 (%s)" % line)
+	for key in ["WASD", "Shift", "Espaço", "E interagir", "segure: roda", "Clique", "Botão direito/F", "Ctrl", "I mochila", "J metas", "C câmera", "Q ombro", "+ −", "F1", "Esc"]:
+		check(key in text, "a dica lista " + key)

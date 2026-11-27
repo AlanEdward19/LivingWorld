@@ -7,7 +7,7 @@ signal chosen(entry: Dictionary)
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
 const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
 const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
@@ -108,9 +108,9 @@ func _init() -> void:
 	prompt.visible = false
 	add_child(prompt)
 	hints = _label(13, Color(1, 1, 1, 0.75))
-	hints.text = HINTS + COMBAT_HINTS
+	hints.text = hint_text()
 	hints.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	hints.offset_top = -30
+	hints.offset_top = -50
 	hints.offset_bottom = -10
 	hints.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -172,6 +172,12 @@ static func _style(color: Color, radius: int) -> StyleBoxFlat:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	return style
+
+
+## #227: a dica de teclas em duas linhas (a de combate vai ao fim da primeira): cada uma cabe em 1280 px.
+static func hint_text() -> String:
+	var lines := HINTS.split("\n")
+	return lines[0] + COMBAT_HINTS + "\n" + lines[1]
 
 
 static func _label(size: int, color: Color) -> Label:

@@ -149,6 +149,10 @@ func _enter_interior_view() -> void:
 	if world_own != null and not app.stage.interior_view.occupant_nodes.has(app.player_hud.npc_id):
 		app.stage.interior_view.guide_body(app.player_hud.npc_id, world_own, app.player_hud.floor_level)
 		app.stage.set_floor(app.player_hud.floor_level) # o corpo entra no andar em que o motor diz que ele está
+		var body_cell := Vector2i(floori(app.player_hud.fine.x), floori(app.player_hud.fine.y))
+		if app.player_hud.fine != Vector2.INF and app.stage.interior_view.is_wall_cell(body_cell, app.player_hud.floor_level):
+			# #227: o motor pôs o corpo numa célula de parede (o NPC estava "em casa" sem lugar na planta): ele veda todo passo daí
+			app.player_hud.warning.emit("O motor pôs este corpo dentro de uma parede da casa e não deixa andar: solte-o (Esc → Sair) e escolha outra pessoa.")
 	if driven: # #227: o jogador entra no foco com a câmera dele (3ª ou 1ª pessoa), não com a do observador; troca sem corte seco
 		app.rig.begin_blend()
 	elif marker != null and not app.director.active():

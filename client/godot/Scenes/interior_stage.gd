@@ -123,3 +123,4 @@ func _sync_camera() -> void:
 	if not is_inside_tree() or _source == null or not is_instance_valid(_source) or not _source.is_inside_tree():
 		return
 	interior_view.set_view_direction(_source.global_transform.basis.z)
+	interior_view.update_ceiling(_source.global_position.y)
