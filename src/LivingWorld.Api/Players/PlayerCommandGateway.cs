@@ -323,7 +323,6 @@ public sealed partial class PlayerCommandGateway(
             var world = host.Current;
             return new
             {
-                tick = world.CurrentDate.TotalHours,
                 trees = LivingWorld.Simulation.Players.PlayerNature.Touched(world)
                     .Select(t => new { x = t.Cell.X, y = t.Cell.Y, left = t.Left, capacity = t.Capacity, stage = LivingWorld.Simulation.Players.PlayerNature.StageOf(t.Left, t.Capacity) })
                     .ToList(),

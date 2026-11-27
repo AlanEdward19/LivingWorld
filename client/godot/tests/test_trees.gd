@@ -84,10 +84,10 @@ func test_the_app_asks_the_engine_for_the_cut_trees_and_draws_them() -> void:
 	var scenery = made[0]
 	app.world_view.terrain.scenery = scenery
 	var cell: Vector2i = made[1][0]
-	app.api.transport.on("GET /world/trees", {"status": 200, "body": {"tick": 5, "trees": [_tree(cell, 0, 8, "stump")]}})
+	app.api.transport.on("GET /world/trees", {"status": 200, "body": {"trees": [_tree(cell, 0, 8, "stump")]}})
 	await app.refresh_trees()
 	eq(scenery.stage_at(cell), "stump", "o toco do motor aparece no cliente")
-	app.api.transport.on("GET /world/trees", {"status": 200, "body": {"tick": 6, "trees": []}})
+	app.api.transport.on("GET /world/trees", {"status": 200, "body": {"trees": []}})
 	await app.refresh_trees()
 	eq(scenery.stage_at(cell), "whole", "a árvore que voltou inteira some da lista e volta a ser desenhada")
 	scenery.queue_free()
@@ -181,4 +181,4 @@ func test_the_world_trees_shape_is_in_the_contract() -> void:
 	var shape = Validator.load_shape("world-trees")
 	check(shape != null, "o contrato world-trees existe")
 	if shape != null:
-		eq(Validator.validate({"tick": 5, "trees": []}, shape), [], "a resposta vazia vale")
+		eq(Validator.validate({"trees": []}, shape), [], "a resposta vazia vale")
