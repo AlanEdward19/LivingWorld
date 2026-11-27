@@ -510,7 +510,46 @@ func _process(delta: float) -> void:
 	glide(walk_direction(_held_keys()), delta)
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
+	_refresh_goals(delta)
 	_paused_note_clock = maxf(0.0, _paused_note_clock - delta)
+
+
+## #235: a meta mais urgente do motor na linha do HUD (a cada GOALS_EVERY s) e, com o painel J aberto, a lista e o diário.
+const GOALS_EVERY := 5.0
+var _goals_clock := GOALS_EVERY
+var _goals_pending := false
+
+
+func _refresh_goals(delta: float) -> void:
+	_goals_clock += delta
+	if not rpg or frame == null or _goals_pending or _goals_clock < GOALS_EVERY:
+		return
+	_goals_clock = 0.0
+	await load_goals()
+
+
+## Pede metas e (com o painel aberto) o diário ao motor; resposta ruim não mexe na tela.
+func load_goals() -> void:
+	if api == null or not api.has_method("player_goals"):
+		return
+	_goals_pending = true
+	var goals: Dictionary = await api.player_goals(player_id)
+	if rpg and goals.ok and goals.body is Dictionary:
+		frame.set_goals(goals.body)
+	if rpg and frame.goals_open():
+		var diary: Dictionary = await api.player_diary(player_id)
+		if rpg and diary.ok and diary.body is Dictionary:
+			frame.set_diary(diary.body)
+	_goals_pending = false
+
+
+## J: abre ou fecha "Metas e diário", lido do motor na hora ao abrir.
+func toggle_goals() -> void:
+	if frame == null:
+		return
+	frame.toggle_goals()
+	if frame.goals_open():
+		_goals_clock = GOALS_EVERY
 
 
 ## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
@@ -700,6 +739,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_I] and rpg:
 		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos); #233: Tab e I abrem a mochila
 		toggle_inventory()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
+		get_viewport().set_input_as_handled()
+		toggle_goals() # #235: metas e diário
 	elif event is InputEventKey and event.keycode == KEY_E and not event.echo and (not event.pressed or not (input_blocked.is_valid() and input_blocked.call())):
 		get_viewport().set_input_as_handled()
 		if not event.pressed:

@@ -1,0 +1,35 @@
+# Metas, habilidades e diário do jogador (#235, épico #228)
+
+O jogador que controla uma pessoa precisa saber o que fazer, como num RPG, mas **nenhuma missão é escrita à mão**: as metas
+nascem do estado do motor, na hora do pedido. Só leitura, sem RNG novo, sem LLM; custo zero por tick (roda sob pedido).
+
+## Rotas (só leitura, mesma identificação de `/reach` e `/time`; 404 sem corpo)
+- `GET /players/{id}/goals`: `goals[]` (`kind`, `reason`, `urgency` 0..100, `step`), `skills[]`, `urgencyLine`.
+- `GET /players/{id}/diary`: `entries[]` do mais novo ao mais velho (teto 60), `controlledSinceMs`.
+
+## De onde vem cada meta (`PlayerGoals`)
+| Meta (`kind`) | Estado do motor que a cria |
+|---|---|
+| `need.hunger/thirst/sleep/social` | falta (100 − necessidade) ≥ 50; zerada = 100 |
+| `family.child-hungry` | filho dependente da casa com fome ou sede |
+| `family.spouse-sick` / `family.member-sick` | cônjuge ou morador com saúde < 50 |
+| `money.rent-arrears` / `home.homeless` / `money.broke` | aluguel atrasado, sem teto, carteira zerada |
+| `work.report` / `skill.grow` | tem emprego e não está no posto; ofício abaixo do teto |
+
+## O próximo passo (`step`)
+Sempre algo que os comandos de hoje fazem: `interact` (a oferta de `/reach` já está ao alcance: `kind`, `targetId`, `verb`,
+`resourceId`), `go` (andar até a célula `x,y`; `distance` em células) ou `act` (a ação em `verb`). `none` só se o mundo não
+oferece nada. Escolha por alcance e distância, desempate por id: determinístico.
+
+## Habilidades (`PlayerSkills`)
+O ganho é o do motor (`SkillPracticeSystem.PracticeGain`): quem está em `Work` no próprio posto sobe, NPC ou jogador, pelo mesmo
+caminho (o `interact work` e o `act Work` do jogador caem nele; teste prova). Níveis são 10 faixas de `Cap/10` pontos; a consulta
+traz nível, `toNext`, `fraction`, `practicing` e `gainPerPractice`.
+
+## Diário (`PlayerDiary`)
+Reaproveita a linha do tempo da biografia (`NpcBiographyQuery`, os fatos do mundo) e o registro de sessão (o que o jogador fez:
+`Act`, `Interact`, `Strike`...). `milestone` marca marcos de vida; `whileControlled` separa o que veio depois de assumir o corpo.
+Texto do catálogo de apresentação (`LivingEventPresentationCatalog`), nunca da LLM.
+
+## Cliente
+Tecla **J** abre "Metas e diário"; a meta mais urgente fica numa linha discreta sob o relógio (atualiza a cada 5 s).
