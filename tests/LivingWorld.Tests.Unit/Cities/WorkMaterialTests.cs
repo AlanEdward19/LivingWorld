@@ -22,9 +22,10 @@ public class WorkMaterialTests
         public void Record(WorldEvent evt) => Events.Add(evt);
     }
 
-    private static (WorldState World, Sink Sink, TickContext Ctx, BuildWork Work, Npc Builder) HouseWork(StreetRules streets)
+    private static (WorldState World, Sink Sink, TickContext Ctx, BuildWork Work, Npc Builder) HouseWork(StreetRules streets, bool regional = false)
     {
-        var (world, clock) = ScenarioRunner.Create(3, cityLayout: CityLayoutRules.Default with { Streets = streets });
+        var (world, clock) = ScenarioRunner.Create(3, cityLayout: CityLayoutRules.Default with { Streets = streets },
+            costWeights: regional ? ScenarioRunner.RegionalCostWeights : null); // AD-197o2: a caminhada só pesa nas horas no mapa de região
         clock.Run(world, 24);
         var sink = new Sink();
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
@@ -223,11 +224,11 @@ public class WorkMaterialTests
     [Fact]
     public void Cutting_in_the_woods_does_not_count_again_the_walk_that_is_now_walked()
     {
-        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default, regional: true);
         var site = new CellCoord(work.X, work.Y);
         var far = new CellCoord(Math.Min(world.Map.Width - 1, site.X + 10), site.Y);
         long without = WorkHaul.CutHours(world, site, far, 10);
-        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"));
+        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"), regional: true);
         long with = WorkHaul.CutHours(plain, site, far, 10);
         Assert.Equal((long)Math.Ceiling(plain.StreetRules.HouseGatherHours * 10.0 / plain.StreetRules.HouseMaterialUnits), with);
         Assert.True(without < with, $"o corte sem a caminhada ({without} h) é menor que o total de antes ({with} h)");

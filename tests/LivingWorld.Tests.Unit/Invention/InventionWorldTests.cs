@@ -112,8 +112,9 @@ public class InventionWorldTests
     [Fact]
     public void On_foot_water_on_the_way_costs_more_than_in_a_world_without_invention_and_a_working_craft_costs_less()
     {
-        var (world, _) = ScenarioRunner.Create(1);
-        var (plain, _) = ScenarioRunner.Create(1, inventionRules: InventionRules.Disabled);
+        // AD-197o2: o custo da água no caminho é em horas de caminhada (ticks): vila de 1,5 m a atravessa em segundos; mapa de região
+        var (world, _) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights);
+        var (plain, _) = ScenarioRunner.Create(1, inventionRules: InventionRules.Disabled, costWeights: ScenarioRunner.RegionalCostWeights);
         var npc = world.Npcs.First(n => n.IsAlive && n.Household is not null);
         var (from, to) = WaterTrip(world);
 

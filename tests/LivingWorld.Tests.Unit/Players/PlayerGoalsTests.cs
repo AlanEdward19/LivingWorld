@@ -99,6 +99,7 @@ public class PlayerGoalsTests
         Assert.Contains(child.Name, goal.Reason);
         Assert.NotNull(goal.Step);
         child.SetHunger(100, w.CurrentDate.TotalHours);
+        child.SetThirst(100, w.CurrentDate.TotalHours); // a meta é a fome; a sede da criança também é meta do pai (mesma regra), e o dia andado pode tê-la dado
         Assert.DoesNotContain(PlayerGoals.Of(w, parent), g => g.Kind == "family.child-hungry");
     }
 

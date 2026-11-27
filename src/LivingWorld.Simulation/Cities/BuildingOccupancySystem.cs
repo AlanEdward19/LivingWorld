@@ -153,6 +153,22 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
     /// senão piso com mobília; senão a escada; só por último a porta. Vazio só se a planta não tem célula andável (o chamador cai no sorteio de sempre).</summary>
     private static List<FurnitureSpot> RestingSpots(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog)
     {
+        // #242: com a viagem em metros todo dorminhoco e todo trabalhador entra no prédio na hora em que chega, e a lista dos lugares
+        // (puro do prédio, do catálogo e da planta) era refeita a cada entrada: fica guardada enquanto a planta e o catálogo forem os mesmos
+        var cached = BuildingLayoutCache.Of(building);
+        if (RestCache.TryGetValue(building, out var known) && ReferenceEquals(known.Layout, cached) && ReferenceEquals(known.Catalog, catalog))
+            return known.Spots;
+        var spots = ComputeRestingSpots(building, catalog);
+        RestCache.AddOrUpdate(building, new RestPlan(cached, catalog, spots));
+        return spots;
+    }
+
+    private sealed record RestPlan(object Layout, LivingWorld.Domain.Objects.ObjectCatalog? Catalog, List<FurnitureSpot> Spots);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Building, RestPlan> RestCache = new();
+
+    private static List<FurnitureSpot> ComputeRestingSpots(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog)
+    {
         var layout = BuildingLayoutCache.Of(building).Layout;
         var furniture = catalog is null ? [] : HomeFurniture.Of(building, catalog);
         if (catalog is not null && HomeFurniture.BedSpots(building, catalog) is { Count: > 0 } beds) return [.. beds];

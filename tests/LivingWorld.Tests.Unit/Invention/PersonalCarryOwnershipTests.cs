@@ -18,7 +18,7 @@ public class PersonalCarryOwnershipTests
 {
     private static readonly InventionRules Rules = InventionRules.Default with { PantryNeedsPresence = true };
 
-    private static WorldState NewWorld() => ScenarioRunner.Create(1, inventionRules: Rules).World;
+    private static WorldState NewWorld() => ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: Rules).World;
 
     private static Household HomeOf(WorldState world, Npc npc) => world.FindHousehold(npc.Household!.Value)!;
 
@@ -93,7 +93,7 @@ public class PersonalCarryOwnershipTests
     [Fact]
     public void Going_to_a_workplace_that_feeds_its_workers_packs_food_only_for_the_way()
     {
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: Rules);
+        var (world, clock) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: Rules);
         clock.Run(world, 2 * world.Calendar.HoursPerDay); // no tick 0 ninguém está contratado
         var npc = Adults(world).First(a => a.Employer is { } e && world.FindWorkplace(e) is not null
             && LivingWorld.Simulation.Economy.Labor.Payroll.BoardCharge(world, world.FindWorkplace(e)!, a, new ResourceType(world.EconomyRules.FoodResourceId)) >= 0);

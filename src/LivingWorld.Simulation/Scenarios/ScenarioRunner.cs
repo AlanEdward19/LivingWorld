@@ -37,6 +37,14 @@ public static partial class ScenarioRunner
     private static readonly CostWeights DefaultCostWeights = new(
         // O grid procedural cresceu para materializar casas/workplaces; 1h por célula fazia uma
         // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
+        // AD-197o2 (ADR-0052): a escala única, 1,5 m por célula a 1,4 m/s: uma célula de terreno leve em ~1,07 s; a subida escala junto
+        Base: LivingWorld.Domain.Geography.WorldScale.CellBaseHours, AltitudeWeight: LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
+        TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
+
+    /// <summary>AD-197o2: o custo de andar de um mapa de região (célula de ~250 m, 3 min a pé por célula de terreno leve), para os
+    /// mundos em que a pergunta é "longe" no sentido de uma hora de caminhada (despensa, espólio, obra de rua), que nos 1,5 m da
+    /// vila não existe: a vila toda se atravessa em um minuto.</summary>
+    public static readonly CostWeights RegionalCostWeights = new(
         Base: 0.05, AltitudeWeight: 0.05,
         TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
 
@@ -331,7 +339,8 @@ public static partial class ScenarioRunner
         AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
         LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null,
         LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null,
-        LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null) // AD-173: nulo = traçado padrão (ruas e lotes)
+        LivingWorld.Domain.Cities.CityLayoutRules? cityLayout = null, // AD-173: nulo = traçado padrão (ruas e lotes)
+        CostWeights? costWeights = null) // AD-197o2: nulo = 1,5 m por célula; RegionalCostWeights = célula de ~250 m (mapa de região, sem planta)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -340,7 +349,7 @@ public static partial class ScenarioRunner
         var catalog = economyCatalog ?? DefaultEconomyCatalog;
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
-            DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
+            DefaultCalendar, seed, InitialMap(seed, initialPopulation, costWeights), DefaultPopulationCatalog, population,
             needsRules ?? DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,

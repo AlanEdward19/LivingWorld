@@ -144,7 +144,7 @@ public class StreetRouteTests
     [Fact]
     public void Paving_work_with_the_technique_opens_paid_by_the_treasury_and_does_not_advance_by_itself()
     {
-        var (world, _) = ScenarioRunner.Create(5);
+        var (world, _) = ScenarioRunner.Create(5, costWeights: ScenarioRunner.RegionalCostWeights); // AD-197o2: o tempo poupado só paga a obra no mapa de região
         var city = world.ActiveCities().First();
         var ground = world.Ground!;
         var culture = world.Npcs.First().Culture;

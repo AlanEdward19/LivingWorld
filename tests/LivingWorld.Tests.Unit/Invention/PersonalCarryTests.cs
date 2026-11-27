@@ -29,7 +29,7 @@ public class PersonalCarryTests
 
     private static (WorldState World, TickContext Ctx) NewWorld(InventionRules? rules = null)
     {
-        var (world, _) = ScenarioRunner.Create(1, inventionRules: rules ?? Rules);
+        var (world, _) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: rules ?? Rules);
         return (world, new TickContext(world, world.Rng, world.Scheduler));
     }
 
@@ -343,7 +343,7 @@ public class PersonalCarryTests
         // AD-153: só recipientes (com o veículo de terra a casa pode superar o oco puxando a carga em vez de amarrá-lo ao corpo)
         var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0, ImproveCarrier = improve, LandVehicles = false };
         // AD-185: sem a ida à água (o cântaro da casa leva a água; aqui só a compra cortada move o problema de carregar)
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager,
+        var (world, clock) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: eager,
             naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Default with { Fetch = LivingWorld.Domain.Economy.WaterFetchRules.Off });
         var npc = Adults(world)[0];
         var home = npc.Household!.Value.Value;
@@ -366,7 +366,7 @@ public class PersonalCarryTests
     public void A_person_who_could_not_carry_comes_to_make_something_that_holds_it_from_the_materials_they_know()
     {
         var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0 };
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager);
+        var (world, clock) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: eager);
         var npc = Adults(world)[0];
         world.Invention!.PutCarryMind(new InventionMind(npc.Id.Value, 100_000, 0, 0, 0, FailureMode.None, null, 0, NeedMl: 4000, NeedsLiquid: true));
 

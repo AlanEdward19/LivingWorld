@@ -56,7 +56,7 @@ public class RouteDataTests
     [Fact]
     public void Far_from_home_by_the_cost_floor_answers_like_the_full_route()
     {
-        var (world, clock) = ScenarioRunner.Create(4, initialPopulation: 300);
+        var (world, clock) = ScenarioRunner.Create(4, initialPopulation: 300, costWeights: ScenarioRunner.RegionalCostWeights); // AD-197o2: "longe" é uma hora de caminho: mapa de região
         clock.Run(world, world.Calendar.HoursPerMonth + 1);
         int far = 0, near = 0;
         foreach (var npc in world.AliveNpcIndex.Alive.Take(60))

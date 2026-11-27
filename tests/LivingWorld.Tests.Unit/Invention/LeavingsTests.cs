@@ -26,7 +26,7 @@ public class LeavingsTests
 
     private static (WorldState World, TickContext Ctx, Sink Sink) NewWorld(InventionRules? rules = null, TheftRules? theft = null)
     {
-        var (world, _) = ScenarioRunner.Create(1, inventionRules: rules ?? ScenarioRunner.DefaultInventionRules, theftRules: theft);
+        var (world, _) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: rules ?? ScenarioRunner.DefaultInventionRules, theftRules: theft);
         var sink = new Sink();
         return (world, new TickContext(world, world.Rng, world.Scheduler, sink), sink);
     }
@@ -194,7 +194,7 @@ public class LeavingsTests
     [Fact]
     public void Leavings_the_household_really_travels_to_fetch_within_days()
     {
-        var (world, clock) = ScenarioRunner.Create(1, inventionRules: ScenarioRunner.DefaultInventionRules);
+        var (world, clock) = ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: ScenarioRunner.DefaultInventionRules);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         var (dead, _) = Pair(world);
         var home = HomeOf(world, dead);

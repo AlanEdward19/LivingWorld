@@ -25,7 +25,7 @@ public class MobilityTravelTests
     [Fact]
     public void Travel_ticks_shrink_with_the_adopted_pace_never_below_one_and_zero_when_already_there()
     {
-        var (world, _) = ScenarioRunner.Create(3, emergenceRules: Rules);
+        var (world, _) = ScenarioRunner.Create(3, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
         var npc = world.Npcs.First();
         var far = new CellCoord(npc.CurrentLocation.X + 12, npc.CurrentLocation.Y + 12);
         long baseTicks = Mobility.TravelTicks(world, npc, npc.CurrentLocation, far, 1.0);
@@ -42,7 +42,7 @@ public class MobilityTravelTests
 
     private static double TravelShare(ulong seed, bool adopted)
     {
-        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: Rules);
+        var (world, clock) = ScenarioRunner.Create(seed, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
         if (adopted) ForceAdoption(world);
         long travel = 0, total = 0;
         for (int i = 0; i < world.Calendar.HoursPerDay * 30; i++)
@@ -74,8 +74,8 @@ public class MobilityTravelTests
     [Fact]
     public void Zeroing_the_pace_bonus_changes_where_npcs_are_after_ten_years_with_the_same_technology_in_state()
     {
-        var (on, clockOn) = ScenarioRunner.Create(5, emergenceRules: Rules);
-        var (off, clockOff) = ScenarioRunner.Create(5, emergenceRules: Rules with { PaceBonusPctPerPoint = 0 });
+        var (on, clockOn) = ScenarioRunner.Create(5, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
+        var (off, clockOff) = ScenarioRunner.Create(5, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules with { PaceBonusPctPerPoint = 0 });
         ForceAdoption(on);
         ForceAdoption(off);
         // Dois mundos independentes: lado a lado em vez de um depois do outro.
@@ -89,7 +89,7 @@ public class MobilityTravelTests
     [Fact]
     public void Pace_bonus_memo_follows_a_new_adoption()
     {
-        var (world, _) = ScenarioRunner.Create(5, emergenceRules: Rules);
+        var (world, _) = ScenarioRunner.Create(5, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
         var city = world.ActiveCities().First().Id;
         world.AddTechnology(new Technology(
             world.Npcs.First().Culture, EmergenceRules.MobilityCategory, new TechnologyVector([1, 0, 0]), 0, city, null, [city]));
@@ -102,7 +102,7 @@ public class MobilityTravelTests
 
     private static (WorldState World, Npc Npc) CommuterFarFromWork()
     {
-        var (world, clock) = ScenarioRunner.Create(3, emergenceRules: Rules);
+        var (world, clock) = ScenarioRunner.Create(3, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
         clock.Run(world, world.Calendar.HoursPerDay * 30);
         var npc = world.Npcs.First(n => n.IsAlive && n.Employer is not null);
         npc.MoveTo(new CellCoord(npc.CurrentLocation.X + 14, npc.CurrentLocation.Y + 14), 0);
@@ -129,7 +129,7 @@ public class MobilityTravelTests
     [Fact]
     public void Household_relocation_trip_to_another_city_arrives_sooner_with_adopted_pace()
     {
-        var (world, _) = ScenarioRunner.Create(3, emergenceRules: Rules);
+        var (world, _) = ScenarioRunner.Create(3, costWeights: ScenarioRunner.RegionalCostWeights, emergenceRules: Rules);
         var npc = world.Npcs.First(n => n.IsAlive && n.Household is not null);
         var household = world.FindHousehold(npc.Household!.Value)!;
         var far = new LivingWorld.Domain.Cities.City(
