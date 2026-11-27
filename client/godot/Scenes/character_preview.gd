@@ -61,12 +61,14 @@ func show_character(character: Dictionary) -> void:
 	actor.position = Vector3.ZERO
 	actor.scale = Vector3.ONE * clampf(last_height_m / ADULT_HEIGHT_M, 0.7, 1.25)
 	_viewport.add_child(actor)
+	actor.full_rig = true # #230: o MESMO corpo articulado do mundo (rig, rosto e roupa em camadas), sempre de perto
 	set_process(true)
 
 
 func _process(delta: float) -> void:
 	if actor != null and is_visible_in_tree():
 		actor.rotation.y = wrapf(actor.rotation.y + delta * SPIN_RAD_S, -PI, PI)
+		actor.animate(delta) # respira e pisca o corpo parado (mesma pose de espera do mundo)
 
 
 func clear() -> void:

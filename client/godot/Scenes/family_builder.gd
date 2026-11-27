@@ -196,6 +196,7 @@ func _build_preview() -> Control:
 	preview_actor = NpcActor.new()
 	viewport.add_child(preview_actor)
 	preview_actor.setup(0, Vector2i.ZERO, -1, null)
+	preview_actor.full_rig = true # #230: o mesmo corpo articulado do mundo
 	return container
 
 
