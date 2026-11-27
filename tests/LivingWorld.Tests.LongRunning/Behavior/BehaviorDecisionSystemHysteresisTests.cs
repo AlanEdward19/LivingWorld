@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Behavior.Needs;
@@ -17,11 +18,17 @@ public class BehaviorDecisionSystemHysteresisTests
     private const int WindowDays = 30;
     private static readonly string BaselinesDir = Path.Combine(FindRepoRoot(), "tests", "baselines");
 
-    private static WorldState BuildPopulatedWorld(ulong seed, NeedsRules rules, int population = 20)
+    private static WorldState BuildPopulatedWorld(ulong seed, NeedsRules rules, int population = 20, bool outings = true)
     {
+        // #242: o passeio do tempo livre troca de ação à toa, sem relação com a histerese (que só atua nas decisões por urgência): no par causal
+        // ele entra desligado, senão dilui o contraste (10/20 seeds com ele, 15/20 sem); o baseline recorda o mundo com ele ligado
+        var cityRules = outings ? null : CityRules.Disabled with
+        {
+            Layout = CityLayoutRules.Default with { Streets = CityLayoutRules.Default.Streets with { AfterWorkOutings = false } },
+        };
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, population), ScenarioRunner.DefaultPopulationCatalog,
-            ScenarioRunner.DefaultPopulationRules, rules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
+            ScenarioRunner.DefaultPopulationRules, rules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules, cityRules: cityRules);
         PopulationSeeder.SeedInitial(world, population, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         return world;
     }
@@ -48,10 +55,10 @@ public class BehaviorDecisionSystemHysteresisTests
         return switches;
     }
 
-    private static double SwitchesPerDay(ulong seed, bool hysteresisEnabled)
+    private static double SwitchesPerDay(ulong seed, bool hysteresisEnabled, bool outings = true)
     {
         var rules = ScenarioRunner.DefaultNeedsRules with { HysteresisEnabled = hysteresisEnabled };
-        var world = BuildPopulatedWorld(seed, rules);
+        var world = BuildPopulatedWorld(seed, rules, outings: outings);
         var clock = new WorldClock([new NeedsDecaySystem(), new BehaviorDecisionSystem()]);
 
         int switches = CountActionSwitches(world, clock, ticks: WindowDays * 24);
@@ -69,8 +76,8 @@ public class BehaviorDecisionSystemHysteresisTests
         var withoutHysteresis = new List<double>();
         for (ulong seed = 1; seed <= 20; seed++)
         {
-            withHysteresis.Add(SwitchesPerDay(seed, hysteresisEnabled: true));
-            withoutHysteresis.Add(SwitchesPerDay(seed, hysteresisEnabled: false));
+            withHysteresis.Add(SwitchesPerDay(seed, hysteresisEnabled: true, outings: false));
+            withoutHysteresis.Add(SwitchesPerDay(seed, hysteresisEnabled: false, outings: false));
         }
 
         int fewer = withHysteresis.Zip(withoutHysteresis, (with, without) => with < without).Count(x => x);
