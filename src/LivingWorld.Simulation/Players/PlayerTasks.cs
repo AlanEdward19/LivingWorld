@@ -59,7 +59,7 @@ public static class PlayerTasks
         long now = world.CurrentDate.TotalMilliseconds, until = now + units * perUnitMs;
         npc.Step(until, 0, now);
         npc.SetBodyTask(new BodyTask(Gather, now, until)
-            { ResourceId = resource.Id, Units = units, PerUnitMs = perUnitMs, CellX = tree.X, CellY = tree.Y });
+        { ResourceId = resource.Id, Units = units, PerUnitMs = perUnitMs, CellX = tree.X, CellY = tree.Y });
         ScheduleNext(ctx, npc, now + perUnitMs, now);
     }
 

@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
