@@ -36,6 +36,10 @@ var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var entries: Array = []
 var cooldown: ProgressBar ## #234
 var guard_label: Label ## #234
+var blocked := false: ## #240: popup aberto: a dica do E some (volta ao fechar, se ainda houver alvo)
+	set(value):
+		blocked = value
+		prompt.visible = prompt.text != "" and not menu_panel.visible and not blocked
 var _engine_action := ""
 var guide: PanelContainer ## #238: o guia da primeira posse
 var _goal_body: Dictionary = {}
@@ -291,7 +295,7 @@ func set_clock(text: String) -> void:
 ## A dica sob a mira: "E  Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").
 func set_prompt(text: String) -> void:
 	prompt.text = ("E   " + prompt_text(text)) if text != "" else ""
-	prompt.visible = text != "" and not menu_panel.visible
+	prompt.visible = text != "" and not menu_panel.visible and not blocked
 
 
 ## #233: "Caio: Conversar" -> "Conversar · Caio" (verbo primeiro, o alvo depois).
@@ -456,7 +460,7 @@ func show_menu(list: Array) -> void:
 
 func close_menu() -> void:
 	menu_panel.visible = false
-	prompt.visible = prompt.text != ""
+	prompt.visible = prompt.text != "" and not blocked
 
 
 func menu_open() -> bool:

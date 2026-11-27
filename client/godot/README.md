@@ -106,3 +106,5 @@ AD-198 a AD-206 (épico AAA #228: controle local, corpo articulado, câmera, ret
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
+
+**Popup (#240)**: toda janela central entra no registro único com UMA chamada, `app.modal.watch(controle)` (ou `app.modal.set_open(chave, on)`); aberto, some mira/anel/dica do E/números, E e clique não disparam e o app pede o hold (pausa do mundo só single player) ao motor.

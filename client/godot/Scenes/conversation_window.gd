@@ -31,7 +31,6 @@ var waiting := false
 var lines: Array = [] ## [{who, text, emotion}] em ordem
 var status_text := ""
 var input: LineEdit
-var hides: Array = [] ## #237: controles que a janela cobre (a dica de teclas do HUD): somem enquanto a conversa está aberta e voltam ao fechar
 var game_style := false ## #233: modo jogador: a fala do NPC em destaque, escolhas numeradas (1–5) e texto livre com Enter
 var choices_row: HFlowContainer
 var spoken: Label ## a última fala do NPC, grande
@@ -136,9 +135,6 @@ func _open(id: int, name: String, session: int) -> void:
 	waiting = false
 	is_open = true
 	visible = true
-	for covered in hides:
-		if is_instance_valid(covered):
-			covered.visible = false
 	_title.text = "Conversando com %s" % name
 	_rebuild()
 	_set_status("")
@@ -228,9 +224,6 @@ func _close() -> void:
 	_request += 1
 	visible = false
 	session_id = -1
-	for covered in hides:
-		if is_instance_valid(covered):
-			covered.visible = true
 	closed.emit()
 
 
