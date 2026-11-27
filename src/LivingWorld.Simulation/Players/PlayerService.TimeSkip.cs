@@ -7,8 +7,9 @@ namespace LivingWorld.Simulation.Players;
 
 /// <summary>Pulo de tempo de quem joga sozinho (AD-197c, ADR-0050 decisão 3): dormindo (até <see cref="UntilMs"/>, ou acelerando até
 /// descansar) ou parado, vendo o mundo andar e perdendo necessidades. Estado do hospedeiro, fora do snapshot: o que muda o mundo
-/// (deitar, acordar) e a troca de Δ vão para o registro do jogador.</summary>
-public sealed record TimeSkip(string PlayerId, long NpcId, bool Sleeping, long? UntilMs, long StartedTick, int HealthAtStart);
+/// (deitar, acordar) e a troca de Δ vão para o registro do jogador. <c>Task</c> (#241): o pulo acompanha uma ação longa do corpo
+/// (<see cref="PlayerTasks"/>) e acaba com ela.</summary>
+public sealed record TimeSkip(string PlayerId, long NpcId, bool Sleeping, long? UntilMs, long StartedTick, int HealthAtStart, bool Task = false);
 
 // Parte de PlayerService — dormir e acelerar (AD-197c).
 public sealed partial class PlayerService
@@ -104,6 +105,7 @@ public sealed partial class PlayerService
         if (PlayersPresent(world) > 1) return "outro jogador";
         if (SkipWatch.Interruption(world, npc, skip) is { } reason) return reason;
         long nowMs = world.CurrentDate.TotalMilliseconds;
+        if (skip.Task) return PlayerTasks.Of(world, npc) is null ? "feito" : null; // acabou, ou o jogador a interrompeu por outro caminho
         if (skip.UntilMs is { } until && nowMs >= until) return "hora";
         if (skip.Sleeping && skip.UntilMs is null && npc.CurrentAction == ActionType.Sleep
             && npc.SleepAt(world.CurrentDate.TotalHours) >= SkipWatch.Rested) return "descansado";
@@ -125,9 +127,22 @@ public sealed partial class PlayerService
         LastWakeReason = null;
     }
 
+    /// <summary>#241: com o corpo ocupado numa ação longa (cortar lenha leva uma jornada) e o jogador podendo pular o tempo (sozinho no
+    /// mundo), o mundo acelera até ela acabar: a mesma sequência de ticks do salto do sono, só mais rápida, com as mesmas interrupções
+    /// (<see cref="SkipEnding"/>). Ação curta (menos de uma hora de mundo, o Δ do salto) corre em tempo normal. Com mais de um jogador
+    /// não há salto e a ação corre no ritmo normal.</summary>
+    internal void BeginTaskSkip(WorldState world, Npc npc, string playerId)
+    {
+        if (Skip is not null || !CanSkip(world, playerId) || PlayerTasks.Of(world, npc) is not { } busy || busy.RemainingMs < WorldMillis.HourTick) return;
+        Skip = new TimeSkip(playerId, npc.Id.Value, false, busy.UntilMs, world.CurrentDate.TotalHours, npc.Health, Task: true);
+        LastWakeReason = null;
+    }
+
     private void EndSkipOnCommand(WorldState world, string playerId)
     {
-        if (Skip?.PlayerId == playerId) EndSkip(world, "comando");
+        // #241: o salto de uma ação longa não acaba com qualquer comando (o cliente sincroniza a pose, o passo é recusado ocupado): acaba
+        // com a ação, com os eventos do motor, com Interromper (que o solta de propósito) ou com Parar de acelerar
+        if (Skip is { Task: false } skip && skip.PlayerId == playerId) EndSkip(world, "comando");
     }
 }
 

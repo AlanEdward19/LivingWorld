@@ -16,6 +16,9 @@ var action := ""
 var total_ms := 0.0 ## duração em ms de mundo
 var _end_msec := 0.0 ## instante real (Time.get_ticks_msec) em que acaba
 var _real_total_ms := 0.0
+var _factor := 1.0 ## ms de mundo por ms real em vigor (1 em tempo real na escala 1; ~28800 com o mundo acelerado a 8 h/s)
+var accelerated := false ## #241: o motor acelera o mundo até a ação acabar (jogador sozinho: salto de tempo)
+const SPEED_UP := 4.0 ## acima de quantas vezes o tempo real normal o rótulo diz "tempo acelerado"
 
 
 func active() -> bool:
@@ -29,10 +32,13 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 	var busy: Variant = pose.get("busy")
 	if not busy is Dictionary or String(busy.get("action", "")) == "":
 		action = ""
+		accelerated = false
 		return before != ""
 	action = String(busy.action)
+	accelerated = bool(busy.get("accelerated", false))
 	total_ms = maxf(1.0, float(busy.get("totalMs", 1)))
 	var factor := maxf(scale, 0.001)
+	_factor = factor
 	_real_total_ms = total_ms / factor
 	_end_msec = now_msec + float(busy.get("remainingMs", 0)) / factor
 	return before != action
@@ -40,6 +46,27 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 
 func clear() -> void:
 	action = ""
+	accelerated = false
+
+
+## O ritmo do mundo mudou (acelerou, voltou ao normal): o que falta em ms de mundo é o mesmo, o tempo real que ele leva é que muda.
+## `base_scale` é a escala do tempo real normal (para dizer se está acelerado).
+func retime(now_msec: float, factor: float, base_scale: float) -> void:
+	factor = maxf(factor, 0.001)
+	if not active():
+		return
+	accelerated = factor > maxf(base_scale, 0.001) * SPEED_UP
+	if is_equal_approx(factor, _factor):
+		return
+	var left_world := maxf(0.0, _end_msec - now_msec) * _factor
+	_factor = factor
+	_end_msec = now_msec + left_world / factor
+	_real_total_ms = total_ms / factor
+
+
+## O que falta, em ms de mundo.
+func world_left_ms(now_msec: float) -> float:
+	return maxf(0.0, _end_msec - now_msec) * _factor if active() else 0.0
 
 
 ## Segundos reais que faltam (0 vencida).
@@ -51,11 +78,11 @@ func expired(now_msec: float) -> bool:
 	return active() and now_msec >= _end_msec
 
 
-## 0..1 do que já passou.
+## 0..1 do que já passou (do tempo de mundo, então segue o ritmo mesmo quando ele muda no meio).
 func fraction(now_msec: float) -> float:
 	if not active():
 		return 0.0
-	return clampf(1.0 - (_end_msec - now_msec) / maxf(_real_total_ms, 1.0), 0.0, 1.0)
+	return clampf(1.0 - world_left_ms(now_msec) / maxf(total_ms, 1.0), 0.0, 1.0)
 
 
 static func doing(kind: String) -> String:
@@ -70,9 +97,21 @@ static func stopped(kind: String) -> String:
 	return String(ACTIONS.get(kind, {}).get("stopped", "Parou."))
 
 
-## "Cortando lenha — 40%", a linha da barra.
+## "Cortando lenha — 40% · tempo acelerado": a linha da barra. Sem acelerar (mais de um jogador, ou ação curta), diz o que falta em
+## horas e minutos de mundo ("· faltam 4 h 12 min"), para o jogador saber quanto vai demorar.
 func text(now_msec: float) -> String:
-	return "%s — %d%%" % [doing(action), roundi(fraction(now_msec) * 100.0)]
+	var line := "%s — %d%%" % [doing(action), roundi(fraction(now_msec) * 100.0)]
+	if accelerated:
+		return line + " · tempo acelerado"
+	var left := world_left_ms(now_msec)
+	return line + (" · faltam " + left_text(left) if left >= 60000.0 else "")
+
+
+## "4 h 12 min", "35 min": horas e minutos de mundo.
+static func left_text(world_ms: float) -> String:
+	var minutes := int(ceil(world_ms / 60000.0))
+	var hours := minutes / 60
+	return ("%d h %02d min" % [hours, minutes % 60]) if hours > 0 else "%d min" % minutes
 
 
 ## O que se diz quando o jogador tenta andar ocupado: nunca o erro cru do servidor.

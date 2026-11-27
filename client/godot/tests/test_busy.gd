@@ -45,8 +45,8 @@ func test_the_bar_says_what_the_body_is_doing_and_how_far_along() -> void:
 	check(not busy.active(), "sem busy na pose, livre")
 	check(busy.note_pose(POSE, 1000.0, 1.0), "começou: mudou")
 	eq(busy.action, "gather", "a ação é a do motor")
-	eq(busy.text(1000.0), "Cortando lenha — 40%", "faltam 360 s de 600 s: 40% (tempo real, escala 1)")
-	eq(busy.text(1000.0 + 180000.0), "Cortando lenha — 70%", "o tempo real passa e a barra anda")
+	eq(busy.text(1000.0), "Cortando lenha — 40% · faltam 6 min", "faltam 360 s de 600 s: 40% (tempo real, escala 1), e quanto falta em minutos de mundo")
+	eq(busy.text(1000.0 + 180000.0), "Cortando lenha — 70% · faltam 3 min", "o tempo real passa e a barra anda")
 	check(busy.expired(1000.0 + 360000.0), "vence quando o tempo que o motor disse acaba")
 	check(busy.note_pose({"x": 1}, 2000.0, 1.0), "pose sem busy: terminou")
 	check(not busy.active(), "e fica livre")
@@ -194,3 +194,53 @@ func test_the_tree_the_client_draws_is_the_one_the_engine_offers() -> void:
 	check(absf(Scenery.cell_hash(Vector2i(-4, 7), 2) - 0.3875) < 0.00005, "cell_hash(-4,7,2)")
 	eq(Scenery.TREE_CHANCE, 0.16, "a mesma chance de árvore por célula")
 	eq(Scenery.TREE_JITTER, 0.6, "e o mesmo deslocamento do tronco")
+
+
+func test_the_bar_says_time_is_accelerated_and_follows_the_pace_of_the_world() -> void:
+	var busy := BodyBusy.new()
+	var jornada := {"busy": {"action": "gather", "untilMs": 24000000, "totalMs": 24000000, "remainingMs": 24000000}} # ~6 h 40 min de mundo
+	busy.note_pose(jornada, 0.0, 1.0) # o relógio ainda em tempo real: 6 h 40 min faltam
+	eq(busy.text(0.0), "Cortando lenha — 0% · faltam 6 h 40 min", "sem poder pular (ou antes do salto), diz o que falta em horas e minutos de mundo")
+	busy.retime(0.0, 8.0 * 3600.0, 1.0) # o motor acelera a 8 h de mundo por segundo real
+	check(busy.accelerated, "ritmo bem acima do real: acelerado")
+	eq(busy.text(0.0), "Cortando lenha — 0% · tempo acelerado", "o rótulo diz que o tempo está acelerado")
+	check(absf(busy.seconds_left(0.0) - 24000.0 / (8.0 * 3600.0)) < 0.01, "a espera real cai para menos de um segundo por hora de mundo: %f s" % busy.seconds_left(0.0))
+	var half := busy.seconds_left(0.0) * 1000.0 / 2.0
+	check(absf(busy.fraction(half) - 0.5) < 0.01, "a barra anda pelo mundo: metade do tempo, metade da barra")
+	busy.retime(half, 1.0, 1.0) # algo o chamou: volta ao tempo real
+	check(not busy.accelerated, "voltou ao tempo normal: some o rótulo")
+	check(absf(busy.fraction(half) - 0.5) < 0.01, "a barra não pula ao mudar o ritmo")
+	check(busy.text(half).contains("faltam"), "e volta a dizer o que falta")
+	eq(BodyBusy.left_text(35.0 * 60000.0), "35 min", "minutos")
+	eq(BodyBusy.left_text(4.0 * 3600000.0 + 12.0 * 60000.0), "4 h 12 min", "horas e minutos")
+
+
+func test_the_hud_goes_accelerated_when_the_engine_clock_runs_fast_and_back_when_it_slows() -> void:
+	var made: Array = await _hud()
+	var hud = made[0]
+	var jornada := POSE.duplicate(true)
+	jornada.busy = {"action": "gather", "untilMs": 24000000, "totalMs": 24000000, "remainingMs": 24000000}
+	hud.apply_pose(jornada)
+	check(not hud.frame.busy_label.text.contains("acelerado"), "em tempo real, sem o rótulo")
+	hud.set_world_rate(8.0) # status do relógio: 8 h de mundo por segundo real
+	check(hud.frame.busy_label.text.ends_with("· tempo acelerado"), "acelerado: " + hud.frame.busy_label.text)
+	hud.set_world_rate(1.0 / 3600.0) # voltou a 1:1
+	check(not hud.frame.busy_label.text.contains("acelerado"), "voltou ao ritmo normal: " + hud.frame.busy_label.text)
+	_free(made)
+
+
+func test_the_sky_slides_to_the_engine_clock_while_accelerated_instead_of_jumping() -> void:
+	var cycle = preload("res://Scenes/day_cycle.gd").new()
+	cycle.sync(10.0, 8.0, false)
+	cycle.advance(0.5) # 4 h de mundo no ritmo acelerado
+	var before: float = cycle._tick
+	cycle.sync(before + 1.0, 8.0, false) # o motor está 1 h adiante da estimativa: não salta
+	eq(cycle._tick, before, "a leitura do motor não salta o céu")
+	cycle.advance(0.05)
+	check(cycle._tick > before + 0.4 and cycle._tick < before + 0.4 + 1.0, "ele corre e a diferença some aos poucos")
+	for i in 20:
+		cycle.advance(0.05)
+	check(absf(cycle._tick - (before + 1.0 + 8.0 * 1.05)) < 0.01, "e em um segundo está onde o motor disse: %f" % cycle._tick)
+	cycle.sync(100.0, 8.0, false) # salto grande de verdade (outro mundo): acerta de uma vez
+	eq(cycle._tick, 100.0, "erro grande corrige de uma vez")
+	cycle.free()

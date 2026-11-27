@@ -7,8 +7,9 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Players;
 
 /// <summary>#241: a ação em andamento que ocupa o corpo do jogador, como o cliente a vê: o quê (<c>Action</c>), quando acaba (<c>UntilMs</c>,
-/// ms de mundo), o tempo total e o que falta (<c>RemainingMs</c>, para o cliente não depender do relógio do mundo).</summary>
-public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs);
+/// ms de mundo), o tempo total e o que falta (<c>RemainingMs</c>, para o cliente não depender do relógio do mundo).
+/// <c>Accelerated</c> (aditivo): o mundo corre acelerado até a ação acabar (o jogador está sozinho: o salto de tempo).</summary>
+public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs, bool Accelerated = false);
 
 /// <summary>#241: tarefas que ocupam o corpo conduzido (hoje, cortar lenha na mata). O motor decide a duração, o que fica feito ao
 /// interromper (a parte proporcional da carga, arredondada para baixo: determinístico, sem sorteio) e quando o corpo volta a andar.</summary>

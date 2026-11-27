@@ -175,6 +175,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
             return Result<InteractionResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         EndSkipOnCommand(world, playerId);
         var result = PlayerInteractions.Interact(world, Context(world), npc, kind, id, verb, resourceId, quantity);
+        if (result.IsSuccess) BeginTaskSkip(world, npc, playerId); // #241: ação longa com o mundo só dele: o tempo acelera até acabar
         bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
         if (result.IsSuccess || refused)
             Record(world, playerId, PlayerCommandKind.Interact, npc.Id.Value,
@@ -214,6 +215,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<BusyView>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (PlayerTasks.Of(world, npc) is not null && Skip?.PlayerId == playerId) EndSkip(world, "comando"); // #241: parar a ação solta o salto (volta ao 1:1)
         var done = PlayerTasks.Interrupt(world, npc);
         if (done.IsSuccess) Record(world, playerId, PlayerCommandKind.Interrupt, npc.Id.Value);
         return done;
