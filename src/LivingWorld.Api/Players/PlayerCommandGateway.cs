@@ -239,7 +239,7 @@ public sealed partial class PlayerCommandGateway(
 
     /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela). AD-197d: <c>buildingId</c> do prédio
     /// em cuja planta o corpo está (nulo na rua). AD-197u: <c>running</c> (corre agora) e, só na resposta do pulo, <c>airMs</c>.</summary>
-    private static PlayerPose PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId, int? airMs = null)
+    private PlayerPose PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId, int? airMs = null)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return new PlayerPose(playerId, -1L, 0, 0, null, 0, 0L, 0.0, 0.0, 0.0, world.Players.CellM, false, airMs);
@@ -260,11 +260,13 @@ public sealed partial class PlayerCommandGateway(
             airMs,
             PlayerCombat.View(world, npc),
             WalkGround(world, npc),
-            LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc));
+            LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is { } busy
+                ? busy with { Accelerated = players.Skip is { Task: true } skip && skip.PlayerId == playerId }
+                : null);
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>
-    private static object StrikeView(LivingWorld.Simulation.Core.WorldState world, string playerId, StrikeResult hit) => new
+    private object StrikeView(LivingWorld.Simulation.Core.WorldState world, string playerId, StrikeResult hit) => new
     {
         playerId,
         targetId = hit.TargetId,

@@ -210,6 +210,7 @@ func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), hours_per_second(status), bool(status.isPaused))
 	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
+	player_hud.set_world_rate(hours_per_second(status)) # #241: a barra da ação em andamento segue o ritmo (acelerado até acabar)
 	if player_hud.is_active: # AD-197c: o ritmo e os controles de dormir e acelerar, como o motor os diz
 		player_hud.refresh_time()
 	if not bool(status.isPaused):

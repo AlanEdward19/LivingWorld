@@ -60,7 +60,11 @@ const RHYTHM_TEXT := {"Fast": "Tempo rápido", "Accelerated": "Tempo acelerado",
 const WAKE_TEXT := {"golpe": "Você acordou com um golpe.", "fogo": "Você acordou com o calor do fogo.", "fome": "A fome o acordou.",
 	"sede": "A sede o acordou.", "chamado": "Alguém o chamou.", "hora": "Chegou a hora marcada.", "descansado": "Você acordou descansado.",
 	"outro jogador": "Outro jogador chegou: o tempo voltou ao normal."}
+const TASK_WAKE_TEXT := {"golpe": "Um golpe interrompeu o tempo acelerado.", "fogo": "O calor do fogo trouxe o tempo ao normal.",
+	"fome": "A fome trouxe o tempo ao normal.", "sede": "A sede trouxe o tempo ao normal.", "chamado": "Alguém o chamou: o tempo voltou ao normal.",
+	"outro jogador": "Outro jogador chegou: o tempo voltou ao normal."}
 var time_view: Dictionary = {}
+var world_rate := 0.0 ## #241: ms de mundo por ms real do ritmo em vigor, como o motor o diz no relógio (0 = ainda não sei)
 var hours_per_day := 24
 var rhythm_label: Label
 var sleep_hour: SpinBox
@@ -198,7 +202,9 @@ func apply_time(view: Dictionary) -> void:
 	var reason := String(view.get("lastWakeReason", "")) if view.get("lastWakeReason") != null else ""
 	if reason != _last_wake:
 		_last_wake = reason
-		if WAKE_TEXT.has(reason):
+		if busy.active() and TASK_WAKE_TEXT.has(reason): # #241: o salto era de uma ação longa, não de sono
+			_set_status(TASK_WAKE_TEXT[reason])
+		elif WAKE_TEXT.has(reason):
 			_set_status(WAKE_TEXT[reason])
 
 
@@ -817,10 +823,20 @@ func _time_scale() -> float:
 	return float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
 
 
+## O ritmo do relógio do motor (`hours_per_second` do status): quanto do mundo passa por segundo real agora. O mundo acelera para a
+## ação longa de quem joga sozinho e volta ao normal ao acabar: a barra segue o ritmo e o rótulo diz "tempo acelerado".
+func set_world_rate(hours_per_second: float) -> void:
+	world_rate = hours_per_second * 3600.0
+	if busy.active() and world_rate > 0.0:
+		busy.retime(float(Time.get_ticks_msec()), world_rate, _time_scale())
+		if frame != null:
+			frame.set_busy(busy.text(float(Time.get_ticks_msec())), busy.fraction(float(Time.get_ticks_msec())))
+
+
 func _note_busy(pose: Dictionary) -> void:
 	var now := float(Time.get_ticks_msec())
 	var before := busy.action
-	if busy.note_pose(pose, now, _time_scale()):
+	if busy.note_pose(pose, now, world_rate if world_rate > 0.0 else _time_scale()):
 		busy_changed.emit(busy.action, busy.seconds_left(now))
 		if before != "" and busy.action == "":
 			_busy_ended()
