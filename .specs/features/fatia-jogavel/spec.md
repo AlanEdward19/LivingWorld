@@ -29,7 +29,7 @@ Aceite: 3 min andando pela cidade e campo sem puxão > 0,3 m; FPS e custo por NP
 
 **M2 — casa de verdade (#226).** Parede vira aresta entre células, não célula inteira; cômodos
 por função (quarto, cozinha, sala, oficina) com portas internas; casa inicial ~6×5 células
-(9 × 7,5 m). Vale para mundos novos; mundo salvo mantém a casa antiga (sem mexer em migração).
+(9 × 7,5 m). Sem compatibilidade com mundos salvos (decisão do dono).
 Aceite: andar por todos os cômodos sem bloqueio invisível; motor e cliente concordam na parede.
 
 **M3 — um mundo só, sem troca de tela.** A cidade fica carregada; ao entrar, o telhado some e o
@@ -60,7 +60,9 @@ do jogador como provedor local. Precisa de ADR (dependência e fronteira da LLM)
 Cada marco mede FPS (`stress:500`) e custo por NPC-tick antes e depois. Nada de visual inventado:
 o cliente desenha o que o motor diz. Aleatoriedade só por RNG semeado.
 
-## Decisões que preciso de você
-1. Ordem dos marcos (proposta: M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7).
-2. Casa nova maior e com cômodos só para mundos novos (salvos ficam como estão)?
-3. Período: objetos de vila medieval/pré-industrial (tina, fogão a lenha) para todos os cenários?
+## Decisões do dono (2026-11-27)
+1. Ordem M0 → M7 aprovada.
+2. Sem compatibilidade nem migração de mundos antigos.
+3. Nada é escrito no código: cama, fogão, tina, cômodos e necessidades são conceitos de catálogo
+   configurável (cenário/dados), criados na hora; o código só conhece usos e efeitos genéricos.
+   Hoje `DefaultObjects.cs` é catálogo em código — o M4 o move para dados.
