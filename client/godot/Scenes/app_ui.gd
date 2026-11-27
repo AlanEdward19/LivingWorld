@@ -7,6 +7,7 @@ const Panels := preload("res://Scenes/panels.gd")
 const UiTheme := preload("res://Scenes/ui_theme.gd")
 const Minimap := preload("res://Scenes/minimap.gd")
 const Toasts := preload("res://Scenes/toasts.gd")
+const Feedback := preload("res://Scenes/feedback.gd")
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const Inspector := preload("res://Scenes/inspector.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
@@ -243,6 +244,7 @@ static func _side(app, ui: Control) -> void:
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
 	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.player_hud.acted.connect(app._on_player_acted)
+	_wire_feedback(app)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
 	app.crosshair.add_theme_font_size_override("font_size", 28)
@@ -450,3 +452,33 @@ static func build_scene(app) -> void:
 	app.add_child(app.day_cycle)
 	app.day_cycle.bind(app._sun, app._environment, app.world_view.window_material, app.world_view.lamp_material)
 	app.world_view.weather_changed.connect(app._on_weather) # AD-180: sol do motor e indicador do tempo
+
+
+## #232: retorno a cada ação (sons, poeira, números, tremor), só do que o motor confirmou.
+static func _wire_feedback(app) -> void:
+	var fb = Feedback.new()
+	fb.name = "Feedback"
+	fb.settings = app.settings
+	var own := func() -> Node:
+		var id: int = app.player_hud.npc_id
+		var node = app.world_view.npc_nodes.get(id)
+		return node if node != null else app.stage.interior_view.occupant_nodes.get(id)
+	fb.body_node = own
+	fb.node_of = func(id: int) -> Node: return app.world_view.npc_nodes.get(id)
+	fb.listener_pos = func() -> Vector3: return app.rig.target
+	fb.surface_at = func(pos: Vector3) -> String:
+		if app.stage.active:
+			return "wood"
+		var road = app.world_view.ground.drawn_roads.get(Vector2i(floori(pos.x), floori(pos.z)))
+		return Feedback.surface_name(int(road.get("surface", -1))) if road is Dictionary else "grass"
+	fb.shake_cb = func(amount: float) -> void:
+		app.rig.shake_enabled = app.settings == null or app.settings.shake
+		app.rig.add_shake(amount)
+	app.add_child(fb)
+	app.feedback = fb
+	app.player_hud.acted.connect(fb.on_acted)
+	app.player_hud.struck_hit.connect(fb.on_struck_hit)
+	app.player_hud.refused.connect(fb.on_refused)
+	app.player_hud.jumped.connect(fb.on_jumped)
+	app.player_hud.sheet_read.connect(fb.note_sheet)
+	app.player_hud.released.connect(fb.reset)

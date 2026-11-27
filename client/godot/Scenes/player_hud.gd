@@ -19,6 +19,9 @@ signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
 signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
+signal refused() ## #232: o motor recusou uma ação (o app toca só o som discreto de recusa)
+signal struck_hit(target: int) ## #232: o motor aceitou o golpe
+signal sheet_read(body: Dictionary) ## #232: ficha do corpo lida do motor (números subindo pelo que mudou)
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
@@ -527,6 +530,7 @@ func _refresh_body(delta: float) -> void:
 		if labels != null and body.get("currentAction") != null:
 			action = labels.label_for(int(body.currentAction))
 		frame.set_body(npc_name, action, body)
+		sheet_read.emit(body)
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
 
@@ -948,6 +952,7 @@ func interact(entry: Dictionary) -> void:
 		_lost("Você não controla mais %s." % npc_name)
 	else:
 		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		refused.emit()
 		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou (erro %d)." % response.status)
 
 
@@ -978,8 +983,13 @@ func strike(target: int) -> void:
 	var response: Dictionary = await api.player_strike(player_id, target)
 	_note_latency(started)
 	_busy = false
-	if not is_active or response.ok:
+	if not is_active:
 		return
+	if response.ok:
+		struck_hit.emit(target)
+		_body_clock = BODY_EVERY
+		return
+	refused.emit()
 	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
 	warning.emit(error.trim_prefix("conflict: recusa: ") if error != "" else "O golpe não saiu (erro %d)." % response.status)
 
