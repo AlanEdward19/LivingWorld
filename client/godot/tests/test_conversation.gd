@@ -310,3 +310,18 @@ func test_full_cycle_only_calls_the_three_conversation_routes() -> void:
 
 	eq(transport.calls, ["POST /conversations/start", "POST /conversations/send", "POST /conversations/end"], "início, envio e fim: nada além")
 	window.free()
+
+
+## #233: no jogo, as falas prontas viram o mesmo comando de conversa e a despedida encerra.
+func test_game_style_choices_send_the_same_command_and_the_farewell_ends() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	window.game_style = true
+	await window.attach(7, "Ana", 9)
+	check(window.choices_row.visible, "as escolhas aparecem")
+	await window.pick(0)
+	eq(transport.bodies["POST /conversations/send"].back().message, window.CHOICES[0], "a fala pronta vai como texto")
+	eq(window.spoken.text, "Ana: Bom dia!", "a fala do NPC em destaque")
+	await window.pick(window.CHOICES.size() - 1)
+	eq(window.is_open, false, "a despedida encerra a conversa")
+	window.free()

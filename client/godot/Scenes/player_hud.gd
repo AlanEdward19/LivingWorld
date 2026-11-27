@@ -18,6 +18,7 @@ signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
+signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
@@ -252,6 +253,7 @@ func set_rpg(on: bool) -> void:
 	if not rpg:
 		reach_hint.visible = false
 		reach_hint.text = ""
+		target_changed.emit("", -1, Vector2.INF)
 	if _orders_open and not rpg:
 		_orders_open = false
 		menu_toggled.emit(false)
@@ -289,6 +291,19 @@ func set_reach_hint(from: Array) -> void:
 	reach_hint.visible = rpg and reach_hint.text != "" and frame == null
 	if frame != null:
 		frame.set_prompt(reach_hint.text if rpg else "")
+	if rpg:
+		var target := Vector2.INF
+		var kind := ""
+		var id := -1
+		if not entries.is_empty():
+			kind = String(entries[0].kind)
+			id = int(entries[0].id)
+			for offer in from:
+				if String(offer.get("kind", "")) == kind and int(offer.get("id", -1)) == id:
+					target = Vector2(float(offer.get("x", 0)), float(offer.get("y", 0)))
+		target_changed.emit(kind, id, target)
+	else:
+		target_changed.emit("", -1, Vector2.INF)
 
 
 ## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo.
@@ -485,6 +500,7 @@ func _held_keys() -> Vector2i:
 
 
 func _process(delta: float) -> void:
+	e_held(delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if not is_active:
 		return
@@ -512,6 +528,7 @@ func _refresh_body(delta: float) -> void:
 			action = labels.label_for(int(body.currentAction))
 		frame.set_body(npc_name, action, body)
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
+		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
@@ -670,14 +687,20 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg:
 		get_viewport().set_input_as_handled()
 		jump()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and rpg:
-		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos)
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_I] and rpg:
+		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos); #233: Tab e I abrem a mochila
+		toggle_inventory()
+	elif event is InputEventKey and event.keycode == KEY_E and not event.echo and (not event.pressed or not (input_blocked.is_valid() and input_blocked.call())):
 		get_viewport().set_input_as_handled()
-		if menu != null and menu.visible:
-			close_menu()
+		if not event.pressed:
+			e_released()
+		elif rpg and frame != null and not (frame.menu_open() or (menu != null and menu.visible)):
+			e_pressed()
 		else:
-			open_interactions()
+			if (menu != null and menu.visible) or (frame != null and frame.menu_open()):
+				close_menu()
+			else:
+				open_interactions()
 
 
 ## Um passo; um pedido por vez (tecla segurada não enfileira passos que o motor ainda não respondeu).
@@ -738,6 +761,87 @@ const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
 	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
 	"socialize": "Conversar", "idle": "Descansar"}
+
+
+## #233: E no jogo: toque faz a ação principal (a primeira linha do motor); segurar (HOLD_S) abre a roda com todas as ofertas.
+const HOLD_S := 0.28
+var input_blocked: Callable = Callable() ## o app liga: com a conversa aberta o E não pede nada
+var _e_down := false
+var _e_hold := 0.0
+var _e_ready := false
+var _e_wheel := false
+var _e_quick := false
+var _e_entries: Array = []
+
+
+func e_pressed() -> void:
+	if not is_active or _e_down:
+		return
+	_e_down = true
+	_e_hold = 0.0
+	_e_ready = false
+	_e_wheel = false
+	_e_quick = false
+	_e_entries = await _reach_entries()
+	_e_ready = true
+	_e_step()
+
+
+func e_released() -> void:
+	if not _e_down:
+		return
+	_e_down = false
+	if _e_wheel:
+		return # a roda aberta fica até escolher (1–9, clique) ou Esc
+	_e_quick = true
+	_e_step()
+
+
+func e_held(delta: float) -> void:
+	if _e_down:
+		_e_hold += delta
+		_e_step()
+
+
+func _e_step() -> void:
+	if not is_active:
+		return
+	if _e_down and _e_ready and _e_hold >= HOLD_S and not _e_wheel:
+		_e_wheel = true
+		frame.show_menu(_e_entries)
+		menu_toggled.emit(true)
+	elif _e_quick and _e_ready:
+		_e_quick = false
+		if _e_entries.is_empty():
+			warning.emit("Nada ao alcance.")
+		else:
+			interact(_e_entries[0])
+
+
+## O que o corpo alcança agora, no formato do jogo (coisas primeiro, só as pessoas mais perto); guarda `offers`.
+func _reach_entries() -> Array:
+	if _busy:
+		return []
+	_busy = true
+	var started := Time.get_ticks_usec()
+	var response: Dictionary = await api.player_reach(player_id)
+	_note_latency(started)
+	_busy = false
+	if not is_active or not response.ok or not (response.body is Dictionary):
+		if response.status == 404 and is_active:
+			_lost("Você não controla mais %s." % npc_name)
+		return []
+	offers = response.body.get("offers", [])
+	return PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine)
+
+
+## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
+func toggle_inventory() -> void:
+	if frame == null:
+		return
+	frame.toggle_inventory()
+	if frame.inventory_open():
+		_body_clock = BODY_EVERY
 
 
 ## E: pede ao motor o que o corpo alcança e mostra só isso (uma linha por coisa e verbo; por recurso, na despensa e na banca).
