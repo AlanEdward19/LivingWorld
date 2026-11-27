@@ -271,9 +271,13 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                         ? ConstrainByDevelopment(world, npc, ActionType.Eat)
                         : ConstrainByDevelopment(world, npc, sickAware);
 
+                // #242: quem está de folga sai; quem deixou o turno por humor, corpo ou cuidado de doente (a rotina diz trabalho) fica onde está
+                _onDuty = candidate is ActionType.Idle or ActionType.Socialize && world.StreetRules.AfterWorkOutings
+                    && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
                 chosen = npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
                     ? ActionType.Idle // #222: o corpo do jogador "à toa" fica onde está (não vai à toa em casa); o jogador o conduz
                     : ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                _onDuty = false;
                 // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
                 if (chosen is not (ActionType.Eat or ActionType.Travel))
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
@@ -282,7 +286,9 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 // sede para uma viagem de um dia, ao lado da água de casa)
                 if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.DrinkFromPantry(world, npc, now); // só a água: a comida fica
-                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
+                travelPurpose = chosen == ActionType.Travel
+                    && (candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
+                        || (candidate == ActionType.Idle && world.StreetRules.AfterWorkOutings)) // #242: o passeio de quem está à toa
                     ? candidate
                     : null;
 
@@ -310,7 +316,7 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
-            if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
+            if (departing && IsOutingPurpose(world, travelPurpose)) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
             if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
             if (fine) // AD-197h: a chegada no instante do caminho em ms; a perna fica no viajante para a pose de cada tick
