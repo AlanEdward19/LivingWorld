@@ -17,6 +17,10 @@ static func parse(args: PackedStringArray) -> Array:
 	return []
 
 
+static func _print_warning(text: String) -> void:
+	print("aviso: ", text)
+
+
 static func run(app: Node, steps: Array) -> void:
 	for step in steps:
 		var name: String = step.get_slice(":", 0)
@@ -429,6 +433,44 @@ static func run(app: Node, steps: Array) -> void:
 				var walk_release: InputEventKey = walk_press.duplicate()
 				walk_release.pressed = false
 				Input.parse_input_event(walk_release)
+			"walkraw": # #237: um passo cru ao motor (`walkraw:-707,-707`) e a resposta inteira
+				var raw: Dictionary = await app.api.player_walk(app.player_hud.player_id, int(arg.get_slice(",", 0)), int(arg.get_slice(",", 1)), false)
+				print("walkraw: status=", raw.get("status"), " body=", raw.get("body"))
+			"resume": # #237: retoma o mundo (admin) para medir com o tempo correndo, como o dono joga
+				var resumed: Dictionary = await app.api.admin_resume("dev")
+				print("resume: ok=", resumed.get("ok"), " status=", resumed.get("status"))
+			"walkwatch": # #237: `walkwatch:W=4` anda 4 s e, a cada 0,25 s, imprime o corpo, a dica na tela e o escopo (prova de oferta velha / troca de escopo)
+				var wspec := arg.get_slice(",", 0)
+				if not app.player_hud.warning.is_connected(_print_warning):
+					app.player_hud.warning.connect(_print_warning)
+				var wkey := OS.find_keycode_from_string(wspec.get_slice("=", 0))
+				var wpress := InputEventKey.new()
+				wpress.keycode = wkey
+				wpress.physical_keycode = wkey
+				wpress.pressed = true
+				Input.parse_input_event(wpress)
+				var left := float(wspec.get_slice("=", 1))
+				while left > 0.0:
+					await app.get_tree().create_timer(0.25).timeout
+					left -= 0.25
+					var hud2 = app.player_hud
+					var shown: String = app.player_frame.prompt.text if app.player_frame != null and app.player_frame.prompt.visible else ""
+					var live_water := ""
+					var live: Dictionary = await app.api.player_reach(hud2.player_id) # #237: o que o motor oferece neste instante (verdade)
+					if live.ok and live.body is Dictionary:
+						for offer in live.body.get("offers", []):
+							if String(offer.get("kind", "")) == "water":
+								var gap := Vector2(maxf(maxf(float(offer.x) - hud2.fine.x, hud2.fine.x - float(offer.x) - 1.0), 0.0), maxf(maxf(float(offer.y) - hud2.fine.y, hud2.fine.y - float(offer.y) - 1.0), 0.0)).length()
+								live_water = "agua@%d,%d folga=%.2f" % [offer.x, offer.y, gap]
+					var node = app.world_view.npc_nodes.get(hud2.npc_id)
+					print("walkwatch: t=", snappedf(float(wspec.get_slice("=", 1)) - left, 0.01), " escopo=", app.store.kind, " fine=", hud2.fine, " motor_fine=", hud2._last_server, " vel=", snappedf(hud2.speed_cells, 0.001), " corpo=", node.position if node != null and is_instance_valid(node) else "sem corpo",
+						" alvo_cam=", app.rig.target, " cam=", app.rig.camera.global_position, " zoom=", snappedf(app.rig.zoom_size, 0.01), " segue=", app.rig.following != null and is_instance_valid(app.rig.following), " apoio=", app.body_scope.anchor != null and is_instance_valid(app.body_scope.anchor), " ator=", app.player_actor() != null, " prompt='", shown, "' motor_agua=", live_water)
+					if arg.contains(",") and int(roundf(left * 4.0)) % 2 == 0: # um quadro a cada 0,5 s: `walkwatch:W=8,/caminho/prefixo`
+						await RenderingServer.frame_post_draw
+						app.get_viewport().get_texture().get_image().save_png("%s-%04d.png" % [arg.get_slice(",", 1), int(roundf((float(wspec.get_slice("=", 1)) - left) * 100.0))])
+				var wrelease: InputEventKey = wpress.duplicate()
+				wrelease.pressed = false
+				Input.parse_input_event(wrelease)
 			"gesture": # #224: `gesture:reach` toca um gesto no corpo do jogador (captura das animações)
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
 				if own != null:
@@ -446,9 +488,17 @@ static func run(app: Node, steps: Array) -> void:
 				print("sizes: inspector ", ins.size, " min ", ins.get_combined_minimum_size(), " side ", app.side_panel.size)
 				for child in ins.get_child(0).get_children():
 					print("sizes:   ", child.get_class(), " ", child.size, " min ", child.get_combined_minimum_size(), " vis ", child.visible)
+			"reach": # #237: a dica do E que o cliente mostra agora × o que o motor oferece agora (prova da água de longe)
+				var hud = app.player_hud
+				var live: Dictionary = await app.api.player_reach(hud.player_id)
+				var kinds: Array = []
+				if live.ok and live.body is Dictionary:
+					for offer in live.body.get("offers", []):
+						kinds.append("%s:%s@%s,%s" % [offer.get("kind"), ",".join(offer.get("verbs", [])), offer.get("x"), offer.get("y")])
+				print("reach: fine=", hud.fine, " dica='", hud.reach_hint.text, "' prompt='", app.player_frame.prompt.text if app.player_frame != null else "", "' vis=", app.player_frame.prompt.visible if app.player_frame != null else false, " motor=", kinds)
 			"pos": # #222: onde o corpo do jogador está (motor e desenho)
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
-				print("pos: escopo=", app.store.kind, " segue=", app.rig.following != null and is_instance_valid(app.rig.following), " ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
+				print("pos: escopo=", app.store.kind, " segue=", app.rig.following != null and is_instance_valid(app.rig.following), " apoio=", app.body_scope.anchor != null and is_instance_valid(app.body_scope.anchor), " ator=", app.player_actor() != null, " ativo=", app.player_hud.is_active, " fine=", app.player_hud.fine, " speed=", app.player_hud.speed_cells,
 					" corpo=", own.position if own != null else "sem corpo", " modo=", app.rig.mode, " braço=", app.rig.arm, " subida=", app.rig.lift,
 					" ombro=", app.rig.shoulder, " dentro=", app.rig.opened_ids().keys(), " cartão=", app.player_frame.purse_label.text if app.player_frame != null else "", " leitura=", app.player_hud._body_pending, "/", snappedf(app.player_hud._body_clock, 0.1), " rpg=", app.player_hud.rpg, " npc=", app.player_hud.npc_id, " menu1=", app.player_frame.entries[0].text if app.player_frame != null and not app.player_frame.entries.is_empty() else "")
 				var actor = app.player_actor()

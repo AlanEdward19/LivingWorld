@@ -989,19 +989,43 @@ func _reconcile_placement() -> void:
 		await _reconcile_placement()
 
 
+const BodyScope := preload("res://Scenes/body_scope.gd")
+var body_scope := BodyScope.new() ## #237: ponto de apoio da câmera e o escopo que a posição do corpo pede
+var _last_body_height := 0.0
+var _last_body_scale := Vector3.ONE
+
+
 func _keep_the_body() -> void:
 	if player_hud == null or not player_hud.is_active:
 		_body_missing_since = -1
+		body_scope.release()
 		return
 	var own = player_actor()
 	if own != null:
 		_body_missing_since = -1
+		_last_body_height = own.position.y
+		_last_body_scale = own.scale
+		if body_scope.anchor != null:
+			# o boneco voltou ao desenho, mas nasce no centro da célula e só depois chega à posição fina: a câmera fica no ponto de apoio
+			# até os dois coincidirem e então passa para o corpo no mesmo ponto (sem salto)
+			if player_hud.fine != Vector2.INF and Vector2(own.position.x, own.position.z).distance_to(player_hud.fine) > BodyScope.HANDOVER_CELLS:
+				var held_on: Node3D = body_scope.hold_at(self, player_hud.fine, _last_body_height, _last_body_scale)
+				if rig.following != held_on:
+					rig.follow(held_on)
+				return
+			body_scope.release()
 		if rig.following != own:
 			own.driven = true
 			own.set_self(true)
 			own.set_first_person(rig.mode == rig.FIRST)
 			rig.follow(own)
 		return
+	# #237: o boneco do corpo não está no escopo desenhado (andou para fora da cidade, ou voltou): a câmera segue a posição fina do
+	# corpo, que o cliente conhece, e não sobe "aguardando corpo" nem congela até a assinatura nova chegar
+	if rig.mode != rig.ISO and player_hud.fine != Vector2.INF and not (stage != null and stage.active):
+		var held: Node3D = body_scope.hold_at(self, player_hud.fine, _last_body_height, _last_body_scale)
+		if rig.following != held:
+			rig.follow(held)
 	var now := Time.get_ticks_msec()
 	if _body_missing_since < 0:
 		_body_missing_since = now
@@ -1017,6 +1041,18 @@ func player_actor() -> Node3D:
 		if inside != null:
 			return inside
 	return world_view.npc_nodes.get(player_hud.npc_id)
+
+
+## #237: o corpo cruzou a borda da cidade (ou entrou nela): pede já o escopo certo, sem esperar o boneco sumir. Não mexe dentro de casa.
+func _follow_body_scope() -> void:
+	if _seeking_body or _inside_busy or (stage != null and stage.active) or _inside_by_body >= 0 or not store.kind in ["City", "World"]:
+		return
+	var want: Array = BodyScope.wanted(store.kind, player_hud.fine, store.city, store.cities)
+	if want.is_empty() or not body_scope.may_ask(Time.get_ticks_msec()):
+		return
+	_seeking_body = true
+	await enter_scope(String(want[0]), String(want[1]))
+	_seeking_body = false
 
 
 func _seek_body() -> void:
@@ -1036,6 +1072,7 @@ func _seek_body() -> void:
 
 func _player_view_effects() -> void:
 	_keep_the_body()
+	_follow_body_scope()
 	if player_hud != null and player_hud.is_active and rig.mode != rig.ISO and _inside_by_body < 0 and not stage.active \
 			and not rig.opened_ids().is_empty() and Time.get_ticks_msec() - _pose_asked_ms > 1500:
 		_pose_asked_ms = Time.get_ticks_msec() # #227: o desenho sugere o corpo num prédio: o motor diz se está (a pose traz o prédio)

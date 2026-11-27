@@ -297,6 +297,11 @@ func orders_open() -> bool:
 func set_reach_hint(from: Array) -> void:
 	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
+	_hint_offer = {}
+	if not entries.is_empty():
+		for offer in from:
+			if String(offer.get("kind", "")) == String(entries[0].kind) and int(offer.get("id", -1)) == int(entries[0].id):
+				_hint_offer = offer
 	reach_hint.visible = rpg and reach_hint.text != "" and frame == null and not popup_open()
 	if frame != null:
 		frame.set_prompt(reach_hint.text if rpg else "")
@@ -315,18 +320,49 @@ func set_reach_hint(from: Array) -> void:
 		target_changed.emit("", -1, Vector2.INF)
 
 
-## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo.
+## #237: a oferta da dica que o motor diz ter alcance (fonte, mata: `reachCells`, da posição fina à borda da célula) e a folga da
+## latência: sai da tela no quadro em que o corpo passa disso, sem esperar a próxima leitura (que pode demorar com o motor carregado).
+var _hint_offer: Dictionary = {}
+const HINT_SLACK := 0.2 ## células: o motor lê a posição dele, até uma latência atrás da prevista aqui
+const REACH_MOVE := 0.25 ## células andadas desde a última leitura para pedir outra
+const REACH_HINT_NEAR_EVERY := 0.5 ## com uma dica de alcance na tela a leitura se renova mais depressa
+
+
+## Da posição fina `at` (células) à borda do quadrado da célula (x, y) da oferta; 0 dentro dela.
+static func reach_gap(at: Vector2, x: float, y: float) -> float:
+	return Vector2(maxf(maxf(x - at.x, at.x - x - 1.0), 0.0), maxf(maxf(y - at.y, at.y - y - 1.0), 0.0)).length()
+
+
+## A dica de alcance mostrada já não vale para onde o corpo está agora (só ofertas com `reachCells`).
+func hint_out_of_reach() -> bool:
+	if reach_hint.text == "" or fine == Vector2.INF or not _hint_offer.has("reachCells"):
+		return false
+	return reach_gap(fine, float(_hint_offer.get("x", 0)), float(_hint_offer.get("y", 0))) > float(_hint_offer.reachCells) + HINT_SLACK
+
+
+## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo (meio segundo com
+## uma dica de alcance na tela). A leitura que falha não deixa a dica velha: sem resposta do motor, a tela não afirma nada.
 func _refresh_reach_hint(delta: float) -> void:
 	reach_clock += delta
-	if not rpg or _busy or _reach_pending or reach_clock < REACH_HINT_EVERY or fine == Vector2.INF or fine.distance_to(_reach_at) < 0.5:
+	if rpg and hint_out_of_reach():
+		set_reach_hint([]) # #237: saiu do alcance: a dica some agora, e a próxima leitura já pode vir
+		_reach_at = Vector2.INF
+		reach_clock = REACH_HINT_EVERY
+	var every := REACH_HINT_NEAR_EVERY if _hint_offer.has("reachCells") else REACH_HINT_EVERY
+	if not rpg or _busy or _reach_pending or reach_clock < every or fine == Vector2.INF or fine.distance_to(_reach_at) < REACH_MOVE:
 		return
 	reach_clock = 0.0
 	_reach_at = fine
 	_reach_pending = true
 	var response: Dictionary = await api.player_reach(player_id)
 	_reach_pending = false
-	if rpg and response.ok and response.body is Dictionary:
+	if not rpg:
+		return
+	if response.ok and response.body is Dictionary:
 		set_reach_hint(response.body.get("offers", []))
+	else:
+		set_reach_hint([])
+		_reach_at = Vector2.INF
 
 
 ## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação). #222: no modo jogador o botão é uma ordem
