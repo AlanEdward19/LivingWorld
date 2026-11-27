@@ -366,6 +366,7 @@ func incarnate(id: int, name: String) -> bool:
 
 
 func _became(id: int, name: String) -> void:
+	_offer_guide.call_deferred(false)
 	stale_session = false
 	_set_actions_enabled(true)
 	npc_id = id
@@ -532,8 +533,44 @@ func _process(delta: float) -> void:
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
 	_refresh_goals(delta)
+	_refresh_goal_where(delta)
 	_hold_guard()
 	_paused_note_clock = maxf(0.0, _paused_note_clock - delta)
+
+
+## #238: o guia da primeira posse neste mundo: abre sozinho uma vez (e lembra); `force` (F1 → "Rever o guia") abre sempre.
+var settings: Variant = null ## GameSettings (nulo nos testes e nas medidas: sem guia sozinho)
+var world_key := "" ## o mundo em que o jogador está (nome); o guia é por mundo
+
+
+func _offer_guide(force: bool) -> void:
+	var key := "guide:" + world_key
+	if api == null or not api.has_method("player_goals") or frame == null or not is_active:
+		return
+	if not force and (settings == null or settings.has_seen_guide(key)):
+		return
+	var response: Dictionary = await api.player_goals(player_id, true)
+	if not is_active or not response.ok or not response.body is Dictionary or not response.body.get("start") is Dictionary:
+		return
+	if not force and settings != null:
+		settings.mark_guide_seen(key)
+	frame.guide.open(response.body.start, npc_name, fine, heading.call(), resource_name_of)
+
+
+func show_guide() -> void:
+	await _offer_guide(true)
+
+
+const GOAL_WHERE_EVERY := 0.5 ## s entre as releituras do lado em que fica o passo da meta (a câmera gira, o corpo anda)
+var _where_clock := 0.0
+
+
+func _refresh_goal_where(delta: float) -> void:
+	_where_clock += delta
+	if frame == null or _where_clock < GOAL_WHERE_EVERY:
+		return
+	_where_clock = 0.0
+	frame.set_goal_where(fine, heading.call())
 
 
 ## #235: a meta mais urgente do motor na linha do HUD (a cada GOALS_EVERY s) e, com o painel J aberto, a lista e o diário.
@@ -738,6 +775,8 @@ func apply_pose(pose: Dictionary) -> void:
 	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
 	floor_level = int(pose.get("floor", 0))
 	placed.emit(building_id, int(pose.get("floor", 0)))
+	if frame != null:
+		frame.set_ground(pose.get("ground")) # #238: o chão sob o corpo e o que atrasa o passo, como o motor diz
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
 		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.

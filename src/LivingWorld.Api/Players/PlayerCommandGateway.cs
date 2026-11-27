@@ -29,7 +29,8 @@ public sealed record PlayerPose(
     string PlayerId, long NpcId, int X, int Y, long? BuildingId, int Floor, long ReadyInMs, double Fx, double Fy, double SpeedMps,
     double CellMeters, bool Running,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CombatView? Combat = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CombatView? Combat = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.WalkDrag? Ground = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -243,7 +244,8 @@ public sealed partial class PlayerCommandGateway(
             world.Players.CellM,
             running,
             airMs,
-            PlayerCombat.View(world, npc));
+            PlayerCombat.View(world, npc),
+            WalkGround(world, npc));
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>
@@ -269,6 +271,16 @@ public sealed partial class PlayerCommandGateway(
         var ahead = hx == 0 && hy == 0 ? new LivingWorld.Domain.Geography.CellCoord(at.X + 1, at.Y)
             : new LivingWorld.Domain.Geography.CellCoord(at.X + hx, at.Y + hy);
         return world.Map.TryGetCell(ahead, out _) ? PlayerWalk.SpeedMps(world, npc, at, ahead, running) : world.Players.WalkMps;
+    }
+
+    /// <summary>#238: o chão sob o corpo e o que atrasa o passo (terreno, carga, sono, tempo, corpo), no mesmo rumo de <see cref="WalkSpeed"/>.</summary>
+    private static LivingWorld.Simulation.Players.WalkDrag? WalkGround(LivingWorld.Simulation.Core.WorldState world, LivingWorld.Domain.Population.Npc npc)
+    {
+        var at = npc.CurrentLocation;
+        int hx = Math.Sign(npc.Fine?.HeadingX ?? 0), hy = Math.Sign(npc.Fine?.HeadingY ?? 0);
+        var ahead = hx == 0 && hy == 0 ? new LivingWorld.Domain.Geography.CellCoord(at.X + 1, at.Y)
+            : new LivingWorld.Domain.Geography.CellCoord(at.X + hx, at.Y + hy);
+        return npc.Interior is null && world.Map.TryGetCell(ahead, out _) ? LivingWorld.Simulation.Players.PlayerWalk.DragOf(world, npc, at, ahead) : null;
     }
 
     /// <summary>AD-197d: o que a interação fez, a pose depois dela e, na conversa aceita, a sessão aberta para o chat de sempre.</summary>

@@ -15,6 +15,7 @@ var vsync := true
 var language := "pt_BR" ## só português por enquanto
 var tips_done := false ## as dicas dos primeiros passos já foram vistas (ou puladas)
 var has_played := false ## já entrou em algum mundo: o Continuar faz sentido
+var guide_seen: PackedStringArray = [] ## #238: mundos em que o guia da primeira posse já foi visto (ou dispensado)
 
 
 static func load_from(p_path: String = DEFAULT_PATH):
@@ -32,6 +33,7 @@ static func load_from(p_path: String = DEFAULT_PATH):
 	settings.language = String(file.get_value("general", "language", "pt_BR"))
 	settings.tips_done = bool(file.get_value("progress", "tips_done", false))
 	settings.has_played = bool(file.get_value("progress", "has_played", false))
+	settings.guide_seen = PackedStringArray(file.get_value("progress", "guide_seen", PackedStringArray()))
 	return settings
 
 
@@ -46,7 +48,19 @@ func save() -> void:
 	file.set_value("general", "language", language)
 	file.set_value("progress", "tips_done", tips_done)
 	file.set_value("progress", "has_played", has_played)
+	file.set_value("progress", "guide_seen", guide_seen)
 	file.save(path)
+
+
+## #238: o guia da primeira posse deste mundo já foi visto? (a chave é do mundo; reabrir fica pela ajuda F1)
+func has_seen_guide(key: String) -> bool:
+	return guide_seen.has(key)
+
+
+func mark_guide_seen(key: String) -> void:
+	if not guide_seen.has(key):
+		guide_seen.append(key)
+		save()
 
 
 ## Aplica na janela e no som. Sem janela de verdade (testes headless) só o volume e a escala valem.

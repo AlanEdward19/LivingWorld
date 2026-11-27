@@ -7,8 +7,8 @@ public static class PlayerGoalsEndpoints
 {
     public static void MapPlayerGoalsEndpoints(this WebApplication app, PlayerCommandGateway gateway, PlayerSessionTokens tokens, PlayerAuthPolicy policy)
     {
-        app.MapGet("/players/{playerId}/goals", (HttpContext http, string playerId) =>
-            PlayerEndpoints.Identify(http, tokens, policy.Required, playerId) is { } refused ? refused : Reply(gateway.Goals(playerId)));
+        app.MapGet("/players/{playerId}/goals", (HttpContext http, string playerId, bool? start) =>
+            PlayerEndpoints.Identify(http, tokens, policy.Required, playerId) is { } refused ? refused : Reply(gateway.Goals(playerId, start == true))); // #238: ?start=true acrescenta o ponto de partida
         app.MapGet("/players/{playerId}/diary", (HttpContext http, string playerId) =>
             PlayerEndpoints.Identify(http, tokens, policy.Required, playerId) is { } refused ? refused : Reply(gateway.Diary(playerId)));
     }

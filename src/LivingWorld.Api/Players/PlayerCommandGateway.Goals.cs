@@ -15,7 +15,7 @@ public sealed partial class PlayerCommandGateway
         new(StatusCodes.Status404NotFound, null, $"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
 
     /// <summary>As metas do corpo, da mais urgente para a menos, cada uma com o próximo passo, e o progresso das habilidades.</summary>
-    public PlayerReply Goals(string playerId)
+    public PlayerReply Goals(string playerId, bool start = false)
     {
         lock (library.Gate)
         {
@@ -23,7 +23,7 @@ public sealed partial class PlayerCommandGateway
             if (PlayerCommands.ControlledBy(world, playerId) is not { } npc) return NoBody(playerId);
             var names = Names?.For(world.PeriodId);
             var rules = ScenarioRunner.DefaultSkillsRules;
-            return new PlayerReply(StatusCodes.Status200OK, new
+            var main = new
             {
                 playerId,
                 npcId = npc.Id.Value,
@@ -62,7 +62,13 @@ public sealed partial class PlayerCommandGateway
                     practicing = k.Practicing,
                     gainPerPractice = k.GainPerPractice,
                 }).ToList(),
-            }, null);
+            };
+            // #238: o ponto de partida só sob pedido (?start=true): a busca da mata custa, e a linha de metas é lida a cada poucos segundos
+            var fields = System.Text.Json.JsonSerializer.SerializeToElement(main);
+            var result = new Dictionary<string, object?>();
+            foreach (var property in fields.EnumerateObject()) result[property.Name] = property.Value;
+            if (start) result["start"] = PlayerStartQuery.Of(world, npc);
+            return new PlayerReply(StatusCodes.Status200OK, result, null);
         }
     }
 

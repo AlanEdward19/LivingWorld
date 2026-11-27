@@ -29,8 +29,28 @@ const PLAYER_SHORTCUTS: Array[Array] = [
 	["Soltar o mouse", "Z"],
 	["Menu (continuar, sair do personagem)", "Esc"],
 ]
+## #238: "O que dá para fazer": os tipos de oferta que o motor tem (`/reach`), onde cada um acontece e a tecla. A oferta só aparece
+## com o corpo ao lado do alvo; esta lista diz o que procurar e onde.
+const PLAYER_ACTIONS: Array[Array] = [
+	["Conversar", "perto de alguém: E, ou segure E e escolha Conversar"],
+	["Comer e guardar", "na despensa de casa: E (pegar), E de novo com a carga (guardar)"],
+	["Dormir", "na cama de casa: E e escolha Dormir"],
+	["Comprar e vender", "junto à banca de uma oficina: E e o número da opção"],
+	["Trabalhar", "no posto do seu emprego (oficina ou lavoura): segure E e escolha Trabalhar"],
+	["Beber e encher o cântaro", "colado na água (rio, lago, fonte): E"],
+	["Coletar madeira", "na mata, fora da cidade: segure E e escolha Coletar"],
+	["Usar a mobília", "dentro da sua casa ou do seu posto, junto ao objeto: E"],
+	["Entrar, sair e subir", "na porta ou na escada do prédio: E"],
+	["Recolher espólio", "onde alguém deixou coisas no chão: E"],
+	["Furtar", "banca ou casa alheia: segure E e escolha Furtar (tem consequência)"],
+	["Bater e se defender", "clique bate; botão direito ou F bloqueia; Ctrl ou Alt esquiva"],
+]
 var spectator_grid: GridContainer
 var player_grid: GridContainer
+var actions_grid: GridContainer
+var _actions_button: Button
+var _showing_actions := false
+var _guide_button: Button
 var _title_label: Label
 const SHORTCUTS: Array[Array] = [
 	["Andar pelo mundo", "botão direito e arrastar · W A S D ou setas"],
@@ -166,8 +186,14 @@ func _build_help() -> Control:
 	_title_label = Kit.title("Ajuda e atalhos", 30, box, Kit.GOLD)
 	spectator_grid = _shortcut_grid(box, SHORTCUTS)
 	player_grid = _shortcut_grid(box, PLAYER_SHORTCUTS)
+	actions_grid = _shortcut_grid(box, PLAYER_ACTIONS)
+	actions_grid.visible = false
 	var row := Kit.row(box)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_actions_button = Kit.button("O que dá para fazer", row, toggle_actions)
+	_actions_button.visible = false
+	Kit.button("Rever o guia", row, review_guide).visible = false
+	_guide_button = row.get_child(row.get_child_count() - 1)
 	Kit.button("Ver as dicas de novo", row, func(): start(true))
 	Kit.button("Fechar (Esc)", row, close_help)
 	return layer
@@ -198,14 +224,38 @@ func open_help() -> void:
 	index = -1
 	help.visible = true
 	var playing: bool = app != null and bool(app.get("player_mode"))
-	player_grid.visible = playing
+	_showing_actions = false
+	_show_player_page()
 	spectator_grid.visible = not playing
-	_title_label.text = "Como jogar" if playing else "Ajuda e atalhos"
+	_actions_button.visible = playing
+	_guide_button.visible = playing
 	help.mouse_filter = Control.MOUSE_FILTER_STOP
 	Kit.fade_in(help)
 	var first := Kit.first_focusable(help)
 	if first != null:
 		first.grab_focus()
+
+
+## #238: alterna entre os atalhos e a lista "O que dá para fazer" (só no modo jogador).
+func toggle_actions() -> void:
+	_showing_actions = not _showing_actions
+	_show_player_page()
+
+
+func _show_player_page() -> void:
+	var playing: bool = app != null and bool(app.get("player_mode"))
+	player_grid.visible = playing and not _showing_actions
+	actions_grid.visible = playing and _showing_actions
+	_title_label.text = ("O que dá para fazer" if _showing_actions else "Como jogar") if playing else "Ajuda e atalhos"
+	if _actions_button != null:
+		_actions_button.text = "Ver os atalhos" if _showing_actions else "O que dá para fazer"
+
+
+## #238: reabre o guia da primeira posse (a ajuda fecha para ele aparecer).
+func review_guide() -> void:
+	close_help()
+	if app != null and app.get("player_hud") != null:
+		app.player_hud.show_guide()
 
 
 func close_help() -> void:

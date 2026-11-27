@@ -13,7 +13,7 @@ namespace LivingWorld.Simulation.Players;
 /// carga, chão do dia, cansaço) relativa ao passo de referência, em m/s (<see cref="SpeedMps"/>). Ao cruzar a borda de uma célula o
 /// chão é o da grade (<see cref="PlayerGround.Step"/>: parede, porta, gente, canto); barrado, desliza no eixo livre ou para na borda.
 /// Andar gasta sono na medida do tempo andado. Determinístico: tudo é inteiro em milésimos e o tempo é o do mundo.</summary>
-public static class PlayerWalk
+public static partial class PlayerWalk
 {
     /// <summary>Velocidade do corpo agora indo de <paramref name="from"/> para <paramref name="to"/> (vizinha), em m/s; correndo
     /// (<paramref name="running"/>, AD-197u), <see cref="PlayerRules.RunFactor"/> vezes, até o teto de <see cref="PlayerRules.RunMaxMps"/>.</summary>

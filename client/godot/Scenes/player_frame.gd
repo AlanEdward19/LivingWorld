@@ -9,6 +9,7 @@ const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("
 	["sleep", "Sono", Color("9b7fd1")]]
 const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
+const PlayerGuide := preload("res://Scenes/player_guide.gd")
 const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
 const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
 const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro, a mira, fica limpo)
@@ -40,6 +41,11 @@ var blocked := false: ## #240: popup aberto: a dica do E some (volta ao fechar, 
 		blocked = value
 		prompt.visible = prompt.text != "" and not menu_panel.visible and not blocked
 var _engine_action := ""
+var guide: PanelContainer ## #238: o guia da primeira posse
+var _goal_body: Dictionary = {}
+var _goal_where := "" ## #238: para que lado fica o passo da meta mais urgente ("a 12 m, à frente e à direita")
+var _ground := "" ## #238: o chão sob o corpo e o quanto atrasa, dito pelo motor ("Chão pesado −40%")
+var _ground_slow := 0
 var _motion := "" ## #228: "Andando"/"Correndo" enquanto o próprio corpo se move pela previsão local; vazio: vale a ação do motor
 
 
@@ -102,6 +108,8 @@ func _init() -> void:
 	add_child(goal_label)
 	goals = GoalsPanel.new()
 	add_child(goals)
+	guide = PlayerGuide.new()
+	add_child(guide)
 	prompt = _label(17, Color.WHITE)
 	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	prompt.offset_top = 34
@@ -226,8 +234,45 @@ func set_combat(strike_wait_ms: int, guard: String, guard_wait_ms: int) -> void:
 	guard_label.visible = text != ""
 
 
+## #238: o chão sob o corpo (`ground` da pose do motor): "Chão pesado −40%"; vazio fora de rua e mato (dentro de prédio).
+func set_ground(drag: Variant) -> void:
+	var text := ground_label(drag)
+	var slow := int(drag.get("slowPct", 0)) if drag is Dictionary else 0
+	if text == _ground and slow == _ground_slow:
+		return
+	_ground = text
+	_ground_slow = slow
+	_show_action()
+
+
+## O rótulo do chão a partir de `ground` do motor: o terreno pelo peso dele (`terrainPct`: 0 firme, até 59 irregular, depois pesado) e,
+## se o passo está abaixo do normal, o quanto (`slowPct`) com a causa que o motor aponta (carga, sono, tempo, corpo; "ground" = o chão).
+static func ground_label(drag: Variant) -> String:
+	if not drag is Dictionary or drag.is_empty():
+		return ""
+	var pct := int(drag.get("terrainPct", 0))
+	var text := "Chão firme" if pct <= 0 else ("Chão irregular" if pct < 60 else "Chão pesado")
+	var slow := int(drag.get("slowPct", 0))
+	if slow <= 0:
+		return text
+	var cause := ""
+	match String(drag.get("cause", "")):
+		"load":
+			cause = " (carga)"
+		"tired":
+			cause = " (cansaço)"
+		"weather":
+			cause = " (lama ou neve)"
+		"body":
+			cause = " (corpo)"
+	return "%s −%d%%%s" % [text, slow, cause]
+
+
 func _show_action() -> void:
 	var text := _motion if _motion != "" else _engine_action
+	if _motion != "" and _ground != "":
+		text = "%s · %s" % [_motion, _ground]
+	action_label.add_theme_color_override("font_color", Color("ffcf8a") if _motion != "" and _ground_slow >= 30 else Color(1, 1, 1, 0.7))
 	action_label.text = text
 	action_label.visible = text != ""
 
@@ -322,8 +367,26 @@ func set_inventory(money: Variant, carrying: Variant, name_of: Callable) -> void
 
 ## #235: as metas do motor: a mais urgente na linha do HUD e a lista toda no painel.
 func set_goals(body: Dictionary) -> void:
-	goal_label.text = GoalsPanel.top_line(body)
+	_goal_body = body
+	_refresh_goal_label()
 	goals.set_goals(body)
+
+
+## #238: a linha da meta aponta o lado e a distância do passo "andar até" (o motor diz o lugar; a direção é a da câmera, a do WASD).
+func set_goal_where(fine: Vector2, forward: Vector2) -> void:
+	var step: Variant = _goal_body.get("goals", [{}])[0].get("step") if _goal_body.get("goals") is Array and not _goal_body.goals.is_empty() else null
+	var next := ""
+	if step is Dictionary and String(step.get("command", "")) == "go" and fine != Vector2.INF:
+		var offset := Vector2(float(step.get("x", 0)) + 0.5, float(step.get("y", 0)) + 0.5) - fine
+		next = PlayerGuide.where({"x": step.get("x", 0), "y": step.get("y", 0), "distance": int(round(offset.length()))}, fine, forward)
+	if next != _goal_where:
+		_goal_where = next
+		_refresh_goal_label()
+
+
+func _refresh_goal_label() -> void:
+	var line := GoalsPanel.top_line(_goal_body)
+	goal_label.text = line if _goal_where == "" or line == "" else "%s (%s)" % [line, _goal_where]
 
 
 func set_diary(body: Dictionary) -> void:

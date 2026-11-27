@@ -156,6 +156,17 @@ static func run(app: Node, steps: Array) -> void:
 					app.first_steps.next_tip()
 			"help":
 				app.first_steps.open_help()
+				if arg == "actions": # #238: a página "O que dá para fazer" da ajuda do jogador
+					app.first_steps.toggle_actions()
+			"guide": # #238: o guia da primeira posse (`guide:N` vai ao passo N, de 1; `guide:close` fecha)
+				if arg == "close":
+					app.player_hud.frame.guide.close()
+					continue
+				await app.player_hud.show_guide()
+				var guide = app.player_hud.frame.guide
+				for _i in maxi(int(arg) - 1, 0):
+					guide.go(1)
+				print("guide: ", guide.steps.size(), " passos; passo ", guide.index + 1, ": ", guide.steps[guide.index].text if guide.visible else "(fechado)")
 			"xray": # AD-177: raio-x, planta, ficha da rua mais usada e do lote com quintal, contagem do chão
 				app.reading.toggle_xray()
 			"focuswork": # AD-193: câmera e ficha na primeira obra do escopo (captura da fumaça)
@@ -402,6 +413,22 @@ static func run(app: Node, steps: Array) -> void:
 				var release: InputEventKey = press.duplicate()
 				release.pressed = false
 				Input.parse_input_event(release)
+			"walkshot": # #238: `walkshot:W=2,caminho.png` anda 2 s e fotografa o cartão com o corpo em movimento (e imprime o rótulo do chão)
+				var spec := arg.get_slice(",", 0)
+				var walk_key := OS.find_keycode_from_string(spec.get_slice("=", 0))
+				var walk_press := InputEventKey.new()
+				walk_press.keycode = walk_key
+				walk_press.physical_keycode = walk_key
+				walk_press.pressed = true
+				Input.parse_input_event(walk_press)
+				await app.get_tree().create_timer(float(spec.get_slice("=", 1)) * 0.6).timeout
+				print("ground: ", app.player_frame.action_label.text, " | ", app.player_frame._ground)
+				await RenderingServer.frame_post_draw
+				app.get_viewport().get_texture().get_image().save_png(arg.get_slice(",", 1))
+				await app.get_tree().create_timer(float(spec.get_slice("=", 1)) * 0.4).timeout
+				var walk_release: InputEventKey = walk_press.duplicate()
+				walk_release.pressed = false
+				Input.parse_input_event(walk_release)
 			"gesture": # #224: `gesture:reach` toca um gesto no corpo do jogador (captura das animações)
 				var own = app.world_view.npc_nodes.get(app.player_hud.npc_id)
 				if own != null:
