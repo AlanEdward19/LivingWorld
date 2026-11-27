@@ -8,6 +8,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities;
@@ -67,7 +68,7 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
             }
 
             Release(world, npc, crowd);
-            var (building, floor, cell) = Place(npc.Id, target.Value.Building, target.Value.GroundOnly);
+            var (building, floor, cell) = Place(npc.Id, target.Value.Building, target.Value.GroundOnly, world.ObjectCatalog);
             if (InteriorEntry.TryEnter(world, npc, building, floor, cell).IsSuccess && floor.Value == 0 && crowd is not null
                 && building.Value == target.Value.Building.Id.Value && target.Value.Building.Position is { } origin)
             {
@@ -130,14 +131,59 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
     }
 
     /// <summary>Andar (térreo quando <paramref name="groundOnly"/>) e célula caminhável, escolhidos só por hash
-    /// estável de <c>(NpcId, BuildingId)</c>.</summary>
-    internal static (BuildingId Building, FloorLevel Floor, CellCoord Cell) Place(NpcId npc, Building building, bool groundOnly)
+    /// estável de <c>(NpcId, BuildingId)</c>. #237: quem vai dormir (não <paramref name="groundOnly"/>) deita numa cama que o motor pôs na planta
+    /// (<see cref="HomeFurniture"/>) ou, sem cama, em piso livre; nunca na porta nem na escada se houver piso (o corpo deitado atravessava a parede).</summary>
+    internal static (BuildingId Building, FloorLevel Floor, CellCoord Cell) Place(NpcId npc, Building building, bool groundOnly, LivingWorld.Domain.Objects.ObjectCatalog? catalog = null)
     {
-        var walkableByFloor = BuildingLayoutCache.Of(building).WalkableByFloor;
         ulong hash = StableHash.Mix(npc.Value ^ (building.Id.Value << 20));
+        if (!groundOnly && RestingSpots(building, catalog) is { Count: > 0 } spots)
+        {
+            var spot = spots[(int)(StableHash.Mix((long)hash) % (ulong)spots.Count)];
+            return (building.Id, new FloorLevel(spot.Floor), spot.Cell);
+        }
+
+        var walkableByFloor = BuildingLayoutCache.Of(building).WalkableByFloor;
         int floorIndex = groundOnly ? 0 : (int)(hash % (ulong)walkableByFloor.Length);
         var walkable = walkableByFloor[floorIndex];
         var chosen = walkable[(int)(StableHash.Mix((long)hash) % (ulong)walkable.Length)];
         return (building.Id, new FloorLevel(floorIndex), chosen.Cell);
+    }
+
+    /// <summary>Onde dormir, do melhor ao pior: as camas do catálogo; senão piso livre (fora da entrada e da mobília); senão a entrada;
+    /// senão piso com mobília; senão a escada; só por último a porta. Vazio só se a planta não tem célula andável (o chamador cai no sorteio de sempre).</summary>
+    private static List<FurnitureSpot> RestingSpots(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog)
+    {
+        var layout = BuildingLayoutCache.Of(building).Layout;
+        var furniture = catalog is null ? [] : HomeFurniture.Of(building, catalog);
+        if (catalog is not null && HomeFurniture.BedSpots(building, catalog) is { Count: > 0 } beds) return [.. beds];
+
+        var taken = furniture.Where(p => p.Spot is not null).Select(p => p.Spot!.Value).Select(s => (s.Floor, s.Cell)).ToHashSet();
+        var free = new List<FurnitureSpot>();
+        var entries = new List<FurnitureSpot>();
+        var furnished = new List<FurnitureSpot>();
+        var stairs = new List<FurnitureSpot>();
+        var doors = new List<FurnitureSpot>();
+        foreach (var floor in layout.FloorLayouts)
+        {
+            var materials = floor.Cells.ToDictionary(c => c.Cell, c => c.Material);
+            var start = FurniturePlanner.StartOf(materials, floor.Level);
+            var entry = start is { } from ? FurniturePlanner.EntryOf(materials, from, floor.Level) : null;
+            foreach (var cell in floor.Cells.OrderBy(c => c.Cell.Y).ThenBy(c => c.Cell.X))
+            {
+                var spot = new FurnitureSpot(floor.Level, cell.Cell, 0);
+                switch (cell.Material)
+                {
+                    case BuildingMaterial.Floor when taken.Contains((floor.Level, cell.Cell)): furnished.Add(spot); break;
+                    case BuildingMaterial.Floor when entry == cell.Cell: entries.Add(spot); break;
+                    case BuildingMaterial.Floor: free.Add(spot); break;
+                    case BuildingMaterial.Stair: stairs.Add(spot); break;
+                    case BuildingMaterial.Door: doors.Add(spot); break;
+                }
+            }
+        }
+
+        foreach (var tier in new[] { free, entries, furnished, stairs, doors })
+            if (tier.Count > 0) return tier;
+        return [];
     }
 }

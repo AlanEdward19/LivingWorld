@@ -12,14 +12,14 @@ public static class DefaultObjects
         ("table", "furniture", 0.8, 0.4, 0.5, "8a6a43"), ("bench", "furniture", 0.7, 0.25, 0.25, "7a5a38"),
         ("crate", "storage", 0.4, 0.4, 0.4, "a27b52"), ("barrel", "storage", 0.35, 0.5, 0.35, "6b4a2b"),
         ("counter", "furniture", 0.9, 0.45, 0.3, "5c4630"), ("shelf", "storage", 0.7, 0.8, 0.2, "6f5436"),
-        ("bed", "bed", 0.5, 0.2, 0.9, "d8cfb8"), ("chest", "storage", 0.5, 0.3, 0.3, "4f3a26"),
+        ("bed", "bed", 0.6, 0.2, 1.0, "d8cfb8"), ("chest", "storage", 0.5, 0.3, 0.3, "4f3a26"),
         ("anvil", "tool", 0.35, 0.3, 0.2, "5b6068"),
     ];
 
     /// <summary>Pontos de uso (#47 fatia 2): objeto → (nome, ActionType, pose, offset local, facing em graus). Ids de ação: Eat 0, Sleep 1, Work 2, Socialize 3.</summary>
     private static readonly Dictionary<string, (string Name, int Action, string Pose, double X, double Y, double Z, double Facing)> UsePoints = new()
     {
-        ["bed"] = ("lie", 1, "sleep", 0.0, 0.05, 0.3, 0.0),
+        ["bed"] = ("lie", 1, "sleep", 0.0, 0.05, 0.0, 0.0), // #237: o centro do corpo deitado fica no centro da cama (antes 0,3 à frente: o corpo saía da célula)
         ["table"] = ("eat", 0, "eat", 0.0, 0.0, 0.45, 180.0),
         ["bench"] = ("sit", 3, "socialize", 0.0, 0.0, 0.3, 180.0),
         ["anvil"] = ("hammer", 2, "work", 0.0, 0.0, 0.3, 180.0),

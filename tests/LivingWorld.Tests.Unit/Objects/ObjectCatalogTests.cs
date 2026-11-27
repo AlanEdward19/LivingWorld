@@ -198,7 +198,7 @@ public class ObjectCatalogTests
         Assert.Equal(0, (int)objects["furniture"]![0]!["variation"]!);
         var part = objects["catalog"]!.AsArray().First(o => (string)o!["id"]! == "bed")!["shape"]![0]!;
         Assert.Equal("box", (string)part["shape"]!);
-        Assert.Equal(0.9, (double)part["size"]![2]!);
+        Assert.Equal(1.0, (double)part["size"]![2]!);
         Assert.Equal(0.1, (double)part["offset"]![1]!);
         Assert.Equal("d8cfb8", (string)part["color"]!);
     }

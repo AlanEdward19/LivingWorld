@@ -27,7 +27,7 @@ var roof: Node3D
 var ceiling: Node3D ## #227: forro do andar visível: só aparece com a câmera do jogador dentro da casa e abaixo dele (sem céu por cima das paredes)
 var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o catálogo carregado
 var furniture: Node3D
-var _object_bases: Dictionary = {} ## id do catálogo -> [Vector3] base (chão) de cada peça, na ordem de colocação (alvos de uso)
+var _use_slots: Dictionary = {} ## #237: id do catálogo -> [{base: Vector3, yaw: float, level: int}] cada peça colocada, com o andar e o giro que o motor deu (alvos de uso)
 var _use_points: Dictionary = {} ## id do catálogo -> pontos de uso do descritor
 var occupant_nodes: Dictionary = {} ## npc_id -> NpcActor
 var object_points: Array = [] ## [{id, level, position}] cada peça de mobília, para clique e dica (ADR-0047)
@@ -105,6 +105,9 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 	if factory != null:
 		for descriptor in objects.catalog:
 			_use_points[String(descriptor.id)] = descriptor.get("usePoints", [])
+	if objects is Dictionary and factory != null and _any_planned(objects):
+		_place_planned(info, objects, factory) # #237: o motor diz onde cada peça fica; o cliente só desenha
+		return
 	var remaining := lodging_units
 	for floor_layout in info.layout:
 		var level := int(floor_layout.level)
@@ -112,9 +115,13 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 		if floor_node == null or (level != 0 and remaining <= 0):
 			continue
 		var free_cells: Array[Vector2i] = []
+		var plan_cells := {}
 		for entry in floor_layout.cells:
-			if int(entry.material) not in [WALL_STONE, WALL_WOOD, DOOR, STAIR]:
-				free_cells.append(Vector2i(int(entry.cell.x), int(entry.cell.y)))
+			plan_cells[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
+		for entry in floor_layout.cells:
+			var local := Vector2i(int(entry.cell.x), int(entry.cell.y))
+			if int(entry.material) not in [WALL_STONE, WALL_WOOD, DOOR, STAIR] and not _in_front_of_door(plan_cells, local):
+				free_cells.append(local)
 		free_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 		if free_cells.is_empty():
 			continue
@@ -155,9 +162,49 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 			index += 1
 
 
-func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, parent: Node3D) -> void:
+## #237: a célula logo à frente da porta (por dentro) nunca recebe peça (servidor antigo, sem lugar dado pelo motor).
+func _in_front_of_door(plan_cells: Dictionary, cell: Vector2i) -> bool:
+	for side in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+		if plan_cells.get(cell + side, -1) == DOOR:
+			return true
+	return false
+
+
+## #237: o servidor deu `cell` a alguma peça (mobília posta pelo motor).
+func _any_planned(objects: Dictionary) -> bool:
+	for placed in objects.get("furniture", []):
+		if placed is Dictionary and placed.get("cell") != null:
+			return true
+	return false
+
+
+## #237: desenha cada peça no andar, célula e giro que o motor deu; peça sem `cell` não coube (o motor não a pôs). O uso (cama etc.) vale em qualquer andar.
+func _place_planned(info: Dictionary, objects: Dictionary, factory) -> void:
+	var containers := {}
+	for placed in objects.furniture:
+		if placed.get("cell") == null or not factory.has(String(placed.id)):
+			continue
+		var level := int(placed.get("floor", 0))
+		var floor_node: Node3D = floor_nodes.get(level)
+		if floor_node == null:
+			continue
+		if not containers.has(level):
+			var container := Node3D.new()
+			container.name = "Furniture"
+			floor_node.add_child(container)
+			containers[level] = container
+			if level == 0:
+				furniture = container
+		var cell: Vector2i = origin + Vector2i(int(placed.cell.x), int(placed.cell.y))
+		var yaw := deg_to_rad(float(placed.get("facing", 0)))
+		_add_object(factory, String(placed.id), int(placed.variation), cell, containers[level], yaw)
+		_register_slot(String(placed.id), cell, yaw, level)
+
+
+func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, parent: Node3D, yaw: float = 0.0) -> void:
 	var node: Node3D = factory.build(piece_id, variation)
 	node.position += Grid.to_world(cell)
+	node.rotation.y = yaw
 	parent.add_child(node)
 	_register_point(piece_id, cell, parent)
 
@@ -174,9 +221,14 @@ func visible_objects() -> Array:
 
 ## Guarda a base (chão) da peça do catálogo para o NPC que a usa ser posto no ponto de uso.
 func _register_base(piece_id: String, cell: Vector2i) -> void:
-	if not _object_bases.has(piece_id):
-		_object_bases[piece_id] = []
-	_object_bases[piece_id].append(Grid.to_world(cell))
+	_register_slot(piece_id, cell, 0.0, 0)
+
+
+## #237: lugar de uso de uma peça: base no chão do andar `level` e giro `yaw` (rad) em torno de Y.
+func _register_slot(piece_id: String, cell: Vector2i, yaw: float, level: int) -> void:
+	if not _use_slots.has(piece_id):
+		_use_slots[piece_id] = []
+	_use_slots[piece_id].append({"base": Grid.to_world(cell, level * Grid.floor_height()), "yaw": yaw, "level": level})
 
 
 func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
@@ -313,7 +365,7 @@ func _material(color: Color) -> StandardMaterial3D:
 
 func _clear() -> void:
 	object_points.clear()
-	_object_bases.clear()
+	_use_slots.clear()
 	_use_points.clear()
 	_walls.clear()
 	_panels.clear()
@@ -466,38 +518,46 @@ func set_occupants(occupants: Array) -> void:
 	_apply_occupant_visibility()
 
 
-## Posição na fila de cada objeto em uso (por id do NPC): o 1º usa a 1ª peça, o 2º a 2ª, voltando ao começo se faltar peça.
+## Posição na fila de cada objeto em uso (por id do NPC), por andar: o 1º usa a 1ª peça do andar, o 2º a 2ª, voltando ao começo se faltar peça.
 func _use_ranks(occupants: Array) -> Dictionary:
 	var by_object := {}
 	for occupant in occupants:
 		var object_id = occupant.get("usingObject")
 		if object_id != null:
 			var npc_id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
-			by_object[String(object_id)] = by_object.get(String(object_id), []) + [npc_id]
+			var key := "%s@%d" % [String(object_id), _floor_of(occupant)]
+			by_object[key] = by_object.get(key, []) + [npc_id]
 	var ranks := {}
-	for object_id in by_object:
-		var ids: Array = by_object[object_id]
+	for key in by_object:
+		var ids: Array = by_object[key]
 		ids.sort()
 		for i in ids.size():
 			ranks[ids[i]] = i
 	return ranks
 
 
+func _floor_of(occupant: Dictionary) -> int:
+	return int(occupant.floor.value) if occupant.floor is Dictionary else int(occupant.floor)
+
+
 ## {active, position, facing, pose}: onde o NPC fica e que pose faz usando o objeto que o servidor apontou; inativo
-## (sem objeto, sem peça colocada, outro andar ou sem ponto de uso) = posição e pose de sempre.
+## (sem objeto, sem peça colocada neste andar ou sem ponto de uso) = posição e pose de sempre. #237: o ponto de uso gira com a peça
+## (o motor a vira para a parede) e o corpo deitado fica centrado nele, sobre a cama.
 func _use_of(occupant: Dictionary, npc_id: int, action: int, level: int, rank: Dictionary) -> Dictionary:
 	var none := {"active": false, "position": Vector3.ZERO, "facing": 0.0, "pose": ""}
 	var object_id = occupant.get("usingObject")
-	if object_id == null or level != 0 or not _object_bases.has(String(object_id)):
+	if object_id == null or not _use_slots.has(String(object_id)):
 		return none
 	var point := _use_point(String(object_id), action)
 	if point.is_empty():
 		return none
-	var bases: Array = _object_bases[String(object_id)]
-	var piece_base: Vector3 = bases[int(rank.get(npc_id, 0)) % bases.size()]
+	var slots: Array = _use_slots[String(object_id)].filter(func(slot): return int(slot.level) == level)
+	if slots.is_empty():
+		return none
+	var slot: Dictionary = slots[int(rank.get(npc_id, 0)) % slots.size()]
 	var offset: Array = point.offset
-	var base := piece_base + Vector3(float(offset[0]), float(offset[1]), float(offset[2]))
-	return {"active": true, "position": base, "facing": deg_to_rad(float(point.get("facing", 0.0))), "pose": point.get("pose", "")}
+	var base: Vector3 = slot.base + Basis(Vector3.UP, float(slot.yaw)) * Vector3(float(offset[0]), float(offset[1]), float(offset[2]))
+	return {"active": true, "position": base, "facing": float(slot.yaw) + deg_to_rad(float(point.get("facing", 0.0))), "pose": point.get("pose", "")}
 
 
 func _use_point(object_id: String, action: int) -> Dictionary:
