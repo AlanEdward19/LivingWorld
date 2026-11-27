@@ -21,6 +21,7 @@ signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto 
 signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
 signal refused() ## #232: o motor recusou uma ação (o app toca só o som discreto de recusa)
 signal struck_hit(target: int) ## #232: o motor aceitou o golpe
+signal placed(building_id: int, floor: int) ## #227: onde o motor diz que o corpo está: prédio (-1 = fora) e andar; o app entra e sai da casa em foco
 signal sheet_read(body: Dictionary) ## #232: ficha do corpo lida do motor (números subindo pelo que mudou)
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
@@ -289,7 +290,7 @@ func orders_open() -> bool:
 
 ## A dica da mira: o nome curto da primeira coisa que o E alcançaria, tal como o motor a ofereceu (nada inventado aqui).
 func set_reach_hint(from: Array) -> void:
-	var entries := PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine)
+	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
 	reach_hint.visible = rpg and reach_hint.text != "" and frame == null
 	if frame != null:
@@ -371,6 +372,7 @@ func _became(id: int, name: String) -> void:
 	_set_status("")
 	_sync_buttons()
 	refresh_labels()
+	building_id = -1
 
 
 ## AD-197t: a prévia validada pelo motor (a sessão vem antes, como ao encarnar).
@@ -602,7 +604,14 @@ func _refresh_neighborhood(delta: float) -> void:
 
 
 var _walk_run := false
+var building_id := -1 ## #227: o prédio em que o motor diz que o corpo está (-1 fora ou ainda sem pose)
 var running := false ## #222: o motor disse que o corpo está correndo (Shift); cansado, ele anda
+
+
+## #227: pergunta ao motor a pose agora (parado): é ela que diz se o corpo está num prédio (o app pede quando o desenho sugere que sim).
+func sync_pose() -> void:
+	if is_active and not _walk_busy:
+		send_walk(Vector2.ZERO)
 
 
 func send_walk(direction: Vector2, run: bool = false) -> void:
@@ -657,6 +666,8 @@ var _jumping := false
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary) -> void:
+	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
+	placed.emit(building_id, int(pose.get("floor", 0)))
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
 		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
@@ -842,7 +853,7 @@ func _reach_entries() -> Array:
 			_lost("Você não controla mais %s." % npc_name)
 		return []
 	offers = response.body.get("offers", [])
-	return PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine)
+	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine), building_id)
 
 
 ## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
@@ -878,6 +889,11 @@ func open_interactions() -> void:
 
 
 ## As linhas do menu, todas tiradas da oferta: {text, kind, id, verb, resource}; o nome do recurso vem do catálogo do servidor.
+## #227: dentro de um prédio a porta dele não oferece "Entrar" (já está dentro).
+static func without_own_door(entries: Array, inside: int) -> Array:
+	return entries if inside < 0 else entries.filter(func(e): return not (String(e.kind) == "door" and String(e.verb) == "enter" and int(e.id) == inside))
+
+
 static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	var entries: Array = []
 	for offer in from:

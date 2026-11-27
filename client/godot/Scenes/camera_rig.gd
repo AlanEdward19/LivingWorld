@@ -585,6 +585,13 @@ static func third_options(scale: float) -> Array:
 ## telhado) é o que a câmera não pode tocar. Corpo dentro de um prédio: câmera acima da casca (AD-197s), nunca dentro das paredes.
 static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0, was_room: bool = false) -> Dictionary:
 	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
+	var inner := interior_entry(eye, boxes) # #227: a casa em foco (sem casca de prédio): a câmera fica nos painéis finos, em altura de gente
+	if not inner.is_empty():
+		var held := room_plan(eye, back, length, [inner], room_arm() * (0.85 if was_room else 1.15))
+		if held.is_empty():
+			held = close_plan(eye, back, length, [inner])
+		held["room"] = true
+		return held
 	var room := roof_lift(eye, boxes)
 	if room > 0.0:
 		# histerese (AD-197s3): quem já está no cômodo só sai com 15% a menos de espaço; quem está em cima só entra com 15% a mais
@@ -678,6 +685,14 @@ static func close_plan(eye: Vector3, back: Vector3, length: float, boxes: Array)
 				free = minf(free, eye.distance_to(hit) - arm_margin())
 		return {"arm": maxf(free, min_arm() * 0.6), "lift": Grid.units(CLOSE_LIFT_M), "shoulder": 0.0, "room": true}
 	return {}
+
+
+## #227: a entrada da casa em foco ([-1, caixa, caixa, painéis, true]): o quinto elemento a distingue da casca de um prédio do mundo.
+static func interior_entry(eye: Vector3, boxes: Array) -> Array:
+	for entry in boxes:
+		if entry.size() > 4 and bool(entry[4]) and (entry[1] as AABB).has_point(eye):
+			return entry
+	return []
 
 
 const CLOSE_LIFT_M := 0.3 ## sobre o olho, no corte curto de cômodo: olha levemente para baixo, sem sair da altura de gente
@@ -787,6 +802,8 @@ static func push_out(eye: Vector3, boxes: Array) -> Vector3:
 static func covering(from: Vector3, body: Vector3, boxes: Array) -> Dictionary:
 	var out := {}
 	for entry in boxes:
+		if entry.size() > 4 and bool(entry[4]):
+			continue # a casa em foco não tem casca a deixar translúcida
 		var box: AABB = entry[1]
 		var shell := shell_of(entry) # o beiral e a cumeeira também cobrem
 		# o prédio em que o corpo está (ou em que a câmera ficou) também abre: de dentro, a parede e o telhado cobririam tudo

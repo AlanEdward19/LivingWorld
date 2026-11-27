@@ -37,6 +37,9 @@ var _center := Vector3.ZERO
 var _span := 0.0
 var _panels: Dictionary = {} ## nível -> [Rect2] painéis finos de parede (células absolutas) para a colisão do corpo (#226)
 var _view_dir := Vector3.ZERO
+var _bounds := Rect2() ## planta do térreo em células absolutas (para a caixa da câmera do jogador)
+var _immersive_applied := false
+var immersive := false ## #227: o jogador está na casa: nada de corte de maquete, as paredes ficam na altura inteira
 
 
 ## `info` = WorldStore.interior: {building, floors, layout:[{level, cells:[{cell, material}]}], occupants}
@@ -251,6 +254,21 @@ func obstacles_near(center: Vector2, reach: float, level: int = -1) -> Array:
 	return out
 
 
+## #227: a caixa do andar visível no mundo (a câmera do jogador não sai dela) e as caixas dos painéis finos desse andar.
+func floor_box() -> AABB:
+	var base := current_floor * Grid.floor_height()
+	return AABB(Vector3(_bounds.position.x * Grid.CELL, base, _bounds.position.y * Grid.CELL),
+		Vector3(_bounds.size.x * Grid.CELL, Grid.floor_height(), _bounds.size.y * Grid.CELL))
+
+
+func wall_boxes() -> Array:
+	var out: Array = []
+	var base := current_floor * Grid.floor_height()
+	for rect: Rect2 in _panels.get(current_floor, []):
+		out.append(AABB(Vector3(rect.position.x * Grid.CELL, base, rect.position.y * Grid.CELL), Vector3(rect.size.x * Grid.CELL, wall_height(), rect.size.y * Grid.CELL)))
+	return out
+
+
 ## Quem está no andar visível (posição fina em células) fora `except_id`: o corpo empurra de leve.
 func people_near(center: Vector2, reach: float, except_id: int = -1) -> Array:
 	var out: Array = []
@@ -278,6 +296,7 @@ func _clear() -> void:
 	_walls.clear()
 	_panels.clear()
 	_view_dir = Vector3.ZERO
+	_immersive_applied = false
 	for node in floor_nodes.values():
 		node.free()
 	floor_nodes.clear()
@@ -405,6 +424,7 @@ func _compute_center(info: Dictionary) -> void:
 		lo = Vector2(minf(lo.x, entry.cell.x), minf(lo.y, entry.cell.y))
 		hi = Vector2(maxf(hi.x, entry.cell.x), maxf(hi.y, entry.cell.y))
 	_span = maxf(hi.x - lo.x, hi.y - lo.y) + 1.0 if hi.x >= lo.x else 0.0
+	_bounds = Rect2(Vector2(origin) + lo, hi - lo + Vector2.ONE) if hi.x >= lo.x else Rect2()
 	_center = Vector3(origin.x + (lo.x + hi.x) / 2.0 + 0.5, 0, origin.y + (lo.y + hi.y) / 2.0 + 0.5)
 
 
@@ -412,16 +432,25 @@ func _compute_center(info: Dictionary) -> void:
 ## `direction` = direção horizontal do centro para a câmera.
 func set_view_direction(direction: Vector3) -> void:
 	var flat := Vector3(direction.x, 0, direction.z)
-	if flat.length() < 0.001:
-		return
-	flat = flat.normalized()
-	if flat.is_equal_approx(_view_dir):
-		return
+	if immersive: # a câmera está dentro da casa: nenhuma parede baixa (aplica uma vez)
+		if _immersive_applied:
+			return
+		_immersive_applied = true
+		flat = Vector3.ZERO
+	else:
+		if flat.length() < 0.001:
+			return
+		flat = flat.normalized()
+		if _immersive_applied:
+			_immersive_applied = false
+			_view_dir = Vector3.ZERO # voltou ao corte de maquete: refaz
+		if flat.is_equal_approx(_view_dir):
+			return
 	_view_dir = flat
 	for wall in _walls:
 		var cell: Vector2i = wall.cell
 		var offset := Grid.to_world(cell) + Vector3(wall.get("edge", Vector3.ZERO)) * 2.0 - _center
-		var near: bool = offset.dot(flat) > 0.4
+		var near: bool = not immersive and offset.dot(flat) > 0.4
 		var wall_node: Node3D = wall.node
 		if wall.get("lintel", false): # a verga some no lado cortado (a parede ali está na altura do joelho)
 			wall_node.visible = not near

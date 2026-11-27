@@ -1,5 +1,7 @@
 extends "res://tests/test_base.gd"
 
+const Grid := preload("res://Scenes/grid.gd")
+
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const InteriorView := preload("res://Scenes/interior_view.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
@@ -151,3 +153,19 @@ func test_interior_walls_are_floor_tall_with_a_cutaway_door_gap_and_steps() -> v
 	grid.cell_meters = kept[0]
 	grid.floor_meters = kept[1]
 	grid.door_meters = kept[2]
+
+
+func test_player_inside_keeps_every_wall_full_height_and_exposes_the_floor_boxes() -> void:
+	var view := InteriorView.new()
+	view.immersive = true
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	view.set_view_direction(Vector3(1, 0, 0))
+	for wall in view._walls:
+		if wall.get("lintel", false):
+			continue
+		check(absf((wall.mesh as BoxMesh).size.y - InteriorView.wall_height()) < 0.001, "parede inteira, sem corte de maquete")
+	var box: AABB = view.floor_box()
+	check(box.size.x > 0.0 and box.has_point(Vector3(11.5 * Grid.CELL, 0.5, 11.5 * Grid.CELL)), "caixa do andar cobre a planta (%s)" % box)
+	check(not view.wall_boxes().is_empty(), "paredes finas do andar para a câmera")
+	view.set_floor(1)
+	check(is_equal_approx(view.floor_box().position.y, Grid.floor_height()), "a caixa acompanha o andar visível")
