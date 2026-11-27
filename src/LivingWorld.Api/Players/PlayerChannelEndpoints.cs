@@ -91,6 +91,8 @@ public static class PlayerChannelEndpoints
                 "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
                     Run: node?["run"]?.GetValue<bool>() ?? false),
                 "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
+                "dodge" => new PlayerCommandRequest(PlayerCommandKind.Dodge), // #234: esquiva e bloqueio (janela curta)
+                "block" => new PlayerCommandRequest(PlayerCommandKind.Block),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 // AD-197c: dormir (até a hora do dia "untilHour", ou acelerando), acelerar parado e acordar: só quem joga sozinho

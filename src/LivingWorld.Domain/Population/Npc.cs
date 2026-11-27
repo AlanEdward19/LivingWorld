@@ -597,7 +597,7 @@ public sealed class Npc
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
         long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
-        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0)
+        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -631,6 +631,7 @@ public sealed class Npc
         StepReadyAtMs = stepReadyAtMs;
         Fine = fine;
         JumpUntilMs = jumpUntilMs;
+        Combat = combat;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -926,6 +927,16 @@ public sealed class Npc
     {
         JumpUntilMs = untilMs;
         if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
+    /// <summary>#234: o estado de combate (recarga do golpe, guarda, reação e revide pendente). Nulo enquanto a pessoa nunca lutou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CombatState? Combat { get; private set; }
+
+    public void SetCombat(CombatState? state)
+    {
+        Combat = state;
         TouchCanonical();
     }
 

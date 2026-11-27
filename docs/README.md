@@ -11,6 +11,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Relógio do mundo, ticks, agendamento de eventos | [time-and-ticks.md](domain/time-and-ticks.md) |
 | Tempo em milissegundos, Δ variável, contrato v2 (ADR-0050) | [time-in-milliseconds.md](domain/time-in-milliseconds.md) |
 | Tempo real com jogador, ritmo por mundo, passo fino dos NPCs, dormir e acelerar (AD-197c) | [real-time-rhythm.md](domain/real-time-rhythm.md) |
+| Combate do jogador: alcance em metros, recarga, esquiva, bloqueio e reação do NPC (#234) | [player-combat.md](domain/player-combat.md) |
 | Quanto detalhe simular por região, agregação, materialização de NPC | [simulation-lod.md](domain/simulation-lod.md) |
 | Identidade, atributos, personalidade, necessidades, habilidades | [npc.md](domain/npc.md) |
 | Decisão do NPC no dia a dia (utility AI, rotina, objetivos) | [behavior.md](domain/behavior.md) |

@@ -16,12 +16,12 @@ namespace LivingWorld.Simulation.Players;
 /// AD-197d: <see cref="Interact"/> é interagir com o que está perto (<see cref="PlayerCommandRecord.Interaction"/>,
 /// <see cref="PlayerCommandRecord.Verb"/>, alvo em <see cref="PlayerCommandRecord.TargetId"/>, recurso e quantidade).
 /// AD-197k: <see cref="Walk"/> é o rumo do passo solto (<see cref="PlayerCommandRecord.Dx"/>/<see cref="PlayerCommandRecord.Dy"/> em milésimos;
-/// AD-197u: <see cref="PlayerCommandRecord.Run"/> pede correr). <see cref="Jump"/> é o pulo (AD-197u).
+/// AD-197u: <see cref="PlayerCommandRecord.Run"/> pede correr). <see cref="Jump"/> é o pulo (AD-197u). #234: <see cref="Dodge"/> e <see cref="Block"/> levantam a guarda do corpo.
 /// AD-197q: <see cref="Sample"/> é pedir uma amostra do agregado ao criador de personagem (<see cref="PlayerCommandRecord.CityId"/>,
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -141,17 +141,28 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
-    public Result<Unit> Strike(WorldState world, string playerId, NpcId target)
+    public Result<StrikeResult> Strike(WorldState world, string playerId, NpcId target)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
-            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+            return Result<StrikeResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         EndSkipOnCommand(world, playerId);
-        var result = PlayerCommands.Strike(world, Context(world), npc.Id, playerId, target);
+        var result = PlayerCommands.StrikeWithResult(world, Context(world), npc.Id, playerId, target);
         bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
         if (result.IsSuccess || refused)
             Record(world, playerId, PlayerCommandKind.Strike, npc.Id.Value,
                 new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Strike, TargetId: target.Value, Refused: refused,
                     Reason: refused ? result.Error : null));
+        return result;
+    }
+
+    /// <summary>#234: levanta a guarda (esquiva ou bloqueio) por uma janela curta; a recusa (409) não muda o mundo nem entra no registro.</summary>
+    public Result<Unit> Guard(WorldState world, string playerId, CombatGuard guard)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerCommands.Guard(world, npc.Id, playerId, guard);
+        if (result.IsSuccess) Record(world, playerId, guard == CombatGuard.Dodge ? PlayerCommandKind.Dodge : PlayerCommandKind.Block, npc.Id.Value);
         return result;
     }
 
@@ -321,6 +332,8 @@ public static class PlayerReplay
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
                 PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,
+                PlayerCommandKind.Block => service.Guard(world, record.PlayerId, CombatGuard.Block).IsSuccess,
                 PlayerCommandKind.Sample => service.Sample(world, record.PlayerId, new CityId(record.CityId!.Value),
                     record.Filter ?? CharacterFilter.None, record.Count ?? CharacterCreation.DefaultCount, record.SampleNumber).IsSuccess,
                 PlayerCommandKind.Create => service.Create(world, record.PlayerId, new CityId(record.CityId!.Value),

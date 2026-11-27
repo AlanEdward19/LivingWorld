@@ -28,7 +28,8 @@ public sealed record PlayerTimeView(
 public sealed record PlayerPose(
     string PlayerId, long NpcId, int X, int Y, long? BuildingId, int Floor, long ReadyInMs, double Fx, double Fy, double SpeedMps,
     double CellMeters, bool Running,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? AirMs = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CombatView? Combat = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -73,7 +74,9 @@ public sealed partial class PlayerCommandGateway(
                 PlayerCommandKind.Move => Map(players.Move(world, playerId, command.Dx, command.Dy),
                     _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Strike => Map(players.Strike(world, playerId, new NpcId(command.NpcId ?? -1)),
-                    _ => new { playerId, targetId = command.NpcId }),
+                    hit => StrikeView(world, playerId, hit)),
+                PlayerCommandKind.Dodge => Map(players.Guard(world, playerId, CombatGuard.Dodge), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Block => Map(players.Guard(world, playerId, CombatGuard.Block), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Persuade => Map(players.Persuade(world, playerId), _ => new { playerId }),
                 PlayerCommandKind.Act => Map(players.Act(world, playerId, command.Action, command.PowerId),
                     _ => new { playerId, Action = command.Action?.ToString() }),
@@ -225,8 +228,23 @@ public sealed partial class PlayerCommandGateway(
             WalkSpeed(world, npc, running),
             world.Players.CellM,
             running,
-            airMs);
+            airMs,
+            PlayerCombat.View(world, npc));
     }
+
+    /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>
+    private static object StrikeView(LivingWorld.Simulation.Core.WorldState world, string playerId, StrikeResult hit) => new
+    {
+        playerId,
+        targetId = hit.TargetId,
+        outcome = hit.Outcome.ToString(),
+        damage = hit.Damage,
+        lethal = hit.Lethal,
+        reaction = hit.Reaction == CombatReaction.None ? null : hit.Reaction.ToString(),
+        reactionMs = hit.Reaction == CombatReaction.None ? 0L : Math.Max(0L, hit.ReactionUntilMs - world.CurrentDate.TotalMilliseconds),
+        readyInMs = hit.ReadyInMs,
+        pose = PoseOf(world, playerId),
+    };
 
     /// <summary>AD-197k: a velocidade do corpo no rumo em que anda (parado: para o lado de +x), em m/s, para o cliente prever o passo;
     /// correndo (AD-197u), a da corrida.</summary>
