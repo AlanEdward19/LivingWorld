@@ -31,6 +31,7 @@ public class PlayerTaskSkipTests
         }
         var tree = w.Map.Cells.Select(c => c.Coord).Where(c => PlayerNature.TreeAt(w, c) is not null).OrderBy(c => c.Y).ThenBy(c => c.X).First();
         Place(w, npc, tree);
+        PlayerNature.Take(w, tree, w.CurrentDate.TotalMilliseconds, PlayerNature.Capacity(w, tree) - 2); // sobram duas unidades: 16 h de corte
         var offer = Assert.Single(PlayerService.Reach(w, "alan")!, o => o.Kind == "nature");
         Assert.True(players.Interact(w, "alan", "nature", offer.Id, "gather").IsSuccess);
         return new Host(arm, host, players, npc);
@@ -58,6 +59,29 @@ public class PlayerTaskSkipTests
         Assert.Null(PlayerTasks.Of(w, h.Npc));
         h.Simulation.Cycle(h.Players);
         Assert.Equal(RhythmMode.RealTime, h.Simulation.LastPlan.Mode);
+    }
+
+    /// <summary>#243: com o mundo acelerado (ticks de uma hora) cada unidade entra nas mãos no tick em que o instante dela passa: nem antes
+    /// (sem entrega adiantada) nem depois.</summary>
+    [Fact]
+    public void During_the_skip_each_unit_enters_the_hands_at_the_tick_that_passes_its_time()
+    {
+        var h = Cutting(3);
+        var w = h.Arm.World;
+        var task = h.Npc.BodyTask!;
+        Assert.Equal(2, task.Units);
+        Assert.False(h.Npc.IsCarrying);
+        var seen = new List<long>();
+        for (int cycles = 0; h.Players.Skip is not null && cycles < 200; cycles++)
+        {
+            h.Simulation.Cycle(h.Players);
+            long expected = Math.Min(task.Units, (w.CurrentDate.TotalMilliseconds - task.StartedAtMs) / task.PerUnitMs);
+            Assert.Equal(expected, h.Npc.CarriedQuantity);
+            seen.Add(h.Npc.CarriedQuantity);
+        }
+        Assert.Equal(2, h.Npc.CarriedQuantity);
+        Assert.Contains(0L, seen.Take(seen.Count - 1)); // houve ciclos com nada, depois com uma, depois com as duas
+        Assert.Contains(1L, seen);
     }
 
     [Fact]

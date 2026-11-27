@@ -3,6 +3,7 @@ using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Players;
@@ -55,10 +56,108 @@ internal static class PlayerNature
         return new Tree(coord, x, y);
     }
 
+    /// <summary>#243: a madeira de uma árvore inteira, em unidades: de 30% a 70% da casa de material do cenário
+    /// (<c>HouseMaterialUnits</c>, 20 por padrão: 6 a 14), pelo mesmo sorteio que dá o porte da árvore no cliente (<c>cell_hash</c> sal 3):
+    /// árvore maior rende mais. Função pura da célula.</summary>
+    public static long Capacity(WorldState world, CellCoord cell) =>
+        Math.Max(2, Math.Max(1, world.StreetRules.HouseMaterialUnits) * (30 + (long)(CellHash(cell, 3) * 40)) / 100);
+
+    /// <summary>#243: quanto tempo a árvore leva para recuperar uma unidade de madeira: 30 dias do calendário (uma árvore derrubada de 10
+    /// unidades volta inteira em 10 meses). Regra simples e determinística enquanto a flora (#199) não dá planta por planta.</summary>
+    public static long RegrowMsPerUnit(WorldState world) => Math.Max(1, world.Calendar.HoursPerDay) * 30L * WorldMillis.PerHour;
+
+    /// <summary>#243: a madeira que a árvore da célula tem agora: a inteira se ninguém a tocou; senão o que sobrou do último corte mais o
+    /// que cresceu desde então (conta pura do livro e do relógio; nada por tick).</summary>
+    public static long Left(WorldState world, CellCoord cell, long nowMs)
+    {
+        long cap = Capacity(world, cell);
+        return world.Trees?.Find(cell.X, cell.Y) is { } cut ? Math.Min(cap, cut.Left + Math.Max(0, nowMs - cut.AtMs) / RegrowMsPerUnit(world)) : cap;
+    }
+
+    /// <summary>O estágio que o cliente desenha: <c>whole</c> (inteira), <c>cut</c> (cortada em parte: copa menor) ou <c>stump</c> (toco).</summary>
+    public static string StageOf(long left, long capacity) => left >= capacity ? "whole" : left <= 0 ? "stump" : "cut";
+
+    /// <summary>#243: tira até <paramref name="units"/> da madeira da árvore da célula, agora, e devolve quanto saiu (0 sem madeira). Registra no
+    /// livro o que sobrou e de que instante volta a crescer; o livro solta as árvores que já voltaram inteiras. Quem corta (o corpo do
+    /// jogador, o NPC da obra) tira da mesma árvore: o mundo é um só.</summary>
+    public static long Take(WorldState world, CellCoord cell, long nowMs, long units)
+    {
+        if (units <= 0) return 0;
+        long cap = Capacity(world, cell), rate = RegrowMsPerUnit(world);
+        var book = world.TreeBook();
+        bool fresh = book.Find(cell.X, cell.Y) is null; // ainda intocada: estava inteira
+        var cut = book.Touch(cell.X, cell.Y);
+        long left = cap;
+        long since = nowMs;
+        if (!fresh)
+        {
+            long grown = Math.Max(0, nowMs - cut.AtMs) / rate;
+            left = Math.Min(cap, cut.Left + grown);
+            since = left >= cap ? nowMs : cut.AtMs + grown * rate; // o que já cresceu pela metade da próxima unidade não se perde
+        }
+        long taken = Math.Min(units, left);
+        left -= taken;
+        cut.Left = left;
+        cut.AtMs = since;
+        for (int i = book.Cuts.Count - 1; i >= 0; i--) // as que já voltaram inteiras saem do livro
+        {
+            var other = book.Cuts[i];
+            if (other == cut && left < cap) continue;
+            if (other.Left + Math.Max(0, nowMs - other.AtMs) / rate >= Capacity(world, new CellCoord(other.X, other.Y))) book.Remove(other);
+        }
+        world.DropEmptyTrees();
+        return taken;
+    }
+
+    /// <summary>Devolve à árvore a madeira que tirou e não pôde ser levada (o inverso exato de <see cref="Take"/> no mesmo instante).</summary>
+    internal static void Give(WorldState world, CellCoord cell, long nowMs, long units)
+    {
+        if (world.Trees?.Find(cell.X, cell.Y) is not { } cut) return;
+        cut.Left += units;
+        world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Trees));
+    }
+
+    /// <summary>A árvore viva (com madeira) mais perto de <paramref name="from"/>, até <paramref name="radius"/> células (anéis, menor
+    /// distância; empate: menor linha, depois coluna); nula sem nenhuma. É a que os NPCs da obra vão cortar.</summary>
+    public static CellCoord? NearestLive(WorldState world, CellCoord from, int radius)
+    {
+        long now = world.CurrentDate.TotalMilliseconds;
+        for (int r = 0; r <= radius; r++)
+        {
+            CellCoord? best = null;
+            for (int dy = -r; dy <= r; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                    var cell = new CellCoord(from.X + dx, from.Y + dy);
+                    if (TreeAt(world, cell) is null || Left(world, cell, now) <= 0) continue;
+                    if (best is null || cell.Y < best.Value.Y || (cell.Y == best.Value.Y && cell.X < best.Value.X)) best = cell;
+                }
+            if (best is not null) return best;
+        }
+        return null;
+    }
+
+    /// <summary>As árvores tocadas agora, com o que cada uma tem (a que já voltou inteira não aparece): o que o cliente desenha em lugar da
+    /// regra natural. Ordem do livro (linha, coluna).</summary>
+    public static IReadOnlyList<(CellCoord Cell, long Left, long Capacity)> Touched(WorldState world)
+    {
+        var list = new List<(CellCoord, long, long)>();
+        if (world.Trees is not { } book) return list;
+        long now = world.CurrentDate.TotalMilliseconds;
+        foreach (var cut in book.Cuts)
+        {
+            var cell = new CellCoord(cut.X, cut.Y);
+            long cap = Capacity(world, cell), left = Left(world, cell, now);
+            if (left < cap) list.Add((cell, left, cap));
+        }
+        return list;
+    }
+
     /// <summary>A célula é mata: tem árvore.</summary>
     public static bool IsWild(WorldState world, MapCell cell, ResourceType resource) => TreeAt(world, cell.Coord) is not null;
 
-    /// <summary>A árvore mais perto ao alcance do corpo (do ponto fino ao tronco, <see cref="ReachMeters"/>); empate: menor linha, depois coluna.</summary>
+    /// <summary>A árvore COM madeira mais perto ao alcance do corpo (do ponto fino ao tronco, <see cref="ReachMeters"/>); empate: menor linha, depois coluna.</summary>
     public static Tree? NearestWithinReach(WorldState world, CellCoord at, FinePose? fine)
     {
         var from = fine is { } f && f.CellX == at.X && f.CellY == at.Y ? f : new FinePose(at.X * FinePose.PerCell + 500, at.Y * FinePose.PerCell + 500, 0, 0, 0);
@@ -68,7 +167,7 @@ internal static class PlayerNature
         for (int dy = -2; dy <= 2; dy++)
             for (int dx = -2; dx <= 2; dx++)
             {
-                if (TreeAt(world, new CellCoord(at.X + dx, at.Y + dy)) is not { } tree) continue;
+                if (TreeAt(world, new CellCoord(at.X + dx, at.Y + dy)) is not { } tree || Left(world, tree.Cell, world.CurrentDate.TotalMilliseconds) <= 0) continue; // toco não oferece
                 double ex = tree.FineX - from.X, ey = tree.FineY - from.Y, d2 = ex * ex + ey * ey;
                 if (d2 > reach * reach || d2 >= bestD2) continue;
                 (best, bestD2) = (tree, d2);

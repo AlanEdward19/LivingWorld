@@ -209,14 +209,14 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
-    /// <summary>#241: interrompe a ação que ocupa o corpo (cortar lenha...): o motor decide o que fica feito (a parte proporcional da carga) e o
+    /// <summary>#241: interrompe a ação que ocupa o corpo (cortar lenha...): o que já saiu da árvore fica nas mãos e o
     /// corpo volta a andar. Sem ação em andamento, 409 e nada muda (nem entra no registro).</summary>
     public Result<BusyView> Interrupt(WorldState world, string playerId)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<BusyView>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         if (PlayerTasks.Of(world, npc) is not null && Skip?.PlayerId == playerId) EndSkip(world, "comando"); // #241: parar a ação solta o salto (volta ao 1:1)
-        var done = PlayerTasks.Interrupt(world, npc);
+        var done = PlayerTasks.Interrupt(world, Context(world), npc);
         if (done.IsSuccess) Record(world, playerId, PlayerCommandKind.Interrupt, npc.Id.Value);
         return done;
     }

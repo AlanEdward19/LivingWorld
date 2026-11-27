@@ -81,7 +81,7 @@ public class PlayerNatureTests
         Assert.Equal(hash, WorldSnapshot.CanonicalHash(w)); // ler a oferta e a recusa não mudam o mundo
     }
 
-    private static (Arm Arm, Npc Npc, PlayerService Service, CellCoord Tree) InTheWoods(ulong seed)
+    internal static (Arm Arm, Npc Npc, PlayerService Service, CellCoord Tree) InTheWoods(ulong seed)
     {
         var (arm, npc, service) = Body(seed);
         var w = arm.World;
@@ -92,11 +92,12 @@ public class PlayerNatureTests
     }
 
     [Fact]
-    public void In_the_woods_gathering_takes_one_work_shift_not_days_and_loads_the_hands_then_the_pantry()
+    public void In_the_woods_gathering_runs_until_the_tree_is_out_and_hands_the_wood_over_unit_by_unit()
     {
         var (arm, npc, service, at) = InTheWoods(3);
         var w = arm.World;
         var wood = new ResourceType(w.StreetRules.HouseMaterialResourceId);
+        PlayerNature.Take(w, at, w.CurrentDate.TotalMilliseconds, PlayerNature.Capacity(w, at) - 3); // sobram três (24 h de corte): o corpo aguenta sem beber
         var offer = Assert.Single(PlayerService.Reach(w, "alan")!, o => o.Kind == "nature");
         Assert.Equal(["gather"], offer.Verbs);
         Assert.Equal("Árvore", offer.Label);
@@ -110,21 +111,25 @@ public class PlayerNatureTests
         Assert.True(done.IsSuccess, done.Error);
         long units = done.Value!.Quantity;
         Assert.Equal(offer.Resources.Single().Quantity, units);
+        Assert.Equal(3, units); // a sessão é o período todo até a árvore acabar, no limite das mãos (cap)
         Assert.InRange(units, 1, cap);
-        Assert.Equal(wood.Id, npc.CarriedResourceId);
-        Assert.Equal(units, npc.CarriedQuantity);
+        Assert.False(npc.IsCarrying); // #243: nada entregue de antemão; a madeira sai unidade a unidade
 
         // #241: só o corte da carga, na taxa dos NPCs, e no máximo uma jornada (não os ~67 h do lote inteiro da obra)
         long duration = npc.StepReadyAtMs - now;
-        Assert.Equal((long)Math.Ceiling(perUnitMs * units), duration);
-        Assert.True(duration <= w.StreetRules.CrewHoursPerDay * (long)WorldMillis.PerHour + 1);
+        Assert.Equal((long)Math.Ceiling(perUnitMs) * units, duration);
         var busy = PlayerTasks.Of(w, npc)!;
         Assert.Equal(("gather", now + duration, duration, duration), (busy.Action, busy.UntilMs, busy.TotalMs, busy.RemainingMs));
+        Assert.Equal((units, 0L), (busy.Units, busy.Done));
 
         // ocupado: nem anda nem busca de novo
         Assert.DoesNotContain(PlayerService.Reach(w, "alan")!, o => o.Kind == "nature");
         var step = service.Walk(w, "alan", 1000, 0);
         Assert.False(step.IsSuccess);
+
+        while (PlayerTasks.Of(w, npc) is not null) arm.Clock.Tick(w, 600_000); // o corte inteiro, de dez em dez minutos
+        Assert.Equal(wood.Id, npc.CarriedResourceId);
+        Assert.Equal(units, npc.CarriedQuantity);
 
         Place(w, npc, home.Location);
         long before = home.Stock.GetValueOrDefault(wood);
@@ -183,7 +188,7 @@ public class PlayerNatureTests
     }
 
     [Fact]
-    public void Interrupting_leaves_the_proportional_load_and_frees_the_body()
+    public void Interrupting_keeps_what_already_came_out_and_frees_the_body()
     {
         var (arm, npc, service, _) = InTheWoods(3);
         var w = arm.World;
@@ -194,13 +199,12 @@ public class PlayerNatureTests
         var task = npc.BodyTask!;
         long produced = w.ResourceProduced.GetValueOrDefault(wood);
         arm.Clock.Run(w, 1); // uma hora de mundo de corte
-        long elapsed = w.CurrentDate.TotalMilliseconds - task.StartedAtMs;
-        long total = task.UntilMs - task.StartedAtMs;
-        long expected = task.Units * Math.Clamp(elapsed, 0, total) / total;
+        long expected = Math.Min(task.Units, (w.CurrentDate.TotalMilliseconds - task.StartedAtMs) / task.PerUnitMs);
+        Assert.Equal(expected, npc.CarriedQuantity); // cada unidade já foi para as mãos no instante em que saiu
         Assert.True(service.Interrupt(w, "alan").IsSuccess);
         Assert.Null(PlayerTasks.Of(w, npc));
         Assert.Equal(expected, npc.CarriedQuantity);
-        Assert.Equal(produced - (task.Units - expected), w.ResourceProduced.GetValueOrDefault(wood));
+        Assert.Equal(produced + expected, w.ResourceProduced.GetValueOrDefault(wood)); // só o que saiu entra na produção
         Assert.True(service.Walk(w, "alan", 1000, 0).IsSuccess); // o corpo volta a andar
         Assert.False(service.Interrupt(w, "alan").IsSuccess);
     }

@@ -193,6 +193,9 @@ app.MapGet("/world/info", () =>
     });
 });
 
+// #243: as árvores cortadas (em parte ou até o toco), com a madeira de cada uma: o cliente desenha o estado do motor
+app.MapGet("/world/trees", () => Results.Ok(playerGateway.Trees()));
+
 app.MapGet("/world/calendar", () =>
 {
     var calendar = worldHost.Current.CurrentDate.Calendar;

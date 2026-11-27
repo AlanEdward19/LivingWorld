@@ -117,7 +117,7 @@ public static partial class PlayerInteractions
             ("item", _) => Carry(world, npc, offer, verb),
             ("workshop" or "field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
                 ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
-            ("nature", "gather") => Gather(world, npc, offer, quantity),
+            ("nature", "gather") => Gather(world, ctx, npc, offer, quantity),
             ("water", _) => Water(world, npc, offer, verb),
             ("leaving", _) => Collect(world, ctx, npc, offer),
             ("stock", "take") => Take(world, npc, world.FindHousehold(new HouseholdId(id))!, resourceId, quantity, offer),
