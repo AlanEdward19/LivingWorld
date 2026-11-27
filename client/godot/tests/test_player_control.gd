@@ -49,6 +49,8 @@ func test_the_player_camera_is_third_person_by_default_c_switches_to_first_and_l
 	key.pressed = true
 	rig._unhandled_input(key)
 	eq(rig.mode, rig.FIRST, "C troca para a 1ª pessoa")
+	for i in 8: # #231: a troca é animada; terminada, a câmera está nos olhos
+		rig._process(0.05)
 	eq(rig.camera.position.z, 0.0, "1ª pessoa: nos olhos")
 	rig._unhandled_input(key)
 	eq(rig.mode, rig.THIRD, "C volta para a 3ª")

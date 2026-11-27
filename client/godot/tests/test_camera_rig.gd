@@ -94,9 +94,12 @@ func test_third_person_camera_stops_before_a_wall_and_returns_smoothly() -> void
 	boxes.clear()
 	rig._process(0.016)
 	var after_one_frame := rig.arm
+	for i in 40: # #231: depois de bater o braço espera ARM_HOLD_S antes de voltar
+		rig._process(0.016)
+	var after_hold := rig.arm
 	for i in 120:
 		rig._process(0.016)
-	eq([snappedf(blocked, 0.01), after_one_frame < rig.third_distance(), after_one_frame > blocked, rig.arm], [1.75, true, true, rig.third_distance()])
+	eq([snappedf(blocked, 0.01), after_one_frame < rig.third_distance(), after_one_frame == blocked, after_hold > blocked, rig.arm], [1.75, true, true, true, rig.third_distance()])
 	rig.free()
 
 
@@ -522,3 +525,165 @@ func test_body_against_a_wall_under_the_eave_keeps_the_full_arm() -> void:
 	var eye := Vector3(-0.1, 1.4, 2.0) # fora da caixa, dentro da casca (beiral)
 	var plan := CameraRig.plan_third(eye, -PI / 2.0, 0.0, CameraRig.third_distance(), boxes, 1.0) # olhando para +x: as costas para longe da parede
 	check(plan.arm >= CameraRig.third_distance() * CameraRig.COMFORT, "braço cheio (%s)" % plan.arm)
+
+
+# --- #231: câmera de jogo (molas, colisão suave, ombro, transições) --------------------------------------------------------
+
+## A mola crítica é exata: o mesmo alvo dá o mesmo resultado com 30, 60, 125 ou 20 FPS.
+func test_spring_gives_the_same_result_at_any_frame_step() -> void:
+	var results: Array = []
+	for step in [1.0 / 125.0, 1.0 / 60.0, 1.0 / 30.0, 1.0 / 20.0]:
+		var x := 0.0
+		var v := 0.0
+		for i in roundi(0.5 / step):
+			var r: Array = CameraRig.spring(x, v, 1.0, 22.0, step)
+			x = r[0]
+			v = r[1]
+		results.append(x)
+	for r in results:
+		check(absf(r - results[0]) < 0.0005, "mesmo resultado em qualquer passo (%s)" % [results])
+	check(results[0] > 0.9 and results[0] < 1.0, "amortecida: perto do alvo sem passar dele (%s)" % results[0])
+
+
+func test_follow_and_aim_are_smoothed_independent_of_fps_without_lagging_the_aim() -> void:
+	var seen: Array = []
+	for step in [1.0 / 120.0, 1.0 / 30.0]:
+		var made := _body_rig([], Vector3(5, 0, 5), 0.0)
+		var rig = made[0]
+		rig.set_mode(rig.THIRD)
+		rig.follow(made[1])
+		made[1].position = Vector3(9, 0, 5)
+		rig.yaw = 0.8
+		for i in roundi(0.1 / step):
+			rig._process(step)
+		var aim_done: float = rig.view_yaw / 0.8
+		check(aim_done > 0.95, "em 0,1 s a mira já cobriu 95%% do giro (%s)" % aim_done)
+		check(rig.view_target.x > 5.0 and rig.view_target.x < 9.0, "segue o corpo com inércia, sem teleportar (%s)" % rig.view_target.x)
+		seen.append([rig.view_target.x, rig.view_yaw])
+		rig.free()
+	check(absf(seen[0][0] - seen[1][0]) < 0.01 and absf(seen[0][1] - seen[1][1]) < 0.01, "FPS diferente, mesma câmera (%s)" % [seen])
+
+
+## Parede que aparece de repente: o braço encurta rápido e nunca fica acima do livre + meia folga (não atravessa); some: espera e volta.
+func test_arm_shortens_fast_never_passes_the_wall_and_returns_after_a_hold() -> void:
+	var boxes: Array = []
+	var made := _body_rig(boxes, Vector3(0, 0, 0), 0.0)
+	var rig = made[0]
+	rig.pitch = 0.0
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	rig._process(0.016)
+	var full: float = rig.arm
+	boxes.append([5, AABB(Vector3(-3, 0, 2), Vector3(6, 4, 1))])
+	var free: float = CameraRig.free_arm(Vector3(0, rig.eye_height() + rig.shoulder_height(), 0), Vector3(0, 0, 1), full, boxes)
+	var worst := 0.0
+	var frames_to_close := -1
+	for i in 30:
+		rig._process(0.016)
+		worst = maxf(worst, rig.arm - (free + CameraRig.arm_margin() * 0.5))
+		if frames_to_close < 0 and rig.arm < free + 0.1:
+			frames_to_close = i
+	check(worst <= 0.0001, "o braço nunca passa do livre + meia folga (%s)" % worst)
+	check(frames_to_close >= 0 and frames_to_close < 12, "encurta rápido (%s quadros)" % frames_to_close)
+	check(rig.arm < full - 0.5, "ficou curto (%s de %s)" % [rig.arm, full])
+	boxes.clear()
+	var arm_hit: float = rig.arm
+	for i in 10:
+		rig._process(0.016)
+	check(rig.arm == arm_hit, "espera um pouco antes de voltar (sem pulsar)")
+	for i in 400:
+		rig._process(0.016)
+	check(is_equal_approx(rig.arm, full), "volta ao braço cheio (%s)" % rig.arm)
+	rig.free()
+
+
+## C: a 3ª↔1ª é animada, parte da posição que estava na tela e chega ao enquadramento da 1ª pessoa.
+func test_toggle_person_blends_from_where_the_camera_was_to_the_eye() -> void:
+	var made := _body_rig([], Vector3(5, 0, 5), 0.0)
+	var rig = made[0]
+	rig.pitch = 0.0
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	for i in 5:
+		rig._process(0.016)
+	var third_origin: Vector3 = _camera_world(rig).origin
+	rig.toggle_person()
+	check(rig.mode == rig.FIRST and rig.blending(), "em transição para a 1ª pessoa")
+	check(_camera_world(rig).origin.distance_to(third_origin) < 0.3, "o primeiro quadro ainda está perto de onde a câmera estava")
+	rig._process(0.1)
+	var mid: Vector3 = _camera_world(rig).origin
+	var eye: Vector3 = Vector3(5, rig.eye_height(), 5)
+	check(mid.distance_to(eye) > 0.3 and mid.distance_to(third_origin) > 0.3, "no meio do caminho (%s)" % mid)
+	for i in 30:
+		rig._process(0.016)
+	check(not rig.blending() and _camera_world(rig).origin.distance_to(eye) < 0.05, "chega ao olho da 1ª pessoa")
+	rig.toggle_person()
+	for i in 40:
+		rig._process(0.016)
+	check(rig.mode == rig.THIRD and not rig.blending() and _camera_world(rig).origin.distance_to(eye) > 2.0, "e volta para trás do corpo")
+	rig.free()
+
+
+## Q: o ombro troca de lado devagar (passa pelo centro), e perto de parede/subindo a câmera abre mão do ombro.
+func test_shoulder_swap_slides_the_camera_to_the_other_side() -> void:
+	var made := _body_rig([], Vector3(5, 0, 5), 0.0)
+	var rig = made[0]
+	rig.pitch = 0.0
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	rig._process(0.016)
+	var right: float = rig._ots
+	check(right > 0.0, "mira por cima do ombro direito (%s)" % right)
+	rig.swap_shoulder()
+	rig._process(0.05)
+	check(rig._ots < right and rig._ots > 0.0, "a câmera desliza, sem saltar (%s)" % rig._ots)
+	for i in 60:
+		rig._process(0.016)
+	check(absf(rig._ots + right) < 0.01, "chegou ao ombro esquerdo (%s)" % rig._ots)
+	rig.free()
+	var wall := [[3, AABB(Vector3(-0.6, 0, -2), Vector3(0.5, 4, 8))]] # parede colada ao lado esquerdo do corpo em x=0
+	var near := _body_rig(wall, Vector3(0, 0, 0), 0.0)
+	var rig2 = near[0]
+	rig2.pitch = 0.0
+	rig2.ots_side = -1.0
+	rig2.set_mode(rig2.THIRD)
+	rig2.follow(near[1])
+	check(rig2._ots == 0.0, "parede ao lado: a câmera não vai para dentro dela (%s)" % rig2._ots)
+	rig2.free()
+
+
+func test_running_widens_the_fov_a_little_and_walking_does_not() -> void:
+	var made := _body_rig([], Vector3(0, 0, 0), 0.0)
+	var rig = made[0]
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	for i in 60:
+		made[1].position.x += 1.0 / 60.0 * Grid.units(1.4)
+		rig._process(1.0 / 60.0)
+	check(is_equal_approx(rig.camera.fov, rig.BASE_FOV), "andando: fov normal (%s)" % rig.camera.fov)
+	for i in 120:
+		made[1].position.x += 1.0 / 60.0 * Grid.units(5.0)
+		rig._process(1.0 / 60.0)
+	check(rig.camera.fov > rig.BASE_FOV + 3.0 and rig.camera.fov <= rig.BASE_FOV + rig.RUN_FOV_BONUS + 0.01, "correndo: fov maior (%s)" % rig.camera.fov)
+	rig.free()
+
+
+## Chegar em outro lugar (cidade↔mundo): a câmera desce de uma vista recuada e alta, não corta seco.
+func test_arriving_somewhere_far_away_reveals_instead_of_cutting() -> void:
+	var made := _body_rig([], Vector3(5, 0, 5), 0.0)
+	var rig = made[0]
+	rig.pitch = 0.0
+	rig.set_mode(rig.THIRD)
+	rig.follow(made[1])
+	for i in 3:
+		rig._process(0.016)
+	var other := Node3D.new()
+	rig.add_child(other)
+	other.position = Vector3(500, 0, 500)
+	rig.follow(other)
+	check(rig.blending(), "chegada animada")
+	var start_y: float = _camera_world(rig).origin.y
+	for i in 70:
+		rig._process(0.016)
+	check(not rig.blending() and _camera_world(rig).origin.y < start_y - 3.0, "desceu até o enquadramento (%s -> %s)" % [start_y, _camera_world(rig).origin.y])
+	rig.free()
