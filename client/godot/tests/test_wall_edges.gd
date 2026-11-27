@@ -162,6 +162,29 @@ func test_the_interior_draws_the_engine_walls_and_the_body_stops_at_the_inner_wa
 	view.free()
 
 
+## Os cômodos do motor (tipo e células) ganham um tom de piso por tipo; o mesmo tipo, o mesmo tom; as paredes de dentro vêm de `rooms`.
+func test_rooms_from_the_engine_tint_the_floor_by_kind_and_bring_their_own_walls() -> void:
+	var plan := _plan()
+	var cells: Array = []
+	for cell: Vector2i in plan.cells:
+		cells.append({"cell": {"x": cell.x, "y": cell.y}, "material": 2 if cell == Vector2i(1, 2) else 3})
+	var outer: Array = []
+	for wall in plan.walls:
+		if not (wall.a.x == 0 and wall.a.y == 0 and wall.b.x == 1 and wall.b.y == 0): # a de dentro vem de `rooms`, não da planta
+			outer.append(wall)
+	var rooms := [{"rooms": [
+		{"kind": "sala", "cells": [{"x": 1, "y": 0}, {"x": 2, "y": 0}, {"x": 1, "y": 1}, {"x": 2, "y": 1}, {"x": 0, "y": 1}, {"x": 0, "y": 2}, {"x": 1, "y": 2}, {"x": 2, "y": 2}]},
+		{"kind": "quarto", "cells": [{"x": 0, "y": 0}]}],
+		"walls": [_seg(Vector2i(0, 0), Vector2i(1, 0), 1)], "doors": []}]
+	var view := InteriorView.new()
+	view.show_interior({"building": 4, "floors": 1, "layout": [{"level": 0, "cells": cells, "walls": outer, "doors": plan.doors}], "rooms": rooms, "occupants": []},
+		Vector2i(10, 10), ActionLabels.new())
+	eq(view._panels[0].size(), plan.walls.size(), "as paredes de fora da planta mais a de dentro dos cômodos")
+	check(view._tint[Vector2i(0, 0)] != view._tint[Vector2i(1, 1)], "o quarto e a sala têm tons diferentes")
+	eq(view._tint[Vector2i(1, 1)], view._tint[Vector2i(2, 2)], "o mesmo tipo, o mesmo tom")
+	view.free()
+
+
 ## O prédio visto de fora: parede nas arestas do motor, vão da porta com verga e folha, e o corpo sai pela porta e para ao lado dela.
 func test_a_world_building_draws_the_edge_walls_and_the_door_opening() -> void:
 	var WorldView := preload("res://Scenes/world_view.gd")

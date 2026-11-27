@@ -41,6 +41,7 @@ var _span := 0.0
 var _plans: Dictionary = {} ## nível -> {célula local: material} (a planta do motor, para saber se uma célula é parede)
 var _panels: Dictionary = {} ## nível -> [Rect2] painéis finos de parede (células absolutas) para a colisão do corpo (#226)
 var _view_dir := Vector3.ZERO
+var _tint: Dictionary = {} ## célula local -> cor do piso do cômodo (#226: só apresentação: o cômodo e o tipo são do motor)
 var _bounds := Rect2() ## planta do térreo em células absolutas (para a caixa da câmera do jogador)
 var _immersive_applied := false
 var immersive := false ## #227: o jogador está na casa: nada de corte de maquete, as paredes ficam na altura inteira
@@ -65,6 +66,7 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		node.name = "Floor_%d" % level
 		node.position.y = level * Grid.floor_height()
 		var plan := {}
+		_tint = _tints_of(info, level)
 		for entry in floor_layout.cells:
 			plan[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
 			_add_cell(node, entry, level)
@@ -284,10 +286,28 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 			node.position = Grid.to_world(cell, 0.0)
 		_:
 			mesh.size = Vector3(Grid.CELL, 0.08, Grid.CELL)
-			node.material_override = _material(Color("c9b896") if (cell.x + cell.y + level) % 2 == 0 else Color("bfae8c"))
+			node.material_override = _material(_floor_color(Vector2i(int(entry.cell.x), int(entry.cell.y)), (cell.x + cell.y + level) % 2 == 0))
 			node.position = Grid.to_world(cell, 0.0)
 	node.mesh = mesh
 	parent.add_child(node)
+
+
+## #226: o piso de cada cômodo ganha um tom pelo tipo que o motor deu (o mesmo tipo, o mesmo tom); sem cômodos, o piso de sempre.
+func _tints_of(info: Dictionary, level: int) -> Dictionary:
+	var tints := {}
+	var rooms: Array = _rooms_of(info, level).get("rooms", [])
+	if rooms.size() < 2:
+		return tints
+	for room in rooms:
+		var tone := Color.from_hsv(float(String(room.get("kind", "")).hash() % 360) / 360.0, 0.22, 0.80)
+		for cell in room.cells:
+			tints[Vector2i(int(cell.x), int(cell.y))] = tone
+	return tints
+
+
+func _floor_color(local: Vector2i, even: bool) -> Color:
+	var base: Color = _tint.get(local, Color("c9b896") if even else Color("bfae8c"))
+	return base if even or not _tint.has(local) else base.darkened(0.05)
 
 
 ## #226: as paredes de fora do andar (`walls` da planta) mais as de dentro (cômodos, `rooms[level].walls`): o motor diz em que aresta fica cada uma.
