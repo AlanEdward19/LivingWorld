@@ -20,13 +20,11 @@ public sealed partial class BehaviorDecisionSystem
     /// (só para quem conversa); sem ela, o destino do tempo livre. Nulo: fica onde está. A ida em curso segue o destino guardado no intento.</summary>
     internal static CellCoord? OutingDestinationOf(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex)
     {
-        if (npc.CurrentAction == ActionType.Travel)
-        {
-            if (!world.StreetRules.AfterWorkOutings) return CompanyDestinationOf(world, npc); // como antes: só a ida atrás de companhia
-            return npc.TravelPurpose is ActionType.Socialize or ActionType.Idle ? CompanyTargetOf(npc) : null;
-        }
+        if (!world.StreetRules.AfterWorkOutings)
+            return candidate == ActionType.Socialize ? CompanyDestinationOf(world, npc) : null; // como antes: só a ida atrás de companhia
+        // a ida em curso (ou recém-chegada) de um passeio segue o destino guardado no intento; a viagem por outro motivo que chegou (o posto) decide de novo
+        if (npc.CurrentAction == ActionType.Travel && npc.TravelPurpose is ActionType.Socialize or ActionType.Idle) return CompanyTargetOf(npc);
         if (candidate == ActionType.Socialize && CompanyDestinationOf(world, npc) is { } company) return company;
-        if (!world.StreetRules.AfterWorkOutings) return null;
         // quem quer conversar e já tem gente por perto (os colegas do posto, a família em casa) fica na conversa, na maior parte das vezes: a
         // viagem (de uma hora inteira no passo de hora cheia) comeria a janela da conversa; o resto da gente vai aonde a escolha mandou
         if (candidate == ActionType.Socialize && world.FamilyRules.Bonds is { } bonds && SomeoneWithin(world, npc, npc.CurrentLocation, bonds.SocializeRadius)

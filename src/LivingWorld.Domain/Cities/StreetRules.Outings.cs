@@ -15,7 +15,7 @@ public sealed partial record StreetRules
     public int OutingBlockHours { get; init; } = 6;
 
     /// <summary>Fração das vezes em que quem quer conversar e já tem gente por perto fica onde está (a conversa não vira viagem).</summary>
-    public double OutingStayWithCompany { get; init; } = 0.7;
+    public double OutingStayWithCompany { get; init; } = 0.5;
 
     /// <summary>O passeio curto: de tantas a tantas células (de 1,5 m) da casa.</summary>
     public int OutingStrollMinCells { get; init; } = 3;
