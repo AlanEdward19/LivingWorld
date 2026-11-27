@@ -321,6 +321,7 @@ func _clear() -> void:
 	guided_id = -1
 	_view_dir = Vector3.ZERO
 	_immersive_applied = false
+	_last_fade_at = Vector3(INF, INF, INF)
 	for node in floor_nodes.values():
 		node.free()
 	floor_nodes.clear()
@@ -352,6 +353,47 @@ func set_floor(level: int) -> void:
 func update_ceiling(camera_y: float) -> void:
 	if ceiling != null:
 		ceiling.visible = immersive and camera_y < ceiling.position.y
+
+
+const FADE_WALL_NEAR := 0.25 ## unidades: parede mais perto que isto da câmera some; some por inteiro e volta opaca até FADE_WALL_FAR
+const FADE_WALL_FAR := 0.7
+const FADE_LID_NEAR := 0.9 ## forro em volta da câmera: o círculo de baixo dela some, o resto fica
+const FADE_LID_FAR := 1.8
+var _last_fade_at := Vector3(INF, INF, INF)
+
+
+## #227: com a câmera do jogador dentro da casa, paredes e forro perto dela ficam translúcidos (nada opaco tampa a tela); fora, tudo opaco.
+func update_near(camera_pos: Vector3) -> void:
+	if not immersive:
+		if _last_fade_at.x != INF:
+			_last_fade_at = Vector3(INF, INF, INF)
+			_set_fade(_walls, 1.0)
+			if ceiling != null:
+				for lid in ceiling.get_children():
+					(lid as GeometryInstance3D).transparency = 0.0
+		return
+	var at := to_local(camera_pos)
+	if _last_fade_at.distance_to(at) < 0.01:
+		return
+	_last_fade_at = at
+	for wall in _walls:
+		if wall.get("lintel", false):
+			continue
+		var node: MeshInstance3D = wall.node
+		var half: Vector3 = (wall.mesh as BoxMesh).size * 0.5
+		var closest := Vector3(clampf(at.x, node.position.x - half.x, node.position.x + half.x), clampf(at.y, node.position.y - half.y, node.position.y + half.y),
+			clampf(at.z, node.position.z - half.z, node.position.z + half.z))
+		node.transparency = 1.0 - smoothstep(FADE_WALL_NEAR, FADE_WALL_FAR, closest.distance_to(at))
+	if ceiling != null:
+		for lid in ceiling.get_children():
+			var node := lid as MeshInstance3D
+			var flat := Vector2(node.position.x - at.x, node.position.z - at.z).length()
+			node.transparency = 1.0 - smoothstep(FADE_LID_NEAR, FADE_LID_FAR, flat)
+
+
+func _set_fade(walls: Array, opacity: float) -> void:
+	for wall in walls:
+		(wall.node as GeometryInstance3D).transparency = 1.0 - opacity
 
 
 ## #227: o corpo do jogador anda pela planta do prédio no mundo (o motor não o lista como ocupante): a casa em foco o desenha como

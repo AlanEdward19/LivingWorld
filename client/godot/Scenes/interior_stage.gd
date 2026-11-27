@@ -124,3 +124,4 @@ func _sync_camera() -> void:
 		return
 	interior_view.set_view_direction(_source.global_transform.basis.z)
 	interior_view.update_ceiling(_source.global_position.y)
+	interior_view.update_near(_source.global_position)
