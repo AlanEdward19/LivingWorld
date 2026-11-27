@@ -74,6 +74,9 @@ public sealed record BuildingVisual(
     /// <summary>AD-170: planta completa do térreo e andares, para desenhar prédio novo vindo no delta sem recarregar.</summary>
     public int Floors { get; init; } = 1;
     public IReadOnlyList<FootprintCell> GroundFootprint { get; init; } = [];
+    /// <summary>#226: as paredes de fora do térreo (nas arestas) e a abertura da porta; a parede não ocupa célula.</summary>
+    public IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment> GroundWalls { get; init; } = [];
+    public IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment> GroundDoors { get; init; } = [];
     /// <summary>AD-170: valor do imóvel e hospedagem, os mesmos do marcador de cidade (só com <c>Pricing</c>/<c>Lodging</c> no cenário).</summary>
     public long Value { get; init; }
     public LodgingMarker? Lodging { get; init; }

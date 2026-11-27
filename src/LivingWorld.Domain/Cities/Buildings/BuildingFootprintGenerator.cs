@@ -42,11 +42,26 @@ public static class BuildingFootprintGenerator
         return footprint;
     }
 
+    /// <summary>Material das paredes do prédio (paridade do tipo): a parede é aresta, o material mora no trecho (<see cref="WallSegment"/>).</summary>
+    public static BuildingMaterial WallMaterialOf(int buildingTypeId) =>
+        buildingTypeId % 2 == 0 ? BuildingMaterial.StoneWall : BuildingMaterial.WoodWall;
+
+    /// <summary>A porta e o lado para onde ela abre (o primeiro vizinho de 4, na ordem baixo, direita, cima, esquerda, que não é da planta).</summary>
+    public static (CellCoord Door, CellCoord Facing) DoorOf(IReadOnlyList<FootprintCell> footprint)
+    {
+        var cells = new HashSet<CellCoord>(footprint.Count);
+        foreach (var c in footprint) cells.Add(c.Cell);
+        var door = footprint.First(c => c.Material == BuildingMaterial.Door).Cell;
+        foreach (var d in DoorDirections)
+            if (!cells.Contains(new CellCoord(door.X + d.X, door.Y + d.Y))) return (door, d);
+        return (door, DoorDirections[0]);
+    }
+
+    private static readonly CellCoord[] DoorDirections = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
+
     private static IReadOnlyList<FootprintCell> Compute(
         BuildingId buildingId, int buildingTypeId, int normalizedOrientation)
     {
-
-        var wallMaterial = buildingTypeId % 2 == 0 ? BuildingMaterial.StoneWall : BuildingMaterial.WoodWall;
         // A casa inicial precisa de uma célula interna real, mas não pode dominar visualmente a
         // cidade: 3x3 é o menor footprint que satisfaz ambos. Outros prédios variam apenas entre
         // 3 e 4 células por eixo; a forma depende do tipo (compartilhável byte-a-byte com o web),
@@ -60,23 +75,18 @@ public static class BuildingFootprintGenerator
         bool InNotch(int x, int y) => isLShape && x >= width / 2 && y >= height / 2;
         bool InShape(int x, int y) => InBase(x, y) && !InNotch(x, y);
 
-        var cells = new List<(int X, int Y, bool IsWall)>();
+        // #226: a parede é aresta, não célula: toda célula da planta é piso; a da porta é a entrada (a abertura fica na aresta de fora).
+        var cells = new List<(int X, int Y)>();
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
-            {
-                if (!InShape(x, y)) continue;
-                bool isWall = !InShape(x - 1, y) || !InShape(x + 1, y) || !InShape(x, y - 1) || !InShape(x, y + 1);
-                cells.Add((x, y, isWall));
-            }
+                if (InShape(x, y)) cells.Add((x, y));
 
         int doorX = isLShape ? width / 4 : width / 2;
-        int doorIndex = cells.FindIndex(c => c.IsWall && c.X == doorX && c.Y == height - 1);
+        int doorIndex = cells.FindIndex(c => c.X == doorX && c.Y == height - 1);
         if (doorIndex < 0)
-            // Fallback determinístico (garante que a porta SEMPRE existe): primeira parede
-            // na borda inferior, senão a primeira parede da planta, em ordem estável (y desc, x asc).
+            // Fallback determinístico (a porta SEMPRE existe): a primeira célula da borda inferior, em ordem estável (y desc, x asc).
             doorIndex = cells
                 .Select((c, i) => (c, i))
-                .Where(t => t.c.IsWall)
                 .OrderByDescending(t => t.c.Y)
                 .ThenBy(t => t.c.X)
                 .Select(t => t.i)
@@ -85,9 +95,8 @@ public static class BuildingFootprintGenerator
         var result = new FootprintCell[cells.Count];
         for (int i = 0; i < cells.Count; i++)
         {
-            var (x, y, isWall) = cells[i];
-            var material = i == doorIndex ? BuildingMaterial.Door : isWall ? wallMaterial : BuildingMaterial.Floor;
-            result[i] = new FootprintCell(Rotate(x, y, width, height, normalizedOrientation), material);
+            var (x, y) = cells[i];
+            result[i] = new FootprintCell(Rotate(x, y, width, height, normalizedOrientation), i == doorIndex ? BuildingMaterial.Door : BuildingMaterial.Floor);
         }
         return result;
     }

@@ -60,8 +60,37 @@ public static class DefaultObjects
             ["4"] = Ids("anvil", "shelf", "barrel", "crate"),
             ["10"] = Ids("bed", "bed", "table", "chest"),
             ["11"] = Ids("counter", "table", "shelf", "crate"),
+            ["-1"] = Ids("bed", "table", "bench", "chest"), // #226: a casa inicial passa a ter cama (antes só o piso da escada)
         };
+        root["Rooms"] = Rooms();
     }
+
+    /// <summary>#226: cômodos como dado do cenário (o código só conhece o algoritmo de divisão): tipos com o que atendem (ids de <c>ActionType</c>: Eat 0,
+    /// Sleep 1, Work 2, Socialize 3), peso da área e tamanho mínimo; e o plano por tipo de prédio (o primeiro é o cômodo da porta da rua; "@up" = andares de cima).</summary>
+    private static JsonObject Rooms() => new()
+    {
+        ["kinds"] = new JsonArray(
+            Room("sala", [0, 3], 3, 3), Room("quarto", [1], 2, 2), Room("cozinha", [0], 2, 2), Room("oficina", [2], 3, 3)),
+        ["plans"] = new JsonObject
+        {
+            ["default"] = Ids("sala", "cozinha", "quarto"),
+            ["default@up"] = Ids("quarto"),
+            ["-1"] = Ids("sala", "quarto"),
+            ["1"] = Ids("oficina", "sala"),
+            ["2"] = Ids("sala", "cozinha"),
+            ["4"] = Ids("oficina"),
+            ["10"] = Ids("sala", "quarto"),
+            ["11"] = Ids("oficina", "sala"),
+        },
+    };
+
+    private static JsonObject Room(string id, int[] uses, double weight, int minCells) => new()
+    {
+        ["id"] = id,
+        ["uses"] = new JsonArray(uses.Select(u => (JsonNode?)JsonValue.Create(u)).ToArray()),
+        ["weight"] = weight,
+        ["minCells"] = minCells,
+    };
 
     private static JsonArray UsePointsOf(string id) =>
         UsePoints.TryGetValue(id, out var p)

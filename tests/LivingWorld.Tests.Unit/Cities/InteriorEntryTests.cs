@@ -46,11 +46,11 @@ public class InteriorEntryTests
     }
 
     [Fact]
-    public void Wall_cell_fails_and_valid_entry_succeeds()
+    public void A_cell_outside_the_plan_fails_and_valid_entry_succeeds()
     {
         var (world, building, npc) = Setup();
         var cells = BuildingLayoutGenerator.Generate(building).FloorLayouts[0].Cells;
-        var wall = cells.First(c => c.Material is BuildingMaterial.StoneWall or BuildingMaterial.WoodWall).Cell;
+        var wall = new CellCoord(cells.Max(c => c.Cell.X) + 1, 0); // #226: não há célula de parede; fora da planta não se entra
         var door = cells.Single(c => c.Material == BuildingMaterial.Door).Cell;
 
         Assert.False(InteriorEntry.TryEnter(world, npc, building.Id, FloorLevel.Ground, wall).IsSuccess);

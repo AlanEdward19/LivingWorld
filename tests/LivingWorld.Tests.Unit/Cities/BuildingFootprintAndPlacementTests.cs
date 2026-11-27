@@ -51,13 +51,12 @@ public class BuildingFootprintAndPlacementTests
     [Fact]
     public void Different_building_type_id_changes_the_wall_material_by_parity()
     {
-        var evenType = BuildingFootprintGenerator.Generate(new BuildingId(1), 2);
-        var oddType = BuildingFootprintGenerator.Generate(new BuildingId(1), 3);
+        // #226: a parede é aresta; o material mora no trecho de parede da planta
+        var evenType = BuildingLayoutGenerator.Generate(new BuildingId(1), 2).FloorLayouts[0].Walls!;
+        var oddType = BuildingLayoutGenerator.Generate(new BuildingId(1), 3).FloorLayouts[0].Walls!;
 
-        Assert.Contains(evenType, c => c.Material == BuildingMaterial.StoneWall);
-        Assert.DoesNotContain(evenType, c => c.Material == BuildingMaterial.WoodWall);
-        Assert.Contains(oddType, c => c.Material == BuildingMaterial.WoodWall);
-        Assert.DoesNotContain(oddType, c => c.Material == BuildingMaterial.StoneWall);
+        Assert.All(evenType, w => Assert.Equal(BuildingMaterial.StoneWall, w.Material));
+        Assert.All(oddType, w => Assert.Equal(BuildingMaterial.WoodWall, w.Material));
     }
 
     [Theory]
@@ -91,14 +90,14 @@ public class BuildingFootprintAndPlacementTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(99)]
-    public void Initial_house_is_always_compact_3_by_3_with_an_internal_floor_cell(long buildingId)
+    public void Initial_house_is_always_compact_3_by_3_with_nine_floor_cells_and_no_wall_cell(long buildingId)
     {
         var footprint = BuildingFootprintGenerator.Generate(new BuildingId(buildingId), buildingTypeId: -1);
 
-        Assert.Equal((3, 3, 1), (
+        Assert.Equal((3, 3, 9), (
             footprint.Max(cell => cell.Cell.X) + 1,
             footprint.Max(cell => cell.Cell.Y) + 1,
-            footprint.Count(cell => cell.Material == BuildingMaterial.Floor)));
+            footprint.Count(cell => InteriorWalkability.IsWalkable(cell.Material)))); // #226: 3x3 de piso (4,5 m x 4,5 m), parede só nas arestas
     }
 
     [Fact]

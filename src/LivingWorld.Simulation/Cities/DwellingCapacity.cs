@@ -27,13 +27,16 @@ public static class DwellingCapacity
         return tenants;
     }
 
-    /// <summary>Célula de dormir do domicílio no prédio: a primeira célula de piso (por linha e coluna), rotacionada
-    /// com a planta. Casas 3x3 têm exatamente uma; a origem do footprint é parede e o NPC nunca entraria.</summary>
-    public static CellCoord InteriorCellOf(Building building, CellCoord position) =>
-        BuildingFootprintGenerator.Generate(building)
-            .Where(cell => cell.Material == BuildingMaterial.Floor)
-            .OrderBy(cell => cell.Cell.Y)
-            .ThenBy(cell => cell.Cell.X)
-            .Select(cell => new CellCoord(position.X + cell.Cell.X, position.Y + cell.Cell.Y))
-            .First();
+    /// <summary>Célula de casa do domicílio no prédio (#226): a de piso logo à frente da porta, por dentro (em linha reta com a abertura), onde
+    /// a pessoa entra; sem ela (planta atípica), a primeira de piso por linha e coluna. A parede é aresta, então toda célula é caminhável.</summary>
+    public static CellCoord InteriorCellOf(Building building, CellCoord position)
+    {
+        var footprint = BuildingFootprintGenerator.Generate(building);
+        var (door, facing) = BuildingFootprintGenerator.DoorOf(footprint);
+        var straight = new CellCoord(door.X - facing.X, door.Y - facing.Y);
+        var cell = footprint.Any(c => c.Cell == straight && c.Material == BuildingMaterial.Floor)
+            ? straight
+            : footprint.Where(c => c.Material == BuildingMaterial.Floor).OrderBy(c => c.Cell.Y).ThenBy(c => c.Cell.X).Select(c => c.Cell).First();
+        return new CellCoord(position.X + cell.X, position.Y + cell.Y);
+    }
 }

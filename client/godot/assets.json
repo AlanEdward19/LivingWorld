@@ -17,7 +17,8 @@
     "3": ["bed", "table", "chest"],
     "4": ["anvil", "shelf", "barrel", "crate"],
     "10": ["bed", "bed", "table", "chest"],
-    "11": ["counter", "table", "shelf", "crate"]
+    "11": ["counter", "table", "shelf", "crate"],
+    "-1": ["bed", "table", "bench", "chest"]
   },
   "pieces": {
     "table": {"size": [0.8, 0.4, 0.5], "color": "8a6a43"}, "bench": {"size": [0.7, 0.25, 0.25], "color": "7a5a38"},

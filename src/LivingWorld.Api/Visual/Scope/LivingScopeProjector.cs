@@ -287,6 +287,8 @@ public static class LivingScopeProjector
             {
                 Floors = plan.Floors,
                 GroundFootprint = plan.GroundFootprint,
+                GroundWalls = plan.GroundWalls ?? [],
+                GroundDoors = plan.GroundDoors ?? [],
                 Value = value,
                 Lodging = lodging,
                 // AD-173: o lote de verdade (quintal, passagem da porta à rua, rua da frente)
