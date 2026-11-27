@@ -21,7 +21,7 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt }
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -208,6 +208,17 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>#241: interrompe a ação que ocupa o corpo (cortar lenha...): o motor decide o que fica feito (a parte proporcional da carga) e o
+    /// corpo volta a andar. Sem ação em andamento, 409 e nada muda (nem entra no registro).</summary>
+    public Result<BusyView> Interrupt(WorldState world, string playerId)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<BusyView>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        var done = PlayerTasks.Interrupt(world, npc);
+        if (done.IsSuccess) Record(world, playerId, PlayerCommandKind.Interrupt, npc.Id.Value);
+        return done;
+    }
+
     /// <summary>AD-197d: o que o corpo do jogador alcança agora e o que pode fazer ali (só lê).</summary>
     public static IReadOnlyList<InteractionOffer>? Reach(WorldState world, string playerId) =>
         PlayerCommands.ControlledBy(world, playerId) is { } npc ? PlayerInteractions.Offers(world, npc) : null;
@@ -332,6 +343,7 @@ public static class PlayerReplay
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
                 PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Interrupt => service.Interrupt(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,
                 PlayerCommandKind.Block => service.Guard(world, record.PlayerId, CombatGuard.Block).IsSuccess,
                 PlayerCommandKind.Sample => service.Sample(world, record.PlayerId, new CityId(record.CityId!.Value),

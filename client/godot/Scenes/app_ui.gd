@@ -255,6 +255,7 @@ static func _side(app, ui: Control) -> void:
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
 	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.player_hud.acted.connect(app._on_player_acted)
+	app.player_hud.busy_changed.connect(app._on_player_busy)
 	_wire_feedback(app)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"

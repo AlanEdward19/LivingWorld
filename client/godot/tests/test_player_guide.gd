@@ -47,7 +47,7 @@ func test_a_family_member_is_told_who_lives_with_them_where_home_is_and_what_the
 	check("4 Comida" in text and "aperte E" in text, "o que a despensa tem e a tecla: " + text)
 	check("Você está com fome" in text, "o que mais aperta")
 	check("Seu emprego fica a 30 m, à frente" in text and "segure E para Trabalhar" in text, "emprego: onde e com que tecla: " + text)
-	check("Coletar madeira" in text, "a mata como saída")
+	check("Cortar lenha" in text, "a árvore como saída")
 	eq(steps.size(), 4, "quem: o que aperta: trabalho: teclas")
 
 
@@ -141,7 +141,7 @@ func test_the_help_lists_what_can_be_done_with_the_engine_offer_kinds_and_the_ke
 	var text := ""
 	for row in FirstSteps.PLAYER_ACTIONS:
 		text += "%s %s\n" % [row[0], row[1]]
-	for word in ["Conversar", "Comprar e vender", "Trabalhar", "Beber", "Coletar madeira", "escada", "Furtar", "espólio", "Bater", "segure E"]:
+	for word in ["Conversar", "Comprar e vender", "Trabalhar", "Beber", "Cortar lenha", "escada", "Furtar", "espólio", "Bater", "segure E"]:
 		check(word in text, "a lista cita: " + word)
 	check(steps.PLAYER_ACTIONS.size() >= 10, "um tipo de oferta por linha")
 	steps.free()

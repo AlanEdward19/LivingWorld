@@ -19,7 +19,7 @@ nascem do estado do motor, na hora do pedido. Só leitura, sem RNG novo, sem LLM
 ## O próximo passo (`step`)
 Sempre algo que os comandos de hoje fazem: `interact` (a oferta de `/reach` já está ao alcance: `kind`, `targetId`, `verb`,
 `resourceId`), `go` (andar até a célula `x,y`; `distance` em células) ou `act` (a ação em `verb`). `none` só se o mundo não
-oferece nada. Alcance curto: a água a ≤ 1 célula da posição fina; `nature`/`gather` (#239) na mata, com as horas e a carga dos NPCs da obra. Escolha por alcance e distância, desempate por id: determinístico.
+oferece nada. Alcance curto: a água a ≤ 1 célula da posição fina; `nature`/`gather` (#239/#241) só junto de árvore (ver abaixo). Escolha por alcance e distância, desempate por id: determinístico.
 
 ## Habilidades (`PlayerSkills`)
 O ganho é o do motor (`SkillPracticeSystem.PracticeGain`): quem está em `Work` no próprio posto sobe, NPC ou jogador, pelo mesmo
@@ -43,3 +43,15 @@ Tecla **J** abre "Metas e diário"; a meta mais urgente fica numa linha discreta
   terreno em si quase não muda a velocidade; o que atrasa de fato é carga, sono, lama/neve e corpo.
 - Cliente: o guia da primeira posse (`player_guide.gd`, uma vez por mundo, F1 reabre), "O que dá para fazer" na ajuda e o chão no cartão.
 
+## Cortar lenha e ação em andamento (#239, #241)
+- **Árvore**: `PlayerNature.TreeAt` é a árvore que o cliente desenha (`scenery.gd`): célula seca fora do contorno das cidades (+1), sorteio
+  `cell_hash` < 0,16, tronco deslocado ±0,3 célula. O mesmo `cell_hash` nos dois lados, com teste de paridade (.NET e Godot). A oferta `nature`
+  (`label` "Árvore", `fx`/`fy` = o tronco em células) só aparece a ≤ 1,5 m dele; o anel de mira realça o tronco.
+- **Duração**: uma sessão corta o que cabe numa jornada (`CrewHoursPerDay`) no ritmo por unidade dos NPCs (`WorkHaul.CutHours` da carga que o
+  corpo aguenta, sem a viagem, que o jogador anda). Os ~67 h antigos eram o corte da carga cheia (20 un.) de uma vez, em horas de trabalho.
+- **`busy`** na pose de todo comando (aditivo, opcional): `action` (hoje `gather`), `untilMs`, `totalMs`, `remainingMs`. A tarefa mora em
+  `Npc.BodyTask`; enquanto dura, `walk`/`gather` dão 409. Outras ações (beber, dormir, usar) são instantâneas no motor: só gesto.
+- **Interromper**: `POST /players/{id}/interrupt` e `{"command":"interrupt"}` no canal. A carga fica proporcional ao tempo cortado, para baixo,
+  sem sorteio; 409 sem ação em andamento. Entra no registro (replay).
+- Cliente (`body_busy.gd`): barra acima do cartão ("Cortando lenha — 40%"), golpe de machado em laço, WASD ocupado não manda passo e diz
+  "Ocupado: cortando lenha (Espaço para parar)", Espaço interrompe. Todo erro do servidor passa por `human_error` (sem prefixo nem ms).

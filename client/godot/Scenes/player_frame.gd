@@ -34,6 +34,9 @@ var inventory_box: VBoxContainer
 var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var entries: Array = []
+var busy_panel: PanelContainer ## #241: a ação em andamento (barra discreta acima do cartão do jogador)
+var busy_label: Label
+var busy_bar: ProgressBar
 var cooldown: ProgressBar ## #234
 var guard_label: Label ## #234
 var blocked := false: ## #240: popup aberto: a dica do E some (volta ao fechar, se ainda houver alvo)
@@ -90,6 +93,29 @@ func _init() -> void:
 		row.add_child(bar)
 		box.add_child(row)
 		bars[spec[0]] = bar
+	busy_panel = PanelContainer.new() # #241: "Cortando lenha — 40%" e a barra, acima do cartão; só enquanto o motor diz que o corpo está ocupado
+	busy_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
+	busy_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	busy_panel.offset_left = 16
+	busy_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	busy_panel.custom_minimum_size.x = 260
+	busy_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	busy_panel.visible = false
+	add_child(busy_panel)
+	var busy_box := VBoxContainer.new()
+	busy_box.add_theme_constant_override("separation", 3)
+	busy_panel.add_child(busy_box)
+	busy_label = _label(14, Color("ffe9a6"))
+	busy_box.add_child(busy_label)
+	busy_bar = ProgressBar.new()
+	busy_bar.show_percentage = false
+	busy_bar.max_value = 1.0
+	busy_bar.custom_minimum_size = Vector2(236, 6)
+	busy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	busy_bar.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.12), 3))
+	busy_bar.add_theme_stylebox_override("fill", _style(Color("e0a43a"), 3))
+	busy_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	busy_box.add_child(busy_bar)
 	clock_label = _label(17, Color("ffe9a6"))
 	clock_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	clock_label.offset_top = 14
@@ -210,6 +236,16 @@ func set_body(name: String, action: String, needs: Dictionary) -> void:
 			var value := float(needs[key])
 			bars[key].value = value
 			bars[key].modulate = Color.WHITE if value >= 25.0 else Color(1.0, 0.55, 0.55)
+
+
+## #241: a ação em andamento ("Cortando lenha — 40%", `fraction` 0..1); texto vazio esconde a barra. Fica logo acima do cartão do corpo.
+func set_busy(text: String, fraction: float) -> void:
+	busy_panel.visible = text != ""
+	if text == "":
+		return
+	busy_label.text = text
+	busy_bar.value = fraction
+	busy_panel.offset_bottom = -44.0 - card.size.y - 8.0
 
 
 ## #228: o próprio corpo anda pela previsão local (permitida só para ele): o cartão diz "Andando"/"Correndo"; "" volta à ação do motor.

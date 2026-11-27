@@ -153,7 +153,7 @@ func test_the_interaction_menu_shows_only_what_the_engine_offers_and_sends_the_c
 	# #239: a mata ao alcance oferece coletar o recurso que o motor diz, com o nome dele
 	var woods := PlayerHud.menu_entries([{"kind": "nature", "id": 5, "verbs": ["gather"], "x": 1, "y": 1,
 		"resources": [{"resourceId": 3, "quantity": 2, "price": 0}]}], func(id: int) -> String: return "Madeira")
-	eq([woods[0].text, woods[0].verb, woods[0].resource], ["Mata: Coletar Madeira", "gather", 3], "coletar na mata, pelo recurso do motor")
+	eq([woods[0].text, woods[0].verb, woods[0].resource], ["Árvore: Cortar lenha", "gather", 3], "coletar na mata, pelo recurso do motor")
 	hud.queue_free()
 
 
@@ -170,7 +170,7 @@ func test_a_refused_order_shows_the_engine_reason() -> void:
 	var warnings: Array = []
 	hud.warning.connect(func(text: String): warnings.append(text))
 	await hud.interact({"kind": "person", "id": 8, "verb": "abandon", "resource": -1, "text": "Rui: Abandonar"})
-	eq(warnings, ["Ana não abandona Rui (peso 97)"], "o motivo do motor aparece")
+	eq(warnings, ["Ana não abandona Rui (peso 97)."], "o motivo do motor aparece")
 	eq(hud.is_active, true, "a recusa não tira o personagem")
 	hud.queue_free()
 

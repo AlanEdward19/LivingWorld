@@ -4,6 +4,8 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const Season := preload("res://Scenes/render/season_palette.gd")
+const TREE_CHANCE := 0.16 ## #241: o motor (PlayerNature.TreeAt) usa o mesmo sorteio e o mesmo cell_hash: a oferta de cortar lenha só existe onde se desenha árvore
+const TREE_JITTER := 0.6 ## deslocamento do tronco na célula (±0,3)
 
 var _crown_colors: Array = [] ## cor de verão de cada copa (a estação recolore a partir dela)
 var _crown_transforms: Array = [] ## AD-189: a copa cheia de cada árvore (a folhagem do motor encolhe a partir dela)
@@ -56,8 +58,8 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 		if inside_city:
 			continue
 		var roll := cell_hash(cell)
-		var jitter := Vector3((cell_hash(cell, 1) - 0.5) * 0.6, 0, (cell_hash(cell, 2) - 0.5) * 0.6)
-		if roll < 0.16:
+		var jitter := Vector3((cell_hash(cell, 1) - 0.5) * TREE_JITTER, 0, (cell_hash(cell, 2) - 0.5) * TREE_JITTER)
+		if roll < TREE_CHANCE:
 			var scale := 0.8 + cell_hash(cell, 3) * 0.7
 			trunks.append(Transform3D(Basis().scaled(Vector3(1, scale, 1)), Grid.to_world(cell) + jitter))
 			crowns.append([Transform3D(Basis().scaled(Vector3(scale, scale, scale)), Grid.to_world(cell, 0.55 * scale) + jitter),

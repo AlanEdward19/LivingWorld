@@ -307,7 +307,7 @@ func air(lift: float, tuck: float) -> void:
 ## fazia (a caminhada continua nas pernas); as pernas e as mãos vêm do IK (agachar, apoiar, alcançar o objeto).
 func gesture(a) -> void:
 	var t: float = (a._clock - a._gesture_from) / a._gesture_len
-	var w := Pose.plateau(t)
+	var w := Pose.loop_weight(a._clock - a._gesture_from, a._gesture_len) if a._gesture_loop else Pose.plateau(t)
 	var nodes: Array[Node3D] = [a._arms[0], a._arms[1], a._body, a._head]
 	var rot: Array[Vector3] = []
 	var pos: Array[Vector3] = []
@@ -348,6 +348,13 @@ func gesture(a) -> void:
 				_aim(i, Vector3((-1 if i == 0 else 1) * 0.15, 0.95 + 0.09 * s * (1.0 if i == 0 else 1.0), 0.3), w * 0.9)
 		"rest":
 			_drop += 0.12 * w
+		"chop": # #241: machado em laço: as mãos juntas sobem atrás da cabeça e descem num golpe à frente, o quadril acompanha
+			var swing := Pose.chop_swing(a._clock / Pose.CHOP_PERIOD)
+			var p := Vector3(0, lerpf(0.5, 1.28, swing), lerpf(0.46, -0.06, swing))
+			_drop += 0.05 * (1.0 - swing) * w
+			a._body.rotation.x += lerpf(0.3, -0.12, swing) * w
+			_aim(0, p + Vector3(-0.05, 0, 0), w)
+			_aim(1, p + Vector3(0.05, 0, 0), w)
 
 
 func _aim(i: int, target: Vector3, weight: float) -> void:

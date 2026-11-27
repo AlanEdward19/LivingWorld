@@ -4,6 +4,7 @@ extends Node
 ## Módulos: Session (escopos), Selection (clique e dica), Inspector (ficha), WindowRouter (janelas que convivem),
 ## FollowDirector (seguir), AppUi (montagem da interface), WorldView (um renderizador por tipo).
 const WorldTime := preload("res://Contract/world_time.gd")
+const BodyBusy := preload("res://Scenes/body_busy.gd")
 
 signal menu_requested() ## F10 ou "Voltar ao menu" na pausa: o Boot volta ao menu principal
 signal quit_requested() ## "Sair do jogo" na pausa: o Boot fecha com calma
@@ -786,6 +787,17 @@ func _on_player_acted(verb: String) -> void:
 	var node = player_actor()
 	if node != null and GESTURE_BY_VERB.has(verb):
 		node.play_gesture(GESTURE_BY_VERB[verb])
+
+
+## #241: a ação que ocupa o corpo (cortar lenha...): o gesto da ação em laço enquanto o motor diz que dura; "" (acabou ou parou) o solta.
+func _on_player_busy(action: String, seconds: float) -> void:
+	var node = player_actor()
+	if node == null:
+		return
+	if action == "":
+		node.stop_gesture()
+	else:
+		node.play_loop(BodyBusy.gesture_for(action), seconds)
 
 
 func _on_player_jumped(air_s: float) -> void:

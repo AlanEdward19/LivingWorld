@@ -951,7 +951,7 @@ func play_jump(air_s: float) -> void:
 
 ## #224: gesto curto por cima da pose (o verbo que o motor aceitou: pegar, dar, beber, comer, empurrar a porta, subir, conversar,
 ## trabalhar). Toca igual em 1ª e 3ª pessoa; em 1ª as mãos sobem para dentro do quadro.
-const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call"]
+const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call", "chop"]
 var _gesture := ""
 var _gesture_from := -1.0
 var _gesture_len := 0.0
@@ -966,6 +966,23 @@ func play_gesture(kind: String, seconds: float = 0.9, target: Vector3 = Vector3.
 	_gesture = kind
 	_gesture_from = _clock
 	_gesture_len = maxf(0.2, seconds)
+	_gesture_loop = false
+
+
+var _gesture_loop := false ## #241: gesto em laço enquanto a ação do motor dura (cortar lenha...): peso constante, ciclo pelo relógio
+
+
+## #241: o gesto da ação que ocupa o corpo, em laço por `seconds` reais (o fim vem do motor; `stop_gesture` corta antes).
+func play_loop(kind: String, seconds: float) -> void:
+	if not kind in GESTURES:
+		return
+	play_gesture(kind, seconds)
+	_gesture_loop = true
+
+
+func stop_gesture() -> void:
+	_gesture_from = -1.0
+	_gesture_loop = false
 
 
 func gesture_playing() -> String:
@@ -1018,6 +1035,13 @@ func _apply_gesture(amplitude: float = -1.0) -> void:
 		"rest": # deixa o corpo cair (deitar, sentar)
 			_body.position.y = -0.1 * k
 			_head.rotation.x = 0.3 * k
+		"chop": # #241: golpe de machado em laço: as duas mãos sobem e descem juntas, o corpo acompanha
+			var swing := BodyPose.chop_swing(_clock / BodyPose.CHOP_PERIOD)
+			_arms[0].rotation.x = lerpf(-1.1, -2.9, swing) * k
+			_arms[1].rotation.x = lerpf(-1.2, -3.0, swing) * k
+			_body.rotation.x = lerpf(0.3, -0.12, swing) * k
+			_legs[0].rotation.x = 0.12 * k
+			_legs[1].rotation.x = -0.12 * k
 		"call": # #234: pedir ajuda: os dois braços para o alto, acenando
 			_arms[0].rotation.x = -2.8 * k
 			_arms[1].rotation.x = -2.9 * k

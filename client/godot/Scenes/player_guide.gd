@@ -223,5 +223,5 @@ static func _livelihood(start: Dictionary, fine: Vector2, forward: Vector2, chil
 		parts.append("Você está sem emprego e não há vaga aberta por perto.")
 	var wild: Variant = start.get("wild")
 	if wild is Dictionary:
-		parts.append("Outra saída: a mata, %s. Fora da cidade, segure E e escolha Coletar madeira." % where(wild, fine, forward))
+		parts.append("Outra saída: a árvore mais perto, %s. Fora da cidade, chegue a 1,5 m do tronco, segure E e escolha Cortar lenha." % where(wild, fine, forward))
 	return " ".join(parts)

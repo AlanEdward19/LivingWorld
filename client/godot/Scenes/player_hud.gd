@@ -5,6 +5,7 @@ const WorldTime := preload("res://Contract/world_time.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const PlayerBody := preload("res://Scenes/player_body.gd")
 const CombatView := preload("res://Scenes/combat_view.gd")
+const BodyBusy := preload("res://Scenes/body_busy.gd")
 
 signal released()
 signal warning(text: String)
@@ -28,6 +29,7 @@ signal guard_changed(kind: String) ## #234: a guarda do corpo mudou ("" = baixou
 signal incoming(outcome: String, damage: int, by: int) ## #234: golpe recebido pelo corpo (Hit, Dodged, Blocked, Missed)
 signal placed(building_id: int, floor: int) ## #227: onde o motor diz que o corpo está: prédio (-1 = fora) e andar; o app entra e sai da casa em foco
 signal sheet_read(body: Dictionary) ## #232: ficha do corpo lida do motor (números subindo pelo que mudou)
+signal busy_changed(action: String, seconds: float) ## #241: o motor diz que o corpo ocupou-se de `action` por `seconds` reais ("" = acabou ou parou); o app anima em laço
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
@@ -315,6 +317,8 @@ func set_reach_hint(from: Array) -> void:
 			for offer in from:
 				if String(offer.get("kind", "")) == kind and int(offer.get("id", -1)) == id:
 					target = Vector2(float(offer.get("x", 0)), float(offer.get("y", 0)))
+					if offer.get("fx") != null and offer.get("fy") != null: # #241: o tronco da árvore (o anel soma meia célula ao centro)
+						target = Vector2(float(offer.fx) - 0.5, float(offer.fy) - 0.5)
 		target_changed.emit(kind, id, target)
 	else:
 		target_changed.emit("", -1, Vector2.INF)
@@ -565,7 +569,9 @@ func _process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if not is_active:
 		return
-	glide(walk_direction(Vector2i.ZERO if typing() else _held_keys()), delta) # #240: digitando num popup, WASD não anda o corpo
+	var keys := Vector2i.ZERO if typing() else _held_keys()
+	_refresh_busy(keys != Vector2i.ZERO, delta)
+	glide(walk_direction(keys), delta) # #240: digitando num popup, WASD não anda o corpo
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
 	_refresh_goals(delta)
@@ -700,6 +706,8 @@ const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cart
 
 ## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
 func glide(direction: Vector2, delta: float) -> void:
+	if busy.active():
+		direction = Vector2.ZERO # #241: ocupado, o corpo não anda (o motor recusaria); não manda passo
 	var run_now := Input.is_key_pressed(KEY_SHIFT) and running
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
@@ -773,12 +781,15 @@ func _refused_step(response: Dictionary) -> void:
 	if response.status == 409 and (paused or "pausa" in error):
 		warning.emit("O mundo está pausado: o corpo só anda com o tempo correndo (Esc → Continuar, ou ▶ na barra do topo).")
 	elif error != "":
-		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ").trim_prefix("move: ").trim_prefix("jump: "))
+		warning.emit(BodyBusy.human_error(error))
 
 
 ## #222: Espaço pula; o motor decide se o corpo consegue (cansaço, ferimento, idade) e por quanto tempo fica no ar.
 func jump() -> void:
 	if not is_active or _jumping:
+		return
+	if busy.active():
+		interrupt() # #241: ocupado, Espaço para a ação (o motor decide o que ficou feito)
 		return
 	_jumping = true
 	var response: Dictionary = await api.player_jump(player_id)
@@ -795,6 +806,76 @@ func jump() -> void:
 
 
 var _jumping := false
+var _interrupting := false
+
+## #241: a ação que ocupa o corpo, como o motor diz (`busy` da pose). A barra, o gesto em laço e o bloqueio do WASD saem daqui.
+var busy := BodyBusy.new()
+var _busy_note_clock := 0.0
+
+
+func _time_scale() -> float:
+	return float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+
+
+func _note_busy(pose: Dictionary) -> void:
+	var now := float(Time.get_ticks_msec())
+	var before := busy.action
+	if busy.note_pose(pose, now, _time_scale()):
+		busy_changed.emit(busy.action, busy.seconds_left(now))
+		if before != "" and busy.action == "":
+			_busy_ended()
+	if frame != null:
+		frame.set_busy(busy.text(now) if busy.active() else "", busy.fraction(now))
+
+
+func _busy_ended() -> void:
+	_body_clock = BODY_EVERY # o que ficou nas mãos aparece no cartão
+
+
+## Barra e fim da tarefa; WASD durante ela diz por que não anda (frase humana, no máximo a cada 2,5 s).
+func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
+	_busy_note_clock = maxf(0.0, _busy_note_clock - delta)
+	if not busy.active():
+		return
+	var now := float(Time.get_ticks_msec())
+	if busy.expired(now):
+		busy.clear()
+		busy_changed.emit("", 0.0)
+		if frame != null:
+			frame.set_busy("", 0.0)
+		_busy_ended()
+		sync_pose() # confirma com o motor que o corpo voltou a andar
+		return
+	if frame != null:
+		frame.set_busy(busy.text(now), busy.fraction(now))
+	if wants_to_walk and _busy_note_clock <= 0.0:
+		_busy_note_clock = 2.5
+		warning.emit(busy.blocked_note())
+
+
+## #241: para a ação em andamento (Espaço); o motor decide o que ficou feito (a parte proporcional) e devolve a pose.
+func interrupt() -> void:
+	if not is_active or _interrupting or not busy.active():
+		return
+	_interrupting = true
+	var stopped := BodyBusy.stopped(busy.action)
+	var response: Dictionary = await api.player_interrupt(player_id)
+	_interrupting = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		apply_pose(response.body)
+		busy.clear()
+		busy_changed.emit("", 0.0)
+		warning.emit(stopped)
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error))
+		if error.find("não há ação") >= 0:
+			busy.clear()
+			busy_changed.emit("", 0.0)
 
 var combat := CombatView.new() ## #234: recarga, guarda, alcance e último golpe recebido, como o motor disse
 var _guard_shown := "" ## a guarda que o app já mostra no corpo (para avisar só quando muda)
@@ -808,6 +889,7 @@ const DOUBLE_TAP_MS := 260
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary) -> void:
 	note_combat(pose)
+	_note_busy(pose)
 	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
 	floor_level = int(pose.get("floor", 0))
 	placed.emit(building_id, int(pose.get("floor", 0)))
@@ -928,10 +1010,10 @@ func latency_median_ms() -> float:
 const OBJECT_TEXT := {"table": "Mesa", "bench": "Banco", "crate": "Caixote", "barrel": "Barril", "counter": "Balcão", "shelf": "Prateleira",
 	"bed": "Cama", "chest": "Baú", "anvil": "Bigorna"}
 const KIND_TEXT := {"counter": "Balcão", "door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
-	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio", "nature": "Mata"}
+	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio", "nature": "Árvore"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
-	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "gather": "Coletar", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "gather": "Cortar lenha", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
 	"socialize": "Conversar", "idle": "Descansar"}
 
 
@@ -1059,9 +1141,9 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 						continue
 					var price := int(item.get("price", 0))
 					var resource_text: String = name_of.call(int(item.resourceId)) if name_of.is_valid() else "recurso %d" % int(item.resourceId)
-					entries.append({"text": "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
-						" (%d)" % price if price > 0 else ""], "kind": kind, "id": int(offer.id), "verb": String(verb),
-						"resource": int(item.resourceId)})
+					var line := "%s: %s" % [title, VERB_TEXT[verb]] if String(verb) == "gather" else "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
+						" (%d)" % price if price > 0 else ""] # #241: "Cortar lenha · Árvore" (a madeira é implícita)
+					entries.append({"text": line, "kind": kind, "id": int(offer.id), "verb": String(verb), "resource": int(item.resourceId)})
 			else:
 				entries.append({"text": "%s: %s" % [title, VERB_TEXT.get(String(verb), String(verb))], "kind": kind,
 					"id": int(offer.id), "verb": String(verb), "resource": -1})
@@ -1114,6 +1196,7 @@ func interact(entry: Dictionary) -> void:
 		var pose = response.body.get("pose")
 		if pose is Dictionary:
 			_pace(pose)
+			_note_busy(pose)
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
@@ -1126,7 +1209,7 @@ func interact(entry: Dictionary) -> void:
 	else:
 		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
 		refused.emit()
-		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou (erro %d)." % response.status)
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou (erro %d)." % response.status)
 
 
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
