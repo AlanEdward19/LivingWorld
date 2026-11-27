@@ -421,6 +421,16 @@ static func run(app: Node, steps: Array) -> void:
 					for entry in app.camera_blockers():
 						if (entry[1] as AABB).has_point(eye) or (entry[2] as AABB).has_point(eye):
 							print("pos: olho na caixa ", entry[0], " ", entry[1], " paredes=", (entry[3] as Array).size())
+			"wv": # #227: estado do mundo desenhado (prédios visíveis, modo de processo, nós de transparência)
+				var shown := 0
+				var faded := 0
+				for bid in app.world_view.buildings.nodes:
+					var bnode: Node3D = app.world_view.buildings.nodes[bid]
+					if bnode.is_visible_in_tree():
+						shown += 1
+					if app.world_view.buildings.faded.has(bid):
+						faded += 1
+				print("wv: prédios=", app.world_view.buildings.nodes.size(), " visíveis=", shown, " translúcidos=", faded, " mundo_visivel=", app.world_view.visible, " processo=", app.world_view.process_mode, " opened=", app.rig.opened_ids().keys(), " escopo=", app.store.kind, " casa=", app.stage.active, " cena=", app.store.cities.size())
 			"quit":
 				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()

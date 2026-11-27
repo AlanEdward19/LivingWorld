@@ -193,6 +193,9 @@ func test_exit_restores_exterior_and_scope() -> void:
 	eq(app.world_view.visible, true, "mundo desenhado de novo")
 	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado de novo")
 	eq(app.stage.active, false)
+	for id in app.world_view.buildings.nodes:
+		check((app.world_view.buildings.nodes[id] as Node3D).is_visible_in_tree(), "#227: ao sair, o prédio %s do mundo volta a se desenhar" % id)
+	check(app.stage.interior_view.ceiling == null or not app.stage.interior_view.ceiling.visible, "#227: o forro da casa não fica no mundo")
 	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before + 1, "volta à assinatura anterior (Mundo)")
 	eq(app.store.kind, "World")
 	app.queue_free()

@@ -210,3 +210,30 @@ func test_the_ceiling_shows_only_when_the_camera_is_inside_and_below_it() -> voi
 	view.set_floor(1)
 	check(view.ceiling.position.y > InteriorView.wall_height() + InteriorView.Grid.floor_height() * 0.5, "o forro sobe com o andar")
 	view.free()
+
+
+## #227: com a câmera do jogador colada na parede ou sob o forro, essas peças esmaecem (nada opaco tampa a tela); longe, ficam opacas.
+func test_walls_and_ceiling_near_the_player_camera_fade_and_far_ones_stay_opaque() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(0, 0), ActionLabels.new())
+	view.immersive = true
+	view.set_view_direction(Vector3.ZERO)
+	var spot := Vector3(1.5, 1.2, 1.5)
+	view.update_near(spot)
+	var lid_under: MeshInstance3D = view.ceiling.get_child(4) # a célula central
+	check(lid_under.transparency > 0.99, "o forro logo acima da câmera some (%s)" % lid_under.transparency)
+	var lid_far: MeshInstance3D = view.ceiling.get_child(0)
+	check(lid_far.transparency < 0.5, "o forro longe fica (%s)" % lid_far.transparency)
+	var picked: MeshInstance3D = null
+	for wall in view._walls:
+		if not wall.get("lintel", false):
+			picked = wall.node
+			break
+	view.update_near(Vector3(picked.position.x, 1.2, picked.position.z))
+	check(picked.transparency > 0.9, "a parede colada na câmera some (%s)" % picked.transparency)
+	view.update_near(Vector3(50, 1.2, 50))
+	check(picked.transparency < 0.01, "parede longe fica opaca (%s)" % picked.transparency)
+	view.immersive = false
+	view.update_near(spot)
+	check(lid_under.transparency == 0.0, "fora do jogador tudo volta opaco")
+	view.free()
