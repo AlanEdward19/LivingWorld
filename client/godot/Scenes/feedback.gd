@@ -26,6 +26,7 @@ var settings ## GameSettings (nulo nos testes): volume dos efeitos
 var body_node: Callable = func() -> Node: return null ## o corpo encarnado (npc_actor)
 var node_of: Callable = func(_id: int) -> Node: return null ## NPC por id (alvo do golpe)
 var surface_at: Callable = func(_pos: Vector3) -> String: return "grass" ## chão sob o ponto
+var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## #243: nome do recurso para "+1 Madeira" (o app liga o catálogo)
 var listener_pos: Callable = func() -> Vector3: return Vector3.ZERO
 var shake_cb: Callable = func(_amount: float) -> void: pass
 var played: Array[String] = [] ## últimos sons pedidos (testes); só entra o que passaria do silêncio
@@ -298,6 +299,11 @@ func note_sheet(body: Dictionary) -> int:
 		for line in sheet_changes(_last_sheet, body):
 			_float(String(line.text), line.color)
 			shown += 1
+	if not _last_sheet.is_empty():
+		# #243: o que entra nas mãos aparece na hora ("+1 Madeira"), unidade a unidade: só nasce de ação do motor, então vale sem armar
+		for line in carry_gains(_last_sheet, body, resource_name_of):
+			_float(String(line.text), line.color)
+			shown += 1
 	_last_sheet = body.duplicate()
 	return shown
 
@@ -323,6 +329,21 @@ static func sheet_changes(before: Dictionary, after: Dictionary) -> Array:
 		if absf(delta) >= MIN_DELTA:
 			out.append({"text": "%s %s" % [_signed(int(round(delta)), String(spec[1])), spec[2]], "color": spec[3] if delta > 0 else Color("e8665a")})
 	return out
+
+
+## #243: o que passou a levar nas mãos entre duas fichas (mesmo recurso, mais unidades; ou outro recurso em mãos vazias): [{text, color}].
+static func carry_gains(before: Dictionary, after: Dictionary, name_of: Callable) -> Array:
+	var now: Variant = after.get("carrying")
+	if not now is Dictionary or int(now.get("quantity", 0)) <= 0:
+		return []
+	var was: Variant = before.get("carrying")
+	var had := 0
+	if was is Dictionary and int(was.get("resourceId", -1)) == int(now.get("resourceId", -2)):
+		had = int(was.get("quantity", 0))
+	var gained := int(now.quantity) - had
+	if gained <= 0:
+		return []
+	return [{"text": "+%d %s" % [gained, String(name_of.call(int(now.resourceId))) if name_of.is_valid() else ""], "color": Color("c9a36b")}]
 
 
 static func _signed(value: int, icon: String) -> String:

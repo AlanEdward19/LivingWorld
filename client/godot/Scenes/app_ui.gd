@@ -491,6 +491,7 @@ static func _wire_feedback(app) -> void:
 	var fb = Feedback.new()
 	fb.name = "Feedback"
 	fb.settings = app.settings
+	fb.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
 	var own := func() -> Node:
 		var id: int = app.player_hud.npc_id
 		var node = app.world_view.npc_nodes.get(id)

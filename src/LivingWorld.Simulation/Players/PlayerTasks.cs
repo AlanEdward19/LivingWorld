@@ -9,9 +9,9 @@ namespace LivingWorld.Simulation.Players;
 
 /// <summary>#241: a ação em andamento que ocupa o corpo do jogador, como o cliente a vê: o quê (<c>Action</c>), quando acaba (<c>UntilMs</c>,
 /// ms de mundo), o tempo total e o que falta (<c>RemainingMs</c>, para o cliente não depender do relógio do mundo).
-/// <c>Accelerated</c> (aditivo): o mundo corre acelerado até a ação acabar (o jogador está sozinho: o salto de tempo). <c>Units</c> e
-/// <c>Done</c> (#243, aditivos, só na coleta): quantas unidades a sessão planejou e quantas já saíram até agora.</summary>
-public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs, bool Accelerated = false, long? Units = null, long? Done = null);
+/// <c>Accelerated</c> (aditivo): o mundo corre acelerado até a ação acabar (o jogador está sozinho: o salto de tempo). <c>Units</c>,
+/// <c>Done</c> e <c>ResourceId</c> (#243, aditivos, só na coleta): quantas unidades a sessão planejou, quantas já saíram até agora e o recurso.</summary>
+public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs, bool Accelerated = false, long? Units = null, long? Done = null, int? ResourceId = null);
 
 /// <summary>#241/#243: tarefas que ocupam o corpo conduzido (hoje, cortar lenha na mata). O padrão de toda ação que rende item: a unidade
 /// <c>k</c> sai da fonte (a árvore, que é estado do mundo e finita: <see cref="PlayerNature.Take"/>) e vai para as mãos em
@@ -28,7 +28,7 @@ public static class PlayerTasks
         if (npc.BodyTask is not { } task || now >= task.UntilMs) return null;
         var view = new BusyView(task.Action, task.UntilMs, task.UntilMs - task.StartedAtMs, task.UntilMs - now);
         return task is { Action: Gather, PerUnitMs: > 0 }
-            ? view with { Units = task.Units, Done = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs) }
+            ? view with { Units = task.Units, Done = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs), ResourceId = task.ResourceId }
             : view;
     }
 
@@ -72,6 +72,11 @@ public static class PlayerTasks
     {
         if (npc.BodyTask is not { Action: Gather } task || task.StartedAtMs != startedAtMs || task.PerUnitMs <= 0) return; // evento velho: a ação foi interrompida
         long now = world.CurrentDate.TotalMilliseconds;
+        if (npc.ControllerId is null)
+        {
+            npc.SetBodyTask(null); // ninguém conduz mais o corpo (saiu do personagem): o corte para onde está, o que saiu fica
+            return;
+        }
         long due = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs);
         var resource = new ResourceType(task.ResourceId);
         var tree = new CellCoord(task.CellX, task.CellY);

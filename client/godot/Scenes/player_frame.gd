@@ -446,7 +446,7 @@ func inventory_open() -> bool:
 
 
 ## As linhas do menu do E no modo de jogo: sem "Bater" (é o clique), as coisas primeiro e só as pessoas mais perto de `at`.
-static func game_entries(all: Array, offers: Array, at: Vector2) -> Array:
+static func game_entries(all: Array, offers: Array, at: Vector2, look: Vector2 = Vector2.ZERO) -> Array:
 	var near := {}
 	for offer in offers:
 		if String(offer.get("kind", "")) == "person":
@@ -465,7 +465,58 @@ static func game_entries(all: Array, offers: Array, at: Vector2) -> Array:
 		else:
 			things.append(entry)
 	persons.sort_custom(func(a, b): return people.find(int(a.id)) < people.find(int(b.id)))
-	return (things + persons).slice(0, MENU_MAX)
+	return aimed_first((things + persons).slice(0, MENU_MAX), offers, at, look)
+
+
+const AIM_CONE := 0.6 ## cosseno mínimo entre o olhar e a direção do alvo (≈53°) para valer como "sob a mira"
+const AIM_NEAR := 0.35 ## células: mais perto que isto o alvo está sob os pés, sem direção: vale pela ordem de sempre
+
+
+## #243: a ação principal do E é a do alvo para onde a câmera aponta (a árvore realçada), não a da pessoa mais perto: entre as ofertas à
+## frente do olhar (`look`, no chão, x e z), a que está mais bem alinhada vem primeiro (empate: a mais perto); as outras linhas seguem na
+## ordem de antes, e a roda (segurar E) ainda lista todos, a pessoa incluída. Sem olhar ou sem nada à frente, a ordem não muda.
+static func aimed_first(entries: Array, offers: Array, at: Vector2, look: Vector2) -> Array:
+	if entries.size() < 2 or at == Vector2.INF or look.length() < 0.001:
+		return entries
+	var dir := look.normalized()
+	var best_key := ""
+	var best_score := -2.0
+	var best_dist := INF
+	for offer in offers:
+		var spot := Vector2(float(offer.get("x", 0)) + 0.5, float(offer.get("y", 0)) + 0.5)
+		if offer.get("fx") != null and offer.get("fy") != null:
+			spot = Vector2(float(offer.fx), float(offer.fy))
+		var to := spot - at
+		var dist := to.length()
+		if dist < AIM_NEAR:
+			continue
+		var score := dir.dot(to / dist)
+		if score < AIM_CONE:
+			continue
+		var key := "%s:%d" % [String(offer.get("kind", "")), int(offer.get("id", -1))]
+		if not _has_entry(entries, key):
+			continue
+		if score > best_score + 0.0001 or (absf(score - best_score) <= 0.0001 and dist < best_dist):
+			best_key = key
+			best_score = score
+			best_dist = dist
+	if best_key == "":
+		return entries
+	var front: Array = []
+	var rest: Array = []
+	for entry in entries:
+		if "%s:%d" % [String(entry.kind), int(entry.id)] == best_key:
+			front.append(entry)
+		else:
+			rest.append(entry)
+	return front + rest
+
+
+static func _has_entry(entries: Array, key: String) -> bool:
+	for entry in entries:
+		if "%s:%d" % [String(entry.kind), int(entry.id)] == key:
+			return true
+	return false
 
 
 func show_menu(list: Array) -> void:

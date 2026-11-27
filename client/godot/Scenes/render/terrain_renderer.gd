@@ -75,8 +75,19 @@ func rebuild(p_store) -> void:
 	scenery = Scenery.new()
 	scenery.name = "Scenery"
 	terrain_root.add_child(scenery)
+	scenery.trees_state = trees_state
 	scenery.build(store.terrain, store.rivers, rects)
 	apply_season(store.climate)
+
+
+## #243: as árvores cortadas, como o motor diz (`GET /world/trees`); o terreno refeito as reaplica.
+var trees_state: Array = []
+
+
+func apply_trees(list: Array) -> void:
+	trees_state = list
+	if scenery != null:
+		scenery.apply_trees(list)
 
 
 static func season_signature(climate: Dictionary) -> String:

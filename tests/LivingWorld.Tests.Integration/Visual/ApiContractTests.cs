@@ -204,6 +204,7 @@ public class ApiContractTests
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
     [InlineData("world-calendar", "/world/calendar")]
+    [InlineData("world-trees", "/world/trees")] // #243: as árvores cortadas (esparso: só as tocadas)
     [InlineData("world-info", "/world/info")]
     [InlineData("saved-worlds", "/worlds")]
     [InlineData("periods", "/periods")] // AD-175: cartão do período no menu
