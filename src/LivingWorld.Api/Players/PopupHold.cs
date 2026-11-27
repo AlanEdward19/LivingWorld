@@ -1,5 +1,3 @@
-using LivingWorld.Simulation.Players;
-
 namespace LivingWorld.Api.Players;
 
 /// <summary>#240: a pausa de popup. Quem joga sozinho abre um popup (conversa, mochila, metas…) e o cliente pede "hold": o laço

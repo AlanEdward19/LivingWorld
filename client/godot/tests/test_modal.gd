@@ -211,8 +211,14 @@ func test_the_app_hides_crosshair_ring_prompt_and_asks_for_the_hold_then_restore
 	app.pause_menu.visible = false
 	app.first_steps.open_help()
 	check(app.modal.active, "ajuda F1 abre o registro")
+	app.first_steps.toggle_actions() # #238: a página "O que dá para fazer" vive na ajuda: continua popup
+	check(app.modal.active, "a lista de ações é popup")
 	app.first_steps.close_help()
 	check(not app.modal.active, "ajuda fechada solta")
+	app.player_frame.guide.visible = true # #238: o guia da primeira posse
+	check(app.modal.active and not app.crosshair.visible and not app.player_frame.prompt.visible, "o guia esconde a mira e a dica do E")
+	app.player_frame.guide.visible = false
+	check(not app.modal.active and app.crosshair.visible, "fechou o guia: volta")
 	app.queue_free()
 
 

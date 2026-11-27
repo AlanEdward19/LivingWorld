@@ -134,8 +134,13 @@ public static class PlayerChannelEndpoints
         if (command == "hold")
         {
             bool held = gateway.Hold.Set(playerId, node?["on"]?.GetValue<bool>() ?? false);
-            return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200,
-                ["body"] = new JsonObject { ["held"] = held, ["leaseMs"] = (int)PopupHold.Lease.TotalMilliseconds } };
+            return new JsonObject
+            {
+                ["seq"] = seq,
+                ["ok"] = true,
+                ["status"] = 200,
+                ["body"] = new JsonObject { ["held"] = held, ["leaseMs"] = (int)PopupHold.Lease.TotalMilliseconds }
+            };
         }
         if (command == "ping") return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = "pong" };
         if (command == "reach")

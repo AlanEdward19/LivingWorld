@@ -409,7 +409,7 @@ static func _popups(app) -> void:
 		if popup != null:
 			app.modal.watch(popup)
 	if app.player_frame != null:
-		for popup in [app.player_frame.inventory, app.player_frame.goals, app.player_frame.menu_panel]:
+		for popup in [app.player_frame.inventory, app.player_frame.goals, app.player_frame.menu_panel, app.player_frame.guide]:
 			app.modal.watch(popup)
 	app.modal.changed.connect(app._on_modal)
 	app.popup_hold = PopupHold.new()
