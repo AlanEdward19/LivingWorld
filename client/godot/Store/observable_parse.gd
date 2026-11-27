@@ -98,15 +98,16 @@ static func target(raw: Variant) -> Dictionary:
 	return {}
 
 
-## `cities[].density` (escopo Mundo): quem está dentro, quantos no pool, ações mais comuns e temperatura.
+## `cities[].density` (escopo Mundo): quem está dentro da cidade, quantos fora de prédio, quantos no pool, ações mais comuns e temperatura.
 static func density(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return {}
 	var actions: Array = []
 	for entry in raw.get("actions", []) if raw.get("actions") is Array else []:
 		actions.append({"action": _int_or(entry.get("action")), "count": _i(entry, "count", 0)})
+	# `outdoors` (aditivo, #242): dos de dentro da cidade, quantos estão fora de prédio; -1 = o motor não disse
 	return {"inside": _i(raw, "inside", 0), "pooled": _i(raw, "pooled", 0), "actions": actions,
-		"temperature": _f(raw, "temperatureC", 0.0)}
+		"temperature": _f(raw, "temperatureC", 0.0), "outdoors": _i(raw, "outdoors", -1)}
 
 
 static func building_state(raw: Dictionary) -> Dictionary:

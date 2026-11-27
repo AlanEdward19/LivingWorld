@@ -189,10 +189,13 @@ public static class ObservableProjector
     public static Dictionary<CityId, CityDensityVisual> Densities(WorldState world, IReadOnlyList<LivingWorld.Api.Visual.Scope.ScopedNpc> npcs)
     {
         var inside = new Dictionary<CityId, (int Count, Dictionary<int, int> Actions)>();
+        var outdoors = new Dictionary<CityId, int>();
+        var footprints = BuildingFootprints.Of(world);
         foreach (var scoped in npcs)
         {
             if (!scoped.HasCityBounds || !scoped.InsideCity) continue;
             var npc = scoped.Npc;
+            if (!footprints.Contains(npc.CurrentLocation)) outdoors[npc.City] = outdoors.GetValueOrDefault(npc.City) + 1;
             if (!inside.TryGetValue(npc.City, out var entry)) entry = (0, new Dictionary<int, int>());
             int key = npc.CurrentAction is { } action ? (int)action : -1;
             entry.Actions[key] = entry.Actions.GetValueOrDefault(key) + 1;
@@ -206,7 +209,8 @@ public static class ObservableProjector
             var top = actions.OrderByDescending(a => a.Value).ThenBy(a => a.Key).Take(4)
                 .Select(a => new ActionCount(a.Key < 0 ? null : (ActionType)a.Key, a.Value)).ToArray();
             result[city.Id] = new CityDensityVisual(count, city.PoolNpcIds.Count, new ValueList<ActionCount>(top),
-                Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, city.Location, world.CurrentDate.TotalHours)));
+                Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, city.Location, world.CurrentDate.TotalHours)),
+                outdoors.GetValueOrDefault(city.Id));
         }
 
         return result;

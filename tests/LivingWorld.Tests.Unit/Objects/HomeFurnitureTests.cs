@@ -102,6 +102,31 @@ public class HomeFurnitureTests
     }
 
     [Fact]
+    public void Each_resident_gets_a_place_of_their_own_the_beds_first_then_free_floor()
+    {
+        // #242: seis moradores deitavam todos na mesma célula (o hash dava a mesma cama); agora o morador de número r fica com o r-ésimo lugar
+        var catalog = ObjectCatalogTests.SampleCatalog();
+        int checkedHouses = 0;
+        foreach (var building in Houses())
+        {
+            var layout = BuildingLayoutGenerator.Generate(building);
+            var beds = HomeFurniture.BedSpots(building, catalog);
+            int cells = layout.FloorLayouts.Sum(f => f.Cells.Count(c => c.Material == BuildingMaterial.Floor));
+            int furnished = HomeFurniture.Of(building, catalog).Count(p => p.Spot is not null);
+            int residents = Math.Min(6, beds.Count + Math.Max(0, cells - furnished - 1)); // as camas, mais o piso livre fora da mobília e da entrada
+            if (residents < 2) continue;
+            var places = Enumerable.Range(0, residents)
+                .Select(r => BuildingOccupancySystem.Place(new NpcId(100 + r), building, groundOnly: false, catalog, rank: r)).ToList();
+            Assert.Equal(places.Count, places.Select(p => (p.Item2.Value, p.Item3)).Distinct().Count());
+            for (int r = 0; r < Math.Min(beds.Count, residents); r++)
+                Assert.Contains(beds, b => b.Floor == places[r].Item2.Value && b.Cell == places[r].Item3);
+            checkedHouses++;
+        }
+
+        Assert.True(checkedHouses > 0);
+    }
+
+    [Fact]
     public void The_resting_places_are_kept_but_never_change_the_answer_and_follow_the_catalog_in_use()
     {
         // #242: a lista dos lugares de dormir é guardada por prédio e catálogo; guardada ou não, o lugar de cada pessoa é o mesmo

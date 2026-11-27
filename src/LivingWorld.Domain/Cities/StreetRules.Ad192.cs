@@ -126,6 +126,7 @@ public sealed partial record StreetRules
         "noentry" => this with { NetEntryBestPair = false },
         "noobstacle" => this with { ObstacleOnCompletion = false },
         "nostroll" => this with { AmbientStepsByHour = false },
+        "nooutings" => this with { AfterWorkOutings = false }, // #242
         "notrodden" => this with { LotsAvoidTrodden = false },
         "nohold" => this with { CityHoldsItsBuildings = false },
         _ => this,

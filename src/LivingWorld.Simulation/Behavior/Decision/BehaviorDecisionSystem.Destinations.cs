@@ -61,8 +61,8 @@ public sealed partial class BehaviorDecisionSystem
         : RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest
             // AD-186: quem saiu atrás de companhia e a achou no caminho (ou perdeu o rumo) fica onde está, não segue à cama nem à banca
-            : npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc)
-                ? CompanyDestinationOf(world, npc) ?? npc.CurrentLocation
+            : npc.CurrentAction == ActionType.Travel && IsOutingPurpose(world, npc.TravelPurpose) && !OffShiftFarFromPantry(world, npc)
+                ? OutingDestinationOf(world, npc, ActionType.Socialize, marketIndex) ?? npc.CurrentLocation
             : PurposeDestinationOf(world, npc, marketIndex) is { } purposeDest
                 ? purposeDest
                 : LivingWorld.Simulation.Invention.Leavings.ErrandDestination(world, npc) is { } errand && errand != npc.CurrentLocation
@@ -86,8 +86,8 @@ public sealed partial class BehaviorDecisionSystem
             return HomeOf(world, npc) is { } home && home.Location == water ? Key("household", home.Id.Value) : CellKey("water", water);
         if (RelocationDestinationOf(world, npc) is not null)
             return world.FindHousehold(npc.Household!.Value)?.PendingRelocationCity is { } city ? "city:" + city.Value.ToString() : null;
-        if (npc.TravelPurpose == ActionType.Socialize && !OffShiftFarFromPantry(world, npc))
-            return CompanyDestinationOf(world, npc) is { } visit && visit != here ? CompanyKey(world, npc, visit) : null;
+        if (IsOutingPurpose(world, npc.TravelPurpose) && !OffShiftFarFromPantry(world, npc))
+            return OutingDestinationOf(world, npc, ActionType.Socialize, marketIndex) is { } visit && visit != here ? CompanyKey(world, npc, visit) : null;
         string? purpose = npc.TravelPurpose switch
         {
             ActionType.Buy => BuyKey(world, npc, marketIndex),
@@ -217,7 +217,14 @@ public sealed partial class BehaviorDecisionSystem
     internal static void PinCompanyTarget(WorldState world, Npc npc, long now)
     {
         var last = _company;
-        if (!ReferenceEquals(last.World, world) || last.Npc != npc.Id.Value || last.Tick != now || last.Result is not { } cell) return;
+        CellCoord? chosen = !ReferenceEquals(last.World, world) || last.Npc != npc.Id.Value || last.Tick != now ? null : last.Result;
+        if (chosen is null)
+        {
+            // #242: sem ida atrás de companhia, o destino do tempo livre (casa, largo, mercado, conhecido, passeio) que a escolha deste tick deu
+            var leisure = _leisure;
+            if (ReferenceEquals(leisure.World, world) && leisure.Npc == npc.Id.Value && leisure.Tick == now) chosen = leisure.Result;
+        }
+        if (chosen is not { } cell) return;
         if (npc.IntentStatus == IntentStatus.Active && npc.CurrentIntent is ActionType.Buy or ActionType.Eat) return;
         npc.SetIntent(ActionType.Socialize, now,
             cell.X.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," + cell.Y.ToString(System.Globalization.CultureInfo.InvariantCulture));

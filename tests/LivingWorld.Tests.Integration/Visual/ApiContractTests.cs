@@ -26,7 +26,7 @@ public class ApiContractTests
             "Ana", "Female",
             30, "Adult", 1, "lavrador", 165, 1, new(0.5, 1), new(3, true, true), new(0.6, 0, 0, 0, 0, 0.2), "grief", true,
             [new LivingWorld.Api.Visual.Observable.CarriedVisual(1, 3, "trigo")], new(9, 77));
-        public static readonly LivingWorld.Api.Visual.Observable.CityDensityVisual Density = new(12, 30, [new(ActionType.Work, 5)], 14.5);
+        public static readonly LivingWorld.Api.Visual.Observable.CityDensityVisual Density = new(12, 30, [new(ActionType.Work, 5)], 14.5, 4);
         public static readonly LivingWorld.Api.Visual.Observable.EventInvolved Involved = new(
             1, 2, 3, 4, [5L], 6, 7, 8, 9, 10, 11, "city", 12, "levou", true);
         public static readonly LivingWorld.Api.Visual.Observable.BuildingStateVisual BuildingState = new(

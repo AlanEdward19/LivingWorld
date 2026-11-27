@@ -68,7 +68,7 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
             }
 
             Release(world, npc, crowd);
-            var (building, floor, cell) = Place(npc.Id, target.Value.Building, target.Value.GroundOnly, world.ObjectCatalog);
+            var (building, floor, cell) = Place(npc.Id, target.Value.Building, target.Value.GroundOnly, world.ObjectCatalog, SleeperRank(world, npc, target.Value.GroundOnly));
             if (InteriorEntry.TryEnter(world, npc, building, floor, cell).IsSuccess && floor.Value == 0 && crowd is not null
                 && building.Value == target.Value.Building.Id.Value && target.Value.Building.Position is { } origin)
             {
@@ -133,12 +133,14 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
     /// <summary>Andar (térreo quando <paramref name="groundOnly"/>) e célula caminhável, escolhidos só por hash
     /// estável de <c>(NpcId, BuildingId)</c>. #237: quem vai dormir (não <paramref name="groundOnly"/>) deita numa cama que o motor pôs na planta
     /// (<see cref="HomeFurniture"/>) ou, sem cama, em piso livre; nunca na porta nem na escada se houver piso (o corpo deitado atravessava a parede).</summary>
-    internal static (BuildingId Building, FloorLevel Floor, CellCoord Cell) Place(NpcId npc, Building building, bool groundOnly, LivingWorld.Domain.Objects.ObjectCatalog? catalog = null)
+    internal static (BuildingId Building, FloorLevel Floor, CellCoord Cell) Place(NpcId npc, Building building, bool groundOnly, LivingWorld.Domain.Objects.ObjectCatalog? catalog = null,
+        int? rank = null)
     {
         ulong hash = StableHash.Mix(npc.Value ^ (building.Id.Value << 20));
         if (!groundOnly && RestingSpots(building, catalog) is { Count: > 0 } spots)
         {
-            var spot = spots[(int)(StableHash.Mix((long)hash) % (ulong)spots.Count)];
+            // #242: cada morador da casa tem o seu lugar (a cama, depois o piso livre), em vez de todos no mesmo por sorteio de hash
+            var spot = rank is { } r ? SpotForRank(building, catalog, spots, r) : spots[(int)(StableHash.Mix((long)hash) % (ulong)spots.Count)];
             return (building.Id, new FloorLevel(spot.Floor), spot.Cell);
         }
 
@@ -147,6 +149,57 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
         var walkable = walkableByFloor[floorIndex];
         var chosen = walkable[(int)(StableHash.Mix((long)hash) % (ulong)walkable.Length)];
         return (building.Id, new FloorLevel(floorIndex), chosen.Cell);
+    }
+
+    /// <summary>#242: a posição do NPC entre os moradores da casa (por id), a base de um lugar para cada um; nulo fora de casa ou no trabalho.</summary>
+    private static int? SleeperRank(WorldState world, Npc npc, bool groundOnly)
+    {
+        if (groundOnly || npc.Household is not { } id || world.FindHousehold(id) is not { } household) return null;
+        int rank = 0;
+        var members = household.Members;
+        for (int i = 0; i < members.Count; i++)
+            if (members[i].Value < npc.Id.Value) rank++;
+        return rank;
+    }
+
+    /// <summary>O lugar do <paramref name="rank"/>-ésimo morador: as camas primeiro; passadas as camas, o piso livre da casa (distinto
+    /// enquanto houver célula); sem piso livre, volta ao começo da lista.</summary>
+    private static FurnitureSpot SpotForRank(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog, List<FurnitureSpot> spots, int rank)
+    {
+        if (rank < spots.Count) return spots[rank];
+        var overflow = OverflowSpots(building, catalog);
+        return overflow.Count > 0 ? overflow[(rank - spots.Count) % overflow.Count] : spots[rank % spots.Count];
+    }
+
+    /// <summary>Piso livre (fora da mobília, da porta e da escada) além das camas, na ordem da planta.</summary>
+    private static List<FurnitureSpot> OverflowSpots(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog)
+    {
+        var cached = BuildingLayoutCache.Of(building);
+        if (OverflowCache.TryGetValue(building, out var known) && ReferenceEquals(known.Layout, cached) && ReferenceEquals(known.Catalog, catalog)) return known.Spots;
+        var spots = ComputeOverflowSpots(building, catalog);
+        OverflowCache.AddOrUpdate(building, new RestPlan(cached, catalog, spots));
+        return spots;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Building, RestPlan> OverflowCache = new();
+
+    private static List<FurnitureSpot> ComputeOverflowSpots(Building building, LivingWorld.Domain.Objects.ObjectCatalog? catalog)
+    {
+        var layout = BuildingLayoutCache.Of(building).Layout;
+        var furniture = catalog is null ? [] : HomeFurniture.Of(building, catalog);
+        var taken = furniture.Where(p => p.Spot is not null).Select(p => (p.Spot!.Value.Floor, p.Spot!.Value.Cell)).ToHashSet();
+        var free = new List<FurnitureSpot>();
+        foreach (var floor in layout.FloorLayouts)
+        {
+            var materials = floor.Cells.ToDictionary(c => c.Cell, c => c.Material);
+            var start = FurniturePlanner.StartOf(materials, floor.Level);
+            var entry = start is { } from ? FurniturePlanner.EntryOf(materials, from, floor.Level) : null;
+            foreach (var cell in floor.Cells.OrderBy(c => c.Cell.Y).ThenBy(c => c.Cell.X))
+                if (cell.Material == BuildingMaterial.Floor && entry != cell.Cell && !taken.Contains((floor.Level, cell.Cell)))
+                    free.Add(new FurnitureSpot(floor.Level, cell.Cell, 0));
+        }
+
+        return free;
     }
 
     /// <summary>Onde dormir, do melhor ao pior: as camas do catálogo; senão piso livre (fora da entrada e da mobília); senão a entrada;

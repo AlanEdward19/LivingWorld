@@ -36,13 +36,16 @@ func _init() -> void:
 	add_child(_dots)
 
 
-## Placa da cidade: nome, população, quem está na rua e no pool, as ações mais comuns e a temperatura.
+## Placa da cidade: nome, população, quem está na cidade (dentro dos limites) e, do que o motor diz, quem está na rua (fora de prédio), o pool, as
+## ações mais comuns e a temperatura.
 func label_text(info: Dictionary) -> String:
 	var lines: Array[String] = ["%s · %d hab." % [info.name if info.name != "" else "Cidade", int(info.population)]]
 	var density: Dictionary = info.get("density", {})
 	if density.is_empty():
 		return lines[0]
-	lines.append("%d na rua · %d no pool · %d °C" % [int(density.inside), int(density.pooled), roundi(float(density.temperature))])
+	var outdoors := int(density.get("outdoors", -1))
+	var where := "%d na cidade" % int(density.inside) if outdoors < 0 else "%d na cidade · %d na rua" % [int(density.inside), outdoors]
+	lines.append("%s · %d no pool · %d °C" % [where, int(density.pooled), roundi(float(density.temperature))])
 	var doing: Array[String] = []
 	for entry in density.actions:
 		var action := int(entry.action)

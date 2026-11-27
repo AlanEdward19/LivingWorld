@@ -47,8 +47,10 @@ public sealed record CarriedVisual(int ResourceId, int Quantity, string? Resourc
 public sealed record HeldObjectVisual(long ItemId, int DesignId);
 
 /// <summary>Densidade de uma cidade no escopo Mundo: quantos materializados estão dentro dos limites, quantos ainda são pool, as
-/// ações mais comuns e a temperatura do lugar. O mapa-múndi vê a cidade viva sem receber cada morador.</summary>
-public sealed record CityDensityVisual(int Inside, long Pooled, IReadOnlyList<ActionCount> Actions, double TemperatureC);
+/// ações mais comuns e a temperatura do lugar. O mapa-múndi vê a cidade viva sem receber cada morador. #242: <c>Inside</c> conta quem está dentro dos
+/// limites da cidade (não quem está na rua); <c>Outdoors</c> (aditivo) é quem, desses, está fora de qualquer prédio (o motor lê a planta do térreo).</summary>
+public sealed record CityDensityVisual(int Inside, long Pooled, IReadOnlyList<ActionCount> Actions, double TemperatureC,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Outdoors = null);
 
 public sealed record ActionCount(ActionType? Action, int Count);
 
