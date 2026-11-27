@@ -98,7 +98,7 @@ public static class PlayerChannelEndpoints
                 // AD-197k: o rumo do passo solto, em milésimos (0, 0 para)
                 // AD-197u: "run": true corre (só com fôlego e saúde); "jump" pula
                 "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
-                    Run: node?["run"]?.GetValue<bool>() ?? false),
+                    Run: node?["run"]?.GetValue<bool>() ?? false, Seq: node?["wseq"]?.GetValue<int>() ?? 0),
                 "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
                 "interrupt" => new PlayerCommandRequest(PlayerCommandKind.Interrupt), // #241: para a ação em andamento
                 "dodge" => new PlayerCommandRequest(PlayerCommandKind.Dodge), // #234: esquiva e bloqueio (janela curta)
@@ -147,6 +147,10 @@ public static class PlayerChannelEndpoints
         if (command == "reach")
             return gateway.Reach(playerId) is { } offers
                 ? new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = JsonSerializer.SerializeToNode(new { offers }, Wire) }
+                : new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 404, ["error"] = $"{PlayerCommands.NotFound} jogador não controla nenhum NPC" };
+        if (command == "ground") // #248: a máscara de passos ao redor do corpo
+            return gateway.Ground(playerId, node?["r"]?.GetValue<int>() ?? 8) is { } ground
+                ? new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = JsonSerializer.SerializeToNode(ground, Wire) }
                 : new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 404, ["error"] = $"{PlayerCommands.NotFound} jogador não controla nenhum NPC" };
         if (request is null) return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "comando desconhecido ou incompleto" };
 

@@ -37,7 +37,11 @@ public static partial class PlayerWalk
     public static bool CanExert(WorldState world, Npc npc) =>
         npc.SleepNeed.ValueAtMs(world.CurrentDate.TotalMilliseconds) >= world.Players.Tired && npc.Health >= world.Players.ExertionMinHealth;
 
-    public static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, int dx, int dy, bool run = false)
+    /// <summary>#248: o sistema que dá o passo do corpo a cada tick fino (<see cref="PlayerWalkSystem"/>).</summary>
+    public const string PumpSystem = "player-walk";
+
+    /// <summary><paramref name="seq"/> (#248, 0 = sem número) é o número do comando: o motor o devolve na pose e o cliente reaplica o que o motor ainda não viu.</summary>
+    public static Result<Unit> Walk(WorldState world, TickContext ctx, Npc npc, int dx, int dy, bool run = false, int seq = 0)
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
@@ -55,8 +59,43 @@ public static partial class PlayerWalk
         var (hx, hy) = Normalized(dx, dy);
         // AD-197u: cansado ou ferido demais, o corpo anda em vez de correr (a resposta diz running: false)
         bool running = run && (hx != 0 || hy != 0) && CanExert(world, npc);
-        npc.SetFine(pose with { HeadingX = hx, HeadingY = hy, AtMs = now, Run = running });
+        pose = pose with { HeadingX = hx, HeadingY = hy, AtMs = now, Run = running, Seq = seq > 0 ? seq : pose.Seq, CmdMs = now };
+        npc.SetFine(hx != 0 || hy != 0 ? Pumped(world, ctx, npc, pose) : pose);
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>#248: com o rumo mantido, o motor anda o corpo a CADA tick fino, sem esperar comando (antes só andava quando um chegava, e
+    /// o relógio atrasado dava ao corpo menos chão que ao cliente). Agenda o próximo passo (um só pendente por corpo) quando o tempo é fino;
+    /// de hora em hora (salto de tempo, sono acelerado) o corpo não anda sozinho.</summary>
+    private static FinePose Pumped(WorldState world, TickContext ctx, Npc npc, FinePose pose)
+    {
+        long now = world.CurrentDate.TotalMilliseconds;
+        if (!world.FineTime || pose.PumpMs > now) return pose;
+        long at = now + Math.Max(1, world.TickDeltaMs);
+        ctx.ScheduleEventAtMs(at, PumpSystem, $"{npc.Id.Value}|{at}");
+        return pose with { PumpMs = at };
+    }
+
+    /// <summary>#248: o passo agendado (<see cref="PlayerWalkSystem"/>): anda o corpo pelo rumo mantido até agora e agenda o seguinte; para
+    /// se o cliente sumiu (<see cref="PlayerRules.WalkIdleStop"/>), o corpo ficou ocupado, perdeu o jogador ou o tempo deixou de ser fino.</summary>
+    public static void Pump(WorldState world, TickContext ctx, long npcId, long at)
+    {
+        if (world.FindNpc(new NpcId(npcId)) is not { IsAlive: true } npc || npc.Fine is not { } pose || pose.PumpMs != at) return; // pendente é um só: o resto é velho
+        long now = world.CurrentDate.TotalMilliseconds;
+        bool stop = npc.ControllerId is null || !world.FineTime || (pose.HeadingX == 0 && pose.HeadingY == 0)
+            || now - pose.CmdMs > world.Players.WalkIdleStop
+            || PlayerTasks.Of(world, npc) is not null || npc.StepReadyAtMs - now > PlayerInteractions.LongTaskMs;
+        if (!stop && PlayerGround.PoseOf(world, npc) is var cell && (pose.CellX != cell.X || pose.CellY != cell.Y))
+            stop = true; // a grade moveu o corpo (porta, escada, outro mando): a pose fina não vale mais
+        if (stop)
+        {
+            npc.SetFine(pose with { HeadingX = 0, HeadingY = 0, AtMs = now, PumpMs = 0, Run = false });
+            return;
+        }
+        long elapsed = Math.Clamp(now - pose.AtMs, 0, Math.Max(world.Players.WalkHold, 4L * world.TickDeltaMs));
+        pose = elapsed > 0 ? Advance(world, ctx, npc, pose, elapsed) : pose;
+        pose = pose with { AtMs = now, PumpMs = 0 };
+        npc.SetFine(Pumped(world, ctx, npc, pose));
     }
 
     /// <summary>Anda <paramref name="elapsed"/> ms pelo rumo da pose, em trechos de no máximo um quarto de célula.</summary>

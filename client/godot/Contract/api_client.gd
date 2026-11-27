@@ -281,14 +281,22 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 
 
 ## AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para); a resposta é a pose com a posição fina e a velocidade.
-func player_walk(player_id: String, dx: int, dy: int, run: bool = false) -> Dictionary:
+func player_walk(player_id: String, dx: int, dy: int, run: bool = false, wseq: int = 0) -> Dictionary:
 	var body := {"dx": dx, "dy": dy}
+	if wseq > 0:
+		body["wseq"] = wseq # #248: número do comando; a pose do motor devolve o último aplicado (`seq`)
 	if run:
 		body["run"] = true # #222: Shift corre; o motor decide se o corpo aguenta (cansado, anda)
 	var command := body.duplicate()
 	command["command"] = "walk"
 	var response: Dictionary = await _player_command(command, "POST", "/players/%s/walk" % player_id.uri_encode(), body)
 	return _checked("/players/walk", {"status": response.status, "body": response.body}, "")
+
+
+## #248: a máscara de passos ao redor do corpo (a regra do chão do motor): `x`/`y` do canto, `size`, `floor`, `buildingId`, `crowdLimit`, `mask`.
+func player_ground(player_id: String, radius: int = 8) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "ground", "r": radius}, "GET", "/players/%s/ground?r=%d" % [player_id.uri_encode(), radius], null)
+	return _checked("/players/ground", {"status": response.status, "body": response.body}, "")
 
 
 ## #222: pular; o motor diz se o corpo consegue e quanto tempo fica no ar (`airMs`), ou 409 com o motivo.

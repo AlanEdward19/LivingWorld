@@ -116,6 +116,7 @@ public static partial class ScenarioRunner
         new SpatialSettlementFoundingSystem(),
         new PlayerSearchSystem(),
         new PossessionSystem(), // AD-197f: a disputa de vontade da posse comum (só eventos agendados)
+        new PlayerWalkSystem(), // #248: o corpo conduzido anda a cada tick fino pelo rumo mantido (só eventos agendados)
         new BodyTaskSystem(), // #243: cortar lenha rende unidade a unidade, no instante em que sai (só eventos agendados)
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),

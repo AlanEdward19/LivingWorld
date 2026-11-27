@@ -11,8 +11,8 @@ public sealed record IncarnateRequest(string? PlayerId);
 /// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
 public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
 /// <summary>Passo do jogador (AD-197e): direção −1..1 em cada eixo, intenção e não posição.</summary>
-/// AD-197u: <c>Run</c> (opcional) pede correr no <c>walk</c>; o <c>move</c> não usa.
-public sealed record PlayerMoveRequest(int Dx, int Dy, bool? Run = null);
+/// AD-197u: <c>Run</c> (opcional) pede correr no <c>walk</c>; o <c>move</c> não usa. #248: <c>Wseq</c> numera o comando de andar (a pose devolve <c>seq</c>, o último aplicado).
+public sealed record PlayerMoveRequest(int Dx, int Dy, bool? Run = null, int? Wseq = null);
 /// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
 public sealed record PlayerStrikeRequest(long NpcId);
 /// <summary>AD-197d: interagir com o que está perto (<c>GET /players/{playerId}/reach</c> diz o quê): <c>Kind</c> (door, stock, stall,
@@ -94,7 +94,7 @@ public static class PlayerEndpoints
 
         // AD-197k: o passo solto (rumo em milésimos); o canal é o caminho de sempre, a rota serve a quem não o abre
         app.MapPost("/players/{playerId}/walk", (HttpContext http, string playerId, PlayerMoveRequest request) =>
-            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy, Run: request.Run == true)));
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy, Run: request.Run == true, Seq: request.Wseq ?? 0)));
 
         // AD-197u: pular (corpo vazio ou {}): o motor decide pelo corpo e pelo fôlego; 409 com o motivo; 200 = a pose e airMs
         app.MapPost("/players/{playerId}/jump", (HttpContext http, string playerId) =>
@@ -121,6 +121,13 @@ public static class PlayerEndpoints
         {
             if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
             return gateway.Reach(playerId) is { } offers ? Results.Ok(new { offers }) : Results.NotFound(new { error = "not_found: jogador não controla nenhum NPC" });
+        });
+
+        // #248: a máscara de passos ao redor do corpo (a regra do chão do motor) para o cliente prever o passo com a mesma regra
+        app.MapGet("/players/{playerId}/ground", (HttpContext http, string playerId, int? r) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            return gateway.Ground(playerId, r ?? 8) is { } ground ? Results.Ok(ground) : Results.NotFound(new { error = "not_found: jogador não controla nenhum NPC" });
         });
 
         // AD-197f: convencer a pessoa possuída a ceder (posse comum): tira resistência, uma vez por hora
