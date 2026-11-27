@@ -128,6 +128,47 @@ func test_shapes_are_frozen_and_checked() -> void:
 	check(not ApiClient.ShapeValidator.validate({"dialogue": "x", "emotion": "happy", "intent": 3, "proposedActions": []}, send_shape).is_empty(), "intent não-string reprova")
 
 
+## #237: o painel de conversa do modo jogador: histórico inteiro (rola até a última fala) e a dica de teclas fora do caminho.
+func test_game_style_history_scrolls_to_the_last_line_and_keeps_its_height() -> void:
+	var transport := _accepting()
+	transport.on("POST /conversations/send", {"status": 200, "body": {"dialogue": "Bom dia, que bom te ver por aqui. Por aqui está tudo em ordem, como sempre.", "emotion": "friendly", "intent": "greet", "proposedActions": []}})
+	var window := _window(transport)
+	window.game_style = true
+	window.set_anchors_preset(Control.PRESET_FULL_RECT)
+	window.anchor_top = 1.0
+	window.offset_left = 310
+	window.offset_right = -430
+	window.offset_top = -262
+	window.offset_bottom = -34
+	tree.root.add_child(window)
+	await window.attach(7, "Coris", 9)
+	for i in 6:
+		await window.send("Bom dia! Como vai?")
+		await tree.process_frame
+	await tree.process_frame
+	await tree.process_frame
+	eq(window.lines.size(), 12)
+	check(window._scroll.size.y >= window.HISTORY_MIN_HEIGHT, "o histórico não encolhe abaixo do mínimo: %s" % window._scroll.size.y)
+	check(window.at_bottom(), "a rolagem acompanha a última fala")
+	var viewport: Rect2 = window.get_viewport_rect()
+	check(window.get_global_rect().end.y <= viewport.end.y + 1.0 and window.get_global_rect().position.y >= 0.0, "o painel cabe na tela: %s" % str(window.get_global_rect()))
+	window.queue_free()
+
+
+func test_the_covered_hint_is_hidden_while_the_conversation_is_open() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	var hint := Label.new()
+	tree.root.add_child(hint)
+	window.hides = [hint]
+	await window.attach(7, "Coris", 9)
+	eq(hint.visible, false, "a dica de teclas some com a conversa aberta")
+	await window.end_conversation()
+	eq(hint.visible, true, "e volta ao encerrar")
+	hint.queue_free()
+	window.free()
+
+
 func test_app_button_and_t_key_start_a_conversation_and_esc_ends_it() -> void:
 	var transport := FakeTransport.new()
 	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
