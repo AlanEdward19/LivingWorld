@@ -68,7 +68,7 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		for entry in floor_layout.cells:
 			plan[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
 			_add_cell(node, entry, level)
-		_add_panels(node, plan, level)
+		_add_panels(node, plan, level, _walls_of(floor_layout, info, level), _doors_of(floor_layout, info, level))
 		add_child(node)
 		floor_nodes[level] = node
 	roof = Node3D.new()
@@ -278,19 +278,10 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 				step.material_override = _material(Color("b08a5a"))
 				step.position = Grid.to_world(cell, rise * (k + 1) / 2.0) + Vector3(0, 0, -Grid.CELL / 2.0 + Grid.CELL / float(steps) * (k + 0.5))
 				parent.add_child(step)
-		DOOR: # #222: vão da porta com verga em cima (passa-se por ele), não um bloco
+		DOOR: # #226: a célula da porta é piso inteiro (a abertura e a verga ficam na aresta, ver _add_panels)
 			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL)
 			node.material_override = _material(Color("8a6a43"))
 			node.position = Grid.to_world(cell, 0.0)
-			var lintel := MeshInstance3D.new()
-			var top := BoxMesh.new()
-			var door_h := Grid.units(Grid.door_meters)
-			top.size = Vector3(Grid.CELL, maxf(0.05, wall_height() - door_h), Grid.CELL)
-			lintel.mesh = top
-			lintel.material_override = _material(Color("6b4a2b"))
-			lintel.position = Grid.to_world(cell, door_h + top.size.y / 2.0)
-			parent.add_child(lintel)
-			_walls.append({"node": lintel, "mesh": top, "cell": cell, "lintel": true})
 		_:
 			mesh.size = Vector3(Grid.CELL, 0.08, Grid.CELL)
 			node.material_override = _material(Color("c9b896") if (cell.x + cell.y + level) % 2 == 0 else Color("bfae8c"))
@@ -299,11 +290,49 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 	parent.add_child(node)
 
 
-## #226: painéis finos a partir da planta do motor (parede = célula inteira lá): contorno rente à borda de fora, divisória no meio.
-func _add_panels(parent: Node3D, plan: Dictionary, level: int) -> void:
+## #226: as paredes de fora do andar (`walls` da planta) mais as de dentro (cômodos, `rooms[level].walls`): o motor diz em que aresta fica cada uma.
+func _walls_of(floor_layout: Dictionary, info: Dictionary, level: int) -> Array:
+	var walls: Array = []
+	walls.append_array(floor_layout.get("walls", []) if floor_layout.get("walls") != null else [])
+	walls.append_array(_rooms_of(info, level).get("walls", []))
+	return walls
+
+
+## As aberturas de porta do andar: a da rua (térreo) e as portas entre cômodos.
+func _doors_of(floor_layout: Dictionary, info: Dictionary, level: int) -> Array:
+	var doors: Array = []
+	doors.append_array(floor_layout.get("doors", []) if floor_layout.get("doors") != null else [])
+	doors.append_array(_rooms_of(info, level).get("doors", []))
+	return doors
+
+
+## Os cômodos do andar (`rooms` do motor, na ordem dos andares); vazio em mundo sem cômodos.
+func _rooms_of(info: Dictionary, level: int) -> Dictionary:
+	var rooms = info.get("rooms")
+	if rooms is Array and level < rooms.size() and rooms[level] is Dictionary:
+		return rooms[level]
+	return {}
+
+
+## #226: painéis finos a partir das arestas de parede do motor: os de fora rentes à borda por dentro, os de dentro no meio da aresta; a
+## porta é só o vão (verga em cima), sem painel.
+func _add_panels(parent: Node3D, plan: Dictionary, level: int, walls: Array, doors: Array) -> void:
 	_plans[level] = plan
 	var rects: Array = []
-	for panel in WallPanels.panels(plan):
+	for opening in WallPanels.openings(doors, plan):
+		var span: Rect2 = opening.rect
+		var door_h := Grid.units(Grid.door_meters)
+		var lintel := MeshInstance3D.new()
+		var top := BoxMesh.new()
+		top.size = Vector3(span.size.x * Grid.CELL, maxf(0.05, wall_height() - door_h), span.size.y * Grid.CELL)
+		lintel.mesh = top
+		lintel.material_override = _material(Color("6b4a2b"))
+		var middle := Vector2(origin) + span.get_center()
+		lintel.position = Vector3(middle.x * Grid.CELL, door_h + top.size.y / 2.0, middle.y * Grid.CELL)
+		parent.add_child(lintel)
+		var lintel_cell: Vector2i = origin + Vector2i(opening.cell)
+		_walls.append({"node": lintel, "mesh": top, "cell": lintel_cell, "lintel": true})
+	for panel in WallPanels.panels(walls, plan):
 		var rect: Rect2 = panel.rect
 		var absolute := Rect2(Vector2(origin) + rect.position, rect.size)
 		rects.append(absolute)

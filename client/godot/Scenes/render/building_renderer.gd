@@ -301,9 +301,12 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var door_out := Vector3(0, 0, 1)
 	var solid: Array = [] # #229/#226: painéis finos de parede (sem a porta): o que o corpo do jogador não atravessa
 	var walls: Array = [] # AD-197s2: as caixas sólidas das células de parede (a câmera do jogador fica no cômodo, fora delas)
+	var legacy: bool = info.get("walls", []).is_empty() # #226: sem arestas do motor (servidor antigo, placeholder), a parede é a célula de material de parede
 	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
+		if not legacy:
+			continue
 		var material: int = cells[cell]
 		match material:
 			MATERIAL_WALL_STONE, MATERIAL_WALL_WOOD:
@@ -341,9 +344,15 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)
 			_:
 				pass
-	for panel in WallPanels.panels(cells): # #226: o corpo colide com painel fino (contorno rente à borda de fora), não com a célula inteira
-		var rect: Rect2 = panel.rect
-		solid.append(AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, height, rect.size.y)))
+	if legacy:
+		for panel in WallPanels.legacy_panels(cells): # painel fino a partir de células de parede (contorno rente à borda de fora)
+			var rect: Rect2 = panel.rect
+			solid.append(AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, height, rect.size.y)))
+	else:
+		var edged := _edge_walls(root, info, cells, height, wall_materials, trim, door, step, window_material, windows, walls, solid)
+		if edged.door_at != Vector3.INF:
+			door_at = edged.door_at
+			door_out = edged.door_out
 	var lit := Dress.lit_windows(state, windows.size())
 	for i in range(lit, windows.size()):
 		windows[i].material_override = dark_window_material
@@ -412,6 +421,67 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var eave_shell := Grid.units(ROOF_EAVE_M)
 	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + Dress.u(0.9), roof_top + Dress.u(0.1)), span.y + eave_shell * 2.0)))
 	return root
+
+
+## #226: a parede de fora desenhada onde o motor diz (uma por aresta da borda, painel fino rente à borda por dentro) e a porta no vão que o motor
+## deixa aberto (verga, laterais e folha). Devolve onde a porta abre ({door_at, door_out}; INF sem porta). Preenche `windows`, `walls` e `solid`.
+func _edge_walls(root: Node3D, info: Dictionary, cells: Dictionary, height: float, wall_materials: Dictionary, trim: Material, door: Material,
+		step: Material, window_mat: Material, windows: Array, walls: Array, solid: Array) -> Dictionary:
+	var floors: int = info.floors
+	var found := {"door_at": Vector3.INF, "door_out": Vector3(0, 0, 1)}
+	for panel in WallPanels.panels(info.walls, cells, info.cell):
+		var rect: Rect2 = panel.rect
+		var center := Vector3(rect.get_center().x * Grid.CELL, 0.0, rect.get_center().y * Grid.CELL)
+		var inner: Vector2i = panel.cell
+		var outward: Vector2i = panel.outward
+		var material: int = int(panel.material)
+		var size := Vector3(rect.size.x * Grid.CELL, height, rect.size.y * Grid.CELL)
+		walls.append(AABB(Vector3(rect.position.x * Grid.CELL, 0, rect.position.y * Grid.CELL), size))
+		solid.append(AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, height, rect.size.y)))
+		_box(root, size, center + Vector3(0, height / 2.0, 0), wall_materials.get(material, wall_materials[0]))
+		_box(root, Vector3(size.x + 0.04, 0.12, size.z + 0.04), center + Vector3(0, 0.06, 0), trim) # rodapé
+		for level in range(1, floors):
+			_box(root, Vector3(size.x + 0.03, 0.07, size.z + 0.03), center + Vector3(0, level * Grid.floor_height(), 0), trim) # friso entre andares
+		if outward == Vector2i.ZERO:
+			continue
+		var face := Vector3(outward.x, 0, outward.y)
+		var thickness: float = size.x if outward.x != 0 else size.z
+		for level in floors:
+			if Scenery.cell_hash(inner, level * 4 + DIRS.find(outward) + 11) < 0.5:
+				var pane := Grid.units(Grid.window_meters) # ADR-0052: janela e peitoril em metros do motor
+				var window := _box(root, Vector3(pane if outward.x == 0 else 0.04, pane, pane if outward.y == 0 else 0.04),
+					center + Vector3(0, level * Grid.floor_height() + Grid.units(Grid.window_sill_meters) + pane / 2.0, 0) + face * (thickness / 2.0 + 0.005), window_mat)
+				window.name = "Window"
+				windows.append(window)
+	for opening in WallPanels.openings(info.doors, cells, info.cell):
+		var span: Rect2 = opening.rect
+		var cell: Vector2i = opening.cell
+		var outward: Vector2i = opening.outward
+		if outward == Vector2i.ZERO:
+			continue
+		var face := Vector3(outward.x, 0, outward.y)
+		var door_w := Grid.units(Grid.door_width_meters) # ADR-0052: porta em metros do motor
+		var door_h := Grid.units(Grid.door_meters)
+		var middle := Vector3(span.get_center().x * Grid.CELL, 0.0, span.get_center().y * Grid.CELL)
+		var along := Vector3(absf(face.z), 0, absf(face.x)) # eixo do vão
+		var open_w := span.size.x * Grid.CELL if outward.y != 0 else span.size.y * Grid.CELL
+		var depth := span.size.y * Grid.CELL if outward.y != 0 else span.size.x * Grid.CELL
+		var wall_material: Material = wall_materials[0]
+		_box(root, Vector3(open_w if outward.y != 0 else depth, height - door_h, depth if outward.y != 0 else open_w),
+			middle + Vector3(0, door_h + (height - door_h) / 2.0, 0), wall_material).name = "Lintel" # verga: a parede acima da porta
+		var side := (open_w - door_w) / 2.0
+		if side > 0.01:
+			for lateral in [-1.0, 1.0]:
+				_box(root, Vector3(side if outward.y != 0 else depth, door_h, depth if outward.y != 0 else side),
+					middle + along * (lateral * (door_w + side) / 2.0) + Vector3(0, door_h / 2.0, 0), wall_material) # ombreira
+		var outer := middle + face * (depth / 2.0)
+		if found.door_at == Vector3.INF:
+			found.door_at = outer
+			found.door_out = face
+		_box(root, Vector3(door_w if outward.x == 0 else 0.1, door_h, door_w if outward.y == 0 else 0.1), middle + Vector3(0, door_h / 2.0, 0) + face * (depth / 2.0), door).name = "Door"
+		_box(root, Vector3(0.9 if outward.x == 0 else 0.3, 0.06, 0.9 if outward.y == 0 else 0.3), Grid.to_world(cell, 0.03) + face * 0.78, step)
+		_lamp_post(root, Grid.to_world(cell) + face * 1.15 + Vector3(face.z, 0, face.x) * 0.5)
+	return found
 
 
 func _lamp_post(parent: Node3D, at: Vector3) -> void:

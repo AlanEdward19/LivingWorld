@@ -275,6 +275,7 @@ func _load_interior(payload: Dictionary) -> void:
 		"building": id_of(payload.id), "city": id_of(payload.city), "floors": int(layout.floors),
 		"layout": layout.floorLayouts, "occupants": payload.occupants,
 		"objects": payload.get("objects"), ## catálogo + mobília do servidor (ADR-0034); null = cai no assets.json
+		"rooms": payload.get("rooms"), ## #226: cômodos, paredes e portas de dentro por andar (o motor diz); null = mundo sem cômodos
 	}
 
 
@@ -301,10 +302,23 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 	var footprint: Array = []
 	for entry in marker.get("groundFootprint", []) if marker.get("groundFootprint") != null else []:
 		footprint.append({"cell": cell_of(entry.cell), "material": int(entry.material)})
+	return _building_of(id, marker, footprint)
+
+
+## #226: a parede é aresta: `walls` (trechos {a, b, material}) e `doors` (a abertura) do térreo, em células locais.
+static func segments(raw: Variant) -> Array:
+	var out: Array = []
+	for entry in raw if raw is Array else []:
+		out.append({"a": cell_of(entry.a), "b": cell_of(entry.b), "material": int(entry.material)})
+	return out
+
+
+func _building_of(id: int, marker: Dictionary, footprint: Array) -> Dictionary:
 	return {
 		"id": id, "type": Parse._i(marker, "buildingTypeId", -1), "cell": cell_of(marker.get("location")),
 		"orientation": Parse._i(marker, "orientation", 0), "floors": Parse._i(marker, "floors", 1),
 		"footprint": footprint, "value": Parse._i(marker, "value", 0), "lodging": marker.get("lodging"),
+		"walls": segments(marker.get("groundWalls")), "doors": segments(marker.get("groundDoors")), ## #226: paredes de fora nas arestas e a abertura da porta
 		"lot": Ground.lot(marker.get("lot")), ## AD-173: quintal, caminho da porta e rua da frente; {} = sem lote
 		"work": _work_view(marker.get("work")), ## AD-184/193: canteiro (obra em curso no lote); {} = prédio pronto
 	}
@@ -380,6 +394,8 @@ func apply_delta(envelope: Dictionary) -> void:
 		buildings[id] = fresh
 		if buildings[id].footprint.is_empty() and known != null: # servidor antigo, só posição: vale o que o snapshot trouxe
 			buildings[id].footprint = known.footprint
+			buildings[id].walls = known.get("walls", [])
+			buildings[id].doors = known.get("doors", [])
 			buildings[id].floors = known.floors
 			buildings[id].value = known.value
 			buildings[id].lodging = known.lodging

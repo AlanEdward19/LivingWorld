@@ -7,21 +7,47 @@ const InteriorView := preload("res://Scenes/interior_view.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
 
 
+## #226: a parede é aresta: toda célula é piso (a de (1,2) é a entrada, a de (1,1) a escada) e o contorno vem em `walls`; o térreo tem a porta aberta
+## na aresta de baixo de (1,2) (`doors`); dos andares de cima ela é parede.
+func _edges(with_door: bool) -> Dictionary:
+	var walls: Array = []
+	var doors: Array = []
+	for y in 3:
+		for x in 3:
+			for d: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+				var n: Vector2i = Vector2i(x, y) + d
+				if n.x >= 0 and n.y >= 0 and n.x < 3 and n.y < 3:
+					continue
+				var a := Vector2i(x, y)
+				var b := n
+				if b.y < a.y or (b.y == a.y and b.x < a.x):
+					a = n
+					b = Vector2i(x, y)
+				var segment := {"a": {"x": a.x, "y": a.y}, "b": {"x": b.x, "y": b.y}, "material": 1}
+				if with_door and x == 1 and y == 2 and d == Vector2i(0, 1):
+					segment.material = 2
+					doors.append(segment)
+				else:
+					walls.append(segment)
+	return {"walls": walls, "doors": doors}
+
+
 func _info() -> Dictionary:
 	var cells: Array = []
 	for y in 3:
 		for x in 3:
 			var material := 3
-			if x == 0 or y == 0 or x == 2 or y == 2:
-				material = 1
 			if x == 1 and y == 2:
 				material = 2
 			if x == 1 and y == 1:
 				material = 4
 			cells.append({"cell": {"x": x, "y": y}, "material": material})
+	var ground := _edges(true)
+	var upper := _edges(false)
 	return {
 		"building": 4, "floors": 3,
-		"layout": [{"level": 0, "cells": cells}, {"level": 1, "cells": cells}, {"level": 2, "cells": cells}],
+		"layout": [{"level": 0, "cells": cells, "walls": ground.walls, "doors": ground.doors}, {"level": 1, "cells": cells, "walls": upper.walls, "doors": []},
+			{"level": 2, "cells": cells, "walls": upper.walls, "doors": []}],
 		"occupants": [
 			{"npc": {"value": 1}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}},
 			{"npc": {"value": 2}, "floor": {"value": 1}, "localCell": {"x": 1, "y": 1}},

@@ -66,11 +66,20 @@ func test_inside_the_house_the_body_neighborhood_comes_from_the_thin_panels() ->
 	var outside: Array = app.player_neighborhood(Vector2(0, 0))
 	await app.enter_building(4)
 	var view = app.stage.interior_view
-	var walled: Array = [] # a planta do fixture é só piso: põe o contorno de parede que o motor manda numa casa de verdade
+	var cells: Array = [] # a planta do fixture: 3x3 de piso e o contorno em arestas de parede (#226), como o motor manda numa casa de verdade
+	var walls: Array = []
 	for y in 3:
 		for x in 3:
-			walled.append({"cell": {"x": x, "y": y}, "material": 1 if (x == 0 or y == 0 or x == 2 or y == 2) else 3})
-	view.show_interior({"building": 4, "floors": 1, "layout": [{"level": 0, "cells": walled}], "occupants": []}, Vector2i(5, 5), app.labels)
+			cells.append({"cell": {"x": x, "y": y}, "material": 3})
+			if x == 0:
+				walls.append({"a": {"x": -1, "y": y}, "b": {"x": 0, "y": y}, "material": 1})
+			if x == 2:
+				walls.append({"a": {"x": 2, "y": y}, "b": {"x": 3, "y": y}, "material": 1})
+			if y == 0:
+				walls.append({"a": {"x": x, "y": -1}, "b": {"x": x, "y": 0}, "material": 1})
+			if y == 2:
+				walls.append({"a": {"x": x, "y": 2}, "b": {"x": x, "y": 3}, "material": 1})
+	view.show_interior({"building": 4, "floors": 1, "layout": [{"level": 0, "cells": cells, "walls": walls, "doors": []}], "occupants": []}, Vector2i(5, 5), app.labels)
 	var middle: Vector3 = view.center()
 	var near: Array = app.player_neighborhood(Vector2(middle.x, middle.z))
 	check(not near[0].is_empty(), "painéis do interior ao redor do corpo")
