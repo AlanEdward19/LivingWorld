@@ -40,6 +40,8 @@ static func run(app: Node, steps: Array) -> void:
 				await app.enter_building(int(arg))
 			"exit":
 				await app.exit_building()
+			"placed": # #237: `placed:-1` faz de conta que o motor disse "saiu do prédio" (`placed:<id>` entra), como a pose faz
+				await app._on_player_placed(int(arg), 0)
 			"floor":
 				app.stage.set_floor(int(arg))
 			"zoom":

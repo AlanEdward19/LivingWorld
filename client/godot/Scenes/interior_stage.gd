@@ -101,6 +101,7 @@ func leave() -> void:
 	backdrop.visible = false
 	floor_label.visible = false
 	active = false
+	interior_view.close() # #237: a casa sai do desenho de vez (antes ficava no lugar, escura, por cima do mundo)
 	_show_world()
 
 
