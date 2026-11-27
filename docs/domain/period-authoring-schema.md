@@ -11,7 +11,7 @@ os blocos abaixo vêm no mesmo nível (raiz do objeto), exceto onde indicado.
 | `Seed` | ulong | sim | semente determinística — sobrescrita por `POST /worlds/start` |
 | `RegionSize` | int | sim | tamanho de região pra particionamento |
 | `TerrainIds`, `BiomeIds`, `ResourceIds` | int[] | não (vazio = sem restrição) | ids válidos |
-| `CostWeights.Base`, `CostWeights.AltitudeWeight` | double | sim | custo de movimento |
+| `CostWeights.Base`, `CostWeights.AltitudeWeight` | double | sim | custo de movimento, em horas por célula de terreno leve; vila de 1,5 m por célula: 1,5 ÷ 1,4 ÷ 3600 ≈ 0,0003 (`WorldScale.CellBaseHours`); mapa de região (célula ~250 m): 0,05 |
 | `CostWeights.TerrainWeight` | objeto `{ "id": peso }` | não | peso por terreno |
 | `Settlements[]` | array de `{ Name, X, Y }` | não | âncoras de assentamento inicial |
 | `Cells[]` | array de célula autoral | não | ausente = mapa gerado proceduralmente a partir de `Seed` |

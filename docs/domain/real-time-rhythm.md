@@ -55,6 +55,9 @@ Novos tipos no `players.log`: `Advance` (`step` e `advance-year` do admin: `Tick
 começa), `Sleep` (`UntilMs`, nulo = acelerar), `Accelerate`, `Wake` (`Reason`). `PlayerReplay` reaplica todos; o ciclo do
 hospedeiro grava o fim do pulo e a troca de Δ antes de andar o tick.
 
+- **Viagem em metros (AD-197o2)**: 1,5 m por célula a 1,4 m/s (`WorldScale`): o trajeto casa-posto leva segundos, não horas; o NPC troca de célula
+  à velocidade de gente, igual ao passo do jogador. Sem jogador (hora cheia) a viagem custa ao menos um tick.
+
 ## Hash
 Com Δ = 1 h nada disto roda (`FineTime` falso, fase 0 fora do JSON, despertar em horas): os goldens ficam iguais. Com Δ fino o
 mundo diverge por construção (despertar no instante do limiar, ação começando dentro da hora) e é reproduzível pela sequência de Δ.

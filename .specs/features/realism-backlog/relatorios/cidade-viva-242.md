@@ -73,3 +73,11 @@ Não mexi em coleta/mata, ação em andamento, barra de progresso, câmera nem o
 
 Reprodução: sonda em `/private/tmp/claude-501/-Users-aoliveira-Desktop-Projects-LivingWorld/7392251a-1ec6-4bf2-8382-62ad34632fdc/scratchpad/probe242/Program.cs`
 (`dotnet probe242.dll <seed> <dias> <aquecimento>`), capturas em `.../scratchpad/play/fotos242/`.
+
+## 4. Feito: viagem dos NPCs em metros (item 1, AD-197o2)
+`CostWeights.Base` = `WorldScale.CellBaseHours` (~0,0003 h = 1,07 s por célula) no menu e na vila de código; preset gravado em 0,05 migra.
+Limiares em horas revistos (o código ficou, o que significam: **uma hora a pé, ~5 km**, que a vila de 30-80 m não alcança):
+despensa (`PantryOutOfReach`), espólio (`Leavings.MaxFetchHours`), mobilidade (`PressureTravelTicks`), mercado a horas, "tempo
+poupado paga a obra" e `WorkHaul.CutHours`. Testes dessas regras: `ScenarioRunner.RegionalCostWeights` (célula ~250 m). FineTime: tick de 1 s.
+Medido (cidade média, semente 2002, 13:59:50, 70 s a 50 ms): viagens concluídas 1 -> 81, m/s pela rota mediana 0,94 (p90 1,46).
+Menu 3x6x10 anos e vila de código 6x100 anos: sem fome nem sede, demografia no ruído (AD-197o2 no log). Fica: Conversar/passear (2 e 3).
