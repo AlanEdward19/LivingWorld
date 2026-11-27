@@ -3,6 +3,7 @@ extends Node3D
 ## A planta vem pronta do servidor (layout por andar); o cliente nunca inventa parede nem escada.
 
 const Grid := preload("res://Scenes/grid.gd")
+const WallPanels := preload("res://Scenes/wall_panels.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
@@ -33,8 +34,8 @@ var _occupants: Array = []
 var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
 var _center := Vector3.ZERO
-var _level_materials: Dictionary = {} ## célula local -> material do andar sendo montado (para a parede fina saber o lado do cômodo)
-const WALL_THICKNESS := 0.22 ## #222: a parede é uma placa fina na borda do cômodo (antes um cubo de célula inteira, 1,5 m)
+var _span := 0.0
+var _panels: Dictionary = {} ## nível -> [Rect2] painéis finos de parede (células absolutas) para a colisão do corpo (#226)
 var _view_dir := Vector3.ZERO
 
 
@@ -49,11 +50,11 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		var node := Node3D.new()
 		node.name = "Floor_%d" % level
 		node.position.y = level * Grid.floor_height()
-		_level_materials = {}
+		var plan := {}
 		for entry in floor_layout.cells:
-			_level_materials[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
-		for entry in floor_layout.cells:
+			plan[Vector2i(int(entry.cell.x), int(entry.cell.y))] = int(entry.material)
 			_add_cell(node, entry, level)
+		_add_panels(node, plan, level)
 		add_child(node)
 		floor_nodes[level] = node
 	roof = Node3D.new()
@@ -181,27 +182,9 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 	var node := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	match material:
-		WALL_STONE, WALL_WOOD:
-			# #222: placas finas nas bordas que dão para o cômodo (chão, escada, porta); a célula da parede vira chão escuro
-			var color := Color("9a948a") if material == WALL_STONE else Color("a27b52")
-			var local := Vector2i(int(entry.cell.x), int(entry.cell.y))
-			var sides := 0
-			for side in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-				var other = _level_materials.get(local + side)
-				if other == null or int(other) in [WALL_STONE, WALL_WOOD]:
-					continue
-				sides += 1
-				var panel := MeshInstance3D.new()
-				var box := BoxMesh.new()
-				box.size = Vector3(Grid.CELL if side.x == 0 else WALL_THICKNESS, wall_height(), Grid.CELL if side.y == 0 else WALL_THICKNESS)
-				panel.mesh = box
-				panel.material_override = _material(color)
-				var edge := Vector3(side.x, 0, side.y) * (Grid.CELL / 2.0 - WALL_THICKNESS / 2.0)
-				panel.position = Grid.to_world(cell, wall_height() / 2.0) + edge
-				parent.add_child(panel)
-				_walls.append({"node": panel, "mesh": box, "cell": cell, "edge": edge})
-			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL) # a célula da parede: chão escuro (o cômodo é o que fica dentro das placas)
-			node.material_override = _material(color.darkened(0.35))
+		WALL_STONE, WALL_WOOD: # #226: a parede é painel fino (ver _add_panels); a célula dela é piso útil, como o resto do cômodo
+			mesh.size = Vector3(Grid.CELL, 0.08, Grid.CELL)
+			node.material_override = _material(Color("c9b896") if (cell.x + cell.y + level) % 2 == 0 else Color("bfae8c"))
 			node.position = Grid.to_world(cell, 0.0)
 		STAIR: # #222: degraus que sobem até o andar de cima (antes um bloco chato)
 			mesh.size = Vector3(Grid.CELL, 0.06, Grid.CELL)
@@ -238,6 +221,49 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 	parent.add_child(node)
 
 
+## #226: painéis finos a partir da planta do motor (parede = célula inteira lá): contorno rente à borda de fora, divisória no meio.
+func _add_panels(parent: Node3D, plan: Dictionary, level: int) -> void:
+	var rects: Array = []
+	for panel in WallPanels.panels(plan):
+		var rect: Rect2 = panel.rect
+		var absolute := Rect2(Vector2(origin) + rect.position, rect.size)
+		rects.append(absolute)
+		var node := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(rect.size.x * Grid.CELL, wall_height(), rect.size.y * Grid.CELL)
+		node.mesh = box
+		node.material_override = _material(Color("9a948a") if int(panel.material) == WALL_STONE else Color("a27b52"))
+		var center := absolute.get_center()
+		node.position = Vector3(center.x * Grid.CELL, wall_height() / 2.0, center.y * Grid.CELL)
+		parent.add_child(node)
+		var cell: Vector2i = origin + Vector2i(panel.cell)
+		_walls.append({"node": node, "mesh": box, "cell": cell, "edge": node.position - Grid.to_world(cell, wall_height() / 2.0)})
+	_panels[level] = rects
+
+
+## #226/#229: o que o corpo do jogador toca no andar visível ao redor de `center` (células): [[Rect2, altura]].
+func obstacles_near(center: Vector2, reach: float, level: int = -1) -> Array:
+	var out: Array = []
+	var area := Rect2(center - Vector2(reach, reach), Vector2(reach, reach) * 2.0)
+	for rect: Rect2 in _panels.get(current_floor if level < 0 else level, []):
+		if area.intersects(rect):
+			out.append([rect, wall_height()])
+	return out
+
+
+## Quem está no andar visível (posição fina em células) fora `except_id`: o corpo empurra de leve.
+func people_near(center: Vector2, reach: float, except_id: int = -1) -> Array:
+	var out: Array = []
+	for id in occupant_nodes:
+		var actor: Node3D = occupant_nodes[id]
+		if id == except_id or not actor.visible:
+			continue
+		var at := Vector2(actor.position.x, actor.position.z) / Grid.CELL
+		if at.distance_to(center) <= reach:
+			out.append(at)
+	return out
+
+
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
@@ -250,6 +276,7 @@ func _clear() -> void:
 	_object_bases.clear()
 	_use_points.clear()
 	_walls.clear()
+	_panels.clear()
 	_view_dir = Vector3.ZERO
 	for node in floor_nodes.values():
 		node.free()
@@ -293,8 +320,11 @@ func set_occupants(occupants: Array) -> void:
 		if actor.action != action or actor.use_pose != String(use.pose):
 			actor.set_action(action, _labels, String(use.pose))
 		actor.enable_bed(not use.active) # a cama do catálogo substitui a do NPC
-		actor.position = use.position if use.active else Grid.to_world(cell, level * Grid.floor_height())
-		actor.rotation.y = use.facing if use.active else actor.rotation.y
+		if actor.driven: # #226: o corpo do jogador anda pela posição fina (colisão nos painéis); a célula do motor só corrige o andar
+			actor.position.y = level * Grid.floor_height()
+		else:
+			actor.position = use.position if use.active else Grid.to_world(cell, level * Grid.floor_height())
+			actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():
 		if not wanted.has(id):
@@ -358,12 +388,23 @@ func visible_occupant_ids() -> Array:
 	return ids
 
 
+## Centro da planta do térreo no mundo (unidades), para o foco da câmera e o fundo.
+func center() -> Vector3:
+	return _center * Grid.CELL
+
+
+## Maior lado da planta do térreo, em células.
+func span_cells() -> float:
+	return _span
+
+
 func _compute_center(info: Dictionary) -> void:
 	var lo := Vector2(1e9, 1e9)
 	var hi := Vector2(-1e9, -1e9)
 	for entry in info.layout[0].cells if info.layout.size() > 0 else []:
 		lo = Vector2(minf(lo.x, entry.cell.x), minf(lo.y, entry.cell.y))
 		hi = Vector2(maxf(hi.x, entry.cell.x), maxf(hi.y, entry.cell.y))
+	_span = maxf(hi.x - lo.x, hi.y - lo.y) + 1.0 if hi.x >= lo.x else 0.0
 	_center = Vector3(origin.x + (lo.x + hi.x) / 2.0 + 0.5, 0, origin.y + (lo.y + hi.y) / 2.0 + 0.5)
 
 

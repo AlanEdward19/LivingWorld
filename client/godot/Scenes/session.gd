@@ -143,14 +143,17 @@ func _enter_interior_view() -> void:
 			app.registry.objects[String(descriptor.id)] = descriptor
 	var title: String = app.registry.title_of(Registry.ref(Registry.BUILDING, interior_building))
 	app.breadcrumb.text = "%s › %s" % [crumb_before, title]
-	if marker != null and not app.director.active():
-		app.rig.focus(Vector3(origin.x + 1.5, 0, origin.y + 1.5))
-		app.rig.set_zoom(7.0)
+	if marker != null and not app.director.active() and not (app.player_hud != null and app.player_hud.is_active):
+		var middle: Vector3 = app.stage.interior_view.center() # #227: a câmera foca a casa onde ela está, na escala do mundo
+		app.rig.begin_blend()
+		app.rig.focus(middle)
+		app.rig.set_zoom(maxf(7.0, app.stage.interior_view.span_cells() * 1.4 + 3.0))
 
 
 func exit_building() -> void:
 	if not app.stage.active:
 		return
+	app.rig.begin_blend() # #227: sai sem corte seco; a posse e a câmera do jogador ficam
 	app.stage.leave()
 	interior_building = -1
 	await app.stream.subscribe(previous_scope[0], previous_scope[1])

@@ -1,73 +1,53 @@
 extends Control
-## Palco do interior: o exterior (mundo na viewport principal) fica escurecido e desfocado por uma
-## camada de tela; o interior é desenhado nítido por cima, numa SubViewport com mundo 3D próprio e
-## câmera espelhada da câmera do espectador.
+## #227: foco no interior. A casa é desenhada no próprio mundo, no lugar do prédio e na escala do mundo (mesma câmera, mesmo
+## sol, mesmas unidades): não há SubViewport nem outra escala. O resto do mundo deixa de ser desenhado e atualizado (o quadro
+## fica mais barato dentro da casa) e um fundo suave e escurecido, sem geometria, faz o papel do mundo fora de foco.
 
 const InteriorView := preload("res://Scenes/interior_view.gd")
 
-var dim_rect: ColorRect
 var interior_view
 var active := false
 var floor_label: Label
+var world: Node3D ## o mundo desenhado (WorldView): escondido e parado enquanto a casa está em foco
+var backdrop: MeshInstance3D ## o mundo fora de foco: chão desfocado que escurece para as bordas
 
-var _container: SubViewportContainer
-var _viewport: SubViewport
-var _camera: Camera3D
-var _sun: DirectionalLight3D
-var _environment: Environment
+var _material: ShaderMaterial
 var _source: Camera3D
+var _world_process_mode := Node.PROCESS_MODE_INHERIT
+var _light := 1.0
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim_rect = ColorRect.new()
-	dim_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shader := Shader.new()
 	shader.code = """
-shader_type canvas_item;
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
-uniform float blur_lod = 3.0;
-uniform float darken = 0.38;
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform vec3 center = vec3(0.0);
+uniform vec3 tint : source_color = vec3(0.34, 0.42, 0.28);
+uniform float radius = 18.0;
+varying vec3 pos;
+void vertex() { pos = VERTEX; }
 void fragment() {
-	vec3 color = textureLod(screen_tex, SCREEN_UV, blur_lod).rgb;
-	COLOR = vec4(color * darken, 1.0);
+	float d = length(pos.xz - center.xz) / radius;
+	float soft = smoothstep(0.0, 1.0, d);
+	ALBEDO = mix(tint, tint * 0.18, soft);
 }
 """
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	dim_rect.material = material
-	dim_rect.visible = false
-	add_child(dim_rect)
-
-	_container = SubViewportContainer.new()
-	_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_container.stretch = true
-	_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_container.visible = false
-	add_child(_container)
-	_viewport = SubViewport.new()
-	_viewport.own_world_3d = true
-	_viewport.transparent_bg = true
-	_viewport.handle_input_locally = false
-	_container.add_child(_viewport)
-	_camera = Camera3D.new()
-	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.far = 400.0
-	_viewport.add_child(_camera)
-	_sun = DirectionalLight3D.new()
-	_sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(30), 0)
-	_viewport.add_child(_sun)
-	var environment := WorldEnvironment.new()
-	_environment = Environment.new()
-	_environment.background_mode = Environment.BG_CLEAR_COLOR
-	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.environment = _environment
-	_viewport.add_child(environment)
-	set_daylight(1.0)
+	_material = ShaderMaterial.new()
+	_material.shader = shader
+	backdrop = MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(160, 160)
+	backdrop.mesh = plane
+	backdrop.material_override = _material
+	backdrop.position.y = -0.04
+	backdrop.visible = false
+	backdrop.name = "Backdrop"
+	add_child(backdrop)
 	interior_view = InteriorView.new()
-	_viewport.add_child(interior_view)
+	add_child(interior_view)
 	floor_label = Label.new()
 	floor_label.visible = false
 	floor_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -79,31 +59,48 @@ void fragment() {
 func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1, lodging_units: int = 0) -> void:
 	_source = source_camera
 	interior_view.show_interior(info, origin, labels, building_type, lodging_units)
-	dim_rect.visible = true
-	_container.visible = true
+	_hide_world()
+	var middle: Vector3 = interior_view.center()
+	backdrop.position = Vector3(middle.x, -0.04, middle.z)
+	_material.set_shader_parameter("center", middle)
+	backdrop.visible = true
 	active = true
 	_update_floor_label()
 	_sync_camera()
 
 
-## Luz do interior segue o dia: de noite fica à luz de lamparina (quente e baixa).
+## O mundo some do desenho e do `_process` (custo de quadro cai); volta igual ao sair.
+func _hide_world() -> void:
+	if world == null or not is_instance_valid(world) or not world.visible:
+		return
+	_world_process_mode = world.process_mode
+	world.visible = false
+	world.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func _show_world() -> void:
+	if world == null or not is_instance_valid(world) or world.visible:
+		return
+	world.process_mode = _world_process_mode
+	world.visible = true
+
+
+## O sol e o céu são os do mundo; aqui só o fundo acompanha o dia.
 func set_daylight(light: float) -> void:
-	_sun.light_energy = 0.25 + 0.75 * light
-	_sun.light_color = Color(1.0, 0.78, 0.55).lerp(Color(1, 0.97, 0.92), light)
-	_environment.ambient_light_color = Color(0.85, 0.65, 0.5).lerp(Color(0.75, 0.75, 0.8), light)
-	_environment.ambient_light_energy = 0.55 + 0.15 * light
+	_light = light
+	_material.set_shader_parameter("tint", Vector3(0.34, 0.42, 0.28) * (0.35 + 0.65 * light))
 
 
-## Câmera do interior (espelho da do espectador): a seleção projeta ocupantes e objetos com ela.
+## A câmera é a do mundo (a seleção projeta ocupantes e objetos com ela).
 func camera() -> Camera3D:
-	return _camera
+	return _source
 
 
 func leave() -> void:
-	dim_rect.visible = false
-	_container.visible = false
+	backdrop.visible = false
 	floor_label.visible = false
 	active = false
+	_show_world()
 
 
 func set_floor(level: int) -> void:
@@ -124,6 +121,4 @@ func _process(_delta: float) -> void:
 func _sync_camera() -> void:
 	if not is_inside_tree() or _source == null or not is_instance_valid(_source) or not _source.is_inside_tree():
 		return
-	_camera.global_transform = _source.global_transform
-	_camera.size = _source.size
 	interior_view.set_view_direction(_source.global_transform.basis.z)

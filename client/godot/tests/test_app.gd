@@ -43,17 +43,41 @@ func _app(transport) -> Node:
 	return app
 
 
-func test_enter_subscribes_and_dims_exterior() -> void:
+func test_enter_subscribes_and_focuses_the_house() -> void:
 	var transport := _transport()
 	var app = await _app(transport)
-	eq(app.stage.dim_rect.visible, false, "mundo aberto: sem escurecer")
+	eq(app.world_view.visible, true, "mundo aberto: tudo desenhado")
 
 	await app.enter_building(4)
 
 	check(transport.calls.any(func(c): return c.begins_with("GET /visual/subscribe?scope=Interior&refId=4")), "assina o escopo interior do prédio 4")
-	eq(app.stage.dim_rect.visible, true, "exterior escurecido e desfocado")
+	eq(app.world_view.visible, false, "a casa em foco: o resto do mundo não é desenhado")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_DISABLED, "nem atualizado")
+	eq(app.stage.backdrop.visible, true, "fundo fora de foco no lugar do mundo")
 	eq(app.stage.active, true)
 	eq(app.stage.interior_view.floor_count, 2)
+	app.queue_free()
+
+
+## #226/#227: dentro da casa em foco, a vizinhança do corpo vem dos painéis finos da planta e da câmera segue o ocupante do interior.
+func test_inside_the_house_the_body_neighborhood_comes_from_the_thin_panels() -> void:
+	var transport := _transport()
+	var app = await _app(transport)
+	var outside: Array = app.player_neighborhood(Vector2(0, 0))
+	await app.enter_building(4)
+	var view = app.stage.interior_view
+	var walled: Array = [] # a planta do fixture é só piso: põe o contorno de parede que o motor manda numa casa de verdade
+	for y in 3:
+		for x in 3:
+			walled.append({"cell": {"x": x, "y": y}, "material": 1 if (x == 0 or y == 0 or x == 2 or y == 2) else 3})
+	view.show_interior({"building": 4, "floors": 1, "layout": [{"level": 0, "cells": walled}], "occupants": []}, Vector2i(5, 5), app.labels)
+	var middle: Vector3 = view.center()
+	var near: Array = app.player_neighborhood(Vector2(middle.x, middle.z))
+	check(not near[0].is_empty(), "painéis do interior ao redor do corpo")
+	for entry in near[0]:
+		check(minf(entry[0].size.x, entry[0].size.y) < 0.3, "só painéis finos (%s)" % entry[0].size)
+	check(app.rig.camera.current, "a câmera do mundo é a única (sem câmera à parte)")
+	check(outside[0].is_empty(), "fora, sem prédios por perto, nada a tocar")
 	app.queue_free()
 
 
@@ -166,7 +190,8 @@ func test_exit_restores_exterior_and_scope() -> void:
 
 	await app.exit_building()
 
-	eq(app.stage.dim_rect.visible, false, "exterior restaurado")
+	eq(app.world_view.visible, true, "mundo desenhado de novo")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado de novo")
 	eq(app.stage.active, false)
 	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before + 1, "volta à assinatura anterior (Mundo)")
 	eq(app.store.kind, "World")

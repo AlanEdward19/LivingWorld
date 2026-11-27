@@ -48,6 +48,7 @@ static func build(app) -> void:
 	layer.add_child(ui)
 	app.stage = InteriorStage.new()
 	ui.add_child(app.stage)
+	app.stage.world = app.world_view # #227: o mundo que a casa em foco esconde
 	_top_bar(app, ui)
 	_side(app, ui)
 	_windows(app, ui)
