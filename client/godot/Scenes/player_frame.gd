@@ -7,7 +7,11 @@ signal chosen(entry: Dictionary)
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir   Clique bater   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
+const VERB_ICON := {"Conversar": "💬", "Comprar": "🛒", "Vender": "💰", "Pegar": "✋", "Entrar": "🚪", "Sair": "🚪", "Dormir": "🛏",
+	"Comer": "🍞", "Beber": "💧", "Trabalhar": "🔨", "Subir": "⬆", "Descer": "⬇", "Recolher": "✋", "Furtar": "🤫", "Devolver": "↩"}
+const WHEEL_RADIUS := 128.0 ## px do centro da tela até o centro de cada fatia da roda
+const WHEEL_BUTTON := Vector2(190, 34)
 const MENU_MAX := 8 ## linhas no menu do E (o resto fica de fora: quem está mais perto primeiro)
 const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próximas)
 
@@ -19,8 +23,10 @@ var clock_label: Label
 var prompt: Label
 var hints: Label
 var bars: Dictionary = {} ## "health" -> ProgressBar
-var menu_panel: PanelContainer
-var menu_box: VBoxContainer
+var menu_panel: Control ## a roda de ações: um Control no centro da tela; as fatias são Buttons em círculo
+var menu_box: Control
+var inventory: PanelContainer ## #233: a mochila (tecla I ou Tab)
+var inventory_box: VBoxContainer
 var entries: Array = []
 
 
@@ -92,17 +98,27 @@ func _init() -> void:
 	hints.add_theme_constant_override("outline_size", 5)
 	hints.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	add_child(hints)
-	menu_panel = PanelContainer.new()
-	menu_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.85), 10))
+	menu_panel = Control.new()
 	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	menu_panel.offset_left = 60
-	menu_panel.offset_top = -40
-	menu_panel.custom_minimum_size.x = 300
+	menu_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_panel.visible = false
 	add_child(menu_panel)
-	menu_box = VBoxContainer.new()
-	menu_box.add_theme_constant_override("separation", 2)
+	menu_box = Control.new()
+	menu_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_panel.add_child(menu_box)
+	inventory = PanelContainer.new()
+	inventory.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.88), 10))
+	inventory.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	inventory.offset_right = -24
+	inventory.offset_left = -300
+	inventory.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	inventory.grow_vertical = Control.GROW_DIRECTION_BOTH
+	inventory.visible = false
+	add_child(inventory)
+	inventory_box = VBoxContainer.new()
+	inventory_box.add_theme_constant_override("separation", 4)
+	inventory.add_child(inventory_box)
+	set_inventory(null, null, Callable())
 
 
 static func _style(color: Color, radius: int) -> StyleBoxFlat:
@@ -151,10 +167,57 @@ func set_clock(text: String) -> void:
 	clock_label.text = text
 
 
-## A dica sob a mira: "E  Comprar comida (5)", ou nada.
+## A dica sob a mira: "E  🛒 Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").
 func set_prompt(text: String) -> void:
-	prompt.text = ("E   " + text) if text != "" else ""
+	prompt.text = ("E   " + prompt_text(text)) if text != "" else ""
 	prompt.visible = text != "" and not menu_panel.visible
+
+
+## #233: "Caio: Conversar" -> "💬 Conversar · Caio" (verbo primeiro, o alvo depois; sem ícone para verbo desconhecido).
+static func prompt_text(line: String) -> String:
+	var cut := line.find(": ")
+	if cut < 0:
+		return line
+	var target := line.substr(0, cut)
+	var verb := line.substr(cut + 2)
+	var icon := String(VERB_ICON.get(verb.get_slice(" ", 0), ""))
+	return "%s%s · %s" % [icon + " " if icon != "" else "", verb, target]
+
+
+## #233: o ponto (em 0..1 do raio) onde a fatia `i` de `n` fica na roda: a primeira no alto, em sentido horário.
+static func wheel_offset(i: int, n: int) -> Vector2:
+	var angle := -PI / 2.0 + TAU * float(i) / float(maxi(n, 1))
+	return Vector2(cos(angle) * 1.45, sin(angle)) * WHEEL_RADIUS
+
+
+## #233: a mochila como o motor diz (ficha): dinheiro e o que leva nas mãos; sem dado, "vazia".
+func set_inventory(money: Variant, carrying: Variant, name_of: Callable) -> void:
+	for child in inventory_box.get_children():
+		inventory_box.remove_child(child)
+		child.queue_free()
+	var title := _label(18, Color("ffe9a6"))
+	title.text = "Mochila"
+	inventory_box.add_child(title)
+	var coins := _label(15, Color.WHITE)
+	coins.text = "Dinheiro: %d" % int(money) if money != null else "Dinheiro: —"
+	inventory_box.add_child(coins)
+	var hands := _label(15, Color.WHITE)
+	if carrying is Dictionary and int(carrying.get("quantity", 0)) > 0:
+		hands.text = "Nas mãos: %d %s" % [int(carrying.quantity), String(name_of.call(int(carrying.resourceId))) if name_of.is_valid() else ""]
+	else:
+		hands.text = "Nas mãos: nada"
+	inventory_box.add_child(hands)
+	var foot := _label(12, Color(1, 1, 1, 0.55))
+	foot.text = "I ou Tab fecha"
+	inventory_box.add_child(foot)
+
+
+func toggle_inventory() -> void:
+	inventory.visible = not inventory.visible
+
+
+func inventory_open() -> bool:
+	return inventory.visible
 
 
 ## As linhas do menu do E no modo de jogo: sem "Bater" (é o clique), as coisas primeiro e só as pessoas mais perto de `at`.
@@ -183,21 +246,24 @@ static func game_entries(all: Array, offers: Array, at: Vector2) -> Array:
 func show_menu(list: Array) -> void:
 	entries = list
 	for child in menu_box.get_children():
+		menu_box.remove_child(child)
 		child.queue_free()
 	var title := _label(15, Color("ffe9a6"))
-	title.text = "O que fazer" if not list.is_empty() else "Nada ao alcance"
+	title.text = ("O que fazer\n1–%d escolhe · Esc fecha" % list.size()) if not list.is_empty() else "Nada ao alcance\nEsc fecha"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size = Vector2(220, 40)
+	title.position = Vector2(-110, -20)
 	menu_box.add_child(title)
 	for i in list.size():
 		var entry: Dictionary = list[i]
 		var button := Button.new()
-		button.text = "%d   %s" % [i + 1, entry.text]
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.text = "%d   %s" % [i + 1, prompt_text(String(entry.text))]
 		button.focus_mode = Control.FOCUS_NONE
+		button.size = WHEEL_BUTTON
+		button.position = wheel_offset(i, list.size()) - WHEEL_BUTTON / 2.0
+		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.85), 16))
 		button.pressed.connect(func(): chosen.emit(entry))
 		menu_box.add_child(button)
-	var foot := _label(12, Color(1, 1, 1, 0.55))
-	foot.text = "1–%d escolhe · E ou Esc fecha" % list.size() if not list.is_empty() else "E ou Esc fecha"
-	menu_box.add_child(foot)
 	menu_panel.visible = true
 	prompt.visible = false
 

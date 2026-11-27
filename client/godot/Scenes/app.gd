@@ -83,6 +83,7 @@ var follow_label: Label
 var time_label: Label
 var top_bar: Control ## #222: a barra do espectador (some no modo jogador)
 var player_frame ## #222: PlayerFrame
+var aim_highlight ## #233: AimHighlight, o anel do alvo do E
 var weather_label: Label ## AD-180: indicador do tempo do dia
 var loading: Control
 var tooltip: PanelContainer
@@ -718,6 +719,18 @@ func _on_player_rejected() -> void:
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null and node.cell != _predicted_from:
 		node.move_to(_predicted_from, 0.08)
+
+
+## #233: o alvo do E sob a mira ganha o anel (um só por vez); sem alvo ou fora do modo jogador, some.
+func _on_player_target(kind: String, id: int, cell: Vector2) -> void:
+	if aim_highlight == null:
+		return
+	var own = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null else null
+	if kind == "" or cell == Vector2.INF or own == null:
+		aim_highlight.clear()
+		return
+	var person = world_view.npc_nodes.get(id) if kind == "person" else null
+	aim_highlight.show_at(kind, id, aim_highlight.spot(cell, person.position if person != null else null, own.position.y))
 
 
 ## AD-197j: a mira do modo jogador é o centro da tela.

@@ -17,6 +17,7 @@ const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const AimHighlight := preload("res://Scenes/aim_highlight.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
@@ -226,7 +227,10 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.rejected.connect(app._on_player_rejected)
 	app.player_hud.conversation_opened.connect(func(id: int, name: String, session: int):
 		app._on_player_menu(true)
+		app.conversation.game_style = app.player_mode # #233: caixa de diálogo de jogo com escolhas (e números)
 		app.conversation.attach(id, name, session))
+	app.player_hud.input_blocked = func() -> bool: return app.conversation != null and app.conversation.is_open
+	app.player_hud.target_changed.connect(app._on_player_target)
 	app.player_hud.struck.connect(app._on_player_struck)
 	app.player_hud.glided.connect(app._on_player_fine)
 	app.player_hud.neighborhood = app.player_neighborhood # #229: paredes e gente ao redor do corpo
@@ -414,6 +418,8 @@ static func build_scene(app) -> void:
 		renderer.design_of = func(id: int) -> Variant: return app.api.cached_design(id)
 		renderer.request_design = func(id: int) -> void: app.request_design(id)
 	app.add_child(app.world_view)
+	app.aim_highlight = AimHighlight.new() # #233: o anel do alvo do E
+	app.world_view.add_child(app.aim_highlight)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
 	app.rig.walking = func() -> bool: return app.player_hud != null and app.player_hud.is_active # AD-197e: WASD/setas andam com o personagem

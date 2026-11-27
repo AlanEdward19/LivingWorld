@@ -255,3 +255,90 @@ func test_the_admin_possesses_fully_and_others_incarnate() -> void:
 			eq(String(transport.channels.back().sent.back().command), "incarnate", "sem admin, a posse comum pelo canal")
 		hud.api.close_player_channel()
 		hud.queue_free()
+
+
+## #233: a dica da mira diz o verbo (com ícone) e o alvo; a roda põe as fatias em círculo, a primeira no alto.
+func test_the_prompt_says_verb_and_target_and_the_wheel_is_a_circle() -> void:
+	eq(PlayerFrame.prompt_text("Caio: Conversar"), "💬 Conversar · Caio")
+	eq(PlayerFrame.prompt_text("Banca: Comprar comida (4)"), "🛒 Comprar comida (4) · Banca")
+	eq(PlayerFrame.prompt_text("Mesa"), "Mesa", "sem alvo e verbo, a linha do motor como veio")
+	var first := PlayerFrame.wheel_offset(0, 4)
+	check(absf(first.x) < 0.01 and first.y < 0.0, "a primeira fatia fica no alto")
+	check(PlayerFrame.wheel_offset(1, 4).x > 0.0, "a segunda, à direita (horário)")
+	var seen := {}
+	for i in 6:
+		seen[PlayerFrame.wheel_offset(i, 6)] = true
+	eq(seen.size(), 6, "nenhuma fatia sobre a outra")
+
+
+## #233: toque em E faz a ação principal (a primeira linha do motor), sem abrir roda; segurar abre a roda.
+func test_a_tap_on_e_does_the_primary_action_and_a_hold_opens_the_wheel() -> void:
+	var made: Array = await _hud({"GET /players/p-1/reach": {"status": 200, "body": {"offers": CROWD}},
+		"POST /players/p-1/interact": {"status": 200, "body": {"kind": "stall", "id": 3, "verb": "buy", "quantity": 1, "value": 4}}})
+	var hud = made[0]
+	var transport = made[1]
+	hud.fine = Vector2(5.5, 5.5)
+	await hud.e_pressed()
+	hud.e_released()
+	for i in 4:
+		await tree.process_frame
+	check(not hud.frame.menu_open(), "toque não abre a roda")
+	eq(String(transport.bodies["POST /players/p-1/interact"].back().verb), "buy", "a principal: a banca, primeira linha")
+	await hud.e_pressed()
+	hud.e_held(PlayerHud.HOLD_S + 0.05)
+	check(hud.frame.menu_open(), "segurar E abre a roda")
+	check(hud.frame.entries.size() >= 2, "com as ofertas do motor")
+	hud.e_released()
+	check(hud.frame.menu_open(), "soltar não fecha a roda aberta")
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	hud._unhandled_input(esc)
+	check(not hud.frame.menu_open(), "Esc fecha")
+	_free(made)
+
+
+func test_the_aim_target_is_announced_and_cleared_when_nothing_is_in_reach() -> void:
+	var made: Array = await _hud()
+	var hud = made[0]
+	var seen: Array = []
+	hud.target_changed.connect(func(kind: String, id: int, cell: Vector2): seen.append([kind, id, cell]))
+	hud.fine = Vector2(5.5, 5.5)
+	hud.set_reach_hint(CROWD)
+	eq(seen.back(), ["stall", 3, Vector2(5, 5)], "o alvo é a primeira linha, com a célula do motor")
+	hud.set_reach_hint([])
+	eq(seen.back()[2], Vector2.INF, "sem oferta, o realce some")
+	_free(made)
+
+
+func test_the_backpack_opens_with_i_or_tab_and_shows_what_the_engine_says() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	transport.on("GET /npcs/7", {"status": 200, "body": {"health": 90, "hunger": 50, "thirst": 50, "sleep": 50,
+		"money": 120, "carrying": {"resourceId": 2, "quantity": 3}}})
+	var hud := PlayerHud.new()
+	hud.api = WorldReader.new(transport)
+	hud.api.validate_shapes = false
+	hud.labels = ActionLabels.new()
+	hud.player_id = "p-1"
+	hud.frame = PlayerFrame.new()
+	tree.root.add_child(hud)
+	tree.root.add_child(hud.frame)
+	await hud.incarnate(7, "Ana")
+	hud.set_rpg(true)
+	var made := [hud]
+	for code in [KEY_I, KEY_TAB]:
+		var key := InputEventKey.new()
+		key.keycode = code
+		key.pressed = true
+		hud._unhandled_input(key)
+		check(hud.frame.inventory_open(), "abre com a tecla %d" % code)
+		for i in 6: # abrir a mochila pede a ficha na hora (o `_process` a lê)
+			await tree.process_frame
+		var text := ""
+		for child in hud.frame.inventory_box.get_children():
+			text += (String(child.text) + "\n") if child is Label else ""
+		check("Dinheiro: 120" in text and "3 recurso 2" in text, "dinheiro e mãos da ficha (%s)" % text)
+		hud._unhandled_input(key)
+		check(not hud.frame.inventory_open(), "a mesma tecla fecha")
+	_free(made)
