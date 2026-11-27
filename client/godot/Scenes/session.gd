@@ -12,6 +12,7 @@ var app
 var previous_scope := ["World", ""]
 var world_ref := ["World", ""]
 var interior_building := -1
+var gone_buildings := {} ## #237: prédios que o servidor disse não existirem (404)
 var first_snapshot := false
 var crumb_before := "Mundo" ## trilha antes de entrar no prédio
 
@@ -126,12 +127,29 @@ func on_connection(state: String, retry_in: float) -> void:
 
 
 func enter_building(building_id: int) -> void:
-	if app.stage.active:
+	if app.stage.active or gone_buildings.has(building_id):
 		return
 	previous_scope = world_ref.duplicate()
 	crumb_before = app.breadcrumb.text
 	interior_building = building_id
 	await app.stream.subscribe("Interior", str(building_id))
+
+
+## #237: o servidor respondeu 404 ao escopo (cidade/prédio que não existe): sem faixa de contrato; o foco da casa
+## acaba e a vista volta ao escopo anterior (ou ao mundo), sem ficar em "Conectando…".
+func on_scope_gone(kind: String, ref_id: String) -> void:
+	if kind == "Interior":
+		if ref_id.is_valid_int():
+			gone_buildings[int(ref_id)] = true # a pose do motor não faz o app pedir de novo a mesma casa a cada passo
+		leave_focus()
+		app._inside_by_body = -1
+	if kind == "World":
+		return
+	var back: Array = previous_scope if kind == "Interior" and previous_scope != [kind, ref_id] else ["World", ""]
+	if back[0] == "Interior":
+		back = ["World", ""]
+	world_ref = back
+	await app.stream.subscribe(back[0], back[1])
 
 
 func _enter_interior_view() -> void:

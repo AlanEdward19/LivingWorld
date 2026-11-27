@@ -11,6 +11,8 @@ signal delta_applied(envelope: Dictionary)
 signal access_denied()
 signal connection_changed(state: String, retry_in: float)
 signal contract_error(errors: Array)
+## #237: o servidor disse que o escopo não existe (404: cidade/prédio que sumiu ou id inválido). Não é snapshot, não é divergência de contrato.
+signal scope_gone(kind: String, ref_id: String)
 
 const BACKOFF_SECONDS: Array[float] = [1.0, 2.0, 4.0, 8.0]
 const SHAPE_BY_SCOPE := {"World": "world-subscribe", "City": "city-subscribe", "Interior": "interior-subscribe"}
@@ -78,6 +80,10 @@ func _connect(generation: int) -> void:
 			state = "denied"
 			access_denied.emit()
 			return
+		if response.status == 404:
+			state = "gone"
+			scope_gone.emit(scope_kind, ref_id)
+			return
 		if response.status == 200 and response.body is Dictionary:
 			if not _accept_snapshot(response.body):
 				return
@@ -97,6 +103,8 @@ func _open_channel(generation: int) -> void:
 
 
 func _accept_snapshot(envelope: Dictionary) -> bool:
+	if envelope.get("payload") == null:
+		return false # #237: sem projeção não há snapshot (nunca vira "fora do contrato"): o canal segue com o que já tem
 	if validate_shapes and not _shape_ok(envelope):
 		return false
 	_deltas_seen = 0 # snapshot novo: os primeiros deltas voltam a ser todos conferidos

@@ -160,6 +160,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	stream.connection_changed.connect(session.on_connection)
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
 	stream.contract_error.connect(_on_contract_error)
+	stream.scope_gone.connect(session.on_scope_gone)
 	road_sync = RoadSync.new()
 	road_sync.setup(self)
 	add_child(road_sync)

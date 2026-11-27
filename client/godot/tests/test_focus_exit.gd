@@ -142,3 +142,28 @@ func test_the_camera_target_stays_on_the_body_every_frame_across_the_switch() ->
 			check(app.rig.following == own, "%s (quadro %d): a câmera segue o corpo desenhado" % [step[0], frame])
 			check(app.rig.target.distance_to(own.position) < 0.01, "%s (quadro %d): alvo no corpo (%s x %s)" % [step[0], frame, app.rig.target, own.position])
 	app.queue_free()
+
+
+## #237: o servidor responde 404 à casa que não existe: sem faixa de contrato, o foco acaba, a vista volta à cidade e a pose
+## do motor não faz o app pedir a mesma casa de novo a cada passo.
+func test_a_building_the_server_says_does_not_exist_ends_the_focus_without_a_contract_banner() -> void:
+	var app = await _player_app()
+	app.stream.transport.on("GET /visual/subscribe?scope=Interior", {"status": 404, "body": null})
+	app.banner.visible = false
+	await app._on_player_placed(9, 0)
+	eq(app.banner.visible, false, "404 não acende a faixa de fora do contrato")
+	eq(app.contract_errors.is_empty(), true, "nem registra divergência")
+	_world_back(app, "casa inexistente")
+	eq(app.stream.scope_kind, "City", "a vista volta ao escopo anterior (a cidade)")
+	var asks := _asked(app.stream.transport, "scope=Interior&refId=9")
+	await app._on_player_placed(9, 0)
+	eq(_asked(app.stream.transport, "scope=Interior&refId=9"), asks, "a mesma casa não é pedida de novo")
+	app.queue_free()
+
+
+func _asked(fake, part: String) -> int:
+	var n := 0
+	for c in fake.calls:
+		if part in c:
+			n += 1
+	return n
