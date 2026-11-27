@@ -38,6 +38,40 @@ func test_rejects_missing_and_mistyped_fields() -> void:
 	check(errors.size() == 1, "o erro de contrato é anunciado")
 
 
+## #237: escopo que não existe (404) não é snapshot nem divergência de contrato: o stream avisa `scope_gone`, sem faixa laranja.
+func test_stream_404_is_scope_gone_not_a_contract_error() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/subscribe", {"status": 404, "body": null})
+	var stream = CursorStream.new(transport, tree)
+	var snapshots: Array = []
+	var errors: Array = []
+	var gone: Array = []
+	stream.snapshot_received.connect(func(e): snapshots.append(e))
+	stream.contract_error.connect(func(e): errors.append(e))
+	stream.scope_gone.connect(func(kind, ref): gone.append([kind, ref]))
+	await stream.subscribe("Interior", "-1")
+	eq(snapshots.size(), 0, "404 não vira snapshot")
+	eq(errors.size(), 0, "404 não é divergência de contrato")
+	eq(gone, [["Interior", "-1"]], "o escopo sumido é anunciado")
+	eq(stream.state, "gone", "o stream para (sem tentar de novo para sempre)")
+
+
+func test_stream_ignores_a_snapshot_message_with_null_payload() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/subscribe", {"status": 200, "body": Fx.snapshot()})
+	var stream = CursorStream.new(transport, tree)
+	stream.validate_shapes = false
+	await stream.subscribe("World")
+	stream.validate_shapes = true
+	var snapshots: Array = []
+	var errors: Array = []
+	stream.snapshot_received.connect(func(e): snapshots.append(e))
+	stream.contract_error.connect(func(e): errors.append(e))
+	transport.channels[0].push({"scope": {"kind": 2, "refId": "9"}, "cursor": {"atMs": 1, "scopeKey": "x", "sequence": 1}, "payload": null})
+	eq(snapshots.size(), 0, "snapshot sem projeção é ignorado")
+	eq(errors.size(), 0, "e não aparece como fora do contrato")
+
+
 func _sample_for(shape: Variant) -> Variant:
 	if shape is Dictionary:
 		var out := {}

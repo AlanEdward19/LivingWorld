@@ -23,7 +23,9 @@ public static class RealtimeEndpoints
             var result = gateway.Snapshot(new VisualScope(scope, refId ?? ""), mode);
             if (!result.IsSuccess) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            return Results.Ok(WithProjectedPayload(result.Value!, world, playerNpcId, names.For(world.PeriodId)));
+            var projected = WithProjectedPayload(result.Value!, world, playerNpcId, names.For(world.PeriodId));
+            // #237: escopo que não resolve (cidade/prédio inexistente ou refId inválido) não é um snapshot: 404, nunca payload nulo
+            return projected.Payload is null ? Results.NotFound() : Results.Ok(projected);
         });
 
         app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceMs, long sinceSequence, RealtimeGateway gateway) =>
@@ -45,8 +47,15 @@ public static class RealtimeEndpoints
                 return;
             }
 
+            var projected = WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId));
+            if (projected.Payload is null)
+            {
+                http.Response.StatusCode = StatusCodes.Status404NotFound; // #237: escopo que não resolve não é snapshot
+                return;
+            }
+
             http.Response.Headers.ContentType = "text/event-stream";
-            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId)));
+            await WriteEventAsync(http.Response, projected);
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -80,8 +89,15 @@ public static class RealtimeEndpoints
                 return;
             }
 
+            var projected = WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId));
+            if (projected.Payload is null)
+            {
+                http.Response.StatusCode = StatusCodes.Status404NotFound; // #237: escopo que não resolve não é snapshot
+                return;
+            }
+
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
-            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world, playerNpcId, names.For(world.PeriodId)), http.RequestAborted);
+            await SendJsonAsync(socket, projected, http.RequestAborted);
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -102,9 +118,8 @@ public static class RealtimeEndpoints
     /// <summary>O snapshot inicial
     /// carrega a projeção do escopo — montada sob demanda no subscribe, mesmo padrão de
     /// materialização sob demanda de <c>NpcInspectionQuery</c>. RefId inválido/inexistente (parse
-    /// falho, cidade/prédio não encontrado) mantém <c>Payload</c> nulo em vez de forçar um novo
-    /// código de erro — não há um contrato de 404 por refId, só a projeção quando o escopo
-    /// resolve. Escopo city em modo Player aplica FOW centrado em <paramref
+    /// falho, cidade/prédio não encontrado) deixa <c>Payload</c> nulo aqui e o endpoint responde 404 (#237):
+    /// payload nulo nunca sai como snapshot. Escopo city em modo Player aplica FOW centrado em <paramref
     /// name="playerNpcId"/>; Spectator/admin sempre vê sem filtro.</summary>
     private static VisualSnapshotEnvelope<object?> WithProjectedPayload(
         VisualSnapshotEnvelope<object?> envelope, WorldState world, long? playerNpcId,

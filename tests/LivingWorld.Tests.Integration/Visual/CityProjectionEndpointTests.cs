@@ -42,14 +42,17 @@ public class CityProjectionEndpointTests : IClassFixture<LivingWorldApiFactory>
     }
 
     [Fact]
-    public async Task Subscribing_to_a_city_scope_that_does_not_exist_returns_a_null_payload()
+    public async Task Subscribing_to_a_city_scope_that_does_not_exist_is_404_never_a_null_payload()
     {
         var client = _factory.CreateClient();
 
         var response = await client.GetAsync($"/visual/subscribe?scope=City&refId={Guid.NewGuid()}&mode=Spectator");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, json.GetProperty("payload").ValueKind);
+        response = await client.GetAsync("/visual/subscribe?scope=City&refId=$CITY&mode=Spectator");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        response = await client.GetAsync("/visual/subscribe?scope=Interior&refId=-1&mode=Spectator");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
