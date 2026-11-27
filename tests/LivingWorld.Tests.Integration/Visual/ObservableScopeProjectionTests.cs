@@ -150,6 +150,27 @@ public class ObservableScopeProjectionTests
         var city = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.World, "")).Cities.First();
 
         Assert.Equal(inside, city.Density!.Inside);
+        // #242: "dentro da cidade" não é "na rua": o motor diz também quantos estão fora de qualquer prédio (a planta do térreo)
+        Assert.InRange(city.Density.Outdoors!.Value, 0, inside);
+    }
+
+    [Fact]
+    public void Outdoors_counts_who_stands_off_every_building_floor_plan()
+    {
+        var (world, _, _) = CityWorld();
+        var building = world.Buildings.First(b => b.Position is not null);
+        var origin = building.Position!.Value;
+        var local = LivingWorld.Domain.Cities.Buildings.BuildingLayoutGenerator.Generate(building).FloorLayouts[0].Cells[0].Cell;
+        var world0 = new VisualScope(VisualScopeKind.World, "");
+        var all = LivingScopeProjector.Build(world, world0).Cities.First().Density!;
+
+        // todos na planta do mesmo prédio: dentro da cidade, mas nenhum na rua
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive && n.City == building.City))
+            npc.MoveTo(new LivingWorld.Domain.Geography.CellCoord(origin.X + local.X, origin.Y + local.Y), world.CurrentDate.TotalHours);
+        var packed = LivingScopeProjector.Build(world, world0).Cities.First().Density!;
+
+        Assert.Equal(0, packed.Outdoors);
+        Assert.True(packed.Inside > 0 && all.Outdoors <= all.Inside);
     }
 
     [Fact]

@@ -51,7 +51,7 @@ static func world_with_density() -> Dictionary:
 	var env := T.world()
 	env.payload.livingState["cities"] = [{"id": {"value": "city-a"}, "name": "Alfa", "location": {"x": 2, "y": 2}, "population": 3,
 		"bounds": {"x": 0, "y": 0, "width": 6, "height": 6}, "foundedFromCityId": null,
-		"density": {"inside": 12, "pooled": 40, "actions": [{"action": 2, "count": 8}, {"action": null, "count": 4}], "temperatureC": 11.5}}]
+		"density": {"inside": 12, "outdoors": 5, "pooled": 40, "actions": [{"action": 2, "count": 8}, {"action": null, "count": 4}], "temperatureC": 11.5}}]
 	env.payload.livingState["faunaGroups"] = [{"species": "wolf", "regionId": 1, "count": 7, "center": {"x": 6, "y": 6}}]
 	return env
 
