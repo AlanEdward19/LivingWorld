@@ -162,6 +162,7 @@ func _enter_interior_view() -> void:
 	var marker = app.store.buildings.get(interior_building, null)
 	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
 	app.stage.interior_view.catalog = app.catalog
+	app.stage.interior_view.figure_context = app.world_view.npcs.figure_context() # #247: a mesma pessoa, a mesma aparência da rua
 	var driven: bool = app.player_hud != null and app.player_hud.is_active
 	app.stage.interior_view.immersive = driven # #227: com o corpo do jogador na casa, a câmera dele fica dentro (sem corte de maquete)
 	var lodging = marker.get("lodging") if marker != null else null

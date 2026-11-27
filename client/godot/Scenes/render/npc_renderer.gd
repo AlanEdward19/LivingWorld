@@ -8,6 +8,7 @@ extends Node3D
 ## (`clock`); enquanto anda, sai do espalhamento da célula de partida e entra no da chegada quando o motor o move.
 
 const NpcActor := preload("res://Scenes/npc_actor.gd")
+const NpcFigure := preload("res://Scenes/npc_figure.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const RouteClock := preload("res://Scenes/route_clock.gd")
 const FrameCost := preload("res://Contract/frame_cost.gd")
@@ -225,14 +226,15 @@ func spawn(info: Dictionary) -> void:
 ## Com o `observable` do escopo (AD-170) o corpo vem do estado, para todos.
 func apply_known_model(id: int) -> void:
 	var actor = nodes.get(id)
-	if actor == null or catalog == null:
-		return
 	var npc = store.npcs.get(id)
-	if npc != null and not npc.get("obs", {}).is_empty():
+	if actor == null or catalog == null or (npc != null and not npc.get("obs", {}).is_empty()):
 		return
-	var model: Dictionary = model_of.call(id)
-	if not model.is_empty():
-		actor.apply_model(catalog, int(model.profession), float(model.age))
+	NpcFigure.dress(actor, id, figure_context())
+
+
+## O dado que a fábrica de figura (`npc_figure.gd`) usa para vestir o boneco; o interior recebe o mesmo.
+func figure_context() -> Dictionary:
+	return {"store": store, "catalog": catalog, "model_of": model_of}
 
 
 ## Sinais visíveis chegaram (snapshot ou `npc_observed`): corpo, roupa, carga, doença, emoção e alvo da ação.
@@ -243,7 +245,7 @@ func apply_observable(id: int) -> void:
 		return
 	var obs: Dictionary = npc.get("obs", {})
 	if not obs.is_empty():
-		actor.apply_observable(obs, catalog)
+		NpcFigure.dress(actor, id, figure_context())
 		if store.names.has(id):
 			actor.set_display_name(store.names[id])
 		var held: Dictionary = obs.get("held", {})

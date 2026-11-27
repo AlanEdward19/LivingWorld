@@ -5,6 +5,7 @@ extends Node3D
 const Grid := preload("res://Scenes/grid.gd")
 const WallPanels := preload("res://Scenes/wall_panels.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
+const NpcFigure := preload("res://Scenes/npc_figure.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
@@ -25,6 +26,7 @@ var current_floor := 0
 var floor_nodes: Dictionary = {} ## nível -> Node3D
 var roof: Node3D
 var ceiling: Node3D ## #227: forro do andar visível: só aparece com a câmera do jogador dentro da casa e abaixo dele (sem céu por cima das paredes)
+var figure_context: Dictionary = {} ## #247: o mesmo dado que veste o boneco na rua (store, catálogo, modelo); o app injeta
 var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o catálogo carregado
 var furniture: Node3D
 var _use_slots: Dictionary = {} ## #237: id do catálogo -> [{base: Vector3, yaw: float, level: int}] cada peça colocada, com o andar e o giro que o motor deu (alvos de uso)
@@ -468,11 +470,11 @@ var guided_id := -1
 func guide_body(id: int, from_actor: Node3D, level: int) -> Node3D:
 	var actor = occupant_nodes.get(id)
 	if actor == null:
-		actor = NpcActor.new()
-		add_child(actor)
-		actor.setup(id, from_actor.cell, -1, _labels, from_actor.look)
+		actor = NpcFigure.create(self, id, from_actor.cell, -1, _labels, from_actor.look, figure_context)
 		occupant_nodes[id] = actor
 		actor.position = from_actor.position
+		if actor.spec.is_empty(): # sem o dado do motor para vestir: ao menos a escala e o ofício que o boneco do mundo já mostra
+			actor.scale = from_actor.scale
 	guided_id = id
 	actor.driven = true
 	actor.set_self(true)
@@ -510,10 +512,10 @@ func set_occupants(occupants: Array) -> void:
 		var use := _use_of(occupant, id, action, level, rank)
 		var actor = occupant_nodes.get(id)
 		if actor == null:
-			actor = NpcActor.new()
-			add_child(actor)
-			actor.setup(id, cell, action, _labels, WorldStore.look_of(occupant.get("appearance")))
+			actor = NpcFigure.create(self, id, cell, action, _labels, WorldStore.look_of(occupant.get("appearance")), figure_context)
 			occupant_nodes[id] = actor
+		elif actor.spec.is_empty(): # o dado do motor chegou depois do boneco
+			NpcFigure.dress(actor, id, figure_context)
 		if actor.action != action or actor.use_pose != String(use.pose):
 			actor.set_action(action, _labels, String(use.pose))
 		actor.enable_bed(not use.active) # a cama do catálogo substitui a do NPC
