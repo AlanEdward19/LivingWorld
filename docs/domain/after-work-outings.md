@@ -9,14 +9,14 @@ aonde ir**. Diagnóstico completo: `.specs/features/realism-backlog/relatorios/c
 Quando a escolha da hora é **À toa** ou **Conversar** (o refino de local, `RefineForLocation`), `OutingDestinationOf` diz aonde ir.
 Nada de lugar novo: só o que o motor já tem.
 - **Casa** (`Household.Location`), o **largo** (o centro da cidade), o **mercado** mais perto de casa, a **casa de quem a pessoa
-  mais gosta** (afeto > 0, mesma cidade; os laços sociais) e um **passeio curto** (3 a 8 células, 4,5 a 12 m, da casa, só em
+  mais gosta** (afeto > 0, mesma cidade; os laços sociais) e um **passeio curto** (3, 5 ou 8 células, 4,5 a 12 m, da casa, numa das oito direções, só em
   terreno alcançável a pé). Tudo a até `SeekCompanyMaxCells` (12) da casa.
 - **O peso de cada lugar vem do estado**: cansaço (sono) e fim do dia (19 h) pesam a casa; a falta de gente (necessidade social)
   pesa largo, mercado e conhecido; o passeio só de dia. O sorteio é `world.Rng.DrawFor("outing", pessoa × bloco)`, sem stream
   guardado: a mesma pessoa no mesmo bloco de 6 h (`OutingBlockHours`) escolhe o mesmo lugar, então quem chegou fica.
 - **Quem está num dos lugares** (em casa, no largo) fica 50% das vezes até o bloco virar; quem quer conversar e já tem gente por
   perto (colegas do posto, a família) fica 50% das vezes: a conversa não vira viagem.
-- Fica onde está: de noite (antes das 6 h e depois das 20 h), criança, corpo do jogador, quem cuida de doente no dia de cuidado,
+- Fica onde está: de noite (antes das 6 h e depois das 20 h), criança, quem cuida de doente no dia de cuidado,
   quem está de luto (retraimento social) e **quem tem o trabalho na rotina da hora** (o à toa veio de humor ou corpo: ele não sai).
 - A ida atrás de companhia (AD-186, só para quem conversa e está só em casa) vale primeiro; sem ela, a escolha acima.
 - A viagem guarda o destino no intento `Socialize` (`PinCompanyTarget`, como a de AD-186) e o motivo da viagem passa a poder ser

@@ -57,8 +57,8 @@ public sealed partial class BehaviorDecisionSystem
     private static CellCoord? ComputeLeisureDestination(WorldState world, Npc npc, MarketIndex marketIndex, long now, int hour)
     {
         var rules = world.StreetRules;
-        // criança e idoso frágil não saem sozinhos; a casa de luto e quem cuida de doente fica em casa; o corpo de quem joga é do jogador
-        if (npc.ControllerId is not null || world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LifeStage.Child) return null;
+        // criança (e quem ainda não anda) não sai sozinha; quem está de luto e quem cuida de doente no dia de cuidado fica em casa
+        if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LifeStage.Child) return null;
         if (!world.OntogenyRules.IsEligible(npc.Development, ActionType.Travel)) return null;
         if (world.IsCaregiver(npc.Id) && LivingWorld.Simulation.Health.SickBehavior.IsCareDay(world, npc.Id, now)) return null;
         if (npc.Psyche is { } psyche && now < psyche.CalmFromTick
@@ -87,7 +87,7 @@ public sealed partial class BehaviorDecisionSystem
 
         long key = unchecked(npc.Id.Value * 1_000_003L + now / Math.Max(1, rules.OutingBlockHours));
         if (!evening && StrollTarget(world, npc, anchor, key) is { } stroll)
-            options[count++] = (LeisureKind.Stroll, stroll, 15);
+            options[count++] = (LeisureKind.Stroll, stroll, 6);
 
         if (count == 0) return null;
         // quem já está num dos lugares de folga (em casa, no largo, na casa do conhecido) fica, na maior parte das vezes, até o bloco virar:
@@ -136,7 +136,8 @@ public sealed partial class BehaviorDecisionSystem
         var rules = world.StreetRules;
         int min = Math.Max(1, rules.OutingStrollMinCells), max = Math.Max(min, rules.OutingStrollMaxCells);
         double u = world.Rng.DrawFor("outing-stroll", key);
-        int distance = min + Math.Min(max - min, (int)(u * (max - min + 1)));
+        // três distâncias (curta, média, longa) e oito direções: poucos destinos por casa, então as rotas guardadas se repetem
+        int distance = min + (max - min) * Math.Min(2, (int)(u * 3)) / 2;
         int start = Math.Min(7, (int)(world.Rng.DrawFor("outing-dir", key) * 8));
         for (int i = 0; i < 8; i++)
         {
