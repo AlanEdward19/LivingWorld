@@ -295,6 +295,33 @@ func test_incarnating_hides_the_spectator_ui_and_leaving_restores_it() -> void:
 	app.queue_free()
 
 
+## #237: "E Beber · Fonte" some no quadro em que o corpo passa do alcance que o motor disse (reachCells), sem esperar a próxima leitura;
+## dentro do alcance (com a folga da latência) fica; oferta sem alcance (porta, banca) segue a leitura de sempre.
+func test_a_positional_hint_leaves_the_screen_as_soon_as_the_body_is_out_of_the_engines_reach() -> void:
+	var hud := _hud(_transport())
+	await hud.incarnate(7, "Ana")
+	hud.set_rpg(true)
+	var spring := {"kind": "water", "id": 4294967296 * 10 + 20, "verbs": ["drink"], "x": 10, "y": 20, "resources": [], "reachCells": 1.0}
+	hud.fine = Vector2(11.5, 20.5) # 0,5 célula da borda da fonte
+	hud.set_reach_hint([spring])
+	eq(hud.reach_hint.text, "Fonte: Beber", "perto: a dica da oferta")
+	eq(hud.hint_out_of_reach(), false, "perto: dentro do alcance")
+	hud.fine = Vector2(12.1, 20.5) # 1,1 célula: passou do alcance de 1, mas dentro da folga da latência
+	eq(hud.hint_out_of_reach(), false, "na folga da latência a dica fica")
+	hud.fine = Vector2(12.5, 20.5) # 1,5 célula
+	eq(hud.hint_out_of_reach(), true, "além do alcance e da folga: a dica não vale mais")
+	hud._busy = true # só a parte síncrona: nenhuma leitura nova vai ao motor neste teste
+	hud._refresh_reach_hint(0.016)
+	hud._busy = false
+	eq([hud.reach_hint.text, hud.reach_hint.visible], ["", false], "e some no mesmo quadro, sem esperar outra leitura")
+	eq(PlayerHud.reach_gap(Vector2(10.5, 20.5), 10.0, 20.0), 0.0, "dentro da própria célula: folga 0")
+	check(absf(PlayerHud.reach_gap(Vector2(12.0, 22.0), 10.0, 20.0) - sqrt(2.0)) < 0.001, "na diagonal: a distância ao canto")
+	hud.set_reach_hint([{"kind": "stall", "id": 3, "verbs": ["buy"], "x": 4, "y": 5, "resources": [{"resourceId": 1, "quantity": 2, "price": 4}]}])
+	hud.fine = Vector2(80.5, 80.5)
+	eq(hud.hint_out_of_reach(), false, "oferta sem alcance no motor: o cliente não inventa um")
+	hud.free()
+
+
 func test_tab_opens_the_orders_and_releases_the_cursor_and_the_reach_hint_comes_from_the_offer() -> void:
 	var transport := _transport()
 	var hud := _hud(transport)

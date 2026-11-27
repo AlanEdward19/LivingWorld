@@ -70,7 +70,7 @@ public static partial class PlayerInteractions
         }
 
         if (WaterFetch.On(world) && inside is null && WaterWithinReach(world, npc, at) is { } spring)
-            offers.Add(Offer("water", WaterId(spring), "", household is null ? ["drink"] : ["drink", "fill"], spring));
+            offers.Add(Offer("water", WaterId(spring), "", household is null ? ["drink"] : ["drink", "fill"], spring, reachCells: ReachCells));
         if (inside is null) GatherOffers(world, npc, at, offers);
 
         // AD-197n: recipientes e veículos inventados pela casa (os designs da invenção que ela fez): levar um é o que o NPC faz ao sair
@@ -134,6 +134,9 @@ public static partial class PlayerInteractions
     /// (1,5 m, o braço e uma inclinada). Antes valia a vizinhança 3×3 da célula do corpo, até ~3 m da água e através da parede.</summary>
     public const long WaterReachThousandths = FinePose.PerCell;
 
+    /// <summary>O mesmo alcance em células (o que a oferta diz ao cliente).</summary>
+    public const double ReachCells = WaterReachThousandths / (double)FinePose.PerCell;
+
     /// <summary>A célula d'água ao alcance do corpo agora (a mais perto; empate: menor linha, depois coluna), ou nula.</summary>
     private static CellCoord? WaterWithinReach(WorldState world, Npc npc, CellCoord at) => CellWithinReach(world, npc, at, c => c.HasWater);
 
@@ -141,7 +144,10 @@ public static partial class PlayerInteractions
     /// coluna), ou nula. O corpo solto conta pela posição fina; sem ela, pelo centro da célula.</summary>
     private static CellCoord? CellWithinReach(WorldState world, Npc npc, CellCoord at, Func<MapCell, bool> wanted)
     {
-        var fine = npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? f : new FinePose(at.X * FinePose.PerCell + 500, at.Y * FinePose.PerCell + 500, 0, 0, 0);
+        // #237: a posição fina AGORA (a gravada avançada pelo rumo desde o último comando), não a de uma latência atrás
+        var fine = npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? PlayerWalk.Projected(world, npc, f)
+            : new FinePose(at.X * FinePose.PerCell + 500, at.Y * FinePose.PerCell + 500, 0, 0, 0);
+        at = new CellCoord(fine.CellX, fine.CellY);
         CellCoord? best = null;
         long bestD2 = long.MaxValue;
         for (int dy = -1; dy <= 1; dy++)
@@ -168,7 +174,7 @@ public static partial class PlayerInteractions
         var resource = new ResourceType(rules.HouseMaterialResourceId);
         var spot = CellWithinReach(world, npc, at, c => PlayerNature.IsWild(world, c, resource));
         if (spot is { } cell)
-            offers.Add(Offer("nature", WaterId(cell), "", ["gather"], cell, [new InteractionResource(resource.Id, Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), 0)]));
+            offers.Add(Offer("nature", WaterId(cell), "", ["gather"], cell, [new InteractionResource(resource.Id, Cities.Works.WorkHaul.CapacityUnits(world, npc, resource), 0)], ReachCells));
     }
 
     /// <summary>#239: buscar material na natureza pela conta do NPC da obra: as horas de cortar (<c>WorkHaul.CutHours</c>, a mesma da

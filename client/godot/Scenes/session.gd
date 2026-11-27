@@ -61,20 +61,26 @@ func on_snapshot(envelope: Dictionary) -> void:
 		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY: # #222: a ficha da cidade
 			app.inspector.inspect(Registry.ref(Registry.CITY, String(app.store.city.id)))
 		var area := built_area()
-		if not app.director.active():
+		if not app.director.active() and not _driving():
 			app.rig.focus(center_of(area))
-		app.rig.set_zoom(clampf(maxf(area.size.x, area.size.y) * 1.15 + 5.0, 7.0, app.rig.city_exit_size - 0.6))
+		if not _driving(): # #237: com o corpo do jogador a câmera é dele: a troca de escopo não a recentra nem muda o zoom
+			app.rig.set_zoom(clampf(maxf(area.size.x, area.size.y) * 1.15 + 5.0, 7.0, app.rig.city_exit_size - 0.6))
 		app._load_names()
 	elif kind == "World":
 		app.breadcrumb.text = "Mundo"
 		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY:
 			app.inspector.close()
-		if app.rig.zoom_size < app.rig.city_exit_size + 1.0:
+		if app.rig.zoom_size < app.rig.city_exit_size + 1.0 and not _driving():
 			app.rig.set_zoom(22.0)
 		# #222: no mapa do mundo a câmera abre sobre a primeira cidade (antes abria num campo vazio e a cidade era uma mancha na borda)
 		var first := first_city_bounds()
-		if first.size != Vector2i.ZERO and not app.director.active():
+		if first.size != Vector2i.ZERO and not app.director.active() and not _driving():
 			app.rig.focus(Grid.to_world(first.position + first.size / 2))
+
+
+## #237: o jogador tem um corpo e a câmera dele (3ª/1ª pessoa): a câmera segue o corpo, não o enquadramento de observador.
+func _driving() -> bool:
+	return app.player_hud != null and app.player_hud.is_active and app.rig.mode != app.rig.ISO
 
 
 func first_city_bounds() -> Rect2i:

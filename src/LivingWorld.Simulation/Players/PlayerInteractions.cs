@@ -14,9 +14,13 @@ public sealed record InteractionResource(int ResourceId, long Quantity, long Pri
 
 /// <summary>O que o corpo conduzido alcança agora e o que pode fazer ali (AD-197d). <c>Kind</c>: <c>door</c> (prédio: enter, exit),
 /// <c>stock</c> (casa: take, deposit), <c>stall</c> (oficina com preço: buy, sell), <c>bed</c> (casa: sleep), <c>person</c> (pessoa:
-/// talk, strike, abandon), <c>house</c> (a própria casa: sell), <c>nature</c> (mata ao alcance: gather, #239). O cliente mostra só isto.</summary>
+/// talk, strike, abandon), <c>house</c> (a própria casa: sell), <c>nature</c> (mata ao alcance: gather, #239). O cliente mostra só isto.
+/// <c>ReachCells</c> (só fonte e mata, #237): o alcance, em células, da posição fina à borda da célula da oferta; com ele o cliente
+/// tira a dica assim que o corpo sai do alcance, sem esperar a próxima leitura.</summary>
 public sealed record InteractionOffer(
-    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources);
+    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    double? ReachCells = null);
 
 /// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca).</summary>
 public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value);
@@ -238,8 +242,8 @@ public static partial class PlayerInteractions
         && !(world.CityCatalog.BuildingRecipes.TryGetValue(building.BuildingTypeId, out var recipe) && recipe.Lodging is not null);
 
     private static InteractionOffer Offer(string kind, long id, string label, IReadOnlyList<string> verbs, CellCoord at,
-        IReadOnlyList<InteractionResource>? resources = null) =>
-        new(kind, id, label, verbs, at.X, at.Y, resources ?? []);
+        IReadOnlyList<InteractionResource>? resources = null, double? reachCells = null) =>
+        new(kind, id, label, verbs, at.X, at.Y, resources ?? [], reachCells);
 
     private static Result<InteractionResult> Done(InteractionOffer offer, string verb, long quantity, long value) =>
         Result<InteractionResult>.Ok(new InteractionResult(offer.Kind, offer.Id, verb, quantity, value));

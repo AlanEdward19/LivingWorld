@@ -6,6 +6,7 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Players;
 using static LivingWorld.Tests.Unit.Players.PlayerAbsenceTests;
 using static LivingWorld.Tests.Unit.Players.PlayerControlTests;
+using static LivingWorld.Tests.Unit.Players.PlayerWalkTests;
 
 namespace LivingWorld.Tests.Unit.Players;
 
@@ -53,6 +54,31 @@ public class PlayerNatureTests
         Place(w, npc, beside);
         var offer = Assert.Single(PlayerService.Reach(w, "alan")!, o => o.Kind == "water");
         Assert.True(service.Interact(w, "alan", "water", offer.Id, "drink").IsSuccess);
+    }
+
+    /// <summary>#237: o alcance da água é o do corpo AGORA. A pose gravada só anda com um comando de andar; o corpo que se afasta da fonte
+    /// (a leitura da oferta e o "beber" chegando uma latência depois do último passo) já saiu do alcance e a oferta some e o comando é
+    /// recusado, em vez de valerem pela posição de antes.</summary>
+    [Fact]
+    public void Water_leaves_the_offer_as_the_body_walks_away_even_before_the_next_walk_command_arrives()
+    {
+        var (arm, npc, service) = Body(3);
+        var w = arm.World;
+        bool Dry(int x, int y) => w.Map.TryGetCell(new CellCoord(x, y), out var m) && !m.HasWater;
+        var water = w.Map.Cells.Where(c => c.HasWater).Select(c => c.Coord).OrderBy(c => c.Y).ThenBy(c => c.X)
+            .First(c => Enumerable.Range(1, 3).All(i => Open(w, new CellCoord(c.X + i, c.Y)) && Dry(c.X + i, c.Y - 1) && Dry(c.X + i, c.Y + 1)) && Dry(c.X + 4, c.Y));
+        Place(w, npc, new CellCoord(water.X + 1, water.Y));
+        long now = w.CurrentDate.TotalMilliseconds;
+        // 0,95 célula da água (dentro do alcance de 1), andando para longe dela
+        npc.SetFine(new FinePose((water.X + 1) * FinePose.PerCell + 950, water.Y * FinePose.PerCell + 500, 1000, 0, now));
+        var offer = Assert.Single(PlayerService.Reach(w, "alan")!, o => o.Kind == "water");
+        Assert.Equal(PlayerInteractions.ReachCells, offer.ReachCells);
+
+        Wait(arm, 300); // o próximo comando de andar ainda não chegou: o corpo seguiu o rumo
+        Assert.DoesNotContain(PlayerService.Reach(w, "alan")!, o => o.Kind == "water");
+        string hash = WorldSnapshot.CanonicalHash(w);
+        Assert.False(service.Interact(w, "alan", "water", offer.Id, "drink").IsSuccess);
+        Assert.Equal(hash, WorldSnapshot.CanonicalHash(w)); // ler a oferta e a recusa não mudam o mundo
     }
 
     private static (Arm Arm, Npc Npc, PlayerService Service, CellCoord Wood) InTheWoods(ulong seed)

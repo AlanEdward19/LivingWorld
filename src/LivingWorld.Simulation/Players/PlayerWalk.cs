@@ -86,6 +86,42 @@ public static partial class PlayerWalk
         return pose with { X = x, Y = y };
     }
 
+    /// <summary>#237: onde o corpo está AGORA, sem mudar nada: a pose gravada avançada pelo rumo desde o último comando (no máximo
+    /// <see cref="PlayerRules.WalkHold"/>, como o próximo comando faria), parando onde a grade barra. A pose gravada só anda quando chega
+    /// um comando de andar; ler a oferta (ou validar a interação) nela dava ao corpo que se afasta o alcance de onde ele estava há
+    /// uma latência, e o jogador via "Beber" longe da água. Pura: o mundo e o registro de comandos não mudam por ler.</summary>
+    internal static FinePose Projected(WorldState world, Npc npc, FinePose pose)
+    {
+        long elapsed = Math.Clamp(world.CurrentDate.TotalMilliseconds - pose.AtMs, 0, world.Players.WalkHold);
+        if (elapsed <= 0 || (pose.HeadingX == 0 && pose.HeadingY == 0)) return pose;
+        var cell = new CellCoord(pose.CellX, pose.CellY);
+        var ahead = new CellCoord(cell.X + Math.Sign(pose.HeadingX), cell.Y + Math.Sign(pose.HeadingY));
+        bool running = pose.Run && CanExert(world, npc);
+        long distance = (long)Math.Round(SpeedMps(world, npc, cell, ahead, running) / world.Players.CellM / 1000.0 * elapsed * FinePose.PerCell);
+        long x = pose.X, y = pose.Y, walked = 0;
+        while (walked < distance)
+        {
+            long chunk = Math.Min(250, distance - walked);
+            long nx = x + chunk * pose.HeadingX / 1000, ny = y + chunk * pose.HeadingY / 1000;
+            if (!CanReach(world, npc, ref x, ref y, nx, ny) && !CanReach(world, npc, ref x, ref y, nx, y) && !CanReach(world, npc, ref x, ref y, x, ny))
+                break;
+            walked += chunk;
+        }
+        return pose with { X = x, Y = y };
+    }
+
+    /// <summary>Como <see cref="TryEnter"/>, sem mover o corpo na grade.</summary>
+    private static bool CanReach(WorldState world, Npc npc, ref long x, ref long y, long nx, long ny)
+    {
+        if (nx == x && ny == y) return false;
+        var from = new CellCoord((int)Math.Floor(x / (double)FinePose.PerCell), (int)Math.Floor(y / (double)FinePose.PerCell));
+        var to = new CellCoord((int)Math.Floor(nx / (double)FinePose.PerCell), (int)Math.Floor(ny / (double)FinePose.PerCell));
+        if (to != from && !PlayerGround.Step(world, npc, from, to).IsSuccess) return false;
+        x = nx;
+        y = ny;
+        return true;
+    }
+
     /// <summary>Vai a (<paramref name="nx"/>, <paramref name="ny"/>) se a célula de lá é a mesma ou se a grade deixa passar a ela.</summary>
     private static bool TryEnter(WorldState world, TickContext ctx, Npc npc, ref long x, ref long y, long nx, long ny)
     {

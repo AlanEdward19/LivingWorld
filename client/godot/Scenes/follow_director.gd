@@ -95,6 +95,8 @@ func step(delta: float) -> void:
 				app.rig.follow(node)
 			last_point = node.position
 			return
+		if app.player_hud != null and app.player_hud.is_active and app.player_hud.npc_id == int(target.id):
+			return # #237: o corpo do jogador sumiu do escopo desenhado (cidade ↔ mundo): a câmera fica com o ponto de apoio do app, não é solta
 		app.rig.release()
 		if _clock >= DETAIL_SECONDS:
 			_clock = 0.0
