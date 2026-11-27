@@ -11,6 +11,8 @@ const Rig := preload("res://Scenes/npc_rig.gd")
 const BodyPose := preload("res://Scenes/body_pose.gd")
 
 const LEG_X := 0.08
+## #237: o corpo deitado fica centrado na origem do ator (a pose antiga ia de z -1,43 a -0,28: com a origem na cama, o corpo cruzava a parede de trás)
+const LYING_SHIFT := 0.855
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
 const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a0652a"), Color("d6b36a"), Color("8b8b8b"), Color("b5482a")]
 ## Rampas dos genes de aparência do motor (#46 fatia 2), do mais claro ao mais escuro.
@@ -304,13 +306,13 @@ func _get_bed() -> Node3D:
 		add_child(_bed)
 		var mattress := BoxMesh.new()
 		mattress.size = Vector3(0.7, 0.14, 1.15)
-		_part(_bed, mattress, _mat(Color("e9e2d0")), Vector3(0, 0.07, 0.1))
+		_part(_bed, mattress, _mat(Color("e9e2d0")), Vector3(0, 0.07, 0.0))
 		var frame := BoxMesh.new()
 		frame.size = Vector3(0.76, 0.06, 1.2)
-		_part(_bed, frame, _mat(Color("6b4a2b")), Vector3(0, 0.03, 0.1))
+		_part(_bed, frame, _mat(Color("6b4a2b")), Vector3(0, 0.03, 0.0))
 		var pillow := BoxMesh.new()
 		pillow.size = Vector3(0.3, 0.07, 0.2)
-		_part(_bed, pillow, _mat(Color("ffffff")), Vector3(0, 0.17, 0.5))
+		_part(_bed, pillow, _mat(Color("ffffff")), Vector3(0, 0.17, -0.38))
 	return _bed
 
 
@@ -1079,10 +1081,10 @@ func _animate(dt: float) -> void:
 			_body.rotation.x = 0.08
 		"sleep":
 			_body.rotation.x = -PI / 2.0
-			_body.position = Vector3(0, 0.27, -0.28)
+			_body.position = Vector3(0, 0.27, LYING_SHIFT - 0.28)
 			_head.rotation.x = 0.2
 			for i in _legs.size(): # deitadas junto ao quadril do corpo, em vez de em pé no chão
-				_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.27, -0.64)
+				_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.27, LYING_SHIFT - 0.64)
 				_legs[i].rotation.x = -PI / 2.0
 			var zzz := _get_zzz()
 			zzz.position = Vector3(0.1 + sin(_clock) * 0.05, 0.9 + fmod(_clock * 0.3, 0.6), 0)

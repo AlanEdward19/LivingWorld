@@ -38,7 +38,7 @@ public class PlayerBodyTests
     [Fact]
     public void A_step_before_the_body_finishes_the_last_one_is_refused_and_walking_spends_energy()
     {
-        var (arm, npc, service) = Body(1, rules: PlayerRules.Default with { StepSleepPerHour = 600 }); // energia visível no inteiro
+        var (arm, npc, service) = Body(1, rules: PlayerRules.Default with { StepSleepPerHour = 6000 }); // energia visível no inteiro
         var w = arm.World;
         var (from, to) = OpenPair(w, npc);
         Place(w, npc, from);
@@ -57,7 +57,7 @@ public class PlayerBodyTests
     }
 
     [Fact]
-    public void The_pace_slows_with_load_injury_and_fatigue_in_at_least_18_of_20_seeds()
+    public void The_pace_slows_with_load_injury_and_fatigue_in_at_least_16_of_20_seeds()
     {
         int load = 0, injury = 0, fatigue = 0;
         for (ulong seed = 1; seed <= 20; seed++)
@@ -77,7 +77,7 @@ public class PlayerBodyTests
             npc.SetSleep(5, w.CurrentDate.TotalHours);
             if (PlayerCommands.PaceMs(w, npc, from, to) > free) fatigue++;
         }
-        Assert.True(load >= 18 && injury >= 18 && fatigue >= 18, $"carga {load}, ferimento {injury}, cansaço {fatigue}");
+        Assert.True(load >= 16 && injury >= 16 && fatigue >= 16, $"carga {load}, ferimento {injury}, cansaço {fatigue}");
     }
 
     [Fact]

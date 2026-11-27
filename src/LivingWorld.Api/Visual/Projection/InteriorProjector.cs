@@ -24,7 +24,12 @@ public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTy
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorObjects? Objects = null);
 
 /// <summary>Peça de mobília: id do catálogo + índice de variação determinístico (ADR-0034). O cliente compartilha mesh/material por (Id, Variation).</summary>
-public sealed record PlacedObject(string Id, int Variation);
+/// <summary>#237: <c>Floor</c>, <c>Cell</c> (local da planta) e <c>Facing</c> (graus em torno de Y, fundo da peça para a parede) são o lugar que o motor deu à peça
+/// (<see cref="LivingWorld.Simulation.Objects.HomeFurniture"/>); o cliente desenha ali. Sem <c>Cell</c> a peça não coube sem fechar o caminho (não se desenha).</summary>
+public sealed record PlacedObject(string Id, int Variation,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Floor = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CellCoord? Cell = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Facing = null);
 
 /// <summary>Objetos do interior (#47 fatia 1): o catálogo do cenário e a mobília do tipo do prédio, em ordem. Ausente = mundo sem <c>Objects</c>
 /// (o cliente cai no <c>assets.json</c>).</summary>
@@ -61,7 +66,7 @@ public static class InteriorProjector
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
-            layout, BuildObjects(world.ObjectCatalog, building.BuildingTypeId)));
+            layout, BuildObjects(world, building)));
     }
 
     /// <summary>Id do primeiro objeto da mobília do tipo de prédio que atende à ação do NPC e que ele pode usar (mesma regra do motor,
@@ -71,11 +76,16 @@ public static class InteriorProjector
             ? LivingWorld.Simulation.Objects.ObjectUse.Serving(catalog, buildingTypeId, action, npc)?.Id
             : null;
 
-    private static InteriorObjects? BuildObjects(LivingWorld.Domain.Objects.ObjectCatalog? catalog, int buildingTypeId)
+    private static InteriorObjects? BuildObjects(WorldState world, Building building)
     {
-        if (catalog is null) return null;
-        var furniture = catalog.FurnishingFor(buildingTypeId)
-            .Select((id, slot) => new PlacedObject(id, LivingWorld.Domain.Objects.ObjectVariation.Index(catalog.Find(id)?.VariationSeed ?? 0, slot)))
+        if (world.ObjectCatalog is not { } catalog) return null;
+        // camas de hospedagem: uma por vaga de moradia, só em prédio com receita de hospedagem (o mesmo número do marcador da cidade)
+        int lodgingBeds = world.CityCatalog.BuildingRecipes.TryGetValue(building.BuildingTypeId, out var recipe) && recipe.Lodging is not null
+            ? LivingWorld.Simulation.Cities.DwellingCapacity.Of(world, building) : 0;
+        var furniture = LivingWorld.Simulation.Objects.HomeFurniture.Of(building, catalog, lodgingBeds)
+            .Select(piece => piece.Spot is { } spot
+                ? new PlacedObject(piece.Id, piece.Variation, spot.Floor, spot.Cell, spot.Facing)
+                : new PlacedObject(piece.Id, piece.Variation))
             .ToArray();
         return new InteriorObjects(catalog.Format, catalog.Objects, furniture);
     }

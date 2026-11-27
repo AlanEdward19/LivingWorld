@@ -65,7 +65,7 @@ public class ObjectUseTests
         Assert.Equal("lie", point.Name);
         Assert.Equal((int)ActionType.Sleep, point.Action);
         Assert.Equal("sleep", point.Pose);
-        Assert.Equal([0.0, 0.05, 0.3], point.Offset);
+        Assert.Equal([0.0, 0.05, 0.0], point.Offset);
         Assert.Equal(0.0, point.Facing);
     }
 
@@ -209,7 +209,7 @@ public class ObjectUseTests
         var point = json["objects"]!["catalog"]!.AsArray().First(o => (string)o!["id"]! == "bed")!["usePoints"]![0]!;
         Assert.Equal("sleep", (string)point["pose"]!);
         Assert.Equal(1, (int)point["action"]!);
-        Assert.Equal(0.3, (double)point["offset"]![2]!);
+        Assert.Equal(0.0, (double)point["offset"]![2]!);
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class ObjectUseTests
     }
 
     [Theory]
-    [InlineData("bed", "lie", 1, "sleep", 0.0, 0.05, 0.3, 0.0)]
+    [InlineData("bed", "lie", 1, "sleep", 0.0, 0.05, 0.0, 0.0)]
     [InlineData("table", "eat", 0, "eat", 0.0, 0.0, 0.45, 180.0)]
     [InlineData("bench", "sit", 3, "socialize", 0.0, 0.0, 0.3, 180.0)]
     [InlineData("anvil", "hammer", 2, "work", 0.0, 0.0, 0.3, 180.0)]
