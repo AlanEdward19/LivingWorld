@@ -657,6 +657,8 @@ const NEAR_REACH := 4.0 ## células ao redor do corpo
 func player_neighborhood(center: Vector2) -> Array:
 	var obstacles: Array = []
 	var people: Array = []
+	if stage != null and stage.active: # #226/#227: dentro da casa, os painéis finos da planta do motor e quem está no andar
+		return [stage.interior_view.obstacles_near(center, NEAR_REACH), stage.interior_view.people_near(center, 2.0, player_hud.npc_id)]
 	if world_view == null or world_view.buildings == null:
 		return [obstacles, people]
 	for id in world_view.buildings.nodes:
@@ -666,7 +668,7 @@ func player_neighborhood(center: Vector2) -> Array:
 				or center.y < box.position.z - NEAR_REACH or center.y > box.end.z + NEAR_REACH:
 			continue
 		for wall: AABB in node.get_meta("solid", []):
-			if absf(wall.position.x + 0.5 - center.x) <= NEAR_REACH and absf(wall.position.z + 0.5 - center.y) <= NEAR_REACH:
+			if absf(wall.position.x + wall.size.x / 2.0 - center.x) <= NEAR_REACH and absf(wall.position.z + wall.size.z / 2.0 - center.y) <= NEAR_REACH:
 				obstacles.append([Rect2(wall.position.x, wall.position.z, wall.size.x, wall.size.z), wall.size.y])
 	var base := Vector2i(floori(center.x), floori(center.y))
 	for dx in range(-1, 2):
@@ -680,7 +682,7 @@ func player_neighborhood(center: Vector2) -> Array:
 
 ## AD-197k: a posição fina do corpo (prevista ou a do motor) move o boneco do jogador.
 func _on_player_fine(at: Vector2) -> void:
-	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	var node = player_actor()
 	if node != null:
 		if not node.driven:
 			node.set_self(true) # AD-197q: a pessoa nova chega ao desenho depois de entrar (corpo materializado agora)
@@ -848,7 +850,7 @@ func _keep_the_body() -> void:
 	if player_hud == null or not player_hud.is_active:
 		_body_missing_since = -1
 		return
-	var own = world_view.npc_nodes.get(player_hud.npc_id)
+	var own = player_actor()
 	if own != null:
 		_body_missing_since = -1
 		if rig.following != own:
@@ -862,6 +864,16 @@ func _keep_the_body() -> void:
 		_body_missing_since = now
 	elif now - _body_missing_since > BODY_LOST_MS and not _seeking_body:
 		_seek_body()
+
+
+## #227: o corpo do jogador onde ele está desenhado: dentro da casa em foco é o ocupante do interior (a posse e a câmera o seguem
+## sem trocar de modo); fora, o boneco do mundo.
+func player_actor() -> Node3D:
+	if stage != null and stage.active:
+		var inside = stage.interior_view.occupant_nodes.get(player_hud.npc_id)
+		if inside != null:
+			return inside
+	return world_view.npc_nodes.get(player_hud.npc_id)
 
 
 func _seek_body() -> void:
@@ -881,9 +893,10 @@ func _seek_body() -> void:
 
 func _player_view_effects() -> void:
 	_keep_the_body()
-	var own: Node3D = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null and player_hud.is_active else null
+	var own: Node3D = player_actor() if player_hud != null and player_hud.is_active else null
+	var inside: bool = stage != null and stage.active # #227: dentro da casa o mundo não é desenhado; ninguém ao redor para esconder
 	var want: Dictionary = {}
-	if own != null and rig.mode == rig.FIRST:
+	if own != null and not inside and rig.mode == rig.FIRST:
 		var radius: float = rig.near_person()
 		var base := Grid.to_cell(own.position)
 		for dx in range(-1, 2):
@@ -892,7 +905,7 @@ func _player_view_effects() -> void:
 					var other = world_view.npc_nodes.get(id)
 					if other != null and id != player_hud.npc_id and Vector2(other.position.x - own.position.x, other.position.z - own.position.z).length() < radius:
 						want[id] = true
-	if own != null and rig.mode == rig.THIRD: # #224: em 3ª pessoa, quem está colado no corpo do lado da câmera some (o corpo fica à vista)
+	if own != null and not inside and rig.mode == rig.THIRD: # #224: em 3ª pessoa, quem está colado no corpo do lado da câmera some (o corpo fica à vista)
 		var cam: Vector3 = rig.camera.global_position if rig.camera.is_inside_tree() else own.position
 		var toward := Vector2(cam.x - own.position.x, cam.z - own.position.z)
 		var reach: float = Grid.units(2.0)

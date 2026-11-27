@@ -59,17 +59,68 @@ func test_floor_switch_shows_only_its_occupants() -> void:
 	view.free()
 
 
-func test_stage_enter_and_leave_toggle_dimming() -> void:
+func test_stage_enter_and_leave_hide_and_restore_the_world() -> void:
+	var world := Node3D.new()
 	var stage := InteriorStage.new()
-	stage.enter(_info(), Vector2i(10, 10), ActionLabels.new(), Camera3D.new())
-	eq(stage.dim_rect.visible, true, "exterior escurecido e desfocado ao entrar")
+	stage.world = world
+	var camera := Camera3D.new()
+	stage.enter(_info(), Vector2i(10, 10), ActionLabels.new(), camera)
+	eq(world.visible, false, "o mundo não é desenhado com a casa em foco")
+	eq(world.process_mode, Node.PROCESS_MODE_DISABLED, "nem atualizado")
+	eq(stage.backdrop.visible, true, "fundo fora de foco")
 	eq(stage.active, true)
+	check(stage.find_children("*", "SubViewport", true, false).is_empty(), "sem cena separada")
+	var middle: Vector3 = stage.interior_view.center()
+	eq(Vector2(middle.x, middle.z), Vector2(10 + 1.5, 10 + 1.5), "no lugar do prédio, em células do mundo")
 
 	stage.leave()
 
-	eq(stage.dim_rect.visible, false, "exterior restaurado ao sair")
+	eq(world.visible, true, "mundo de volta ao sair")
+	eq(world.process_mode, Node.PROCESS_MODE_INHERIT)
+	eq(stage.backdrop.visible, false)
 	eq(stage.active, false)
 	stage.free()
+	world.free()
+	camera.free()
+
+
+## #226: a parede do motor (célula inteira) vira painel fino; o contorno fica rente à borda de fora e o cômodo ganha a célula toda.
+func test_walls_are_thin_panels_and_the_room_keeps_its_whole_cells() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	var rects: Array = view._panels[0]
+	check(not rects.is_empty(), "há painéis")
+	for rect: Rect2 in rects:
+		check(minf(rect.size.x, rect.size.y) <= InteriorView.WallPanels.THICKNESS + 0.001, "painel fino (%s)" % rect.size)
+	var area := 0.0
+	for x in range(10, 13):
+		for y in range(10, 13):
+			area += 1.0
+	var covered := 0.0
+	for rect: Rect2 in rects:
+		covered += rect.get_area()
+	check(covered < area * 0.35, "as paredes ocupam menos de 35%% da planta (%s de %s)" % [covered, area])
+	view.free()
+
+
+## #226/#229: o corpo anda por toda a célula do cômodo (inclusive a da antiga parede) e só para no painel; a porta passa.
+func test_the_body_walks_the_whole_room_and_stops_at_the_thin_wall_but_not_at_the_door() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	var Body := preload("res://Scenes/player_body.gd")
+	var body := Body.new()
+	body.place(Vector2(10.5, 10.5)) # a célula (0,0), que o motor diz ser parede: agora é piso útil
+	body.set_neighborhood(view.obstacles_near(body.pos, 4.0), [])
+	for i in 120:
+		body.advance(Vector2.LEFT, 4.0, 1.0 / 60.0)
+	check(body.pos.x >= 10.0 + InteriorView.WallPanels.THICKNESS + body.radius - 0.001, "o painel de fora segura o corpo (x=%s)" % body.pos.x)
+	check(body.pos.x < 10.5, "encostou na borda de fora (x=%s)" % body.pos.x)
+	body.place(Vector2(11.5, 11.5)) # a célula da escada (1,1)
+	body.set_neighborhood(view.obstacles_near(body.pos, 4.0), [])
+	for i in 120:
+		body.advance(Vector2.DOWN, 4.0, 1.0 / 60.0)
+	check(body.pos.y > 12.6, "a porta (1,2) deixa passar para fora (y=%s)" % body.pos.y)
+	view.free()
 
 
 ## #222: no interior a parede tem a altura do andar (mais alta que uma pessoa), as do lado da câmera ficam na altura do joelho
