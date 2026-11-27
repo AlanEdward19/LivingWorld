@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LivingWorld.Tests.Integration.Api;
 
 /// <summary>#241: a ação que ocupa o corpo aparece na pose (<c>busy</c>, aditivo e opcional), o passo recusado é 409 e
-/// <c>POST /players/{id}/interrupt</c> (também no canal) devolve a pose livre e a parte proporcional da carga.</summary>
+/// <c>POST /players/{id}/interrupt</c> (também no canal) devolve a pose livre (o que já saiu da árvore fica nas mãos).</summary>
 public class PlayerBusyTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
@@ -43,7 +43,12 @@ public class PlayerBusyTests : IClassFixture<LivingWorldApiFactory>
         var busy = pose["busy"]!;
         Assert.Equal("gather", busy["action"]!.GetValue<string>());
         long total = busy["totalMs"]!.GetValue<long>();
-        Assert.InRange(total, 1, world.StreetRules.CrewHoursPerDay * 3_600_000L + 1); // uma jornada, não dezenas de horas
+        Assert.True(total >= 1);
+        // #243: a sessão é o período todo até a árvore acabar (as unidades que a oferta disse); nada entregue de antemão, a madeira sai aos poucos
+        Assert.Equal(offer["resources"]![0]!["quantity"]!.GetValue<long>(), busy["units"]!.GetValue<long>());
+        Assert.Equal(0, busy["done"]!.GetValue<long>());
+        Assert.Equal(world.StreetRules.HouseMaterialResourceId, busy["resourceId"]!.GetValue<int>());
+        Assert.False(npc.IsCarrying);
         Assert.Equal(total, busy["remainingMs"]!.GetValue<long>());
         Assert.Equal(busy["untilMs"]!.GetValue<long>() - total, world.CurrentDate.TotalMilliseconds);
 
@@ -51,6 +56,9 @@ public class PlayerBusyTests : IClassFixture<LivingWorldApiFactory>
         Assert.NotNull(shape["busy"]); // a pose parada também diz que o corpo está ocupado
         var blocked = await client.PostAsJsonAsync("/players/lenha/walk", new { dx = 1000, dy = 0 });
         Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+
+        var trees = JsonNode.Parse(await client.GetStringAsync("/world/trees"))!; // #243: a árvore ainda não foi tocada: o livro está vazio
+        Assert.Empty(trees["trees"]!.AsArray());
 
         var stopped = await client.PostAsync("/players/lenha/interrupt", null);
         Assert.Equal(HttpStatusCode.OK, stopped.StatusCode);

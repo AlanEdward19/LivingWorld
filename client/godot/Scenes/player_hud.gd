@@ -89,6 +89,7 @@ var header: HFlowContainer
 var _body_clock := 0.0
 var _body_pending := false
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
+const BODY_BUSY_EVERY := 1.0 ## #243: com uma ação rendendo item, a ficha é lida mais vezes: "+1 Madeira" aparece quando a unidade sai
 var _paused_note_clock := 0.0
 var full_possession := false ## #222: o app liga com o token de admin (posse plena, AD-197e)
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
@@ -302,8 +303,21 @@ func orders_open() -> bool:
 
 
 ## A dica da mira: o nome curto da primeira coisa que o E alcançaria, tal como o motor a ofereceu (nada inventado aqui).
+var _hint_from: Array = [] ## #243: a última oferta da dica, para escolher de novo o alvo quando a câmera gira
+var _hint_look := Vector2.ZERO
+const HINT_TURN := 0.996 ## cosseno entre o olhar da dica e o de agora (≈5°): girar mais que isso refaz a escolha do alvo
+
+
+## A câmera girou o bastante desde a escolha do alvo (só com o olhar ligado).
+func _look_turned() -> bool:
+	var look: Vector2 = aim_look.call()
+	return look.length() > 0.001 and (_hint_look.length() < 0.001 or look.normalized().dot(_hint_look.normalized()) < HINT_TURN)
+
+
 func set_reach_hint(from: Array) -> void:
-	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine), building_id)
+	_hint_from = from
+	_hint_look = aim_look.call()
+	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, aim_look.call()), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
 	_hint_offer = {}
 	if not entries.is_empty():
@@ -354,6 +368,8 @@ func hint_out_of_reach() -> bool:
 ## uma dica de alcance na tela). A leitura que falha não deixa a dica velha: sem resposta do motor, a tela não afirma nada.
 func _refresh_reach_hint(delta: float) -> void:
 	reach_clock += delta
+	if rpg and not _hint_from.is_empty() and not _busy and _look_turned():
+		set_reach_hint(_hint_from) # #243: a câmera girou: o alvo do E é o que está sob a mira agora, sem nova leitura do motor
 	if rpg and hint_out_of_reach():
 		set_reach_hint([]) # #237: saiu do alcance: a dica some agora, e a próxima leitura já pode vir
 		_reach_at = Vector2.INF
@@ -527,6 +543,7 @@ func act(action: String, power_id: String = "") -> void:
 const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vector2i(0, 1), KEY_DOWN: Vector2i(0, 1),
 	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
 const STEP_INTERVAL := 0.35 ## s entre passos com a tecla segurada (andar; o motor ainda não limita a velocidade, ver issue)
+var aim_look: Callable = func() -> Vector2: return Vector2.ZERO ## #243: para onde a câmera olha no chão (x, z): a ação principal do E é a do alvo à frente; sem câmera ligada, sem mira (a ordem de sempre)
 var heading: Callable = func() -> Vector2: return Vector2(0, -1) ## para onde a câmera olha no chão (x, z); o app liga o rig
 var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## AD-197j: o app liga o catálogo de recursos
 var step_seconds := STEP_INTERVAL ## AD-197j: quanto o último passo durou no corpo (o motor diz `readyInMs`), em segundos reais
@@ -662,7 +679,7 @@ func toggle_goals() -> void:
 ## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
 func _refresh_body(delta: float) -> void:
 	_body_clock += delta
-	if not rpg or frame == null or _body_pending or _body_clock < BODY_EVERY:
+	if not rpg or frame == null or _body_pending or _body_clock < (BODY_BUSY_EVERY if busy.units > 0 else BODY_EVERY):
 		return
 	_body_clock = 0.0
 	_body_pending = true
@@ -1102,7 +1119,7 @@ func _reach_entries() -> Array:
 			_lost("Você não controla mais %s." % npc_name)
 		return []
 	offers = response.body.get("offers", [])
-	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine), building_id)
+	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id)
 
 
 ## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
@@ -1131,7 +1148,7 @@ func open_interactions() -> void:
 		return
 	offers = response.body.get("offers", [])
 	if rpg and frame != null:
-		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine))
+		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()))
 		menu_toggled.emit(true)
 		return
 	show_menu(menu_entries(offers, resource_name_of))

@@ -17,6 +17,7 @@ var total_ms := 0.0 ## duração em ms de mundo
 var _end_msec := 0.0 ## instante real (Time.get_ticks_msec) em que acaba
 var _real_total_ms := 0.0
 var _factor := 1.0 ## ms de mundo por ms real em vigor (1 em tempo real na escala 1; ~28800 com o mundo acelerado a 8 h/s)
+var units := 0 ## #243: na coleta, quantas unidades a sessão tira (o motor diz); a unidade k sai em k/units do tempo
 var accelerated := false ## #241: o motor acelera o mundo até a ação acabar (jogador sozinho: salto de tempo)
 const SPEED_UP := 4.0 ## acima de quantas vezes o tempo real normal o rótulo diz "tempo acelerado"
 
@@ -32,9 +33,11 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 	var busy: Variant = pose.get("busy")
 	if not busy is Dictionary or String(busy.get("action", "")) == "":
 		action = ""
+		units = 0
 		accelerated = false
 		return before != ""
 	action = String(busy.action)
+	units = int(busy.get("units", 0))
 	accelerated = bool(busy.get("accelerated", false))
 	total_ms = maxf(1.0, float(busy.get("totalMs", 1)))
 	var factor := maxf(scale, 0.001)
@@ -46,6 +49,7 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 
 func clear() -> void:
 	action = ""
+	units = 0
 	accelerated = false
 
 
@@ -101,6 +105,8 @@ static func stopped(kind: String) -> String:
 ## horas e minutos de mundo ("· faltam 4 h 12 min"), para o jogador saber quanto vai demorar.
 func text(now_msec: float) -> String:
 	var line := "%s — %d%%" % [doing(action), roundi(fraction(now_msec) * 100.0)]
+	if units > 1:
+		line += " · %d de %d" % [mini(units, int(floor(fraction(now_msec) * units + 0.0001))), units] # #243: quantas já saíram
 	if accelerated:
 		return line + " · tempo acelerado"
 	var left := world_left_ms(now_msec)

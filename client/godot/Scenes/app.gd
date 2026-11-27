@@ -260,7 +260,35 @@ func _exit_tree() -> void:
 	NpcActor.frozen = false # o estado pausado é do servidor, não deve vazar para o próximo mundo
 
 
+## #243: as árvores cortadas vêm do motor (`GET /world/trees`) a cada TREES_EVERY s (e logo que uma unidade de madeira sai); só reaplica
+## nas malhas se a lista mudou. Nada por quadro além de somar o relógio.
+const TREES_EVERY := 5.0
+var _trees_clock := 0.0
+var _trees_pending := false
+var _trees_json := ""
+
+
+func refresh_trees() -> void:
+	if _trees_pending or api == null or world_view == null or world_view.terrain == null:
+		return
+	_trees_pending = true
+	_trees_clock = 0.0
+	var response: Dictionary = await api.world_trees()
+	_trees_pending = false
+	if not response.ok or not (response.body is Dictionary):
+		return
+	var list: Array = response.body.get("trees", [])
+	var json := JSON.stringify(list)
+	if json == _trees_json:
+		return
+	_trees_json = json
+	world_view.terrain.apply_trees(list)
+
+
 func _process(delta: float) -> void:
+	_trees_clock += delta
+	if _trees_clock >= TREES_EVERY:
+		refresh_trees()
 	if player_hud != null and player_hud.is_active:
 		_player_view_effects()
 	elif not _eye_hidden.is_empty() or _marked != -1:

@@ -56,6 +56,12 @@ func world_calendar() -> Dictionary:
 	return await _fetch("/world/calendar", "world-calendar")
 
 
+## #243: as árvores cortadas (em parte ou até o toco) e a madeira de cada uma (`{trees:[{x,y,left,capacity,stage}]}`); a que ninguém
+## tocou segue a regra do cliente.
+func world_trees() -> Dictionary:
+	return await _fetch("/world/trees", "world-trees")
+
+
 func action_catalog() -> Dictionary:
 	return await _fetch("/visual/catalog/actions", "action-catalog")
 

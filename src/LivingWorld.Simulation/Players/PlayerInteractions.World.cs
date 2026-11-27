@@ -169,21 +169,25 @@ public static partial class PlayerInteractions
     private static void GatherOffers(WorldState world, Npc npc, CellCoord at, List<InteractionOffer> offers)
     {
         var rules = world.StreetRules;
-        if (!world.StreetsOn || rules.HouseGatherHours <= 0 || rules.HouseMaterialUnits <= 0 || npc.IsCarrying
+        if (!world.StreetsOn || rules.HouseGatherHours <= 0 || rules.HouseMaterialUnits <= 0
             || world.CurrentDate.TotalMilliseconds < npc.StepReadyAtMs) return;
         var resource = new ResourceType(rules.HouseMaterialResourceId);
+        if (PlayerTasks.Room(world, npc, resource) <= 0) return; // mãos cheias, ou com outra coisa
         if (PlayerNature.NearestWithinReach(world, at, npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? PlayerWalk.Projected(world, npc, f) : npc.Fine) is not { } tree) return;
         var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
-        var (units, _) = PlayerTasks.CutSession(world, npc, resource, home ?? tree.Cell, tree.Cell, null);
+        long left = PlayerNature.Left(world, tree.Cell, world.CurrentDate.TotalMilliseconds);
+        var (units, _) = PlayerTasks.CutSession(world, npc, resource, home ?? tree.Cell, tree.Cell, null, left);
         var offer = Offer("nature", WaterId(tree.Cell), "Árvore", ["gather"], tree.Cell, [new InteractionResource(resource.Id, units, 0)]);
         offers.Add(offer with { Fx = tree.FineX / (double)FinePose.PerCell, Fy = tree.FineY / (double)FinePose.PerCell });
     }
 
-    /// <summary>#239/#241: cortar lenha na árvore ao alcance. O corte leva o tempo dos NPCs da obra por unidade
-    /// (<c>WorkHaul.CutHours</c>, <see cref="PlayerTasks.CutSession"/>: uma jornada, no limite de carga); só o corte, a viagem o jogador
-    /// anda. O corpo fica ocupado esse tempo (<see cref="BodyTask"/>: nem anda nem corta de novo antes; <see cref="PlayerTasks.Interrupt"/>
-    /// para antes e deixa a parte proporcional) e a carga vai nas mãos, de onde segue para a despensa como a de qualquer NPC.</summary>
-    private static Result<InteractionResult> Gather(WorldState world, Npc npc, InteractionOffer offer, long? quantity)
+    /// <summary>#239/#241/#243: cortar lenha na árvore ao alcance. O corte leva o tempo dos NPCs da obra por unidade
+    /// (<c>WorkHaul.CutHours</c>, <see cref="PlayerTasks.CutSession"/>: no máximo uma jornada, a carga que o corpo aguenta e a madeira que a
+    /// árvore ainda tem); só o corte, a viagem o jogador anda. O corpo fica ocupado esse tempo (<see cref="BodyTask"/>: nem anda nem corta de
+    /// novo antes) e a madeira sai unidade a unidade, da árvore (estado do mundo, finita) para as mãos, a cada unidade de tempo
+    /// (<see cref="PlayerTasks.Settle"/>); <see cref="PlayerTasks.Interrupt"/> para a qualquer hora e deixa o que já saiu. A carga vai nas
+    /// mãos, de onde segue para a despensa como a de qualquer NPC.</summary>
+    private static Result<InteractionResult> Gather(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, long? quantity)
     {
         var resource = new ResourceType(offer.Resources[0].ResourceId);
         if (quantity is <= 0) return Fail("interact: quantidade deve ser > 0");
@@ -191,13 +195,12 @@ public static partial class PlayerInteractions
         if (now < npc.StepReadyAtMs) return Fail($"{PlayerCommands.Conflict} gather: o corpo ainda está ocupado");
         var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
         var wood = new CellCoord(offer.X, offer.Y);
-        var (units, duration) = PlayerTasks.CutSession(world, npc, resource, home ?? wood, wood, quantity);
-        var held = npc.PickUp(resource, units, Math.Max(units, npc.CarryCapacity));
-        if (!held.IsSuccess) return Fail(held.Error!);
+        long left = PlayerNature.Left(world, wood, now);
+        if (left <= 0) return Fail($"{PlayerCommands.Conflict} gather: a árvore já não tem madeira");
+        if (PlayerTasks.Room(world, npc, resource) <= 0) return Fail($"{PlayerCommands.Conflict} gather: as mãos estão cheias");
+        var (units, perUnitMs) = PlayerTasks.CutSession(world, npc, resource, home ?? wood, wood, quantity, left);
         PlayerCommands.TakeTheWheel(world, npc);
-        npc.Step(now + duration, 0, now);
-        npc.SetBodyTask(new BodyTask(PlayerTasks.Gather, now, now + duration) { ResourceId = resource.Id, Units = units });
-        world.RecordResourceProduced(resource, units);
+        PlayerTasks.BeginGather(world, ctx, npc, resource, wood, units, perUnitMs);
         return Done(offer, "gather", units, 0);
     }
 

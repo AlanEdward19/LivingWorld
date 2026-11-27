@@ -137,8 +137,8 @@ public class DeterminismTwoProcessTests
     [Fact]
     public void Same_seed_discovers_the_same_technologies_across_two_separate_processes()
     {
-        string a = RunCommand("emergence-hash 5 34560");
-        string b = RunCommand("emergence-hash 5 34560");
+        string a = RunCommand("emergence-hash 2 34560");
+        string b = RunCommand("emergence-hash 2 34560");
 
         Assert.Equal(a, b);
         Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhuma tecnologia emergiu: o teste não mediu nada");

@@ -10,6 +10,14 @@ const TREE_JITTER := 0.6 ## deslocamento do tronco na célula (±0,3)
 var _crown_colors: Array = [] ## cor de verão de cada copa (a estação recolore a partir dela)
 var _crown_transforms: Array = [] ## AD-189: a copa cheia de cada árvore (a folhagem do motor encolhe a partir dela)
 var crown_scale := 1.0 ## testável: tamanho da copa agora (folhagem do motor)
+const TRUNK_LIFT := 0.25 ## o tronco é desenhado com o pé no chão: a malha sobe meia altura
+const STUMP_HEIGHT := 0.22 ## #243: o toco é este tanto da altura do tronco
+const CUT_CROWN_MIN := 0.4 ## #243: copa da árvore quase toda cortada (a fração do que resta a leva até 1)
+var _trunk_raw: Array = [] ## #243: o tronco de cada árvore sem a elevação (para encolher até o toco)
+var _tree_index: Dictionary = {} ## célula -> índice da árvore nas malhas (as que o cliente desenha pela regra do motor)
+var _crown_factor: PackedFloat32Array = PackedFloat32Array() ## #243: quanto da copa resta (1 inteira, 0 sem copa), do estado do motor
+var _stage_of: Dictionary = {} ## índice -> "cut" | "stump" aplicados agora
+var trees_state: Array = [] ## #243: o que o motor diz das árvores tocadas ({x, y, left, capacity, stage}), reaplicado quando o terreno se refaz
 
 const WATER_SHADER := """
 shader_type spatial;
@@ -44,6 +52,8 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 		child.free()
 	var trunks: Array = []
 	var crowns: Array = []
+	_tree_index = {}
+	_stage_of = {}
 	var rocks: Array = []
 	var water: Array = []
 	for cell in terrain:
@@ -61,18 +71,24 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 		var jitter := Vector3((cell_hash(cell, 1) - 0.5) * TREE_JITTER, 0, (cell_hash(cell, 2) - 0.5) * TREE_JITTER)
 		if roll < TREE_CHANCE:
 			var scale := 0.8 + cell_hash(cell, 3) * 0.7
+			_tree_index[cell] = trunks.size()
 			trunks.append(Transform3D(Basis().scaled(Vector3(1, scale, 1)), Grid.to_world(cell) + jitter))
 			crowns.append([Transform3D(Basis().scaled(Vector3(scale, scale, scale)), Grid.to_world(cell, 0.55 * scale) + jitter),
 				Color.from_hsv(0.28 + cell_hash(cell, 4) * 0.06, 0.55, 0.45 + cell_hash(cell, 5) * 0.2)])
 		elif roll < 0.2:
 			rocks.append(Transform3D(Basis().scaled(Vector3.ONE * (0.6 + cell_hash(cell, 6))), Grid.to_world(cell, 0.04) + jitter))
-	_multi("Trunks", _cylinder(0.07, 0.5), Color("5b3d27"), trunks.map(func(t): return t), [], 0.25)
+	_trunk_raw = trunks.duplicate()
+	_crown_factor = PackedFloat32Array()
+	_crown_factor.resize(trunks.size())
+	_crown_factor.fill(1.0)
+	_multi("Trunks", _cylinder(0.07, 0.5), Color("5b3d27"), trunks.map(func(t): return t), [], TRUNK_LIFT)
 	_crown_colors = crowns.map(func(c): return c[1])
 	_crown_transforms = crowns.map(func(c): return c[0])
 	_multi("Crowns", _cone(0.34, 0.9), Color.WHITE, crowns.map(func(c): return c[0]), _crown_colors, 0.0)
 	crown_scale = 1.0 # a malha nova nasce cheia
 	_multi("Rocks", _rock(), Color("8d9199"), rocks, [], 0.0)
 	_water(water)
+	apply_trees(trees_state) # #243: o terreno refeito volta a mostrar as árvores cortadas
 
 
 ## Copas pela folhagem do motor (AD-189: cor do outono pelo quanto virou, copa rala e nua pela fração; neve; seca amarelada).
@@ -86,8 +102,85 @@ func apply_season(climate: Dictionary) -> void:
 	for i in _crown_colors.size():
 		node.multimesh.set_instance_color(i, Season.crown(_crown_colors[i], climate, fmod(float(i) * 0.618, 1.0)))
 		if resize and i < _crown_transforms.size():
-			var full: Transform3D = _crown_transforms[i]
-			node.multimesh.set_instance_transform(i, Transform3D(full.basis.scaled(Vector3.ONE * scale), full.origin))
+			_place_crown(node.multimesh, i)
+
+
+## A copa `i` pelo tamanho da folhagem do motor e pelo que resta da árvore cortada (#243).
+func _place_crown(multi: MultiMesh, i: int) -> void:
+	var full: Transform3D = _crown_transforms[i]
+	var factor := _crown_factor[i] if i < _crown_factor.size() else 1.0
+	multi.set_instance_transform(i, Transform3D(full.basis.scaled(Vector3.ONE * maxf(crown_scale * factor, 0.0001)), full.origin))
+
+
+## #243: o estado das árvores tocadas, como o motor o diz (`GET /world/trees`: x, y, left, capacity, stage). A árvore inteira segue a regra
+## do cliente (nada a desenhar); a cortada ganha copa menor, na proporção do que resta; o toco perde a copa e o tronco encolhe. O que
+## deixou de estar na lista (cresceu de volta) volta inteiro. Só mexe nas instâncias que mudaram: custo por quadro zero.
+func apply_trees(list: Array) -> void:
+	trees_state = list
+	var crowns := get_node_or_null("Crowns") as MultiMeshInstance3D
+	var trunks := get_node_or_null("Trunks") as MultiMeshInstance3D
+	var wanted: Dictionary = {}
+	for tree in list:
+		if not tree is Dictionary:
+			continue
+		var cell := Vector2i(int(tree.get("x", 0)), int(tree.get("y", 0)))
+		if not _tree_index.has(cell):
+			continue # a regra do cliente não põe árvore aqui: nada a mudar
+		wanted[int(_tree_index[cell])] = tree
+	for i in _stage_of.keys():
+		if not wanted.has(i):
+			_restore_tree(i, crowns, trunks)
+	for i in wanted:
+		var tree: Dictionary = wanted[i]
+		var stage := String(tree.get("stage", "whole"))
+		var capacity := maxf(float(tree.get("capacity", 1)), 1.0)
+		var factor := 1.0
+		if stage == "stump":
+			factor = 0.0
+		elif stage == "cut":
+			factor = lerpf(CUT_CROWN_MIN, 1.0, clampf(float(tree.get("left", capacity)) / capacity, 0.0, 1.0))
+		if _crown_factor[i] == factor and String(_stage_of.get(i, "")) == stage:
+			continue
+		_crown_factor[i] = factor
+		_stage_of[i] = stage
+		if crowns != null:
+			_place_crown(crowns.multimesh, i)
+		if trunks != null:
+			_place_trunk(trunks.multimesh, i, stage == "stump")
+
+
+func _restore_tree(i: int, crowns: MultiMeshInstance3D, trunks: MultiMeshInstance3D) -> void:
+	_crown_factor[i] = 1.0
+	_stage_of.erase(i)
+	if crowns != null:
+		_place_crown(crowns.multimesh, i)
+	if trunks != null:
+		_place_trunk(trunks.multimesh, i, false)
+
+
+func _place_trunk(multi: MultiMesh, i: int, stump: bool) -> void:
+	var xf: Transform3D = _trunk_raw[i]
+	if stump:
+		xf.basis = xf.basis.scaled(Vector3(1.0, STUMP_HEIGHT, 1.0))
+	xf.origin.y += TRUNK_LIFT * xf.basis.y.y
+	multi.set_instance_transform(i, xf)
+
+
+## O estágio desenhado da árvore da célula ("whole", "cut", "stump"), ou "" se o cliente não põe árvore ali (testável).
+func stage_at(cell: Vector2i) -> String:
+	if not _tree_index.has(cell):
+		return ""
+	return String(_stage_of.get(int(_tree_index[cell]), "whole"))
+
+
+## O fator de copa da árvore da célula (1 inteira, 0 toco), ou -1 sem árvore (testável).
+func crown_factor_at(cell: Vector2i) -> float:
+	return float(_crown_factor[int(_tree_index[cell])]) if _tree_index.has(cell) else -1.0
+
+
+## Quantas árvores o cliente desenha pela regra (testável).
+func tree_count() -> int:
+	return _tree_index.size()
 
 
 func _cylinder(radius: float, height: float) -> Mesh:

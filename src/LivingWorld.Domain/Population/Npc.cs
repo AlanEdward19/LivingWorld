@@ -756,6 +756,18 @@ public sealed class Npc
         return Result<Unit>.Ok(Unit.Value);
     }
 
+    /// <summary>#243: junta <paramref name="quantity"/> ao que já leva nas mãos, se for o mesmo recurso e couber em <paramref name="capacity"/>
+    /// (mãos vazias: pega como <see cref="PickUp(ResourceType, long, long)"/>). O corte entrega a madeira unidade a unidade.</summary>
+    public Result<Unit> AddCarried(ResourceType resource, long quantity, long capacity)
+    {
+        if (!IsCarrying) return PickUp(resource, quantity, capacity);
+        if (CarriedResourceId != resource.Id) return Result<Unit>.Fail("carry: NPC já transporta outro recurso");
+        if (quantity <= 0 || CarriedQuantity + quantity > capacity) return Result<Unit>.Fail("carry: excede capacidade");
+        CarriedQuantity += quantity;
+        TouchCanonical();
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
     /// <summary>AD-195: larga o que leva nas mãos (no lote da obra, no chão) e diz o que era; mãos vazias = (0, 0).</summary>
     public (int ResourceId, long Quantity) TakeCarried()
     {

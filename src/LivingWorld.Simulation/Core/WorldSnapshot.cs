@@ -353,6 +353,9 @@ public static class WorldSnapshot
         rehydrated.RestorePossession( // AD-197f: ausente = ninguém estranhou ninguém
             node.TryGetPropertyValue("Possession", out var possessionNode) && possessionNode is not null
                 ? possessionNode.Deserialize<LivingWorld.Simulation.Players.PossessionLedger>(JsonOptions) : null);
+        rehydrated.RestoreTrees( // #243: ausente = nenhuma árvore foi cortada
+            node.TryGetPropertyValue("Trees", out var treesNode) && treesNode is not null
+                ? treesNode.Deserialize<LivingWorld.Simulation.Players.TreeLedger>(JsonOptions) : null);
         rehydrated.UsePlayers( // AD-196: ausente = regras padrão do jogador
             node.TryGetPropertyValue("PlayerRules", out var playerRulesNode) && playerRulesNode is not null
                 ? playerRulesNode.Deserialize<LivingWorld.Domain.Population.PlayerRules>(JsonOptions) : null);

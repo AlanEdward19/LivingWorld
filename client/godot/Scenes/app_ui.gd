@@ -229,6 +229,7 @@ static func _side(app, ui: Control) -> void:
 	ui.add_child(app.player_hud)
 	# AD-197d/197j: WASD relativo ao olhar da câmera; o passo previsto e corrigido pelo motor; golpe, nomes e mira
 	app.player_hud.heading = app.rig.heading
+	app.player_hud.aim_look = app.rig.heading # #243: o alvo do E é o que está sob o olhar
 	app.player_hud.predicted.connect(app._on_player_predicted)
 	app.player_hud.confirmed.connect(app._on_player_confirmed)
 	app.player_hud.rejected.connect(app._on_player_rejected)
@@ -491,6 +492,7 @@ static func _wire_feedback(app) -> void:
 	var fb = Feedback.new()
 	fb.name = "Feedback"
 	fb.settings = app.settings
+	fb.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
 	var own := func() -> Node:
 		var id: int = app.player_hud.npc_id
 		var node = app.world_view.npc_nodes.get(id)

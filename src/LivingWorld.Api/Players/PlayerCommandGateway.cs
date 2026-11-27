@@ -314,6 +314,22 @@ public sealed partial class PlayerCommandGateway(
         return new { done.Kind, done.Id, done.Verb, done.Quantity, done.Value, sessionId = session, pose = PoseOf(world, playerId) };
     }
 
+    /// <summary>#243: as árvores tocadas (cortadas em parte ou até o toco) com a madeira que cada uma tem agora: o que o cliente desenha em
+    /// lugar da árvore natural. Esparso: só as tocadas; a árvore que ninguém cortou segue a regra do cliente.</summary>
+    public object Trees()
+    {
+        lock (library.Gate)
+        {
+            var world = host.Current;
+            return new
+            {
+                trees = LivingWorld.Simulation.Players.PlayerNature.Touched(world)
+                    .Select(t => new { x = t.Cell.X, y = t.Cell.Y, left = t.Left, capacity = t.Capacity, stage = LivingWorld.Simulation.Players.PlayerNature.StageOf(t.Left, t.Capacity) })
+                    .ToList(),
+            };
+        }
+    }
+
     /// <summary>AD-197d: o que o corpo do jogador alcança agora (a oferta do motor); nulo sem corpo.</summary>
     public IReadOnlyList<InteractionOffer>? Reach(string playerId)
     {

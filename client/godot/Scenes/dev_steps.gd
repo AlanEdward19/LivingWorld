@@ -173,6 +173,9 @@ static func run(app: Node, steps: Array) -> void:
 				print("guide: ", guide.steps.size(), " passos; passo ", guide.index + 1, ": ", guide.steps[guide.index].text if guide.visible else "(fechado)")
 			"xray": # AD-177: raio-x, planta, ficha da rua mais usada e do lote com quintal, contagem do chão
 				app.reading.toggle_xray()
+			"focuscell": # #243: só captura: `focuscell:x,y` põe a câmera na célula (sem corpo), para fotografar a árvore cortada e o toco
+				var cell_xy := arg.split(",")
+				app.focus_point(Vector3((float(cell_xy[0]) + 0.5) * Grid.CELL, 0.0, (float(cell_xy[1]) + 0.5) * Grid.CELL))
 			"focuswork": # AD-193: câmera e ficha na primeira obra do escopo (captura da fumaça)
 				for work_id in app.store.works:
 					app.focus_point(app.point_of({"kind": "work", "id": int(work_id)}))
