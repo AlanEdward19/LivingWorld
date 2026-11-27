@@ -13,12 +13,17 @@ var _channels: Array = []
 class WsChannel extends "res://Contract/channel.gd":
 	var peer := WebSocketPeer.new()
 	var _announced_close := false
+	var _skipped := false
 
 	func poll() -> void:
 		peer.poll()
 		match peer.get_ready_state():
 			WebSocketPeer.STATE_OPEN:
 				while peer.get_available_packet_count() > 0:
+					if skip_first_snapshot and not _skipped:
+						_skipped = true
+						peer.get_packet() # o snapshot de abertura do canal: já temos o da assinatura
+						continue
 					var started := Time.get_ticks_usec()
 					var parsed = JSON.parse_string(peer.get_packet().get_string_from_utf8())
 					Cost.add("parse", started)
@@ -66,7 +71,26 @@ func request(method: String, path: String, body: Variant = null, extra_headers: 
 	if done[0] != HTTPRequest.RESULT_SUCCESS:
 		return {"status": 0, "body": null}
 	var text: String = (done[3] as PackedByteArray).get_string_from_utf8()
-	return {"status": int(done[1]), "body": JSON.parse_string(text) if text != "" else null, "text": text}
+	var started := Time.get_ticks_usec()
+	var parsed = await _parse(text) if text != "" else null
+	Cost.add("parse_http", started)
+	return {"status": int(done[1]), "body": parsed, "text": text}
+
+
+const THREAD_PARSE_CHARS := 120000 ## #249: corpo maior que isto (snapshot de cidade ou mundo) é lido fora do quadro
+
+
+## JSON de resposta. Os grandes (snapshots, ~100 ms no fio principal) saem para uma tarefa em segundo plano e o quadro segue;
+## o resultado é o mesmo de `JSON.parse_string`.
+func _parse(text: String) -> Variant:
+	if text.length() < THREAD_PARSE_CHARS or not is_inside_tree():
+		return JSON.parse_string(text)
+	var box: Array = [null]
+	var task := WorkerThreadPool.add_task(func() -> void: box[0] = JSON.parse_string(text))
+	while not WorkerThreadPool.is_task_completed(task):
+		await get_tree().process_frame
+	WorkerThreadPool.wait_for_task_completion(task)
+	return box[0]
 
 
 ## `extra_headers` vão no aperto de mão (o canal do jogador leva `Authorization: Bearer`, AD-197a).

@@ -1,51 +1,23 @@
 extends Control
-## #227: foco no interior. A casa é desenhada no próprio mundo, no lugar do prédio e na escala do mundo (mesma câmera, mesmo
-## sol, mesmas unidades): não há SubViewport nem outra escala. O resto do mundo deixa de ser desenhado e atualizado (o quadro
-## fica mais barato dentro da casa) e um fundo suave e escurecido, sem geometria, faz o papel do mundo fora de foco.
+## #227/#249: foco no interior. A casa é desenhada no próprio mundo, no lugar do prédio e na escala do mundo (mesma câmera, mesmo
+## sol, mesmas unidades): não há SubViewport nem outra escala. O mundo NÃO some: a cidade segue desenhada, atualizada e com os deltas
+## chegando (a rua continua visível e viva em volta da casa). Só o prédio em foco sai do desenho (a casa o substitui: telhado e
+## andares acima do corpo ficam de fora, paredes do lado da câmera baixas ou translúcidas) e quem está dentro é desenhado pela casa.
 
 const InteriorView := preload("res://Scenes/interior_view.gd")
 
 var interior_view
 var active := false
 var floor_label: Label
-var world: Node3D ## o mundo desenhado (WorldView): escondido e parado enquanto a casa está em foco
-var backdrop: MeshInstance3D ## o mundo fora de foco: chão desfocado que escurece para as bordas
+var world: Node3D ## o mundo desenhado (WorldView): segue visível e vivo; só o prédio em foco sai do desenho
+var covered_building := -1 ## #249: prédio do mundo que a casa em foco substitui (some do desenho enquanto ela está)
 
-var _material: ShaderMaterial
 var _source: Camera3D
-var _world_process_mode := Node.PROCESS_MODE_INHERIT
-var _light := 1.0
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled;
-uniform vec3 center = vec3(0.0);
-uniform vec3 tint : source_color = vec3(0.34, 0.42, 0.28);
-uniform float radius = 18.0;
-varying vec3 pos;
-void vertex() { pos = VERTEX; }
-void fragment() {
-	float d = length(pos.xz - center.xz) / radius;
-	float soft = smoothstep(0.0, 1.0, d);
-	ALBEDO = mix(tint, tint * 0.18, soft);
-}
-"""
-	_material = ShaderMaterial.new()
-	_material.shader = shader
-	backdrop = MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(160, 160)
-	backdrop.mesh = plane
-	backdrop.material_override = _material
-	backdrop.position.y = -0.04
-	backdrop.visible = false
-	backdrop.name = "Backdrop"
-	add_child(backdrop)
 	interior_view = InteriorView.new()
 	add_child(interior_view)
 	floor_label = Label.new()
@@ -56,39 +28,49 @@ void fragment() {
 	add_child(floor_label)
 
 
-func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1, lodging_units: int = 0) -> void:
+func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1, lodging_units: int = 0, building_id: int = -1) -> void:
 	_source = source_camera
 	interior_view.show_interior(info, origin, labels, building_type, lodging_units)
-	_hide_world()
-	var middle: Vector3 = interior_view.center()
-	backdrop.position = Vector3(middle.x, -0.04, middle.z)
-	_material.set_shader_parameter("center", middle)
-	backdrop.visible = true
+	covered_building = building_id
+	_cover_building()
 	active = true
 	_update_floor_label()
 	_sync_camera()
 
 
-## O mundo some do desenho e do `_process` (custo de quadro cai); volta igual ao sair.
-func _hide_world() -> void:
-	if world == null or not is_instance_valid(world) or not world.visible:
+## O prédio do mundo some do desenho (a casa tomou o lugar dele); volta igual ao sair. O desenho do prédio pode ser refeito por delta
+## com a casa em foco: a cada quadro garante que o novo nó também fica de fora.
+func _cover_building() -> void:
+	if covered_building < 0 or world == null or not is_instance_valid(world) or not ("buildings" in world):
 		return
-	_world_process_mode = world.process_mode
-	world.visible = false
-	world.process_mode = Node.PROCESS_MODE_DISABLED
+	var node = world.buildings.nodes.get(covered_building)
+	if node != null and node.visible:
+		node.visible = false
 
 
-func _show_world() -> void:
-	if world == null or not is_instance_valid(world) or world.visible:
+func _uncover_building() -> void:
+	if covered_building >= 0 and world != null and is_instance_valid(world) and "buildings" in world:
+		var node = world.buildings.nodes.get(covered_building)
+		if node != null:
+			node.visible = true
+	covered_building = -1
+	if world != null and is_instance_valid(world) and "npcs" in world:
+		world.npcs.set_interior_hidden({})
+
+
+## Ocupantes da casa (e seus nomes): o interior os desenha, o mundo deixa de desenhar o boneco da mesma pessoa (exceto o do corpo do
+## jogador, que é a mesma figura nos dois e fica sempre à vista).
+func sync_occupants(occupants: Array, names: Dictionary) -> void:
+	interior_view.set_occupants(occupants)
+	interior_view.apply_names(names)
+	if world == null or not is_instance_valid(world) or not ("npcs" in world):
 		return
-	world.process_mode = _world_process_mode
-	world.visible = true
-
-
-## O sol e o céu são os do mundo; aqui só o fundo acompanha o dia.
-func set_daylight(light: float) -> void:
-	_light = light
-	_material.set_shader_parameter("tint", Vector3(0.34, 0.42, 0.28) * (0.35 + 0.65 * light))
+	var hidden := {}
+	for occupant in occupants:
+		var id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
+		if id != interior_view.guided_id:
+			hidden[id] = true
+	world.npcs.set_interior_hidden(hidden)
 
 
 ## A câmera é a do mundo (a seleção projeta ocupantes e objetos com ela).
@@ -98,11 +80,10 @@ func camera() -> Camera3D:
 
 func leave() -> void:
 	interior_view.immersive = false
-	backdrop.visible = false
 	floor_label.visible = false
 	active = false
 	interior_view.close() # #237: a casa sai do desenho de vez (antes ficava no lugar, escura, por cima do mundo)
-	_show_world()
+	_uncover_building()
 
 
 func set_floor(level: int) -> void:
@@ -117,6 +98,7 @@ func _update_floor_label() -> void:
 
 func _process(_delta: float) -> void:
 	if active:
+		_cover_building()
 		_sync_camera()
 
 

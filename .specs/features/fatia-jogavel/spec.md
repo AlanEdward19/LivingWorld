@@ -34,7 +34,7 @@ Aceite: andar por todos os cômodos sem bloqueio invisível; motor e cliente con
 
 **M3 — um mundo só, sem troca de tela.** A cidade fica carregada; ao entrar, o telhado some e o
 interior aparece na mesma cena; mundo aberto → cidade sem recarregar tudo (só o que muda).
-Aceite: atravessar mundo → cidade → casa → cidade sem pausa > 100 ms nem câmera pulando.
+Aceite: atravessar mundo → cidade → casa → cidade sem pausa > 100 ms nem câmera pulando. **Entregue (#249, AD-216).**
 
 **M4 — necessidades e objetos.** Higiene e diversão como necessidades do motor (para NPC e
 jogador, com efeito real: saúde, humor, como os outros reagem). Objetos do período: fogão a

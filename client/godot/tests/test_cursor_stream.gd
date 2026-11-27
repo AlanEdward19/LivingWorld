@@ -37,6 +37,22 @@ func test_snapshot_then_ordered_deltas() -> void:
 	eq(int(stream.cursor.sequence), 2)
 
 
+## #249: o snapshot que o servidor manda ao abrir o canal repete o da assinatura (custava um quadro de ~100 ms para ler): o canal
+## nasce pedindo para descartá-lo, e o que escapar entre os dois vira lacuna e replay (o contrato de sempre).
+func test_the_channel_asks_to_skip_the_snapshot_the_server_repeats_on_open_and_a_gap_still_replays() -> void:
+	var setup := _online()
+	var transport = setup[0]
+	var stream = setup[1]
+	var applied: Array = []
+	stream.delta_applied.connect(func(e): applied.append(int(e.toCursor.sequence)))
+	transport.on("GET /visual/replay", {"status": 200, "body": [Fx.delta(0, 1), Fx.delta(1, 2)]})
+	await stream.subscribe("World")
+	eq(transport.channels[0].skip_first_snapshot, true, "o canal descarta o snapshot de abertura sem ler")
+	transport.channels[0].push(Fx.delta(2, 3)) # o delta que escapou entre a assinatura e o canal: lacuna
+	await tree.process_frame
+	eq(applied, [1, 2], "o replay traz o que faltou")
+
+
 func test_gap_triggers_replay_and_discards_delta() -> void:
 	var setup := _online()
 	var transport = setup[0]
