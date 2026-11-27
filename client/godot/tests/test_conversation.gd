@@ -160,7 +160,9 @@ func test_the_covered_hint_is_hidden_while_the_conversation_is_open() -> void:
 	var window := _window(transport)
 	var hint := Label.new()
 	tree.root.add_child(hint)
-	window.hides = [hint]
+	var modal = load("res://Scenes/modal.gd").new() # #240: o registro único cobre a dica e segue a janela
+	modal.cover(hint)
+	modal.watch(window)
 	await window.attach(7, "Coris", 9)
 	eq(hint.visible, false, "a dica de teclas some com a conversa aberta")
 	await window.end_conversation()

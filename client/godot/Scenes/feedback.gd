@@ -31,6 +31,16 @@ var shake_cb: Callable = func(_amount: float) -> void: pass
 var played: Array[String] = [] ## últimos sons pedidos (testes); só entra o que passaria do silêncio
 var puff_log := 0 ## poeiras emitidas (testes)
 var floaters_shown := 0
+var suppressed := false: ## #240: popup aberto: nenhum número flutua (os que subiam somem; os novos não aparecem)
+	set(value):
+		suppressed = value
+		if value:
+			for i in _dmg_labels.size():
+				_dmg_labels[i].visible = false
+				_dmg_ages[i] = DAMAGE_S
+			for i in _labels.size():
+				_labels[i].visible = false
+				_ages[i] = FLOAT_S
 var damage_shown: Array = [] ## #234: números de dano mostrados {amount, own} (testes)
 var _dmg_labels: Array[Label3D] = []
 var _dmg_ages: Array[float] = []
@@ -248,7 +258,7 @@ func show_damage(at: Vector3, amount: int, color: Color, own: bool = false) -> v
 	damage_shown.append({"amount": amount, "own": own})
 	if damage_shown.size() > 32:
 		damage_shown.remove_at(0)
-	if _dmg_labels.is_empty():
+	if _dmg_labels.is_empty() or suppressed:
 		return
 	var i := _dmg_next
 	_dmg_next = (_dmg_next + 1) % _dmg_labels.size()
@@ -361,7 +371,7 @@ func puff(at: Vector3, strength: float) -> void:
 
 func _float(text: String, color: Color) -> void:
 	floaters_shown += 1
-	if _labels.is_empty():
+	if _labels.is_empty() or suppressed:
 		return
 	var i := _next_label
 	_next_label = (_next_label + 1) % _labels.size()

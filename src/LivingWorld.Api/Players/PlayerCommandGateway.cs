@@ -52,6 +52,20 @@ public sealed partial class PlayerCommandGateway(
 
     public PlayerLogStore Log => log;
 
+    /// <summary>#240: a pausa de popup (pedido do jogador que joga sozinho). O laço não roda tick enquanto ela vale; os comandos do popup
+    /// continuam aceitos (só a pausa do admin recusa). Trocável nos testes para um relógio falso.</summary>
+    public PopupHold Hold { get; set; } = new(TimeProvider.System);
+
+    /// <summary>O mundo está parado por um popup: hold vivo, só um jogador conectado e no máximo um corpo conduzido no mundo.</summary>
+    public bool PopupHolding
+    {
+        get
+        {
+            if (!Hold.IsActive) return false;
+            lock (library.Gate) return PlayerService.PlayersPresent(host.Current) <= 1;
+        }
+    }
+
     /// <summary>Recusa da pausa do admin antes de ler o pedido (decisão do dono: pausa = 409 em toda rota do jogador).</summary>
     public PlayerReply? PauseRefusal() =>
         EnforcePause && simulation.IsPaused ? new PlayerReply(StatusCodes.Status409Conflict, null, PausedError) : null;

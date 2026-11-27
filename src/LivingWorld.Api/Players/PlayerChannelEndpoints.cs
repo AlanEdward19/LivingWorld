@@ -14,7 +14,7 @@ namespace LivingWorld.Api.Players;
 /// <c>{"seq":8,"command":"interact","kind":"stall","id":3,"verb":"buy","resourceId":1,"quantity":2}</c>
 /// — e a resposta vem pelo mesmo canal: <c>{"seq":1,"ok":true,"status":200,"body":{...}}</c> ou
 /// <c>{"seq":2,"ok":false,"status":409,"error":"..."}</c>. Os comandos passam pela mesma fila das rotas HTTP
-/// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). As rotas HTTP continuam valendo.</summary>
+/// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). #240: <c>{"seq":9,"command":"hold","on":true}</c> pede a pausa de popup. As rotas HTTP continuam valendo.</summary>
 public static class PlayerChannelEndpoints
 {
     private static readonly JsonSerializerOptions Wire = LivingWorld.Api.Realtime.WireMillis.Apply(new(JsonSerializerDefaults.Web));
@@ -35,6 +35,15 @@ public static class PlayerChannelEndpoints
             }
 
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
+            gateway.Hold.Connected(playerId);
+            try { await Serve(socket, http, gateway, tokens, playerId); }
+            finally { gateway.Hold.Disconnected(playerId); } // desconectar solta o hold: o mundo nunca fica parado sem ninguém
+        });
+    }
+
+    private static async Task Serve(WebSocket socket, HttpContext http, PlayerCommandGateway gateway, PlayerSessionTokens tokens, string playerId)
+    {
+        {
             var buffer = new byte[16 * 1024];
             var message = new MemoryStream();
             while (socket.State == WebSocketState.Open && !http.RequestAborted.IsCancellationRequested)
@@ -57,7 +66,7 @@ public static class PlayerChannelEndpoints
 
             if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
                 await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
-        });
+        }
     }
 
     private static long? SeqOf(string text)
@@ -120,6 +129,13 @@ public static class PlayerChannelEndpoints
         catch (Exception e) when (e is InvalidOperationException or FormatException)
         {
             return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "campo com tipo errado" };
+        }
+        // #240: pausa de popup ({"command":"hold","on":true}, renovada pelo cliente): honrada só para o único conectado; vence em 30 s sem renovar
+        if (command == "hold")
+        {
+            bool held = gateway.Hold.Set(playerId, node?["on"]?.GetValue<bool>() ?? false);
+            return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200,
+                ["body"] = new JsonObject { ["held"] = held, ["leaseMs"] = (int)PopupHold.Lease.TotalMilliseconds } };
         }
         if (command == "ping") return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = "pong" };
         if (command == "reach")

@@ -8,6 +8,8 @@ const UiTheme := preload("res://Scenes/ui_theme.gd")
 const Minimap := preload("res://Scenes/minimap.gd")
 const Toasts := preload("res://Scenes/toasts.gd")
 const Feedback := preload("res://Scenes/feedback.gd")
+const Modal := preload("res://Scenes/modal.gd")
+const PopupHold := preload("res://Scenes/popup_hold.gd")
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const Inspector := preload("res://Scenes/inspector.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
@@ -48,6 +50,7 @@ static func build(app) -> void:
 	layer.layer = 5
 	app.add_child(layer)
 	layer.add_child(ui)
+	app.modal = Modal.new() # #240: o registro único de popup aberto (popup novo: `app.modal.watch(controle)`)
 	app.stage = InteriorStage.new()
 	ui.add_child(app.stage)
 	app.stage.world = app.world_view # #227: o mundo que a casa em foco esconde
@@ -232,7 +235,7 @@ static func _side(app, ui: Control) -> void:
 		app._on_player_menu(true)
 		app.conversation.game_style = app.player_mode # #233: caixa de diálogo de jogo com escolhas (e números)
 		app.conversation.attach(id, name, session))
-	app.player_hud.input_blocked = func() -> bool: return app.conversation != null and app.conversation.is_open
+	app.player_hud.input_blocked = func() -> bool: return app.modal.active # #240: qualquer popup aberto, não só a conversa
 	app.player_hud.target_changed.connect(app._on_player_target)
 	app.player_hud.placed.connect(app._on_player_placed)
 	app.player_hud.struck.connect(app._on_player_struck)
@@ -332,7 +335,7 @@ static func _windows(app, ui: Control) -> void:
 	app.conversation.api = app.api
 	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar
 	if app.player_frame != null:
-		app.conversation.hides = [app.player_frame.hints] # #237: a dica de teclas fica atrás do painel de conversa: some enquanto ele está aberto
+		app.modal.cover(app.player_frame.hints) # #237/#240: a dica de teclas fica atrás de qualquer popup: some enquanto ele está aberto
 	app.conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
 	app.conversation.anchor_top = 1.0 # faixa fixa na base da tela
 	app.conversation.offset_left = 310
@@ -399,6 +402,21 @@ static func _bottom(app, ui: Control) -> void:
 	app.loading = loading
 
 
+## #240: as janelas centrais do jogador entram no registro de popup (uma linha cada); quem cria popup novo faz o mesmo.
+static func _popups(app) -> void:
+	for popup in [app.conversation, app.first_steps.help, app.pause_menu, app.creator]:
+		if popup != null:
+			app.modal.watch(popup)
+	if app.player_frame != null:
+		for popup in [app.player_frame.inventory, app.player_frame.goals, app.player_frame.menu_panel]:
+			app.modal.watch(popup)
+	app.modal.changed.connect(app._on_modal)
+	app.popup_hold = PopupHold.new()
+	app.popup_hold.api = app.api
+	app.popup_hold.bind(app.modal)
+	app.add_child(app.popup_hold)
+
+
 ## Por cima de tudo: dicas dos primeiros passos, ajuda, menu de pausa e a cortina que abre suave ao entrar no mundo.
 static func _overlays(app, ui: Control) -> void:
 	app.first_steps = FirstSteps.new()
@@ -411,6 +429,7 @@ static func _overlays(app, ui: Control) -> void:
 	app.pause_menu.quit_pressed.connect(func(): app.quit_requested.emit())
 	app.pause_menu.help_pressed.connect(func(): app.first_steps.open_help())
 	ui.add_child(app.pause_menu)
+	_popups(app)
 	app.curtain = ColorRect.new()
 	app.curtain.color = Color("0d1420")
 	app.curtain.set_anchors_preset(Control.PRESET_FULL_RECT)

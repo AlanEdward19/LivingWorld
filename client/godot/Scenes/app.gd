@@ -94,6 +94,8 @@ var hover_text := ""
 var selected_npc := -1
 var settings ## preferências locais (GameSettings) vindas do Boot; nulo nos testes e nas medidas
 var pause_menu ## PauseMenu (Esc)
+var modal ## #240: Modal, o registro único de popup aberto
+var popup_hold ## #240: PopupHold, o pedido de pausa de popup ao motor
 var first_steps ## FirstSteps: dicas da primeira vez e ajuda
 var help_button: Button
 var world_button: Button ## "◀ Mapa do mundo", só dentro de uma cidade
@@ -731,6 +733,11 @@ func _on_player_rejected() -> void:
 func _on_player_target(kind: String, id: int, cell: Vector2) -> void:
 	if aim_highlight == null:
 		return
+	if modal != null and modal.active: # #240: popup aberto: sem anel nem alcance, sem alvo
+		aim_highlight.clear()
+		if reach_ring != null:
+			reach_ring.clear()
+		return
 	var own = world_view.npc_nodes.get(player_hud.npc_id) if player_hud != null else null
 	if reach_ring != null: # #234: o anel de alcance do golpe só enquanto a mira está numa pessoa
 		if kind == "person" and own != null and cell != Vector2.INF:
@@ -811,10 +818,30 @@ func _on_player_incoming(outcome: String, _damage: int, by: int) -> void:
 		node.play_defense(DEFENSE_BY_OUTCOME.get(outcome, "hurt"))
 
 
+## #240: abriu ou fechou o último popup: a mira, o anel, a dica do E e os números flutuantes saem do centro e voltam ao fechar.
+func _on_modal(active: bool) -> void:
+	if crosshair != null:
+		crosshair.visible = rig.mode != rig.ISO and not active
+	if player_frame != null:
+		player_frame.blocked = active
+	if player_hud != null:
+		player_hud.reach_hint.visible = player_hud.reach_hint.visible and not active
+		if active:
+			if aim_highlight != null:
+				aim_highlight.clear()
+			if reach_ring != null:
+				reach_ring.clear()
+		else:
+			player_hud.reach_clock = player_hud.REACH_HINT_EVERY # o alvo volta já na próxima leitura
+			player_hud._reach_at = Vector2.INF
+	if feedback != null:
+		feedback.suppressed = active
+
+
 ## AD-197j: a mira (uma cruz no centro) só no modo jogador.
 func _on_camera_mode(mode: String) -> void:
 	if crosshair != null:
-		crosshair.visible = mode != rig.ISO
+		crosshair.visible = mode != rig.ISO and not (modal != null and modal.active)
 	set_player_mode(mode != rig.ISO and player_hud != null and player_hud.is_active)
 	if player_hud != null and player_hud.is_active: # AD-197r: o olho fica na altura da cabeça; na 1ª pessoa a própria cabeça não se desenha
 		var own = world_view.npc_nodes.get(player_hud.npc_id)

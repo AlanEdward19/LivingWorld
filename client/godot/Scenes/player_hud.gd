@@ -297,7 +297,7 @@ func orders_open() -> bool:
 func set_reach_hint(from: Array) -> void:
 	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
-	reach_hint.visible = rpg and reach_hint.text != "" and frame == null
+	reach_hint.visible = rpg and reach_hint.text != "" and frame == null and not popup_open()
 	if frame != null:
 		frame.set_prompt(reach_hint.text if rpg else "")
 	if rpg:
@@ -502,6 +502,19 @@ func intent_for(keys: Vector2i) -> Vector2i:
 	return Vector2i(roundi(snapped.x), roundi(snapped.y))
 
 
+## #240: há popup central aberto (o registro único do app, via `input_blocked`).
+func popup_open() -> bool:
+	return input_blocked.is_valid() and input_blocked.call()
+
+
+## #240: um campo de texto tem o foco (a conversa): as teclas são do texto, não do corpo.
+func typing() -> bool:
+	if not is_inside_tree():
+		return false
+	var owner := get_viewport().gui_get_focus_owner()
+	return owner is LineEdit or owner is TextEdit
+
+
 func _held_keys() -> Vector2i:
 	var keys := Vector2i.ZERO
 	for code in STEP_KEYS:
@@ -515,7 +528,7 @@ func _process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if not is_active:
 		return
-	glide(walk_direction(_held_keys()), delta)
+	glide(walk_direction(Vector2i.ZERO if typing() else _held_keys()), delta) # #240: digitando num popup, WASD não anda o corpo
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
 	_refresh_goals(delta)
@@ -765,7 +778,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg:
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg and not popup_open():
 		get_viewport().set_input_as_handled()
 		jump()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_I] and rpg:

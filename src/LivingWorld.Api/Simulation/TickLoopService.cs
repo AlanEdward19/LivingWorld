@@ -81,6 +81,9 @@ public sealed class TickLoopService(
             return;
         }
 
+        // #240: popup aberto de quem joga sozinho: o mundo espera (sem tick, sem projeção); a pausa do admin acima tem precedência
+        if (playerGateway.PopupHolding) return;
+
         var world = worldHost.Current;
         // AD-197c: o ritmo do mundo escolhe o Δ (fino com jogador, uma hora sem ninguém ou acelerado); o fim do pulo de tempo e a troca
         // de Δ vão para o registro do jogador e para o disco, como os comandos. O save diário só na virada da hora 0

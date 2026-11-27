@@ -194,6 +194,12 @@ func _player_command(command: Dictionary, method: String, path: String, body: Va
 	return await transport.request(method, path, body, _player_headers())
 
 
+## #240: pausa de popup (só pelo canal persistente): o motor honra se este for o único jogador conectado; vence em 30 s sem renovar.
+func player_hold(on: bool) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "hold", "on": on}, "POST", "/players/hold", {"on": on})
+	return {"ok": response.status == 200, "held": response.body is Dictionary and bool(response.body.get("held", false))}
+
+
 func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "incarnate", "npcId": npc_id}, "POST", "/players/%d/incarnate" % npc_id, {"playerId": player_id})
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
