@@ -1,6 +1,6 @@
 extends RefCounted
 ## #229: controlador cinemático local do corpo do jogador (células, plano x/z). Só prevê: o motor valida cada passo.
-## Aceleração e freio suaves, deslize em paredes, empurrão macio de pessoas, degraus baixos pisados por cima e
+## Aceleração e freio suaves, deslize em paredes, desvio macio de pessoas (desacelera e desliza, nunca bloqueia), degraus baixos pisados por cima e
 ## reconciliação com a posição do motor sem trancos. Só conhece a vizinhança (set_neighborhood); custo por quadro
 ## ~ obstáculos ao redor, nunca por NPC da cidade.
 
@@ -8,7 +8,9 @@ const ACCEL_TIME := 0.12 ## s para chegar à velocidade do motor (parado → and
 const BRAKE_TIME := 0.08 ## s para parar ao soltar a tecla
 const RADIUS := 0.2 ## células (0,3 m com 1,5 m por célula)
 const PERSON_RADIUS := 0.2
-const PERSON_SOFT := 0.5 ## fração da sobreposição com uma pessoa absorvida por sub-passo (empurrão macio)
+const PERSON_SOFT := 0.35 ## fração da sobreposição com uma pessoa desviada (de lado) por sub-passo
+const CROWD_DRAG := 0.1 ## #228: perda de velocidade por pessoa encostada; gente nunca bloqueia: o piso abaixo vale em qualquer multidão
+const CROWD_FLOOR := 0.5 ## fração mínima da velocidade que a multidão deixa
 const STEP_HEIGHT := 0.3 ## altura (mundo) até a qual um obstáculo é degrau e não parede
 const SNAP_DISTANCE := 2.0 ## células: erro maior que isto vira salto (teleporte do motor, erro grande)
 const LEAD_ALLOWANCE := 0.35 ## s de dianteira sobre o motor que são latência normal, não erro
@@ -61,7 +63,7 @@ func advance(direction: Vector2, speed: float, delta: float) -> Vector2:
 	velocity = velocity.move_toward(direction * speed, rate * delta)
 	var nudge := _correction * (1.0 - exp(-CONVERGE_RATE * delta))
 	_correction -= nudge
-	var move := velocity * delta + nudge
+	var move := velocity * delta * _crowd_factor() + nudge
 	var pieces := maxi(1, ceili(move.length() / (radius * 0.5)))
 	for i in pieces:
 		pos += move / float(pieces)
@@ -100,16 +102,30 @@ func _resolve() -> void:
 			if into < 0.0:
 				velocity -= normal * into # desliza ao longo da parede
 	var reach := radius + PERSON_RADIUS
+	var heading := velocity.normalized() if velocity.length_squared() > 0.0001 else Vector2.ZERO
 	for other in people:
 		var apart := pos - other
 		var gap := apart.length()
 		if gap >= reach:
 			continue
 		var direction := apart / gap if gap > 0.0001 else Vector2.RIGHT
+		if heading != Vector2.ZERO:
+			# #228: as pessoas abrem passagem: o jogador desvia de lado (deslizando entre elas), nunca é empurrado para trás
+			var side := direction - heading * direction.dot(heading)
+			if side.length_squared() < 0.01: # a pessoa está de frente: escolhe o lado por uma regra fixa (determinística)
+				side = Vector2(-heading.y, heading.x)
+			direction = side.normalized()
 		pos += direction * (reach - gap) * PERSON_SOFT
-		var into_person := velocity.dot(direction)
-		if into_person < 0.0:
-			velocity -= direction * into_person * 0.5 # só freia; não para seco
+
+
+## #228: quanto da velocidade a gente encostada deixa (desacelera, nunca bloqueia): CROWD_FLOOR a 1.
+func _crowd_factor() -> float:
+	var touching := 0
+	var reach := radius + PERSON_RADIUS
+	for other in people:
+		if pos.distance_squared_to(other) < reach * reach:
+			touching += 1
+	return maxf(CROWD_FLOOR, 1.0 - CROWD_DRAG * float(touching))
 
 
 ## A pose do motor chegou. Erro pequeno ao longo do rumo é latência (o corpo está à frente) e fica; o resto converge aos poucos.

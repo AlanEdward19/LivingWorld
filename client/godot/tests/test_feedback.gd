@@ -102,8 +102,8 @@ func test_sheet_changes_show_only_after_a_confirmed_action() -> void:
 	var shown := fb.note_sheet({"money": 38, "hunger": 35.0, "health": 90.0})
 	eq(shown, 2, "−12 dinheiro e +5 comida")
 	var lines := Feedback.sheet_changes({"money": 50, "hunger": 30.0}, {"money": 38, "hunger": 35.0})
-	eq(lines[0].text, "💰 −12 dinheiro", "perda de dinheiro")
-	eq(lines[1].text, "🍞 +5 comida", "ganho de comida")
+	eq(lines[0].text, "−12 dinheiro", "perda de dinheiro")
+	eq(lines[1].text, "+5 comida", "ganho de comida")
 	eq(Feedback.sheet_changes({"health": 90.0}, {"health": 90.4}).size(), 0, "ruído pequeno não aparece")
 	fb.queue_free()
 

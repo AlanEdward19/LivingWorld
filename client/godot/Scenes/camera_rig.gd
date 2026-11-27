@@ -597,6 +597,10 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 		for rise in [floor_lift(eye, boxes), room * 0.5]:
 			if rise <= room and not inside_any(eye + Vector3(0, rise, 0) + back * length, boxes):
 				return {"arm": length, "lift": rise, "shoulder": 0.0, "cut": true}
+	if room > 0.0: # #228: com paredes conhecidas nunca há vista aérea: o corpo está num cômodo apertado, a câmera fica nele, curta e na altura de gente
+		var close := close_plan(eye, back, length, boxes)
+		if not close.is_empty():
+			return close
 	if room > 0.0: # por cima do telhado e um pouco atrás (olhar inclinado, não a prumo), enquanto o ponto estiver livre de casca
 		var arm := min_arm()
 		for reach in [length * 0.5, Grid.units(1.5)]:
@@ -652,6 +656,31 @@ static func room_plan(eye: Vector3, back: Vector3, length: float, boxes: Array, 
 			return {"arm": free, "lift": 0.0, "shoulder": 0.0}
 		return {}
 	return {}
+
+
+## #228: último recurso dentro de um prédio com paredes: arma curta no cômodo (até a parede mais próxima atrás, com folga; nunca menos
+## que meio braço mínimo), com subida de gente. O que cobrir o corpo fica translúcido. {} sem paredes conhecidas (aí vale o telhado).
+static func close_plan(eye: Vector3, back: Vector3, length: float, boxes: Array) -> Dictionary:
+	for entry in boxes:
+		var raw: AABB = entry[1]
+		if not raw.has_point(eye):
+			continue
+		var walls: Array = entry[3] if entry.size() > 3 else []
+		if walls.is_empty():
+			return {}
+		var free := minf(length, exit_distance(eye, back, raw) - arm_margin())
+		var far := eye + back * length
+		for wall in walls:
+			if (wall as AABB).has_point(eye):
+				continue # encostado ou na porta: a parede do próprio olho não encurta (ela fica translúcida)
+			var hit = (wall as AABB).intersects_segment(eye, far)
+			if hit != null:
+				free = minf(free, eye.distance_to(hit) - arm_margin())
+		return {"arm": maxf(free, min_arm() * 0.6), "lift": Grid.units(CLOSE_LIFT_M), "shoulder": 0.0, "room": true}
+	return {}
+
+
+const CLOSE_LIFT_M := 0.3 ## sobre o olho, no corte curto de cômodo: olha levemente para baixo, sem sair da altura de gente
 
 
 ## Quanto o raio sai de dentro da caixa (eixos x e z; o teto vem da conta do andar).

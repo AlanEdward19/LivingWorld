@@ -321,8 +321,9 @@ func building_center(id: int) -> Vector3:
 
 
 ## Nível de LOD pelo escopo e pelo zoom: mundo, cidade ou perto.
-static func lod_for(scope_kind: String, zoom_size: float) -> String:
-	if zoom_size <= NEAR_ZOOM:
+## #228: no modo jogador (3ª/1ª pessoa) a câmera é de gente (o zoom da isométrica não vale): o detalhe do corpo vale ao redor do corpo.
+static func lod_for(scope_kind: String, zoom_size: float, player_view: bool = false) -> String:
+	if player_view or zoom_size <= NEAR_ZOOM:
 		return "near" # bem perto, também no mapa-múndi (quem está no campo, fora das cidades)
 	return "world" if scope_kind == "World" else "city"
 

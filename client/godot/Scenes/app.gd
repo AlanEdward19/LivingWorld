@@ -252,7 +252,7 @@ func _process(delta: float) -> void:
 		world_view.zoom_size = rig.zoom_size
 		world_view.far_zoom = rig.zoom_size > 16.0
 		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
-		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size))
+		world_view.set_lod(WorldView.lod_for(store.kind if not stage.active else "Interior", rig.zoom_size, rig.mode != rig.ISO))
 		world_view.followed_npc = int(director.target.id) if director != null and String(director.target.get("kind", "")) == Registry.PERSON else -1
 	if world_button != null:
 		world_button.visible = store.kind == "City" and not stage.active

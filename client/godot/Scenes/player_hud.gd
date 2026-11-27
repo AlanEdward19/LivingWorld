@@ -561,8 +561,12 @@ func walk_direction(keys: Vector2i) -> Vector2:
 	return (forward * float(-keys.y) + right * float(keys.x)).normalized()
 
 
+const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cartão
+
+
 ## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
 func glide(direction: Vector2, delta: float) -> void:
+	var run_now := Input.is_key_pressed(KEY_SHIFT) and running
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
 	if fine != Vector2.INF and (speed_cells > 0.0 or body.settling()):
@@ -573,6 +577,8 @@ func glide(direction: Vector2, delta: float) -> void:
 		if body.pos != fine:
 			fine = body.pos
 			glided.emit(fine)
+	if frame != null: # #228: o cartão diz como o corpo se move agora (previsão local); parado, volta à ação do motor
+		frame.set_motion(("Correndo" if run_now else "Andando") if body.velocity.length() > MOVING_SPEED else "")
 	_walk_clock += delta
 	var run := direction != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT)
 	var changed := direction != _walk_dir or run != _walk_run
