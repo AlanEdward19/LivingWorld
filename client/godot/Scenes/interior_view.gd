@@ -295,6 +295,7 @@ func _clear() -> void:
 	_use_points.clear()
 	_walls.clear()
 	_panels.clear()
+	guided_id = -1
 	_view_dir = Vector3.ZERO
 	_immersive_applied = false
 	for node in floor_nodes.values():
@@ -316,6 +317,43 @@ func set_floor(level: int) -> void:
 		floor_nodes[key].visible = key <= current_floor
 	if roof != null:
 		roof.visible = false
+	_apply_occupant_visibility()
+
+
+## #227: o corpo do jogador anda pela planta do prédio no mundo (o motor não o lista como ocupante): a casa em foco o desenha como
+## ocupante guiado, com a aparência e a posição do boneco do mundo, no andar `level`. O motor continua dizendo onde ele está.
+var guided_id := -1
+
+
+func guide_body(id: int, from_actor: Node3D, level: int) -> Node3D:
+	var actor = occupant_nodes.get(id)
+	if actor == null:
+		actor = NpcActor.new()
+		add_child(actor)
+		actor.setup(id, from_actor.cell, -1, _labels, from_actor.look)
+		occupant_nodes[id] = actor
+		actor.position = from_actor.position
+	guided_id = id
+	actor.driven = true
+	actor.set_self(true)
+	place_guided(level)
+	return actor
+
+
+func release_guided() -> void:
+	var actor = occupant_nodes.get(guided_id)
+	if actor != null and not _occupants.any(func(o): return (int(o.npc.value) if o.npc is Dictionary else int(o.npc)) == guided_id):
+		actor.free()
+		occupant_nodes.erase(guided_id)
+	guided_id = -1
+
+
+func place_guided(level: int) -> void:
+	var actor = occupant_nodes.get(guided_id)
+	if actor == null:
+		return
+	actor.position.y = level * Grid.floor_height()
+	actor.set_meta("floor", level)
 	_apply_occupant_visibility()
 
 
@@ -346,7 +384,7 @@ func set_occupants(occupants: Array) -> void:
 			actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():
-		if not wanted.has(id):
+		if not wanted.has(id) and id != guided_id:
 			occupant_nodes[id].free()
 			occupant_nodes.erase(id)
 	_apply_occupant_visibility()

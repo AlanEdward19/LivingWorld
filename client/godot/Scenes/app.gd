@@ -643,6 +643,8 @@ func _drive(id: int) -> void:
 
 ## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
 func player_released() -> void:
+	if stage != null:
+		stage.interior_view.release_guided() # #227: o corpo guiado da casa não fica como fantasma
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
 		node.driven = false
@@ -749,13 +751,13 @@ const GESTURE_BY_VERB := {"take": "reach", "collect": "reach", "fill": "reach", 
 
 
 func _on_player_acted(verb: String) -> void:
-	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	var node = player_actor()
 	if node != null and GESTURE_BY_VERB.has(verb):
 		node.play_gesture(GESTURE_BY_VERB[verb])
 
 
 func _on_player_jumped(air_s: float) -> void:
-	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	var node = player_actor()
 	if node != null:
 		node.play_jump(air_s)
 
@@ -883,6 +885,7 @@ func _on_player_placed(building: int, floor_level: int) -> void:
 	elif building >= 0 and stage.active and _inside_by_body == building and stage.interior_view.current_floor != floor_level \
 			and floor_level < stage.interior_view.floor_count:
 		stage.set_floor(floor_level) # o corpo subiu a escada: o andar visível o acompanha
+		stage.interior_view.place_guided(floor_level)
 
 
 func _keep_the_body() -> void:

@@ -145,6 +145,10 @@ func _enter_interior_view() -> void:
 			app.registry.objects[String(descriptor.id)] = descriptor
 	var title: String = app.registry.title_of(Registry.ref(Registry.BUILDING, interior_building))
 	app.breadcrumb.text = "%s › %s" % [crumb_before, title]
+	var world_own = app.world_view.npc_nodes.get(app.player_hud.npc_id) if driven else null
+	if world_own != null and not app.stage.interior_view.occupant_nodes.has(app.player_hud.npc_id):
+		app.stage.interior_view.guide_body(app.player_hud.npc_id, world_own, app.player_hud.floor_level)
+		app.stage.set_floor(app.player_hud.floor_level) # o corpo entra no andar em que o motor diz que ele está
 	if driven: # #227: o jogador entra no foco com a câmera dele (3ª ou 1ª pessoa), não com a do observador; troca sem corte seco
 		app.rig.begin_blend()
 	elif marker != null and not app.director.active():

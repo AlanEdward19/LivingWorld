@@ -604,6 +604,7 @@ func _refresh_neighborhood(delta: float) -> void:
 
 
 var _walk_run := false
+var floor_level := 0 ## #227: o andar em que o motor diz que o corpo está
 var building_id := -1 ## #227: o prédio em que o motor diz que o corpo está (-1 fora ou ainda sem pose)
 var running := false ## #222: o motor disse que o corpo está correndo (Shift); cansado, ele anda
 
@@ -667,6 +668,7 @@ var _jumping := false
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary) -> void:
 	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
+	floor_level = int(pose.get("floor", 0))
 	placed.emit(building_id, int(pose.get("floor", 0)))
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))

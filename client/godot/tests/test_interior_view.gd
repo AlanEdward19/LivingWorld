@@ -169,3 +169,26 @@ func test_player_inside_keeps_every_wall_full_height_and_exposes_the_floor_boxes
 	check(not view.wall_boxes().is_empty(), "paredes finas do andar para a câmera")
 	view.set_floor(1)
 	check(is_equal_approx(view.floor_box().position.y, Grid.floor_height()), "a caixa acompanha o andar visível")
+
+
+const LOOK := {"skin_tone": 0.4, "hair_tone": 0.2, "hair_curl": 0.5, "build": 0.5}
+
+
+func test_the_body_walking_the_plan_is_drawn_as_a_guided_occupant_that_survives_updates_and_is_released() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	var world_actor = preload("res://Scenes/npc_actor.gd").new()
+	world_actor.setup(77, Vector2i(11, 11), -1, ActionLabels.new(), LOOK)
+	world_actor.position = Vector3(11.5, 0, 11.5)
+	var guided = view.guide_body(77, world_actor, 1)
+	eq(view.occupant_nodes.get(77), guided, "o corpo vira ocupante guiado")
+	eq(guided.driven, true, "guiado pela posição fina do motor")
+	eq(guided.look, LOOK, "com a aparência do boneco do mundo")
+	check(is_equal_approx(guided.position.y, Grid.floor_height()), "no andar que o motor diz")
+	view.set_floor(1)
+	eq(guided.visible, true, "visível no andar dele")
+	view.set_occupants(_info().occupants)
+	check(view.occupant_nodes.has(77), "uma atualização dos ocupantes não o apaga")
+	view.release_guided()
+	check(not view.occupant_nodes.has(77), "solto, some")
+	world_actor.free()
