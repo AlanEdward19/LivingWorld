@@ -148,9 +148,15 @@ public class WorkMaterialTests
     {
         var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
         work.Helpers = [builder.Id.Value];
+        // a vila de código tem a mata longe (a obra só procura árvore até 12 células e, sem nenhuma, corta como antes); aqui a obra já
+        // escolheu a árvore viva mais perto do lote, que o jogador também vê
+        var tree = world.Map.Cells.Select(c => c.Coord).Where(c => LivingWorld.Simulation.Players.PlayerNature.TreeAt(world, c) is not null)
+            .OrderBy(c => Math.Max(Math.Abs(c.X - work.X), Math.Abs(c.Y - work.Y))).ThenBy(c => c.Y).ThenBy(c => c.X).First();
+        (work.WoodsX, work.WoodsY) = (tree.X, tree.Y);
         Hour(world, ctx);
         var trip = Assert.Single(work.Hauls);
         var woods = new CellCoord(trip.X, trip.Y);
+        Assert.Equal(tree, woods);
         Assert.NotNull(LivingWorld.Simulation.Players.PlayerNature.TreeAt(world, woods)); // a mata é uma árvore do motor, não um ponto qualquer
         long cap = LivingWorld.Simulation.Players.PlayerNature.Capacity(world, woods);
         long now = world.CurrentDate.TotalMilliseconds;
