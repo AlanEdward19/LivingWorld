@@ -42,4 +42,36 @@ public class PlayerGoalsContractTests : IClassFixture<LivingWorldApiFactory>
 
         await client.PostAsync("/players/metas/logout", null);
     }
+
+    /// <summary>#238: o ponto de partida só vem com <c>?start=true</c> (a linha de metas, lida a cada poucos segundos, não paga a busca da
+    /// mata), e a pose do passo traz o chão (<c>ground</c>) de forma aditiva.</summary>
+    [Fact]
+    public async Task The_start_block_is_opt_in_and_the_walk_pose_carries_the_ground()
+    {
+        var client = _factory.CreateClient();
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        var npc = world.Npcs.First(n => n.IsAlive && n.AgeYears(world.CurrentDate) >= 18 && n.Household is not null);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/players/{npc.Id.Value}/incarnate", new { playerId = "partida" })).StatusCode);
+        npc.SetHunger(0, world.CurrentDate.TotalHours);
+
+        var plain = JsonNode.Parse(await (await client.GetAsync("/players/partida/goals")).Content.ReadAsStringAsync())!;
+        Assert.Null(plain["start"]);
+        var withStart = JsonNode.Parse(await (await client.GetAsync("/players/partida/goals?start=true")).Content.ReadAsStringAsync())!;
+        var start = withStart["start"]!;
+        Assert.Equal("hunger", start["pressing"]!.GetValue<string>());
+        Assert.False(start["child"]!.GetValue<bool>());
+        Assert.NotNull(start["home"]);
+        Assert.NotNull(start["home"]!["members"]);
+        Assert.NotNull(withStart["goals"]); // o resto da resposta segue igual
+
+        var walk = await client.PostAsJsonAsync("/players/partida/walk", new { dx = 0, dy = 0 });
+        Assert.Equal(HttpStatusCode.OK, walk.StatusCode);
+        var pose = JsonNode.Parse(await walk.Content.ReadAsStringAsync())!;
+        var ground = pose["ground"];
+        Assert.NotNull(ground);
+        Assert.True(ground!["terrainPct"]!.GetValue<int>() >= 0);
+        Assert.Contains(ground["cause"]!.GetValue<string>(), new[] { "none", "load", "tired", "weather", "body", "ground" });
+
+        await client.PostAsync("/players/partida/logout", null);
+    }
 }

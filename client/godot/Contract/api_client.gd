@@ -310,8 +310,10 @@ func player_reach(player_id: String) -> Dictionary:
 
 
 ## #235: as metas do corpo (nascem do estado do motor, cada uma com motivo, urgência e próximo passo) e o progresso das habilidades.
-func player_goals(player_id: String) -> Dictionary:
-	var response: Dictionary = await transport.request("GET", "/players/%s/goals" % player_id.uri_encode(), null, _player_headers())
+func player_goals(player_id: String, with_start: bool = false) -> Dictionary:
+	## #238: `with_start` pede também o ponto de partida (casa, família, emprego, mata): só o guia da primeira posse usa
+	var path := "/players/%s/goals" % player_id.uri_encode() + ("?start=true" if with_start else "")
+	var response: Dictionary = await transport.request("GET", path, null, _player_headers())
 	return _checked("/players/goals", {"status": response.status, "body": response.body}, "player-goals")
 
 

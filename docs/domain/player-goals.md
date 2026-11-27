@@ -33,3 +33,13 @@ Texto do catálogo de apresentação (`LivingEventPresentationCatalog`), nunca d
 
 ## Cliente
 Tecla **J** abre "Metas e diário"; a meta mais urgente fica numa linha discreta sob o relógio (atualiza a cada 5 s).
+
+## Ponto de partida e chão (#238)
+- `GET /players/{id}/goals?start=true` acrescenta `start` (`PlayerStartQuery`, só sob pedido: a busca da mata custa): `child`, `homeless`,
+  `home` (`x`,`y`,`distance`, `alone`, `members[]` com `relation` spouse/child/parent/housemate, `pantry[]`), `job`, `vacancy`, `wild`
+  (a mata mais perto, a regra da oferta `nature`) e `pressing` (hunger, thirst, sleep, money, none). Sem texto: o cliente escreve o guia.
+- A pose do `walk` traz `ground` (`PlayerWalk.DragOf`): `terrain`, `terrainPct` (peso sobre o terreno mais fácil), `slowPct` (quanto o passo
+  está abaixo do normal) e `cause` (load, tired, weather, body, ground). O passo do jogador usa a referência do par de células, então o
+  terreno em si quase não muda a velocidade; o que atrasa de fato é carga, sono, lama/neve e corpo.
+- Cliente: o guia da primeira posse (`player_guide.gd`, uma vez por mundo, F1 reabre), "O que dá para fazer" na ajuda e o chão no cartão.
+

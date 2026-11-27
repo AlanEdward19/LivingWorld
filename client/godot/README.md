@@ -102,6 +102,7 @@ AD-197s3 (câmera do jogador em metros do motor, histerese cômodo/telhado, ombr
 AD-197s4 (resto da escala em metros, ombro que mira o corpo), contra `077982d8` (medianas de 3): `stress` 115,8 → 115,8, `bench` 167,5 → 167,3,
 `benchbig` 134,5 → 134,6, `benchrun` 58,3 → 58,3; 3ª pessoa pareada (5 rodadas, depois de hoistar a conversão do desvio) 114,9 → 114,0 (ruído 94 a 116).
 AD-198 a AD-206 (épico AAA #228: controle local, corpo articulado, câmera, retorno, roda, combate, metas, casa em foco), contra `96b892b1` (medianas de 3): `stress` 115,1 → 115,0; com controle+câmera+roda+corpo 115,7 → 115,3.
+#238 (guia da primeira posse, "O que dá para fazer" na ajuda e chão no cartão; só texto e um rótulo, sem custo por quadro), contra `0978b90f` (medianas de 3): `stress` 115,9 → 115,8.
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
