@@ -66,3 +66,7 @@ o cliente desenha o que o motor diz. Aleatoriedade só por RNG semeado.
 3. Nada é escrito no código: cama, fogão, tina, cômodos e necessidades são conceitos de catálogo
    configurável (cenário/dados), criados na hora; o código só conhece usos e efeitos genéricos.
    Hoje `DefaultObjects.cs` é catálogo em código — o M4 o move para dados.
+4. Referência: The Sims em 3D (casa, objetos, rotina), mas o jogo é **RPG com movimentação
+   fluida** em 3ª/1ª pessoa (não clique-para-andar).
+5. Velocidade: durante a fatia roda só lint, unit, cliente e testes filtrados; longrunning,
+   demografia e baselines rodam depois, e o que quebrar se ajusta então.
