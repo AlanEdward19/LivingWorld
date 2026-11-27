@@ -15,7 +15,7 @@ molde quando o mapa tiver veio (o mapa e os cenários de hoje não têm minério
    (6 a 14 un.), pelo mesmo sorteio do porte da árvore no cliente. Estágio: `whole` (inteira), `cut` (em parte), `stump` (toco).
 3. **Volta a crescer.** 1 unidade a cada 30 dias do calendário, conta pura do livro e do relógio (`PlayerNature.Left`), sem varredura. Regra
    simples enquanto a flora por planta (#199) não existe; lá ela troca por espécie, idade e estação. A árvore que voltou inteira sai do livro.
-4. **Coesão com os NPCs.** `WorkHaul.WoodsFor` escolhe a árvore viva mais perto do lote (até 40 células, alcançável a pé); cada unidade que o
+4. **Coesão com os NPCs.** `WorkHaul.WoodsFor` escolhe a árvore viva mais perto do lote (até 12 células, alcançável a pé; sem nenhuma, a mata de antes); cada unidade que o
    NPC corta sai da madeira dela (`PlayerNature.Take`) e, esgotada, a viagem segue para a viva mais perto. Célula sem árvore do motor (mata
    do mapa, borda da cidade) corta como antes: o mundo nunca trava por falta de árvore.
 5. **O cliente desenha o estado do motor.** `GET /world/trees` traz só as tocadas (`x, y, left, capacity, stage`); `scenery.apply_trees` põe
