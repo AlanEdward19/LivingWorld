@@ -97,6 +97,7 @@ func camera() -> Camera3D:
 
 
 func leave() -> void:
+	interior_view.immersive = false
 	backdrop.visible = false
 	floor_label.visible = false
 	active = false

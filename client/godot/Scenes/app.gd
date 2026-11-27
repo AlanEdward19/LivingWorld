@@ -644,6 +644,8 @@ func _drive(id: int) -> void:
 
 ## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
 func player_released() -> void:
+	if stage != null:
+		stage.interior_view.release_guided() # #227: o corpo guiado da casa não fica como fantasma
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
 	if node != null:
 		node.driven = false
@@ -758,13 +760,13 @@ const DEFENSE_BY_OUTCOME := {"Hit": "hurt", "Dodged": "dodge", "Blocked": "block
 
 
 func _on_player_acted(verb: String) -> void:
-	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	var node = player_actor()
 	if node != null and GESTURE_BY_VERB.has(verb):
 		node.play_gesture(GESTURE_BY_VERB[verb])
 
 
 func _on_player_jumped(air_s: float) -> void:
-	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	var node = player_actor()
 	if node != null:
 		node.play_jump(air_s)
 
@@ -903,6 +905,32 @@ var _seeking_body := false
 const BODY_LOST_MS := 600
 
 
+var _inside_by_body := -1 ## #227: a casa em que o app entrou porque o motor disse que o corpo está nela (-1: nenhuma)
+var _inside_busy := false
+var _pose_asked_ms := -10000
+
+
+## #227: o motor diz onde o corpo está (prédio e andar). Dentro de um prédio o app entra na casa em foco com a câmera do jogador;
+## o motor diz que saiu e o app volta ao mundo, sem corte seco. A posse e o modo de câmera não mudam em nenhum dos dois.
+func _on_player_placed(building: int, floor_level: int) -> void:
+	if player_hud == null or not player_hud.is_active or stage == null:
+		return
+	if building >= 0 and not stage.active and not _inside_busy and _inside_by_body != building and store.kind in ["City", "World"]:
+		_inside_busy = true
+		_inside_by_body = building
+		await enter_building(building)
+		_inside_busy = false
+	elif building < 0 and _inside_by_body >= 0 and not _inside_busy:
+		_inside_busy = true
+		_inside_by_body = -1
+		await exit_building()
+		_inside_busy = false
+	elif building >= 0 and stage.active and _inside_by_body == building and stage.interior_view.current_floor != floor_level \
+			and floor_level < stage.interior_view.floor_count:
+		stage.set_floor(floor_level) # o corpo subiu a escada: o andar visível o acompanha
+		stage.interior_view.place_guided(floor_level)
+
+
 func _keep_the_body() -> void:
 	if player_hud == null or not player_hud.is_active:
 		_body_missing_since = -1
@@ -919,7 +947,7 @@ func _keep_the_body() -> void:
 	var now := Time.get_ticks_msec()
 	if _body_missing_since < 0:
 		_body_missing_since = now
-	elif now - _body_missing_since > BODY_LOST_MS and not _seeking_body:
+	elif now - _body_missing_since > BODY_LOST_MS and not _seeking_body and not _inside_busy and not (stage != null and stage.active):
 		_seek_body()
 
 
@@ -950,6 +978,10 @@ func _seek_body() -> void:
 
 func _player_view_effects() -> void:
 	_keep_the_body()
+	if player_hud != null and player_hud.is_active and rig.mode != rig.ISO and _inside_by_body < 0 and not stage.active \
+			and not rig.opened_ids().is_empty() and Time.get_ticks_msec() - _pose_asked_ms > 1500:
+		_pose_asked_ms = Time.get_ticks_msec() # #227: o desenho sugere o corpo num prédio: o motor diz se está (a pose traz o prédio)
+		player_hud.sync_pose()
 	var own: Node3D = player_actor() if player_hud != null and player_hud.is_active else null
 	var inside: bool = stage != null and stage.active # #227: dentro da casa o mundo não é desenhado; ninguém ao redor para esconder
 	var want: Dictionary = {}
@@ -991,7 +1023,11 @@ func _player_view_effects() -> void:
 		if rig.mode == rig.FIRST:
 			own.rotation.y = rig.yaw + PI
 		own.running = player_hud.running and own.is_moving()
-	var mark: int = player_hud.npc_id if own != null and rig.mode == rig.THIRD and not rig.opened_ids().is_empty() else -1
+	if own != null and not inside and rig.mode == rig.THIRD and rig.camera.is_inside_tree(): # #227: a translucidez só no que fica entre a câmera e o corpo
+		world_view.buildings.set_cover_segment(rig.camera.global_position, own.position + Vector3(0, rig.eye_height() * 0.55, 0))
+	else:
+		world_view.buildings.clear_cover_segment()
+	var mark: int = player_hud.npc_id if own != null and rig.mode == rig.THIRD and not inside and not rig.opened_ids().is_empty() else -1
 	if mark != _marked:
 		var old = world_view.npc_nodes.get(_marked)
 		if old != null:
@@ -1002,7 +1038,11 @@ func _player_view_effects() -> void:
 ## AD-197p: as caixas desenhadas dos prédios perto do corpo ([id, AABB]), para o braço de mola da 3ª pessoa.
 func camera_blockers() -> Array:
 	var out: Array = []
-	if world_view == null or world_view.buildings == null or (stage != null and stage.active):
+	if stage != null and stage.active: # #227: na casa em foco só contam os painéis finos dela (nenhuma casca de prédio do mundo)
+		if player_hud != null and player_hud.is_active:
+			out.append([-1, stage.interior_view.floor_box(), stage.interior_view.floor_box(), stage.interior_view.wall_boxes(), true])
+		return out
+	if world_view == null or world_view.buildings == null:
 		return out
 	var near: Vector3 = rig.target
 	for id in world_view.buildings.nodes:

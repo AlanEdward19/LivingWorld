@@ -705,3 +705,36 @@ func test_arriving_somewhere_far_away_reveals_instead_of_cutting() -> void:
 		rig._process(0.016)
 	check(not rig.blending() and _camera_world(rig).origin.y < start_y - 3.0, "desceu até o enquadramento (%s -> %s)" % [start_y, _camera_world(rig).origin.y])
 	rig.free()
+
+
+## #227: a casa em foco (painéis finos, sem casca de prédio): a câmera de 3ª pessoa fica dentro, em altura de gente, nunca no alto.
+func _interior_entry(size: float) -> Array:
+	var walls: Array = []
+	var thick := 0.05
+	walls.append(AABB(Vector3(0, 0, 0), Vector3(size, 2.0, thick)))
+	walls.append(AABB(Vector3(0, 0, size - thick), Vector3(size, 2.0, thick)))
+	walls.append(AABB(Vector3(0, 0, 0), Vector3(thick, 2.0, size)))
+	walls.append(AABB(Vector3(size - thick, 0, 0), Vector3(thick, 2.0, size)))
+	var box := AABB(Vector3.ZERO, Vector3(size, 2.9, size))
+	return [-1, box, box, walls, true]
+
+
+func test_inside_the_focused_house_the_third_person_arm_is_at_people_height() -> void:
+	var entries := [_interior_entry(4.0)]
+	for yaw in [0.0, 1.3, 3.0]:
+		var eye := Vector3(2.0, 1.4, 2.0)
+		var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(-15.0)) * Vector3(0, 0, 1)
+		var plan := CameraRig.plan_third(eye, yaw, deg_to_rad(-15.0), CameraRig.third_distance(), entries)
+		check(bool(plan.get("room", false)), "dentro da casa o plano é de cômodo (yaw %s)" % yaw)
+		var spot: Vector3 = eye + Vector3(0, plan.lift, 0) + back * plan.arm
+		check((entries[0][1] as AABB).has_point(spot), "a câmera fica nos painéis, não na casca do prédio do mundo (%s)" % spot)
+		check(float(plan.lift) <= Grid.units(CameraRig.CLOSE_LIFT_M) + 0.001, "subida de gente, não vista aérea (%s)" % plan.lift)
+		check(float(plan.arm) >= CameraRig.min_arm() * 0.6 - 0.001, "braço nunca colado na cabeça (%s)" % plan.arm)
+	var covered := CameraRig.covering(Vector3(2, 1.4, 5), Vector3(2, 1, 2), entries)
+	check(covered.is_empty(), "a casa em foco não vira translúcida como prédio do mundo")
+
+
+func test_interior_entry_is_only_found_with_the_eye_inside() -> void:
+	var entries := [_interior_entry(4.0)]
+	check(not CameraRig.interior_entry(Vector3(2, 1.4, 2), entries).is_empty(), "olho dentro")
+	check(CameraRig.interior_entry(Vector3(9, 1.4, 2), entries).is_empty(), "olho fora")

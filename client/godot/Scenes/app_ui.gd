@@ -234,6 +234,7 @@ static func _side(app, ui: Control) -> void:
 		app.conversation.attach(id, name, session))
 	app.player_hud.input_blocked = func() -> bool: return app.conversation != null and app.conversation.is_open
 	app.player_hud.target_changed.connect(app._on_player_target)
+	app.player_hud.placed.connect(app._on_player_placed)
 	app.player_hud.struck.connect(app._on_player_struck)
 	app.player_hud.struck_result.connect(app._on_player_struck_result) # #234: combate: reação no alvo e no corpo pelo resultado do motor
 	app.player_hud.defended.connect(app._on_player_defended)

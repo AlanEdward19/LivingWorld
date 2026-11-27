@@ -341,3 +341,27 @@ func test_the_window_close_request_is_intercepted_so_release_can_finish() -> voi
 	tree.root.add_child(boot)
 	eq(boot.get_tree().auto_accept_quit, false, "sem isto o Godot sairia antes de retirar a fonte")
 	boot.free()
+
+
+## #227: o motor diz que o corpo está no prédio (pose): o app entra na casa com a câmera do jogador; diz que saiu: volta ao mundo.
+func test_body_inside_by_the_pose_enters_the_house_with_the_player_camera_and_leaving_goes_back() -> void:
+	var transport := _transport()
+	var app = await _app(transport)
+	app.player_hud.is_active = true
+	app.player_hud.npc_id = 1
+	app.rig.set_mode(app.rig.THIRD)
+	await app._on_player_placed(4, 1)
+	await app.get_tree().process_frame
+	eq(app.stage.active, true, "dentro do prédio: a casa em foco")
+	eq(app.stage.interior_view.immersive, true, "sem corte de maquete: câmera do jogador")
+	var blockers: Array = app.camera_blockers()
+	eq(blockers.size(), 1, "só os painéis finos da casa contam para a câmera")
+	eq(bool(blockers[0][4]), true, "marcada como interior")
+	check(app.player_actor() == app.stage.interior_view.occupant_nodes.get(1), "o corpo é o ocupante da casa")
+	await app._on_player_placed(4, 1)
+	eq(app.stage.active, true, "pose repetida não reentra")
+	await app._on_player_placed(-1, 0)
+	eq(app.stage.active, false, "o motor diz que saiu: volta ao mundo")
+	eq(app.player_hud.is_active, true, "a posse fica")
+	eq(app.rig.mode, app.rig.THIRD, "o modo de câmera fica")
+	app.queue_free()

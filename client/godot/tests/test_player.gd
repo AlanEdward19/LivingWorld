@@ -628,3 +628,23 @@ class SlowIncarnate extends "res://tests/fake_transport.gd":
 			Engine.get_main_loop().create_timer(0.5).timeout.connect(func(): release.emit(), CONNECT_ONE_SHOT)
 			await release
 		return await super.request(method, path, body, extra_headers)
+
+
+func test_inside_a_building_its_own_door_does_not_offer_enter() -> void:
+	var entries := [{"text": "Porta: Entrar", "kind": "door", "id": 8, "verb": "enter", "resource": -1},
+		{"text": "Porta: Entrar", "kind": "door", "id": 9, "verb": "enter", "resource": -1},
+		{"text": "Cama: Dormir", "kind": "bed", "id": 8, "verb": "sleep", "resource": -1}]
+	eq(PlayerHud.without_own_door(entries, -1).size(), 3, "fora de prédio: tudo continua")
+	var inside := PlayerHud.without_own_door(entries, 8)
+	eq(inside.size(), 2, "dentro do 8: some só a porta do 8")
+	check(inside[0].id == 9 and inside[1].verb == "sleep", "o resto fica")
+
+
+func test_pose_building_id_is_read_and_announced() -> void:
+	var hud := _hud(_transport())
+	var seen: Array = []
+	hud.placed.connect(func(building: int, level: int): seen.append([building, level]))
+	hud.apply_pose({"buildingId": 8, "floor": 1})
+	hud.apply_pose({"floor": 0})
+	eq(seen, [[8, 1], [-1, 0]], "o motor diz o prédio e o andar; sem buildingId, fora")
+	eq(hud.building_id, -1, "fora de novo")

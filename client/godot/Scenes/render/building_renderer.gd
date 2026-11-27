@@ -169,15 +169,50 @@ func set_faded(ids: Dictionary) -> void:
 			faded[id] = true
 
 
+## #227: com a câmera da 3ª pessoa e o corpo conhecidos, só as peças que cortam a linha entre eles ficam translúcidas (e mais, para
+## quem olha através); o resto do prédio fica opaco, em vez de lajes pálidas inteiras. Sem segmento, o prédio inteiro (iso e raio-x).
+const COVER_FADE := 0.9
+const COVER_GROW := 0.12
+var _cover: Array = [] ## [de, até] ou vazio
+
+
+func set_cover_segment(from: Vector3, to: Vector3) -> void:
+	if not _cover.is_empty() and (_cover[0] as Vector3).distance_to(from) < 0.02 and (_cover[1] as Vector3).distance_to(to) < 0.02:
+		return
+	_cover = [from, to]
+	for id in faded:
+		_fade(id, FADE)
+
+
+func clear_cover_segment() -> void:
+	if _cover.is_empty():
+		return
+	_cover = []
+	for id in faded:
+		_fade(id, FADE)
+
+
+## A peça cobre a linha da câmera ao corpo (caixa dela, com folga, cruzada pelo segmento).
+func covers(child: GeometryInstance3D) -> bool:
+	if _cover.is_empty():
+		return true
+	var box: AABB = child.global_transform * child.get_aabb()
+	return box.grow(COVER_GROW).intersects_segment(_cover[0], _cover[1]) != null or box.grow(COVER_GROW).has_point(_cover[0])
+
+
 func _fade(id: int, amount: float) -> void:
 	if not nodes.has(id):
 		return
 	for child in nodes[id].find_children("*", "GeometryInstance3D", true, false):
 		var value := amount
+		if amount > 0.0 and not _cover.is_empty():
+			value = COVER_FADE if covers(child) else 0.0
 		if xray:
 			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
 		if opened.has(id) and child.name.begins_with("Roof"):
 			value = maxf(value, ROOF_OPEN)
+		if is_equal_approx((child as GeometryInstance3D).transparency, value):
+			continue
 		(child as GeometryInstance3D).transparency = value
 		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua

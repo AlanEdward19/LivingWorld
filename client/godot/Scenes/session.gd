@@ -132,6 +132,8 @@ func _enter_interior_view() -> void:
 	var marker = app.store.buildings.get(interior_building, null)
 	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
 	app.stage.interior_view.catalog = app.catalog
+	var driven: bool = app.player_hud != null and app.player_hud.is_active
+	app.stage.interior_view.immersive = driven # #227: com o corpo do jogador na casa, a câmera dele fica dentro (sem corte de maquete)
 	var lodging = marker.get("lodging") if marker != null else null
 	app.stage.enter(app.store.interior, origin, app.labels, app.rig.camera, int(marker.type) if marker != null else -1,
 		int(lodging.units) if lodging is Dictionary else 0)
@@ -143,7 +145,13 @@ func _enter_interior_view() -> void:
 			app.registry.objects[String(descriptor.id)] = descriptor
 	var title: String = app.registry.title_of(Registry.ref(Registry.BUILDING, interior_building))
 	app.breadcrumb.text = "%s › %s" % [crumb_before, title]
-	if marker != null and not app.director.active() and not (app.player_hud != null and app.player_hud.is_active):
+	var world_own = app.world_view.npc_nodes.get(app.player_hud.npc_id) if driven else null
+	if world_own != null and not app.stage.interior_view.occupant_nodes.has(app.player_hud.npc_id):
+		app.stage.interior_view.guide_body(app.player_hud.npc_id, world_own, app.player_hud.floor_level)
+		app.stage.set_floor(app.player_hud.floor_level) # o corpo entra no andar em que o motor diz que ele está
+	if driven: # #227: o jogador entra no foco com a câmera dele (3ª ou 1ª pessoa), não com a do observador; troca sem corte seco
+		app.rig.begin_blend()
+	elif marker != null and not app.director.active():
 		var middle: Vector3 = app.stage.interior_view.center() # #227: a câmera foca a casa onde ela está, na escala do mundo
 		app.rig.begin_blend()
 		app.rig.focus(middle)
@@ -151,7 +159,7 @@ func _enter_interior_view() -> void:
 
 
 func exit_building() -> void:
-	if not app.stage.active:
+	if not app.stage.active and interior_building < 0:
 		return
 	app.rig.begin_blend() # #227: sai sem corte seco; a posse e a câmera do jogador ficam
 	app.stage.leave()
