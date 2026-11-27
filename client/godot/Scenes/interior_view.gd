@@ -10,7 +10,7 @@ const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
 ## #222: a parede tem a altura do andar (o motor diz os metros); antes 0,9 unidade = 1,35 m, mais baixa que uma pessoa
-static func wall_height() -> float: return Grid.floor_height() * 0.92
+static func wall_height() -> float: return Grid.floor_height() * 0.99 ## #227: quase o andar inteiro: a câmera do jogador (dentro da caixa do andar) fica sob o forro, sem fresta de céu
 static func cutaway_height() -> float: return Grid.units(0.45) ## as voltadas para a câmera ficam na altura do joelho
 const WALL_HEIGHT := 0.9 ## (legado: só para mundos sem escala; use wall_height())
 const WALL_STONE := 0
@@ -24,6 +24,7 @@ var floor_count := 0
 var current_floor := 0
 var floor_nodes: Dictionary = {} ## nível -> Node3D
 var roof: Node3D
+var ceiling: Node3D ## #227: forro do andar visível: só aparece com a câmera do jogador dentro da casa e abaixo dele (sem céu por cima das paredes)
 var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o catálogo carregado
 var furniture: Node3D
 var _object_bases: Dictionary = {} ## id do catálogo -> [Vector3] base (chão) de cada peça, na ordem de colocação (alvos de uso)
@@ -35,6 +36,7 @@ var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
 var _center := Vector3.ZERO
 var _span := 0.0
+var _plans: Dictionary = {} ## nível -> {célula local: material} (a planta do motor, para saber se uma célula é parede)
 var _panels: Dictionary = {} ## nível -> [Rect2] painéis finos de parede (células absolutas) para a colisão do corpo (#226)
 var _view_dir := Vector3.ZERO
 var _bounds := Rect2() ## planta do térreo em células absolutas (para a caixa da câmera do jogador)
@@ -62,6 +64,9 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		floor_nodes[level] = node
 	roof = Node3D.new()
 	roof.name = "Roof"
+	ceiling = Node3D.new()
+	ceiling.name = "Ceiling"
+	ceiling.visible = false
 	roof.position.y = floor_count * Grid.floor_height()
 	var seen := {}
 	_compute_center(info)
@@ -77,7 +82,16 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		slab.material_override = _material(Color("8a4b3c"))
 		slab.position = Grid.to_world(cell)
 		roof.add_child(slab)
+		var lid := MeshInstance3D.new()
+		var lid_mesh := BoxMesh.new()
+		lid_mesh.size = Vector3(Grid.CELL, 0.1, Grid.CELL)
+		lid.mesh = lid_mesh
+		lid.material_override = _material(Color("c8bba2"))
+		lid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # o forro não escurece a casa: o sol segue o do mundo
+		lid.position = Grid.to_world(cell)
+		ceiling.add_child(lid)
 	add_child(roof)
+	add_child(ceiling)
 	_place_furniture(info, building_type, lodging_units)
 	set_occupants(info.occupants)
 	set_floor(floor_count - 1 if current_floor >= floor_count else current_floor)
@@ -226,6 +240,7 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 
 ## #226: painéis finos a partir da planta do motor (parede = célula inteira lá): contorno rente à borda de fora, divisória no meio.
 func _add_panels(parent: Node3D, plan: Dictionary, level: int) -> void:
+	_plans[level] = plan
 	var rects: Array = []
 	for panel in WallPanels.panels(plan):
 		var rect: Rect2 = panel.rect
@@ -242,6 +257,13 @@ func _add_panels(parent: Node3D, plan: Dictionary, level: int) -> void:
 		var cell: Vector2i = origin + Vector2i(panel.cell)
 		_walls.append({"node": node, "mesh": box, "cell": cell, "edge": node.position - Grid.to_world(cell, wall_height() / 2.0)})
 	_panels[level] = rects
+
+
+## #227: a célula absoluta `cell` é parede na planta do motor? (o corpo que o motor põe numa parede não sai dela: o motor veda)
+func is_wall_cell(cell: Vector2i, level: int = 0) -> bool:
+	var plan: Dictionary = _plans.get(level, {})
+	var local := cell - origin
+	return plan.has(local) and WallPanels.is_wall(int(plan[local]))
 
 
 ## #226/#229: o que o corpo do jogador toca no andar visível ao redor de `center` (células): [[Rect2, altura]].
@@ -295,6 +317,7 @@ func _clear() -> void:
 	_use_points.clear()
 	_walls.clear()
 	_panels.clear()
+	_plans.clear()
 	guided_id = -1
 	_view_dir = Vector3.ZERO
 	_immersive_applied = false
@@ -304,6 +327,9 @@ func _clear() -> void:
 	if roof != null:
 		roof.free()
 		roof = null
+	if ceiling != null:
+		ceiling.free()
+		ceiling = null
 	for actor in occupant_nodes.values():
 		actor.free()
 	occupant_nodes.clear()
@@ -317,7 +343,15 @@ func set_floor(level: int) -> void:
 		floor_nodes[key].visible = key <= current_floor
 	if roof != null:
 		roof.visible = false
+	if ceiling != null:
+		ceiling.position.y = current_floor * Grid.floor_height() + wall_height() + 0.05 # assenta sobre as paredes do andar
 	_apply_occupant_visibility()
+
+
+## #227: o forro aparece só com o jogador dentro e a câmera abaixo dele; de cima (maquete ou câmera alta) some e a casa se vê aberta.
+func update_ceiling(camera_y: float) -> void:
+	if ceiling != null:
+		ceiling.visible = immersive and camera_y < ceiling.position.y
 
 
 ## #227: o corpo do jogador anda pela planta do prédio no mundo (o motor não o lista como ocupante): a casa em foco o desenha como
