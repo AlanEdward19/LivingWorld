@@ -1,0 +1,38 @@
+{
+  "goals": [
+    {
+      "kind": "string",
+      "reason": "string",
+      "step": {
+        "command": "string",
+        "distance": "number",
+        "here": "boolean",
+        "kind": "string",
+        "label": "string",
+        "resourceId": "number",
+        "targetId": "number",
+        "verb": "string",
+        "x": "number",
+        "y": "number"
+      },
+      "urgency": "number"
+    }
+  ],
+  "npcId": "number",
+  "playerId": "string",
+  "skills": [
+    {
+      "cap": "number",
+      "fraction": "number",
+      "gainPerPractice": "number",
+      "level": "number",
+      "maxLevel": "number",
+      "name": "string",
+      "points": "number",
+      "practicing": "boolean",
+      "skillId": "number",
+      "toNext": "number"
+    }
+  ],
+  "urgencyLine": "number"
+}

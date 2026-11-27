@@ -297,6 +297,18 @@ func player_reach(player_id: String) -> Dictionary:
 	return _checked("/players/reach", {"status": response.status, "body": response.body}, "player-reach")
 
 
+## #235: as metas do corpo (nascem do estado do motor, cada uma com motivo, urgência e próximo passo) e o progresso das habilidades.
+func player_goals(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/goals" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/goals", {"status": response.status, "body": response.body}, "player-goals")
+
+
+## #235: o diário do corpo: o que o mundo registrou sobre ele e o que o jogador fez, os marcos de vida marcados.
+func player_diary(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/diary" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/diary", {"status": response.status, "body": response.body}, "player-diary")
+
+
 ## AD-197d: interagir com uma oferta (porta, estoque, banca, cama, pessoa, casa); a recusa da vontade vem 409 com o motivo.
 func player_interact(player_id: String, kind: String, id: int, verb: String, resource_id: int = -1, quantity: int = -1) -> Dictionary:
 	var body := {"kind": kind, "id": id, "verb": verb}

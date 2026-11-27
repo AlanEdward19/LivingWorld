@@ -138,6 +138,8 @@ public static class PlayerEndpoints
             return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
         });
 
+        app.MapPlayerGoalsEndpoints(gateway, tokens, policy); // #235: metas, habilidades e diário (só leitura)
+
         // AD-197e: a pessoa presa, vista por quem a possui (posse plena); 404 fora dela
         app.MapGet("/players/{playerId}/captive", (HttpContext http, string playerId) =>
         {
@@ -147,7 +149,7 @@ public static class PlayerEndpoints
     }
 
     /// <summary>Nulo quando o pedido pode agir como <paramref name="playerId"/>; senão a resposta de recusa (401/403/400).</summary>
-    private static IResult? Identify(HttpContext http, PlayerSessionTokens tokens, bool authRequired, string playerId)
+    internal static IResult? Identify(HttpContext http, PlayerSessionTokens tokens, bool authRequired, string playerId)
     {
         if (BearerOf(http) is { } token)
         {

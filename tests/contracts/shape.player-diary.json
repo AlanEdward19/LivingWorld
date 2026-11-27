@@ -1,0 +1,23 @@
+{
+  "controlledSinceMs": "number",
+  "entries": [
+    {
+      "atMs": "number",
+      "day": "number",
+      "hour": "number",
+      "kind": "string",
+      "milestone": "boolean",
+      "month": "number",
+      "otherId": "number",
+      "otherName": "string",
+      "significance": "number",
+      "source": "string",
+      "text": "string",
+      "whileControlled": "boolean",
+      "year": "number"
+    }
+  ],
+  "name": "string",
+  "npcId": "number",
+  "playerId": "string"
+}

@@ -7,7 +7,8 @@ signal chosen(entry: Dictionary)
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater   I mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu"
+const GoalsPanel := preload("res://Scenes/goals_panel.gd")
 const VERB_ICON := {"Conversar": "💬", "Comprar": "🛒", "Vender": "💰", "Pegar": "✋", "Entrar": "🚪", "Sair": "🚪", "Dormir": "🛏",
 	"Comer": "🍞", "Beber": "💧", "Trabalhar": "🔨", "Subir": "⬆", "Descer": "⬇", "Recolher": "✋", "Furtar": "🤫", "Devolver": "↩"}
 const WHEEL_RADIUS := 128.0 ## px do centro da tela até o centro de cada fatia da roda
@@ -27,6 +28,8 @@ var menu_panel: Control ## a roda de ações: um Control no centro da tela; as f
 var menu_box: Control
 var inventory: PanelContainer ## #233: a mochila (tecla I ou Tab)
 var inventory_box: VBoxContainer
+var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
+var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var entries: Array = []
 
 
@@ -79,6 +82,16 @@ func _init() -> void:
 	clock_label.add_theme_constant_override("outline_size", 6)
 	clock_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	add_child(clock_label)
+	goal_label = _label(14, Color(1, 1, 1, 0.65))
+	goal_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	goal_label.offset_top = 40
+	goal_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	goal_label.add_theme_constant_override("outline_size", 5)
+	goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	add_child(goal_label)
+	goals = GoalsPanel.new()
+	add_child(goals)
 	prompt = _label(17, Color.WHITE)
 	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	prompt.offset_top = 34
@@ -210,6 +223,24 @@ func set_inventory(money: Variant, carrying: Variant, name_of: Callable) -> void
 	var foot := _label(12, Color(1, 1, 1, 0.55))
 	foot.text = "I ou Tab fecha"
 	inventory_box.add_child(foot)
+
+
+## #235: as metas do motor: a mais urgente na linha do HUD e a lista toda no painel.
+func set_goals(body: Dictionary) -> void:
+	goal_label.text = GoalsPanel.top_line(body)
+	goals.set_goals(body)
+
+
+func set_diary(body: Dictionary) -> void:
+	goals.set_diary(body)
+
+
+func toggle_goals() -> void:
+	goals.toggle()
+
+
+func goals_open() -> bool:
+	return goals.is_open()
 
 
 func toggle_inventory() -> void:
