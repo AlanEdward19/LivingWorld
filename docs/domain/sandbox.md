@@ -1,0 +1,38 @@
+# Sandbox do casal (#252, S1 da fatia jogável #246)
+
+Um casal numa casa de subúrbio, para validar a gameplay inteira num mundo pequeno: controlar qualquer um dos dois, usar os móveis,
+trocar de pessoa. O mundo grande ficou de lado (parece morto: dezenas de pessoas coladas no mesmo bloco). **Nada disto está no código do
+motor**: é o período `scenarios/periods/sandbox-casal.json`. Decisão: AD-218.
+
+## O período (dados)
+- `Presentation.QuickStart: true`: o cartão (`GET /periods` → `card.quickStart`) vira o botão **Sandbox: casal** no título, que cria e
+  abre o mundo direto (semente nova a cada criação); o assistente de "Novo mundo" não o lista. O arquivo é embutido na API
+  (`DefaultPeriodSeeder.DataPeriodIds`) e uma versão nova entra no repositório de períodos quando o arquivo muda.
+- `AuthoredHouseholds`: Marina (32) e Rafael (35), casados, uma casa. `InitialPopulation` 0: ninguém mais. A cidade (`Cities`) é a
+  "Jardim das Acácias", autorada, porque sem população sorteada nenhuma cidade seria criada.
+- `Cells`: o mapa 24×24 é **autorado e plano** (terreno 1, altitude 0, sem água); o gerador espalhava 10% de água e a casa não achava lote.
+- `Rooms.shapes`: `{"-1": {"width": 7, "depth": 6, "floors": 1}}`, o tamanho da casa em células de 1,5 m (10,5 × 9 m). Vale por tipo de
+  prédio, é gravado em `Building.Shape` ao semear a casa e a planta, os cômodos e a mobília saem dele (limites: 3 a 16 por lado, 1 a 3 andares).
+  Sem `shapes` a casa é a de sempre (3×3).
+- `Rooms.kinds` / `plans`: sala (porta de entrada), cozinha, quarto e banheiro, com peso e mínimo de células; ver [house-rooms.md](house-rooms.md).
+- `AbsorptionRingCells: 10` e `CityLayout`: a folga em volta do limite da cidade onde o lote pode cair. Uma cidade de 2 moradores tem limite 3×3 e
+  só com a folga declarada a casa 7×6 acha lote de frente para a rua (sem ela caía no anel legado, a 9 células da rua).
+- `Objects` (cada um com `name`, o nome que o jogador lê) e `Furnishings["-1"]`: cama de casal, geladeira, fogão, mesa, 2 cadeiras e sofá,
+  com os usos que o motor já entende (Sleep, Eat, Socialize). Pia, chuveiro, vaso e TV estão no catálogo **sem uso e fora da mobília**.
+- Comida: a despensa de partida (`SeedInitialEconomyBuffer`: 50 por pessoa de comida e de água). Nada de moeda nem comida criada por regra.
+
+## Trocar de corpo (motor)
+- `PlayerCommands.Switch`, `POST /players/{playerId}/switch {npcId}` e `{"command":"switch","npcId":N}` no canal. O jogador solta o NPC que conduz
+  **sem fazê-lo sumir** (`Logout` faz: largaria casa e emprego e abriria busca) e conduz o outro no mesmo modo de posse (plena ou comum).
+- Uma peça só: alvo morto, já conduzido por outro jogador ou vontade que impede (posse comum) recusam e o jogador fica no corpo de antes.
+  Entra no registro de sessões (`PlayerCommandKind.Switch`) e o replay o reproduz.
+
+## Cliente
+- **G** (ou o botão do topo, a linha "G — passar a ser Rafael" no cartão e "Trocar para …" na pausa): a próxima pessoa da casa do corpo, lida
+  do motor (`/entities/household`). A figura de antes segue no mundo como gente do motor; a câmera desliza do corpo velho ao novo (0,8 s).
+- Passos de captura: `sandbox` (o botão do título), `switch`, `use:Geladeira` (a oferta do motor), `where`; ver `dev_steps.gd`.
+
+## O que ainda não funciona (S2 em diante)
+- Usar o móvel não leva o corpo até ele: o corpo dorme ou come onde está (o NPC do motor usa o ponto de uso).
+- Banho, vaso e TV: sem necessidade nem efeito. Reposição de comida: só a despensa de partida.
+- Rua e calçada sem superfície de partida (a trilha nasce do uso). A porta da casa pode abrir para um caminho de 4 células até a rua.

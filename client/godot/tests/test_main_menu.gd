@@ -12,7 +12,7 @@ const FakeTransport := preload("res://tests/fake_transport.gd")
 const DEFINITION := '{"periodId":"medieval","periodDefinition":{"Width":2,"Height":2,"Seed": 1,"InitialPopulation":40,"Nested":{"Seed":9},"Name":"a \\"Seed\\": 5"},"version":1}'
 const SETTINGS_PATH := "user://test-menu-settings.cfg"
 const CARD := {"name": "Vila do vale", "era": "Aldeias agrícolas", "description": "Poucas famílias num vale.", "startingTechnology": "Ferramentas de mão",
-	"initialPopulation": 40, "settlementCount": 1, "professionCount": 1, "professions": ["Fazendeiro"], "inventionEnabled": true}
+	"initialPopulation": 40, "settlementCount": 1, "professionCount": 1, "professions": ["Fazendeiro"], "inventionEnabled": true, "quickStart": false}
 
 
 ## Mundo como `GET /worlds` devolve desde o AD-175 (aberto agora, ano, período e origem vêm do servidor).

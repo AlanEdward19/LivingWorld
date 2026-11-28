@@ -16,7 +16,7 @@ realista (dezenas de NPCs grudados trabalhando no mesmo bloco) — vira issue à
   ou entrega), sem moeda criada do nada.
 
 ## Etapas
-**S1 — o mundo e o controle.** Cenário do sandbox no menu ("Sandbox: casal"); entro em qualquer um
+**S1 — o mundo e o controle** [implementado em #252, AD-218; ver docs/domain/sandbox.md]. Cenário do sandbox no menu ("Sandbox: casal"); entro em qualquer um
 dos dois e troco entre eles a qualquer momento (o outro segue a própria vontade pelo motor); casa
 com cômodos de tamanho jogável e câmera de interior (#250). Aceite: criar o mundo, entrar num, trocar
 para o outro, andar pela casa toda, usar cama, mesa e fogão.

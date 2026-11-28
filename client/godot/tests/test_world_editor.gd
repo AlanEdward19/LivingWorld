@@ -51,7 +51,7 @@ func _transport() -> RefCounted:
 	transport.on("GET /periods/medieval", {"status": 200, "body": {}, "text": '{"periodDefinition":' + SCENARIO + '}'})
 	transport.on("GET /periods", {"status": 200, "body": [{"periodId": "medieval", "version": 1, "source": "medieval", "createdAtUtc": "2026-11-18T00:00:00Z",
 		"width": 10, "height": 10, "card": {"name": "Medieval", "era": "", "description": "", "startingTechnology": "", "initialPopulation": 10,
-		"settlementCount": 1, "professionCount": 1, "professions": [], "inventionEnabled": true}}]})
+		"settlementCount": 1, "professionCount": 1, "professions": [], "inventionEnabled": true, "quickStart": false}}]})
 	transport.on("POST /worlds/preview", {"status": 200, "body": {"width": 10, "height": 10, "cells": [], "settlements": []}})
 	transport.on("POST /worlds/create", {"status": 200, "body": {}})
 	transport.on("GET /npcs?", {"status": 200, "body": {"total": 1, "items": [{"id": {"value": 1}, "name": "ana", "action": null, "cityId": {"value": "c"}, "location": {"x": 1, "y": 1}}]}})

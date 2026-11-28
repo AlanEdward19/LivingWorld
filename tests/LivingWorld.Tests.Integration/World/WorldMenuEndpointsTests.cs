@@ -44,6 +44,30 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(400, Assert.Single(periods, p => p.PeriodId == "grande-metropole").Card.InitialPopulation);
     }
 
+    /// <summary>#252: o período de dados do sandbox sai da rota de períodos com o cartão de início rápido e o <c>POST /worlds/create</c> o transforma
+    /// num mundo com exatamente o casal, na casa que o cenário declara.</summary>
+    [Fact]
+    public async Task The_sandbox_period_is_served_as_quick_start_and_creates_a_world_with_exactly_the_couple()
+    {
+        var client = _factory.CreateClient();
+        var detail = (await client.GetFromJsonAsync<PeriodDetailResponse>("/periods/sandbox-casal", Web))!;
+        Assert.True(detail.Card.QuickStart);
+        Assert.Equal("Sandbox: casal", detail.Card.Name);
+        Assert.Equal(2, detail.Card.InitialPopulation);
+        var definition = JsonNode.Parse(detail.PeriodDefinition.GetRawText())!.AsObject();
+        definition["Seed"] = 90210; // a semente nova a cada criação, como o botão do menu faz
+
+        var created = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(definition.ToJsonString(), "Sandbox: casal", "sandbox-casal"), Web);
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        Assert.Equal(2, world.Npcs.Count);
+        Assert.Equal(world.Npcs[0].Spouse, world.Npcs[1].Id);
+        var house = Assert.Single(world.Buildings);
+        Assert.Equal(new LivingWorld.Domain.Cities.Buildings.BuildingShape(7, 6, 1), house.Shape);
+        Assert.Equal("sandbox-casal", world.PeriodId);
+    }
+
     [Fact]
     public async Task The_three_presets_are_the_same_era_so_the_menu_does_not_promise_other_eras()
     {
