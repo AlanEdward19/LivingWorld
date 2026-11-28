@@ -87,7 +87,7 @@ public static class CriticalNeeds
     /// <summary>Na hora de decidir do corpo conduzido: avisa a necessidade crítica (uma vez por <c>RepeatHours</c>) e, com o livre-arbítrio e sem ordem do jogador, o corpo vai atendê-la. Verdadeiro se começou um uso.</summary>
     public static bool OnWake(WorldState world, TickContext ctx, Npc npc, long nowMs)
     {
-        if (npc.ControllerId is null || RulesOf(world) is not { } rules || CareerWork.CatalogOf(world) is not { } catalog) return false;
+        if (npc.ControllerId is null || RulesOf(world) is not { } rules || CareerWork.CatalogOf(world) is not { } catalog || CareerWork.IsAway(world, npc)) return false; // fora do mapa (no trabalho): nada a atender em casa
         var critical = Now(world, npc, nowMs);
         if (critical.Count == 0) return false;
         var ledger = world.CareersLedger();

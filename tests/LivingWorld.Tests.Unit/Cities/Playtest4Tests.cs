@@ -259,4 +259,22 @@ public class Playtest4Tests
         Assert.NotEqual("Radiante", SocialInteractions.Mood(world, social, marina, Now(world)).Label);
         Assert.True(scores.Max() < 80, $"notas {string.Join(", ", scores)}: Radiante pede mais que um banho, um abraço e um elogio");
     }
+
+    [Fact]
+    public void The_body_away_at_work_is_not_cared_for_at_home_by_the_free_will()
+    {
+        var (world, clock, service, marina, rafael) = Playing(startHour: 7);
+        Assert.True(service.Switch(world, rafael.Id, "alan").IsSuccess);
+        Assert.True(service.Interact(world, "alan", "job", rafael.Id.Value, "go").IsSuccess);
+        Assert.True(CareerWork.IsAway(world, rafael));
+        HomeLife.Add(world, rafael, "bladder", -100, Now(world));
+
+        for (int i = 0; i < 800; i++) clock.Tick(world, Fine);
+
+        Assert.True(CareerWork.IsAway(world, rafael));
+        Assert.DoesNotContain(world.Careers!.Notices, n => n.Kind == "need-auto" && n.Npc == rafael.Id.Value);
+        Assert.Null(rafael.BodyTask);
+        Assert.NotNull(marina);
+    }
 }
+
