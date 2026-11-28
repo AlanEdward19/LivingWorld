@@ -48,6 +48,11 @@ public static class PlayerGround
         return null;
     }
 
+    /// <summary>#255: o passo de <paramref name="from"/> a <paramref name="to"/> é debaixo de teto: as duas células são da planta do MESMO prédio (o piso, a
+    /// porta). Neve e lama não alongam esse passo ("Chão firme −78%" dentro de casa no inverno).</summary>
+    public static bool Sheltered(WorldState world, CellCoord from, CellCoord to) =>
+        world.Buildings.Count > 0 && At(world, from) is { } a && At(world, to) is { } b && a.Building.Id == b.Building.Id;
+
     /// <summary>A porta e a soleira (fora, à frente dela) de um prédio posicionado; nulo sem posição.</summary>
     public static (CellCoord Door, CellCoord Doorstep)? DoorOf(Building building)
     {
@@ -138,6 +143,39 @@ public static class PlayerGround
         int crowd = CrowdAt(world, npc, to, floor, npc.Interior?.Building, out var someone);
         if (crowd > 0 && crowd >= world.Players.CellCrowd) return Result<Unit>.Fail($"move: {someone!.Name} está ali");
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>#255: o motivo de o corpo não poder dar o passo de <paramref name="from"/> a <paramref name="to"/> pela regra do chão (parede, fora do mapa), ou nulo.</summary>
+    internal static string? StepRefusal(WorldState world, Npc npc, CellCoord from, CellCoord to)
+    {
+        int floor = FloorOf(npc);
+        return TerrainRefusal(world, floor, npc.Interior?.Building, from, to, cell => At(world, cell, floor));
+    }
+
+    /// <summary>#255: a vizinha de <paramref name="from"/> aonde o corpo pode ir e que fica mais perto do rumo de <paramref name="toward"/> (empate: ordem fixa); nula se nenhuma.</summary>
+    internal static CellCoord? OpenNeighbour(WorldState world, Npc npc, CellCoord from, CellCoord toward)
+    {
+        int floor = FloorOf(npc);
+        var cache = new Dictionary<CellCoord, Spot?>();
+        Spot? Lookup(CellCoord c)
+        {
+            if (!cache.TryGetValue(c, out var spot)) cache[c] = spot = At(world, c, floor);
+            return spot;
+        }
+
+        CellCoord? best = null;
+        long bestDistance = long.MaxValue;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                var next = new CellCoord(from.X + dx, from.Y + dy);
+                if (TerrainRefusal(world, floor, npc.Interior?.Building, from, next, Lookup) is not null) continue;
+                long d = (long)(next.X - toward.X) * (next.X - toward.X) + (long)(next.Y - toward.Y) * (next.Y - toward.Y);
+                if (d < bestDistance) { best = next; bestDistance = d; }
+            }
+
+        return best;
     }
 
     /// <summary>#248: a regra do chão (sem gente) do passo de <paramref name="from"/> a <paramref name="to"/> no andar

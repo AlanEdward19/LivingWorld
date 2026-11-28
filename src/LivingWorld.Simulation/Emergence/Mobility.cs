@@ -58,7 +58,7 @@ public static class Mobility
     /// <summary>AD-197h: a mesma duração de <see cref="TravelTicks"/> no passo fino, em milissegundos e sem arredondar para a hora: o custo
     /// do caminho (rota real, água, mapa) × corpo × carga, alongado pelo chão do dia e encurtado pela tecnologia da cidade. Um trajeto
     /// curto leva minutos. Ao menos um segundo entre lugares distintos; 0 no mesmo lugar.</summary>
-    public static long TravelMs(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier)
+    public static long TravelMs(WorldState world, Npc npc, CellCoord origin, CellCoord destination, double bodyMultiplier, bool sheltered = false)
     {
         if (origin == destination) return 0;
         double body = Math.Max(0.1, bodyMultiplier * LoadFactor(world, npc));
@@ -85,7 +85,8 @@ public static class Mobility
             }
             hours = Math.Max(0, cost) * body;
         }
-        if (LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, origin, out var row))
+        // #255: o passo debaixo de teto (o piso da casa, a porta) não pega neve nem lama: só o corpo que anda de verdade pede isto
+        if (!sheltered && LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, origin, out var row))
         {
             int soft = route is null ? LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPm(world, origin, destination)
                 : LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPmOf(world, route, origin, destination);

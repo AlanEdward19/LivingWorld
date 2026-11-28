@@ -22,6 +22,22 @@ static func _print_warning(text: String) -> void:
 	print("aviso: ", text)
 
 
+static func _need_line(sheet: Dictionary) -> String:
+	var line := PackedStringArray()
+	for key in ["health", "hunger", "thirst", "sleep", "social"]:
+		line.append("%s=%s" % [key, sheet.get(key)])
+	for row in sheet.get("catalogNeeds", []):
+		line.append("%s=%d%s" % [row.id, int(row.value), "!" if bool(row.urgent) else ""])
+	return " ".join(line)
+
+
+static func _print_needs(app: Node) -> void:
+	app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+	var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+	print("needs: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " ", _need_line(sheet), " | dica: ", PlayerFrame.hint_line(sheet.get("needHint")), " | busy: ", app.player_hud.busy.action, "/",
+		app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
+
+
 static func run(app: Node, steps: Array) -> void:
 	for step in steps:
 		var name: String = step.get_slice(":", 0)
@@ -116,14 +132,41 @@ static func run(app: Node, steps: Array) -> void:
 				if not picked.is_empty():
 					await app.player_hud.interact(picked)
 			"needs": # #255: imprime as barras do corpo (as de sempre e as do catálogo), a dica, a ação em curso e a fila
-				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
-				var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
-				var line := PackedStringArray()
-				for key in ["health", "hunger", "thirst", "sleep", "social"]:
-					line.append("%s=%s" % [key, sheet.get(key)])
-				for row in sheet.get("catalogNeeds", []):
-					line.append("%s=%d%s" % [row.id, int(row.value), "!" if bool(row.urgent) else ""])
-				print("needs: ", app.player_hud.npc_name, " ", " ".join(line), " | dica: ", PlayerFrame.hint_line(sheet.get("needHint")), " | busy: ", app.player_hud.busy.action, "/", app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
+				await _print_needs(app)
+			"needslog": # #255: `needslog:S` imprime as barras a cada 3 s reais por S s (o log do dia)
+				var logged := 0.0
+				while logged < float(arg):
+					await _print_needs(app)
+					await app.get_tree().create_timer(3.0).timeout
+					logged += 3.0
+			"bothlog": # #255: `bothlog:S` imprime as barras do corpo e da outra pessoa da casa a cada 3 s reais por S s (o log do dia dos dois)
+				var both := 0.0
+				while both < float(arg):
+					await _print_needs(app)
+					for housemate in app.player_hud.housemates:
+						app.player_hud.api.invalidate_npc(int(housemate.id))
+						var mate2: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
+						print("theother: [", app.player_frame.clock_label.text, "] ", mate2.name, " ação=", mate2.get("currentAction"), " ", _need_line(mate2))
+					await app.get_tree().create_timer(3.0).timeout
+					both += 3.0
+			"sleepfast": # #255: dormir acelerando (só quem joga sozinho): o motor corre o tempo até descansar
+				await app.player_hud.sleep(-1)
+			"theotherlog": # #255: `theotherlog:S` imprime as barras da outra pessoa da casa (a que ninguém conduz) a cada 6 s reais por S s
+				var seen := 0.0
+				while seen < float(arg):
+					for housemate in app.player_hud.housemates:
+						app.player_hud.api.invalidate_npc(int(housemate.id))
+						var mate: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
+						print("theother: [", app.player_frame.clock_label.text, "] ", mate.name, " ação=", mate.get("currentAction"), " ", _need_line(mate))
+					await app.get_tree().create_timer(6.0).timeout
+					seen += 6.0
+			"interrupt": # #255: Espaço: para o que o corpo faz (o que já subiu fica)
+				await app.player_hud.interrupt()
+			"theother": # #255: o NPC que ninguém conduz: imprime as barras dele pela ficha do motor
+				for housemate in app.player_hud.housemates:
+					app.player_hud.api.invalidate_npc(int(housemate.id))
+					var other: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
+					print("theother: [", app.player_frame.clock_label.text, "] ", other.name, " ação=", other.get("currentAction"), " ", _need_line(other), " | dica: ", PlayerFrame.hint_line(other.get("needHint")))
 			"waituse": # #255: espera (até S s reais) o uso acabar; imprime as barras uma vez por segundo
 				var waited := 0.0
 				while app.player_hud.busy.active() and waited < float(arg):
@@ -133,7 +176,7 @@ static func run(app: Node, steps: Array) -> void:
 			"cancelq": # #255: tira a ação N da fila (0 = a próxima)
 				await app.player_hud.cancel_queued(int(arg))
 			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
-				print("where: npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
+				print("where: chão=", app.player_frame._ground, " npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
 					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
 			"act":
 				await app.player_hud.act(arg)

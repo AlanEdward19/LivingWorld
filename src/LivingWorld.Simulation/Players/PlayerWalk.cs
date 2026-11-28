@@ -28,6 +28,15 @@ public static partial class PlayerWalk
         // a rua calçada encurta a viagem longa (menos desvio, chão firme), mas ninguém anda mais que um passo largo: piso de 0,8
         // (1,4 m/s → no máximo 1,75 m/s)
         double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
+        if (factor > 1.5 && PlayerGround.StepRefusal(world, npc, from, to) is not null)
+        {
+            // #255: o par está do outro lado de uma parede (o rumo aponta para a parede, no canto da casa): a rota contorna o prédio até a porta e o passo parecia
+            // 80% mais lento ("Chão firme −78%"). O corpo não anda ali: o atraso vale para a vizinha aberta mais perto desse rumo (ou nenhum, sem saída)
+            if (PlayerGround.OpenNeighbour(world, npc, from, to) is not { } open) return running ? Math.Min(world.Players.WalkMps * world.Players.RunFactor, world.Players.RunMaxMps) : world.Players.WalkMps;
+            to = open;
+            reference = Math.Max(1.0, LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, from, to) * WorldMillis.PerHour);
+            factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
+        }
         double walk = world.Players.WalkMps / factor;
         return running ? Math.Max(walk, Math.Min(walk * world.Players.RunFactor, world.Players.RunMaxMps)) : walk;
     }

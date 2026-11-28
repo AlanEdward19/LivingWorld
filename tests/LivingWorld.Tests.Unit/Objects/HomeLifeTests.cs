@@ -93,7 +93,10 @@ public class HomeLifeTests
         {
             var objects = new JsonArray(new JsonObject
             {
-                ["id"] = "shower", ["name"] = "Ducha", ["category"] = "appliance", ["variationSeed"] = 0,
+                ["id"] = "shower",
+                ["name"] = "Ducha",
+                ["category"] = "appliance",
+                ["variationSeed"] = 0,
                 ["shape"] = new JsonArray(new JsonObject { ["shape"] = "box", ["size"] = new JsonArray(1.0, 2.0, 1.0), ["offset"] = new JsonArray(0, 1.0, 0), ["color"] = "cfe3ee" }),
                 ["usePoints"] = new JsonArray(),
             });
@@ -319,6 +322,100 @@ public class HomeLifeTests
 
         Assert.Equal(Play(false), Play(false));
         Assert.Equal(Play(false), Play(true));
+    }
+
+    [Fact]
+    public void The_interior_shows_who_uses_a_piece_with_the_object_and_the_catalog_use_so_the_client_picks_pose_and_place()
+    {
+        var (world, _, _) = Sandbox();
+        var rafael = Rafael(world);
+        var house = world.Buildings.Single();
+        var pieces = HomeFurniture.Of(house, world.ObjectCatalog!);
+        int shower = pieces.ToList().FindIndex(p => p.Id == "shower");
+        var ctx = new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler, new AllEvents());
+        Assert.True(ObjectUsage.Begin(world, ctx, rafael, house.Id.Value, shower, "shower").IsSuccess);
+
+        var snapshot = LivingWorld.Api.Visual.Projection.InteriorProjector.Build(world, house.Id).Value!;
+
+        var occupant = snapshot.Occupants.Single(o => o.Npc == rafael.Id);
+        Assert.Equal("shower", occupant.UsingObject);
+        Assert.Equal("shower", occupant.UsingUse);
+        Assert.Contains(snapshot.Objects!.Catalog.Single(d => d.Id == "shower").Uses!, u => u.Id == "shower" && u.Pose == "shower" && u.PoseFallback == "work");
+        Assert.Contains(snapshot.Objects.Catalog.Single(d => d.Id == "shower").Uses![0].PoseFallback!, ObjectPoses.Known); // o fallback é uma pose que o cliente sabe
+    }
+
+    /// <summary>Achado do S1: "Chão firme −78%" dentro de casa. O corpo não pode andar mais devagar no piso da casa, na porta ou na soleira do que na rua.</summary>
+    [Fact]
+    public void The_body_keeps_its_speed_on_the_floor_of_the_house_on_the_door_and_on_the_doorstep()
+    {
+        var (world, _, _, body) = Playing();
+        var house = world.Buildings.Single();
+        var (door, step) = PlayerGround.DoorOf(house)!.Value;
+        var inside = new CellCoord(door.X + 1, door.Y);
+        var street = new CellCoord(step.X - 1, step.Y);
+        double walk = world.Players.WalkMps;
+        foreach (var (a, b) in new[] { (door, inside), (inside, door), (door, step), (step, door), (step, street), (inside, new CellCoord(inside.X + 1, inside.Y)) })
+        {
+            double mps = PlayerWalk.SpeedMps(world, body, a, b);
+            Assert.True(mps >= walk * 0.75, $"{a} -> {b}: {mps:0.00} m/s contra {walk:0.00}");
+            Assert.True(PlayerWalk.DragOf(world, body, a, b).SlowPct < 10, $"{a} -> {b}: o chão atrasa {PlayerWalk.DragOf(world, body, a, b).SlowPct}%");
+        }
+    }
+
+    /// <summary>A causa do "Chão firme −78%": o rótulo e o passo usavam a célula À FRENTE do rumo, e com o corpo junto da parede essa célula é do outro lado dela (a rota
+    /// contornava a casa até a porta). O motor não deixa passar ali: o atraso daquele par não é do corpo.</summary>
+    [Fact]
+    public void Facing_a_wall_does_not_slow_the_body_the_cell_behind_the_wall_is_not_where_it_walks()
+    {
+        var (world, _, _, body) = Playing();
+        var house = world.Buildings.Single();
+        var origin = house.Position!.Value;
+        var corner = new CellCoord(origin.X + 5, origin.Y); // o canto de nordeste da casa (6 × 7 células)
+        var inside = new CellCoord(origin.X + 4, origin.Y);
+        double walk = world.Players.WalkMps;
+
+        foreach (var outside in new[] { new CellCoord(corner.X + 1, corner.Y), new CellCoord(corner.X, corner.Y - 1), new CellCoord(corner.X + 1, corner.Y - 1) }) // para fora, em três rumos
+        {
+            double wallSpeed = PlayerWalk.SpeedMps(world, body, corner, outside);
+            var wallDrag = PlayerWalk.DragOf(world, body, corner, outside);
+            Assert.True(wallSpeed >= walk * 0.75, $"{corner} -> {outside}: o passo caiu para {wallSpeed:0.00} m/s de {walk:0.00} ({wallDrag})");
+            Assert.True(wallDrag.SlowPct < 10, $"{corner} -> {outside}: o atraso dito ao jogador é {wallDrag.SlowPct}% ({wallDrag.Cause})");
+        }
+
+        double toWall = PlayerWalk.SpeedMps(world, body, corner, inside);
+        var drag = PlayerWalk.DragOf(world, body, corner, inside);
+
+        Assert.True(toWall >= walk * 0.75, $"junto da parede o passo caiu para {toWall:0.00} m/s de {walk:0.00} ({drag})");
+        Assert.True(drag.SlowPct < 10, $"o atraso dito ao jogador é {drag.SlowPct}% ({drag.Cause})");
+        _ = inside;
+    }
+
+    [Fact]
+    public void Snow_and_mud_never_slow_the_step_under_a_roof_over_forty_winter_days()
+    {
+        var (world, clock, _, body) = Playing();
+        var house = world.Buildings.Single();
+        var (door, step) = PlayerGround.DoorOf(house)!.Value;
+        var inside = new CellCoord(door.X + 1, door.Y);
+        double worstSheltered = 1, worstOpen = 1;
+        int weatherHours = 0;
+        for (int hour = 0; hour < 40 * 24; hour++)
+        {
+            clock.Tick(world);
+            long tick = world.CurrentDate.TotalHours;
+            body.SetHunger(100, tick); // corpo em dia: só o tempo pode atrasar o passo
+            body.SetThirst(100, tick);
+            body.SetSleep(100, tick);
+            body.SetHealth(100);
+            worstSheltered = Math.Min(worstSheltered, PlayerWalk.SpeedMps(world, body, door, inside) / world.Players.WalkMps);
+            long open = LivingWorld.Simulation.Emergence.Mobility.TravelMs(world, body, door, inside, 1.0);
+            long roof = LivingWorld.Simulation.Emergence.Mobility.TravelMs(world, body, door, inside, 1.0, sheltered: true);
+            if (open > roof) weatherHours++;
+            worstOpen = Math.Min(worstOpen, (double)roof / open);
+        }
+
+        var drag = PlayerWalk.DragOf(world, body, door, inside);
+        Assert.True(worstSheltered > 0.75, $"debaixo de teto o corpo andou a {worstSheltered:P0} do passo (nas horas de tempo ruim: {weatherHours}; ao relento chegaria a {worstOpen:P0}); último atraso: {drag}");
     }
 
     [Fact]

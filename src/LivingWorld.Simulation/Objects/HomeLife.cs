@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;

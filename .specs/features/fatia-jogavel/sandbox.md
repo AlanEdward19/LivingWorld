@@ -21,7 +21,7 @@ dos dois e troco entre eles a qualquer momento (o outro segue a própria vontade
 com cômodos de tamanho jogável e câmera de interior (#250). Aceite: criar o mundo, entrar num, trocar
 para o outro, andar pela casa toda, usar cama, mesa e fogão.
 
-**S2 — necessidades e objetos (antigo M4).** Higiene, diversão e bexiga como necessidades do motor
+**S2 — necessidades e objetos (antigo M4)** [implementado em #255, AD-220; ver docs/domain/needs-and-objects.md]. Higiene, diversão e bexiga como necessidades do motor
 (regras em dados); catálogo de objetos todo em dados (`DefaultObjects.cs` sai do código); toda ação
 com duração, animação e cancelamento; fila de ações. Os dois usam os mesmos objetos.
 Aceite: um dia inteiro cuidando das barras só com a casa; o parceiro não controlado se cuida sozinho.

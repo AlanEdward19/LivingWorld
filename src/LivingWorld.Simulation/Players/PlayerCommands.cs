@@ -185,7 +185,7 @@ public static class PlayerCommands
     public static long PaceMs(WorldState world, Npc npc, LivingWorld.Domain.Geography.CellCoord from, LivingWorld.Domain.Geography.CellCoord to)
     {
         long ms = LivingWorld.Simulation.Emergence.Mobility.TravelMs(world, npc, from, to,
-            LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(world, npc));
+            LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(world, npc), LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, from, out _) && PlayerGround.Sheltered(world, from, to)); // só confere o teto quando o tempo atrasaria o passo
         double sleep = npc.SleepAt(world.CurrentDate.TotalHours);
         double tired = 1 + Math.Max(0, world.Players.Tired - sleep) / Math.Max(1, world.Players.Tired) * 0.5;
         return (long)Math.Ceiling(ms * tired);

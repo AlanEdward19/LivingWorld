@@ -55,7 +55,7 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 	use_pose = String(busy.get("pose", ""))
 	facing = float(busy.get("facing", 0.0))
 	slot = Vector2(float(busy.slotFx), float(busy.slotFy)) if busy.get("slotFx") != null else Vector2.INF
-	units = int(busy.get("units", 0))
+	units = int(busy.units) if busy.get("units") != null else 0 # o motor manda `units: null` fora da coleta
 	accelerated = bool(busy.get("accelerated", false))
 	total_ms = maxf(1.0, float(busy.get("totalMs", 1)))
 	var factor := maxf(scale, 0.001)

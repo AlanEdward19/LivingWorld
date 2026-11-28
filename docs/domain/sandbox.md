@@ -32,7 +32,11 @@ motor**: é o período `scenarios/periods/sandbox-casal.json`. Decisão: AD-218.
   do motor (`/entities/household`). A figura de antes segue no mundo como gente do motor; a câmera desliza do corpo velho ao novo (0,8 s).
 - Passos de captura: `sandbox` (o botão do título), `switch`, `use:Geladeira` (a oferta do motor), `where`; ver `dev_steps.gd`.
 
-## O que ainda não funciona (S2 em diante)
-- Usar o móvel não leva o corpo até ele: o corpo dorme ou come onde está (o NPC do motor usa o ponto de uso).
-- Banho, vaso e TV: sem necessidade nem efeito. Reposição de comida: só a despensa de partida.
-- Rua e calçada sem superfície de partida (a trilha nasce do uso). A porta da casa pode abrir para um caminho de 4 células até a rua.
+## S2 (#255): necessidades e objetos como dado
+Higiene, diversão e bexiga, usos com duração, o corpo que anda até o móvel, fila e o parceiro que se cuida sozinho: ver [needs-and-objects.md](needs-and-objects.md) (AD-220).
+No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necessidades), `Furnishings["-1"]` com chuveiro, vaso, pia e TV, `InitialPantryPerMember: 400`
+(a despensa dura; sem mercado ainda, nenhuma comida é criada do nada).
+
+## O que ainda não funciona
+- Rua e calçada sem superfície de partida; a porta da casa pode abrir para um caminho até a rua e o quintal tem as árvores da regra de 16% (nenhum parâmetro de cenário as tira).
+- Comida: só a despensa de partida (mercado ou entrega como prédio com estoque e preço fica em issue). Sono e comer à mesa seguem as ações do motor (dormir: `action`).
