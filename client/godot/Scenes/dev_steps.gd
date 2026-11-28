@@ -32,6 +32,28 @@ static func _need_line(sheet: Dictionary) -> String:
 	return " ".join(line)
 
 
+## #265: o transporte do móvel como o motor o diz, numa linha por assunto.
+static func _print_haul(reply: Dictionary) -> void:
+	if not reply.ok or not reply.body is Dictionary or not reply.body.get("haul") is Dictionary:
+		print("homeview: sem transporte (", reply.get("status"), ")")
+		return
+	var haul: Dictionary = reply.body.haul
+	print("homeview: dinheiro=", reply.body.get("wallet"), " loja=", haul.get("shopFront"), " casa=", haul.get("homeFront"), " alcance=", haul.get("reachM"), " m")
+	for data in haul.get("parcels", []):
+		var ok_verbs: Array = []
+		var no_verbs: Array = []
+		for action in data.get("actions", []):
+			if bool(action.ok):
+				ok_verbs.append(String(action.verb))
+			else:
+				no_verbs.append("%s(%s)" % [String(action.verb), String(action.get("reason", ""))])
+		print("homeview: pedido ", data.seq, " ", data.name, " ", data.where, " ", data.kg, " kg ", data.liters, " L | vale: ", ok_verbs, " | não vale: ", no_verbs)
+	if haul.get("car") is Dictionary:
+		print("homeview: carro ", haul.car.get("x"), ",", haul.car.get("y"), " dirigindo=", haul.car.get("driving"), " carga=", haul.car.get("loadKg"), "/", haul.car.get("trunkKg"), " kg")
+	for courier in haul.get("couriers", []):
+		print("homeview: entregador ", courier.get("name"), " sai em ", courier.get("startsInMs"), " ms, chega em ", courier.get("arrivesInMs"), " ms, rota de ", courier.get("path", []).size(), " células")
+
+
 static func _print_needs(app: Node) -> void:
 	app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
 	var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
@@ -245,6 +267,47 @@ static func run(app: Node, steps: Array) -> void:
 				print("mousepos: ", where, " -> célula local ", app.buy_mode.hover, " aresta ", app.buy_mode.hover_edge, " | volta ao pixel (centro da célula) ", back, " | mouse da janela ", app.get_viewport().get_mouse_position())
 			"mousebuy": # #264: o fantasma volta a seguir o mouse (use `hover:X,Y` para movê-lo)
 				app.buy_mode.mouse_follow = true
+			"homeview": # #265: imprime o transporte do móvel como o motor o diz (pedidos pagos e onde estão, carro, entregadores, pontos da loja e da casa)
+				var home_reply: Dictionary = await app.api.player_home(app.player_hud.player_id)
+				_print_haul(home_reply)
+			"homecmd": # #265: `homecmd:verbo` manda um verbo de casa ao motor (fetch:1, load:1, drive:shop, deliver:1, drop:1, place:1:0:2:3:0...) e imprime a resposta
+				var home_now: Dictionary = await app.api.player_home(app.player_hud.player_id)
+				var building := int(home_now.body.get("building", 0)) if home_now.ok and home_now.body is Dictionary else 0
+				var verb_text: String = String(step).substr(String(step).find(":") + 1) # o verbo tem dois-pontos: vale tudo depois do nome do passo
+				var done: Dictionary = await app.api.player_interact(app.player_hud.player_id, "home", building, verb_text)
+				var said: Variant = done.body
+				if said is Dictionary:
+					said = said.get("note", said.get("error", ""))
+				print("homecmd: ", verb_text, " -> ", done.status, " ", said)
+			"waitparcel": # #265: `waitparcel:seq,onde[,s]` espera (até s s reais, padrão 60) o móvel pago chegar a `shop|hands|car|courier|depot`
+				var wanted := arg.split(",")
+				var waited := 0.0
+				var seen := ""
+				while waited < (float(wanted[2]) if wanted.size() > 2 else 60.0):
+					var read: Dictionary = await app.api.player_home(app.player_hud.player_id)
+					if read.ok and read.body is Dictionary:
+						for data in read.body.get("haul", {}).get("parcels", []):
+							if int(data.seq) == int(wanted[0]):
+								seen = String(data.where)
+					if seen == wanted[1]:
+						break
+					await app.get_tree().create_timer(0.5).timeout
+					waited += 0.5
+				print("waitparcel: ", arg, " -> ", seen, " em ", waited, " s")
+			"waitdepart": # #265: `waitdepart:ms[,s]` espera (até s s reais, padrão 90) o entregador estar a `ms` ms de sair da loja (para baixar a velocidade do tempo e ver o trajeto)
+				var gap := arg.split(",")
+				var spent_wait := 0.0
+				var left_in := -1
+				while spent_wait < (float(gap[1]) if gap.size() > 1 else 90.0):
+					var look: Dictionary = await app.api.player_home(app.player_hud.player_id)
+					if look.ok and look.body is Dictionary:
+						for courier in look.body.get("haul", {}).get("couriers", []):
+							left_in = int(courier.startsInMs)
+					if left_in >= 0 and left_in <= int(gap[0]):
+						break
+					await app.get_tree().create_timer(0.25).timeout
+					spent_wait += 0.25
+				print("waitdepart: sai em ", left_in, " ms (esperou ", spent_wait, " s)")
 			"buytab": # #264: `buytab:buy|mine|build`
 				app.buy_mode.set_tab(arg)
 			"buycat": # #264: filtra a categoria (`buycat:decor`; vazio = tudo)
@@ -277,7 +340,10 @@ static func run(app: Node, steps: Array) -> void:
 				print("buyedge: ", app.buy_mode.current_verb(), " -> ", app.buy_mode.verdict)
 			"buyfind": # #264: `buyfind:sofa[,sala]` acha pelo motor a primeira célula e giro onde o móvel cabe (opcionalmente no cômodo do tipo) e põe o fantasma ali
 				var want: PackedStringArray = arg.split(",")
-				app.buy_mode.select_item(want[0])
+				if want[0].begins_with("#"): # #265: `buyfind:#N` pega o móvel N do depósito (em vez de escolher da loja)
+					app.buy_mode.start_place(int(want[0].substr(1)))
+				else:
+					app.buy_mode.select_item(want[0])
 				var rooms: Array = app.store.interior.get("rooms", [])
 				var allowed := {}
 				if want.size() > 1 and rooms.size() > 0:

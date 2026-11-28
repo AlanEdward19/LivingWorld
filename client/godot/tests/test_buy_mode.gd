@@ -360,7 +360,6 @@ func test_the_shop_tab_buys_by_button_and_lists_what_is_paid_with_where_it_is_an
 	var sent: Array = transport.bodies.get("POST /players/p-1/interact", [])
 	eq(String(sent[0].verb), "deliver:1", "o verbo de entrega")
 	mode.select_item("sofa")
-	mode._rebuild()
 	var buy: Button = _find(mode.cards.sofa, "buy_button")
 	eq(buy.text, "Comprar por 30", "o preço do motor")
 	buy.pressed.emit()

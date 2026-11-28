@@ -340,6 +340,7 @@ func select_item(object_id: String) -> void:
 	verdict_for = ""
 	_update_ghost()
 	_hint.text = "Compre pelo botão do cartão; depois escolha como trazer."
+	_rebuild()
 
 
 ## #265: pôr no lugar um móvel do depósito da casa: o fantasma segue o mouse e o motor valida o lugar (`place:seq:andar:x:y:giro`).
@@ -529,8 +530,7 @@ func _card(item: Dictionary) -> Control:
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			select_item(id)
-			_rebuild())
+			select_item(id))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
@@ -642,9 +642,14 @@ func _piece_row(data: Dictionary) -> Control:
 	var panel := PanelContainer.new()
 	panel.name = "piece_%d" % int(data.piece)
 	panel.add_theme_stylebox_override("panel", _style(Color(0.11, 0.13, 0.18, 0.95) if int(data.piece) != moving else Color(0.18, 0.30, 0.42, 0.95), 8))
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	panel.add_child(column)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	panel.add_child(row)
+	column.add_child(row)
+	var buttons := HFlowContainer.new() # #265: com Guardar são quatro botões: numa linha própria, o nome não se espreme
+	column.add_child(buttons)
 	var id := String(data.id)
 	if factory != null and descriptors.has(id):
 		var thumb := FurnitureThumb.make(factory, descriptors[id], 44)
@@ -658,23 +663,23 @@ func _piece_row(data: Dictionary) -> Control:
 	move.text = "Mover"
 	move.disabled = busy
 	move.pressed.connect(func(): start_move(index))
-	row.add_child(move)
+	buttons.add_child(move)
 	var stash := Button.new()
 	stash.name = "stash"
 	stash.text = "Guardar"
 	stash.disabled = busy or not bool(data.sellable)
 	stash.pressed.connect(func(): command("stash:%d" % index))
-	row.add_child(stash)
+	buttons.add_child(stash)
 	var sell := Button.new()
 	sell.text = "Vender +%d" % int(data.resale)
 	sell.disabled = busy or not bool(data.sellable)
 	sell.pressed.connect(func(): command("sell:%d" % index))
-	row.add_child(sell)
+	buttons.add_child(sell)
 	var drop := Button.new()
 	drop.text = "Descartar"
 	drop.disabled = busy
 	drop.pressed.connect(func(): command("discard:%d" % index))
-	row.add_child(drop)
+	buttons.add_child(drop)
 	piece_rows[index] = panel
 	return panel
 

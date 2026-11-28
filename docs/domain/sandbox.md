@@ -87,7 +87,7 @@ Tudo é dado do período e do catálogo (`home-life.json`); o código só tem os
 `CatalogExtends` ganha `moods`: momentos com causa e duração, emoção dominante no cartão e no rosto, aspiração e desejos; o humor pesa na aceitação social, no rendimento dos usos e na iniciativa dos NPCs. Ver [moods-and-aspirations.md](moods-and-aspirations.md).
 
 ## Comprar, posicionar e construir (#264, AD-230)
-Tecla **B**: a câmera sobe sobre a casa e o motor vende móveis do estoque da loja do bairro (ou faz sob encomenda), valida o lugar, deixa mover, vender e descartar, e faz obra simples (parede, porta, ampliar, pintar); a beleza do cômodo vira o momento "Cômodo bonito". Ver [buy-and-build.md](buy-and-build.md). No período: `CatalogExtends` ganha `home-build`, a loja de móveis (tipo 2) e o marceneiro (profissão 3).
+Tecla **B**: a câmera sobe sobre a casa e o motor vende móveis do estoque da loja do bairro (ou faz sob encomenda), valida o lugar, deixa mover, vender e descartar, e faz obra simples (parede, porta, ampliar, pintar); a beleza do cômodo vira o momento "Cômodo bonito". Ver [buy-and-build.md](buy-and-build.md). No período: `CatalogExtends` ganha `home-build`, a loja de móveis (tipo 2) e o marceneiro (profissão 3). Desde o #265 o móvel pago não aparece em casa: fica na loja em nome da casa e vem nas mãos, de carro (o casal tem um, em frente à porta) ou por entrega do marceneiro, e vai ao depósito da casa antes de ser posicionado.
 
 ## O que ainda não funciona
 - O emprego e as contas são do catálogo `careers` (#263, [careers-and-bills.md](careers-and-bills.md)): Rafael começa no escritório, Marina procura no jornal da sala; fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).

@@ -438,4 +438,25 @@ public class HomeFreightTests
         Assert.Single(haul.Vehicles); // e o que ele não diz vem do catálogo-base
         Assert.Equal(18, haul.Delivery.CloseHour);
     }
+
+    [Fact]
+    public void The_interaction_wheel_offers_only_the_freight_actions_the_engine_says_are_valid_where_the_body_is_and_running_one_works()
+    {
+        var (world, _, service, body, _, house) = Playing();
+        int seq = Buy(service, world, house, "plant");
+        Stand(world, body, HomeFront(world, house));
+        var atHome = PlayerInteractions.Offers(world, body).Single(o => o.Kind == PlayerInteractions.FreightKind);
+        Assert.DoesNotContain(atHome.Uses!, u => u.Id.StartsWith("fetch:")); // longe da loja não se leva o móvel
+        Assert.Contains(atHome.Uses!, u => u.Id == "drive:shop" && u.Name.Contains("loja"));
+
+        Stand(world, body, ShopFront(world));
+        var atShop = PlayerInteractions.Offers(world, body).Single(o => o.Kind == PlayerInteractions.FreightKind);
+        Assert.Contains(atShop.Uses!, u => u.Id == $"fetch:{seq}" && u.Name.Contains("Planta"));
+        Assert.Contains(atShop.Uses!, u => u.Id == $"deliver:{seq}");
+        Assert.DoesNotContain(atShop.Uses!, u => u.Id.StartsWith("load:")); // o carro está em casa
+
+        var done = service.Interact(world, "alan", PlayerInteractions.FreightKind, house.Id.Value, $"fetch:{seq}");
+        Assert.True(done.IsSuccess, done.Error);
+        Assert.Equal("hands", HomeFreight.Find(house, seq)!.Where);
+    }
 }
