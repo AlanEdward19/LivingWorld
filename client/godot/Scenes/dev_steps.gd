@@ -731,6 +731,53 @@ static func run(app: Node, steps: Array) -> void:
 				w_release.pressed = false
 				Input.parse_input_event(w_release)
 				print("walkto: fine=", app.player_hud.fine, " em ", snappedf(spent, 0.1), " s")
+			"offers": # #246: imprime as ofertas completas do motor (verbo, usos) para o texto `arg`
+				for entry in await app.player_hud._reach_entries():
+					if arg == "" or arg.to_lower() in String(entry.text).to_lower():
+						print("offer: ", entry)
+			"walkperson": # #246: `walkperson:Rafael` anda de W até a pessoa da casa (olhar virado a ela) e para a menos de 1 m; imprime onde ela estava
+				if app.player_hud.housemates.is_empty():
+					await app.player_hud.refresh_housemates()
+				var other_id := -1
+				for mate in app.player_hud.housemates:
+					if arg.to_lower() in String(mate.get("name", "")).to_lower():
+						other_id = int(mate.id)
+				var other_node = app._actor_by_id(other_id)
+				print("walkperson: ", arg, " id=", other_id, " nó=", other_node != null, " em ", other_node.position if other_node != null else Vector3.ZERO)
+				if other_node != null:
+					var wp := InputEventKey.new()
+					wp.keycode = KEY_W
+					wp.physical_keycode = KEY_W
+					wp.pressed = true
+					Input.parse_input_event(wp)
+					var spent_wp := 0.0
+					while spent_wp < 30.0:
+						var here_wp: Vector2 = app.player_hud.fine
+						var gap_wp := Vector2(other_node.position.x, other_node.position.z) - here_wp
+						if here_wp != Vector2.INF:
+							if gap_wp.length() * preload("res://Scenes/grid.gd").cell_meters < 1.0:
+								break
+							app.rig.yaw = atan2(-gap_wp.x, -gap_wp.y)
+							app.rig.view_yaw = app.rig.yaw
+						await app.get_tree().create_timer(0.1).timeout
+						spent_wp += 0.1
+					var wp_up: InputEventKey = wp.duplicate()
+					wp_up.pressed = false
+					Input.parse_input_event(wp_up)
+					print("walkperson: chegou em ", snappedf(spent_wp, 0.1), " s")
+			"speed": # #246: `speed:N` (0 a 3) aperta o botão de velocidade do HUD (o motor valida)
+				await app.player_hud.set_speed(int(arg))
+			"key": # #246: `key:G` ou `key:E=1.5` aperta a tecla (segura por s segundos, padrão 0,1), como o jogador
+				var kcode := OS.find_keycode_from_string(arg.get_slice("=", 0))
+				var kdown := InputEventKey.new()
+				kdown.keycode = kcode
+				kdown.physical_keycode = kcode
+				kdown.pressed = true
+				Input.parse_input_event(kdown)
+				await app.get_tree().create_timer(float(arg.get_slice("=", 1)) if "=" in arg else 0.1).timeout
+				var kup: InputEventKey = kdown.duplicate()
+				kup.pressed = false
+				Input.parse_input_event(kup)
 			"walkstats": # #248: imprime a medida do passo (puxões > 0,3 m, saltos, pior deslocamento extra); `walkstats:reset` zera
 				if arg == "reset":
 					app.player_hud.walk_stats = {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}

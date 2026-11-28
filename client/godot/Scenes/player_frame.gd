@@ -74,6 +74,7 @@ var blocked := false: ## #240: popup aberto: a dica do E some (volta ao fechar, 
 		blocked = value
 		prompt.visible = prompt.text != "" and not menu_panel.visible and not blocked
 var _engine_action := ""
+var _doing := "" ## #246: a ação do corpo (uso, interação) como a barra a diz; vence o "Parado" do motor no cartão
 var guide: PanelContainer ## #238: o guia da primeira posse
 var _goal_body: Dictionary = {}
 var _goal_where := "" ## #238: para que lado fica o passo da meta mais urgente ("a 12 m, à frente e à direita")
@@ -439,6 +440,10 @@ static func queue_text(list: Array) -> String:
 ## #241: a ação em andamento ("Cortando lenha — 40%", `fraction` 0..1); texto vazio esconde a barra. Fica logo acima do cartão do corpo.
 func set_busy(text: String, fraction: float) -> void:
 	busy_panel.visible = text != ""
+	var doing := text.get_slice(" — ", 0) if text != "" and not text.begins_with("Indo:") else "" # #246: o cartão diz o que faz, não "Parado" com a barra acima
+	if doing != _doing:
+		_doing = doing
+		_show_action()
 	if text == "":
 		return
 	busy_label.text = text
@@ -503,7 +508,7 @@ static func ground_label(drag: Variant) -> String:
 
 
 func _show_action() -> void:
-	var text := _motion if _motion != "" else _engine_action
+	var text := _motion if _motion != "" else (_doing if _doing != "" else _engine_action)
 	if _motion != "" and _ground != "":
 		text = "%s · %s" % [_motion, _ground]
 	action_label.add_theme_color_override("font_color", Color("ffcf8a") if _motion != "" and _ground_slow >= 30 else Color(1, 1, 1, 0.7))

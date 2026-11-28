@@ -112,6 +112,9 @@ var _opened: Dictionary = {}
 var _indoor := false ## #227: o enquadramento é o da casa em foco (câmera de ombro baixa, olhar limitado, FOV aberto)
 var _indoor_k := 1.0 ## 1 = ombro de rua; INDOOR_SHOULDER dentro de casa (suave)
 var _indoor_fov := 0.0
+const SCENE_PITCH := deg_to_rad(-58.0) ## #246: durante um uso ou interação em casa a vista fica mais a prumo: parede e móvel da frente não cobrem os corpos
+var scene_framing := false ## #246: o corpo está num uso/interação (o app liga); só vale dentro de casa
+var framing_with: Node3D = null ## #246: o parceiro da interação: a câmera enquadra o ponto médio dos dois
 var _indoor_pitch := deg_to_rad(-45.0) ## #250: o olhar de dentro de casa (o mouse o ajusta); o de rua, `pitch`, fica guardado para a saída
 var _int_k := 0.0 ## 0 = olhar de rua; 1 = olhar de dentro de casa (suave)
 var _trans := 0.0 ## s restantes de transição entrar/sair
@@ -254,7 +257,7 @@ func _advance_view(delta: float) -> void:
 	view_yaw = wrapf(ry[0], -PI, PI)
 	_v_yaw = ry[1]
 	_int_k = lerpf(_int_k, 1.0 if _indoor else 0.0, 1.0 - exp(-INDOOR_OMEGA * delta))
-	var goal_pitch := lerpf(maxf(pitch, pitch_floor()), _indoor_pitch, _int_k) if mode == THIRD else pitch
+	var goal_pitch := lerpf(maxf(pitch, pitch_floor()), scene_pitch(), _int_k) if mode == THIRD else pitch
 	var rp := spring(view_pitch, _v_pitch, goal_pitch, AIM_OMEGA, delta)
 	view_pitch = rp[0]
 	_v_pitch = rp[1]
@@ -284,6 +287,17 @@ static func eye_height_for(height_cm: float) -> float:
 
 func shoulder_height() -> float:
 	return Grid.units(SHOULDER_M) * body_scale() * _indoor_k
+
+
+## #246: a inclinação de dentro de casa de agora: a do jogador, ou a mais a prumo enquanto um uso/interação enquadra a cena.
+func scene_pitch() -> float:
+	return minf(_indoor_pitch, SCENE_PITCH) if scene_framing else _indoor_pitch
+
+
+## #246: liga/desliga o enquadramento de cena (uso de móvel, interação social); `partner` entra no quadro (ponto médio dos dois).
+func set_scene_framing(on: bool, partner: Node3D = null) -> void:
+	scene_framing = on
+	framing_with = partner if on else null
 
 
 ## Menor inclinação do olhar de rua (rad). Dentro de casa o mouse ajusta `_indoor_pitch` (faixa de InteriorCamera), não este.
@@ -488,7 +502,10 @@ func _process(delta: float) -> void:
 			_goal_active = false
 	if following != null and is_instance_valid(following):
 		# no modo do jogador a câmera cola no corpo (o corpo já anda suave pela previsão); na isométrica, segue devagar
-		target = following.position if mode != ISO else target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
+		var aim: Vector3 = following.position
+		if scene_framing and framing_with != null and is_instance_valid(framing_with) and framing_with != following:
+			aim = aim.lerp(framing_with.position, 0.5) # #246: os dois corpos da interação no quadro
+		target = aim if mode != ISO else target.lerp(aim, clampf(delta * 6.0, 0.0, 1.0))
 		if mode != ISO:
 			_tracked = true
 			_advance_view(delta)
@@ -528,11 +545,11 @@ func _spring_arm(delta: float) -> void:
 	var boxes: Array = blockers.call()
 	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
 	var cap := third_distance() * third_scale
-	var plan := plan_third(eye, view_yaw, _indoor_pitch if _indoor else view_pitch, cap, boxes, body_scale(), _in_room)
+	var plan := plan_third(eye, view_yaw, scene_pitch() if _indoor else view_pitch, cap, boxes, body_scale(), _in_room)
 	var now_indoor := bool(plan.get("indoor", false))
 	if now_indoor and not _indoor: # #250: entrou na casa: o olhar de dentro nasce da planta e o braço é refeito com ele
 		_indoor_pitch = float(plan.pitch)
-		plan = plan_third(eye, view_yaw, _indoor_pitch, cap, boxes, body_scale(), _in_room)
+		plan = plan_third(eye, view_yaw, scene_pitch(), cap, boxes, body_scale(), _in_room)
 	if now_indoor != _indoor:
 		_trans = INDOOR_TRANSITION_S
 	_in_room = bool(plan.get("room", false))
