@@ -35,7 +35,8 @@ public sealed record PlayerPose(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.BusyView? Busy = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int Seq = 0,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] long AtMs = 0,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.QueueView>? Queue = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.QueueView>? Queue = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.SocialEvent? Social = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -247,6 +248,9 @@ public sealed partial class PlayerCommandGateway(
 
     /// <summary>A posição autoritativa do corpo depois do passo (o cliente reconcilia por ela). AD-197d: <c>buildingId</c> do prédio
     /// em cuja planta o corpo está (nulo na rua). AD-197u: <c>running</c> (corre agora) e, só na resposta do pulo, <c>airMs</c>.</summary>
+    /// <summary>#259: até quanto tempo de mundo depois de uma interação social ela segue na pose como "o último fato" (o cliente avisa uma vez por instante).</summary>
+    private const long SocialNoticeMs = 5 * 60_000;
+
     private PlayerPose PoseOf(LivingWorld.Simulation.Core.WorldState world, string playerId, int? airMs = null)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
@@ -273,7 +277,8 @@ public sealed partial class PlayerCommandGateway(
                 : null,
             npc.Fine?.Seq ?? 0, // #248: o último número de comando de andar que o motor aplicou; o cliente reaplica os seguintes
             world.CurrentDate.TotalMilliseconds, // #248: o instante de mundo (ms) desta pose
-            LivingWorld.Simulation.Objects.ObjectUsage.QueueOf(world, npc)); // #255: a fila de ações do corpo
+            LivingWorld.Simulation.Objects.ObjectUsage.QueueOf(world, npc), // #255: a fila de ações do corpo
+            LivingWorld.Simulation.Objects.SocialInteractions.LastFor(world, npc, SocialNoticeMs)); // #259: o último fato social do corpo, para o aviso curto
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>
@@ -322,7 +327,7 @@ public sealed partial class PlayerCommandGateway(
             session = conversations.StartConversation(other, world.NeedsRules, LivingWorld.Simulation.Llm.ConversationAvailabilityPolicy.PlayerRules,
                 null, ctx, LivingWorld.Api.Conversation.ConversationEndpoints.ExpireAfterTicks).Session?.SessionId;
         }
-        return new { done.Kind, done.Id, done.Verb, done.Quantity, done.Value, sessionId = session, pose = PoseOf(world, playerId) };
+        return new { done.Kind, done.Id, done.Verb, done.Quantity, done.Value, sessionId = session, pose = PoseOf(world, playerId), done.Outcome, done.Note };
     }
 
     /// <summary>#243: as árvores tocadas (cortadas em parte ou até o toco) com a madeira que cada uma tem agora: o que o cliente desenha em

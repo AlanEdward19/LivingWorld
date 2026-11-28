@@ -14,7 +14,8 @@ public sealed record InteriorOccupant(
     NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingObject = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingUse = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingUse = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.SocialView? Social = null);
 
 /// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
@@ -47,7 +48,7 @@ public static class InteriorProjector
         var plan = BuildingLayoutGenerator.Generate(building);
         return world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(plan, interior))
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n)))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n), SocialOf(world, n)))
             .ToArray();
     }
 
@@ -64,7 +65,7 @@ public static class InteriorProjector
         var layout = BuildingLayoutGenerator.Generate(building);
         var occupants = world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(layout, interior))
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n)))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n), SocialOf(world, n)))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
@@ -87,6 +88,10 @@ public static class InteriorProjector
     /// <summary>#255: o id do uso do catálogo em curso (o cliente acha a pose e o lugar no descritor); nulo fora de um uso.</summary>
     private static string? UsingUseOf(Npc npc) =>
         npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action, Use: { } use } ? use : null;
+
+    /// <summary>#259: a interação social em curso do ocupante (com quem, o gesto, a fase): o cliente o vira para o outro e toca o gesto; nulo fora de uma.</summary>
+    private static LivingWorld.Simulation.Objects.SocialView? SocialOf(WorldState world, Npc npc) =>
+        npc.BodyTask is { Action: LivingWorld.Simulation.Objects.SocialInteractions.Action } task ? LivingWorld.Simulation.Objects.SocialInteractions.ViewOf(world, task) : null;
 
     private static InteriorObjects? BuildObjects(WorldState world, Building building)
     {

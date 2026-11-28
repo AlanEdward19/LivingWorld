@@ -33,12 +33,35 @@ public sealed class Relationship
 
     public long LastContactTick { get; private set; }
 
+    /// <summary>#259: a última interação social do par (id do catálogo social), quando foi (ms de mundo), se foi aceita e se foi esta pessoa (<c>From</c>) quem a
+    /// começou. Os dois lados do par guardam o mesmo registro. Omitido do JSON (e do hash) enquanto o par nunca interagiu pelo catálogo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? LastSocial { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long LastSocialMs { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool LastSocialAccepted { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool LastSocialActor { get; private set; }
+
+    public void NoteSocial(string id, long ms, bool accepted, bool actor)
+    {
+        LastSocial = id;
+        LastSocialMs = ms;
+        LastSocialAccepted = accepted;
+        LastSocialActor = actor;
+    }
+
     /// <summary>Não-pública, mas anotada para <c>System.Text.Json</c> reidratar o snapshot
     /// — nenhum construtor público é exposto de propósito, todo caminho de produção
     /// passa por <see cref="Initial"/> (o encontro nunca começa em valor alto).</summary>
     [JsonConstructor]
-    private Relationship(double trust, double affection, double respect, double debt, long lastContactTick)
+    private Relationship(double trust, double affection, double respect, double debt, long lastContactTick,
+        string? lastSocial = null, long lastSocialMs = 0, bool lastSocialAccepted = false, bool lastSocialActor = false)
     {
+        LastSocial = lastSocial;
+        LastSocialMs = lastSocialMs;
+        LastSocialAccepted = lastSocialAccepted;
+        LastSocialActor = lastSocialActor;
         Trust = trust;
         Affection = affection;
         Respect = respect;

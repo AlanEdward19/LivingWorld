@@ -961,7 +961,7 @@ func play_jump(air_s: float) -> void:
 
 ## #224: gesto curto por cima da pose (o verbo que o motor aceitou: pegar, dar, beber, comer, empurrar a porta, subir, conversar,
 ## trabalhar). Toca igual em 1ª e 3ª pessoa; em 1ª as mãos sobem para dentro do quadro.
-const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call", "chop"]
+const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call", "chop", "hug", "kiss", "laugh", "argue", "plead"]
 var _gesture := ""
 var _gesture_from := -1.0
 var _gesture_len := 0.0
@@ -1052,6 +1052,36 @@ func _apply_gesture(amplitude: float = -1.0) -> void:
 			_body.rotation.x = lerpf(0.3, -0.12, swing) * k
 			_legs[0].rotation.x = 0.12 * k
 			_legs[1].rotation.x = -0.12 * k
+		"hug": # #259: abraço: os dois braços à frente e para dentro, o corpo se inclina para o outro
+			_arms[0].rotation.x = -1.35 * k
+			_arms[1].rotation.x = -1.35 * k
+			_arms[0].rotation.z = 0.55 * k
+			_arms[1].rotation.z = -0.55 * k
+			_body.rotation.x = 0.16 * k
+			_head.rotation.z = 0.18 * k
+		"kiss": # #259: beijo: o corpo e a cabeça se inclinam, uma das mãos sobe ao rosto do outro
+			_body.rotation.x = 0.2 * k
+			_head.rotation.x = 0.22 * k
+			_head.rotation.z = -0.2 * k
+			_arms[1].rotation.x = -1.2 * k
+			_arms[0].rotation.x = -0.5 * k
+		"laugh": # #259: risada: a cabeça vai para trás e o tronco sacode
+			_head.rotation.x = -0.35 * k
+			_body.rotation.x = -0.08 * k + sin(_clock * 15.0) * 0.05 * k
+			_arms[0].rotation.x = -0.5 * k + sin(_clock * 15.0) * 0.18 * k
+			_arms[1].rotation.x = -0.35 * k - sin(_clock * 15.0) * 0.18 * k
+		"argue": # #259: discussão: braços agitados e a cabeça balançando
+			_arms[0].rotation.x = -1.6 * k + sin(_clock * 9.0) * 0.6 * k
+			_arms[1].rotation.x = -1.4 * k + cos(_clock * 8.0) * 0.6 * k
+			_head.rotation.y = sin(_clock * 7.0) * 0.4 * k
+			_body.rotation.x = 0.1 * k
+		"plead": # #259: pedido de desculpa: as mãos juntas à frente, a cabeça baixa
+			_arms[0].rotation.x = -1.15 * k
+			_arms[1].rotation.x = -1.15 * k
+			_arms[0].rotation.z = 0.35 * k
+			_arms[1].rotation.z = -0.35 * k
+			_head.rotation.x = 0.38 * k
+			_body.rotation.x = 0.1 * k
 		"call": # #234: pedir ajuda: os dois braços para o alto, acenando
 			_arms[0].rotation.x = -2.8 * k
 			_arms[1].rotation.x = -2.9 * k

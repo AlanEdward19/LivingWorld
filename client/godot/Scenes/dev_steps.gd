@@ -9,6 +9,7 @@ const Registry := preload("res://Store/entity_registry.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const FrameCost := preload("res://Contract/frame_cost.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const SocialMenu := preload("res://Scenes/social_menu.gd")
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -36,6 +37,21 @@ static func _print_needs(app: Node) -> void:
 	var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
 	print("needs: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " ", _need_line(sheet), " | dica: ", PlayerFrame.hint_line(sheet.get("needHint")), " | busy: ", app.player_hud.busy.action, "/",
 		app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
+
+
+## #259: a linha da interação social `interaction` (trecho do nome) da pessoa `person` (trecho do nome), pelo menu "Interagir ▸" da oferta do motor.
+static func _social_line(app: Node, person: String, interaction: String) -> Dictionary:
+	var entries: Array = await app.player_hud._reach_entries()
+	for entry in entries:
+		if String(entry.get("verb", "")) != "social_menu" or not person.to_lower() in String(entry.text).to_lower():
+			continue
+		for cat in SocialMenu.category_entries(entry):
+			if String(cat.get("verb", "")) != "social_cat":
+				continue
+			for line in SocialMenu.interaction_entries(cat):
+				if String(line.verb).begins_with("social:") and interaction.to_lower() in String(line.text).to_lower():
+					return line
+	return {}
 
 
 static func run(app: Node, steps: Array) -> void:
@@ -105,6 +121,54 @@ static func run(app: Node, steps: Array) -> void:
 				var before: int = app.player_hud.npc_id
 				var switched: bool = await app.player_hud.switch_body()
 				print("switch: ", before, " -> ", app.player_hud.npc_id, " ok=", switched, " ativo=", app.player_hud.is_active)
+			"social": # #259: `social:Marina|Elogiar` pede a interação social do catálogo (pelo menu "Interagir ▸" da oferta do motor); a recusa diz o motivo
+				var sparts := arg.split("|")
+				var picked_social := await _social_line(app, sparts[0], sparts[1] if sparts.size() > 1 else "")
+				print("social: ", arg, " -> ", picked_social.get("text", "(nada)"), " ", "(esmaecida: " + String(picked_social.get("reason", "")) + ")" if bool(picked_social.get("disabled", false)) else "")
+				if not picked_social.is_empty():
+					await app.player_hud.interact(picked_social)
+			"socialmenu": # #259: `socialmenu:Marina` abre a roda de baixo ("Interagir ▸" aberto nas categorias); `socialmenu:Marina|Amigável` abre as interações da categoria
+				var mparts := arg.split("|")
+				var found_social: Array = await app.player_hud._reach_entries()
+				for entry in found_social:
+					if String(entry.get("verb", "")) == "social_menu" and mparts[0].to_lower() in String(entry.text).to_lower():
+						var shown: Array = SocialMenu.category_entries(entry)
+						if mparts.size() > 1:
+							for cat in shown:
+								if String(cat.get("verb", "")) == "social_cat" and mparts[1].to_lower() in String(cat.text).to_lower():
+									shown = SocialMenu.interaction_entries(cat)
+									break
+						app.player_hud.frame.show_menu(shown)
+						app.player_hud._show_relation_of([entry])
+						print("socialmenu: ", shown.map(func(e): return String(e.text) + (" [esmaecida: " + String(e.reason) + "]" if bool(e.get("disabled", false)) else "")))
+						break
+			"warnlog": # #259: imprime os avisos do HUD (os que o jogador lê: recusas, "Marina gostou do elogio (+5)"...)
+				if not app.player_hud.warning.is_connected(_print_warning):
+					app.player_hud.warning.connect(_print_warning)
+			"socialnote": # #259: imprime o último fato social e se o corpo está numa interação, pela ficha do motor
+				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+				var note_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				print("socialnote: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " fato=", note_sheet.get("socialNote"), " ocupado=", note_sheet.get("socialBusy"), " tarefa=", app.player_hud.busy.kind(), " | ", app.player_frame.busy_label.text)
+			"accel": # #259: o tempo acelerado com o corpo parado (só quem joga sozinho): o motor corre até algo chamar
+				await app.player_hud.accelerate()
+			"watchsocial": # #259: `watchsocial:S` imprime por S s reais a ficha social do corpo e a da outra pessoa (ação e ocupação), a cada 2 s
+				var watched := 0.0
+				while watched < float(arg):
+					app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+					var mine_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+					var other_line := ""
+					for housemate in app.player_hud.housemates:
+						app.player_hud.api.invalidate_npc(int(housemate.id))
+						var other_sheet: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
+						other_line += " | %s ação=%s ocupado=%s social=%s" % [other_sheet.name, other_sheet.get("currentAction"), other_sheet.get("socialBusy"), other_sheet.get("social")]
+					print("watchsocial: [", app.player_frame.clock_label.text, "] fato=", mine_sheet.get("socialNote"), " ocupado=", mine_sheet.get("socialBusy"), " tarefa=", app.player_hud.busy.kind(), other_line)
+					await app.get_tree().create_timer(2.0).timeout
+					watched += 2.0
+			"relation": # #259: imprime a relação com a pessoa ao alcance, como o motor a diz (a que o painel mostra)
+				await app.player_hud._reach_entries()
+				for offer in app.player_hud.offers:
+					if String(offer.get("kind", "")) == "person":
+						print("relation: ", offer.get("label"), " ", offer.get("relation"))
 			"use": # #252: `use:Geladeira` usa a oferta do motor cujo texto tem esse trecho (o que o E faria): imprime as ofertas e o que foi feito
 				var entries: Array = await app.player_hud._reach_entries()
 				var chosen: Dictionary = {}

@@ -28,6 +28,13 @@ public sealed record BusyView(string Action, long UntilMs, long TotalMs, long Re
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public double? SlotFy { get; init; }
 
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public double? Facing { get; init; }
+
+    /// <summary>#259 (aditivo, só na interação social): o outro corpo (<c>With</c>, id do NPC) para quem este se vira, e se foi este quem começou (<c>Initiator</c>).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public long? With { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public bool? Initiator { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? PartnerPose { get; init; }
 }
 
 /// <summary>#241/#243: tarefas que ocupam o corpo conduzido (hoje, cortar lenha na mata). O padrão de toda ação que rende item: a unidade
@@ -46,6 +53,8 @@ public static class PlayerTasks
         var view = new BusyView(task.Action, task.UntilMs, task.UntilMs - task.StartedAtMs, task.UntilMs - now);
         if (task.Action == LivingWorld.Simulation.Objects.ObjectUsage.Action && LivingWorld.Simulation.Objects.ObjectUsage.View(world, task) is { } use)
             return view with { Use = use.Use, Label = use.Label, Phase = use.Phase, Pose = use.Pose, SlotFx = use.Fx, SlotFy = use.Fy, Facing = use.Facing };
+        if (task.Action == LivingWorld.Simulation.Objects.SocialInteractions.Action && LivingWorld.Simulation.Objects.SocialInteractions.ViewOf(world, task) is { } social)
+            return view with { Use = social.Id, Label = social.Name, Phase = social.Phase, Pose = social.Pose, With = social.With, Initiator = social.Initiator, PartnerPose = social.PartnerPose };
         return task is { Action: Gather, PerUnitMs: > 0 }
             ? view with { Units = task.Units, Done = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs), ResourceId = task.ResourceId }
             : view;
@@ -132,6 +141,11 @@ public static class PlayerTasks
         if (task.Action == LivingWorld.Simulation.Objects.ObjectUsage.Action) // #255: o que já subiu fica; a fila vai embora com o uso
         {
             LivingWorld.Simulation.Objects.ObjectUsage.Stop(world, ctx, npc);
+            return Result<BusyView>.Ok(busy);
+        }
+        if (task.Action == LivingWorld.Simulation.Objects.SocialInteractions.Action) // #259: a fração vivida vale; o outro corpo é solto junto
+        {
+            LivingWorld.Simulation.Objects.SocialInteractions.Stop(world, ctx, npc);
             return Result<BusyView>.Ok(busy);
         }
         if (task.Action == Gather) Settle(world, ctx, npc, task.StartedAtMs); // o que já devia ter saído entre dois ticks sai agora

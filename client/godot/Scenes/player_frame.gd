@@ -16,6 +16,7 @@ const SPEED_TIP := ["Pausa (0)", "Velocidade normal (1)", "Rápido (2)", "Mais r
 const BAR_WIDTH := 112.0 ## #260: a barra encolhe para caber o ícone, o número e a seta de tendência na mesma linha
 const PULSE_HZ := 1.4 ## a necessidade mais urgente pulsa (ciclos por segundo)
 const PlayerGuide := preload("res://Scenes/player_guide.gd")
+const RelationPanel := preload("res://Scenes/relation_panel.gd")
 const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
 const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
 const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro, a mira, fica limpo)
@@ -43,6 +44,7 @@ var inventory: PanelContainer ## #233: a mochila (tecla I ou Tab)
 var inventory_box: VBoxContainer
 var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
+var relation: PanelContainer ## #259: a relação com a pessoa sob a mira (afeição, confiança, estado, humor, último fato)
 var catalog_box: VBoxContainer ## #255
 var catalog_bars: Dictionary = {} ## id da necessidade do catálogo -> {bar, name}
 var _rows: Dictionary = {} ## #260: id (as de sempre e as do catálogo) -> {row, bar, name, pct, icon, trend}
@@ -53,6 +55,7 @@ var need_hint: Label ## "Você está com a bexiga cheia → Vaso" (o alerta é d
 var queue_label: Label ## #255: a fila de ações ("1 Tomar banho · 2 Assistir TV"), Shift+1–4 tira
 var _queue_size := 0
 var entries: Array = []
+var reason_label: Label ## #259: o motivo de a linha esmaecida não valer, sob a roda
 var _all_entries: Array = [] ## a lista inteira da roda; `entries` é a página mostrada
 var _page := 0
 var busy_panel: PanelContainer ## #252: a troca de corpo disponível ("" = ninguém para quem trocar): uma linha discreta sob o nome.
@@ -123,6 +126,8 @@ func _init() -> void:
 	queue_label.custom_minimum_size.x = 244
 	queue_label.visible = false
 	box.add_child(queue_label)
+	relation = RelationPanel.new()
+	add_child(relation)
 	busy_panel = PanelContainer.new() # #241: "Cortando lenha — 40%" e a barra, acima do cartão; só enquanto o motor diz que o corpo está ocupado
 	busy_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
 	busy_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -517,6 +522,11 @@ func set_purse(money: Variant, carrying: Variant, name_of: Callable) -> void:
 	purse_label.visible = not parts.is_empty()
 
 
+## #259: a relação da oferta `person` sob a mira (ou nada: esconde). `now_ms` é o instante de mundo da última pose, para dizer "há 2 min".
+func set_relation(offer: Dictionary, now_ms: int = 0) -> void:
+	relation.show_for(offer, now_ms)
+
+
 func set_clock(text: String) -> void:
 	clock_label.text = text
 
@@ -764,7 +774,19 @@ func _render_menu() -> void:
 		button.position = wheel_offset(i, list.size(), radius) - WHEEL_BUTTON / 2.0
 		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.85), 16))
 		button.pressed.connect(func(): choose(entry))
+		if bool(entry.get("dim", false)): # #259: o que não vale agora fica esmaecido; o motivo (do motor) aparece sob a roda
+			button.modulate = Color(1, 1, 1, 0.5)
+			button.tooltip_text = String(entry.get("reason", ""))
+			button.mouse_entered.connect(func(): reason_label.text = String(entry.get("reason", "")))
+		else:
+			button.mouse_entered.connect(func(): reason_label.text = "")
 		menu_box.add_child(button)
+	reason_label = _label(14, Color("ffb3a0"))
+	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reason_label.size = Vector2(420, 40)
+	reason_label.position = Vector2(-210, radius + WHEEL_BUTTON.y / 2.0 + 14.0)
+	menu_box.add_child(reason_label)
 	menu_panel.visible = true
 	prompt.visible = false
 

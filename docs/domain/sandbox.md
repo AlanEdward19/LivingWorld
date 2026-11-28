@@ -52,6 +52,8 @@ No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necess
   (1× = 50 ms, 2× = 100, 3× = 150); a pausa não roda tick e aceita comando; com dois jogadores volta a 1× e os botões somem. Entra no registro (`Speed`) e o Δ vai pelo registro de Δ.
 - **Casal**: o segundo morador começa numa célula livre de outro cômodo (`HouseholdStart.Spread`); **luz**: abajur e luminária são objetos do catálogo com `light`, acesos à noite com gente em casa.
 - **Câmera**: **V** alterna paredes cortadas (as do lado da câmera baixam), inteiras e baixas; ao entrar o olhar vai para o espaço livre. Passos de captura: `speedinfo`, `lamps`, `walls`.
+## S3 (#259): o casal vive junto
+Interações sociais em dados (conversar, elogiar, abraçar, beijar, piada, discussão, desculpa, convites para ver TV, comer e deitar juntos), relação visível e iniciativa dos NPCs: ver [social-interactions.md](social-interactions.md) (AD-223). No período: `CatalogExtends: ["home-life", "social"]`.
 
 ## O que ainda não funciona
 - Rua e calçada sem superfície de partida; a porta da casa pode abrir para um caminho até a rua e o quintal tem as árvores da regra de 16% (nenhum parâmetro de cenário as tira).

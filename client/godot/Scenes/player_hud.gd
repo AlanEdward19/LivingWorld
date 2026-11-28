@@ -6,6 +6,7 @@ const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const PlayerBody := preload("res://Scenes/player_body.gd")
 const CombatView := preload("res://Scenes/combat_view.gd")
 const BodyBusy := preload("res://Scenes/body_busy.gd")
+const SocialMenu := preload("res://Scenes/social_menu.gd")
 const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
@@ -367,6 +368,8 @@ func set_reach_hint(from: Array) -> void:
 	reach_hint.visible = rpg and reach_hint.text != "" and frame == null and not popup_open()
 	if frame != null:
 		frame.set_prompt(reach_hint.text if rpg else "")
+		if not frame.menu_open():
+			frame.set_relation(_hint_offer if rpg else {}, _world_ms) # #259: a relação com a pessoa sob a mira
 	if rpg:
 		var target := Vector2.INF
 		var kind := ""
@@ -817,8 +820,45 @@ func _refresh_body(delta: float) -> void:
 		if not _ended_use.is_empty() and not busy.active(): # #260: o uso acabou sozinho: avisa com o que ficou
 			warning.emit(finish_text(String(_ended_use.label), String(_ended_use.need), body))
 			_ended_use = {}
+		_note_social(body.get("socialNote")) # #259: o que aconteceu entre este corpo e alguém (a interação que o outro começou inclusive)
+		if bool(body.get("socialBusy", false)) and not busy.active():
+			sync_pose() # o motor ocupou este corpo numa interação que a outra pessoa começou: lê a pose para o gesto e a barra
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
+
+
+## #259: o último fato social do corpo (texto do catálogo, "Marina gostou do elogio (+5)"): avisa uma vez por instante; a primeira leitura só aprende.
+func _note_social(event: Variant) -> void:
+	if not event is Dictionary:
+		return
+	var at := int(event.get("atMs", 0))
+	if not _social_primed:
+		_social_primed = true
+		_social_seen = at
+		return
+	if at <= _social_seen:
+		return
+	_social_seen = at
+	warning.emit(String(event.get("text", "")))
+	_refresh_relation_soon()
+
+
+## A relação da pessoa sob a mira muda com o fato: pede outra leitura da oferta já.
+func _refresh_relation_soon() -> void:
+	_reach_at = Vector2.INF
+	reach_clock = REACH_HINT_EVERY
+
+
+## #259: a relação da primeira pessoa da lista de linhas (a roda aberta sobre ela).
+func _show_relation_of(list: Array) -> void:
+	if frame == null:
+		return
+	for entry in list:
+		if String(entry.get("kind", "")) == "person":
+			for offer in offers:
+				if String(offer.get("kind", "")) == "person" and int(offer.get("id", -1)) == int(entry.id):
+					frame.set_relation(offer, _world_ms)
+					return
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
@@ -1190,6 +1230,8 @@ const DOUBLE_TAP_MS := 260
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
 func apply_pose(pose: Dictionary, from_walk: bool = false) -> void:
+	if pose.get("atMs") != null:
+		_world_ms = int(pose.atMs)
 	note_combat(pose)
 	_note_busy(pose)
 	if frame != null:
@@ -1387,6 +1429,10 @@ var _e_ready := false
 var _e_wheel := false
 var _e_quick := false
 var _e_entries: Array = []
+var _root_entries: Array = [] ## #259: a roda de baixo do menu social ("‹ Voltar" volta a ela)
+var _social_seen := -1 ## #259: o instante (ms de mundo) do último fato social já avisado
+var _social_primed := false ## a primeira leitura só aprende o que já havia (não avisa o passado)
+var _world_ms := 0 ## o instante de mundo da última pose, para dizer "há 2 min" na relação
 
 
 func e_pressed() -> void:
@@ -1423,7 +1469,9 @@ func _e_step() -> void:
 		return
 	if _e_down and _e_ready and _e_hold >= HOLD_S and not _e_wheel:
 		_e_wheel = true
+		_root_entries = _e_entries
 		frame.show_menu(_e_entries)
+		_show_relation_of(_e_entries)
 		menu_toggled.emit(true)
 	elif _e_quick and _e_ready:
 		_e_quick = false
@@ -1476,7 +1524,9 @@ func open_interactions() -> void:
 		return
 	offers = response.body.get("offers", [])
 	if rpg and frame != null:
-		frame.show_menu(without_sale(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id))
+		_root_entries = without_sale(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id)
+		frame.show_menu(_root_entries)
+		_show_relation_of(_root_entries)
 		menu_toggled.emit(true)
 		return
 	show_menu(menu_entries(offers, resource_name_of))
@@ -1519,6 +1569,10 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 			else:
 				entries.append({"text": "%s: %s" % [title, VERB_TEXT.get(String(verb), String(verb))], "kind": kind,
 					"id": int(offer.id), "verb": String(verb), "resource": -1})
+		if kind == "person": # #259: o menu social da pessoa ("Interagir ▸"), junto do Conversar de sempre
+			var social := SocialMenu.main_entry(offer, title)
+			if not social.is_empty():
+				entries.append(social)
 	return entries
 
 
@@ -1573,6 +1627,24 @@ func interact(entry: Dictionary) -> void:
 		return
 	if (String(entry.get("verb", "")).begins_with("use:") or String(entry.get("verb", "")).begins_with("queue:")) and String(entry.get("name", "")) != "":
 		_use_needs[String(entry.name)] = String(entry.get("need", "")) # #260: para o aviso de fim
+	match String(entry.get("verb", "")): # #259: o menu social: categorias, interações (as que não valem esmaecidas) e a volta
+		"social_menu", "social_back":
+			if frame != null:
+				frame.show_menu(SocialMenu.category_entries(entry))
+				_show_relation_of([entry])
+			return
+		"social_cat":
+			if frame != null:
+				frame.show_menu(SocialMenu.interaction_entries(entry))
+			return
+		"social_root":
+			if frame != null:
+				frame.show_menu(_root_entries)
+			return
+	if bool(entry.get("disabled", false)): # #259: a interação que não vale agora diz por quê (o motivo é do motor) e não pede nada
+		refused.emit()
+		warning.emit(String(entry.get("reason", "Isso não vale agora.")))
+		return
 	if busy.active() and String(entry.get("verb", "")).begins_with("use:"):
 		entry = entry.duplicate()
 		entry["verb"] = "queue:" + String(entry.verb).substr(4) # o corpo está ocupado: a ação entra na fila
@@ -1596,7 +1668,14 @@ func interact(entry: Dictionary) -> void:
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
-		if rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
+		if String(response.body.get("outcome", "")) == "refused": # #259: a pessoa recusou: a frase e o motivo vêm do motor
+			if pose is Dictionary and pose.get("social") is Dictionary:
+				_social_primed = true
+				_social_seen = maxi(_social_seen, int(pose.social.get("atMs", 0))) # o fato já foi dito aqui; a leitura da ficha não o repete
+			refused.emit()
+			warning.emit(String(response.body.get("note", "Recusou.")))
+			_refresh_relation_soon()
+		elif rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
 			warning.emit(done_text(entry, response.body))
 		else:
 			_set_status(String(entry.get("text", "")))
@@ -1610,6 +1689,8 @@ func interact(entry: Dictionary) -> void:
 
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
 static func done_text(entry: Dictionary, body: Dictionary) -> String:
+	if String(body.get("outcome", "")) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo
+		return "✓ " + String(body.note)
 	var text := String(entry.get("text", "")).get_slice(" (", 0)
 	var quantity := int(body.get("quantity", 0)) if body.get("quantity") != null else 0
 	var value := int(body.get("value", 0)) if body.get("value") != null else 0

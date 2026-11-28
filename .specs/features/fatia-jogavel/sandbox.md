@@ -26,7 +26,7 @@ para o outro, andar pela casa toda, usar cama, mesa e fogão.
 com duração, animação e cancelamento; fila de ações. Os dois usam os mesmos objetos.
 Aceite: um dia inteiro cuidando das barras só com a casa; o parceiro não controlado se cuida sozinho.
 
-**S3 — o casal (antigo M6).** Menu social entre os dois e relação visível; o motor decide a reação.
+**S3 — o casal (antigo M6)** [implementado em #259, AD-223; ver docs/domain/social-interactions.md]. Menu social entre os dois e relação visível; o motor decide a reação.
 
 **Depois da fatia aceitável (ordem do dono, 2026-11-28):** #257 — por que os NPCs não vivem de forma realista e simulação por nível de detalhe para o planeta.
 

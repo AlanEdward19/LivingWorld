@@ -126,7 +126,8 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
             // #255: quem usa um objeto da casa (banho, vaso, TV...) fica nisso até acabar; o fim do uso o acorda, a decisão da hora não o tira dali
             LivingWorld.Simulation.Objects.ObjectUsage.SettleDue(world, ctx, npc);
-            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action } && LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is not null)
+            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.SocialInteractions.Action }) LivingWorld.Simulation.Objects.SocialInteractions.SettleDue(world, ctx, npc); // #259
+            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action or LivingWorld.Simulation.Objects.SocialInteractions.Action } && LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is not null)
             {
                 if (fine) NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, null, stage);
                 else NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
@@ -287,6 +288,9 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 bool cared = npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent)
                     && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
                     && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
+                // #259: sem nada a cuidar, quem está só e à toa procura companhia (interação social do catálogo, o mesmo caminho do jogador)
+                if (!cared && !urgent && npc.ControllerId is null && candidate is ActionType.Idle or ActionType.Socialize && world.ObjectCatalog?.Social is not null)
+                    cared = LivingWorld.Simulation.Objects.SocialInteractions.TryInitiate(world, ctx, npc);
                 chosen = cared ? ActionType.Idle
                     : npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
                     ? ActionType.Idle // #222: o corpo do jogador "à toa" fica onde está (não vai à toa em casa); o jogador o conduz

@@ -29,6 +29,12 @@ public sealed class BodyTaskSystem : ISimulationSystem
             return;
         }
 
+        if (parts.Length == 3 && parts[2] == "s" && long.TryParse(parts[0], out long actorId) && long.TryParse(parts[1], out long met))
+        {
+            if (world.FindNpc(new NpcId(actorId)) is { IsAlive: true } actor) LivingWorld.Simulation.Objects.SocialInteractions.Step(world, ctx, actor, met); // #259: interação social
+            return;
+        }
+
         if (parts.Length != 2 || !long.TryParse(parts[0], out long npcId) || !long.TryParse(parts[1], out long started)) return;
         if (world.FindNpc(new NpcId(npcId)) is { IsAlive: true } npc) PlayerTasks.Settle(world, ctx, npc, started);
     }

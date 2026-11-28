@@ -1,0 +1,804 @@
+{
+ "Social": {
+  "rules": {
+   "adultYears": 18,
+   "reachM": 1.4,
+   "cooldownMin": 15,
+   "initiateNeed": "social",
+   "initiateBelow": 90,
+   "checkEveryMin": 10,
+   "historyHours": 6,
+   "spouseAffection": 72,
+   "spouseTrust": 62,
+   "texts": {
+    "actorBusy": "você está ocupado agora",
+    "targetBusy": "{target} não está disponível agora",
+    "targetAsleep": "{target} está dormindo",
+    "adults": "só entre adultos",
+    "state": "a relação de vocês ainda não chega a isso",
+    "affection": "{target} ainda não gosta de você o bastante",
+    "trust": "{target} ainda não confia em você o bastante",
+    "noPlace": "não há onde fazer isso agora",
+    "far": "{target} está longe demais",
+    "refused": "não está a fim agora"
+   }
+  },
+  "categories": [
+   {
+    "id": "friendly",
+    "name": "Amigável"
+   },
+   {
+    "id": "romantic",
+    "name": "Romântica"
+   },
+   {
+    "id": "funny",
+    "name": "Engraçada"
+   },
+   {
+    "id": "mean",
+    "name": "Má"
+   },
+   {
+    "id": "apology",
+    "name": "Desculpa"
+   },
+   {
+    "id": "invite",
+    "name": "Convite"
+   }
+  ],
+  "states": [
+   {
+    "id": "spouse",
+    "label": "Casados",
+    "spouse": true
+   },
+   {
+    "id": "close",
+    "label": "Muito próximos",
+    "affectionMin": 70,
+    "trustMin": 50
+   },
+   {
+    "id": "friends",
+    "label": "Amigos",
+    "affectionMin": 45,
+    "trustMin": 30
+   },
+   {
+    "id": "acquaintances",
+    "label": "Conhecidos",
+    "affectionMin": 15
+   },
+   {
+    "id": "strangers",
+    "label": "Desconhecidos"
+   }
+  ],
+  "mood": {
+   "valenceWeight": 40,
+   "needs": [
+    {
+     "need": "hygiene",
+     "weight": 8
+    },
+    {
+     "need": "fun",
+     "weight": 8
+    },
+    {
+     "need": "bladder",
+     "weight": 4
+    },
+    {
+     "need": "hunger",
+     "weight": 8
+    },
+    {
+     "need": "sleep",
+     "weight": 8
+    },
+    {
+     "need": "social",
+     "weight": 4
+    }
+   ],
+   "labels": [
+    {
+     "below": 20,
+     "label": "Péssimo"
+    },
+    {
+     "below": 35,
+     "label": "Chateado"
+    },
+    {
+     "below": 55,
+     "label": "Tranquilo"
+    },
+    {
+     "below": 75,
+     "label": "Bem"
+    },
+    {
+     "below": 101,
+     "label": "Radiante"
+    }
+   ]
+  },
+  "interactions": [
+   {
+    "id": "chat",
+    "name": "Bater papo",
+    "category": "friendly",
+    "durationSec": 40,
+    "pose": "talk",
+    "accept": {
+     "base": 88,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.4,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "target.need.social",
+       "weight": -0.2,
+       "from": 50
+      },
+      {
+       "of": "actor.need.hygiene",
+       "weight": 0.3,
+       "from": 40,
+       "reason": "{actor} está precisando de um banho"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não está com vontade de conversar"
+    },
+    "effects": {
+     "actor": {
+      "affection": 1.5,
+      "needs": {
+       "social": 10
+      }
+     },
+     "target": {
+      "affection": 2,
+      "trust": 1,
+      "needs": {
+       "social": 12
+      },
+      "mood": {
+       "joy": 0.05
+      }
+     }
+    },
+    "initiative": {
+     "weight": 1.0,
+     "toPlayer": true
+    },
+    "accepted": "{target} bateu papo com {actor} ({delta})",
+    "refused": "{target} não quis conversar"
+   },
+   {
+    "id": "compliment",
+    "name": "Elogiar",
+    "category": "friendly",
+    "durationSec": 6,
+    "pose": "talk",
+    "accept": {
+     "base": 90,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.3,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "target.trait.agreeableness",
+       "weight": 0.2,
+       "from": 50
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ]
+    },
+    "effects": {
+     "actor": {
+      "affection": 1,
+      "needs": {
+       "social": 4
+      }
+     },
+     "target": {
+      "affection": 5,
+      "trust": 1,
+      "needs": {
+       "social": 6
+      },
+      "mood": {
+       "joy": 0.15
+      },
+      "salience": 12
+     }
+    },
+    "initiative": {
+     "weight": 0.6,
+     "toPlayer": true,
+     "affectionMin": 10
+    },
+    "accepted": "{target} gostou do elogio ({delta})",
+    "refused": "{target} não deu atenção ao elogio"
+   },
+   {
+    "id": "hug",
+    "name": "Abraçar",
+    "category": "friendly",
+    "durationSec": 8,
+    "pose": "hug",
+    "requires": {
+     "affectionMin": 25,
+     "trustMin": 15,
+     "reason": "{target} ainda não tem tanta intimidade com {actor}"
+    },
+    "accept": {
+     "base": 75,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.4,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "relation.affection",
+       "weight": 0.3,
+       "from": 50
+      },
+      {
+       "of": "actor.need.hygiene",
+       "weight": 0.4,
+       "from": 50,
+       "reason": "{actor} está precisando de um banho"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não quis o abraço agora"
+    },
+    "effects": {
+     "actor": {
+      "affection": 3,
+      "needs": {
+       "social": 8
+      }
+     },
+     "target": {
+      "affection": 5,
+      "trust": 2,
+      "needs": {
+       "social": 10
+      },
+      "mood": {
+       "joy": 0.2
+      },
+      "salience": 10
+     }
+    },
+    "onRefuse": {
+     "actor": {
+      "mood": {
+       "shame": 0.05
+      }
+     },
+     "target": {}
+    },
+    "initiative": {
+     "weight": 1.2,
+     "toPlayer": true,
+     "affectionMin": 25
+    },
+    "accepted": "{target} retribuiu o abraço de {actor} ({delta})",
+    "refused": "{target} recusou o abraço"
+   },
+   {
+    "id": "kiss",
+    "name": "Beijar",
+    "category": "romantic",
+    "durationSec": 6,
+    "pose": "kiss",
+    "requires": {
+     "states": [
+      "spouse",
+      "close"
+     ],
+     "adultsOnly": true,
+     "reason": "{target} não vê {actor} dessa forma"
+    },
+    "accept": {
+     "base": 55,
+     "terms": [
+      {
+       "of": "relation.affection",
+       "weight": 0.4,
+       "from": 60
+      },
+      {
+       "of": "target.mood",
+       "weight": 0.5,
+       "from": 50,
+       "reason": "{target} não está no clima"
+      },
+      {
+       "of": "actor.need.hygiene",
+       "weight": 0.7,
+       "from": 60,
+       "reason": "{actor} está precisando de um banho antes"
+      },
+      {
+       "of": "target.need.hygiene",
+       "weight": 0.25,
+       "from": 60,
+       "reason": "{target} está precisando de um banho"
+      },
+      {
+       "of": "target.need.bladder",
+       "weight": 0.15,
+       "from": 50,
+       "reason": "{target} está apertado para ir ao banheiro"
+      },
+      {
+       "of": "target.need.sleep",
+       "weight": 0.15,
+       "from": 50,
+       "reason": "{target} está cansado demais"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não está no clima"
+    },
+    "effects": {
+     "actor": {
+      "affection": 3,
+      "needs": {
+       "social": 10,
+       "fun": 4
+      }
+     },
+     "target": {
+      "affection": 6,
+      "trust": 1,
+      "needs": {
+       "social": 12,
+       "fun": 4
+      },
+      "mood": {
+       "joy": 0.3
+      },
+      "salience": 22
+     }
+    },
+    "onRefuse": {
+     "actor": {
+      "mood": {
+       "shame": 0.15
+      }
+     },
+     "target": {
+      "affection": -1
+     }
+    },
+    "initiative": {
+     "weight": 0.9,
+     "toPlayer": true,
+     "affectionMin": 55
+    },
+    "accepted": "{target} beijou {actor} ({delta})",
+    "refused": "{target} recusou o beijo"
+   },
+   {
+    "id": "joke",
+    "name": "Contar piada",
+    "category": "funny",
+    "durationSec": 14,
+    "pose": "laugh",
+    "accept": {
+     "base": 72,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.5,
+       "from": 50,
+       "reason": "{target} não está para brincadeira"
+      },
+      {
+       "of": "target.trait.openness",
+       "weight": 0.1,
+       "from": 50
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ]
+    },
+    "effects": {
+     "actor": {
+      "needs": {
+       "fun": 6,
+       "social": 5
+      }
+     },
+     "target": {
+      "affection": 3,
+      "needs": {
+       "fun": 10,
+       "social": 6
+      },
+      "mood": {
+       "joy": 0.25
+      },
+      "salience": 10
+     }
+    },
+    "onRefuse": {
+     "actor": {
+      "mood": {
+       "shame": 0.1
+      }
+     },
+     "target": {
+      "affection": -1
+     }
+    },
+    "initiative": {
+     "weight": 0.6,
+     "toPlayer": true
+    },
+    "accepted": "{target} riu da piada de {actor} ({delta})",
+    "refused": "{target} não achou graça"
+   },
+   {
+    "id": "complain",
+    "name": "Reclamar",
+    "category": "mean",
+    "durationSec": 18,
+    "pose": "argue",
+    "targetPose": "talk",
+    "accept": {
+     "base": 80,
+     "terms": [
+      {
+       "of": "target.trait.agreeableness",
+       "weight": 0.3,
+       "from": 50,
+       "reason": "{target} não quer ouvir reclamação"
+      },
+      {
+       "of": "target.mood",
+       "weight": 0.3,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      }
+     ]
+    },
+    "effects": {
+     "actor": {
+      "needs": {
+       "social": 5
+      }
+     },
+     "target": {
+      "affection": -2,
+      "mood": {
+       "anger": 0.1
+      }
+     }
+    },
+    "initiative": {
+     "weight": 0.3,
+     "toPlayer": true,
+     "need": "fun",
+     "below": 25
+    },
+    "accepted": "{actor} reclamou com {target} ({delta})",
+    "refused": "{target} não deu ouvidos à reclamação"
+   },
+   {
+    "id": "argue",
+    "name": "Discutir",
+    "category": "mean",
+    "durationSec": 25,
+    "pose": "argue",
+    "accept": {
+     "base": 100,
+     "terms": []
+    },
+    "effects": {
+     "actor": {
+      "mood": {
+       "anger": 0.35
+      },
+      "salience": 26
+     },
+     "target": {
+      "affection": -6,
+      "trust": -3,
+      "mood": {
+       "anger": 0.4
+      },
+      "salience": 28
+     }
+    },
+    "accepted": "{actor} e {target} discutiram ({delta})",
+    "refused": "{target} não quis discutir"
+   },
+   {
+    "id": "apologize",
+    "name": "Pedir desculpa",
+    "category": "apology",
+    "durationSec": 10,
+    "pose": "plead",
+    "targetPose": "talk",
+    "accept": {
+     "base": 45,
+     "terms": [
+      {
+       "of": "recent.mean",
+       "weight": 40,
+       "from": 0
+      },
+      {
+       "of": "target.trait.agreeableness",
+       "weight": 0.4,
+       "from": 50,
+       "reason": "{target} não está disposto a perdoar"
+      },
+      {
+       "of": "relation.affection",
+       "weight": 0.3,
+       "from": 40
+      }
+     ],
+     "refuseReason": "{target} ainda está magoado"
+    },
+    "effects": {
+     "actor": {
+      "needs": {
+       "social": 4
+      }
+     },
+     "target": {
+      "affection": 6,
+      "trust": 3,
+      "mood": {
+       "joy": 0.1
+      },
+      "salience": 12
+     }
+    },
+    "accepted": "{target} aceitou o pedido de desculpas de {actor} ({delta})",
+    "refused": "{target} não aceitou o pedido de desculpas"
+   },
+   {
+    "id": "tv-together",
+    "name": "Convidar para ver TV",
+    "category": "invite",
+    "pose": "talk",
+    "joint": {
+     "use": "together-left",
+     "partnerUse": "together-right"
+    },
+    "accept": {
+     "base": 72,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.3,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "target.need.fun",
+       "weight": -0.3,
+       "from": 50
+      },
+      {
+       "of": "target.need.hunger",
+       "weight": 0.3,
+       "from": 30,
+       "reason": "{target} está com fome demais"
+      },
+      {
+       "of": "target.need.sleep",
+       "weight": 0.2,
+       "from": 30,
+       "reason": "{target} quer ir dormir"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não quer ver TV agora"
+    },
+    "effects": {
+     "actor": {
+      "affection": 2,
+      "mood": {
+       "joy": 0.1
+      }
+     },
+     "target": {
+      "affection": 3,
+      "mood": {
+       "joy": 0.1
+      }
+     }
+    },
+    "initiative": {
+     "weight": 0.8,
+     "toPlayer": false,
+     "need": "fun",
+     "below": 45
+    },
+    "accepted": "{target} topou ver TV com {actor} ({delta})",
+    "refused": "{target} não quis ver TV"
+   },
+   {
+    "id": "eat-together",
+    "name": "Convidar para comer",
+    "category": "invite",
+    "pose": "talk",
+    "joint": {
+     "use": "meal-together",
+     "partnerUse": "meal-together"
+    },
+    "accept": {
+     "base": 55,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.2,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "target.need.hunger",
+       "weight": -0.5,
+       "from": 60,
+       "reason": "{target} não está com fome"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não está com fome"
+    },
+    "effects": {
+     "actor": {
+      "affection": 2
+     },
+     "target": {
+      "affection": 3
+     }
+    },
+    "initiative": {
+     "weight": 0.6,
+     "toPlayer": false,
+     "need": "hunger",
+     "below": 55
+    },
+    "accepted": "{target} foi comer com {actor} ({delta})",
+    "refused": "{target} recusou comer junto"
+   },
+   {
+    "id": "cuddle",
+    "name": "Convidar para deitar juntos",
+    "category": "invite",
+    "pose": "talk",
+    "requires": {
+     "states": [
+      "spouse",
+      "close"
+     ],
+     "reason": "{target} não vê {actor} dessa forma"
+    },
+    "joint": {
+     "use": "cuddle-left",
+     "partnerUse": "cuddle-right"
+    },
+    "accept": {
+     "base": 70,
+     "terms": [
+      {
+       "of": "target.mood",
+       "weight": 0.3,
+       "from": 50,
+       "reason": "{target} não está de bom humor"
+      },
+      {
+       "of": "relation.affection",
+       "weight": 0.3,
+       "from": 60
+      },
+      {
+       "of": "target.need.sleep",
+       "weight": -0.4,
+       "from": 60
+      },
+      {
+       "of": "actor.need.hygiene",
+       "weight": 0.4,
+       "from": 35,
+       "reason": "{actor} está precisando de um banho"
+      },
+      {
+       "of": "recent.mean",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está remoendo a última briga"
+      }
+     ],
+     "refuseReason": "{target} não quer se deitar agora"
+    },
+    "effects": {
+     "actor": {
+      "affection": 3,
+      "mood": {
+       "joy": 0.15
+      },
+      "salience": 10
+     },
+     "target": {
+      "affection": 4,
+      "trust": 1,
+      "mood": {
+       "joy": 0.15
+      },
+      "salience": 10
+     }
+    },
+    "initiative": {
+     "weight": 0.5,
+     "toPlayer": false,
+     "need": "sleep",
+     "below": 40,
+     "affectionMin": 55
+    },
+    "accepted": "{target} se deitou com {actor} ({delta})",
+    "refused": "{target} não quis se deitar"
+   }
+  ]
+ }
+}

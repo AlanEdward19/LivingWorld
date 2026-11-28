@@ -59,6 +59,9 @@ public enum LifeEventKind : byte
 
     /// <summary>AD-197e: foi possuído por inteiro e viu o corpo fazer o que não queria (impacto em <c>PlayerRules.Possessed</c>).</summary>
     Possessed = 37,
+
+    /// <summary>#259: uma interação social vivida (o impacto vem do catálogo social do cenário; <c>Other</c> é a outra pessoa).</summary>
+    Social = 38,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),

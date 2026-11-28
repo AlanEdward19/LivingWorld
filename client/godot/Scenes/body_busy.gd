@@ -4,7 +4,8 @@ extends RefCounted
 ## O motor decide a duração e o que fica feito ao interromper; o cliente mostra a barra, anima o corpo e não manda passo enquanto dura.
 
 ## #255: a pose declarada pelo catálogo (já com o fallback do motor) -> o gesto em laço do rig procedural. O rig não muda: pose sem gesto cai em `rest`.
-const POSE_GESTURE := {"work": "work", "eat": "eat", "sleep": "rest", "socialize": "talk", "idle": "rest", "buy": "give", "power": "reach"}
+const POSE_GESTURE := {"work": "work", "eat": "eat", "sleep": "rest", "socialize": "talk", "idle": "rest", "buy": "give", "power": "reach",
+	"talk": "talk", "hug": "hug", "kiss": "kiss", "laugh": "laugh", "argue": "argue", "plead": "plead"} ## #259: os gestos da interação social (o nome vem do catálogo; o que o cliente não conhece cai em "talk")
 
 ## ação do motor -> o que o corpo está fazendo ("Cortando lenha") e o gesto em laço do rig procedural (`npc_actor.GESTURES`)
 const ACTIONS := {
@@ -13,6 +14,7 @@ const ACTIONS := {
 	"drink": {"doing": "Bebendo", "gesture": "drink", "stopped": "Parou de beber."},
 	"sleep": {"doing": "Dormindo", "gesture": "rest", "stopped": "Parou de dormir."},
 	"use": {"doing": "Usando", "gesture": "reach", "stopped": "Parou de usar."},
+	"social": {"doing": "Interagindo", "gesture": "talk", "stopped": "Parou."},
 }
 
 var action := ""
@@ -20,6 +22,9 @@ var use := "" ## #255: o uso do catálogo em curso (`busy.use`), o nome que o jo
 var label := ""
 var phase := ""
 var use_pose := ""
+var partner := -1 ## #259: na interação social, o outro corpo (id do NPC) para quem este se vira, e o gesto dele (`partnerPose`)
+var partner_pose := ""
+var initiator := false
 var facing := 0.0 ## graus: para onde o corpo olha no lugar de uso
 var slot := Vector2.INF ## o lugar de uso em células (fino), dito pelo motor
 var total_ms := 0.0 ## duração em ms de mundo
@@ -45,6 +50,7 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 		action = ""
 		use = ""
 		phase = ""
+		partner = -1
 		units = 0
 		accelerated = false
 		return before != ""
@@ -53,6 +59,9 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 	label = String(busy.get("label", ""))
 	phase = String(busy.get("phase", ""))
 	use_pose = String(busy.get("pose", ""))
+	partner = int(busy.get("with", -1)) if busy.get("with") != null else -1
+	partner_pose = String(busy.get("partnerPose", "")) if busy.get("partnerPose") != null else ""
+	initiator = bool(busy.get("initiator", false))
 	facing = float(busy.get("facing", 0.0))
 	slot = Vector2(float(busy.slotFx), float(busy.slotFy)) if busy.get("slotFx") != null else Vector2.INF
 	units = int(busy.units) if busy.get("units") != null else 0 # o motor manda `units: null` fora da coleta
@@ -67,6 +76,8 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 
 ## A chave do que o corpo faz para o app animar: a ação, ou (#255) o uso com a pose dele; andando até a peça, `use:walk` (sem gesto).
 func kind() -> String:
+	if action == "social": # #259
+		return "social:walk" if phase == "walk" else "social:%s" % use_pose
 	if action != "use":
 		return action
 	return "use:walk" if phase == "walk" else "use:%s" % use_pose
@@ -75,6 +86,7 @@ func kind() -> String:
 func clear() -> void:
 	action = ""
 	use = ""
+	partner = -1
 	phase = ""
 	units = 0
 	accelerated = false
@@ -121,8 +133,10 @@ static func doing(kind: String) -> String:
 
 
 static func gesture_for(kind: String) -> String:
-	if kind == "use:walk":
+	if kind == "use:walk" or kind == "social:walk":
 		return ""
+	if kind.begins_with("social:"):
+		return String(POSE_GESTURE.get(kind.substr(7), "talk"))
 	if kind.begins_with("use:"):
 		return String(POSE_GESTURE.get(kind.substr(4), "rest"))
 	return String(ACTIONS.get(kind, {}).get("gesture", "work"))
@@ -135,13 +149,13 @@ static func stopped(kind: String) -> String:
 ## "Cortando lenha — 40% · tempo acelerado": a linha da barra. Sem acelerar (mais de um jogador, ou ação curta), diz o que falta em
 ## horas e minutos de mundo ("· faltam 4 h 12 min"), para o jogador saber quanto vai demorar.
 func name_now() -> String:
-	if action == "use" and label != "":
+	if action in ["use", "social"] and label != "":
 		return label
 	return doing(action)
 
 
 func text(now_msec: float) -> String:
-	if action == "use" and phase == "walk":
+	if action in ["use", "social"] and phase == "walk":
 		return "Indo: %s…" % label
 	var line := "%s — %d%%" % [name_now(), roundi(fraction(now_msec) * 100.0)]
 	if units > 1:
@@ -166,7 +180,7 @@ func blocked_note() -> String:
 
 ## #255: a frase de quando o jogador para o uso (o nome vem do catálogo do motor).
 func stopped_text() -> String:
-	return "Parou: %s." % label if action == "use" and label != "" else stopped(action)
+	return "Parou: %s." % label if action in ["use", "social"] and label != "" else stopped(action)
 
 
 ## O erro do servidor em frase humana: sem prefixo técnico (`walk:`, `conflict:`, `move:`...), sem número de ms, com inicial maiúscula

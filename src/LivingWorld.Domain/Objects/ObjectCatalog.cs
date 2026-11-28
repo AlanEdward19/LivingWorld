@@ -59,7 +59,8 @@ public sealed record ObjectLight(string Color, double RangeM, double Energy, dou
 public sealed record ObjectCatalog(
     int Format, IReadOnlyList<ObjectDescriptor> Objects, IReadOnlyDictionary<string, IReadOnlyList<string>> Furnishings,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Cities.Buildings.RoomCatalog? Rooms = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NeedCatalog? Needs = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NeedCatalog? Needs = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] SocialCatalog? Social = null)
 {
     public const int CurrentFormat = 1;
 
