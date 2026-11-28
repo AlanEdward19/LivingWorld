@@ -35,12 +35,20 @@ public static class RoomBeauty
     {
         if (metric != "beauty" || world.ObjectCatalog is not { Home: not null } catalog) return null;
         if (npc.Interior is { } inside)
-            return world.FindBuilding(inside.Building) is { } building ? RelativeAt(building, catalog, inside.Floor.Value, inside.LocalCell) : null;
+            return world.FindBuilding(inside.Building) is { } building && IsDwelling(world, building) ? RelativeAt(building, catalog, inside.Floor.Value, inside.LocalCell) : null;
         // o corpo que alguém conduz anda pela pose fina e pode estar na planta sem `Interior`: o chão do passo diz em que casa e em que célula ele está
         int floor = PlayerGround.FloorOf(npc);
         var pose = PlayerGround.PoseOf(world, npc);
-        return PlayerGround.At(world, pose, floor) is { } spot
+        return PlayerGround.At(world, pose, floor) is { } spot && IsDwelling(world, spot.Building)
             ? RelativeAt(spot.Building, catalog, floor, new CellCoord(pose.X - spot.Origin.X, pose.Y - spot.Origin.Y)) : null;
+    }
+
+    /// <summary>#269: "Cômodo feio" aparecia dentro do Mercado (a beleza esperada do salão da banca vinha da casa): o ambiente do gatilho é o de uma moradia, onde a decoração é da pessoa. Loja, mercado e escritório não têm a medida.</summary>
+    private static bool IsDwelling(WorldState world, Building building)
+    {
+        foreach (var household in world.Households)
+            if (household.Dwelling == building.Id) return true;
+        return false;
     }
 
     private static Entry EntryOf(Building building, ObjectCatalog catalog)

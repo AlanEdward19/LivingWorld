@@ -379,7 +379,7 @@ func test_wall_right_behind_keeps_the_view_shallow_not_overhead() -> void:
 	rig.set_mode(rig.THIRD)
 	rig.follow(made[1])
 	var seen := _body_below_center_and_look_down(rig)
-	check(seen[1] <= 78.0, "a vista curta, colada à parede, olha o corpo de cima mas não a prumo da cabeça (%s graus; o piso de #268 manda subir)" % seen[1])
+	check(seen[1] <= 85.0, "a vista curta, colada à parede, olha o corpo de cima mas não a prumo da cabeça (%s graus; o piso de #268/#269 manda subir)" % seen[1])
 	check(not _camera_inside_any_shell(rig, boxes), "e fora da parede")
 	rig.free()
 

@@ -121,7 +121,8 @@
     "Persistence": 0.3,
     "SharedShare": 0.7,
     "Weather": {
-      "Enabled": true
+      "Enabled": true,
+      "LatitudeDeg": -23.5
     }
   },
   "Width": 24,

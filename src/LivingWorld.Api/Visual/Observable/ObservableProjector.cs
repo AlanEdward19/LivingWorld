@@ -500,6 +500,7 @@ public static class ObservableProjector
         var date = world.CurrentDate;
         int monthsPerSeason = Math.Max(1, world.Calendar.MonthsPerYear / 4);
         int season = date.Month / monthsPerSeason;
+        if (world.ClimateRules.Weather is { LatitudeDeg: < 0 }) season = (season + 2) % 4; // #269: no hemisfério sul janeiro é verão (a luz do dia do motor já segue a latitude)
         int region = world.Map.TryGetCell(cell, out _) ? world.Map.RegionOf(cell).Value : -1;
         int factor = world.ClimateYears.LastOrDefault(y => y.Region.Value == region && y.Year == date.Year)?.FactorMilli ?? 1000;
         double temperature = world.Map.TryGetCell(cell, out _)

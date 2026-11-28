@@ -734,7 +734,7 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 	return best
 
 
-const STREET_VIEW_M := 1.3 ## #268: distância mínima do olho à câmera de rua colada em parede (a mola sobe, em vez de grudar na cabeça)
+const STREET_VIEW_M := 2.1 ## #268/#269: distância mínima do olho à câmera de rua colada em parede ou na soleira (a mola sobe, em vez de grudar na cabeça: a 1,3 m a cabeça cobria um quarto da tela)
 const SHALLOW_DEG := 35.0 ## sem caminho livre, a subida extra mantém a inclinação até este ângulo (não olha a prumo para a cabeça)
 
 

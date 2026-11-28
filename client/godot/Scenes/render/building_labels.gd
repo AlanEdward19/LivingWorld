@@ -9,6 +9,8 @@ const LABEL_ZOOM := 11.0
 const DECLUTTER_EVERY := 0.25 ## s entre duas conferências de sobreposição (as câmeras andam; o rótulo não precisa piscar a cada quadro)
 const SIGN_GROUP := "building_signs" ## as placas de texto da fachada (building_dress) entram no mesmo corte
 const PAD_PX := 6.0 ## folga entre dois rótulos na tela
+const SCREEN_TEXT_PX := 22.0 ## #269: altura máxima do texto do rótulo na tela: colado ao prédio (câmera de rua na soleira) ele encolhe em vez de virar um letreiro gigante e borrado
+const GLYPH_PX := 64 ## tamanho da fonte desenhada (nítida mesmo encolhida): o tamanho no mundo vem do `pixel_size`
 var labels: Dictionary = {} ## id do prédio -> Label3D
 var shown := false
 var _clock := 0.0
@@ -67,8 +69,9 @@ func declutter(camera: Camera3D) -> void:
 		var world := label.global_position
 		var screen := camera.unproject_position(world)
 		var distance := maxf(0.5, camera.global_position.distance_to(world))
-		var meters := float(label.text.length()) * 0.55 * float(label.font_size) * label.pixel_size
 		var scale_px := height / (2.0 * distance * tan(fov * 0.5)) if camera.projection == Camera3D.PROJECTION_PERSPECTIVE else height / maxf(camera.size, 0.1)
+		fit_to_screen(label, scale_px)
+		var meters := float(label.text.length()) * 0.55 * float(label.font_size) * label.pixel_size
 		var px := meters * scale_px
 		var tall := float(label.font_size) * label.pixel_size * scale_px * 1.2
 		items.append({"id": entry[0], "rect": Rect2(screen - Vector2(px * 0.5, tall * 0.5), Vector2(px, tall)), "priority": distance})
@@ -77,6 +80,17 @@ func declutter(camera: Camera3D) -> void:
 	for id in nodes:
 		var label: Label3D = nodes[id]
 		label.visible = not hidden_by_overlap.has(id) and (shown or not labels.has(id))
+
+
+## #269: o tamanho do texto no mundo nunca passa do de origem (`meta max_pixel`, o `pixel_size` de quando foi criado) e na tela nunca passa de SCREEN_TEXT_PX: de longe fica como sempre,
+## colado (a câmera a 1,3 m da fachada) encolhe. A fonte é desenhada grande (GLYPH_PX), então não borra ao ser reduzida. Pura sobre o rótulo e a escala (pixels de tela por metro).
+static func fit_to_screen(label: Label3D, scale_px: float) -> void:
+	if not label.has_meta("max_pixel"):
+		label.set_meta("max_pixel", label.pixel_size * float(label.font_size) / float(GLYPH_PX))
+		label.font_size = GLYPH_PX
+		label.outline_size = maxi(label.outline_size, 10)
+	var cap := float(label.get_meta("max_pixel"))
+	label.pixel_size = clampf(SCREEN_TEXT_PX / (float(GLYPH_PX) * maxf(scale_px, 0.001)), cap * 0.2, cap)
 
 
 func rebuild(store, registry, building_nodes: Dictionary) -> void:

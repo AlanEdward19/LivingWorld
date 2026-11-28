@@ -132,6 +132,7 @@ public sealed class CareerLedger
 
     public void Notify(long ms, long npc, long household, string kind, string text, long amount, string? verb, int keep)
     {
+        if (kind is "hired" or "rejected") Notices.RemoveAll(n => n.Npc == npc && n.Kind == "interview"); // #269: a entrevista já teve o desfecho: o aviso de "entrevista marcada" sai do livro
         Notices.Add(new CareerNotice { Id = NextNotice++, Ms = ms, Npc = npc, Household = household, Kind = kind, Text = text, Amount = amount, Verb = verb });
         if (Notices.Count > keep) Notices.RemoveRange(0, Notices.Count - keep);
     }

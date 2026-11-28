@@ -1834,6 +1834,9 @@ func _after_go() -> void:
 	if then.is_empty() or not is_active:
 		return
 	if String(then.get("kind", "")) == "building":
+		if int(then.get("id", -2)) == home_building: # #269: a própria casa: o motor entra sozinho ao chegar à soleira (a roda não abre sobre a porta)
+			warning.emit("Entrando em casa…")
+			return
 		warning.emit("Chegou: %s." % String(then.get("label", "o prédio")))
 		await open_interactions()
 	else:

@@ -105,6 +105,7 @@ public class Playtest6Tests
         long now = Now(world);
         Assert.True(HomeLife.Value(world, rafael, "bladder", now) > 20, "a pausa do banheiro está no dado do cargo");
         Assert.True(HomeLife.Value(world, rafael, "hunger", now) > 25, "o almoço do turno está no dado do cargo");
+        Assert.All(HomeLife.Readings(world, rafael, now), r => Assert.True(r.Value > 0, $"{r.Id} chegou a zero depois do turno")); // nenhuma barra do catálogo volta zerada do trabalho
     }
 
     // --- crítica por sono, higiene e fome: o corpo sem ordem se cuida ---
@@ -234,5 +235,149 @@ public class Playtest6Tests
 
         Assert.Fail("a casa nunca encheu");
         Assert.True(seq >= 0);
+    }
+
+    // --- dia e noite certos ---
+
+    [Fact]
+    public void A_world_that_starts_at_seven_in_the_morning_already_has_the_weather_of_the_day_with_the_sunrise_and_sunset_of_the_engine()
+    {
+        var (world, _, _, _, _) = Playing(startHour: 7, fine: false);
+
+        Assert.NotNull(world.Weather);
+        Assert.True(world.Weather!.Day >= 0, "o tempo do dia de partida foi gerado na carga, não só na meia-noite seguinte");
+        var visual = LivingWorld.Api.Visual.Observable.ObservableProjector.Weather(world, world.Npcs[0].CurrentLocation);
+        Assert.NotNull(visual);
+        Assert.True(visual!.SunriseHour > 4 && visual.SunriseHour < 7, $"o sol nasce antes das 07:00 na latitude do cenário: {visual.SunriseHour}");
+        Assert.True(visual.SunsetHour > 17.5 && visual.SunsetHour < 20, $"e se põe no fim da tarde: {visual.SunsetHour}");
+        Assert.False(LivingWorld.Simulation.Objects.HomeTending.IsDark(world), "às 07:00 já é dia");
+        Assert.Equal("summer", LivingWorld.Api.Visual.Observable.ObservableProjector.Climate(world, world.Npcs[0].CurrentLocation).SeasonKey); // janeiro no hemisfério sul: o rótulo e a luz concordam
+    }
+
+    [Fact]
+    public void The_sun_moves_a_few_minutes_from_one_day_to_the_next_never_an_hour()
+    {
+        var (world, clock, _, _, _) = Playing(startHour: 7, fine: false);
+        double first = world.Weather!.DaylightMinutes;
+        for (int i = 0; i < 24; i++) clock.Tick(world, WorldMillis.PerHour);
+
+        double second = world.Weather.DaylightMinutes;
+
+        Assert.True(world.Weather.Day >= 1);
+        Assert.InRange(Math.Abs(second - first), 0, 10); // o dia muda minutos por dia, não uma hora
+    }
+
+    // --- porta: "Entrar" perto da soleira e a própria casa leva para dentro ---
+
+    private static (LivingWorld.Domain.Cities.Buildings.Building House, LivingWorld.Domain.Geography.CellCoord Door, LivingWorld.Domain.Geography.CellCoord Doorstep) Outside(WorldState world, Npc marina, int dx, int dy)
+    {
+        var house = world.FindBuilding(world.FindHousehold(marina.Household!.Value)!.Dwelling!.Value)!;
+        var (door, doorstep) = PlayerGround.DoorOf(house)!.Value;
+        marina.ExitBuilding();
+        marina.SetFine(null);
+        marina.MoveTo(new LivingWorld.Domain.Geography.CellCoord(doorstep.X + dx, doorstep.Y + dy), world.CurrentDate.TotalHours);
+        return (house, door, doorstep);
+    }
+
+    [Fact]
+    public void The_door_offers_to_enter_from_a_step_away_from_the_doorstep_not_only_from_the_exact_cell_and_not_from_far()
+    {
+        var (world, _, _, marina, _) = Playing(fine: false);
+        var (house, _, doorstep) = Outside(world, marina, 0, 0);
+        Assert.Contains(PlayerInteractions.Offers(world, marina), o => o.Kind == "door" && o.Id == house.Id.Value && o.Verbs.Contains("enter"));
+
+        marina.MoveTo(new LivingWorld.Domain.Geography.CellCoord(doorstep.X, doorstep.Y + 1), world.CurrentDate.TotalHours);
+        Assert.Contains(PlayerInteractions.Offers(world, marina), o => o.Kind == "door" && o.Id == house.Id.Value && o.Verbs.Contains("enter")); // a 1,5 m: aparece
+
+        marina.MoveTo(new LivingWorld.Domain.Geography.CellCoord(doorstep.X, doorstep.Y + 4), world.CurrentDate.TotalHours);
+        Assert.DoesNotContain(PlayerInteractions.Offers(world, marina), o => o.Kind == "door" && o.Id == house.Id.Value); // longe não
+    }
+
+    [Fact]
+    public void Entering_from_a_step_away_walks_to_the_doorstep_and_goes_in_by_itself()
+    {
+        var (world, clock, service, marina, _) = Playing(fine: true);
+        var (house, door, _) = Outside(world, marina, 0, 1);
+
+        var asked = service.Interact(world, "alan", "door", house.Id.Value, "enter");
+
+        Assert.True(asked.IsSuccess, asked.Error);
+        Assert.Equal("going", asked.Value!.Outcome);
+        for (int i = 0; i < 4000 && PlayerGround.PoseOf(world, marina) != door; i++) clock.Tick(world, Fine);
+        Assert.Equal(door, PlayerGround.PoseOf(world, marina)); // chegou à porta e entrou
+    }
+
+    [Fact]
+    public void Clicking_the_own_house_door_goes_to_the_doorstep_and_enters_but_the_door_of_others_only_arrives()
+    {
+        var (world, clock, service, marina, _) = Playing(fine: true);
+        var (house, door, _) = Outside(world, marina, 0, 3);
+
+        var went = service.Go(world, "alan", null, null, null, house.Id.Value, "Sua casa");
+
+        Assert.True(went.IsSuccess, went.Error);
+        for (int i = 0; i < 6000 && PlayerGround.PoseOf(world, marina) != door; i++) clock.Tick(world, Fine);
+        Assert.Equal(door, PlayerGround.PoseOf(world, marina)); // a própria casa: entrou
+
+        for (int i = 0; i < 80; i++) clock.Tick(world, Fine); // o passo para dentro termina
+        var other = world.Buildings.First(b => b.Id != house.Id && PlayerGround.DoorOf(b) is not null && b.CompletedAtTick <= world.CurrentDate.TotalHours);
+        var (otherDoor, otherStep) = PlayerGround.DoorOf(other)!.Value;
+        marina.ExitBuilding();
+        marina.SetFine(null);
+        marina.MoveTo(new LivingWorld.Domain.Geography.CellCoord(otherStep.X, otherStep.Y + 2), world.CurrentDate.TotalHours);
+        var second = service.Go(world, "alan", null, null, null, other.Id.Value, "Outro");
+        Assert.True(second.IsSuccess, second.Error);
+        for (int i = 0; i < 4000 && marina.BodyTask is not null; i++) clock.Tick(world, Fine);
+        Assert.NotEqual(otherDoor, PlayerGround.PoseOf(world, marina)); // a porta de outro: só chega à soleira (a roda abre no cliente)
+    }
+
+    // --- rótulos honestos ---
+
+    [Fact]
+    public void The_commute_in_the_paper_comes_from_the_real_route_not_from_the_career_number()
+    {
+        var (world, _, _, marina, _) = Playing(fine: false);
+        CareerWork.Search(world, marina, Now(world));
+        var listings = CareerViews.Of(world, marina)!.Listings!;
+        var career = CareerWork.CatalogOf(world)!.Find(listings[0].Career)!;
+        Assert.Equal(40, career.CommuteMin); // o número do cargo (dado) é só o de reserva
+
+        int commute = listings[0].CommuteMin;
+
+        Assert.InRange(commute, 1, 15); // a rota real da casa ao empregador, a pé, são minutos, não 40
+        var house = world.FindBuilding(world.FindHousehold(marina.Household!.Value)!.Dwelling!.Value)!;
+        var work = world.FindBuilding(world.FindWorkplace(new LivingWorld.Domain.Shared.WorkplaceId(listings[0].Employer))!.Building!.Value)!;
+        var route = LivingWorld.Simulation.Objects.HomeFreight.Path(world, marina, PlayerGround.DoorOf(house)!.Value.Doorstep, PlayerGround.DoorOf(work)!.Value.Doorstep)!;
+        Assert.Equal((int)Math.Ceiling(route.Count * world.Players.CellM / world.Players.WalkMps / 60.0), commute); // o mesmo caminho, na mesma velocidade do corpo
+    }
+
+    [Fact]
+    public void The_interview_notice_leaves_the_book_once_the_interview_has_its_result()
+    {
+        var (world, clock, service, marina, _) = Playing(startHour: 20);
+        CareerWork.Search(world, marina, Now(world));
+        var vacancy = CareerWork.Vacancies(world, marina).First();
+        Assert.True(service.Interact(world, "alan", "job", marina.Id.Value, $"apply:{vacancy.Career.Id}@{vacancy.Employer.Id.Value}").IsSuccess);
+        for (int i = 0; i < 9000 && marina.BodyTask is not null; i++) clock.Tick(world, Fine);
+        Assert.Contains(world.Careers!.Notices, n => n.Npc == marina.Id.Value && n.Kind == "interview"); // marcada: o aviso fica
+
+        var search = world.Careers.SearchOf(marina.Id.Value)!;
+        for (int i = 0; i < 16 && search.InterviewAtMs > 0; i++) clock.Tick(world, WorldMillis.PerHour);
+
+        Assert.Contains(world.Careers.Notices, n => n.Npc == marina.Id.Value && n.Kind is "hired" or "rejected");
+        Assert.DoesNotContain(world.Careers.Notices, n => n.Npc == marina.Id.Value && n.Kind == "interview"); // depois do desfecho, o aviso velho sai
+    }
+
+    [Fact]
+    public void The_ugly_room_measure_only_exists_in_a_dwelling_never_inside_a_shop_or_market()
+    {
+        var (world, _, _, marina, _) = Playing(fine: false);
+        Assert.NotNull(RoomBeauty.Ambient(world, marina, "beauty")); // em casa: a medida existe
+
+        var market = world.Workplaces.First(w => w.Prices.Count > 0 && w.Building is not null);
+        var entered = LivingWorld.Simulation.Cities.InteriorEntry.TryEnter(world, marina, market.Building!.Value, new LivingWorld.Domain.Geography.Spatial.FloorLevel(0), new LivingWorld.Domain.Geography.CellCoord(1, 1));
+        Assert.True(entered.IsSuccess, entered.Error);
+
+        Assert.Null(RoomBeauty.Ambient(world, marina, "beauty")); // no mercado: sem "Cômodo feio"
     }
 }

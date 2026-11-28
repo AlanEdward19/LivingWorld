@@ -287,6 +287,11 @@ public static class ScenarioLoaderV2
             ScenarioRunner.DefaultSystems(
                 definition.Dynamics.TransformationRules, extraordinary: definition.Extraordinary);
 
+        // #269: o tempo do dia roda na primeira hora do dia; um mundo que começa às 07:00 ficava sem tempo (e sem nascer nem pôr do sol do motor: o cliente caía no 5–19 de
+        // sempre e a luz só mudava de um dia para o outro) até a meia-noite. Gera o tempo do dia de partida já na carga.
+        if (world.WeatherOn && world.CurrentDate.Hour != 0)
+            new LivingWorld.Simulation.Climate.WeatherSystem().Tick(world, new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler));
+
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }
 
