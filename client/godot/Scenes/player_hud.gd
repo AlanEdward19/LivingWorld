@@ -100,6 +100,8 @@ var _body_clock := 0.0
 var _body_pending := false
 var _career_seen := 0 ## #263: o último aviso do emprego já mostrado (o motor numera); a primeira leitura só aprende
 var _career_primed := false
+var follow_home_requests := 0 ## quantas vezes a volta de outra pessoa da casa pediu a troca da câmera (o teste lê)
+var _career_can_go := false ## #246: a janela do turno já estava aberta na última leitura (o aviso `shift-soon` só sai na hora exata: quem assume o corpo depois não o recebe)
 var _career_away := false
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
 const BODY_BUSY_EVERY := 1.0 ## #243: com uma ação rendendo item, a ficha é lida mais vezes: "+1 Madeira" aparece quando a unidade sai
@@ -483,6 +485,7 @@ func _became(id: int, name: String) -> void:
 	npc_name = name
 	_career_seen = 0 # #263: o corpo novo tem os avisos dele
 	_career_primed = false
+	_career_can_go = false
 	_career_away = false
 	_reset_combat()
 	is_active = true
@@ -859,25 +862,55 @@ func _note_career(view: Variant) -> void:
 	if not view is Dictionary:
 		return
 	var was_primed := _career_primed
+	var someone_returned := false
 	for notice in view.get("notices", []):
 		var id := int(notice.get("id", 0))
 		if id > _career_seen:
 			_career_seen = id
 			if _career_primed:
+				someone_returned = someone_returned or String(notice.get("kind", "")) == "returned"
 				var text := String(notice.get("text", ""))
 				if String(notice.get("kind", "")) == "shift-soon":
 					text += "  ·  E: Ir ao trabalho"
+					_slow_for_shift() # #246 (3º teste): a 300× a hora do turno passava em 12 s e o corpo faltava; o tempo desce à primeira velocidade do motor
 				elif String(notice.get("verb", "")) == "pay":
 					text += "  ·  E em casa: Contas"
 				warning.emit(text)
 	_career_primed = true
 	var job = view.get("job")
 	var away: bool = job is Dictionary and bool(job.get("away", false))
+	var can_go: bool = job is Dictionary and bool(job.get("canGo", false)) and not away
+	if can_go and not _career_can_go:
+		if not was_primed: # corpo assumido já na janela do turno: o aviso da hora exata passou antes; avisa aqui e desce o tempo do mesmo jeito
+			warning.emit("Hora do trabalho: %s  ·  E: Ir ao trabalho" % String(job.get("title", "")))
+		_slow_for_shift()
+	_career_can_go = can_go
+	if someone_returned and away and was_primed:
+		follow_home_requests += 1
+		switch_body.call_deferred() # #246 (3º teste): este corpo segue no trabalho e a outra pessoa da casa voltou: a câmera vai a quem está em casa (antes ficava no corpo ausente até a noite)
 	if away != _career_away:
 		body_away.emit(away, npc_id) # o app esconde a figura enquanto o motor a tem fora do mapa (ela volta à soleira)
 		if away and was_primed:
 			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
 	_career_away = away
+
+
+## O turno chamou (aviso `shift-soon` do corpo conduzido) com o tempo acelerado: volta à primeira velocidade que o motor oferece (a lista é do cenário), como o Sims
+## ao soar um evento importante; o jogador pode acelerar de novo pelos botões.
+func _slow_for_shift() -> void:
+	var target := shift_speed_target()
+	if target >= 0:
+		set_speed.call_deferred(target)
+
+
+## A velocidade para a qual o aviso de turno derruba o tempo (-1: já está na primeira, ou parado).
+func shift_speed_target() -> int:
+	var base := base_speed()
+	return base if speed_now() > base else -1
+
+
+func base_speed() -> int:
+	return int(PlayerFrame.speeds_of(time_view)[0])
 
 
 var _wish_seen := 0
