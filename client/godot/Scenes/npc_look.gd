@@ -158,14 +158,10 @@ static func set_era(value: String) -> void:
 	era = "modern" if value == "modern" else "medieval"
 
 
-## Período do mundo aberto -> estilo de roupa. Os presets do motor são aldeias agrícolas (medieval); mundos de época moderna
-## (casal no subúrbio, etc.) trazem "moder", "contemp", "suburb" ou "sandbox" no id ou no nome.
-static func era_for(period_id: String, world_name: String = "") -> String:
-	var text := (period_id + " " + world_name).to_lower()
-	for word in ["moder", "contemp", "suburb", "subúrb", "sandbox", "casal"]:
-		if word in text:
-			return "modern"
-	return "medieval"
+## Período do mundo -> estilo de roupa: o que o período declara em `Presentation.Wardrobe` (catálogo do período, #254);
+## sem declaração, medieval (os presets de aldeia). Nada adivinhado pelo nome do mundo.
+static func era_for(wardrobe: String) -> String:
+	return "modern" if wardrobe == "modern" else "medieval"
 
 
 ## Variação estável por id e sal (mesma pessoa, mesmo traço; nada aleatório): inteiro não negativo.

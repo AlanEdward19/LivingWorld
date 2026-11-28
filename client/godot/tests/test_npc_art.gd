@@ -84,8 +84,9 @@ func test_clothes_follow_the_period() -> void:
 		if Look.style_of(id, "adult", true, "modern").outfit == "dress":
 			dresses += 1
 	check(dresses > 5 and dresses < 25, "parte das mulheres de época moderna usa vestido")
-	eq(Look.era_for("cidade-media"), "medieval", "presets atuais são medievais")
-	eq(Look.era_for("sandbox-casal-suburbio"), "modern", "sandbox do casal é moderno")
+	eq(Look.era_for(""), "medieval", "período sem Wardrobe veste medieval")
+	eq(Look.era_for("modern"), "modern", "período que declara Wardrobe moderno veste moderno")
+	eq(Look.era_for("sandbox-casal"), "medieval", "o nome do mundo não decide a roupa")
 
 
 func test_face_has_eyes_brows_mouth_and_blinks() -> void:
