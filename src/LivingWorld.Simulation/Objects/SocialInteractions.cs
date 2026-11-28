@@ -13,7 +13,9 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Objects;
 
 /// <summary>Uma interação social como o cliente a lê para quem está perto: id, nome, categoria, se vale agora e, se não, o motivo.</summary>
-public sealed record SocialOption(string Id, string Name, string Category, string CategoryName, bool Available, string? Reason, int Seconds);
+public sealed record SocialOption(string Id, string Name, string Category, string CategoryName, bool Available, string? Reason, int Seconds,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool CanCall = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? FreeAtText = null);
 
 /// <summary>A relação vista de quem pergunta: o que a outra pessoa sente (afeto e confiança, 0–100), o que quem pergunta sente, o estado do par, o humor dela
 /// e a última coisa que aconteceu entre os dois (texto do catálogo, com o instante em ms de mundo).</summary>
@@ -241,7 +243,9 @@ public static partial class SocialInteractions
         {
             string? reason = Unavailable(world, catalog, def, actor, other, now);
             int seconds = def.Joint is { } j && JointMinutes(world, j.Use) is { } m ? m * 60 : def.DurationSec;
-            list.Add(new SocialOption(def.Id, def.Name, def.Category, catalog.CategoryOf(def.Category)?.Name ?? def.Category, reason is null, reason, seconds));
+            bool canCall = reason is not null && catalog.Rules.Call is not null && !def.CompatibleWithUse && Sitting(world, other, now) && reason == Text(catalog, "targetUsing", actor, other, "");
+            string? freeAt = canCall && PlayerTasks.Of(world, other) is { } busy ? LivingWorld.Simulation.Careers.CareerWork.When(world, busy.UntilMs) : null;
+            list.Add(new SocialOption(def.Id, def.Name, def.Category, catalog.CategoryOf(def.Category)?.Name ?? def.Category, reason is null, reason, seconds, canCall, freeAt));
         }
 
         return list;
@@ -252,7 +256,7 @@ public static partial class SocialInteractions
 
     // ---------------- aceitação (sorteio do mundo) ----------------
 
-    private static double ValueOf(WorldState world, SocialCatalog catalog, Npc actor, Npc target, string of, long nowMs)
+    private static double ValueOf(WorldState world, SocialCatalog catalog, SocialInteractionDef? def, Npc actor, Npc target, string of, long nowMs)
     {
         var parts = of.Split('.');
         switch (parts[0])
@@ -263,11 +267,16 @@ public static partial class SocialInteractions
             case "actor" or "target":
                 var who = parts[0] == "actor" ? actor : target;
                 if (parts[1] == "mood") return Mood(world, catalog, who, nowMs).Score;
+                if (parts[1] == "moment") return MoodMechanic.Lives(who, parts[2], nowMs) ? 1 : 0; // #268: a briga que dura (o momento vive por dias)
                 if (parts[1] == "need") return HomeLife.Value(world, who, parts[2], nowMs) ?? 50;
                 return Trait(who.Personality, parts[2]);
-            default: // recent.{categoria}: a última interação do par foi dessa categoria, dentro do histórico
+            case "again": // #268: a última interação do par foi esta mesma, aceita, há menos de {minutos}
+                var again = Rel(world, target, actor);
+                return def is not null && again?.LastSocial == def.Id && again.LastSocialAccepted && nowMs - again.LastSocialMs <= int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture) * 60_000L ? 1 : 0;
+            default: // recent.{categoria}[.{minutos}]: a última interação do par foi dessa categoria, dentro do histórico (ou dos minutos)
                 var last = Rel(world, target, actor);
-                return last?.LastSocial is { } id && nowMs - last.LastSocialMs <= catalog.Rules.HistoryHours * WorldMillis.PerHour
+                long window = parts.Length > 2 ? int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) * 60_000L : catalog.Rules.HistoryHours * WorldMillis.PerHour;
+                return last?.LastSocial is { } id && nowMs - last.LastSocialMs <= window
                     && catalog.Find(id)?.Category == parts[1] ? 1 : 0;
         }
     }
@@ -289,18 +298,45 @@ public static partial class SocialInteractions
     };
 
     /// <summary>A chance (0–100) de <paramref name="target"/> aceitar e, se algum termo pesa contra, o motivo do que mais pesa (frase do catálogo).</summary>
-    public static (double Chance, string? Reason) Evaluate(WorldState world, SocialCatalog catalog, SocialInteractionDef def, Npc actor, Npc target, long nowMs)
+    public static (double Chance, string? Reason) Evaluate(WorldState world, SocialCatalog catalog, SocialInteractionDef def, Npc actor, Npc target, long nowMs) =>
+        Evaluate(world, catalog, def.Accept, def, actor, target, nowMs);
+
+    private static (double Chance, string? Reason) Evaluate(WorldState world, SocialCatalog catalog, SocialAccept accept, SocialInteractionDef? def, Npc actor, Npc target, long nowMs)
     {
-        double chance = def.Accept.Base, worst = 0;
+        double chance = accept.Base, worst = 0;
         string? reason = null;
-        foreach (var term in def.Accept.Terms)
+        foreach (var term in accept.Terms)
         {
-            double contribution = term.Weight * (ValueOf(world, catalog, actor, target, term.Of, nowMs) - term.From);
+            double contribution = term.Weight * (ValueOf(world, catalog, def, actor, target, term.Of, nowMs) - term.From);
             chance += contribution;
             if (contribution < worst) { worst = contribution; reason = term.Reason ?? reason; }
         }
 
-        return (chance, Format(reason ?? def.Accept.RefuseReason ?? "", actor.Name, target.Name, 0, null));
+        return (chance, Format(reason ?? accept.RefuseReason ?? "", actor.Name, target.Name, 0, null));
+    }
+
+    // ---------------- chamar (#268) ----------------
+
+    /// <summary>#268: <paramref name="actor"/> chama <paramref name="target"/>, que está usando um móvel (sentado, deitado): ele levanta se quiser, pela chance do dado (<c>Social.rules.call</c>, com os
+    /// mesmos termos da aceitação: afeição, humor, necessidades); o jogador sempre atende, como em qualquer interação. Levantar solta o corpo (o que já subiu da necessidade fica). A recusa não é erro.</summary>
+    public static Result<SocialStart> Call(WorldState world, TickContext ctx, Npc actor, Npc target)
+    {
+        if (CatalogOf(world) is not { } catalog || catalog.Rules.Call is not { } call) return Result<SocialStart>.Fail($"{PlayerCommands.NotFound} social: este mundo não tem chamar");
+        long now = world.CurrentDate.TotalMilliseconds;
+        SettleDue(world, ctx, target);
+        if (!actor.IsAlive || !target.IsAlive || actor.Id == target.Id || !InSight(world, catalog, actor, target)) return Result<SocialStart>.Fail($"{PlayerCommands.Conflict} social: {Text(catalog, "far", actor, target, "longe demais")}");
+        if (Occupied(world, actor, now)) return Result<SocialStart>.Fail($"{PlayerCommands.Conflict} social: {Text(catalog, "actorBusy", actor, target, "você está ocupado")}");
+        if (!Sitting(world, target, now)) return Result<SocialStart>.Fail($"{PlayerCommands.Conflict} social: {target.Name} não está num móvel agora");
+        var (chance, reason) = Evaluate(world, catalog, call, null, actor, target, now);
+        bool accepted = target.ControllerId is not null || chance >= 100 || (chance > 0 && ctx.OneShot($"call-{actor.Id.Value}-{target.Id.Value}-{now}").NextDouble() * 100.0 < chance);
+        if (!accepted)
+        {
+            string why = string.IsNullOrWhiteSpace(reason) ? "não quer levantar agora" : reason;
+            return Result<SocialStart>.Ok(new SocialStart(false, Format(catalog.Rules.Texts.GetValueOrDefault("callRefused", "{target} não quer levantar agora: {reason}"), actor.Name, target.Name, 0, why), why));
+        }
+
+        ObjectUsage.Stop(world, ctx, target);
+        return Result<SocialStart>.Ok(new SocialStart(true, Format(catalog.Rules.Texts.GetValueOrDefault("callAccepted", "{target} levantou para atender você"), actor.Name, target.Name, 0, null), null));
     }
 
     // ---------------- começar ----------------

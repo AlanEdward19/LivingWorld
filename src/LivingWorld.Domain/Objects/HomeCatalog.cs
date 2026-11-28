@@ -35,8 +35,9 @@ public sealed record HomeCatalog(
 }
 
 /// <summary><c>ResalePercent</c>: quanto do preço a loja devolve ao comprar o móvel usado; <c>DeliveryMin</c>: minutos de mundo da compra do estoque à entrega (0 = na hora);
-/// <c>OrderMarkupPercent</c>: acréscimo da encomenda (a loja fabrica); <c>MaxPieces</c>: teto de móveis comprados por casa.</summary>
-public sealed record HomeRules(int ResalePercent = 60, int DeliveryMin = 0, int OrderMarkupPercent = 0, int MaxPieces = 60);
+/// <c>OrderMarkupPercent</c>: acréscimo da encomenda (a loja fabrica); <c>MaxPieces</c>: teto de móveis comprados por casa. #268 <c>ExpectedBeauty</c>: a beleza que se espera de cada tipo de cômodo (um banheiro não é feio só por ter vaso e chuveiro): o gatilho de ambiente mede a beleza menos a esperada.</summary>
+public sealed record HomeRules(int ResalePercent = 60, int DeliveryMin = 0, int OrderMarkupPercent = 0, int MaxPieces = 60,
+    IReadOnlyDictionary<string, double>? ExpectedBeauty = null);
 
 public sealed record HomeCategory(string Id, string Name);
 

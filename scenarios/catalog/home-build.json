@@ -349,7 +349,12 @@
    "resalePercent": 60,
    "deliveryMin": 0,
    "orderMarkupPercent": 20,
-   "maxPieces": 60
+   "maxPieces": 60,
+   "expectedBeauty": {
+    "banheiro": -3,
+    "cozinha": -2,
+    "oficina": -3
+   }
   },
   "categories": [
    {

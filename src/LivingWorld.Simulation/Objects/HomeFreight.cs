@@ -312,7 +312,7 @@ public static class HomeFreight
             long travel = TravelMs(world, haul, path.Count);
             long depart = NextDeparture(world, haul, Math.Max(Math.Max(now + d.PrepMin * MinuteMs, p.ReadyAtMs), CourierFree(world, courier)));
             long due = depart + travel;
-            string when = $"{courier.Name} entrega {Name(catalog, p.Id)} por {fee}: chega em {Math.Max(1, (due - now + MinuteMs - 1) / MinuteMs)} min";
+            string when = $"{courier.Name} entrega {Name(catalog, p.Id)} por {fee}: chega {LivingWorld.Simulation.Careers.CareerWork.When(world, due)}";
             if (!commit) return HomeCommands.Ok(fee, 0, when);
             npc.TryDebitWallet(new Money(fee));
             shop.CreditTreasury(new Money(fee));

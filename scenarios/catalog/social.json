@@ -21,9 +21,41 @@
     "noPlace": "não há onde fazer isso agora",
     "far": "{target} está longe demais",
     "refused": "não está a fim agora",
-    "targetUsing": "{target} está ocupado com um móvel agora (espere levantar)"
+    "targetUsing": "{target} está ocupado com um móvel agora (espere levantar)",
+    "callAccepted": "{target} levantou para atender você",
+    "callRefused": "{target} não quer levantar agora: {reason}"
    },
-   "approachM": 8
+   "approachM": 8,
+   "call": {
+    "base": 50,
+    "terms": [
+     {
+      "of": "relation.affection",
+      "weight": 0.35,
+      "from": 40,
+      "reason": "{target} não está a fim de levantar por você"
+     },
+     {
+      "of": "target.mood",
+      "weight": 0.3,
+      "from": 50,
+      "reason": "{target} está de mau humor"
+     },
+     {
+      "of": "target.need.sleep",
+      "weight": -0.25,
+      "from": 50,
+      "reason": "{target} está descansando e prefere ficar"
+     },
+     {
+      "of": "target.moment.quarrel",
+      "weight": -60,
+      "from": 0,
+      "reason": "{target} ainda está magoado com a briga"
+     }
+    ],
+    "refuseReason": "{target} prefere terminar o que está fazendo"
+   }
   },
   "categories": [
    {
@@ -121,7 +153,7 @@
      "label": "Tranquilo"
     },
     {
-     "below": 75,
+     "below": 80,
      "label": "Bem"
     },
     {
@@ -162,6 +194,12 @@
        "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
+      },
+      {
+       "of": "target.moment.quarrel",
+       "weight": -50,
+       "from": 0,
+       "reason": "{target} ainda está magoado com a briga"
       }
      ],
      "refuseReason": "{target} não está com vontade de conversar"
@@ -199,7 +237,7 @@
     "durationSec": 6,
     "pose": "talk",
     "accept": {
-     "base": 90,
+     "base": 80,
      "terms": [
       {
        "of": "target.mood",
@@ -217,6 +255,24 @@
        "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
+      },
+      {
+       "of": "again.120",
+       "weight": -70,
+       "from": 0,
+       "reason": "{target} lembra que você já elogiou agora há pouco"
+      },
+      {
+       "of": "recent.friendly.30",
+       "weight": -15,
+       "from": 0,
+       "reason": "{target} acha gentileza demais em tão pouco tempo"
+      },
+      {
+       "of": "target.moment.quarrel",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} ainda está magoado com a briga"
       }
      ]
     },
@@ -260,7 +316,7 @@
      "reason": "{target} ainda não tem tanta intimidade com {actor}"
     },
     "accept": {
-     "base": 75,
+     "base": 66,
      "terms": [
       {
        "of": "target.mood",
@@ -284,6 +340,24 @@
        "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
+      },
+      {
+       "of": "again.90",
+       "weight": -75,
+       "from": 0,
+       "reason": "{target} lembra que você já abraçou agora há pouco"
+      },
+      {
+       "of": "recent.friendly.20",
+       "weight": -12,
+       "from": 0,
+       "reason": "{target} acha carinho demais em tão pouco tempo"
+      },
+      {
+       "of": "target.moment.quarrel",
+       "weight": -80,
+       "from": 0,
+       "reason": "{target} ainda está magoado com a briga"
       }
      ],
      "refuseReason": "{target} não quis o abraço agora"
@@ -380,6 +454,18 @@
        "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
+      },
+      {
+       "of": "again.60",
+       "weight": -60,
+       "from": 0,
+       "reason": "{target} lembra que você já beijou agora há pouco"
+      },
+      {
+       "of": "target.moment.quarrel",
+       "weight": -90,
+       "from": 0,
+       "reason": "{target} ainda está magoado com a briga"
       }
      ],
      "refuseReason": "{target} não está no clima"
@@ -448,6 +534,18 @@
        "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
+      },
+      {
+       "of": "again.30",
+       "weight": -40,
+       "from": 0,
+       "reason": "{target} já ouviu piada demais agora há pouco"
+      },
+      {
+       "of": "target.moment.quarrel",
+       "weight": -50,
+       "from": 0,
+       "reason": "{target} ainda está magoado com a briga"
       }
      ]
     },
@@ -591,6 +689,12 @@
        "of": "relation.affection",
        "weight": 0.3,
        "from": 40
+      },
+      {
+       "of": "again.45",
+       "weight": -50,
+       "from": 0,
+       "reason": "{target} lembra que você já pediu desculpa agora há pouco"
       }
      ],
      "refuseReason": "{target} ainda está magoado"

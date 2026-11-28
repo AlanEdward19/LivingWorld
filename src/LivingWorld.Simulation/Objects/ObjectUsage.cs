@@ -390,6 +390,35 @@ public static class ObjectUsage
         return false;
     }
 
+    /// <summary>#268: o livre-arbítrio do corpo conduzido: com a necessidade <paramref name="needId"/> crítica, em casa e com o corpo livre, usa o móvel da casa que mais a sobe (o mesmo catálogo e a
+    /// mesma escolha de <see cref="TryCare"/>, com o sorteio semeado do mundo). Devolve o nome do uso que começou, ou nulo se não achou como atendê-la agora.</summary>
+    public static string? TryCritical(WorldState world, TickContext ctx, Npc npc, string needId)
+    {
+        if (world.ObjectCatalog is not { } catalog || HomeLife.HomeOf(world, npc) is not { } home || world.FindHousehold(npc.Household!.Value) is not { } household || npc.CurrentLocation != household.Location) return null;
+        SettleDue(world, ctx, npc);
+        if (PlayerTasks.Of(world, npc) is not null) return null;
+        long now = world.CurrentDate.TotalMilliseconds;
+        var pieces = HomeFurniture.Of(home, catalog);
+        double missing = 100 - (HomeLife.Value(world, npc, needId, now) ?? 0);
+        var rng = world.Rng.OneShot($"critical-{npc.Id.Value}-{needId}-{now}");
+        var options = new List<(double Rate, int Piece, ObjectUseDef Use)>();
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            if (pieces[i].Spot is null || catalog.Find(pieces[i].Id) is not { Uses: { } uses }) continue;
+            foreach (var use in uses)
+            {
+                if (use.Hidden) continue;
+                double rate = use.Effects.Where(e => e.Need == needId && e.PerHour > 0).Sum(e => e.PerHour);
+                if (needId == "sleep" && use.Action == (int)ActionType.Sleep) rate = 1; // dormir (a cama): o uso que delega à ação do motor
+                if (rate > 0 && (use.Action is null || use.Action == (int)ActionType.Sleep)) options.Add((Math.Min(rate * use.DurationMin / 60.0, Math.Max(missing, 1)), i, use));
+            }
+        }
+
+        foreach (var option in options.OrderByDescending(o => o.Rate * (0.7 + 0.6 * rng.NextDouble())).ThenBy(o => o.Piece))
+            if (Begin(world, ctx, npc, home.Id.Value, option.Piece, option.Use.Id).IsSuccess) return option.Use.Name;
+        return null;
+    }
+
     /// <summary>A fila do corpo como o cliente a lê: o uso, o nome dele e o do objeto.</summary>
     public static IReadOnlyList<QueueView>? QueueOf(WorldState world, Npc npc)
     {

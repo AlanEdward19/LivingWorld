@@ -301,6 +301,8 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 bool cared = tended || npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent || LivingWorld.Simulation.Objects.ObjectUsage.HasCriticalNeed(world, npc, nowMs))
                     && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
                     && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
+                // #268: o corpo que o jogador conduz, sem ordem, com a necessidade crítica: o aviso e o livre-arbítrio (se cuida sozinho, como no Sims)
+                if (!cared && npc.ControllerId is not null && LivingWorld.Simulation.Objects.CriticalNeeds.OnWake(world, ctx, npc, nowMs)) cared = true;
                 // #259: sem nada a cuidar, quem está só e à toa procura companhia (interação social do catálogo, o mesmo caminho do jogador)
                 if (!cared && !urgent && npc.ControllerId is null && candidate is ActionType.Idle or ActionType.Socialize && world.ObjectCatalog?.Social is not null)
                     cared = LivingWorld.Simulation.Objects.SocialInteractions.TryInitiate(world, ctx, npc);

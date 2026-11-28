@@ -159,11 +159,13 @@ public static partial class PlayerInteractions
     public static Result<InteractionResult> Interact(WorldState world, TickContext ctx, Npc npc, string kind, long id, string verb,
         int? resourceId = null, long? quantity = null)
     {
+        if (kind == WillKind) return FreeWillSwitch(world, npc, verb); // #268: o livre-arbítrio do corpo, ligado ou desligado no HUD
         if (kind is JobKind or BillsKind) return CareerInteract(world, ctx, npc, kind, id, verb); // #263
         if (kind == FreightKind) return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #265: o transporte do móvel, pela roda do E
         if (kind == "home") return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #264: comprar, mover, vender e construir na própria casa
         if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
         if (kind == "person" && verb.StartsWith("social:", StringComparison.Ordinal)) return Social(world, ctx, npc, id, verb[7..]); // #259
+        if (kind == "person" && verb == "call") return CallOver(world, ctx, npc, id); // #268: chamar quem está num móvel
         string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso
         var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(lookup));
         if (offer is null) return Fail($"{PlayerCommands.Conflict} interact: {kind} {id} {verb} fora do alcance ou indisponível agora");
@@ -205,6 +207,15 @@ public static partial class PlayerInteractions
         if (!started.IsSuccess) return Fail(started.Error!);
         var begun = started.Value!;
         return Result<InteractionResult>.Ok(new InteractionResult("person", id, "social:" + interaction, 0, 0, begun.Accepted ? "done" : "refused", begun.Note));
+    }
+
+    /// <summary>#268: chama a pessoa que usa um móvel: ela levanta se quiser (decisão do motor); a recusa é a resposta <c>refused</c> com o motivo.</summary>
+    private static Result<InteractionResult> CallOver(WorldState world, TickContext ctx, Npc npc, long id)
+    {
+        if (world.FindNpc(new NpcId(id)) is not { } other) return Fail($"{PlayerCommands.NotFound} interact: pessoa ausente");
+        var called = SocialInteractions.Call(world, ctx, npc, other);
+        if (!called.IsSuccess) return Fail(called.Error!);
+        return Result<InteractionResult>.Ok(new InteractionResult("person", id, "call", 0, 0, called.Value!.Accepted ? "done" : "refused", called.Value.Note));
     }
 
     private static Result<InteractionResult> Sale(WorldState world, TickContext ctx, Npc npc, BuildingId house, InteractionOffer offer)

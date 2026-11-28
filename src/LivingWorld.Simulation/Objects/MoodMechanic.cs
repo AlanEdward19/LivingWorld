@@ -80,7 +80,7 @@ public static class MoodMechanic
     }
 
     /// <summary>#268: <paramref name="npc"/> vive o momento <paramref name="needs"/> agora? Sem exigência (<c>null</c>) vale sempre.</summary>
-    private static bool Lives(Npc npc, string? needs, long ms)
+    internal static bool Lives(Npc npc, string? needs, long ms)
     {
         if (needs is null) return true;
         if (npc.Moods is not { } state) return false;

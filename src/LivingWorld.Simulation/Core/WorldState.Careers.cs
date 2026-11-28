@@ -29,7 +29,7 @@ public sealed partial class WorldState
     /// <summary>Restaura do snapshot; livro vazio volta a nulo.</summary>
     internal void RestoreCareers(CareerLedger? ledger)
     {
-        Careers = ledger is { Jobs.Count: > 0 } or { Bills.Count: > 0 } or { Notices.Count: > 0 } or { Searches.Count: > 0 } ? ledger : null;
+        Careers = ledger is { Jobs.Count: > 0 } or { Bills.Count: > 0 } or { Notices.Count: > 0 } or { Searches.Count: > 0 } or { FreeWillSet.Count: > 0 } ? ledger : null;
         CanonicalHashCache.MarkPropertyDirty(nameof(Careers));
     }
 }

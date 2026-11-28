@@ -39,10 +39,16 @@ public static class NeedIds
     public static bool IsBuiltin(string id) => id is "hunger" or "thirst" or "sleep" or "social";
 }
 
+/// <summary>#268: quando uma necessidade passa a ser crítica (abaixo do limiar de cada uma, de sempre ou do catálogo): o motor avisa (<c>need-critical</c>, que desce o tempo) e o corpo
+/// conduzido sem ordem se cuida sozinho (livre-arbítrio, ligado por padrão se <c>FreeWillDefault</c>). <c>RepeatHours</c>: o aviso da mesma necessidade não se repete antes disso.</summary>
+public sealed record NeedCritical(IReadOnlyDictionary<string, double> Below, int RepeatHours = 3, bool FreeWillDefault = true,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Texts = null);
+
 /// <summary>As necessidades do cenário. Nulo no catálogo = cenário sem elas (omitido do snapshot e do hash).</summary>
 public sealed record NeedCatalog(
     IReadOnlyList<NeedDef> Needs,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? StartJitter = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? StartJitter = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NeedCritical? Critical = null)
 {
     public NeedDef? Find(string id)
     {

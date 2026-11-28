@@ -55,6 +55,7 @@ public static class HomeLifeLoader
         SocialLoader.Merge(root, catalog); // #259
         CareerLoader.Merge(root, catalog); // #263
         if (catalog["NeedStartJitter"] is { } jitter && root["NeedStartJitter"] is null) root["NeedStartJitter"] = jitter.DeepClone(); // #261
+        if (catalog["NeedCritical"] is { } critical && root["NeedCritical"] is null) root["NeedCritical"] = critical.DeepClone(); // #268
         MoodLoader.Merge(root, catalog); // #262
         HomeLoader.Merge(root, catalog); // #264
         if (catalog["Needs"] is JsonArray baseNeeds)
@@ -87,7 +88,7 @@ public static class HomeLifeLoader
     public static readonly string[] Traits = ["extroversion", "agreeableness", "conscientiousness", "emotionalstability", "openness", "ambition", "loyalty", "altruism", "impulsivity", "riskaversion"];
 
     /// <summary>O bloco <c>Needs</c>: <c>[{id, name, start, decayPerHour, urgentBelow, color?, effects?:[{below, target, perHour}]}]</c>. Ausente = nulo.</summary>
-    public static Result<NeedCatalog?> ParseNeeds(JsonNode? node, JsonNode? jitterNode = null)
+    public static Result<NeedCatalog?> ParseNeeds(JsonNode? node, JsonNode? jitterNode = null, JsonNode? criticalNode = null)
     {
         if (node is null) return Result<NeedCatalog?>.Ok(null);
         if (node is not JsonArray array) return Result<NeedCatalog?>.Fail("Needs: precisa ser uma lista");
@@ -164,7 +165,36 @@ public static class HomeLifeLoader
             }
         }
 
-        return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs, startJitter) : null);
+        NeedCritical? critical = null; // #268: o limiar crítico de cada necessidade
+        if (criticalNode is JsonObject co)
+        {
+            var below = new Dictionary<string, double>();
+            if (co["below"] is not JsonObject bo) return Result<NeedCatalog?>.Fail("NeedCritical.below: objeto {necessidade: limiar}");
+            foreach (var (key, value) in bo)
+            {
+                if (!(NeedIds.IsBuiltin(key) || needs.Any(n => n.Id == key)) || !Number(value, out var line) || line is < 0 or > 100)
+                    return Result<NeedCatalog?>.Fail($"NeedCritical.below.{key}: necessidade conhecida com limiar de 0 a 100");
+                below[key] = line;
+            }
+
+            double repeat = 3;
+            if (co["repeatHours"] is not null && (!Number(co["repeatHours"], out repeat) || repeat is < 1 or > 48)) return Result<NeedCatalog?>.Fail("NeedCritical.repeatHours: horas de 1 a 48");
+            bool freeWill = co["freeWillDefault"] is not JsonValue fw || !fw.TryGetValue(out bool on) || on;
+            Dictionary<string, string>? texts = null;
+            if (co["texts"] is JsonObject to2)
+            {
+                texts = [];
+                foreach (var (key, value) in to2)
+                {
+                    if (!below.ContainsKey(key) || !Text(value, out var line) || line.Length is 0 or > 60) return Result<NeedCatalog?>.Fail($"NeedCritical.texts.{key}: texto de até 60 caracteres de uma necessidade de below");
+                    texts[key] = line;
+                }
+            }
+
+            critical = new NeedCritical(below, (int)repeat, freeWill, texts);
+        }
+
+        return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs, startJitter, critical) : null);
     }
 
     /// <summary>#258: os <c>toggle</c> que o motor entende (liga e desliga a luz do objeto).</summary>

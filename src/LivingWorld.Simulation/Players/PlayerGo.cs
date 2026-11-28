@@ -97,6 +97,7 @@ public static class PlayerGo
         {
             npc.SetFine(moved.Pose with { HeadingX = 0, HeadingY = 0, AtMs = now });
             Finish(world, npc, now);
+            if (!person && moved.Arrived && world.Careers is not null) LivingWorld.Simulation.Careers.CareerWork.OnArrived(world, ctx, npc, new CellCoord(task.CellX, task.CellY)); // #268: a candidatura que esperava a chegada
             return;
         }
 

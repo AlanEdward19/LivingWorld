@@ -14,7 +14,8 @@ public sealed record CareerView(
     IReadOnlyList<ListingView> Listings,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? DayNames = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? StopKinds = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MateView>? Mates = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MateView>? Mates = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? FreeWill = null);
 
 /// <summary>#267: quem mais da casa tem emprego: se está no trabalho e quando volta (para o aviso "Os dois estão fora — Rafael volta às 17:40").</summary>
 public sealed record MateView(long Id, string Name, bool Away, long ReturnMs, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ReturnText);
@@ -36,7 +37,7 @@ public sealed record BillView(string Id, string Name, long Open, long Fee, long 
 
 public sealed record NoticeView(long Id, long Ms, string Kind, string Text, long Amount, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Verb);
 
-public sealed record ListingView(string Career, string CareerName, long Employer, string Title, long WagePerHour, int StartHour, int Hours, int Free, double Chance);
+public sealed record ListingView(string Career, string CareerName, long Employer, string Title, long WagePerHour, int StartHour, int Hours, int Free, double Chance, int CommuteMin = 0);
 
 public static class CareerViews
 {
@@ -70,13 +71,14 @@ public static class CareerViews
         var listings = new List<ListingView>();
         if (job is null && CareerWork.SearchIsValid(world, catalog, npc, nowMs))
             foreach (var v in CareerWork.Vacancies(world, npc))
-                listings.Add(new ListingView(v.Career.Id, v.Career.Name, v.Employer.Id.Value, v.Entry.Title, v.Entry.WagePerHour, v.Entry.StartHour, v.Entry.Hours, v.Free, Math.Round(v.Chance, 2)));
+                listings.Add(new ListingView(v.Career.Id, v.Career.Name, v.Employer.Id.Value, v.Entry.Title, v.Entry.WagePerHour, v.Entry.StartHour, v.Entry.Hours, v.Free, Math.Round(v.Chance, 2), v.Career.CommuteMin));
         List<MateView>? mates = null;
         if (npc.Household is { } house)
             foreach (var other in ledger.Jobs)
                 if (other.Npc != npc.Id.Value && world.FindNpc(new NpcId(other.Npc)) is { IsAlive: true } mate && mate.Household == house)
                     (mates ??= []).Add(new MateView(mate.Id.Value, mate.GivenName, other.ReturnMs > 0, other.ReturnMs, other.ReturnMs > 0 ? CareerWork.Clock(world, other.ReturnMs) : null));
         return job is null && bills.Count == 0 && notices.Count == 0 && listings.Count == 0 && !ledger.HasAccount(npc.Household?.Value ?? -1) ? null
-            : new CareerView(job, bills, notices, listings, catalog.Rules.DayNames, catalog.Rules.StopKinds, mates);
+            : new CareerView(job, bills, notices, listings, catalog.Rules.DayNames, catalog.Rules.StopKinds, mates,
+                LivingWorld.Simulation.Objects.CriticalNeeds.RulesOf(world) is null ? null : LivingWorld.Simulation.Objects.CriticalNeeds.FreeWill(world, npc)); // #268: o livre-arbítrio do corpo (ligar e desligar no HUD)
     }
 }

@@ -29,7 +29,7 @@ public static class ObjectCatalogScenarioLoader
             return Fail($"objectsFormat: versão {format} desconhecida (suportada: {ObjectCatalog.CurrentFormat})");
         if (root["Objects"] is not JsonArray array) return Fail("Objects: precisa ser uma lista");
 
-        var needs = HomeLifeLoader.ParseNeeds(root["Needs"], root["NeedStartJitter"]);
+        var needs = HomeLifeLoader.ParseNeeds(root["Needs"], root["NeedStartJitter"], root["NeedCritical"]);
         if (!needs.IsSuccess) return Fail(needs.Error!);
         var objects = new List<ObjectDescriptor>();
         for (int i = 0; i < array.Count; i++)

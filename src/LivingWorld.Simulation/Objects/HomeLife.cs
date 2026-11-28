@@ -172,6 +172,7 @@ public static class HomeLife
         long next = long.MaxValue;
         if (npc.BodyTask is { Action: ObjectUsage.Action or SocialInteractions.Action } task && task.UntilMs > nowMs) next = task.UntilMs;
         if (npc.BodyTask is null) next = Math.Min(next, SocialInteractions.NextCheckMs(world, npc, nowMs)); // #259: de tempos em tempos quem está só vê se quer companhia
+        if (npc.ControllerId is not null) next = Math.Min(next, CriticalNeeds.NextCheckMs(world, npc, nowMs)); // #268: o corpo conduzido olha a necessidade crítica
         if (npc.ExtraNeeds is null || Catalog(world) is not { } catalog) return next;
         foreach (var def in catalog.Needs)
         {
