@@ -68,8 +68,8 @@ public static class MoodMechanic
             if (def.Trigger is not { Kind: "social" } t || t.Result != result) continue;
             if (t.Interaction is not null && t.Interaction != social.Id) continue;
             if (t.Category is not null && t.Category != social.Category) continue;
-            if (t.Side is null or "both" or "actor") Add(world, catalog, actor, def, ms, target.Id.Value + 1); // quem causou, como id + 1 (0 = ninguém; o primeiro NPC tem id 0)
-            if (t.Side is null or "both" or "target") Add(world, catalog, target, def, ms, actor.Id.Value + 1);
+            if (t.Side is null or "both" or "actor" && Lives(actor, t.Needs, ms)) Add(world, catalog, actor, def, ms, target.Id.Value + 1); // quem causou, como id + 1 (0 = ninguém; o primeiro NPC tem id 0)
+            if (t.Side is null or "both" or "target" && Lives(target, t.Needs, ms)) Add(world, catalog, target, def, ms, actor.Id.Value + 1);
         }
 
         if (!accepted) return;
@@ -77,6 +77,16 @@ public static class MoodMechanic
             && (w.Interaction is not null || w.Category is not null);
         Fulfill(world, catalog, actor, ms, Matches, target.Id.Value + 1);
         Fulfill(world, catalog, target, ms, Matches, actor.Id.Value + 1);
+    }
+
+    /// <summary>#268: <paramref name="npc"/> vive o momento <paramref name="needs"/> agora? Sem exigência (<c>null</c>) vale sempre.</summary>
+    private static bool Lives(Npc npc, string? needs, long ms)
+    {
+        if (needs is null) return true;
+        if (npc.Moods is not { } state) return false;
+        foreach (var m in state.Moments)
+            if (m.Id == needs && m.UntilMs > ms) return true;
+        return false;
     }
 
     /// <summary>Um fato da vida (<see cref="LifeEventKind"/>) viveu: os momentos do gatilho <c>life</c>.</summary>

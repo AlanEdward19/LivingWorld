@@ -114,6 +114,21 @@ public class MoodTests
     }
 
     [Fact]
+    public void Making_up_only_happens_to_people_who_fought()
+    {
+        var (world, _, _, body, other) = Playing();
+        var apologize = world.ObjectCatalog!.Social!.Find("apologize")!;
+        MoodMechanic.OnSocial(world, apologize, body, other, accepted: true, Now(world)); // pedir desculpa sem briga não rende "pazes" (#268)
+        Assert.DoesNotContain(Moments(world, body), m => m.Id == "made-up");
+        Assert.DoesNotContain(Moments(world, other), m => m.Id == "made-up");
+
+        Quarrel(world, body, other);
+        MoodMechanic.OnSocial(world, apologize, body, other, accepted: true, Now(world));
+        Assert.Contains(Moments(world, body), m => m.Id == "made-up");
+        Assert.Contains(Moments(world, other), m => m.Id == "made-up");
+    }
+
+    [Fact]
     public void A_bad_mood_weighs_on_social_acceptance_and_on_what_the_person_picks_to_do()
     {
         var (world, _, _, body, other) = Playing();

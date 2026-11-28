@@ -239,7 +239,7 @@ static func run(app: Node, steps: Array) -> void:
 					if parts.size() < 2 or parts[1].to_lower() in String(line.text).to_lower():
 						picked = line
 						break
-				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | objetos: ", found.map(func(e): return String(e.text)))
+				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | usos: ", (app.player_hud.use_entries(object_entry, app.player_hud.busy.active()) if not object_entry.is_empty() else []).map(func(e): return String(e.text)), " | objetos: ", found.map(func(e): return String(e.text)))
 				if not picked.is_empty():
 					await app.player_hud.interact(picked)
 			"career": # #263: imprime o cartão do emprego (a linha do HUD), o cargo, o desempenho, as contas abertas, os avisos e as vagas, como o motor os diz na ficha
@@ -1187,6 +1187,8 @@ static func run(app: Node, steps: Array) -> void:
 				for offer in ri_reach.body.get("offers", []):
 					if String(offer.get("kind", "")) == "person" and arg.to_lower() in String(offer.get("label", "")).to_lower():
 						print("relinfo: ", offer.get("label"), " ", offer.get("relation"))
+			"closemenu": # #268: fecha a roda do E (o mundo espera enquanto ela está aberta: popup hold, #240)
+				app.player_frame.close_menu()
 			"gonow": # #267: o botão "Ir agora" do turno
 				await app.player_hud.go_now()
 			"skipreturn": # #267: o botão "Pular para a volta do turno"
