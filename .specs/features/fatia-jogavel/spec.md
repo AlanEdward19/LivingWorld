@@ -6,6 +6,7 @@
 Prioridades: casa e objetos, rotina e necessidades, visual e movimento; pessoas e conversa por
 último (NPC↔NPC segue pelo sistema; jogador↔NPC em linguagem natural pela IA da conta do jogador).
 Diagnóstico com arquivo e linha: [diagnostico.md](diagnostico.md).
+**Rumo atual (2026-11-27): [sandbox.md](sandbox.md)** — casal numa casa de subúrbio; M4–M7 viram etapas dele.
 
 ## Como deve ser jogar (os primeiros 10 minutos)
 1. Entro no meu personagem em casa. A casa tem quarto, cozinha e sala de tamanho real; ando
