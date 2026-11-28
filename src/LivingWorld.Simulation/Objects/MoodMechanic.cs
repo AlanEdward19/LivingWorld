@@ -217,7 +217,7 @@ public static class MoodMechanic
         double rate = 1;
         if (npc.Moods is { } state)
             foreach (var m in state.Moments)
-                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects: { } fx }) rate *= Math.Pow(fx.UseRate, m.Count);
+                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects: { } fx }) for (int k = 0; k < m.Count; k++) rate *= fx.UseRate;
         foreach (var def in IndexOf(catalog).States)
             if (def.Effects is { } fx && StateHolds(world, npc, def.Trigger, ms)) rate *= fx.UseRate;
         return Math.Clamp(rate, 0.5, 2);
@@ -230,7 +230,7 @@ public static class MoodMechanic
         double bias = 1;
         if (npc.Moods is { } state)
             foreach (var m in state.Moments)
-                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects.SocialBias: { } map } && map.TryGetValue(category, out var f)) bias *= Math.Pow(f, m.Count);
+                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects.SocialBias: { } map } && map.TryGetValue(category, out var f)) for (int k = 0; k < m.Count; k++) bias *= f;
         foreach (var def in IndexOf(catalog).States)
             if (def.Effects?.SocialBias is { } map && map.TryGetValue(category, out var f) && StateHolds(world, npc, def.Trigger, ms)) bias *= f;
         return Math.Clamp(bias, 0.1, 5);
@@ -242,6 +242,8 @@ public static class MoodMechanic
     public static AspirationDef? AspirationOf(WorldState world, Npc npc)
     {
         if (CatalogOf(world) is not { Aspirations.Count: > 0 } catalog) return null;
+        // a conta só muda se a personalidade (imutável: trocá-la cria outro registro) ou o catálogo mudam: lembra o resultado
+        if (Chosen.TryGetValue(npc, out var cached) && ReferenceEquals(cached.Personality, npc.Personality) && ReferenceEquals(cached.Catalog, catalog)) return cached.Aspiration;
         AspirationDef? best = null;
         double top = double.NegativeInfinity;
         foreach (var a in catalog.Aspirations)
@@ -251,15 +253,31 @@ public static class MoodMechanic
             if (score > top) (top, best) = (score, a);
         }
 
+        Chosen.Remove(npc);
+        Chosen.Add(npc, new Choice(npc.Personality, catalog, best));
         return best;
     }
+
+    private sealed record Choice(Personality Personality, MoodCatalog Catalog, AspirationDef? Aspiration);
+
+    private static readonly ConditionalWeakTable<Npc, Choice> Chosen = new();
 
     /// <summary>De hora em hora (só quem tem necessidades do catálogo): tira o que venceu, cumpre desejos de estado, deixa expirar os velhos e sorteia os que faltam.</summary>
     public static void Hourly(WorldState world, Npc npc, long ms)
     {
         if (CatalogOf(world) is not { } catalog || !npc.IsAlive) return;
+        // quem ninguém conduz é revisto a cada poucas horas (a conta é a mesma para todos; só o instante muda): o que venceu já não aparece na leitura, então atrasar o
+        // descarte e o sorteio não muda nada que se veja; o corpo do jogador é revisto a toda hora
+        if (npc.ControllerId is null && (ms / WorldMillis.PerHour + npc.Id.Value) % RefillEveryHours != 0) return;
         Prune(world, catalog, npc, ms);
-        Fulfill(world, catalog, npc, ms, w => w.Kind == "state" && w.Need is not null && w.Above is { } a && (HomeLife.Value(world, npc, w.Need, ms) ?? 0) >= a, other: 0);
+        if (npc.Moods is { } state)
+            foreach (var wish in state.Wishes) // só quem tem desejo de estado paga a conta
+                if (catalog.Wish(wish.Id) is { Fulfill: { Kind: "state", Need: { } need, Above: { } above } } && (HomeLife.Value(world, npc, need, ms) ?? 0) >= above)
+                {
+                    Complete(world, catalog, npc, wish, catalog.Wish(wish.Id)!, ms);
+                    break;
+                }
+
         Refill(world, catalog, npc, ms);
     }
 
@@ -267,45 +285,68 @@ public static class MoodMechanic
     {
         if (npc.Moods is not { } state) return;
         long life = catalog.Rules.WishHours * WorldMillis.PerHour;
+        bool stale = false;
+        foreach (var m in state.Moments)
+            if (m.UntilMs <= ms) { stale = true; break; }
+        if (!stale)
+            foreach (var w in state.Wishes)
+                if (Gone(world, catalog, w, ms, life)) { stale = true; break; }
+        if (!stale) return; // nada venceu: nada é alocado nem escrito
         var moments = state.Moments.Where(m => m.UntilMs > ms).ToList();
-        var wishes = state.Wishes.Where(w => ms - w.SinceMs < life && catalog.Wish(w.Id) is not null
-            && (w.Other == 0 || world.FindNpc(new NpcId(w.Other)) is { IsAlive: true })).ToList();
-        if (moments.Count != state.Moments.Count || wishes.Count != state.Wishes.Count) npc.SetMoods(state with { Moments = moments, Wishes = wishes });
+        var wishes = state.Wishes.Where(w => !Gone(world, catalog, w, ms, life)).ToList();
+        npc.SetMoods(state with { Moments = moments, Wishes = wishes });
     }
+
+    private static bool Gone(WorldState world, MoodCatalog catalog, WishInstance w, long ms, long life) =>
+        ms - w.SinceMs >= life || catalog.Wish(w.Id) is null || (w.Other != 0 && world.FindNpc(new NpcId(w.Other)) is not { IsAlive: true });
 
     private static void Refill(WorldState world, MoodCatalog catalog, Npc npc, long ms)
     {
         var state = npc.Moods ?? MoodState.Empty;
-        if (state.Wishes.Count >= catalog.Rules.WishSlots || catalog.Wishes.Count == 0) return;
-        var aspiration = AspirationOf(world, npc);
-        var wishes = state.Wishes.ToList();
+        int free = catalog.Rules.WishSlots - state.Wishes.Count;
+        if (free <= 0 || catalog.Wishes.Count == 0) return;
         long hour = ms / WorldMillis.PerHour;
-        for (int slot = wishes.Count; slot < catalog.Rules.WishSlots; slot++)
+        List<(WishDef Def, long Other, double Weight)>? pool = null;
+        AspirationDef? aspiration = null;
+        bool aspirationRead = false;
+        foreach (var w in catalog.Wishes)
         {
-            var rng = world.Rng.OneShot($"wish-{npc.Id.Value}-{hour}-{slot}");
-            var pool = new List<(WishDef Def, long Other, double Weight)>();
-            foreach (var w in catalog.Wishes)
-            {
-                if (wishes.Any(x => x.Id == w.Id) || !WhenHolds(world, npc, w.When, ms)) continue;
-                long other = 0;
-                if (w.Target is not null && (other = TargetOf(world, npc, w.Target, rng)) == 0) continue;
-                double weight = w.Weight * (aspiration is not null && w.Aspirations?.Contains(aspiration.Id) == true ? catalog.Rules.AspirationBoost : 1);
-                if (weight > 0) pool.Add((w, other, weight));
-            }
-
-            if (pool.Count == 0) break;
-            double pick = rng.NextDouble() * pool.Sum(p => p.Weight);
-            var chosen = pool[^1];
-            foreach (var p in pool)
-            {
-                pick -= p.Weight;
-                if (pick < 0) { chosen = p; break; }
-            }
-
-            wishes.Add(new WishInstance(chosen.Def.Id, chosen.Other, ms));
+            if (!WhenHolds(world, npc, w.When, ms) || Has(state, w.Id)) continue;
+            long other = 0;
+            if (w.Target is not null && (other = TargetOf(world, npc, w.Target, hour)) == 0) continue;
+            if (!aspirationRead) { aspiration = AspirationOf(world, npc); aspirationRead = true; }
+            double weight = w.Weight * (aspiration is not null && w.Aspirations?.Contains(aspiration.Id) == true ? catalog.Rules.AspirationBoost : 1);
+            if (weight > 0) (pool ??= []).Add((w, other, weight));
         }
 
-        if (wishes.Count != state.Wishes.Count) npc.SetMoods(state with { Wishes = wishes.OrderBy(w => w.SinceMs).ThenBy(w => w.Id, StringComparer.Ordinal).ToList() });
+        if (pool is null) return; // nada pede nada agora: sem sorteio, sem escrita
+        var rng = world.Rng.OneShot($"wish-{npc.Id.Value}-{hour}");
+        var wishes = state.Wishes.ToList();
+        for (int slot = 0; slot < free && pool.Count > 0; slot++)
+        {
+            double pick = rng.NextDouble() * pool.Sum(p => p.Weight);
+            int at = pool.Count - 1;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                pick -= pool[i].Weight;
+                if (pick < 0) { at = i; break; }
+            }
+
+            wishes.Add(new WishInstance(pool[at].Def.Id, pool[at].Other, ms));
+            pool.RemoveAt(at);
+        }
+
+        npc.SetMoods(state with { Wishes = wishes.OrderBy(w => w.SinceMs).ThenBy(w => w.Id, StringComparer.Ordinal).ToList() });
+    }
+
+    /// <summary>Horas entre uma tentativa de sortear desejos e a seguinte para quem ninguém conduz (a conta é a mesma para todos; só o instante muda).</summary>
+    private const int RefillEveryHours = 4;
+
+    private static bool Has(MoodState state, string id)
+    {
+        foreach (var w in state.Wishes)
+            if (w.Id == id) return true;
+        return false;
     }
 
     private static bool WhenHolds(WorldState world, Npc npc, WishWhen? when, long ms)
@@ -317,12 +358,18 @@ public static class MoodMechanic
         return (when.Below is null || v < when.Below) && (when.Above is null || v >= when.Above);
     }
 
-    private static long TargetOf(WorldState world, Npc npc, string target, WorldRng rng)
+    private static long TargetOf(WorldState world, Npc npc, string target, long hour)
     {
         if (target == "spouse") return npc.Spouse is { } s && world.FindNpc(s) is { IsAlive: true, City: var c } && c == npc.City ? s.Value : 0;
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return 0;
-        var mates = home.Members.Where(id => id != npc.Id && world.FindNpc(id) is { IsAlive: true }).OrderBy(id => id.Value).ToList();
-        return mates.Count == 0 ? 0 : mates[(int)(rng.NextDouble() * mates.Count) % mates.Count].Value;
+        int count = 0;
+        foreach (var id in home.Members)
+            if (id != npc.Id && world.FindNpc(id) is { IsAlive: true }) count++;
+        if (count == 0) return 0;
+        long want = (npc.Id.Value + hour) % count, seen = 0, best = 0;
+        foreach (var id in home.Members.OrderBy(m => m.Value)) // quem, entre os da casa, gira com a hora (determinístico)
+            if (id != npc.Id && world.FindNpc(id) is { IsAlive: true } && seen++ == want) { best = id.Value; break; }
+        return best;
     }
 
     /// <summary>Cumpre os desejos ativos cujo critério <paramref name="matches"/> atende; <paramref name="other"/> é a pessoa do fato (0 = sem pessoa): um desejo com alvo só vale com ela.</summary>
@@ -331,7 +378,7 @@ public static class MoodMechanic
         if (npc.Moods is not { Wishes.Count: > 0 } state) return;
         foreach (var w in state.Wishes)
         {
-            if (catalog.Wish(w.Id) is not { } def || !matches(def.Fulfill)) continue;
+            if (ms - w.SinceMs >= catalog.Rules.WishHours * WorldMillis.PerHour || catalog.Wish(w.Id) is not { } def || !matches(def.Fulfill)) continue; // desejo vencido não se cumpre
             if (w.Other != 0 && w.Other != other) continue;
             Complete(world, catalog, npc, w, def, ms);
             return; // um por fato; o próximo fato cumpre o seguinte

@@ -39,6 +39,25 @@ static func _print_needs(app: Node) -> void:
 		app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
 
 
+## #262: o humor do corpo e da outra pessoa pela ficha do motor, e o que o cartão do jogador mostra (rosto, linha da emoção, momentos).
+static func _print_mood(app: Node) -> void:
+	var who: Array = [[app.player_hud.npc_id, app.player_hud.npc_name]]
+	for housemate in app.player_hud.housemates:
+		who.append([int(housemate.id), String(housemate.name)])
+	for entry in who:
+		app.player_hud.api.invalidate_npc(int(entry[0]))
+		var sheet: Dictionary = (await app.player_hud.api.npc_detail(int(entry[0]))).body
+		var mood: Variant = sheet.get("mood")
+		if not mood is Dictionary:
+			print("mood: ", entry[1], " (sem humor do motor)")
+			continue
+		var moments: Array = mood.moments.map(func(m): return "%s %+.0f%s" % [m.name, float(m.weight), (" · " + PlayerFrame.remaining_text(m.get("remainingMs"))) if m.get("remainingMs") != null else ""])
+		print("mood: ", entry[1], " ", mood.emotionName, " (", mood.emotion, ", rosto ", mood.get("face"), ") nota ", mood.score, " ", mood.get("label"), " | momentos: ", moments, " | aspiração: ", mood.get("aspirationName"),
+			" ", mood.points, " pts | desejos: ", mood.wishes.map(func(w): return w.text), " | cumpridos: ", mood.recent.map(func(d): return d.text), " | dominante do observável: ", sheet.get("dominantEmotion"))
+	print("mood-card: [", app.player_frame.clock_label.text, "] ", app.player_frame.mood_label.text if app.player_frame.mood_row.visible else "(sem linha de humor)", " | ",
+		app.player_frame.moments_box.get_children().map(func(l): return String(l.text)))
+
+
 ## #259: a linha da interação social `interaction` (trecho do nome) da pessoa `person` (trecho do nome), pelo menu "Interagir ▸" da oferta do motor.
 static func _social_line(app: Node, person: String, interaction: String) -> Dictionary:
 	var entries: Array = await app.player_hud._reach_entries()
@@ -197,6 +216,30 @@ static func run(app: Node, steps: Array) -> void:
 					await app.player_hud.interact(picked)
 			"needs": # #255: imprime as barras do corpo (as de sempre e as do catálogo), a dica, a ação em curso e a fila
 				await _print_needs(app)
+			"mood": # #262: imprime o humor do corpo e da outra pessoa como o motor diz (emoção, nota, momentos com causa e tempo, aspiração, desejos) e o que o cartão mostra
+				await app.player_hud.refresh_body_now()
+				await _print_mood(app)
+			"dowish": # #262: cumpre o primeiro desejo social do motor pelo menu "Interagir ▸" ("Abraçar Rafael" -> Abraçar); a pessoa precisa estar ao alcance (`walkperson` antes)
+				var wish_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				var wished: Array = wish_sheet.get("mood", {}).get("wishes", []) if wish_sheet.get("mood") is Dictionary else []
+				var verbs := {"Abraçar": "Abraçar", "Elogiar": "Elogiar", "Beijar": "Beijar", "Fazer": "piada", "Conversar": "papo"}
+				var done_wish := false
+				for wish in wished:
+					var first_word := String(wish.text).get_slice(" ", 0)
+					if int(wish.other) == 0 or not verbs.has(first_word):
+						continue
+					var person_name := ""
+					for housemate in app.player_hud.housemates:
+						if int(housemate.id) == int(wish.other):
+							person_name = String(housemate.name)
+					var line := await _social_line(app, person_name, String(verbs[first_word]))
+					print("dowish: ", wish.text, " -> ", line.get("text", "(nada)"))
+					if not line.is_empty():
+						await app.player_hud.interact(line)
+						done_wish = true
+					break
+				if not done_wish:
+					print("dowish: nenhum desejo social ao alcance: ", wished.map(func(w): return w.text))
 			"needslog": # #255: `needslog:S` imprime as barras a cada 3 s reais por S s (o log do dia)
 				var logged := 0.0
 				while logged < float(arg):

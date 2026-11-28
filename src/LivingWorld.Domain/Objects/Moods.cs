@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace LivingWorld.Domain.Objects;
 
 /// <summary>#262: momentos (moodlets), emoções, aspirações e desejos como catálogo do cenário (<c>scenarios/catalog/moods.json</c>). O código só conhece
@@ -11,10 +9,25 @@ public sealed record MoodCatalog(
     IReadOnlyList<AspirationDef> Aspirations,
     IReadOnlyList<WishDef> Wishes)
 {
-    public MomentDef? Moment(string id) => Moments.FirstOrDefault(m => m.Id == id);
-    public MoodEmotion? Emotion(string id) => Emotions.FirstOrDefault(e => e.Id == id);
-    public AspirationDef? Aspiration(string id) => Aspirations.FirstOrDefault(a => a.Id == id);
-    public WishDef? Wish(string id) => Wishes.FirstOrDefault(w => w.Id == id);
+    public MomentDef? Moment(string id) => IndexOf(this).Moments.GetValueOrDefault(id);
+    public MoodEmotion? Emotion(string id) => IndexOf(this).Emotions.GetValueOrDefault(id);
+    public AspirationDef? Aspiration(string id) => IndexOf(this).Aspirations.GetValueOrDefault(id);
+    public WishDef? Wish(string id) => IndexOf(this).Wishes.GetValueOrDefault(id);
+
+    // índices fora do record (a igualdade compararia campos privados): a leitura do humor roda por NPC e por hora, sem varrer lista nem alocar
+    private sealed record Index(Dictionary<string, MomentDef> Moments, Dictionary<string, MoodEmotion> Emotions, Dictionary<string, AspirationDef> Aspirations, Dictionary<string, WishDef> Wishes);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MoodCatalog, Index> Indexes = new();
+
+    private static Index IndexOf(MoodCatalog c) => Indexes.GetValue(c, static m => new Index(
+        Pick(m.Moments, x => x.Id), Pick(m.Emotions, x => x.Id), Pick(m.Aspirations, x => x.Id), Pick(m.Wishes, x => x.Id)));
+
+    private static Dictionary<string, T> Pick<T>(IReadOnlyList<T> list, Func<T, string> id)
+    {
+        var map = new Dictionary<string, T>(list.Count);
+        foreach (var item in list) map.TryAdd(id(item), item); // o primeiro de um id repetido vale (a validação do carregador reprova repetido)
+        return map;
+    }
 }
 
 /// <summary><c>ScorePerWeight</c>: pontos da nota de humor (0–100) por ponto de peso dos momentos; <c>PsycheWeight</c>: o peso (em pontos de momento) da emoção

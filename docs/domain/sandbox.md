@@ -72,6 +72,9 @@ Tudo é dado do período e do catálogo (`home-life.json`); o código só tem os
 - **Abajur**: usos `light:on`/`light:off` (`toggle`), estado em `world.Lights` (`LightLedger`, no snapshot e no hash só se alguma está ligada); o delta do interior traz `lights`;
   o NPC liga a do cômodo ao escurecer e apaga de dia, ao dormir e ao sair (`HomeTending`). **Higiene** pesa no laço também entre NPCs (`HomeLife.WeighBond`).
 
+## Humor e desejos (#262, AD-228)
+`CatalogExtends` ganha `moods`: momentos com causa e duração, emoção dominante no cartão e no rosto, aspiração e desejos; o humor pesa na aceitação social, no rendimento dos usos e na iniciativa dos NPCs. Ver [moods-and-aspirations.md](moods-and-aspirations.md).
+
 ## O que ainda não funciona
 - O casal não tem renda (próxima etapa: emprego); fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).
 - Sem instalação pública (banheiro de rua); o mercado só vende comida e água; sem entrega por telefone.

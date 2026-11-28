@@ -42,6 +42,7 @@ public static partial class SocialInteractions
         if (candidates.Count == 0) return false;
 
         var rng = ctx.OneShot($"social-pick-{npc.Id.Value}-{now}");
+        Dictionary<string, double>? biases = null; // #262: o peso do humor por categoria, uma conta por categoria e não por par
         SocialInteractionDef? best = null;
         Npc? bestWith = null;
         double bestScore = 0;
@@ -55,12 +56,20 @@ public static partial class SocialInteractions
                 if (def.Initiative is not { } init || (other.ControllerId is not null && !init.ToPlayer) || affection < init.AffectionMin) continue;
                 double below = init.Below ?? rules.InitiateBelow, level = HomeLife.Value(world, npc, init.Need ?? rules.InitiateNeed, now) ?? below;
                 if (level >= below || Unavailable(world, catalog, def, npc, other, now) is not null) continue;
-                double score = init.Weight * (1 + affection / 100.0) * (1 + (below - level) / Math.Max(1, below)) * MoodMechanic.SocialBias(world, npc, def.Category, now) + rng.NextDouble() * 0.25; // #262: o humor muda o que ele puxa
+                double score = init.Weight * (1 + affection / 100.0) * (1 + (below - level) / Math.Max(1, below)) * Bias(world, npc, def.Category, now, ref biases) + rng.NextDouble() * 0.25; // #262: o humor muda o que ele puxa
                 if (score > bestScore) (bestScore, best, bestWith) = (score, def, other);
             }
         }
 
         return best is not null && bestWith is not null && Start(world, ctx, npc, bestWith, best.Id).IsSuccess;
+    }
+
+    private static double Bias(WorldState world, Npc npc, string category, long now, ref Dictionary<string, double>? cache)
+    {
+        if (MoodMechanic.CatalogOf(world) is null) return 1;
+        cache ??= [];
+        if (!cache.TryGetValue(category, out var bias)) cache[category] = bias = MoodMechanic.SocialBias(world, npc, category, now);
+        return bias;
     }
 
     /// <summary>A pausa até a próxima sondagem de iniciativa (ms), para o despertar de quem ninguém conduz; <see cref="long.MaxValue"/> sem catálogo social.</summary>

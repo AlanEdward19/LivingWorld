@@ -799,6 +799,12 @@ func toggle_goals() -> void:
 		_goals_clock = GOALS_EVERY
 
 
+## #262: lê a ficha do corpo agora (captura e teste), sem esperar o intervalo.
+func refresh_body_now() -> void:
+	_body_clock = BODY_EVERY * 2.0
+	await _refresh_body(0.0)
+
+
 ## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
 func _refresh_body(delta: float) -> void:
 	_body_clock += delta

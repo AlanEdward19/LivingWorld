@@ -1,11 +1,9 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Behavior;
-using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Simulation.Core;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Scenarios;
