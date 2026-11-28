@@ -125,6 +125,46 @@ func test_notices_warn_once_and_the_first_read_only_learns() -> void:
 	hud.free()
 
 
+func test_the_shift_notice_drops_a_fast_clock_to_the_first_engine_speed() -> void:
+	var hud := PlayerHud.new()
+	hud.time_view = {"speeds": [1, 3, 10, 60, 300], "speed": 300}
+	eq(hud.shift_speed_target(), 1, "a 300× o turno derruba o tempo à primeira velocidade do motor")
+	hud.time_view = {"speeds": [1, 3, 10, 60, 300], "speed": 1}
+	eq(hud.shift_speed_target(), -1, "já em tempo real: nada a fazer")
+	hud.time_view = {"speeds": [2, 4], "speed": 4}
+	eq(hud.shift_speed_target(), 2, "a lista é do cenário, não do código")
+	hud.free()
+
+
+func test_taking_over_a_body_already_in_the_shift_window_warns_and_slows() -> void:
+	var hud := PlayerHud.new()
+	var said: Array = []
+	hud.warning.connect(func(text): said.append(text))
+	hud.time_view = {"speeds": [1, 3, 10, 60, 300], "speed": 300}
+	var going := JOB.duplicate(true)
+	going.canGo = true
+	hud._note_career({"job": going, "notices": []})
+	eq(said.size(), 1, "a primeira leitura já na janela do turno avisa")
+	check(String(said[0]).ends_with("E: Ir ao trabalho"), "e diz como ir")
+	hud._note_career({"job": going, "notices": []})
+	eq(said.size(), 1, "só na abertura da janela, não a cada leitura")
+	hud.free()
+
+
+func test_the_housemate_returning_while_this_body_is_away_moves_the_camera_home() -> void:
+	var hud := PlayerHud.new()
+	var away_job := JOB.duplicate(true)
+	away_job.away = true
+	hud._note_career({"job": away_job, "notices": []}) # a primeira leitura só aprende
+	hud._note_career({"job": away_job, "notices": [{"id": 9, "kind": "paid", "text": "+48 salário"}]})
+	eq(hud.follow_home_requests, 0, "outro aviso não troca a câmera")
+	hud._note_career({"job": away_job, "notices": [{"id": 10, "kind": "returned", "text": "Voltou do trabalho. Desempenho do dia: 83%."}]})
+	eq(hud.follow_home_requests, 1, "a volta de outra pessoa com este corpo fora leva a câmera para casa")
+	hud._note_career({"job": JOB, "notices": [{"id": 11, "kind": "returned", "text": "Voltou do trabalho. Desempenho do dia: 83%."}]})
+	eq(hud.follow_home_requests, 1, "este corpo em casa fica onde está")
+	hud.free()
+
+
 func test_the_body_leaving_for_the_shift_asks_the_app_to_hide_the_figure_and_back() -> void:
 	var hud := PlayerHud.new()
 	hud.npc_id = 7
