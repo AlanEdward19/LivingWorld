@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Careers;

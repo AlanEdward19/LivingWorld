@@ -16,6 +16,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Casa de verdade: parede em aresta, cômodos por função como catálogo do cenário, portas e móveis no cômodo certo (#226) | [house-rooms.md](domain/house-rooms.md) |
 | Necessidades e objetos da casa como dado: catálogo embutido, usos que andam até a peça, fila, parceiro que se cuida (#255) | [needs-and-objects.md](domain/needs-and-objects.md) |
 | Interações sociais como catálogo em dados: aceitação por termos, efeitos, par que lembra, iniciativa dos NPCs, relação visível (#259) | [social-interactions.md](domain/social-interactions.md) |
+| Carreiras e contas da casa como dado: turno fora do mapa, desempenho, promoção, salário do empregador, contas que vencem e cortam (#263) | [careers-and-bills.md](domain/careers-and-bills.md) |
 | Sandbox do casal: período em dados, tamanho da casa no cenário, troca de corpo sem sumir (#252) | [sandbox.md](domain/sandbox.md) |
 | Metas que nascem do mundo, habilidades que sobem com o uso e diário do jogador (#235) | [player-goals.md](domain/player-goals.md) |
 | Extração: a madeira sai aos poucos de uma árvore que é estado finito do mundo; jogador e NPC usam a mesma fonte (#243) | [extraction.md](domain/extraction.md) |

@@ -56,7 +56,7 @@ public static class CareerWork
         {
             if (!IsWorkday(world, catalog, r.Level, day) || day == job.ShiftDay && job.ReturnMs == 0) continue;
             var (start, end) = Shift(world, r.Level, day);
-            if (end <= nowMs) continue;
+            if (end <= nowMs || nowMs >= start + catalog.Rules.GraceHours * (long)WorldMillis.PerHour) continue; // o turno que passou da tolerância é falta, não "próximo"
             return (start, day * DayMs(world) + LeaveHour(r.Def, r.Level) * (long)WorldMillis.PerHour);
         }
 

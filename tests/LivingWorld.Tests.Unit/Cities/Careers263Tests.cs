@@ -1,8 +1,7 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain.Objects;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Careers;
-using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Players;
@@ -329,5 +328,43 @@ public class Careers263Tests
         Hours(plain, plainClock, 48);
         Assert.Null(plain.Careers);
         Assert.Null(plain.ObjectCatalog!.Careers);
+    }
+
+    [Fact]
+    public void The_body_in_the_shift_is_off_the_map_the_screens_the_offers_and_the_switch_and_comes_back()
+    {
+        var (world, clock) = Load();
+        var rafael = Rafael(world);
+        var city = world.ActiveCities().Single();
+        var scope = new VisualScope(VisualScopeKind.City, city.Id.ToString());
+        Assert.Contains(LivingScopeProjector.Build(world, scope).Npcs, n => n.Id == rafael.Id);
+
+        clock.Tick(world); // 08:00: sai para o trabalho
+
+        Assert.DoesNotContain(LivingScopeProjector.Build(world, scope).Npcs, n => n.Id == rafael.Id); // some das telas
+        Assert.DoesNotContain(LivingWorld.Api.Visual.Projection.CityProjector.Build(world, city.Id).Value!.Residents, r => r.Id == rafael.Id);
+        world.UsePlayers(null);
+        var service = new PlayerService(new AllEvents());
+        Assert.True(service.Incarnate(world, Marina(world).Id, "alan", PossessionMode.Full).IsSuccess);
+        Assert.DoesNotContain(PlayerService.Reach(world, "alan")!, o => o.Kind == "person" && o.Id == rafael.Id.Value); // não é alcançável
+        var swap = service.Switch(world, rafael.Id, "alan");
+        Assert.False(swap.IsSuccess);
+        Assert.Contains("está no trabalho", swap.Error);
+        Hours(world, clock, 11);
+        Assert.Contains(LivingScopeProjector.Build(world, scope).Npcs, n => n.Id == rafael.Id); // volta
+        Assert.True(service.Switch(world, rafael.Id, "alan").IsSuccess);
+    }
+
+    [Fact]
+    public void The_next_shift_skips_the_one_that_already_passed_its_grace_and_names_the_following_workday()
+    {
+        var (world, _) = Load(root => root["StartHour"] = 10);
+        var catalog = world.ObjectCatalog!.Careers!;
+        var job = world.Careers!.JobOf(Rafael(world).Id.Value)!;
+
+        var next = CareerWork.NextShift(world, catalog, job, world.CurrentDate.TotalMilliseconds)!.Value; // 10:00, depois da tolerância das 10:00 (09:00 + 1 h)
+
+        Assert.Equal(24L * 3_600_000 + 9 * 3_600_000, next.Start); // amanhã 09:00
+        Assert.Equal(24L * 3_600_000 + 8 * 3_600_000, next.Leave); // sai às 08:00
     }
 }
