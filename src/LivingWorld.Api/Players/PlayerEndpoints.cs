@@ -23,6 +23,12 @@ public sealed record PlayerStrikeRequest(long NpcId);
 public sealed record PlayerInteractRequest(string Kind, long Id, string Verb, int? ResourceId = null, long? Quantity = null);
 /// <summary>AD-197c: dormir até a hora do dia <c>UntilHour</c> (0 até horas do dia − 1) ou, sem ela, acelerando até descansar.</summary>
 public sealed record PlayerSleepRequest(int? UntilHour = null);
+
+/// <summary>#267: <c>UntilReturn</c> acelera até a volta do turno de quem da casa está no trabalho.</summary>
+public sealed record PlayerAccelerateRequest(bool UntilReturn = false);
+
+/// <summary>#267: "ir até": uma célula (<c>X</c>, <c>Y</c>), uma pessoa (<c>NpcId</c>) ou um prédio (<c>BuildingId</c>, a soleira dele); <c>Label</c> é só o nome que o cliente mostra.</summary>
+public sealed record PlayerGoRequest(int? X = null, int? Y = null, long? NpcId = null, long? BuildingId = null, string? Label = null);
 /// <summary>AD-197q: pedir uma amostra do agregado de <c>CityId</c> ao criador de personagem. Filtro opcional (<c>Sex</c>: Female/Male,
 /// faixa de idade, ofício por id) e <c>Count</c> (1 a 12; padrão 6). Cada pedido é uma amostra nova, registrada.</summary>
 public sealed record PlayerCandidatesRequest(Guid CityId, string? Sex = null, int? MinAge = null, int? MaxAge = null, int? ProfessionId = null,
@@ -111,6 +117,10 @@ public static class PlayerEndpoints
         app.MapPost("/players/{playerId}/interrupt", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Interrupt)));
 
+        // #267: ir até uma célula, pessoa ou prédio pela rota do motor (o corpo anda sozinho; WASD ou interrupt param)
+        app.MapPost("/players/{playerId}/go", (HttpContext http, string playerId, PlayerGoRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Go, NpcId: request.NpcId, X: request.X, Y: request.Y, BuildingId: request.BuildingId, Label: request.Label)));
+
         // #234: esquiva e bloqueio (janela curta, recarga da guarda); 200 = a pose com o combate, 409 com o motivo
         app.MapPost("/players/{playerId}/dodge", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Dodge)));
@@ -145,8 +155,8 @@ public static class PlayerEndpoints
         // sede ou alguém chamando. GET .../time diz o ritmo e se os controles valem agora
         app.MapPost("/players/{playerId}/sleep", (HttpContext http, string playerId, PlayerSleepRequest? request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: request?.UntilHour)));
-        app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId) =>
-            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate)));
+        app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId, PlayerAccelerateRequest? request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate, UntilReturn: request?.UntilReturn == true)));
         // #260: a velocidade do tempo do jogador (0 pausa, 1, 2, 3), só quem joga sozinho
         app.MapPost("/players/{playerId}/speed", (HttpContext http, string playerId, PlayerSpeedRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: request.Speed)));

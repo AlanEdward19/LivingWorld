@@ -42,7 +42,7 @@ Campo **opcional** (omitido sem briga, sem custo no delta): `retaliate`, `flee`,
 `ReactionUntilMs` não passou (`ObservableProjector.CombatOf`, só leitura, sem RNG). Mudar a reação muda o observável.
 
 ## Cliente Godot (`client/godot`)
-- **Comandos**: `player_dodge`/`player_block` (ws, como `walk`). Clique bate; botão direito ou **F** bloqueia (segure: renova
+- **Comandos**: `player_dodge`/`player_block` (ws, como `walk`). O golpe é **R** (ou Shift+clique com o corpo parado; #267: o clique agora vai até/interage); botão direito ou **F** bloqueia (segure: renova
   a guarda quando o motor deixa); **Ctrl/Alt** ou duplo toque numa direção esquiva. Q, E, I/Tab, C, J seguem livres.
 - **Estado**: `Scenes/combat_view.gd` guarda só o que o motor disse (recarga, guarda, alcance, último golpe recebido, sem repetir).
 - **Corpo** (`npc_actor.gd`): golpe em três tempos (antecipação, impacto, recuo); ferida, esquiva, bloqueio e recuo são poses

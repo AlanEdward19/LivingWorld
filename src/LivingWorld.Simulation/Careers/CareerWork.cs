@@ -1,5 +1,7 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;
@@ -165,11 +167,55 @@ public static class CareerWork
         job.Absences = 0;
         npc.SetCurrentActionAtMs(ActionType.Idle, nowMs);
         PlayerCommands.WakeNow(world, npc);
+        EnterHome(world, ctx, npc);
 
         long net = Pay(world, ctx, npc, job, gross, nowMs);
         Notify(world, ledger, catalog, nowMs, npc, "returned", $"Voltou do trabalho. Desempenho do dia: {score}%.", 0, null);
         Evaluate(world, ctx, ledger, catalog, npc, job, def, level, score, nowMs);
         world.CareersChanged();
+    }
+
+    /// <summary>#267: a volta do turno é para dentro de casa, pela porta (como o Sims: quem chega do trabalho entra sozinho), não na soleira olhando a fachada: o corpo conduzido fica
+    /// na célula logo depois da porta; quem ninguém conduz entra no prédio. Casa sem posição ou sem planta deixa o corpo onde estava.</summary>
+    private static void EnterHome(WorldState world, TickContext ctx, Npc npc)
+    {
+        if (npc.Household is not { } h || world.FindHousehold(h)?.Dwelling is not { } dwelling || world.FindBuilding(dwelling) is not { Position: { } origin } home
+            || PlayerGround.DoorOf(home) is not { } door) return;
+        var inner = new CellCoord(door.Door.X + (door.Door.X - door.Doorstep.X), door.Door.Y + (door.Door.Y - door.Doorstep.Y));
+        var cell = PlayerGround.At(world, inner) is { } spot && spot.Building.Id == home.Id ? inner : door.Door;
+        if (npc.ControllerId is not null)
+        {
+            npc.SetFine(null);
+            npc.MoveTo(cell, ctx.CurrentTick);
+        }
+        else Cities.InteriorEntry.TryEnter(world, npc, home.Id, new FloorLevel(0), new CellCoord(cell.X - origin.X, cell.Y - origin.Y));
+    }
+
+    /// <summary>#267: quem assume o corpo depois da hora do aviso também o recebe: com a janela do turno aberta e sem o aviso desta janela no livro, avisa agora.</summary>
+    public static void NoticeOnTakeover(WorldState world, Npc npc, long nowMs)
+    {
+        if (CatalogOf(world) is not { } catalog || world.Careers is not { } ledger || ledger.JobOf(npc.Id.Value) is not { ReturnMs: 0 } job || Resolve(catalog, job) is not { } r) return;
+        if (CannotGo(world, npc, nowMs) is not null) return;
+        long windowStart = DayOf(world, nowMs) * DayMs(world) + (LeaveHour(r.Def, r.Level) - catalog.Rules.NoticeLeadHours) * (long)WorldMillis.PerHour;
+        foreach (var n in ledger.Notices)
+            if (n.Npc == npc.Id.Value && n.Kind == "shift-soon" && n.Ms >= windowStart) return;
+        Notify(world, ledger, catalog, nowMs, npc, "shift-soon", $"Hora do trabalho: {r.Level.Title}, às {r.Level.StartHour:00}:00.", 0, "go");
+        world.CareersChanged();
+    }
+
+    /// <summary>#267: quando volta quem da casa de <paramref name="npc"/> (ele mesmo ou os outros) está no trabalho: o primeiro retorno, ou nulo se ninguém está fora.</summary>
+    public static long? NextReturnMs(WorldState world, Npc npc)
+    {
+        if (world.Careers is not { } ledger) return null;
+        long? best = null;
+        foreach (var job in ledger.Jobs)
+        {
+            if (job.ReturnMs <= 0 || world.FindNpc(new NpcId(job.Npc)) is not { } who) continue;
+            if (who.Id != npc.Id && (npc.Household is null || who.Household != npc.Household)) continue;
+            if (best is null || job.ReturnMs < best) best = job.ReturnMs;
+        }
+
+        return best;
     }
 
     /// <summary>Paga do caixa do empregador para a carteira; devolve o líquido. Caixa curto paga o que há e deixa o atraso nos avisos.</summary>

@@ -31,7 +31,7 @@ static func escape(app) -> void:
 
 ## #222: no modo jogador só valem as teclas do jogador (Esc e F1 aqui; o resto é do player_hud e da câmera): os atalhos do
 ## espectador (B, R, T, M, N, V, L, F, X, P, H, Tab...) não disparam no meio do jogo.
-const PLAYER_KEYS := [KEY_ESCAPE, KEY_F1, KEY_F10, KEY_QUESTION, KEY_SLASH]
+const PLAYER_KEYS := [KEY_ESCAPE, KEY_F1, KEY_F10, KEY_QUESTION, KEY_SLASH, KEY_R] ## #267: R é o golpe do jogador (o clique agora vai até / interage)
 
 
 static func handle(app, event: InputEvent) -> void:
@@ -53,7 +53,11 @@ static func handle(app, event: InputEvent) -> void:
 			KEY_F8:
 				app._toggle_admin()
 			KEY_R:
-				app._toggle_reports()
+				if app.player_mode:
+					if app.player_hud.is_active and not app.modal.active and not app.conversation.input.has_focus():
+						app.strike_at(app.aim_point()) # #267: o golpe na pessoa sob a mira (Shift+clique também)
+				else:
+					app._toggle_reports()
 			KEY_I:
 				if app.selected_npc >= 0 and not app.player_hud.is_active:
 					app.incarnate(app.selected_npc)
@@ -100,6 +104,12 @@ static func handle(app, event: InputEvent) -> void:
 		if app.player_hud != null and app.player_hud.is_active and app.rig.mode != app.rig.ISO:
 			if app.modal.active:
 				return # #240: com popup aberto o clique é do popup, nunca golpe
-			app.strike_at(app.aim_point()) # AD-197j: encarnado, o clique bate no NPC sob a mira (o centro da tela)
+			# #267: como o Sims, o clique vai até / interage com o que está sob a mira (o centro da tela com o cursor preso) ou sob o cursor livre: a pessoa, o móvel, o prédio;
+			# o golpe é Shift+clique (ou a tecla R): AD-197j, o motor valida o alcance
+			var at: Vector2 = app.aim_point() if app.rig.cursor_captured else event.position
+			if event.shift_pressed and app.player_hud._held_keys() == Vector2i.ZERO: # Shift segurado correndo não vira golpe: só parado
+				app.strike_at(at)
+			else:
+				app.click_at(at)
 		else:
 			app._pick(event.position, event.double_click)

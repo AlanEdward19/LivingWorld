@@ -24,6 +24,7 @@ signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
 signal speed_changed(speed: int) ## #260: o motor aceitou a velocidade (0 pausa, 1, 2, 3): o app relê o relógio
+signal both_away_changed(on: bool, text: String) ## #267: todos da casa estão no trabalho: o app mostra a cena clara ("Os dois estão fora — Rafael volta às 17:40") com a opção de pular
 signal buy_requested() ## #264: B pede o modo comprar e construir (o app sobe a câmera sobre a casa)
 signal walls_cycled() ## #260: V pede outro modo das paredes (cortadas, inteiras, baixas)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
@@ -103,6 +104,12 @@ var _career_primed := false
 var follow_home_requests := 0 ## quantas vezes a volta de outra pessoa da casa pediu a troca da câmera (o teste lê)
 var _career_can_go := false ## #246: a janela do turno já estava aberta na última leitura (o aviso `shift-soon` só sai na hora exata: quem assume o corpo depois não o recebe)
 var _career_away := false
+var stop_kinds: Array = [] ## #267: os tipos de aviso que pedem tempo normal (hora do trabalho, conta vencendo, alguém chegando), do dado do motor
+var both_away := false ## #267: este corpo e todos da casa com emprego estão no turno
+var both_away_text := ""
+var career_job: Dictionary = {} ## #267: o `job` da última leitura (o botão "Ir agora" e a volta do turno)
+var home_building := -1 ## #267: o prédio da casa de quem se conduz (do domicílio lido do motor), para a câmera da casa vazia
+var _go_then: Dictionary = {} ## #267: o que abrir ao chegar do "ir até": {kind, id}
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
 const BODY_BUSY_EVERY := 1.0 ## #243: com uma ação rendendo item, a ficha é lida mais vezes: "+1 Madeira" aparece quando a unidade sai
 var _paused_note_clock := 0.0
@@ -516,6 +523,8 @@ func refresh_housemates() -> void:
 	if home_ref is Dictionary:
 		var home: Dictionary = await api.entity("household", int(home_ref.get("value", -1)))
 		var members = home.body.get("state", {}).get("memberIds", []) if home.ok and home.body is Dictionary and home.body.get("state") is Dictionary else []
+		var dwelling = home.body.get("state", {}).get("dwelling") if home.ok and home.body is Dictionary and home.body.get("state") is Dictionary else null
+		home_building = int(dwelling.get("value", -1)) if dwelling is Dictionary else (int(dwelling) if dwelling != null else -1)
 		for member in members:
 			if int(member) == mine:
 				continue
@@ -863,6 +872,7 @@ func _note_career(view: Variant) -> void:
 		return
 	var was_primed := _career_primed
 	var someone_returned := false
+	stop_kinds = view.get("stopKinds", []) if view.get("stopKinds") is Array else []
 	for notice in view.get("notices", []):
 		var id := int(notice.get("id", 0))
 		if id > _career_seen:
@@ -872,13 +882,16 @@ func _note_career(view: Variant) -> void:
 				var text := String(notice.get("text", ""))
 				if String(notice.get("kind", "")) == "shift-soon":
 					text += "  ·  E: Ir ao trabalho"
-					_slow_for_shift() # #246 (3º teste): a 300× a hora do turno passava em 12 s e o corpo faltava; o tempo desce à primeira velocidade do motor
 				elif String(notice.get("verb", "")) == "pay":
 					text += "  ·  E em casa: Contas"
+				if String(notice.get("kind", "")) in stop_kinds:
+					_slow_for_shift() # #246/#267: a 300× a hora do turno passava em 12 s e o corpo faltava; o tempo desce à primeira velocidade do motor (também a conta que vence e quem chega)
 				warning.emit(text)
 	_career_primed = true
 	var job = view.get("job")
+	career_job = job if job is Dictionary else {}
 	var away: bool = job is Dictionary and bool(job.get("away", false))
+	_note_both_away(away, job, view.get("mates", []))
 	var can_go: bool = job is Dictionary and bool(job.get("canGo", false)) and not away
 	if can_go and not _career_can_go:
 		if not was_primed: # corpo assumido já na janela do turno: o aviso da hora exata passou antes; avisa aqui e desce o tempo do mesmo jeito
@@ -893,6 +906,45 @@ func _note_career(view: Variant) -> void:
 		if away and was_primed:
 			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
 	_career_away = away
+
+
+## #267: todos da casa com emprego estão fora (este corpo e os outros): a cena de casa vazia diz quem volta primeiro e quando, e oferece pular até lá. O motor diz quem e quando (`mates`).
+func _note_both_away(away: bool, job: Variant, list: Variant) -> void:
+	var text := ""
+	if away and list is Array and not (list as Array).is_empty() and (list as Array).all(func(m): return bool(m.get("away", false))):
+		var first_name := npc_name
+		var first_text := String(job.get("returnText", "")) if job is Dictionary else ""
+		var first_ms := int(job.get("returnMs", 0)) if job is Dictionary else 0
+		for mate in list:
+			var ms := int(mate.get("returnMs", 0))
+			if first_ms <= 0 or (ms > 0 and ms < first_ms):
+				first_name = String(mate.get("name", ""))
+				first_text = String(mate.get("returnText", ""))
+				first_ms = ms
+		text = both_away_message((list as Array).size() + 1, first_name, first_text)
+	if text == both_away_text:
+		return
+	both_away_text = text
+	both_away = text != ""
+	both_away_changed.emit(both_away, text)
+
+
+## "Os dois estão fora — Rafael volta às 17:40" (com mais de duas pessoas, "Todos estão fora").
+static func both_away_message(count: int, who: String, when: String) -> String:
+	var lead := "Os dois estão fora" if count == 2 else "Todos estão fora"
+	return "%s — %s volta %s" % [lead, who, ("às " + when) if when != "" else "mais tarde"]
+
+
+## #267: "Ir agora" (o turno já pode começar): é a mesma oferta do E, sem precisar mirar o trabalho.
+func go_now() -> void:
+	if not is_active or not bool(career_job.get("canGo", false)):
+		return
+	await interact({"text": "Ir ao trabalho", "kind": "job", "id": npc_id, "verb": "go", "resource": -1})
+
+
+## #267: "Pular para a volta do turno": o salto de tempo de sempre (só sozinho no mundo) que acaba na volta de quem da casa está no trabalho.
+func skip_to_return() -> void:
+	await _time_command(func(): return await api.player_accelerate(player_id, true), "Pulando até a volta do turno…")
 
 
 ## O turno chamou (aviso `shift-soon` do corpo conduzido) com o tempo acelerado: volta à primeira velocidade que o motor oferece (a lista é do cenário), como o Sims
@@ -1262,6 +1314,10 @@ func _note_busy(pose: Dictionary) -> void:
 
 
 func _busy_ended() -> void:
+	if not _go_then.is_empty() and not _stopping:
+		_after_go.call_deferred() # #267: chegou do "ir até": abre a roda daquele alvo
+	else:
+		_go_then = {}
 	_body_clock = BODY_EVERY # o que ficou nas mãos aparece no cartão
 	speed_changed.emit(speed_now()) # #261: o relógio da tela é relido ao acabar o uso (não fica parado em 07:00 até a próxima leitura)
 
@@ -1328,6 +1384,7 @@ func interrupt() -> void:
 	if not is_active or _interrupting or not busy.active():
 		return
 	_interrupting = true
+	_go_then = {} # #267: parou: não abre a roda do alvo
 	_stopping = true # #260: parar de propósito não é "terminou"
 	var stopped := busy.stopped_text()
 	var response: Dictionary = await api.player_interrupt(player_id)
@@ -1626,6 +1683,110 @@ func _e_step() -> void:
 			warning.emit("Nada ao alcance.")
 		else:
 			interact(_e_entries[0])
+
+
+# --- #267: clique = ir até / interagir (como o Sims) ---------------------------------------------------------------------------------------------------
+
+## O clique do jogador (o cursor livre, ou a mira no centro com o cursor preso) numa pessoa, num móvel ou num prédio. Ao alcance, abre a roda daquele alvo (a pessoa: o menu social e a
+## conversa; o móvel: os usos dele, e o motor leva o corpo até a peça); longe ou atrás de parede, o corpo anda até lá pela rota do motor (`POST /players/{id}/go`) e a roda abre ao chegar.
+## WASD, Espaço ou outra ordem interrompem. O golpe saiu do clique: Shift+clique ou R (`strike`).
+func click_target(hit: Dictionary, label: String = "", arrived: bool = false) -> void:
+	if not is_active or _busy or popup_open() or hit.is_empty() or (frame != null and frame.menu_open()):
+		return
+	var kind := String(hit.get("kind", ""))
+	if kind not in ["person", "object", "building"]:
+		return
+	if kind == "building":
+		await _go({"buildingId": int(hit.id)}, label, hit)
+		return
+	_busy = true
+	var response: Dictionary = await api.player_reach(player_id)
+	_busy = false
+	if not is_active or not response.ok or not (response.body is Dictionary):
+		return
+	offers = response.body.get("offers", [])
+	var offer := offer_for_hit(offers, hit)
+	if offer.is_empty():
+		if kind == "person" and not arrived:
+			await _go({"npcId": int(hit.id)}, label, hit)
+		elif arrived:
+			warning.emit("Não deu para chegar perto de %s." % (label if label != "" else "lá"))
+		else:
+			warning.emit("Isso não está ao alcance.")
+		return
+	var entries := without_sale(PlayerFrame.game_entries(menu_entries([offer], resource_name_of), [offer], fine, aim_look.call()), building_id)
+	if entries.is_empty():
+		return
+	_root_entries = entries
+	if entries.size() == 1 and String(entries[0].get("verb", "")) == "menu":
+		await interact(entries[0]) # o móvel abre os usos dele direto
+	elif frame != null:
+		frame.show_menu(entries)
+		_show_relation_of(entries)
+	menu_toggled.emit(true)
+
+
+## A oferta do motor que o clique acertou: a pessoa pelo id; o móvel pela célula mais próxima da que o clique deu (o id da peça no cliente é do catálogo, o da oferta é da casa).
+static func offer_for_hit(list: Array, hit: Dictionary) -> Dictionary:
+	var kind := String(hit.get("kind", ""))
+	if kind == "person":
+		for offer in list:
+			if String(offer.get("kind", "")) == "person" and int(offer.get("id", -1)) == int(hit.id):
+				return offer
+		return {}
+	var best: Dictionary = {}
+	var best_d := INF
+	for offer in list:
+		if String(offer.get("kind", "")) != "object":
+			continue
+		if not hit.has("cell"):
+			if String(offer.get("label", "")).to_lower() == String(hit.get("id", "")).to_lower():
+				return offer
+			continue
+		var d := Vector2(float(offer.get("x", 0)), float(offer.get("y", 0))).distance_squared_to(Vector2(hit.cell))
+		if d < best_d:
+			best_d = d
+			best = offer
+	return best if best_d <= 2.25 else {} # no máximo ~1,5 célula do ponto clicado
+
+
+## Pede ao motor que leve o corpo até o alvo; `then` é o que abrir ao chegar.
+func _go(target: Dictionary, label: String, then: Dictionary) -> void:
+	if not is_active or _busy:
+		return
+	if busy.active(): # outro clique no meio do caminho: para o que o corpo faz e vai para o novo alvo (o motor recusa um "ir até" com o corpo ocupado)
+		await interrupt()
+		if not is_active or busy.active():
+			return
+	_busy = true
+	var response: Dictionary = await api.player_go(player_id, target, label)
+	_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		_go_then = then.duplicate()
+		_go_then["label"] = label
+		apply_pose(response.body)
+		warning.emit("Indo: %s…  (WASD ou Espaço para)" % label if label != "" else "Indo…  (WASD ou Espaço para)")
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		refused.emit()
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou o caminho (erro %d)." % response.status)
+
+
+## Chegou: a roda do alvo (a pessoa, o prédio) abre sozinha.
+func _after_go() -> void:
+	var then := _go_then
+	_go_then = {}
+	if then.is_empty() or not is_active:
+		return
+	if String(then.get("kind", "")) == "building":
+		warning.emit("Chegou: %s." % String(then.get("label", "o prédio")))
+		await open_interactions()
+	else:
+		await click_target(then, String(then.get("label", "")), true)
 
 
 ## O que o corpo alcança agora, no formato do jogo (coisas primeiro, só as pessoas mais perto); guarda `offers`.

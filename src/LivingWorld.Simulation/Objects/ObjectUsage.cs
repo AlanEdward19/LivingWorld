@@ -259,7 +259,7 @@ public static class ObjectUsage
         if (now >= task.UntilMs)
         {
             Produce(world, npc, target.Use); // #258: o preparo terminou de verdade: o que o fogão fez chega à despensa
-            MoodMechanic.OnUse(world, npc, target.Use.Id, now); // #262: o uso acabou por inteiro: momentos e desejos
+            MoodMechanic.OnUse(world, npc, target.Use.Id, now, UsedShare(task, target.Use)); // #262: o uso acabou por inteiro: momentos e desejos (#267: pela fração que durou)
             if (target.Use.Toggle == ObjectToggles.JobSearch) LivingWorld.Simulation.Careers.CareerWork.Search(world, npc, now); // #263: o jornal lista as vagas ao terminar
             Finish(world, ctx, npc, now, startNext: true);
             return;
@@ -269,6 +269,10 @@ public static class ObjectUsage
         ctx.ScheduleEventAtMs(Math.Min(task.UntilMs, now + Math.Clamp((task.UntilMs - task.StartedAtMs) / 12, SliceMinMs, SliceMaxMs)),
             BodyTaskSystem.SystemName, Payload(npc, task.StartedAtMs));
     }
+
+    /// <summary>#267: a fração do tempo do catálogo que o uso durou (com <c>untilFull</c> é o quanto a necessidade estava vazia): 1 sem tempo de catálogo.</summary>
+    private static double UsedShare(BodyTask task, ObjectUseDef use) =>
+        use.DurationMin <= 0 ? 1 : Math.Clamp((task.UntilMs - task.StartedAtMs) / (double)(use.DurationMin * MinuteMs), 0, 1);
 
     /// <summary>#258: põe na despensa da casa o que o uso produz (a refeição que saiu do fogão). Só no fim natural: interromper o preparo o perde.</summary>
     private static void Produce(WorldState world, Npc npc, ObjectUseDef use)

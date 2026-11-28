@@ -87,7 +87,12 @@ public static partial class SocialInteractions
         double score = 50 + mood.ValenceWeight * valence;
         foreach (var term in mood.Needs)
             score += term.Weight * ((HomeLife.Value(world, npc, term.Need, nowMs) ?? 50) - 50) / 50.0;
-        if (MoodMechanic.CatalogOf(world) is { } moments) score += moments.Rules.ScorePerWeight * MoodMechanic.Sum(world, npc, nowMs); // #262: os momentos pesam na nota (e na aceitação)
+        if (MoodMechanic.CatalogOf(world) is not null)
+        {
+            score += MoodMechanic.ScoreShift(world, npc, nowMs); // #262: os momentos pesam na nota (e na aceitação); #267: por curva suave e teto por emoção
+            score = MoodMechanic.Band(world, npc, nowMs, score); // #267: a nota acompanha a emoção dominante
+        }
+
         score = Math.Clamp(score, 0, 100);
         string label = mood.Labels[^1].Label;
         foreach (var l in mood.Labels)

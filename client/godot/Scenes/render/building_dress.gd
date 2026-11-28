@@ -152,4 +152,5 @@ static func dress(root: Node3D, state: Dictionary, top: Vector3, door: Vector3, 
 	label.outline_size = 8
 	label.position = board.position + Vector3(0, 0.3, 0)
 	label.visibility_range_end = 26.0
+	label.add_to_group("building_signs") # #267: placas que se sobrepõem na tela escondem a mais longe (building_labels.declutter)
 	dressing.add_child(label)

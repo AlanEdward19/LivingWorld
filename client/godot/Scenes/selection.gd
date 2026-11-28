@@ -109,7 +109,10 @@ func _interior_hit(screen: Vector2) -> Dictionary:
 		objects[index] = points[index].position
 	var object = nearest(objects, camera, screen, 26.0)
 	if object != null:
-		return Registry.ref(Registry.OBJECT, String(points[int(object)].id))
+		var ref := Registry.ref(Registry.OBJECT, String(points[int(object)].id))
+		var spot: Vector3 = points[int(object)].position
+		ref["cell"] = Vector2i(Grid.to_cell(spot)) # #267: a célula do móvel clicado (o motor oferece cada peça na sua célula)
+		return ref
 	return {}
 
 

@@ -13,10 +13,10 @@ public sealed record CareerCatalog(CareerRules Rules, IReadOnlyList<CareerDef> C
 }
 
 /// <summary>Regras gerais: dias da semana, aviso antes do turno, tolerância para sair atrasado, faltas seguidas até a demissão, a hora do dia em que as contas
-/// são emitidas e vencem, quantos avisos o livro guarda e o intervalo de validade de uma busca de emprego (horas) e os nomes dos dias da semana do cenário (<c>DayNames</c>, só para ler).</summary>
+/// são emitidas e vencem, quantos avisos o livro guarda e o intervalo de validade de uma busca de emprego (horas) e os nomes dos dias da semana do cenário (<c>DayNames</c>, só para ler). <c>StopKinds</c> (#267): os tipos de aviso que pedem tempo normal (hora do trabalho, conta vencendo, alguém chegando); o cliente desce a velocidade ao vê-los.</summary>
 public sealed record CareerRules(
     int WeekDays = 7, int NoticeLeadHours = 1, int GraceHours = 1, int AbsencesToFire = 3, int BillHour = 8, int NoticeKeep = 40, int SearchValidHours = 24,
-    double IdleSearchPerDay = 0.15, IReadOnlyList<string>? DayNames = null);
+    double IdleSearchPerDay = 0.15, IReadOnlyList<string>? DayNames = null, IReadOnlyList<string>? StopKinds = null);
 
 /// <summary>Uma carreira: o <c>EmployerType</c> é o tipo de local (<c>LocationType</c>) dos empregadores que contratam nela, o corpo sai por <c>CommuteMin</c> minutos
 /// de ida e de volta (fora do mapa, como no Sims), a habilidade (<c>SkillId</c>) entra no desempenho e cresce com o trabalho (<see cref="CareerPerformance"/>).</summary>

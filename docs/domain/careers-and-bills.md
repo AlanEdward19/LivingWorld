@@ -53,3 +53,7 @@ Sem carreira no mundo o sistema sai na primeira linha (`world.Careers` nulo) e o
 ## Fora desta fatia
 Emprego com o corpo andando até um prédio do bairro (hoje o corpo sai do mapa e o empregador é um prédio do bairro sem o corpo dentro); carpool e ir a pé; o humor e os
 momentos (#262) no desempenho (hoje só necessidades e habilidade); aluguel a um locador; entrega de contas pelo correio.
+
+## #267: turno sem armadilha
+`CareerWork.NoticeOnTakeover` (ao assumir o corpo na janela do turno sem o aviso dela no livro), `Careers.rules.stopKinds` (ficha `career.stopKinds`) e `career.mates` (quem mais da casa tem emprego: `away`, `returnMs`, `returnText`).
+A volta (`Return`) põe o corpo conduzido logo depois da porta (`EnterHome`). `POST /players/{id}/accelerate` com `{untilReturn:true}` salta até a volta do primeiro da casa (409 se ninguém está fora). Ver [sandbox.md](sandbox.md).

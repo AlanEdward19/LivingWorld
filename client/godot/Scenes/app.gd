@@ -820,6 +820,29 @@ var _glide_anchor: Node3D = null
 
 
 ## #263: o corpo conduzido saiu para o turno (fora do mapa) ou voltou: a figura some e volta (o motor a tira das telas; o corpo do jogador o app guarda de propósito, #249).
+## #267: todos da casa no trabalho: a cena clara (o aviso com a volta e o pulo) e a câmera sobre a casa; quando alguém volta, a câmera volta ao corpo.
+func _on_both_away(on: bool, text: String) -> void:
+	player_frame.set_both_away(on, text)
+	if rig == null:
+		return
+	if on:
+		var home := _home_center()
+		if home != Vector3.INF:
+			rig.set_build_view(true, home, 14.0, 0.0)
+	else:
+		rig.set_build_view(false)
+
+
+## O centro da casa do corpo conduzido (a caixa do prédio no mundo), ou INF sem casa à vista.
+func _home_center() -> Vector3:
+	var home_id: int = player_hud.home_building if player_hud != null else -1
+	var node = world_view.buildings.nodes.get(home_id) if home_id >= 0 else null
+	if node == null or not is_instance_valid(node):
+		return Vector3.INF
+	var box: AABB = node.get_meta("box", AABB())
+	return box.position + box.size / 2.0
+
+
 func _on_player_away(away: bool, id: int) -> void:
 	for actor in [world_view.npc_nodes.get(id), stage.interior_view.occupant_nodes.get(id) if stage != null else null]:
 		if actor != null and is_instance_valid(actor):
@@ -1151,7 +1174,7 @@ func toggle_buy_mode() -> void:
 		buy_mode.close()
 		return
 	if player_hud == null or not player_hud.is_active or not stage.active:
-		toasts.push("Entre na sua casa para comprar e construir (tecla B).")
+		toasts.push("Entre em casa para arrumar: comprar e construir só dentro da sua casa (B).") # #267: fora de casa o B diz por que não abre
 		return
 	buy_mode.player_id = player_hud.player_id
 	await buy_mode.open()
@@ -1500,7 +1523,27 @@ var side_panel: Control ## AD-197p: inspetor e ficha (lado direito do espectador
 var help_label: Label ## AD-197p: rodapé de atalhos (espectador ou jogador)
 
 
-## AD-197d: clique encarnado é golpe no NPC sob a mira (o motor valida o alcance).
+## #267: o clique encarnado é "ir até / interagir" com o que está sob a mira (pessoa, móvel ou prédio), como o Sims: a roda daquele alvo abre se ele está ao alcance, senão o corpo
+## anda até lá pela rota do motor. O golpe é Shift+clique ou R.
+func click_at(screen_position: Vector2) -> void:
+	var hit: Dictionary = selection.hit_at(screen_position)
+	if hit.is_empty():
+		return
+	var kind := String(hit.get("kind", ""))
+	var label := ""
+	match kind:
+		Registry.PERSON:
+			label = registry.person_name(int(hit.id))
+		Registry.BUILDING:
+			label = String(registry.entity_names.get("building:%d" % int(hit.id), ""))
+			if label == "":
+				label = world_view.building_labels.text_for(store.buildings.get(int(hit.id), {"id": int(hit.id)}), store.building_states.get(int(hit.id), {}), registry) if store != null else "o prédio"
+		Registry.OBJECT:
+			label = String(hit.get("name", ""))
+	await player_hud.click_target(hit, label)
+
+
+## AD-197d: golpe no NPC sob a mira (Shift+clique ou R); o motor valida o alcance.
 func strike_at(screen_position: Vector2) -> void:
 	var hit: Dictionary = selection.hit_at(screen_position)
 	if not hit.is_empty() and String(hit.kind) == Registry.PERSON:

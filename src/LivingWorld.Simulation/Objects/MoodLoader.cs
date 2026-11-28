@@ -45,6 +45,7 @@ public static class MoodLoader
 
         var r = catalog.Rules;
         if (r.ScorePerWeight < 0 || r.WishSlots is < 0 or > 6 || r.WishHours < 1 || r.MaxMoments is < 1 or > 64) return Fail("Moods.rules: números fora do limite");
+        if (r.ScoreSwing is < 0 or > 100 || r.EmotionCap is < 0 or > 50 || r.WishDailyPool is < 0 or > 64 || r.WishCooldownHours is < 0 or > 240) return Fail("Moods.rules: scoreSwing, emotionCap, wishDailyPool ou wishCooldownHours fora do limite");
         if (!string.IsNullOrEmpty(r.RewardMoment) && catalog.Moment(r.RewardMoment) is null) return Fail($"Moods.rules.rewardMoment: '{r.RewardMoment}' não existe");
         for (int i = 0; i < catalog.Emotions.Count; i++)
         {
@@ -53,6 +54,7 @@ public static class MoodLoader
             if (catalog.Emotions.Count(x => x.Id == e.Id) > 1) return Fail($"Moods.emotions[{i}].id: '{e.Id}' duplicado");
             if (e.Face is not null && !Faces.Contains(e.Face)) return Fail($"Moods.emotions[{i}].face: use {string.Join("|", Faces)}");
             if (e.Psyche is not null && !Faces.Contains(e.Psyche)) return Fail($"Moods.emotions[{i}].psyche: use {string.Join("|", Faces)}");
+            if (e.ScoreMin is < 0 or > 100 || e.ScoreMax is < 0 or > 100 || e.ScoreMin > e.ScoreMax) return Fail($"Moods.emotions[{i}]: scoreMin e scoreMax de 0 a 100, o mínimo até o máximo");
         }
 
         for (int i = 0; i < catalog.Moments.Count; i++)
@@ -73,6 +75,8 @@ public static class MoodLoader
             if (!KnownAction(t.Action) || (t.Kind == "action" && t.Action is null)) return Fail($"{at}.trigger.action: ação desconhecida");
             if (!KnownLife(t.Life) || (t.Kind == "life" && t.Life is null)) return Fail($"{at}.trigger.life: fato desconhecido");
             if (t.Kind == "social" && (t.Result is not ("accepted" or "refused") || t.Side is not (null or "actor" or "target" or "both"))) return Fail($"{at}.trigger: social precisa de result accepted|refused e side actor|target|both");
+            if (!double.IsFinite(m.Falloff) || m.Falloff is <= 0 or > 1) return Fail($"{at}.falloff: maior que 0 e até 1");
+            if (t.MinShare is < 0 or > 1) return Fail($"{at}.trigger.minShare: de 0 a 1");
             if (m.Effects is { } fx && (fx.UseRate is < 0.25 or > 4)) return Fail($"{at}.effects.useRate: de 0,25 a 4");
         }
 

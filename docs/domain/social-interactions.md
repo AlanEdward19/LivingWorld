@@ -42,3 +42,5 @@ Fora desta fatia: conversa por IA com o catálogo (M7), vizinhos, interação co
 - **Com um móvel em uso**: `compatibleWithUse: true` na interação (bater papo, piada, elogio, queixa, desculpa) vale com quem começa sentado (efeitos na hora, o uso segue) e com o alvo sentado (quem começa anda até ele, o alvo segue no móvel).
   As que pedem corpo livre (abraço, beijo, briga): quem começa **levanta antes** (como no Sims); com o alvo no móvel a interação some com o motivo `texts.targetUsing`.
 
+## #267: a briga custa
+`argue`: o alvo perde 14 de afeição e 9 de confiança, quem brigou 6 e 4; `apologize` devolve só 4 e 2; o momento "Brigou com {other}" dura 3 dias (ver [moods-and-aspirations.md](moods-and-aspirations.md)).
