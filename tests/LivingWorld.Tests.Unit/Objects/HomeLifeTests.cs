@@ -419,6 +419,21 @@ public class HomeLifeTests
     }
 
     [Fact]
+    public void The_scenario_start_hour_puts_the_world_in_the_morning_and_a_bad_hour_is_refused()
+    {
+        var (world, _, _) = Sandbox();
+        Assert.Equal(7, world.CurrentDate.Hour);
+        Assert.Equal(85, Hygiene(world, Marina(world)), 0); // as necessidades nascem na hora de partida
+
+        var (night, _, _) = Sandbox(r => ((JsonObject)r).Remove("StartHour"));
+        Assert.Equal(0, night.CurrentDate.Hour);
+
+        var bad = ScenarioLoaderV2.LoadWorld(JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "scenarios", "periods", "sandbox-casal.json")))!.AsObject().Also(r => r["StartHour"] = 99).ToJsonString());
+        Assert.False(bad.IsSuccess);
+        Assert.Contains("StartHour", bad.Error);
+    }
+
+    [Fact]
     public void A_world_without_catalog_needs_has_no_extra_state()
     {
         var (arm, npc, _) = LivingWorld.Tests.Unit.Players.PlayerControlTests.Body(1);

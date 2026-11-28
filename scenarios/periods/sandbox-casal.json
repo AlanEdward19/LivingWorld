@@ -308,6 +308,7 @@
   "OrganizationTicks": 1,
   "MaterializationIdleTicksBeforeEligible": 1,
   "BuildingRecipes": {},
+  "StartHour": 7,
   "CatalogExtends": ["home-life"],
   "Furnishings": {
     "default": [
