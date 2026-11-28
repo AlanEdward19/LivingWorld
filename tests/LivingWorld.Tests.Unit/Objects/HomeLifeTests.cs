@@ -120,12 +120,16 @@ public class HomeLifeTests
     {
         var (world, clock, _) = Sandbox();
         var marina = Marina(world);
-        Assert.Equal(85, Hygiene(world, marina), 3);
+        double start = Hygiene(world, marina);
+        double bladder0 = HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value;
+        Assert.InRange(start, 85 - 10, 85 + 10); // #261: cada pessoa parte de um nível próprio (até a variação do catálogo)
+        double rate = marina.ExtraNeeds!["hygiene"].DecayRatePerHour;
+        Assert.InRange(rate, 2.5 * 0.5, 2.5 * 1.5);
 
         clock.Run(world, 10);
 
-        Assert.Equal(85 - 10 * 2.5, Hygiene(world, marina), 0);
-        Assert.Equal(70 - 10 * 3.0, HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value, 0);
+        Assert.Equal(start - 10 * rate, Hygiene(world, marina), 0);
+        Assert.Equal(bladder0 - 10 * marina.ExtraNeeds["bladder"].DecayRatePerHour, HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value, 0);
         Assert.Equal(new[] { "Higiene", "Diversão", "Bexiga" }, HomeLife.Readings(world, marina, world.CurrentDate.TotalMilliseconds).Select(r => r.Name).ToArray());
     }
 
@@ -260,7 +264,13 @@ public class HomeLifeTests
         var timeline = new List<string>();
         for (int h = 0; h < 72; h++)
         {
-            clock.Tick(world);
+            for (int m = 0; m < 12; m++) // #261: passos de 5 min (o jogo roda em tempo fino); de hora em hora a rotina de passeio escondia a bexiga
+            {
+                clock.Tick(world, 300_000);
+                foreach (var npc in world.Npcs)
+                    if (npc.BodyTask is { Use: { } fine }) used.Add(fine);
+            }
+
             foreach (var npc in world.Npcs)
             {
                 if (npc.BodyTask is { Use: { } use }) used.Add(use);

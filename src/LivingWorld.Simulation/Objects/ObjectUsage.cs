@@ -216,6 +216,19 @@ public static class ObjectUsage
         return Result<Unit>.Ok(Unit.Value);
     }
 
+    /// <summary>#261: alguma necessidade do catálogo está na metade do limite de urgência ou abaixo: atende-la não espera a fome nem a sede (quem tem fome mas vai à bexiga a zero).</summary>
+    public static bool HasCriticalNeed(WorldState world, Npc npc, long nowMs)
+    {
+        if (npc.ExtraNeeds is null || HomeLife.Catalog(world) is not { } needs) return false;
+        foreach (var d in needs.Needs)
+            if ((HomeLife.Value(world, npc, d.Id, nowMs) ?? d.Start) < d.UrgentBelow / 2.0) return true;
+        return false;
+    }
+
+    /// <summary>#261: os minutos de mundo que o uso levaria para esta pessoa agora (o rótulo da roda bate com o relógio: com <c>untilFull</c> é o que falta para encher, não o teto do catálogo).</summary>
+    public static int PlannedMinutes(WorldState world, Npc npc, ObjectUseDef use) =>
+        (int)Math.Max(1, (DurationMs(world, npc, use, world.CurrentDate.TotalMilliseconds) + MinuteMs - 1) / MinuteMs);
+
     /// <summary>Quanto o uso dura: o do catálogo, ou — com <c>untilFull</c> — o que a necessidade leva para encher (no máximo o do catálogo, no mínimo um minuto).</summary>
     private static long DurationMs(WorldState world, Npc npc, ObjectUseDef use, long now)
     {
@@ -337,22 +350,26 @@ public static class ObjectUsage
         if (PlayerTasks.Of(world, npc) is not null) return false;
         long now = world.CurrentDate.TotalMilliseconds;
         var pieces = HomeFurniture.Of(home, catalog);
-        var order = needs.Needs.Select(d => (Def: d, Gap: d.UrgentBelow + margin - (HomeLife.Value(world, npc, d.Id, now) ?? d.Start))).Where(x => x.Gap > 0)
-            .OrderByDescending(x => x.Gap).ThenBy(x => x.Def.Id, StringComparer.Ordinal);
+        // #261: à toa, a pessoa procura o que a atende já abaixo de SeekBelow (não só quando urgente) e, para variar a rotina, escolhe entre as duas necessidades mais
+        // baixas e entre os usos que mais a sobem com o sorteio semeado do mundo (peso = o quanto falta), em vez de sempre o mesmo
+        var rng = world.Rng.OneShot($"care-{npc.Id.Value}-{now}");
+        var order = needs.Needs.Select(d => (Def: d, Gap: (margin > 0 ? d.UrgentBelow + margin : d.SeekBelow ?? d.UrgentBelow) - (HomeLife.Value(world, npc, d.Id, now) ?? d.Start))).Where(x => x.Gap > 0)
+            .OrderByDescending(x => x.Gap * (0.75 + 0.5 * rng.NextDouble())).ThenBy(x => x.Def.Id, StringComparer.Ordinal).ToList();
         foreach (var (def, _) in order)
         {
             // o uso que mais sobe a necessidade de uma vez (taxa × duração, limitado ao que falta para encher), não o de taxa maior mas que dura dois minutos
             double missing = 100 - (HomeLife.Value(world, npc, def.Id, now) ?? def.Start);
+            bool pressing = (HomeLife.Value(world, npc, def.Id, now) ?? def.Start) < def.UrgentBelow + margin; // só procurando (acima do urgente): nada que gaste da despensa (ninguém come refeição por tédio)
             var options = new List<(double Rate, int Piece, string Use)>();
             for (int i = 0; i < pieces.Count; i++)
             {
                 if (pieces[i].Spot is null || catalog.Find(pieces[i].Id) is not { Uses: { } uses }) continue;
                 foreach (var use in uses)
-                    if (use is { Action: null, Hidden: false } && use.Effects.Where(e => e.Need == def.Id && e.PerHour > 0).Sum(e => e.PerHour) is > 0 and var rate)
+                    if (use is { Action: null, Hidden: false } && (pressing || use.Consumes is not { Count: > 0 }) && use.Effects.Where(e => e.Need == def.Id && e.PerHour > 0).Sum(e => e.PerHour) is > 0 and var rate)
                         options.Add((Math.Min(rate * use.DurationMin / 60.0, missing), i, use.Id));
             }
 
-            foreach (var option in options.OrderByDescending(o => o.Rate).ThenBy(o => o.Piece))
+            foreach (var option in options.OrderByDescending(o => o.Rate * (0.7 + 0.6 * rng.NextDouble())).ThenBy(o => o.Piece))
                 if (Begin(world, ctx, npc, home.Id.Value, option.Piece, option.Use).IsSuccess) return true;
         }
 

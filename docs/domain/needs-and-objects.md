@@ -54,3 +54,9 @@ cômodo ao escurecer, apaga de dia, ao dormir e ao sair, e cozinha antes de come
 
 ## Fora desta fatia
 Mover as quatro necessidades de sempre para o catálogo; entrega por telefone; animações próprias (#254).
+
+## #261: cada um a seu modo e rotina que não para
+`NeedDef.variation {jitter, traits:{traço:peso}}`: o nível de partida varia até `jitter` pontos (sorteio semeado do mundo por pessoa) e a taxa de queda é `decayPerHour × (1 + Σ peso × (traço−50)/50)` (0,5 a 1,5). `NeedStartJitter {hunger,...}` (raiz do cenário,
+junto de `Needs`) varia só o nível de partida das necessidades de sempre. `seekBelow` (acima de `urgentBelow`): quem ninguém conduz e está à toa já procura um uso abaixo desse nível, escolhendo entre as duas necessidades mais baixas e os usos
+mais fortes pelo sorteio semeado; procurando (sem urgência) nunca escolhe uso que gasta da despensa. O rótulo de minutos da oferta é `ObjectUsage.PlannedMinutes` (o que o uso leva agora com `untilFull`).
+

@@ -47,8 +47,8 @@ func _free(made: Array) -> void:
 
 func test_the_person_gets_talk_and_an_interact_line_and_the_categories_come_from_the_engine() -> void:
 	var entries := PlayerHud.menu_entries([MARINA])
-	eq(entries.map(func(e): return String(e.text)), ["Marina: Conversar", "Marina: Interagir ▸"], "Conversar fica; Interagir abre o menu social")
-	var cats := SocialMenu.category_entries(entries[1])
+	eq(entries.map(func(e): return String(e.text)), ["Marina: Interagir ▸"], "#261: o Conversar de texto é o Bater papo do menu social: uma entrada só")
+	var cats := SocialMenu.category_entries(entries[0])
 	eq(cats.map(func(e): return String(e.text)), ["Amigável (2/2) ▸", "Romântica (0/1) ▸", "Convite (1/1) ▸", "‹ Voltar"], "as categorias e quantas valem agora")
 	check(bool(cats[1].dim), "a categoria sem nenhuma interação disponível vem esmaecida")
 	check(entries.size() <= PlayerFrame.MENU_MAX, "não quebra a paginação da roda")

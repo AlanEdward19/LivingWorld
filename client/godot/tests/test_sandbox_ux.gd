@@ -68,7 +68,7 @@ func test_the_speed_buttons_show_only_when_the_engine_allows_and_mark_the_curren
 	frame.speed_buttons[0].pressed.emit()
 	eq(chosen, [3, 0], "o primeiro é a pausa")
 	frame.set_speed({"canSkip": true, "speed": 1, "maxSpeed": 2})
-	eq(frame.speed_buttons[3].visible, false, "o cenário que só deixa até 2× esconde o 3×")
+	eq(frame.speed_buttons.size(), 3, "o cenário que só deixa até 2× não tem o botão 3× (#261: os botões vêm da lista)")
 	frame.free()
 
 

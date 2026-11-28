@@ -249,6 +249,15 @@ static func run(app: Node, steps: Array) -> void:
 				var st: Dictionary = (await app.api.clock_status()).body
 				print("speedinfo: botões=", app.player_frame.speed_box.visible, " marcado=", app.player_frame.speed_now, " hud=", app.player_hud.speed_now(), " motor=", st.get("playerSpeed"),
 					" Δ=", st.get("tickDeltaMs"), " modo=", st.get("rhythm"), " relógio=", app.player_frame.clock_label.text)
+			"clockrate": # #261: `clockrate:S` mede por S s reais quanto o relógio do MOTOR andou (segundos de mundo por segundo real) e imprime com a velocidade e o relógio da tela
+				var rate_a: Dictionary = (await app.api.clock_status()).body
+				var rate_t0 := Time.get_ticks_msec()
+				await app.get_tree().create_timer(float(arg if arg != "" else "3")).timeout
+				var rate_b: Dictionary = (await app.api.clock_status()).body
+				var real_s := (Time.get_ticks_msec() - rate_t0) / 1000.0
+				print("clockrate: velocidade=", rate_b.get("playerSpeed"), " Δ=", rate_b.get("tickDeltaMs"), " ticks/s do laço=", rate_b.get("loopTicksPerSecond"), " mundo andou ",
+					snappedf((float(rate_b.atMs) - float(rate_a.atMs)) / 1000.0, 0.1), " s em ", snappedf(real_s, 0.1), " s reais = ", snappedf((float(rate_b.atMs) - float(rate_a.atMs)) / 1000.0 / real_s, 0.1),
+					"× | relógio da tela=", app.player_frame.clock_label.text)
 			"lamps": # #260: as luzes dos objetos da casa (quantas, em que nível) e a luz do dia que o cliente usa
 				var view = app.stage.interior_view
 				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " ligadas pelo motor=", view.lit_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour, " | luzes do motor (delta)=", app.store.interior.get("lights"),

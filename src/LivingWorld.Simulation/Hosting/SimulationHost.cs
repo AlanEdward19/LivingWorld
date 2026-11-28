@@ -114,7 +114,8 @@ public sealed class SimulationHost(WorldHost host)
         var time = world.Players.Time;
         if (Accelerated || players.Skip is not null)
             return new RhythmPlan(RhythmMode.Accelerated, WorldMillis.HourTick, Math.Max(TicksPerSecond, time.AcceleratedHoursPerSecond));
-        var real = new RhythmPlan(RhythmMode.RealTime, time.FineDeltaMs(Math.Max(1, EffectiveSpeed(world))), 1000.0 / Math.Max(1, time.FineTickRealMs));
+        var (stepMs, tps) = time.SpeedPlan(Math.Max(1, EffectiveSpeed(world)));
+        var real = new RhythmPlan(RhythmMode.RealTime, stepMs, tps);
         if (PlayerService.PlayersPresent(world) > 0) return real;
         return time.IdleRhythm == IdleRhythm.RealTime ? real : new RhythmPlan(RhythmMode.Fast, WorldMillis.HourTick, TicksPerSecond);
     }

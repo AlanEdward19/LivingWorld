@@ -810,6 +810,8 @@ func _drive(id: int) -> void:
 ## no mundo, só deixa de ser a conduzida) e agora conduzimos a outra. A câmera desliza da primeira figura até a segunda (um ponto de apoio
 ## que anda entre as duas) e só então segue o corpo novo: sem corte seco, sem segundo jogador.
 const SWITCH_GLIDE_S := 0.8
+const SWITCH_FRAME_HOLD_S := 1.6 ## #261: quanto o enquadramento de cena segura depois do deslize da troca (a câmera a prumo mostra o corpo novo por cima das paredes)
+var _switch_frame_left := -1.0
 var _glide_t := -1.0 ## segundos desde o início do deslize (< 0: sem deslize)
 var _glide_from := Vector3.ZERO
 var _glide_anchor: Node3D = null
@@ -817,11 +819,16 @@ var _glide_anchor: Node3D = null
 
 func _on_player_switched(old_id: int, new_id: int) -> void:
 	clock_panel.refresh() # #256: o ritmo do relógio é relido na hora da troca
+	_switch_frame_left = SWITCH_GLIDE_S + SWITCH_FRAME_HOLD_S # #261: a troca enquadra o interior de cima (parede cortada) até o corpo novo assentar: nunca atrás de parede
+	rig.set_scene_framing(true)
 	var old_node = world_view.npc_nodes.get(old_id)
 	if old_node == null and stage != null and stage.active:
 		old_node = stage.interior_view.occupant_nodes.get(old_id)
 	if stage != null:
 		stage.interior_view.release_guided() # a figura adotada pela casa volta a ser só do mundo
+		var new_node = world_view.npc_nodes.get(new_id)
+		if stage.active and new_node != null and is_instance_valid(new_node):
+			stage.interior_view.adopt_switched(new_id, new_node, player_hud.floor_level) # #261: a casa adota o corpo novo (as paredes passam a cortar para ele)
 	_glide_from = rig.target
 	unfollow() # o diretor de seguir ainda tem a pessoa de antes: sem solta-la, ele puxaria a câmera de volta ao quadro seguinte
 	if old_node != null and is_instance_valid(old_node):
@@ -847,6 +854,10 @@ func _on_player_switched(old_id: int, new_id: int) -> void:
 
 ## O deslize a cada quadro: o ponto de apoio sai de onde a câmera estava e chega ao corpo novo (onde ele estiver, mesmo andando).
 func _step_glide(delta: float) -> void:
+	if _switch_frame_left >= 0.0:
+		_switch_frame_left -= delta
+		if _switch_frame_left < 0.0 and (player_hud == null or not player_hud.busy.active()):
+			rig.set_scene_framing(false) # só solta se nenhum uso/interação enquadra a cena agora
 	if _glide_t < 0.0:
 		return
 	_glide_t += delta

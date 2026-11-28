@@ -17,13 +17,21 @@ public static class NeedEffectTargets
 }
 
 /// <summary>#255: uma necessidade declarada no cenário (higiene, diversão, bexiga...): nome, nível de partida, taxa de queda por hora, abaixo de
-/// quanto é urgente (a pessoa a atende e a barra a destaca) e o que acontece quando está baixa. Ids <c>hunger</c>, <c>thirst</c>, <c>sleep</c> e
+/// quanto é urgente (a pessoa a atende e a barra a destaca) e o que acontece quando está baixa. <c>SeekBelow</c> (#261, acima de <c>UrgentBelow</c>): quem ninguém
+/// conduz e está à toa já procura um uso que a atenda abaixo deste nível, não só quando urgente (variedade de rotina). Ids <c>hunger</c>, <c>thirst</c>, <c>sleep</c> e
 /// <c>social</c> são as necessidades de sempre do motor (<see cref="NeedIds.Builtin"/>); o resto vive em <c>Npc.ExtraNeeds</c>.</summary>
 public sealed record NeedDef(
     string Id, string Name, double Start, double DecayPerHour, double UrgentBelow, string? Color = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<NeedEffect>? Effects = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Alert = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Icon = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Icon = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NeedVariation? Variation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? SeekBelow = null);
+
+/// <summary>#261: cada pessoa sente a necessidade a seu modo: o nível de partida varia até <c>Jitter</c> pontos (sorteio semeado do mundo, por pessoa) e a
+/// taxa de queda muda pela personalidade: fator = 1 + soma de peso × (traço − 50) / 50 (traços 0–100, nome como no catálogo social, ex. <c>conscientiousness</c>),
+/// limitado a 0,5–1,5. Sem o bloco, todos iguais (como antes).</summary>
+public sealed record NeedVariation(double Jitter, IReadOnlyDictionary<string, double>? Traits = null);
 
 public static class NeedIds
 {
@@ -32,7 +40,9 @@ public static class NeedIds
 }
 
 /// <summary>As necessidades do cenário. Nulo no catálogo = cenário sem elas (omitido do snapshot e do hash).</summary>
-public sealed record NeedCatalog(IReadOnlyList<NeedDef> Needs)
+public sealed record NeedCatalog(
+    IReadOnlyList<NeedDef> Needs,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? StartJitter = null)
 {
     public NeedDef? Find(string id)
     {

@@ -30,10 +30,10 @@ public sealed record SocialCatalog(
 /// <summary>Regras gerais: idade adulta, alcance para começar (metros), a pausa entre uma iniciativa e outra de quem ninguém conduz, e a necessidade
 /// que pede companhia (<c>InitiateNeed</c>, abaixo de <c>InitiateBelow</c> a pessoa procura alguém), com a sondagem a cada <c>CheckEveryMin</c> minutos de mundo.
 /// <c>Texts</c> são as frases dos motivos gerais (<c>actorBusy</c>, <c>targetBusy</c>, <c>targetAsleep</c>, <c>adults</c>, <c>state</c>, <c>affection</c>, <c>trust</c>,
-/// <c>noPlace</c>, <c>far</c>), com <c>{actor}</c> e <c>{target}</c>. <c>SpouseAffection</c>/<c>SpouseTrust</c>: o que um casal (sem laço registrado ainda) sente um pelo outro desde o começo.</summary>
+/// <c>noPlace</c>, <c>far</c>, <c>targetUsing</c>), com <c>{actor}</c> e <c>{target}</c>. <c>SpouseAffection</c>/<c>SpouseTrust</c>: o que um casal (sem laço registrado ainda) sente um pelo outro desde o começo.</summary>
 public sealed record SocialRules(
     int AdultYears, double ReachM, int CooldownMin, string InitiateNeed, double InitiateBelow, int CheckEveryMin, int HistoryHours,
-    IReadOnlyDictionary<string, string> Texts, double SpouseAffection = 0, double SpouseTrust = 0);
+    IReadOnlyDictionary<string, string> Texts, double SpouseAffection = 0, double SpouseTrust = 0, double ApproachM = 8);
 
 /// <summary>Uma categoria do menu (amigável, romântica, má...): <c>Name</c> é o que o jogador lê.</summary>
 public sealed record SocialCategory(string Id, string Name);
@@ -84,7 +84,10 @@ public sealed record SocialJoint(string Use, string PartnerUse);
 /// move (<c>Need</c>, nível abaixo do qual vale; vazio = a de <see cref="SocialRules.InitiateNeed"/>). Sem o bloco, só o jogador começa a interação.</summary>
 public sealed record SocialInitiative(double Weight, bool ToPlayer = true, string? Need = null, double? Below = null, double AffectionMin = 0);
 
-/// <summary>Uma interação: nome, categoria, quando vale, quanto dura (<c>DurationSec</c>, segundos de mundo; <c>Joint</c> usa o do uso), o gesto de cada lado,
+/// <summary>#261: <c>CompatibleWithUse</c>: vale com quem começa e/ou o alvo sentados ou usando um móvel (bater papo, piada, elogio): o uso não é cancelado; sem isso,
+/// quem começa levanta antes (como no The Sims) e o alvo ocupado com um móvel é motivo de a interação não valer agora. <c>ApproachM</c> (regras): até onde a
+/// pessoa aparece no menu social (metros, com linha de visão) e o corpo anda até ela ao escolher.
+/// Uma interação: nome, categoria, quando vale, quanto dura (<c>DurationSec</c>, segundos de mundo; <c>Joint</c> usa o do uso), o gesto de cada lado,
 /// como o alvo decide, o que muda, o que muda se recusa e as frases (<c>accepted</c>, <c>refused</c> com <c>{actor}</c>, <c>{target}</c>, <c>{delta}</c>).</summary>
 public sealed record SocialInteractionDef(
     string Id, string Name, string Category, int DurationSec, string? Pose, string? TargetPose,
@@ -93,4 +96,5 @@ public sealed record SocialInteractionDef(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SocialJoint? Joint = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SocialInitiative? Initiative = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AcceptedText = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RefusedText = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RefusedText = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool CompatibleWithUse = false);

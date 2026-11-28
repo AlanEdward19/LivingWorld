@@ -25,9 +25,31 @@ public static class HomeLife
     {
         if (Catalog(world) is not { } catalog) return;
         long ms = world.CurrentDate.TotalMilliseconds;
+        bool first = npc.ExtraNeeds is null || catalog.Needs.Any(d => !npc.ExtraNeeds.ContainsKey(d.Id));
         foreach (var def in catalog.Needs)
             if (npc.ExtraNeeds is null || !npc.ExtraNeeds.ContainsKey(def.Id))
-                npc.SetExtraNeed(def.Id, new LazyNeed(def.Start, ms, def.DecayPerHour));
+            {
+                var (start, rate) = Personal(world, npc, def);
+                npc.SetExtraNeed(def.Id, new LazyNeed(start, ms, rate));
+            }
+
+        // #261: o nível de partida das necessidades de sempre varia por pessoa (cada um acorda com a fome e a sede dele), só ao dar as necessidades pela primeira vez
+        if (first && catalog.StartJitter is { } jitter)
+            foreach (var (id, points) in jitter.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                if (npc.BuiltinNeedAtMs(id, ms) is { } level)
+                    npc.SetBuiltinNeedAtMs(id, Math.Clamp(level + (world.Rng.OneShot($"need-start-{npc.Id.Value}-{id}").NextDouble() - 0.5) * 2 * points, 0, 100), ms);
+    }
+
+    /// <summary>#261: o nível de partida e a taxa de queda desta pessoa: o dado do cenário (<see cref="NeedVariation"/>) com o sorteio semeado do mundo e a personalidade.</summary>
+    private static (double Start, double Rate) Personal(WorldState world, Npc npc, NeedDef def)
+    {
+        if (def.Variation is not { } v) return (def.Start, def.DecayPerHour);
+        double start = Math.Clamp(def.Start + (world.Rng.OneShot($"need-start-{npc.Id.Value}-{def.Id}").NextDouble() - 0.5) * 2 * v.Jitter, 0, 100);
+        double factor = 1;
+        if (v.Traits is { } traits)
+            foreach (var (name, weight) in traits.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                factor += weight * (SocialInteractions.Trait(npc.Personality, name) - 50) / 50.0;
+        return (start, def.DecayPerHour * Math.Clamp(factor, 0.5, 1.5));
     }
 
     /// <summary>O nível (0–100) de uma necessidade, de sempre ou do catálogo, em <paramref name="ms"/>; nulo se o id não existe.</summary>
@@ -155,7 +177,8 @@ public static class HomeLife
         {
             if (!npc.ExtraNeeds.TryGetValue(def.Id, out var need) || need.DecayRatePerHour <= 0) continue;
             double v = need.ValueAtMs(nowMs);
-            long at = v <= def.UrgentBelow ? nowMs + WorldMillis.PerHour : nowMs + Math.Max(1L, (long)Math.Ceiling((v - def.UrgentBelow) / need.DecayRatePerHour * WorldMillis.PerHour));
+            double line = def.SeekBelow ?? def.UrgentBelow; // #261: quem está à toa já procura um uso abaixo de SeekBelow
+            long at = v <= line ? nowMs + WorldMillis.PerHour : nowMs + Math.Max(1L, (long)Math.Ceiling((v - line) / need.DecayRatePerHour * WorldMillis.PerHour));
             if (at < next) next = at;
         }
 

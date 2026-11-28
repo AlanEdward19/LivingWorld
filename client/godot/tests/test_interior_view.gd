@@ -219,6 +219,29 @@ func test_the_body_walking_the_plan_is_the_same_street_figure_adopted_by_the_hou
 	world_actor.free()
 
 
+## #261: trocou de corpo (G) com a casa em foco: o outro morador, que a casa desenhava como ocupante, vira o corpo adotado (sem figura em dobro) e a de antes deixa de ser.
+func test_switching_bodies_adopts_the_new_one_without_a_second_figure_and_releases_the_old() -> void:
+	var view := InteriorView.new()
+	view.show_interior(_info(), Vector2i(10, 10), ActionLabels.new())
+	view.set_occupants(_info().occupants)
+	var old_actor = preload("res://Scenes/npc_actor.gd").new()
+	old_actor.setup(2, Vector2i(11, 11), -1, ActionLabels.new(), LOOK)
+	view.guide_body(2, old_actor, 1)
+	check(view.occupant_nodes.has(3), "o outro morador era desenhado pela casa")
+	var world_actor = preload("res://Scenes/npc_actor.gd").new()
+	world_actor.setup(3, Vector2i(11, 11), -1, ActionLabels.new(), LOOK)
+	view.release_guided()
+	view.adopt_switched(3, world_actor, 1)
+	eq(view.guided_id, 3, "a casa adotou o corpo novo")
+	check(not view.occupant_nodes.has(3), "e a figura de ocupante dele sumiu (nada em dobro)")
+	view.set_occupants(_info().occupants)
+	check(not view.occupant_nodes.has(3), "uma atualização dos ocupantes não a recria")
+	check(view.occupant_nodes.has(2), "a pessoa de antes volta a ser desenhada pela casa")
+	view.release_guided()
+	old_actor.free()
+	world_actor.free()
+
+
 ## #227: o forro só aparece com o jogador dentro e a câmera abaixo dele; fica sobre as paredes do andar visível (sem céu entre elas).
 func test_the_ceiling_shows_only_when_the_camera_is_inside_and_below_it() -> void:
 	var view := InteriorView.new()

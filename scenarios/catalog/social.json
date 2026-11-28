@@ -20,8 +20,10 @@
     "trust": "{target} ainda não confia em você o bastante",
     "noPlace": "não há onde fazer isso agora",
     "far": "{target} está longe demais",
-    "refused": "não está a fim agora"
-   }
+    "refused": "não está a fim agora",
+    "targetUsing": "{target} está ocupado com um móvel agora (espere levantar)"
+   },
+   "approachM": 8
   },
   "categories": [
    {
@@ -187,7 +189,8 @@
      "toPlayer": true
     },
     "accepted": "{target} bateu papo com {actor} ({delta})",
-    "refused": "{target} não quis conversar"
+    "refused": "{target} não quis conversar",
+    "compatibleWithUse": true
    },
    {
     "id": "compliment",
@@ -242,7 +245,8 @@
      "affectionMin": 10
     },
     "accepted": "{target} gostou do elogio ({delta})",
-    "refused": "{target} não deu atenção ao elogio"
+    "refused": "{target} não deu atenção ao elogio",
+    "compatibleWithUse": true
    },
    {
     "id": "hug",
@@ -481,7 +485,8 @@
      "toPlayer": true
     },
     "accepted": "{target} riu da piada de {actor} ({delta})",
-    "refused": "{target} não achou graça"
+    "refused": "{target} não achou graça",
+    "compatibleWithUse": true
    },
    {
     "id": "complain",
@@ -527,7 +532,8 @@
      "below": 25
     },
     "accepted": "{actor} reclamou com {target} ({delta})",
-    "refused": "{target} não deu ouvidos à reclamação"
+    "refused": "{target} não deu ouvidos à reclamação",
+    "compatibleWithUse": true
    },
    {
     "id": "argue",
@@ -603,7 +609,8 @@
      }
     },
     "accepted": "{target} aceitou o pedido de desculpas de {actor} ({delta})",
-    "refused": "{target} não aceitou o pedido de desculpas"
+    "refused": "{target} não aceitou o pedido de desculpas",
+    "compatibleWithUse": true
    },
    {
     "id": "tv-together",

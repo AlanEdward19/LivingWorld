@@ -22,7 +22,7 @@ public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = 
 /// <c>LastWakeReason</c>: o que encerrou o último (golpe, fogo, fome, sede, chamado, hora, descansado, outro jogador, comando).</summary>
 public sealed record PlayerTimeView(
     string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
-    string? LastWakeReason, int Speed = 1, int MaxSpeed = 3);
+    string? LastWakeReason, int Speed = 1, int MaxSpeed = 3, IReadOnlyList<int>? Speeds = null, int WalkMaxSpeed = 10);
 
 /// <summary>A pose do corpo do jogador na resposta de um comando. <c>AirMs</c> (ms no ar) só na resposta do pulo (AD-197u). #248: <c>Seq</c> é o
 /// último número de comando de andar aplicado e <c>AtMs</c> o instante de mundo da pose.</summary>
@@ -229,7 +229,7 @@ public sealed partial class PlayerCommandGateway(
             plan.Mode.ToString(), plan.DeltaMs, world.Players.Time.TimeScale, PlayerService.PlayersPresent(world),
             simulation.AutoRhythm && PlayerService.CanSkip(world, playerId) && !simulation.IsPaused,
             skip is not null, skip?.Sleeping == true, skip?.UntilMs, players.LastWakeReason,
-            simulation.EffectiveSpeed(world), world.Players.Time.MaxPlayerSpeed);
+            simulation.EffectiveSpeed(world), world.Players.Time.MaxPlayerSpeed, world.Players.Time.SpeedList, world.Players.Time.WalkMaxSpeed);
     }
 
     /// <summary>Avanço do admin (<c>step</c>, <c>advance-year</c>) pelo registro do jogador (AD-197c): o replay roda os mesmos ticks.</summary>
