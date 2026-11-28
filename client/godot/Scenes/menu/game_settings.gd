@@ -7,8 +7,8 @@ const UI_SCALES: Array[float] = [0.85, 1.0, 1.15, 1.3, 1.5]
 
 var path := DEFAULT_PATH ## os testes apontam para um arquivo próprio
 var ui_scale := 1.0
-var volume := 0.8 ## 0..1
-var sfx_volume := 0.8 ## 0..1: efeitos do jogo (passos, golpes, portas), no barramento SFX (#232)
+var volume := 0.5 ## 0..1 (dono: estava alto demais)
+var sfx_volume := 0.6 ## 0..1: efeitos do jogo (passos, golpes, portas), no barramento SFX (#232)
 var shake := true ## tremor leve da câmera no golpe e no pouso forte (#232)
 var fullscreen := false
 var vsync := true
@@ -25,8 +25,8 @@ static func load_from(p_path: String = DEFAULT_PATH):
 	if file.load(p_path) != OK:
 		return settings
 	settings.ui_scale = clampf(float(file.get_value("view", "ui_scale", 1.0)), 0.75, 1.6)
-	settings.volume = clampf(float(file.get_value("sound", "volume", 0.8)), 0.0, 1.0)
-	settings.sfx_volume = clampf(float(file.get_value("sound", "sfx_volume", 0.8)), 0.0, 1.0)
+	settings.volume = clampf(float(file.get_value("sound", "volume", 0.5)), 0.0, 1.0)
+	settings.sfx_volume = clampf(float(file.get_value("sound", "sfx_volume", 0.6)), 0.0, 1.0)
 	settings.shake = bool(file.get_value("view", "shake", true))
 	settings.fullscreen = bool(file.get_value("view", "fullscreen", false))
 	settings.vsync = bool(file.get_value("view", "vsync", true))

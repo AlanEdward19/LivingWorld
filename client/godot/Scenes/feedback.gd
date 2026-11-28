@@ -369,7 +369,7 @@ func play(kind: String, at: Vector3, extra_db: float = 0.0) -> void:
 	var voice := _voices[_next_voice]
 	_next_voice = (_next_voice + 1) % _voices.size()
 	voice.stream = _streams[kind]
-	voice.volume_db = db - 4.0
+	voice.volume_db = db - 12.0
 	voice.pitch_scale = 0.94 + 0.12 * float((played.size() * 7) % 5) / 4.0
 	voice.play()
 
