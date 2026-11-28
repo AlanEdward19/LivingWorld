@@ -227,15 +227,19 @@ func test_a_big_city_is_drawn_in_slices_nearest_first_instead_of_in_one_frame() 
 
 ## #249: com a câmera do jogador fora da casa, a parede que fica entre ela e o corpo é translúcida (vê-se por ela); a do fundo segue opaca.
 func test_the_wall_between_the_camera_and_the_body_turns_translucent() -> void:
-	var rows := ["11111", "13331", "11111"]
+	# #226: piso de (1,1) a (3,1) e as paredes como o motor manda, em arestas (não mais células de parede).
 	var cells: Array = []
-	for y in rows.size():
-		for x in String(rows[y]).length():
-			cells.append({"cell": {"x": x, "y": y}, "material": int(String(rows[y])[x])})
+	var walls: Array = []
+	for x in range(1, 4):
+		cells.append({"cell": {"x": x, "y": 1}, "material": 3})
+		walls.append({"a": {"x": x, "y": 0}, "b": {"x": x, "y": 1}, "material": 1})
+		walls.append({"a": {"x": x, "y": 1}, "b": {"x": x, "y": 2}, "material": 1})
+	walls.append({"a": {"x": 0, "y": 1}, "b": {"x": 1, "y": 1}, "material": 1})
+	walls.append({"a": {"x": 3, "y": 1}, "b": {"x": 4, "y": 1}, "material": 1})
 	var view := InteriorView.new()
 	tree.root.add_child(view)
 	view.immersive = true
-	view.show_interior({"building": 1, "floors": 1, "layout": [{"level": 0, "cells": cells}], "occupants": []}, Vector2i(0, 0), ActionLabels.new())
+	view.show_interior({"building": 1, "floors": 1, "layout": [{"level": 0, "cells": cells, "walls": walls, "doors": []}], "occupants": []}, Vector2i(0, 0), ActionLabels.new())
 	var actor := NpcActor.new()
 	actor.setup(1, Vector2i(3, 1), -1, ActionLabels.new())
 	tree.root.add_child(actor)
