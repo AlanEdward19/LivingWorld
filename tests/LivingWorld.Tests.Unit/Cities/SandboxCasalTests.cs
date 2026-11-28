@@ -57,6 +57,16 @@ public class SandboxCasalTests
     }
 
     [Fact]
+    public void The_sandbox_runs_in_real_time_even_with_nobody_playing()
+    {
+        var (world, _) = Load();
+
+        // dono: "o jogo não tá em tempo real" — no sandbox o relógio é 1:1 sempre; sem jogador o mundo não corre uma hora por tick
+        Assert.Equal(1.0, world.Players.Time.TimeScale);
+        Assert.Equal(LivingWorld.Domain.Population.IdleRhythm.RealTime, world.Players.Time.IdleRhythm);
+    }
+
+    [Fact]
     public void The_house_has_the_size_the_scenario_declares_and_its_rooms_and_furniture()
     {
         var (world, _) = Load();
