@@ -12,6 +12,7 @@ var goals: Array = []
 var skills: Array = []
 var entries: Array = []
 var urgent_line := URGENT
+var mood: Dictionary = {} ## #262: aspiração, pontos, desejos e o que acabou de cumprir (`mood` da resposta de metas)
 
 
 func _init() -> void:
@@ -97,8 +98,36 @@ static func entry_text(entry: Dictionary) -> String:
 	return "%s%s" % ["★ " if bool(entry.get("milestone", false)) else "", String(entry.get("text", ""))]
 
 
+## #262: "Aspiração: Conhecimento · 20 pontos · próximo marco: Mente curiosa (30)"; sem aspiração, vazio.
+static func aspiration_text(info: Dictionary) -> String:
+	if info.is_empty() or info.get("aspirationName") == null:
+		return ""
+	var text := "Aspiração: %s · %d pontos" % [String(info.aspirationName), int(info.get("points", 0))]
+	if info.get("nextMilestone") != null:
+		text += " · próximo marco: %s (%d)" % [String(info.nextMilestone), int(info.get("nextMilestonePoints", 0))]
+	return text
+
+
+## "Abraçar Rafael (+10)": um desejo do motor e o que vale cumpri-lo.
+static func wish_line(wish: Dictionary) -> String:
+	return "%s (+%d)" % [String(wish.get("text", "")), int(wish.get("points", 0))]
+
+
+## "Cumprido: Abraçar Rafael +10" ou "Marco: Mente curiosa".
+static func done_line(done: Dictionary) -> String:
+	if bool(done.get("milestone", false)):
+		return "Marco: %s" % String(done.get("text", ""))
+	return "Cumprido: %s +%d" % [String(done.get("text", "")), int(done.get("points", 0))]
+
+
+## Os desejos entram nas metas do motor como `wish.*`: aqui ficam na própria seção, não repetidos em "Metas".
+static func plain_goals(list: Array) -> Array:
+	return list.filter(func(g): return not String(g.get("kind", "")).begins_with("wish."))
+
+
 func set_goals(body: Dictionary) -> void:
-	goals = body.get("goals", []) if body.get("goals") is Array else []
+	mood = body.get("mood", {}) if body.get("mood") is Dictionary else {}
+	goals = plain_goals(body.get("goals", []) if body.get("goals") is Array else [])
 	skills = body.get("skills", []) if body.get("skills") is Array else []
 	urgent_line = int(body.get("urgencyLine", URGENT))
 	_rebuild()
@@ -120,6 +149,15 @@ func _rebuild() -> void:
 	for goal in goals:
 		var urgent := is_urgent(goal, urgent_line)
 		box.add_child(_label(("! " if urgent else "• ") + goal_line(goal), 14, Color("ff9a8a") if urgent else Color.WHITE))
+	var wishes: Array = mood.get("wishes", []) if mood.get("wishes") is Array else []
+	if aspiration_text(mood) != "" or not wishes.is_empty():
+		box.add_child(_label("Desejos", 14, Color(1, 1, 1, 0.6)))
+		if aspiration_text(mood) != "":
+			box.add_child(_label(aspiration_text(mood), 13, Color("ffe9a6")))
+		for wish in wishes:
+			box.add_child(_label("★ " + wish_line(wish), 14, Color("ffd27a")))
+		for done in (mood.get("recent", []) if mood.get("recent") is Array else []).slice(0, 2):
+			box.add_child(_label("✓ " + done_line(done), 13, Color("8fdc9a")))
 	if not skills.is_empty():
 		box.add_child(_label("O que você sabe fazer", 14, Color(1, 1, 1, 0.6)))
 		for skill in skills:

@@ -240,6 +240,7 @@ public static class ObjectUsage
         if (now >= task.UntilMs)
         {
             Produce(world, npc, target.Use); // #258: o preparo terminou de verdade: o que o fogão fez chega à despensa
+            MoodMechanic.OnUse(world, npc, target.Use.Id, now); // #262: o uso acabou por inteiro: momentos e desejos
             Finish(world, ctx, npc, now, startNext: true);
             return;
         }
@@ -264,8 +265,9 @@ public static class ObjectUsage
     {
         if (toMs <= fromMs) return;
         double hours = (toMs - fromMs) / (double)WorldMillis.PerHour;
+        double rate = MoodMechanic.UseRate(world, npc, toMs); // #262: o humor muda o rendimento (só do que sobe)
         foreach (var effect in use.Effects)
-            HomeLife.Add(world, npc, effect.Need, effect.PerHour * hours, toMs);
+            HomeLife.Add(world, npc, effect.Need, effect.PerHour * hours * (effect.PerHour > 0 ? rate : 1), toMs);
     }
 
     /// <summary>Libera o corpo e, se foi o fim natural (ou a queda do uso), começa a próxima ação da fila que ainda vale.</summary>

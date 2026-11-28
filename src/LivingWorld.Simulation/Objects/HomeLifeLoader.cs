@@ -53,6 +53,7 @@ public static class HomeLifeLoader
         }
 
         SocialLoader.Merge(root, catalog); // #259
+        MoodLoader.Merge(root, catalog); // #262
         if (catalog["Needs"] is JsonArray baseNeeds)
         {
             if (root["Needs"] is not JsonArray own) root["Needs"] = baseNeeds.DeepClone();

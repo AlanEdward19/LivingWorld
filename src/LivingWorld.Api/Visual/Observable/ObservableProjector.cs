@@ -108,7 +108,8 @@ public static class ObservableProjector
         string? profession = ctx.Names.Profession(npc.Profession.Id);
         bool mourning = PsycheMechanic.Mourns(affect); // AD-183: o critério do motor, não um limiar de tela
         string? combat = CombatOf(world, npc);
-        if (previous is not null && previous.Mourning == mourning && previous.Combat == combat && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
+        string? dominant = Dominant(emotions) ?? LivingWorld.Simulation.Objects.MoodMechanic.FaceOf(world, npc, world.CurrentDate.TotalMilliseconds); // #262: sem emoção da psique, o rosto vem do humor
+        if (previous is not null && previous.Mourning == mourning && previous.Combat == combat && previous.DominantEmotion == dominant && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
             && ReferenceEquals(previous.Held, held) && ReferenceEquals(previous.Illness, illness)
             && ReferenceEquals(previous.Pregnancy, pregnancy) && previous.AgeYears == age && previous.HeightCm == heightCm
             && previous.GrowthFraction == growth && previous.ProfessionId == npc.Profession.Id && previous.Name == npc.Name
@@ -116,7 +117,7 @@ public static class ObservableProjector
             return previous;
         return new NpcObservable(
             npc.Name, sex, age, lifeStage, npc.Profession.Id, profession, heightCm, growth,
-            pregnancy, illness, emotions, Dominant(emotions), mourning, carried, held, combat);
+            pregnancy, illness, emotions, dominant, mourning, carried, held, combat);
     }
 
     /// <summary>#234: a reação de briga ainda em curso (até o instante marcado pelo motor); só leitura, nula sem briga.</summary>

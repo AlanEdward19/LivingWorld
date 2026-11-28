@@ -40,9 +40,18 @@ public static partial class PlayerGoals
 
         FamilyGoals(goals, c, now);
         LivelihoodGoals(goals, c);
+        WishGoals(goals, world, npc); // #262: os desejos curtos da pessoa entram nas metas (nunca à frente de uma necessidade urgente)
 
         return goals.GroupBy(g => g.Kind).Select(g => g.First())
             .OrderByDescending(g => g.Urgency).ThenBy(g => g.Kind, StringComparer.Ordinal).Take(MaxGoals).ToList();
+    }
+
+    /// <summary>#262: cada desejo ativo (catálogo de humor) é uma meta <c>wish.{id}</c> de urgência baixa do cenário, sem passo próprio: o desejo diz o que fazer.</summary>
+    private static void WishGoals(List<PlayerGoal> goals, WorldState world, Npc npc)
+    {
+        if (Objects.MoodMechanic.CatalogOf(world) is not { } catalog) return;
+        foreach (var wish in Objects.MoodMechanic.Wishes(world, npc, world.CurrentDate.TotalMilliseconds))
+            goals.Add(new PlayerGoal($"wish.{wish.Id}", wish.Text, catalog.Rules.GoalUrgency, null));
     }
 
     private static void AddNeed(List<PlayerGoal> goals, string kind, string reason, int need, Func<GoalStep?> step)

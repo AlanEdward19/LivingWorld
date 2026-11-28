@@ -55,7 +55,7 @@ public static partial class SocialInteractions
                 if (def.Initiative is not { } init || (other.ControllerId is not null && !init.ToPlayer) || affection < init.AffectionMin) continue;
                 double below = init.Below ?? rules.InitiateBelow, level = HomeLife.Value(world, npc, init.Need ?? rules.InitiateNeed, now) ?? below;
                 if (level >= below || Unavailable(world, catalog, def, npc, other, now) is not null) continue;
-                double score = init.Weight * (1 + affection / 100.0) * (1 + (below - level) / Math.Max(1, below)) + rng.NextDouble() * 0.25;
+                double score = init.Weight * (1 + affection / 100.0) * (1 + (below - level) / Math.Max(1, below)) * MoodMechanic.SocialBias(world, npc, def.Category, now) + rng.NextDouble() * 0.25; // #262: o humor muda o que ele puxa
                 if (score > bestScore) (bestScore, best, bestWith) = (score, def, other);
             }
         }
