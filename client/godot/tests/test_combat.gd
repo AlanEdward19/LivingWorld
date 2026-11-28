@@ -122,6 +122,28 @@ func test_strike_result_is_announced_and_the_refusal_only_shows_the_engine_reaso
 	hud.queue_free()
 
 
+## #250: com o canal persistente a resposta chega quadros depois; a defesa tem que esperá-la com `await` em cada chamada (antes um
+## `await (a() if x else b())` chamava a corrotina sem await e a engine dava "Trying to call an async function without await").
+## O runner do gate trata esse erro de script como falha: este teste o provoca se a regressão voltar.
+func test_defending_over_the_persistent_channel_awaits_the_reply_without_the_async_error() -> void:
+	var transport := _transport()
+	transport.channel_replier = func(command: Dictionary) -> Dictionary:
+		var guarded := CALM.duplicate()
+		guarded["guard"] = "Block" if command.command == "block" else "Dodge"
+		guarded["guardMs"] = 600
+		return {"seq": command.seq, "ok": true, "status": 200, "body": _pose(guarded)}
+	var hud := _hud(transport)
+	hud.api.player_token = "tok"
+	hud.api.open_player_channel()
+	await hud.incarnate(7, "Ana")
+	var defended: Array = []
+	hud.defended.connect(func(kind: String): defended.append(kind))
+	await hud.dodge()
+	await hud.block()
+	eq(defended, ["Dodge", "Block"], "as duas defesas esperaram a resposta do canal")
+	hud.queue_free()
+
+
 func test_block_shows_the_guard_and_the_cooldown_in_the_frame() -> void:
 	var transport := _transport()
 	var guarded := CALM.duplicate()

@@ -36,6 +36,7 @@ var object_points: Array = [] ## [{id, level, position}] cada peça de mobília,
 var _occupants: Array = []
 var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
+var _pieces: Array = [] ## #250: [{node, bounds, xf, meshes, fade}] cada peça de mobília: o que fica entre a câmera e o corpo vira translúcido
 var _center := Vector3.ZERO
 var _span := 0.0
 var _plans: Dictionary = {} ## nível -> {célula local: material} (a planta do motor, para saber se uma célula é parede)
@@ -219,6 +220,32 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 	node.rotation.y = yaw
 	parent.add_child(node)
 	_register_point(piece_id, cell, parent)
+	_register_piece(node)
+
+
+## #250: guarda a caixa da peça (no espaço dela) e a malha para a translucidez quando ela cobre o corpo.
+func _register_piece(node: Node3D) -> void:
+	var out := AABB()
+	var first := true
+	var meshes: Array = []
+	for found in ([node] if node is GeometryInstance3D else []) + node.find_children("*", "GeometryInstance3D", true, false):
+		meshes.append(found)
+		if found is MeshInstance3D and (found as MeshInstance3D).mesh != null:
+			var box: AABB = _relative(found, node) * (found as MeshInstance3D).mesh.get_aabb()
+			out = box if first else out.merge(box)
+			first = false
+	if not first:
+		_pieces.append({"node": node, "bounds": out, "xf": _relative(node, self), "meshes": meshes, "fade": 0.0})
+
+
+## A transformada de `node` até o ancestral `root` (só Node3D no caminho).
+static func _relative(node: Node, root: Node) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var cur: Node = node
+	while cur != null and cur != root and cur is Node3D:
+		xf = (cur as Node3D).transform * xf
+		cur = cur.get_parent()
+	return xf
 
 
 func _register_point(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
@@ -255,6 +282,7 @@ func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
 	node.position = Grid.to_world(cell, size[1] / 2.0)
 	parent.add_child(node)
 	_register_point(piece_id, cell, parent)
+	_register_piece(node)
 
 
 func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
@@ -432,6 +460,7 @@ func _clear() -> void:
 	_use_slots.clear()
 	_use_points.clear()
 	_walls.clear()
+	_pieces.clear()
 	_panels.clear()
 	_plans.clear()
 	_view_dir = Vector3.ZERO
@@ -471,8 +500,8 @@ func update_ceiling(camera_y: float) -> void:
 		ceiling.visible = immersive and camera_y < ceiling.position.y
 
 
-const FADE_WALL_NEAR := 0.25 ## unidades: parede mais perto que isto da câmera some; some por inteiro e volta opaca até FADE_WALL_FAR
-const FADE_WALL_FAR := 0.7
+const FADE_WALL_NEAR := 0.5 ## unidades: parede mais perto que isto da câmera some; some por inteiro e volta opaca até FADE_WALL_FAR
+const FADE_WALL_FAR := 1.3
 const FADE_LID_NEAR := 0.9 ## forro em volta da câmera: o círculo de baixo dela some, o resto fica
 const FADE_LID_FAR := 1.8
 var _last_fade_at := Vector3(INF, INF, INF)
@@ -487,6 +516,11 @@ func update_near(camera_pos: Vector3) -> void:
 			_last_fade_at = Vector3(INF, INF, INF)
 			_last_chest = Vector3(INF, INF, INF)
 			_set_fade(_walls, 1.0)
+			for piece in _pieces:
+				piece.fade = 0.0
+				for mesh in piece.meshes:
+					if is_instance_valid(mesh):
+						(mesh as GeometryInstance3D).transparency = 0.0
 			if ceiling != null:
 				for lid in ceiling.get_children():
 					(lid as GeometryInstance3D).transparency = 0.0
@@ -511,12 +545,48 @@ func update_near(camera_pos: Vector3) -> void:
 		var fade := 1.0 - smoothstep(FADE_WALL_NEAR, FADE_WALL_FAR, closest.distance_to(at))
 		if chest != Vector3.INF and _segment_hits_box(at, chest, node.position, half):
 			fade = maxf(fade, WALL_BETWEEN) # entre a câmera e o corpo: translúcida (não some: ainda se lê a planta)
+		if chest != Vector3.INF:
+			fade = maxf(fade, WALL_BETWEEN * _camera_side(at, chest, node.position))
 		node.transparency = fade
+	_fade_pieces(at, chest)
 	if ceiling != null:
 		for lid in ceiling.get_children():
 			var node := lid as MeshInstance3D
 			var flat := Vector2(node.position.x - at.x, node.position.z - at.z).length()
 			node.transparency = 1.0 - smoothstep(FADE_LID_NEAR, FADE_LID_FAR, flat)
+
+
+const CUT_COS_FAR := -0.2 ## #250: parede do lado da câmera (cosseno do ângulo corpo→parede × corpo→câmera): a partir daqui começa a recortar
+const CUT_COS_NEAR := 0.45 ## e daqui fica inteira translúcida (o corte de cômodo do The Sims: a vista entra por cima da parede de perto)
+
+
+## 0..1: quanto a parede em `wall` está do lado da câmera `at` em relação ao corpo `chest` (no plano do chão).
+static func _camera_side(at: Vector3, chest: Vector3, wall: Vector3) -> float:
+	var to_cam := Vector2(at.x - chest.x, at.z - chest.z)
+	var to_wall := Vector2(wall.x - chest.x, wall.z - chest.z)
+	if to_cam.length() < 0.01 or to_wall.length() < 0.01:
+		return 0.0
+	return smoothstep(CUT_COS_FAR, CUT_COS_NEAR, to_cam.normalized().dot(to_wall.normalized()))
+
+
+## #250: móvel entre a câmera e o corpo (ou colado na câmera) fica translúcido como a parede; nada opaco cobre a tela.
+func _fade_pieces(at: Vector3, chest: Vector3) -> void:
+	for piece in _pieces:
+		var node: Node3D = piece.node
+		if not is_instance_valid(node):
+			continue
+		var inverse: Transform3D = (piece.xf as Transform3D).affine_inverse()
+		var box: AABB = piece.bounds
+		var local_at := inverse * at
+		var closest := Vector3(clampf(local_at.x, box.position.x, box.end.x), clampf(local_at.y, box.position.y, box.end.y), clampf(local_at.z, box.position.z, box.end.z))
+		var fade := 1.0 - smoothstep(FADE_WALL_NEAR, FADE_WALL_FAR, ((piece.xf as Transform3D) * closest).distance_to(at))
+		if chest != Vector3.INF and box.intersects_segment(local_at, inverse * chest) != null:
+			fade = maxf(fade, WALL_BETWEEN)
+		if absf(fade - float(piece.fade)) > 0.01:
+			piece.fade = fade
+			for mesh in piece.meshes:
+				if is_instance_valid(mesh):
+					(mesh as GeometryInstance3D).transparency = fade
 
 
 ## O segmento `a`→`b` cruza a caixa de centro `center` e meia-medida `half`? (teste de lajes)
