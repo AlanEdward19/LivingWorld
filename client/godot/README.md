@@ -82,7 +82,7 @@ gerados por código em `Scenes/menu/ui_sounds.gd`, no barramento Master (volume 
 | `Scenes/inspector_describe.gd`, `event_timeline.gd` | Texto e links de cada tipo de ficha; linha do tempo com Próximo e Assistir |
 | `tests/` | Testes headless (`bash scripts/client-test.sh [--filter arquivo::teste]`), com transporte falso |
 
-Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`); do menu, `--steps "menu;new;step:3;shot:…"` (`Scenes/menu/menu_steps.gd`).
+Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;quit"` (ver `Scenes/dev_steps.gd`); do menu, `--steps "menu;new;step:3;shot:…"` (`Scenes/menu/menu_steps.gd`); `menu;resume;…` (#246) Continua o mundo que a API já tem, sem recriar, e segue com passos do jogo (dois dias no mesmo mundo; termine com `unplayer`).
 
 ## Desempenho
 

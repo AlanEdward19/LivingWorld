@@ -409,9 +409,7 @@ public static class CareerWork
         if (catalog.Rules.ApplyAtEmployer && world.FineTime)
         {
             var cell = ApplyCell(world, vacancy.Employer);
-            var here = PlayerGround.PoseOf(world, npc);
-            int reachCells = Math.Max(1, (int)Math.Ceiling(catalog.Rules.ApplyReachM / Math.Max(0.1, world.Players.CellM)));
-            if (Math.Max(Math.Abs(here.X - cell.X), Math.Abs(here.Y - cell.Y)) > reachCells)
+            if (!IsAtEmployer(world, catalog, npc, vacancy.Employer))
             {
                 var begun = PlayerGo.Begin(world, ctx, npc, new PlayerGo.Target(cell, null), $"Candidatar-se: {vacancy.Career.Name}");
                 if (!begun.IsSuccess) return Result<(string, string)>.Fail(begun.Error!);
@@ -435,7 +433,7 @@ public static class CareerWork
             if (hour >= rules.ApplyOpenHour) opens += DayMs(world);
             string text = $"{vacancy.Career.Name} está fechado: entrevista marcada {When(world, opens)} para {vacancy.Entry.Title}.";
             var ledger = world.CareersLedger();
-            if (ledger.SearchOf(npc.Id.Value) is { } search) { search.PendingCareer = null; search.PendingEmployer = 0; }
+            if (ledger.SearchOf(npc.Id.Value) is { } search) { search.PendingCareer = careerId; search.PendingEmployer = workplaceId; search.InterviewAtMs = opens; } // #246: a entrevista acontece na abertura (RunInterview)
             Notify(world, ledger, catalog, nowMs, npc, "interview", text, opens, null);
             world.CareersChanged();
             return Result<(string, string)>.Ok(("later", text));
@@ -443,6 +441,36 @@ public static class CareerWork
 
         var applied = Apply(world, npc, careerId, workplaceId, nowMs);
         return applied.IsSuccess ? Result<(string, string)>.Ok((applied.Value.Hired ? "done" : "refused", applied.Value.Note)) : Result<(string, string)>.Fail(applied.Error!);
+    }
+
+    /// <summary>#246 (5º teste, AD-237): chegou a hora da entrevista marcada. Quem está no empregador faz a candidatura agora (contratado ou recusado com a chance); quem não está perde a vez e o aviso diz.</summary>
+    public static void RunInterview(WorldState world, JobSearched search, long nowMs)
+    {
+        string? careerId = search.PendingCareer;
+        long workplaceId = search.PendingEmployer;
+        search.InterviewAtMs = 0;
+        search.PendingCareer = null;
+        search.PendingEmployer = 0;
+        world.CareersChanged();
+        if (careerId is null || CatalogOf(world) is not { } catalog || world.FindNpc(new NpcId(search.Npc)) is not { IsAlive: true } npc || world.Careers?.JobOf(npc.Id.Value) is not null) return;
+        var ledger = world.CareersLedger();
+        var vacancy = Vacancies(world, npc).FirstOrDefault(v => v.Career.Id == careerId && v.Employer.Id.Value == workplaceId);
+        if (vacancy is null) { Notify(world, ledger, catalog, nowMs, npc, "rejected", "A vaga da entrevista não existe mais.", 0, null); return; }
+        if (catalog.Rules.ApplyAtEmployer && world.FineTime && !IsAtEmployer(world, catalog, npc, vacancy.Employer))
+        {
+            Notify(world, ledger, catalog, nowMs, npc, "rejected", $"Você não estava no {vacancy.Career.Name} na hora da entrevista. Procure as vagas e candidate-se de novo.", 0, null);
+            return;
+        }
+
+        Decide(world, npc, catalog, vacancy, careerId, workplaceId, nowMs);
+    }
+
+    private static bool IsAtEmployer(WorldState world, CareerCatalog catalog, Npc npc, Workplace employer)
+    {
+        var cell = ApplyCell(world, employer);
+        var here = PlayerGround.PoseOf(world, npc);
+        int reachCells = Math.Max(1, (int)Math.Ceiling(catalog.Rules.ApplyReachM / Math.Max(0.1, world.Players.CellM)));
+        return Math.Max(Math.Abs(here.X - cell.X), Math.Abs(here.Y - cell.Y)) <= reachCells;
     }
 
     /// <summary>#268: o "ir até" terminou na célula <paramref name="cell"/>: se era a candidatura guardada (o corpo chegou ao empregador), ela corre agora e o resultado vai aos avisos.</summary>

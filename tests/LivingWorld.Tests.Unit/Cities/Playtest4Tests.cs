@@ -98,6 +98,41 @@ public class Playtest4Tests
         Assert.NotNull(service);
     }
 
+    [Fact]
+    public void The_booked_interview_runs_at_the_opening_hour_by_itself_when_the_body_is_at_the_employer()
+    {
+        var (world, clock, service, marina, _) = Playing(startHour: 20);
+        CareerWork.Search(world, marina, Now(world));
+        Assert.True(service.Interact(world, "alan", "job", marina.Id.Value, ApplyVerb(world, marina)).IsSuccess);
+        for (int i = 0; i < 9000 && marina.BodyTask is not null; i++) clock.Tick(world, Fine);
+        var search = world.Careers!.SearchOf(marina.Id.Value)!;
+        Assert.True(search.InterviewAtMs > Now(world), "entrevista marcada para a abertura"); // #246 (AD-237)
+        Assert.NotNull(search.PendingCareer);
+
+        for (int i = 0; i < 16 && search.InterviewAtMs > 0; i++) clock.Tick(world, WorldMillis.PerHour); // as horas passam até a abertura: o motor roda a entrevista sozinho
+
+        Assert.Equal(0, search.InterviewAtMs);
+        Assert.Null(search.PendingCareer);
+        Assert.Contains(world.Careers.Notices, n => n.Npc == marina.Id.Value && n.Kind is "hired" or "rejected"); // o desfecho veio sem candidatar de novo
+    }
+
+    [Fact]
+    public void A_booked_interview_is_missed_with_a_notice_when_the_body_is_not_at_the_employer()
+    {
+        var (world, clock, service, marina, _) = Playing(startHour: 9);
+        clock.Tick(world, Fine);
+        CareerWork.Search(world, marina, Now(world));
+        Assert.True(service.Interact(world, "alan", "job", marina.Id.Value, ApplyVerb(world, marina)).IsSuccess); // a caminho: ainda longe
+        var search = world.Careers!.SearchOf(marina.Id.Value)!;
+        search.InterviewAtMs = Now(world);
+
+        CareerSystem.RunDue(world, Now(world));
+
+        Assert.Equal(0, search.InterviewAtMs);
+        Assert.Contains(world.Careers.Notices, n => n.Kind == "rejected" && n.Text.Contains("não estava"));
+        Assert.Null(world.Careers.JobOf(marina.Id.Value));
+    }
+
     // --- necessidade crítica e livre-arbítrio ---
 
     [Fact]
@@ -218,6 +253,22 @@ public class Playtest4Tests
         double kiss = SocialInteractions.Evaluate(world, world.ObjectCatalog.Social!, world.ObjectCatalog.Social!.Find("kiss")!, marina, rafael, later).Chance;
         Assert.True(hug < before - 60 && kiss < kissBefore - 60, $"abraço {before}→{hug}, beijo {kissBefore}→{kiss}");
         Assert.Contains("magoado", SocialInteractions.Evaluate(world, world.ObjectCatalog.Social!, world.ObjectCatalog.Social!.Find("hug")!, marina, rafael, later).Reason);
+    }
+
+    [Fact]
+    public void An_apology_with_nothing_to_apologize_for_is_unlikely_and_after_a_fight_it_is_likely() // #246 (5º teste, AD-237): desculpa sem briga rendia +4 de afeto toda vez
+    {
+        var (world, _, _, marina, rafael) = Playing(fine: false);
+        var social = world.ObjectCatalog!.Social!;
+        var apology = social.Find("apologize")!;
+        double without = SocialInteractions.Evaluate(world, social, apology, marina, rafael, Now(world)).Chance;
+
+        MoodMechanic.OnSocial(world, social.Find("argue")!, marina, rafael, accepted: true, Now(world));
+        long later = Now(world) + 30 * 3_600_000L; // um dia e pouco depois: a briga ainda vive
+        double after = SocialInteractions.Evaluate(world, social, apology, marina, rafael, later).Chance;
+
+        Assert.True(without < 25, $"sem briga: {without}");
+        Assert.True(after > without + 30, $"depois da briga: {without} -> {after}");
     }
 
     // --- beleza esperada por tipo de cômodo ---

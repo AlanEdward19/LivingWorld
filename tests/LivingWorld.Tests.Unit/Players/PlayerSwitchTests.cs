@@ -43,6 +43,35 @@ public class PlayerSwitchTests
     }
 
     [Fact]
+    public void Logout_keeps_home_and_job_when_the_scenario_says_so_and_disappears_otherwise()
+    {
+        foreach (bool keeps in new[] { true, false })
+        {
+            var arm = Village(21, new PlayerRules { LogoutKeepsLife = keeps });
+            var npc = Pick(arm.World);
+            var household = npc.Household;
+            var employer = npc.Employer;
+            var service = new PlayerService(arm.Sink);
+            Assert.True(service.Incarnate(arm.World, npc.Id, "alan", PossessionMode.Full).IsSuccess);
+
+            Assert.True(service.Logout(arm.World, "alan").IsSuccess);
+
+            Assert.Null(npc.ControllerId); // solto nos dois casos
+            if (keeps) // #246 (AD-237): sair do jogo não desfaz a vida do personagem
+            {
+                Assert.Null(npc.DisappearedAtTick);
+                Assert.Equal(household, npc.Household);
+                Assert.Equal(employer, npc.Employer);
+            }
+            else
+            {
+                Assert.NotNull(npc.DisappearedAtTick); // o sumiço de sempre (AD-196)
+                Assert.NotEqual(household, npc.Household);
+            }
+        }
+    }
+
+    [Fact]
     public void A_target_already_driven_or_the_same_body_is_refused_and_nothing_changes()
     {
         var (arm, a, b) = Pair(12);

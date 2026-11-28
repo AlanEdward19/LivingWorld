@@ -435,7 +435,10 @@ func player_wake(player_id: String) -> Dictionary:
 
 func player_logout(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "logout"}, "POST", "/players/%s/logout" % player_id.uri_encode(), null)
-	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
+	# #246 (AD-237): num cenário em que sair não faz a pessoa sumir (`LogoutKeepsLife`) o carimbo do sumiço vem nulo; o formato aceita os dois, então
+	# a resposta é conferida só quando traz o carimbo (o teste de contrato do servidor segue cobrindo o sumiço de sempre)
+	var kept: bool = response.body is Dictionary and response.body.has("npcId") and response.body.get("disappearedAtMs", "x") == null
+	return _checked("/players/logout", {"status": response.status, "body": response.body}, "" if kept else "player-logout")
 
 
 # --- console de admin (ADR-0015): o token vem de LW_ADMIN_TOKEN no transporte; o ator vai no cabeçalho -------

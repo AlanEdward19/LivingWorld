@@ -167,6 +167,31 @@ func test_logout_posts_and_shows_that_the_character_disappeared_at_the_tick() ->
 	hud.free()
 
 
+func test_logout_in_a_scenario_where_leaving_keeps_the_life_says_so_instead_of_disappeared() -> void: # #246 (AD-237)
+	var transport := _transport()
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtMs": null}})
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	await hud.logout()
+
+	eq(hud.is_active, false)
+	check("volta à rotina" in hud.status_text and not "desapareceu" in hud.status_text, hud.status_text)
+	hud.free()
+
+
+func test_the_skip_to_return_note_goes_away_when_the_skip_ends() -> void: # #246 (5º teste)
+	var hud := _hud(_transport())
+	await hud.incarnate(7, "Ana")
+	hud._set_status("Pulando até a volta do turno…")
+
+	hud.apply_time({"skipping": true, "canSkip": false})
+	eq(hud.status_text, "Pulando até a volta do turno…", "pulando: o aviso fica")
+	hud.apply_time({"skipping": false, "canSkip": true})
+	eq(hud.status_text, "", "acabou o salto: o aviso sai")
+	hud.free()
+
+
 func test_paused_world_note_only_while_controlling() -> void:
 	var hud := _hud(_transport())
 	hud.set_paused(true)

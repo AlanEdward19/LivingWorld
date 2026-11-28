@@ -68,6 +68,11 @@ public sealed class JobSearched
     /// <summary>#268: a candidatura que espera o corpo chegar ao empregador (o "ir até" do jornal): a carreira e o empregador; vazia = nenhuma.</summary>
     public string? PendingCareer { get; set; }
     public long PendingEmployer { get; set; }
+
+    /// <summary>#246 (5º teste, AD-237): o instante da entrevista marcada (a abertura do empregador, quando a candidatura veio fora do atendimento); a vaga fica em
+    /// <see cref="PendingCareer"/>/<see cref="PendingEmployer"/>. Zero = nenhuma (omitido do snapshot, o mundo de antes não muda).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public long InterviewAtMs { get; set; }
 }
 
 /// <summary>#263: o livro de carreiras e contas do mundo (esparso, ordenado por pessoa e por casa). Nulo no mundo enquanto o cenário não emprega ninguém: fora do

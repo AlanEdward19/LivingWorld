@@ -265,6 +265,12 @@ public static class PlayerCommands
         if (npc is null) return Result<Npc>.Fail($"{NotFound} jogador não controla nenhum NPC");
         PossessionWill.Release(world, npc, ctx.CurrentTick);
         PossessionContest.End(world, npc, ctx.CurrentTick); // AD-197f: o cansaço fica e recupera
+        if (world.Players.KeepsLifeOnLogout) // #246 (AD-237): o cenário diz que sair não desfaz a vida: solta o corpo como na troca (casa e emprego ficam)
+        {
+            npc.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds);
+            npc.ReleaseController();
+            return Result<Npc>.Ok(npc);
+        }
         Disappearance.Apply(world, ctx, npc, playerId);
         return Result<Npc>.Ok(npc);
     }
