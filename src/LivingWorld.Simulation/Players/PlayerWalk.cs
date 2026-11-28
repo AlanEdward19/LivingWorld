@@ -45,6 +45,9 @@ public static partial class PlayerWalk
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
+        // #255: andar interrompe o uso de objeto (e a fila): o jogador tomou o corpo de volta
+        if ((dx != 0 || dy != 0) && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) LivingWorld.Simulation.Objects.ObjectUsage.Stop(world, ctx, npc);
+        if (dx == 0 && dy == 0 && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) return Result<Unit>.Ok(Unit.Value); // soltar a tecla não para o uso: quem leva o corpo é o motor
         // #239: quem corta na mata está ocupado (o passo dura segundos; a tarefa, horas): não sai andando antes de acabar
         if ((dx != 0 || dy != 0) && (PlayerTasks.Of(world, npc) is not null || npc.StepReadyAtMs - now > PlayerInteractions.LongTaskMs))
             return Result<Unit>.Fail($"{PlayerCommands.Conflict} walk: o corpo está ocupado (faltam {npc.StepReadyAtMs - now} ms)");

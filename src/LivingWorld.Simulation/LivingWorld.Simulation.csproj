@@ -4,6 +4,11 @@
     <ProjectReference Include="..\LivingWorld.Domain\LivingWorld.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- #255: catálogos padrão de objetos, necessidades e usos como dado (scenarios/catalog), lidos em tempo de execução -->
+    <EmbeddedResource Include="..\..\scenarios\catalog\*.json" LogicalName="catalog.%(Filename).json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

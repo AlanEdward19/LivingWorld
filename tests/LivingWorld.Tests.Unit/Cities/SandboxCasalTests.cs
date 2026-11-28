@@ -164,9 +164,9 @@ public class SandboxCasalTests
 
         var objects = LivingWorld.Simulation.Players.PlayerService.Reach(world, "alan")!.Where(o => o.Kind == "object").ToList();
 
-        Assert.Contains(objects, o => o.Label == "Cama de casal" && o.Verbs.Contains("sleep"));
-        Assert.Contains(objects, o => o.Label == "Geladeira" && o.Verbs.Contains("eat"));
-        Assert.Contains(objects, o => o.Label == "Sofá" && o.Verbs.Contains("socialize"));
+        Assert.Contains(objects, o => o.Label == "Cama de casal" && o.Verbs.Contains("use:sleep")); // #255: os usos vêm do catálogo
+        Assert.Contains(objects, o => o.Label == "Geladeira" && o.Verbs.Contains("use:snack"));
+        Assert.Contains(objects, o => o.Label == "Sofá" && o.Verbs.Contains("use:relax") && o.Uses!.Any(u => u.Name == "Sentar e relaxar"));
         var bed = pieces.First(p => p.Id == "bed").Spot!.Value;
         var bedOffer = objects.Single(o => o.Label == "Cama de casal");
         Assert.Equal((origin.X + bed.Cell.X, origin.Y + bed.Cell.Y), (bedOffer.X, bedOffer.Y));

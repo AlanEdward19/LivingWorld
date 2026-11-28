@@ -100,7 +100,7 @@ public static partial class ScenarioRunner
         var water = new ResourceType(world.EconomyRules.WaterResourceId);
         foreach (var household in world.Households)
         {
-            long bootstrapUnits = 50L * household.Members.Count;
+            long bootstrapUnits = (world.EconomyRules.InitialPantryPerMember ?? 50L) * household.Members.Count;
             household.Deposit(food, bootstrapUnits);
             household.Deposit(water, bootstrapUnits);
         }

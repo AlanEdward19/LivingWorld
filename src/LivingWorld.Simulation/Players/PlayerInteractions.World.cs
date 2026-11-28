@@ -11,6 +11,7 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Crime;
 using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Invention;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
@@ -109,6 +110,19 @@ public static partial class PlayerInteractions
         for (int i = 0; i < furnishing.Count; i++)
         {
             if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
+            if (descriptor.Uses is { Count: > 0 } catalogUses)
+            {
+                // #255: os usos vêm do catálogo; cada um com o nome, os minutos e o que mais sobe. Só peças com lugar na planta (o corpo anda até elas).
+                if (i >= pieces.Count || pieces[i].Id != furnishing[i] || pieces[i].Spot is not { } placed || building.Position is not { } where) continue;
+                var spotCell = new CellCoord(where.X + placed.Cell.X, where.Y + placed.Cell.Y);
+                long ddx = spotCell.X - at.X, ddy = spotCell.Y - at.Y;
+                var offerUses = catalogUses.Select(u => new OfferUse(u.Id, u.Name, u.DurationMin, u.Effects.Where(e => e.PerHour > 0).OrderByDescending(e => e.PerHour).Select(e => e.Need).FirstOrDefault(),
+                    u.Occupies && ObjectUsage.OccupiedBy(world, here.Value, i, npc) is not null)).ToList();
+                found.Add((Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, catalogUses.Select(u => "use:" + u.Id).ToList(), spotCell) with { Uses = offerUses },
+                    ddx * ddx + ddy * ddy, i));
+                continue;
+            }
+
             var verbs = descriptor.UsePoints.Where(p => p.Action is int a && PlayerCommands.Choosable.Contains((ActionType)a)
                     && (ActionType)a != ActionType.UsePower && Objects.ObjectUse.Allows(descriptor, (ActionType)a, npc))
                 .Select(p => ((ActionType)p.Action!.Value).ToString().ToLowerInvariant()).Distinct().ToList();
@@ -123,8 +137,19 @@ public static partial class PlayerInteractions
     }
 
     /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>
-    private static Result<InteractionResult> Use(WorldState world, Npc npc, InteractionOffer offer, string verb)
+    private static Result<InteractionResult> Use(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, string verb, string requested)
     {
+        if (verb.StartsWith("use:", StringComparison.Ordinal))
+        {
+            // #255: o uso do catálogo: o corpo anda até a peça e a ação começa lá (ou entra na fila, se o corpo está ocupado)
+            string useId = verb[4..];
+            long building = offer.Id / 1000;
+            int piece = (int)(offer.Id % 1000);
+            var begun = requested.StartsWith("queue:", StringComparison.Ordinal) ? ObjectUsage.Enqueue(world, ctx, npc, building, piece, useId)
+                : ObjectUsage.Begin(world, ctx, npc, building, piece, useId);
+            return begun.IsSuccess ? Done(offer, requested, 0, 0) : Fail(begun.Error!);
+        }
+
         if (!Enum.TryParse<ActionType>(verb, ignoreCase: true, out var action)) return Fail("interact: ação desconhecida");
         var asked = PlayerCommands.Act(world, npc.Id, npc.ControllerId!, action);
         return asked.IsSuccess ? Done(offer, verb, 0, 0) : Fail(asked.Error!);

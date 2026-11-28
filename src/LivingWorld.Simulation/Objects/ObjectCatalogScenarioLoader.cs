@@ -17,6 +17,8 @@ public static class ObjectCatalogScenarioLoader
 
     public static Result<ObjectCatalog?> Load(JsonObject root)
     {
+        var extended = HomeLifeLoader.Extend(root); // #255: catálogos padrão embutidos que o cenário estende (o do cenário vence por id)
+        if (!extended.IsSuccess) return Fail(extended.Error!);
         if (root["Objects"] is null)
             return root["objectsFormat"] is null && root["Furnishings"] is null
                 ? Result<ObjectCatalog?>.Ok(null)
@@ -27,11 +29,19 @@ public static class ObjectCatalogScenarioLoader
             return Fail($"objectsFormat: versão {format} desconhecida (suportada: {ObjectCatalog.CurrentFormat})");
         if (root["Objects"] is not JsonArray array) return Fail("Objects: precisa ser uma lista");
 
+        var needs = HomeLifeLoader.ParseNeeds(root["Needs"]);
+        if (!needs.IsSuccess) return Fail(needs.Error!);
         var objects = new List<ObjectDescriptor>();
         for (int i = 0; i < array.Count; i++)
         {
             var parsed = ParseObject(array[i], $"Objects[{i}]");
             if (!parsed.IsSuccess) return Fail(parsed.Error!);
+            var uses = HomeLifeLoader.ParseUses((array[i] as JsonObject)?["uses"], $"Objects[{i}]", needs.Value);
+            if (!uses.IsSuccess) return Fail(uses.Error!);
+            if (uses.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Uses = uses.Value });
+            var inRooms = HomeLifeLoader.ParseRooms((array[i] as JsonObject)?["rooms"], $"Objects[{i}]");
+            if (!inRooms.IsSuccess) return Fail(inRooms.Error!);
+            if (inRooms.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Rooms = inRooms.Value });
             if (objects.Any(o => o.Id == parsed.Value!.Id)) return Fail($"Objects[{i}].id: '{parsed.Value!.Id}' duplicado");
             if (parsed.Value!.ResourceId is int resourceId && objects.Any(o => o.ResourceId == resourceId))
                 return Fail($"Objects[{i}].resourceId: o recurso {resourceId} já tem descritor");
@@ -58,7 +68,7 @@ public static class ObjectCatalogScenarioLoader
         }
         var rooms = ParseRooms(root["Rooms"]);
         if (!rooms.IsSuccess) return Fail(rooms.Error!);
-        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value));
+        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value, needs.Value));
     }
 
     /// <summary>#226: o bloco opcional <c>Rooms</c> ({kinds:[{id,uses:[ActionType],weight,minCells}], plans:{"default"|id[@up]:[ids]}}): os tipos de cômodo e o

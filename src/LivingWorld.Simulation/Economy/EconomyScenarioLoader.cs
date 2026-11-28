@@ -129,6 +129,12 @@ public static class EconomyScenarioLoader
                 return Result<EconomyRules>.Fail("PresenceNeedsWork: deve ser booleano");
             rules = rules with { PresenceNeedsWork = presence };
         }
+        if (root["InitialPantryPerMember"] is { } pantryNode)
+        {
+            if (!(pantryNode is JsonValue pantryValue && pantryValue.TryGetValue<long>(out long pantry) && pantry is >= 0 and <= 100_000))
+                return Result<EconomyRules>.Fail("InitialPantryPerMember: deve ser um inteiro de 0 a 100000");
+            rules = rules with { InitialPantryPerMember = pantry };
+        }
         if (root["Venture"] is { } ventureNode)
         {
             if (ventureNode is not JsonObject venture) return Result<EconomyRules>.Fail("Venture: objeto inválido");

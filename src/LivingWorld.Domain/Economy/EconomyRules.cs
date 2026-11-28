@@ -31,6 +31,11 @@ public sealed record EconomyRules(
     /// <summary>Reserva de giro que o empregador guarda antes da retirada, em meses da folha (mínimo de um salário).</summary>
     public double WorkingCapitalPayrollMonths { get; init; } = 12;
 
+    /// <summary>#255: quanto de comida e de água a despensa de cada casa recebe por morador no começo do mundo (o que sustenta até o primeiro salário). Nulo =
+    /// 50 por morador, como sempre foi; o cenário pequeno (o sandbox do casal, sem comércio ainda) declara mais para a casa durar sem criar comida do nada.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? InitialPantryPerMember { get; init; }
+
     /// <summary>AD-148 (backlog 04, E1): a produção conta só quem está trabalhando no local, não quem está lá por outro motivo
     /// (na fila do mercado que fica na fazenda). **Desligado por padrão**: com o trabalho consertado a fila caiu a 1,5% dos
     /// lavradores às 10 h, mas ligar isto levou a fome de 3,5% a 9,2% (6 seeds × 100 anos): pede recalibrar a lavoura.</summary>

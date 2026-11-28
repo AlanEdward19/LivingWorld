@@ -124,6 +124,14 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
         foreach (var npc in targets)
         {
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+            // #255: quem usa um objeto da casa (banho, vaso, TV...) fica nisso até acabar; o fim do uso o acorda, a decisão da hora não o tira dali
+            LivingWorld.Simulation.Objects.ObjectUsage.SettleDue(world, ctx, npc);
+            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action } && LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is not null)
+            {
+                if (fine) NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, null, stage);
+                else NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
             // AD-154: quem está preso num sequestro fica fora da rotina, no cativeiro (come do que o sequestrador tem)
             if (world.Crime?.Captives is not null && LivingWorld.Simulation.Crime.Kidnapping.Hold(world, npc, now))
             {
@@ -274,7 +282,13 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 // #242: quem está de folga sai; quem deixou o turno por humor, corpo ou cuidado de doente (a rotina diz trabalho) fica onde está
                 _onDuty = candidate is ActionType.Idle or ActionType.Socialize && world.StreetRules.AfterWorkOutings
                     && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
-                chosen = npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
+                // #255: sem nada urgente, quem ninguém conduz e está à toa em casa cuida das necessidades do catálogo (banho, vaso, TV) pelos usos dos objetos,
+                // antes de sair a passeio ou de se deitar (quem vai dormir passa no vaso)
+                bool cared = npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent)
+                    && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
+                    && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
+                chosen = cared ? ActionType.Idle
+                    : npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
                     ? ActionType.Idle // #222: o corpo do jogador "à toa" fica onde está (não vai à toa em casa); o jogador o conduz
                     : ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 _onDuty = false;

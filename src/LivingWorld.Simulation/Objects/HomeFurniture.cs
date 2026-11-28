@@ -65,6 +65,15 @@ public static class HomeFurniture
     private static IReadOnlySet<CellCoord>? RoomCells(FloorRooms floor, ObjectCatalog catalog, string objectId)
     {
         if (floor.Rooms.Count < 2 || catalog.Rooms is not { } roomCatalog || catalog.Find(objectId) is not { } descriptor) return null;
+        if (descriptor.Rooms is { Count: > 0 } named) // #255: o cenário diz em que cômodos a peça fica (o chuveiro no banheiro)
+        {
+            var byName = new HashSet<CellCoord>();
+            foreach (var room in floor.Rooms)
+                if (named.Contains(room.Kind))
+                    foreach (var cell in room.Cells) byName.Add(cell);
+            return byName.Count > 0 ? byName : null;
+        }
+
         var uses = descriptor.UsePoints.Where(p => p.Action is not null).Select(p => p.Action!.Value).ToHashSet();
         if (uses.Count == 0) return null;
         var cells = new HashSet<CellCoord>();

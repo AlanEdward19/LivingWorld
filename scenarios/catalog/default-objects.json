@@ -1,0 +1,427 @@
+{
+ "objectsFormat": 1,
+ "Objects": [
+  {
+   "id": "table",
+   "category": "furniture",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.8,
+      0.4,
+      0.5
+     ],
+     "offset": [
+      0.0,
+      0.2,
+      0.0
+     ],
+     "color": "8a6a43"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "eat",
+     "offset": [
+      0.0,
+      0.0,
+      0.45
+     ],
+     "facing": 180.0,
+     "action": 0,
+     "pose": "eat"
+    }
+   ]
+  },
+  {
+   "id": "bench",
+   "category": "furniture",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.7,
+      0.25,
+      0.25
+     ],
+     "offset": [
+      0.0,
+      0.125,
+      0.0
+     ],
+     "color": "7a5a38"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "sit",
+     "offset": [
+      0.0,
+      0.0,
+      0.3
+     ],
+     "facing": 180.0,
+     "action": 3,
+     "pose": "socialize"
+    }
+   ]
+  },
+  {
+   "id": "crate",
+   "category": "storage",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.4,
+      0.4,
+      0.4
+     ],
+     "offset": [
+      0.0,
+      0.2,
+      0.0
+     ],
+     "color": "a27b52"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "barrel",
+   "category": "storage",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.35,
+      0.5,
+      0.35
+     ],
+     "offset": [
+      0.0,
+      0.25,
+      0.0
+     ],
+     "color": "6b4a2b"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "counter",
+   "category": "furniture",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.9,
+      0.45,
+      0.3
+     ],
+     "offset": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "color": "5c4630"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "serve",
+     "offset": [
+      0.0,
+      0.0,
+      -0.35
+     ],
+     "facing": 0.0,
+     "action": 2,
+     "pose": "work"
+    }
+   ]
+  },
+  {
+   "id": "shelf",
+   "category": "storage",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.7,
+      0.8,
+      0.2
+     ],
+     "offset": [
+      0.0,
+      0.4,
+      0.0
+     ],
+     "color": "6f5436"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "bed",
+   "category": "bed",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.6,
+      0.2,
+      1.0
+     ],
+     "offset": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "color": "d8cfb8"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "lie",
+     "offset": [
+      0.0,
+      0.05,
+      0.0
+     ],
+     "facing": 0.0,
+     "action": 1,
+     "pose": "sleep"
+    }
+   ]
+  },
+  {
+   "id": "chest",
+   "category": "storage",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.5,
+      0.3,
+      0.3
+     ],
+     "offset": [
+      0.0,
+      0.15,
+      0.0
+     ],
+     "color": "4f3a26"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "anvil",
+   "category": "tool",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.35,
+      0.3,
+      0.2
+     ],
+     "offset": [
+      0.0,
+      0.15,
+      0.0
+     ],
+     "color": "5b6068"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "hammer",
+     "offset": [
+      0.0,
+      0.0,
+      0.3
+     ],
+     "facing": 180.0,
+     "action": 2,
+     "pose": "work"
+    }
+   ]
+  },
+  {
+   "id": "food",
+   "category": "resource",
+   "resourceId": 1,
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "sphere",
+     "size": [
+      0.1
+     ],
+     "offset": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "color": "d9b44a"
+    }
+   ],
+   "effects": [
+    "hunger:100"
+   ]
+  },
+  {
+   "id": "water",
+   "category": "resource",
+   "resourceId": 2,
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "cylinder",
+     "size": [
+      0.06,
+      0.2
+     ],
+     "offset": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "color": "4a90d9"
+    }
+   ],
+   "effects": [
+    "thirst:100"
+   ]
+  }
+ ],
+ "Furnishings": {
+  "default": [
+   "table",
+   "bench",
+   "crate"
+  ],
+  "1": [
+   "counter",
+   "shelf",
+   "crate",
+   "barrel"
+  ],
+  "2": [
+   "table",
+   "bench",
+   "barrel"
+  ],
+  "3": [
+   "bed",
+   "table",
+   "chest"
+  ],
+  "4": [
+   "anvil",
+   "shelf",
+   "barrel",
+   "crate"
+  ],
+  "10": [
+   "bed",
+   "bed",
+   "table",
+   "chest"
+  ],
+  "11": [
+   "counter",
+   "table",
+   "shelf",
+   "crate"
+  ],
+  "-1": [
+   "bed",
+   "table",
+   "bench",
+   "chest"
+  ]
+ },
+ "Rooms": {
+  "kinds": [
+   {
+    "id": "sala",
+    "uses": [
+     0,
+     3
+    ],
+    "weight": 3,
+    "minCells": 3
+   },
+   {
+    "id": "quarto",
+    "uses": [
+     1
+    ],
+    "weight": 2,
+    "minCells": 2
+   },
+   {
+    "id": "cozinha",
+    "uses": [
+     0
+    ],
+    "weight": 2,
+    "minCells": 2
+   },
+   {
+    "id": "oficina",
+    "uses": [
+     2
+    ],
+    "weight": 3,
+    "minCells": 3
+   }
+  ],
+  "plans": {
+   "default": [
+    "sala",
+    "cozinha",
+    "quarto"
+   ],
+   "default@up": [
+    "quarto"
+   ],
+   "-1": [
+    "sala",
+    "quarto"
+   ],
+   "1": [
+    "oficina",
+    "sala"
+   ],
+   "2": [
+    "sala",
+    "cozinha"
+   ],
+   "4": [
+    "oficina"
+   ],
+   "10": [
+    "sala",
+    "quarto"
+   ],
+   "11": [
+    "oficina",
+    "sala"
+   ]
+  }
+ }
+}
