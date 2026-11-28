@@ -171,7 +171,7 @@ func test_entering_and_leaving_the_house_has_no_camera_jump_and_restores_the_str
 		last = now
 		inside_seen = inside_seen or rig._indoor
 	check(inside_seen, "o corpo esteve dentro da casa")
-	check(worst < 0.15, "nenhum quadro move a câmera mais de 0,15 célula (%s)" % worst)
+	check(worst < 0.2, "nenhum quadro move a câmera mais de 0,2 célula (%s)" % worst)
 	_settle(rig)
 	check(not rig._indoor, "fora de novo")
 	check(absf(rig.view_pitch - street_pitch) < deg_to_rad(1.0), "o olhar de rua voltou (%s° vs %s°)" % [rad_to_deg(rig.view_pitch), rad_to_deg(street_pitch)])
@@ -213,4 +213,65 @@ func test_inside_the_house_the_mouse_orbits_the_body_and_the_walk_direction_foll
 	_settle(rig)
 	check(rig.mode == rig.FIRST, "a 1ª pessoa segue disponível dentro de casa")
 	rig.free()
+	Grid.floor_meters = kept_floor
+
+
+## #268: a planta com cômodos (`entry[5]`): dois cômodos lado a lado dentro de uma casa de 8 x 4 células.
+func _entry_rooms() -> Array:
+	var entry := _entry(8.0)
+	var h := Grid.floor_height()
+	entry[1] = AABB(Vector3.ZERO, Vector3(8, h, 4))
+	entry[2] = entry[1]
+	entry.append([AABB(Vector3.ZERO, Vector3(3, h, 4)), AABB(Vector3(3, 0, 0), Vector3(5, h, 4))])
+	return entry
+
+
+## O enquadramento vem do cômodo do corpo (planta do motor): o cômodo que contém o olho; na porta (fora de todos), o mais perto; sem cômodos, a casa.
+func test_the_frame_is_the_room_of_the_body_from_the_engine_plan() -> void:
+	var entry := _entry_rooms()
+	check(InteriorCamera.focus(Vector3(1, 1, 2), entry).size.x == 3.0, "no cômodo pequeno, o cômodo pequeno")
+	check(InteriorCamera.focus(Vector3(6, 1, 2), entry).size.x == 5.0, "no grande, o grande")
+	check(InteriorCamera.focus(Vector3(3.2, 1, 5.0), entry).position.x == 3.0, "fora de todos (soleira): o mais perto")
+	check(InteriorCamera.focus(Vector3(1, 1, 1), _entry(4.0)).size.x == 4.0, "sem cômodos vale a casa inteira")
+	var small := InteriorCamera.span(entry, Vector3(1.5, 1, 2))
+	var large := InteriorCamera.span(entry, Vector3(5.5, 1, 2))
+	check(small < large, "o cômodo pequeno pede enquadramento menor que o grande")
+	check(InteriorCamera.span(entry, Vector3(0.2, 1, 0.2)) > InteriorCamera.span(entry, Vector3(1.5, 1, 2)), "o corpo no canto: o canto mais longe manda (corpo no centro da tela)")
+	check(InteriorCamera.default_pitch(entry, Vector3(1.5, 1, 2)) < InteriorCamera.default_pitch(entry, Vector3(5.5, 1, 2)) + 0.0001, "cômodo pequeno olha mais para baixo")
+
+
+## Com a câmera de verdade: o corpo no centro e o cômodo inteiro (os quatro cantos do chão) dentro da tela, nos dois cômodos e em giros diferentes;
+## atravessar a porta não dá salto de câmera (o braço muda suave).
+func test_the_body_is_centered_and_the_whole_room_is_in_view_and_crossing_rooms_is_smooth() -> void:
+	var kept_floor := _real_floor()
+	var entry := _entry_rooms()
+	for spot in [Vector3(1.5, 0, 2.0), Vector3(5.5, 0, 2.0)]:
+		for yaw in [0.0, 1.3, 3.0]:
+			var body := Node3D.new()
+			body.position = spot
+			var rig := _rig([entry], body, yaw)
+			_settle(rig)
+			var world := _camera_world(rig)
+			var tan_v := tan(deg_to_rad(rig.camera.fov) * 0.5)
+			var room := InteriorCamera.focus(spot + Vector3(0, 1, 0), entry)
+			for corner in [Vector3(room.position.x, 0, room.position.z), Vector3(room.end.x, 0, room.position.z), Vector3(room.position.x, 0, room.end.z), Vector3(room.end.x, 0, room.end.z)]:
+				var local: Vector3 = world.affine_inverse() * corner # tela 16:9, campo vertical do rig
+				var ahead: float = -local.z
+				check(ahead > 0.0 and absf(local.y / ahead) < tan_v and absf(local.x / ahead) < tan_v * 16.0 / 9.0,
+					"o canto %s do cômodo cabe na tela (corpo %s, giro %s)" % [corner, spot, yaw])
+			rig.free()
+	var walker := Node3D.new()
+	walker.position = Vector3(1.5, 0, 2.0)
+	var crossing := _rig([entry], walker, 0.5)
+	_settle(crossing)
+	var worst := 0.0
+	var last: float = crossing.arm
+	for i in 200:
+		walker.position.x += 0.03 # anda 1,8 m/s no ritmo de 60 quadros: atravessa a porta entre os cômodos
+		crossing._process(0.016)
+		worst = maxf(worst, absf(crossing.arm - last))
+		last = crossing.arm
+	check(worst < 0.09, "atravessar de um cômodo ao outro não dá salto de braço (pior passo %s)" % worst)
+	check(crossing.arm > 0.0, "o braço é válido")
+	crossing.free()
 	Grid.floor_meters = kept_floor

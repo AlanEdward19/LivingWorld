@@ -1500,7 +1500,7 @@ func camera_blockers() -> Array:
 	var out: Array = []
 	if stage != null and stage.active and player_hud != null and player_hud.is_active:
 		# #227: na casa em foco contam os painéis finos dela; #249: e as cascas dos vizinhos (o mundo segue desenhado em volta)
-		out.append([-1, stage.interior_view.floor_box(), stage.interior_view.floor_box(), stage.interior_view.wall_boxes(), true])
+		out.append([-1, stage.interior_view.floor_box(), stage.interior_view.floor_box(), stage.interior_view.wall_boxes(), true, stage.interior_view.room_boxes()])
 	if world_view == null or world_view.buildings == null:
 		return out
 	var near: Vector3 = rig.target

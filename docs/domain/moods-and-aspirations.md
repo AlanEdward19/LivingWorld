@@ -56,3 +56,6 @@ Tudo em `Moods.rules`/`emotions`/`moments`, mecanismos genéricos em `MoodMechan
 `falloff` no momento (repetir o mesmo, ainda vivo, vale `falloff` do anterior), `scoreMin`/`scoreMax` na emoção (a nota acompanha a dominante: "Irritado" não convive com "Radiante"), `trigger.minShare` (fração do tempo do
 catálogo que o uso durou: comer à mesa sem fome dura um minuto e não rende momento nem desejo), `wishDailyPool` (quantos desejos valem por dia, embaralhados pelo RNG do mundo) e `wishCooldownHours`. Brigar custa
 (`argue`: -14 afeição e -9 confiança do alvo, -6/-4 de quem brigou; `apologize` devolve +4/+2) e o momento "Brigou" dura 3 dias; o peso das necessidades na nota é 4/4/2/4/4/2 e `valenceWeight` 28 (social.json).
+
+## #268 (AD-235)
+`trigger.needs` (id de momento): o momento só nasce em quem vive esse outro agora; "Fez as pazes" exige "Brigou" (pedir desculpa sem briga rende só o efeito do social).

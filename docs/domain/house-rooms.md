@@ -39,3 +39,5 @@ Código: `Domain/Cities/Buildings/` (`BuildingFootprintGenerator`, `BuildingLayo
   pegada, o fundo encostado na parede quando o móvel pede, um lado livre para usar (frente ou lados) e a casa sempre ligada à porta. Sem `Rooms` no catálogo e sem pegada, o plano de uma célula de sempre.
 - **Causa do móvel dentro da parede**: o modelo era desenhado em unidades de célula (a cama 1,2×1,4 de uma célula só), com a parede de 0,22 de espessura centrada na aresta; o motor só conhecia uma célula.
   Agora o modelo cabe na pegada menos a meia parede (`sizeM ≤ células × 1,5 m − 0,33 m`), centrado nela, e o ponto de uso (`ObjectUsage.Resolve`) parte do centro da pegada.
+
+**Câmera de dentro (#268, AD-235)**: o cliente enquadra o cômodo do corpo (`rooms` do motor): corpo no centro, quatro cantos do chão no campo de visão, parede do lado da câmera cortada.

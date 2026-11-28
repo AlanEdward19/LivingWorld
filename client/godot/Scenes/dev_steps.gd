@@ -239,7 +239,7 @@ static func run(app: Node, steps: Array) -> void:
 					if parts.size() < 2 or parts[1].to_lower() in String(line.text).to_lower():
 						picked = line
 						break
-				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | objetos: ", found.map(func(e): return String(e.text)))
+				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | usos: ", (app.player_hud.use_entries(object_entry, app.player_hud.busy.active()) if not object_entry.is_empty() else []).map(func(e): return String(e.text)), " | objetos: ", found.map(func(e): return String(e.text)))
 				if not picked.is_empty():
 					await app.player_hud.interact(picked)
 			"career": # #263: imprime o cartão do emprego (a linha do HUD), o cargo, o desempenho, as contas abertas, os avisos e as vagas, como o motor os diz na ficha
@@ -581,6 +581,15 @@ static func run(app: Node, steps: Array) -> void:
 			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
 				print("where: chão=", app.player_frame._ground, " npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
 					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
+			"rooms": # #268: os cômodos do andar como a câmera de dentro os enxerga (caixas em células) e a caixa da casa; `rooms:cam` imprime também o enquadramento do olho
+				var iv = app.stage.interior_view
+				var cell_size: float = preload("res://Scenes/grid.gd").CELL
+				var floor_cells: AABB = iv.floor_box()
+				print("rooms: casa=", Vector2(floor_cells.position.x, floor_cells.position.z) / cell_size, " tam=", Vector2(floor_cells.size.x, floor_cells.size.z) / cell_size)
+				for box: AABB in iv.room_boxes():
+					print("rooms: cômodo ", Vector2(box.position.x, box.position.z) / cell_size, " tam=", Vector2(box.size.x, box.size.z) / cell_size)
+				if arg == "cam":
+					print("rooms: braço=", snappedf(app.rig.arm, 0.01), " inclinação=", snappedf(rad_to_deg(app.rig.view_pitch), 0.1), " corpo=", app.player_hud.fine)
 			"speedinfo": # #260: a velocidade do tempo como o HUD e o motor a mostram (botões, relógio, ritmo)
 				var st: Dictionary = (await app.api.clock_status()).body
 				print("speedinfo: botões=", app.player_frame.speed_box.visible, " marcado=", app.player_frame.speed_now, " hud=", app.player_hud.speed_now(), " motor=", st.get("playerSpeed"),
@@ -1178,6 +1187,8 @@ static func run(app: Node, steps: Array) -> void:
 				for offer in ri_reach.body.get("offers", []):
 					if String(offer.get("kind", "")) == "person" and arg.to_lower() in String(offer.get("label", "")).to_lower():
 						print("relinfo: ", offer.get("label"), " ", offer.get("relation"))
+			"closemenu": # #268: fecha a roda do E (o mundo espera enquanto ela está aberta: popup hold, #240)
+				app.player_frame.close_menu()
 			"gonow": # #267: o botão "Ir agora" do turno
 				await app.player_hud.go_now()
 			"skipreturn": # #267: o botão "Pular para a volta do turno"

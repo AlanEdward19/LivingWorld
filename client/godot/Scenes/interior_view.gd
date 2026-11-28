@@ -55,6 +55,7 @@ var _view_dir := Vector3.ZERO
 var _tint: Dictionary = {} ## célula local -> cor do piso do cômodo (#226: só apresentação: o cômodo e o tipo são do motor)
 var _paint_floor: Dictionary = {} ## #264: "andar|x|y" -> cor que o morador deu ao piso (o motor diz; o cliente só pinta)
 var _paint_wall: Dictionary = {} ## #264: "andar|ax,ay,bx,by" -> cor da parede
+var _room_rects := {} ## #268: por andar, o retângulo de cada cômodo do motor em células absolutas (para a câmera do jogador enquadrar o cômodo do corpo)
 var _bounds := Rect2() ## planta do térreo em células absolutas (para a caixa da câmera do jogador)
 var _immersive_applied := false
 var immersive := false ## #227: o jogador está na casa: nada de corte de maquete, as paredes ficam na altura inteira
@@ -75,6 +76,7 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 	_labels = labels
 	floor_count = int(info.floors)
 	_read_paint(info)
+	_read_rooms(info)
 	for floor_layout in info.layout:
 		var level := int(floor_layout.level)
 		var node := Node3D.new()
@@ -411,6 +413,22 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 	parent.add_child(node)
 
 
+## #268: os cômodos de cada andar como retângulos de células absolutas (o motor diz as células; o retângulo é o que as cobre).
+func _read_rooms(info: Dictionary) -> void:
+	_room_rects = {}
+	for level in floor_count:
+		var rects: Array = []
+		for room in _rooms_of(info, level).get("rooms", []):
+			var lo := Vector2(INF, INF)
+			var hi := Vector2(-INF, -INF)
+			for cell in room.get("cells", []):
+				lo = Vector2(minf(lo.x, float(cell.x)), minf(lo.y, float(cell.y)))
+				hi = Vector2(maxf(hi.x, float(cell.x)), maxf(hi.y, float(cell.y)))
+			if lo.x <= hi.x:
+				rects.append(Rect2(Vector2(origin) + lo, hi - lo + Vector2.ONE))
+		_room_rects[level] = rects
+
+
 ## #226: o piso de cada cômodo ganha um tom pelo tipo que o motor deu (o mesmo tipo, o mesmo tom); sem cômodos, o piso de sempre.
 func _tints_of(info: Dictionary, level: int) -> Dictionary:
 	var tints := {}
@@ -586,6 +604,15 @@ func floor_box() -> AABB:
 		Vector3(_bounds.size.x * Grid.CELL, Grid.floor_height(), _bounds.size.y * Grid.CELL))
 
 
+## #268: as caixas dos cômodos do andar visível (a planta do motor: o retângulo que cobre as células de cada um), no mesmo espaço de `floor_box`.
+func room_boxes() -> Array:
+	var out: Array = []
+	var base := current_floor * Grid.floor_height()
+	for rect: Rect2 in _room_rects.get(current_floor, []):
+		out.append(AABB(Vector3(rect.position.x * Grid.CELL, base, rect.position.y * Grid.CELL), Vector3(rect.size.x * Grid.CELL, Grid.floor_height(), rect.size.y * Grid.CELL)))
+	return out
+
+
 func wall_boxes() -> Array:
 	var out: Array = []
 	var base := current_floor * Grid.floor_height()
@@ -670,7 +697,7 @@ const FADE_LID_FAR := 1.8
 const WALLS_CUT := 0 ## #260: o corte do The Sims: as paredes do lado da câmera ficam baixas (padrão)
 const WALLS_UP := 1 ## paredes inteiras (translúcidas só onde tapam o corpo)
 const WALLS_DOWN := 2 ## todas baixas
-const WALLS_LOW_SIDE := 0.5 ## no corte: a parede com `_camera_side` acima disto fica baixa
+const WALLS_LOW_SIDE := 0.25 ## #268: (era 0,5) a parede que está do lado da câmera em relação ao corpo, ponto mais perto dele, cai;  no corte: a parede com `_camera_side` acima disto fica baixa
 const WALL_MODE_TEXT := ["Paredes: cortadas do lado da câmera", "Paredes: inteiras", "Paredes: todas baixas"]
 var wall_mode := WALLS_CUT
 var _last_fade_at := Vector3(INF, INF, INF)
@@ -739,7 +766,7 @@ func update_near(camera_pos: Vector3) -> void:
 		if wall.get("lintel", false):
 			node.visible = not wall_is_low(at, chest, node.position) # a verga some onde a parede foi cortada (#260)
 			continue
-		var low := wall_is_low(at, chest, node.position)
+		var low := wall_is_low(at, chest, _nearest_on(wall, chest)) # #268: a parede comprida conta pelo ponto mais perto do corpo, não pelo centro
 		_set_wall_low(wall, low)
 		if low:
 			node.transparency = 0.0 # baixa e opaca: lê-se a planta e vê-se por cima
@@ -763,6 +790,15 @@ func update_near(camera_pos: Vector3) -> void:
 
 const CUT_COS_FAR := -0.2 ## #250: parede do lado da câmera (cosseno do ângulo corpo→parede × corpo→câmera): a partir daqui começa a recortar
 const CUT_COS_NEAR := 0.45 ## e daqui fica inteira translúcida (o corte de cômodo do The Sims: a vista entra por cima da parede de perto)
+
+
+## #268: o ponto da parede (no plano do chão) mais perto do corpo `chest`; sem corpo, o centro.
+static func _nearest_on(wall: Dictionary, chest: Vector3) -> Vector3:
+	var node: MeshInstance3D = wall.node
+	if chest == Vector3.INF:
+		return node.position
+	var half: Vector3 = (wall.mesh as BoxMesh).size * 0.5
+	return Vector3(clampf(chest.x, node.position.x - half.x, node.position.x + half.x), node.position.y, clampf(chest.z, node.position.z - half.z, node.position.z + half.z))
 
 
 ## 0..1: quanto a parede em `wall` está do lado da câmera `at` em relação ao corpo `chest` (no plano do chão).
