@@ -817,6 +817,13 @@ var _glide_from := Vector3.ZERO
 var _glide_anchor: Node3D = null
 
 
+## #263: o corpo conduzido saiu para o turno (fora do mapa) ou voltou: a figura some e volta (o motor a tira das telas; o corpo do jogador o app guarda de propósito, #249).
+func _on_player_away(away: bool, id: int) -> void:
+	for actor in [world_view.npc_nodes.get(id), stage.interior_view.occupant_nodes.get(id) if stage != null else null]:
+		if actor != null and is_instance_valid(actor):
+			actor.visible = not away
+
+
 func _on_player_switched(old_id: int, new_id: int) -> void:
 	clock_panel.refresh() # #256: o ritmo do relógio é relido na hora da troca
 	_switch_frame_left = SWITCH_GLIDE_S + SWITCH_FRAME_HOLD_S # #261: a troca enquadra o interior de cima (parede cortada) até o corpo novo assentar: nunca atrás de parede
@@ -835,6 +842,8 @@ func _on_player_switched(old_id: int, new_id: int) -> void:
 		old_node.driven = false
 		old_node.set_self(false)
 		old_node.set_first_person(false)
+		if not old_node.visible: # #263: o corpo de antes estava no turno de trabalho (fora do mapa): a figura some de vez; o motor a traz de volta à soleira no fim do turno
+			world_view.npcs.on_removed(old_id)
 	selected_npc = new_id
 	if rig.mode == rig.ISO or _glide_from == Vector3.ZERO:
 		await _drive(new_id)

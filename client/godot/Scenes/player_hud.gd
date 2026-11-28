@@ -10,6 +10,7 @@ const SocialMenu := preload("res://Scenes/social_menu.gd")
 const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
+signal body_away(away: bool, id: int) ## #263: o corpo conduzido saiu para o turno de trabalho (fora do mapa) ou voltou: o app esconde ou mostra a figura
 signal switched(old_id: int, new_id: int) ## #252: trocou de corpo (o motor soltou o de antes sem sumir): o app solta a figura e a câmera desliza
 signal warning(text: String)
 ## AD-197d: previsão e correção do passo (o cliente anda já e corrige pela posição do motor), a conversa aberta pelo motor.
@@ -864,8 +865,10 @@ func _note_career(view: Variant) -> void:
 	_career_primed = true
 	var job = view.get("job")
 	var away: bool = job is Dictionary and bool(job.get("away", false))
-	if away and not _career_away and was_primed:
-		switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa
+	if away != _career_away:
+		body_away.emit(away, npc_id) # o app esconde a figura enquanto o motor a tem fora do mapa (ela volta à soleira)
+		if away and was_primed:
+			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
 	_career_away = away
 
 

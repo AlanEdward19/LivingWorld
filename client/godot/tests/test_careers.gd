@@ -123,3 +123,21 @@ func test_notices_warn_once_and_the_first_read_only_learns() -> void:
 	hud._note_career(second)
 	eq(said.size(), 2, "nada se repete")
 	hud.free()
+
+
+func test_the_body_leaving_for_the_shift_asks_the_app_to_hide_the_figure_and_back() -> void:
+	var hud := PlayerHud.new()
+	hud.npc_id = 7
+	var calls: Array = []
+	hud.body_away.connect(func(away: bool, id: int): calls.append([away, id]))
+	hud._note_career({"job": JOB, "notices": []})
+	eq(calls.size(), 0, "em casa, nada muda")
+	var away_job := JOB.duplicate(true)
+	away_job.away = true
+	hud._note_career({"job": away_job, "notices": []})
+	eq(calls, [[true, 7]], "saiu: a figura some")
+	hud._note_career({"job": away_job, "notices": []})
+	eq(calls.size(), 1, "só na mudança")
+	hud._note_career({"job": JOB, "notices": []})
+	eq(calls, [[true, 7], [false, 7]], "voltou: a figura volta")
+	hud.free()
