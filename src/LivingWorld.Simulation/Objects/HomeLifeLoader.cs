@@ -122,6 +122,9 @@ public static class HomeLifeLoader
         return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs) : null);
     }
 
+    /// <summary>#258: os <c>toggle</c> que o motor entende (liga e desliga a luz do objeto).</summary>
+    public static readonly IReadOnlyList<string> ToggleKinds = [ObjectToggles.LightOn, ObjectToggles.LightOff];
+
     /// <summary>O <c>uses</c> de um objeto: <c>[{id, name, durationMin, effects:[{need, perHour}], consumes?:[{resource, quantity}], pose?, poseFallback?,
     /// slot?:[x,z], facing?, action?, untilFull?, occupies?, hidden?}]</c>. <paramref name="needs"/> valida os ids das necessidades citadas.</summary>
     public static Result<IReadOnlyList<ObjectUseDef>?> ParseUses(JsonNode? node, string at, NeedCatalog? needs)
@@ -185,9 +188,24 @@ public static class HomeLifeLoader
 
             bool occupies = true;
             if (o["occupies"] is not null && !(o["occupies"] is JsonValue ov && ov.TryGetValue(out occupies))) return Fail($"{path}.occupies: verdadeiro ou falso");
-            if (effects.Count == 0 && action is null && consumes is null) return Fail($"{path}: sem effects, consumes nem action, o uso não faz nada");
+            List<UseConsume>? produces = null;
+            if (o["produces"] is not null)
+            {
+                if (o["produces"] is not JsonArray plist) return Fail($"{path}.produces: precisa ser uma lista");
+                produces = [];
+                for (int c = 0; c < plist.Count; c++)
+                {
+                    if (plist[c] is not JsonObject po || !Number(po["resource"], out var presource) || presource < 1 || !Number(po["quantity"], out var pquantity) || pquantity < 1)
+                        return Fail($"{path}.produces[{c}]: {{resource, quantity}} inteiros maiores que 0");
+                    produces.Add(new UseConsume((int)presource, (long)pquantity));
+                }
+            }
+
+            string? toggle = null;
+            if (o["toggle"] is not null && (!Text(o["toggle"], out toggle) || !ToggleKinds.Contains(toggle))) return Fail($"{path}.toggle: use {string.Join("|", ToggleKinds)}");
+            if (effects.Count == 0 && action is null && consumes is null && produces is null && toggle is null) return Fail($"{path}: sem effects, consumes, produces, toggle nem action, o uso não faz nada");
             bool hidden = o["hidden"] is JsonValue hv && hv.TryGetValue(out bool h) && h;
-            uses.Add(new ObjectUseDef(id, name, (int)minutes, effects, consumes, pose, slot, facing, action, untilFull, occupies, fallback, hidden));
+            uses.Add(new ObjectUseDef(id, name, (int)minutes, effects, consumes, pose, slot, facing, action, untilFull, occupies, fallback, hidden, produces, toggle));
         }
 
         return Result<IReadOnlyList<ObjectUseDef>?>.Ok(uses.Count > 0 ? uses : null);

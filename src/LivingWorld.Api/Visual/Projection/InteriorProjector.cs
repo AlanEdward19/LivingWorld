@@ -32,7 +32,8 @@ public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTy
 public sealed record PlacedObject(string Id, int Variation,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Floor = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CellCoord? Cell = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Facing = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Facing = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Lit = null);
 
 /// <summary>Objetos do interior (#47 fatia 1): o catálogo do cenário e a mobília do tipo do prédio, em ordem. Ausente = mundo sem <c>Objects</c>
 /// (o cliente cai no <c>assets.json</c>).</summary>
@@ -85,6 +86,10 @@ public static class InteriorProjector
             : null;
     }
 
+    /// <summary>#258: as peças (índice na mobília) com a luz ligada neste prédio, em ordem; vazio sem nenhuma.</summary>
+    public static IReadOnlyList<int> LitPieces(WorldState world, BuildingId buildingId) =>
+        world.Lights is not { } ledger ? [] : ledger.On.Where(l => l.Building == buildingId.Value).Select(l => l.Piece).OrderBy(p => p).ToArray();
+
     /// <summary>#255: o id do uso do catálogo em curso (o cliente acha a pose e o lugar no descritor); nulo fora de um uso.</summary>
     private static string? UsingUseOf(Npc npc) =>
         npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action, Use: { } use } ? use : null;
@@ -100,8 +105,8 @@ public static class InteriorProjector
         int lodgingBeds = world.CityCatalog.BuildingRecipes.TryGetValue(building.BuildingTypeId, out var recipe) && recipe.Lodging is not null
             ? LivingWorld.Simulation.Cities.DwellingCapacity.Of(world, building) : 0;
         var furniture = LivingWorld.Simulation.Objects.HomeFurniture.Of(building, catalog, lodgingBeds)
-            .Select(piece => piece.Spot is { } spot
-                ? new PlacedObject(piece.Id, piece.Variation, spot.Floor, spot.Cell, spot.Facing)
+            .Select((piece, i) => piece.Spot is { } spot
+                ? new PlacedObject(piece.Id, piece.Variation, spot.Floor, spot.Cell, spot.Facing, world.LightIsOn(building.Id.Value, i) ? true : null) // #258: a luz ligada, como o motor a guarda
                 : new PlacedObject(piece.Id, piece.Variation))
             .ToArray();
         return new InteriorObjects(catalog.Format, catalog.Objects, furniture);

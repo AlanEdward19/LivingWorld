@@ -487,6 +487,9 @@ public static partial class SocialInteractions
     {
         ApplySide(world, effects.Actor, actor, target, fraction, nowMs);
         ApplySide(world, effects.Target, target, actor, fraction, nowMs);
+        // #258: o estado de cada um (higiene baixa) pesa no laço de quem convive com ele, também entre NPCs
+        HomeLife.WeighBond(world, actor, target, nowMs);
+        HomeLife.WeighBond(world, target, actor, nowMs);
     }
 
     private static void ApplySide(WorldState world, SocialSide side, Npc who, Npc other, double fraction, long nowMs)

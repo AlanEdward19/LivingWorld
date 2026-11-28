@@ -106,7 +106,14 @@ public static class AuthoredHouseholdsLoader
         foreach (var (label, index) in new[] { ("Spouse", spouse), ("Mother", mother), ("Father", father) })
             if (index is { } i && (i < 0 || i >= memberCount))
                 return Result<AuthoredPerson>.Fail($"{at}.{label}: índice {i} não existe na família");
-        return Result<AuthoredPerson>.Ok(new AuthoredPerson(name, sex, age, profession, personality, spouse, mother, father, appearance, skills));
+        int? workplace = null;
+        if (o["Workplace"] is not null)
+        {
+            if (o["Workplace"] is not JsonValue wv || !wv.TryGetValue(out int w) || w < 0) return Result<AuthoredPerson>.Fail($"{at}.Workplace: índice (0 ou mais) em Workplaces[]");
+            workplace = w;
+        }
+
+        return Result<AuthoredPerson>.Ok(new AuthoredPerson(name, sex, age, profession, personality, spouse, mother, father, appearance, skills, workplace));
     }
 
     private static string? ValidateLinks(List<AuthoredPerson> members, string at)

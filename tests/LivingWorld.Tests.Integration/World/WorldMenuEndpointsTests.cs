@@ -53,7 +53,7 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
         var detail = (await client.GetFromJsonAsync<PeriodDetailResponse>("/periods/sandbox-casal", Web))!;
         Assert.True(detail.Card.QuickStart);
         Assert.Equal("Sandbox: casal", detail.Card.Name);
-        Assert.Equal(2, detail.Card.InitialPopulation);
+        Assert.Equal(3, detail.Card.InitialPopulation); // o casal e Seu Joaquim, o comerciante do mercado (#258)
         var definition = JsonNode.Parse(detail.PeriodDefinition.GetRawText())!.AsObject();
         definition["Seed"] = 90210; // a semente nova a cada criação, como o botão do menu faz
 
@@ -61,10 +61,11 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
 
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
         var world = _factory.Services.GetRequiredService<WorldHost>().Current;
-        Assert.Equal(2, world.Npcs.Count);
+        Assert.Equal(3, world.Npcs.Count);
         Assert.Equal(world.Npcs[0].Spouse, world.Npcs[1].Id);
-        var house = Assert.Single(world.Buildings);
-        Assert.Equal(new LivingWorld.Domain.Cities.Buildings.BuildingShape(7, 6, 1), house.Shape);
+        Assert.Equal(3, world.Buildings.Count); // o mercado e as duas casas
+        Assert.All(world.Buildings.Where(b => b.BuildingTypeId == -1), house => Assert.Equal(new LivingWorld.Domain.Cities.Buildings.BuildingShape(7, 6, 1), house.Shape));
+        Assert.Single(world.Workplaces);
         Assert.Equal("sandbox-casal", world.PeriodId);
     }
 

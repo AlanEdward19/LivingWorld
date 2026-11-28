@@ -342,6 +342,8 @@ public sealed partial class PlayerCommandGateway(
                 trees = LivingWorld.Simulation.Players.PlayerNature.Touched(world)
                     .Select(t => new { x = t.Cell.X, y = t.Cell.Y, left = t.Left, capacity = t.Capacity, stage = LivingWorld.Simulation.Players.PlayerNature.StageOf(t.Left, t.Capacity) })
                     .ToList(),
+                // #258: onde o cenário não tem árvore (quintal limpo, rua e calçada): o cliente não as desenha ali
+                clear = LivingWorld.Simulation.Players.PlayerNature.Clear(world).Select(z => new { x = z.X, y = z.Y, w = z.Width, h = z.Height }).ToList(),
             };
         }
     }

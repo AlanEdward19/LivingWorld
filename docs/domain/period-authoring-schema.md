@@ -57,7 +57,7 @@ os blocos abaixo vêm no mesmo nível (raiz do objeto), exceto onde indicado.
 | `Recipes` | objeto `{ "locationTypeId": { Inputs, Outputs, MaxWorkersPerCycle, RequiresCellResource? } }` | sim |
 | `MarketLocationTypeIds` | int[] | sim |
 | `LocationTypeByProfession` | objeto `{ "professionId": locationTypeId }` | sim |
-| `Workplaces[]` | array de `{ LocationTypeId, X, Y, MaxVacancies, Treasury, Stock, Prices }` | sim |
+| `Workplaces[]` | array de `{ LocationTypeId, X, Y, Orientation?, MaxVacancies, Treasury, Stock, Prices }` (`Orientation` 0/90/180/270: para onde a porta olha, #258) | sim |
 
 `EconomyEnabled: false` ainda exige todos os campos acima presentes (objetos/arrays vazios
 quando não há dado) — o bloco inteiro é obrigatório, só o comportamento em runtime muda.

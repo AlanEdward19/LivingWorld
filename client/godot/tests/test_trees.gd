@@ -181,4 +181,4 @@ func test_the_world_trees_shape_is_in_the_contract() -> void:
 	var shape = Validator.load_shape("world-trees")
 	check(shape != null, "o contrato world-trees existe")
 	if shape != null:
-		eq(Validator.validate({"trees": []}, shape), [], "a resposta vazia vale")
+		eq(Validator.validate({"trees": [], "clear": []}, shape), [], "a resposta vazia vale (#258: com as zonas sem árvore)")

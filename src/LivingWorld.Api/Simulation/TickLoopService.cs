@@ -30,6 +30,7 @@ public sealed class TickLoopService(
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
     private ScopeProjectionFrame? _lastFrame; // AD-172: o NPC que não mudou reaproveita o registro do tick anterior
     private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
+    private readonly Dictionary<string, string> _lastLights = new(); // #258: as luzes ligadas de cada casa assinada (chave = índices), para só publicar quando mudam
     private CancellationTokenSource? _cts;
     private long _cycles;
     private Task? _loopTask;
@@ -122,6 +123,7 @@ public sealed class TickLoopService(
         if (subscribed.Count == 0) // sem assinante, nenhuma projeção (AD-170: custo por NPC-tick igual)
         {
             _lastInteriors.Clear();
+            _lastLights.Clear();
             _lastStates.Clear();
             _lastFrame = null;
             return;
@@ -154,7 +156,10 @@ public sealed class TickLoopService(
         if (frame is not null) _lastFrame = frame;
         if (_lastInteriors.Count > 0)
             foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
+            {
                 _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova
+                _lastLights.Remove(gone);
+            }
         if (_lastStates.Count > 0)
             foreach (var gone in _lastStates.Keys.Where(key => !subscribed.Contains(key)).ToList())
                 _lastStates.Remove(gone); // AD-172: idem para Cidade e Mundo (a base velha daria avanço de processo errado)
@@ -170,7 +175,11 @@ public sealed class TickLoopService(
         var before = _lastInteriors.TryGetValue(scopeKey, out var previous) ? previous : [];
         _lastInteriors[scopeKey] = built;
         var diff = InteriorOccupancyDiffer.Diff(before, built);
-        var delta = new InteriorTickDelta(tick, new BuildingId(id), diff.Entered, diff.Moved, diff.ChangedFloor, diff.Exited);
+        var lit = InteriorProjector.LitPieces(world, new BuildingId(id));
+        string litKey = string.Join(',', lit);
+        bool litChanged = litKey != (_lastLights.TryGetValue(scopeKey, out var lastLit) ? lastLit : "");
+        _lastLights[scopeKey] = litKey;
+        var delta = new InteriorTickDelta(tick, new BuildingId(id), diff.Entered, diff.Moved, diff.ChangedFloor, diff.Exited, litChanged ? lit : null);
         if (!delta.IsEmpty)
             gateway.Publish(new VisualScope(VisualScopeKind.Interior, id.ToString()), delta);
     }

@@ -295,9 +295,7 @@ public static partial class PlayerInteractions
             relationship.MarkContact(hours);
         }
         // #255: quem está com higiene baixa (ou outra necessidade do catálogo com peso nos laços) piora a conversa: o laço de quem ouve cai
-        if (HomeLife.BondPenalty(world, npc, world.CurrentDate.TotalMilliseconds) is var penalty and < 0
-            && world.Relationships.TryGetValue(new RelationshipKey(other.Id, npc.Id), out var heard))
-            heard.Shift(RelationshipAxis.Affection, penalty);
+        HomeLife.WeighBond(world, npc, other, world.CurrentDate.TotalMilliseconds);
         PlayerCommands.WakeNow(world, other);
         return Done(offer, "talk", 0, 0);
     }

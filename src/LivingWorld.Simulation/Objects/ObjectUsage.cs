@@ -187,7 +187,18 @@ public static class ObjectUsage
         if (Shortage(world, npc, use) is not null) { Finish(world, ctx, npc, now, startNext: true); return Result<Unit>.Fail($"{PlayerCommands.Conflict} use: falta o que gastar"); }
         if (use.Consumes is { } consumes && npc.Household is { } h && world.FindHousehold(h) is { } household)
             foreach (var c in consumes)
+            {
                 household.Withdraw(new ResourceType(c.Resource), c.Quantity);
+                if (use.Produces is not null) world.RecordResourceConsumed(new ResourceType(c.Resource), c.Quantity); // #258: o que o fogão transforma sai da conta da comida
+            }
+        if (use.Toggle is { } toggle)
+        {
+            // #258: ligar ou desligar a luz do objeto: o estado é do motor, a ação é instantânea (o corpo já está ao lado da peça)
+            world.SetLight(target.Building.Id.Value, target.Piece, toggle == ObjectToggles.LightOn);
+            Finish(world, ctx, npc, now, startNext: true);
+            return Result<Unit>.Ok(Unit.Value);
+        }
+
         if (use.Action is { } action)
         {
             // dormir, comer à mesa: o corpo está no lugar; a ação do motor assume (a mesma de sempre, com a duração e o efeito dela)
@@ -228,6 +239,7 @@ public static class ObjectUsage
         Apply(world, npc, target.Use, task.LastMs, to);
         if (now >= task.UntilMs)
         {
+            Produce(world, npc, target.Use); // #258: o preparo terminou de verdade: o que o fogão fez chega à despensa
             Finish(world, ctx, npc, now, startNext: true);
             return;
         }
@@ -235,6 +247,17 @@ public static class ObjectUsage
         npc.SetBodyTask(task with { LastMs = to });
         ctx.ScheduleEventAtMs(Math.Min(task.UntilMs, now + Math.Clamp((task.UntilMs - task.StartedAtMs) / 12, SliceMinMs, SliceMaxMs)),
             BodyTaskSystem.SystemName, Payload(npc, task.StartedAtMs));
+    }
+
+    /// <summary>#258: põe na despensa da casa o que o uso produz (a refeição que saiu do fogão). Só no fim natural: interromper o preparo o perde.</summary>
+    private static void Produce(WorldState world, Npc npc, ObjectUseDef use)
+    {
+        if (use.Produces is not { Count: > 0 } produces || npc.Household is not { } h || world.FindHousehold(h) is not { } household) return;
+        foreach (var p in produces)
+        {
+            household.Deposit(new ResourceType(p.Resource), p.Quantity);
+            world.RecordResourceProduced(new ResourceType(p.Resource), p.Quantity);
+        }
     }
 
     private static void Apply(WorldState world, Npc npc, ObjectUseDef use, long fromMs, long toMs)

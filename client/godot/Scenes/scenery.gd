@@ -17,6 +17,8 @@ var _trunk_raw: Array = [] ## #243: o tronco de cada árvore sem a elevação (p
 var _tree_index: Dictionary = {} ## célula -> índice da árvore nas malhas (as que o cliente desenha pela regra do motor)
 var _crown_factor: PackedFloat32Array = PackedFloat32Array() ## #243: quanto da copa resta (1 inteira, 0 sem copa), do estado do motor
 var _stage_of: Dictionary = {} ## índice -> "cut" | "stump" aplicados agora
+var clear_zones: Array = [] ## #258: onde o motor diz que não há árvore (quintal limpo, rua e calçada): [{x, y, w, h}]
+var _hidden: Dictionary = {} ## índice da árvore -> true: a árvore que a regra do cliente poria mas o motor não aceita (em zona limpa)
 var trees_state: Array = [] ## #243: o que o motor diz das árvores tocadas ({x, y, left, capacity, stage}), reaplicado quando o terreno se refaz
 
 const WATER_SHADER := """
@@ -54,6 +56,7 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 	var crowns: Array = []
 	_tree_index = {}
 	_stage_of = {}
+	_hidden = {}
 	var rocks: Array = []
 	var water: Array = []
 	for cell in terrain:
@@ -88,6 +91,7 @@ func build(terrain: Dictionary, rivers: Dictionary, cities: Array) -> void:
 	crown_scale = 1.0 # a malha nova nasce cheia
 	_multi("Rocks", _rock(), Color("8d9199"), rocks, [], 0.0)
 	_water(water)
+	apply_clear(clear_zones) # #258: e a que o motor não aceita (zona limpa) segue escondida
 	apply_trees(trees_state) # #243: o terreno refeito volta a mostrar as árvores cortadas
 
 
@@ -124,8 +128,8 @@ func apply_trees(list: Array) -> void:
 		if not tree is Dictionary:
 			continue
 		var cell := Vector2i(int(tree.get("x", 0)), int(tree.get("y", 0)))
-		if not _tree_index.has(cell):
-			continue # a regra do cliente não põe árvore aqui: nada a mudar
+		if not _tree_index.has(cell) or _hidden.has(int(_tree_index[cell])):
+			continue # a regra do cliente não põe árvore aqui (ou o motor a tirou): nada a mudar
 		wanted[int(_tree_index[cell])] = tree
 	for i in _stage_of.keys():
 		if not wanted.has(i):
@@ -149,6 +153,40 @@ func apply_trees(list: Array) -> void:
 			_place_trunk(trunks.multimesh, i, stage == "stump")
 
 
+## #258: as zonas sem árvore que o motor diz (`GET /world/trees`: `clear`). A árvore que a regra do cliente poria dentro de uma zona some (copa e tronco); a que
+## deixou de estar numa zona volta. Sem zonas, nada a fazer: o mundo de antes não paga nada.
+func apply_clear(zones: Array) -> void:
+	clear_zones = zones
+	var crowns := get_node_or_null("Crowns") as MultiMeshInstance3D
+	var trunks := get_node_or_null("Trunks") as MultiMeshInstance3D
+	var want: Dictionary = {}
+	if not zones.is_empty():
+		for cell in _tree_index:
+			for zone in zones:
+				if zone is Dictionary and cell.x >= int(zone.get("x", 0)) and cell.x < int(zone.get("x", 0)) + int(zone.get("w", 0)) \
+						and cell.y >= int(zone.get("y", 0)) and cell.y < int(zone.get("y", 0)) + int(zone.get("h", 0)):
+					want[int(_tree_index[cell])] = true
+					break
+	for i in _hidden.keys():
+		if not want.has(i):
+			_hidden.erase(i)
+			_restore_tree(i, crowns, trunks)
+	for i in want:
+		if _hidden.has(i):
+			continue
+		_hidden[i] = true
+		_crown_factor[i] = 0.0
+		if crowns != null:
+			_place_crown(crowns.multimesh, i)
+		if trunks != null:
+			_place_trunk(trunks.multimesh, i, false)
+
+
+## Quantas árvores da regra do cliente o motor deixou de aceitar (zona limpa) (testável).
+func hidden_count() -> int:
+	return _hidden.size()
+
+
 func _restore_tree(i: int, crowns: MultiMeshInstance3D, trunks: MultiMeshInstance3D) -> void:
 	_crown_factor[i] = 1.0
 	_stage_of.erase(i)
@@ -160,7 +198,9 @@ func _restore_tree(i: int, crowns: MultiMeshInstance3D, trunks: MultiMeshInstanc
 
 func _place_trunk(multi: MultiMesh, i: int, stump: bool) -> void:
 	var xf: Transform3D = _trunk_raw[i]
-	if stump:
+	if _hidden.has(i):
+		xf.basis = xf.basis.scaled(Vector3.ONE * 0.0001) # #258: o motor não aceita árvore aqui
+	elif stump:
 		xf.basis = xf.basis.scaled(Vector3(1.0, STUMP_HEIGHT, 1.0))
 	xf.origin.y += TRUNK_LIFT * xf.basis.y.y
 	multi.set_instance_transform(i, xf)
@@ -170,6 +210,8 @@ func _place_trunk(multi: MultiMesh, i: int, stump: bool) -> void:
 func stage_at(cell: Vector2i) -> String:
 	if not _tree_index.has(cell):
 		return ""
+	if _hidden.has(int(_tree_index[cell])):
+		return "cleared"
 	return String(_stage_of.get(int(_tree_index[cell]), "whole"))
 
 

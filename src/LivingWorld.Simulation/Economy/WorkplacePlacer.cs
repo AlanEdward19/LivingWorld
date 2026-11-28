@@ -31,7 +31,7 @@ public static class WorkplacePlacer
         var city = NearestCity(world.ActiveCities(), workplace.Location);
         int buildingTypeId = workplace.LocationType.Id;
         var candidateId = new BuildingId(world.NextBuildingId);
-        var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: 0)
+        var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: workplace.Orientation)
             .Select(cell => cell.Cell)
             .ToList();
         long cityPopulation = CityPopulationQuery.Population(world, city.Id);
@@ -45,7 +45,7 @@ public static class WorkplacePlacer
         if (CityOccupancy.IsFree(world, city, bounds, authoredFootprint, candidateId))
         {
             position = workplace.Location;
-            orientation = 0;
+            orientation = workplace.Orientation; // #258: a porta para onde o cenário pediu
         }
         else
         {

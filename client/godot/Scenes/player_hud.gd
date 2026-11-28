@@ -1668,7 +1668,7 @@ func interact(entry: Dictionary) -> void:
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
-		if String(response.body.get("outcome", "")) == "refused": # #259: a pessoa recusou: a frase e o motivo vêm do motor
+		if _text_of(response.body.get("outcome")) == "refused": # #259 (#258: o `outcome` vem nulo nas trocas de banca: String(null) quebrava a compra): a pessoa recusou: a frase e o motivo vêm do motor
 			if pose is Dictionary and pose.get("social") is Dictionary:
 				_social_primed = true
 				_social_seen = maxi(_social_seen, int(pose.social.get("atMs", 0))) # o fato já foi dito aqui; a leitura da ficha não o repete
@@ -1687,9 +1687,14 @@ func interact(entry: Dictionary) -> void:
 		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou (erro %d)." % response.status)
 
 
+## #258: o texto de um campo que pode vir nulo do motor ("" se nulo).
+static func _text_of(value: Variant) -> String:
+	return "" if value == null else String(value)
+
+
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
 static func done_text(entry: Dictionary, body: Dictionary) -> String:
-	if String(body.get("outcome", "")) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo
+	if _text_of(body.get("outcome")) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo
 		return "✓ " + String(body.note)
 	var text := String(entry.get("text", "")).get_slice(" (", 0)
 	var quantity := int(body.get("quantity", 0)) if body.get("quantity") != null else 0

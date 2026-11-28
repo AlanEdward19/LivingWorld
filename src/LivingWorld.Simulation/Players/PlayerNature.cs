@@ -28,6 +28,13 @@ internal static class PlayerNature
     {
         public long Hour = -1;
         public List<CityBounds> Cities = [];
+        public List<ClearZone> Clear = [];
+    }
+
+    /// <summary>#258: um retângulo de células sem árvore (quintal limpo em volta dos prédios, rua e calçada): origem e tamanho.</summary>
+    public readonly record struct ClearZone(int X, int Y, int Width, int Height)
+    {
+        public bool Contains(CellCoord cell) => cell.X >= X && cell.X < X + Width && cell.Y >= Y && cell.Y < Y + Height;
     }
 
     private static readonly ConditionalWeakTable<WorldState, Cache> Caches = new();
@@ -51,6 +58,8 @@ internal static class PlayerNature
         foreach (var b in Known(world).Cities)
             if (coord.X >= b.Origin.X - 1 && coord.X <= b.Origin.X + b.Width && coord.Y >= b.Origin.Y - 1 && coord.Y <= b.Origin.Y + b.Height) return null;
         if (PlayerGround.At(world, coord) is not null) return null;
+        foreach (var zone in Known(world).Clear)
+            if (zone.Contains(coord)) return null; // #258: quintal limpo, rua e calçada: o cenário os declara
         long x = coord.X * (long)FinePose.PerCell + FinePose.PerCell / 2 + (long)Math.Round((CellHash(coord, 1) - 0.5) * 0.6 * FinePose.PerCell);
         long y = coord.Y * (long)FinePose.PerCell + FinePose.PerCell / 2 + (long)Math.Round((CellHash(coord, 2) - 0.5) * 0.6 * FinePose.PerCell);
         return new Tree(coord, x, y);
@@ -185,6 +194,45 @@ internal static class PlayerNature
         foreach (var city in world.ActiveCities())
             cache.Cities.Add(LivingWorld.Simulation.Cities.CityOccupancy
                 .ResolveGrownBounds(world, city, LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, city.Id)).Bounds);
+        cache.Clear = ComputeClear(world);
         return cache;
     }
+
+    /// <summary>#258: onde o cenário diz que não há árvore: o entorno de cada prédio (a caixa da planta mais <c>ClearAroundBuildingsCells</c>) e as células com
+    /// calçamento (rua e calçada), em faixas por linha. Vazio sem a regra: o mundo de antes não paga nada.</summary>
+    private static List<ClearZone> ComputeClear(WorldState world)
+    {
+        var rules = world.StreetRules;
+        var zones = new List<ClearZone>();
+        if (rules.ClearAroundBuildingsCells <= 0) return zones;
+        int margin = rules.ClearAroundBuildingsCells;
+        foreach (var building in world.Buildings)
+        {
+            if (building.Position is not { } origin) continue;
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+            foreach (var cell in LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building))
+            {
+                minX = Math.Min(minX, cell.Cell.X); maxX = Math.Max(maxX, cell.Cell.X);
+                minY = Math.Min(minY, cell.Cell.Y); maxY = Math.Max(maxY, cell.Cell.Y);
+            }
+            if (minX == int.MaxValue) continue;
+            zones.Add(new ClearZone(origin.X + minX - margin, origin.Y + minY - margin, maxX - minX + 1 + 2 * margin, maxY - minY + 1 + 2 * margin));
+        }
+
+        if (world.Ground is { } ground && world.StreetsOn)
+            for (int y = 0; y < ground.Height; y++)
+            {
+                int runStart = -1;
+                for (int x = 0; x <= ground.Width; x++)
+                {
+                    bool paved = x < ground.Width && ground.PavingAt(y * ground.Width + x) != LivingWorld.Simulation.Cities.Streets.GroundSurface.None;
+                    if (paved && runStart < 0) runStart = x;
+                    else if (!paved && runStart >= 0) { zones.Add(new ClearZone(runStart, y, x - runStart, 1)); runStart = -1; }
+                }
+            }
+        return zones;
+    }
+
+    /// <summary>#258: as zonas sem árvore agora, para o cliente não desenhar árvore onde o motor não a aceita.</summary>
+    public static IReadOnlyList<ClearZone> Clear(WorldState world) => Known(world).Clear;
 }

@@ -26,7 +26,7 @@ public class HomeLifeTests
 
     private static (WorldState World, WorldClock Clock, PlayerService Service) Sandbox(Action<JsonObject>? edit = null, ulong seed = 255)
     {
-        var root = JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "scenarios", "periods", "sandbox-casal.json")))!.AsObject();
+        var root = LivingWorld.Tests.Unit.Cities.SandboxFixtures.CoupleOnly(LivingWorld.Tests.Unit.Cities.SandboxFixtures.Parse()); // #258: só o casal
         root["Seed"] = seed;
         edit?.Invoke(root);
         var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());

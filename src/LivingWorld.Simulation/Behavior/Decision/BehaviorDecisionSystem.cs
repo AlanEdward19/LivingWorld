@@ -285,7 +285,14 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                     && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
                 // #255: sem nada urgente, quem ninguém conduz e está à toa em casa cuida das necessidades do catálogo (banho, vaso, TV) pelos usos dos objetos,
                 // antes de sair a passeio ou de se deitar (quem vai dormir passa no vaso)
-                bool cared = npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent)
+                // #258: o parceiro fora de casa com uma necessidade da casa urgente (bexiga, higiene) volta para ela: o destino é a cama da casa, e lá o cuidado acontece
+                if (npc.ControllerId is null && npc.ExtraNeeds is not null && candidate is ActionType.Idle or ActionType.Socialize && CareCallsHome(world, npc, nowMs))
+                    candidate = ActionType.Sleep;
+                // #258: a casa que a pessoa mantém (luz ao escurecer, apagar ao dormir ou sair, preparar a refeição) pelos usos do catálogo
+                bool tended = !urgent && npc.ControllerId is null && LivingWorld.Simulation.Objects.HomeTending.Applies(world)
+                    && LivingWorld.Simulation.Objects.HomeTending.TryTend(world, ctx, npc, candidate,
+                        world.Lights is not null && candidate != ActionType.Sleep && RefineForLocation(world, npc, candidate, marketIndex) == ActionType.Travel);
+                bool cared = tended || npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent)
                     && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
                     && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
                 // #259: sem nada a cuidar, quem está só e à toa procura companhia (interação social do catálogo, o mesmo caminho do jogador)

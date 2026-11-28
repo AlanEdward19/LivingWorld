@@ -11,7 +11,9 @@ public sealed record InteriorTickDelta(
     IReadOnlyList<InteriorOccupant> Entered,
     IReadOnlyList<InteriorOccupant> Moved,
     IReadOnlyList<InteriorOccupant> ChangedFloor,
-    IReadOnlyList<NpcId> Exited)
+    IReadOnlyList<NpcId> Exited,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<int>? Lights = null)
 {
-    public bool IsEmpty => Entered.Count == 0 && Moved.Count == 0 && ChangedFloor.Count == 0 && Exited.Count == 0;
+    /// <summary>#258: <c>Lights</c> = as peças (índice na mobília) com a luz LIGADA agora, só quando o conjunto mudou desde o tick anterior; o cliente acende só o que o motor diz.</summary>
+    public bool IsEmpty => Entered.Count == 0 && Moved.Count == 0 && ChangedFloor.Count == 0 && Exited.Count == 0 && Lights is null;
 }

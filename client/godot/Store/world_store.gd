@@ -493,4 +493,6 @@ func _apply_interior_delta(delta: Dictionary) -> void:
 		for occupant in delta.get(key, []):
 			by_npc[int(id_of(occupant.npc))] = occupant
 	interior["occupants"] = by_npc.values()
+	if delta.get("lights") is Array: # #258: o conjunto de luzes ligadas, quando mudou
+		interior["lights"] = delta.lights
 	interior_changed.emit()

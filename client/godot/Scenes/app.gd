@@ -276,6 +276,7 @@ func _update_house_lights() -> void:
 	var view = stage.interior_view
 	var occupied: bool = stage.active and (view.immersive or not view.occupant_nodes.is_empty())
 	view.set_lamp_level(lamp_level(day_cycle.daylight(), occupied))
+	view.set_lit(store.interior.get("lights") if store.interior.get("lights") is Array else null) # #258: as luzes ligadas, como o motor diz
 
 
 ## #260: ao entrar numa casa o olhar vai para onde há espaço (a direção mais livre até a parede), não para a parede de nariz: só gira se o olhar de agora
@@ -366,10 +367,12 @@ func refresh_trees() -> void:
 	if not response.ok or not (response.body is Dictionary):
 		return
 	var list: Array = response.body.get("trees", [])
-	var json := JSON.stringify(list)
+	var clear: Array = response.body.get("clear", []) if response.body.get("clear") is Array else []
+	var json := JSON.stringify([list, clear])
 	if json == _trees_json:
 		return
 	_trees_json = json
+	world_view.terrain.apply_clear(clear) # #258: o motor diz onde não há árvore (quintal limpo, rua e calçada)
 	world_view.terrain.apply_trees(list)
 
 
