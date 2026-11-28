@@ -13,6 +13,11 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- #252: períodos que vivem só como dado (scenarios/periods/*.json), semeados no menu sem tocar em código -->
+    <EmbeddedResource Include="..\..\scenarios\periods\sandbox-casal.json" LogicalName="period.sandbox-casal.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

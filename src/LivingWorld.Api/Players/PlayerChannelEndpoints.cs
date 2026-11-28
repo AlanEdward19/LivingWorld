@@ -93,6 +93,7 @@ public static class PlayerChannelEndpoints
                 "incarnate" when node?["npcId"] is { } id => new PlayerCommandRequest(PlayerCommandKind.Incarnate, id.GetValue<long>()),
                 "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
                     new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
+                "switch" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Switch, target.GetValue<long>()), // #252
                 "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
                 "persuade" => new PlayerCommandRequest(PlayerCommandKind.Persuade),
                 // AD-197k: o rumo do passo solto, em milésimos (0, 0 para)

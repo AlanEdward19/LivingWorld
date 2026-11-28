@@ -9,6 +9,7 @@ const BodyBusy := preload("res://Scenes/body_busy.gd")
 const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
+signal switched(old_id: int, new_id: int) ## #252: trocou de corpo (o motor soltou o de antes sem sumir): o app solta a figura e a câmera desliza
 signal warning(text: String)
 ## AD-197d: previsão e correção do passo (o cliente anda já e corrige pela posição do motor), a conversa aberta pelo motor.
 signal predicted(delta: Vector2i)
@@ -50,6 +51,9 @@ var power_buttons: Dictionary = {} ## powerId -> Button (AD-196: os poderes que 
 var _powers_row: HFlowContainer
 var auto_button: Button
 var logout_button: Button
+var switch_button: Button ## #252: "Trocar para Rafael (G)": só com outra pessoa na casa de quem se conduz
+var housemates: Array = [] ## #252: [{id, name}] as outras pessoas da casa do corpo, para onde a troca pode ir
+var _switching := false
 var status_text := ""
 var _title: Label
 var _status: Label
@@ -142,6 +146,10 @@ func _init() -> void:
 	logout_button.text = "Sair do personagem"
 	logout_button.pressed.connect(func(): logout())
 	header.add_child(logout_button)
+	switch_button = Button.new()
+	switch_button.visible = false
+	switch_button.pressed.connect(func(): switch_body())
+	header.add_child(switch_button)
 	_powers_row = HFlowContainer.new()
 	orders.add_child(_powers_row)
 	_build_time_row(orders)
@@ -446,6 +454,83 @@ func _became(id: int, name: String) -> void:
 	_sync_buttons()
 	refresh_labels()
 	building_id = -1
+	housemates = []
+	_sync_switch()
+	refresh_housemates.call_deferred()
+
+
+## #252: as outras pessoas da casa de quem se conduz (vivas, lidas do motor: o domicílio do corpo); alimentam a troca de corpo.
+func refresh_housemates() -> void:
+	if not api.has_method("entity"):
+		return # só o leitor do app (WorldReader) lê fichas de pessoa e de casa
+	var mine := npc_id
+	var list: Array = []
+	var me: Dictionary = await api.entity("npc", mine)
+	var state = me.body.get("state") if me.ok and me.body is Dictionary else null
+	var home_ref = state.get("npc", {}).get("household") if state is Dictionary and state.get("npc") is Dictionary else null
+	if home_ref is Dictionary:
+		var home: Dictionary = await api.entity("household", int(home_ref.get("value", -1)))
+		var members = home.body.get("state", {}).get("memberIds", []) if home.ok and home.body is Dictionary and home.body.get("state") is Dictionary else []
+		for member in members:
+			if int(member) == mine:
+				continue
+			var other: Dictionary = await api.entity("npc", int(member))
+			if other.ok and other.body is Dictionary:
+				list.append({"id": int(member), "name": String(other.body.get("name", "Pessoa nº %d" % int(member)))})
+	if not is_active or mine != npc_id:
+		return # trocou ou saiu enquanto lia
+	list.sort_custom(func(a, b): return int(a.id) < int(b.id))
+	housemates = list
+	_sync_switch()
+
+
+## O próximo da casa depois de quem se conduz (em círculo, por id); vazio sem ninguém.
+func next_housemate() -> Dictionary:
+	for other in housemates:
+		if int(other.id) > npc_id:
+			return other
+	return housemates[0] if not housemates.is_empty() else {}
+
+
+func _sync_switch() -> void:
+	var next: Dictionary = next_housemate() if is_active else {}
+	switch_button.visible = not next.is_empty()
+	switch_button.text = "Trocar para %s (G)" % String(next.get("name", ""))
+	if frame != null:
+		frame.set_switch(String(next.get("name", "")))
+
+
+## #252: passa a conduzir a outra pessoa da casa. O motor solta o corpo de antes sem fazê-lo sumir; este corpo recomeça do que o motor diz.
+func switch_body() -> bool:
+	var next: Dictionary = next_housemate()
+	if not is_active or _busy or _switching or next.is_empty():
+		return false
+	_switching = true
+	var response: Dictionary = await api.player_switch(player_id, int(next.id))
+	_switching = false
+	if not response.ok:
+		warning.emit(_incarnate_error(response))
+		return false
+	var old := npc_id
+	_reset_local_body()
+	_became(int(next.id), String(next.name))
+	if frame != null:
+		frame.set_body(String(next.name), "", {}) # o cartão já diz quem é; as barras vêm da ficha dele logo em seguida
+	_body_clock = BODY_EVERY
+	switched.emit(old, int(next.id))
+	sync_pose()
+	return true
+
+
+## O controlador local (posição prevista, chão, comandos de andar) era do corpo de antes: o do novo começa da pose do motor.
+func _reset_local_body() -> void:
+	body.pos = Vector2.INF
+	body.stop()
+	fine = Vector2.INF
+	_last_server = Vector2.INF
+	_walk_dir = Vector2.ZERO
+	_still_responses = 0
+	_blocked = false
 
 
 ## AD-197t: a prévia validada pelo motor (a sessão vem antes, como ao encarnar).
@@ -1105,6 +1190,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_I] and rpg:
 		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos); #233: Tab e I abrem a mochila
 		toggle_inventory()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and not popup_open() and not typing() and not housemates.is_empty():
+		get_viewport().set_input_as_handled()
+		switch_body() # #252: G passa a conduzir a outra pessoa da casa
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_goals() # #235: metas e diário

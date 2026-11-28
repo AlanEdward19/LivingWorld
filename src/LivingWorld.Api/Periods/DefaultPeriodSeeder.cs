@@ -38,8 +38,35 @@ public static class DefaultPeriodSeeder
     public static string PayloadFor(string periodId) =>
         BuildPayload(Presets.FirstOrDefault(p => p.Id == periodId) ?? throw new ArgumentException($"período desconhecido: {periodId}", nameof(periodId)));
 
+    /// <summary>#252: períodos do menu que são só um arquivo de dados (<c>scenarios/periods/*.json</c>, embutido no assembly): id do período e do
+    /// arquivo. O motor não sabe de nenhum; o conteúdo (casal, casa, móveis) é todo do arquivo.</summary>
+    public static IReadOnlyList<string> DataPeriodIds { get; } = ["sandbox-casal"];
+
+    /// <summary>O payload do período de dados (o arquivo embutido), ou nulo se o id não é um deles.</summary>
+    public static string? DataPayloadFor(string periodId)
+    {
+        using var stream = typeof(DefaultPeriodSeeder).Assembly.GetManifestResourceStream($"period.{periodId}.json");
+        if (stream is null) return null;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static void SeedDataPeriods(IPeriodTemplateRepository repository)
+    {
+        foreach (var id in DataPeriodIds)
+        {
+            string? payload = DataPayloadFor(id);
+            if (payload is null) continue;
+            var latest = repository.FindLatestVersion(id);
+            string source = PeriodCards.NameOf(id, "", payload);
+            if (latest is null) Save(repository, id, source, 1, payload);
+            else if (latest.Source == source && latest.PayloadJson != payload) Save(repository, id, source, latest.Version + 1, payload); // o arquivo mudou
+        }
+    }
+
     public static void SeedIfEmpty(IPeriodTemplateRepository repository)
     {
+        SeedDataPeriods(repository);
         foreach (var preset in Presets)
         {
             var latest = repository.FindLatestVersion(preset.Id);
@@ -73,13 +100,16 @@ public static class DefaultPeriodSeeder
     }
 
     private static void Save(IPeriodTemplateRepository repository, Preset preset, int version, string payload) =>
+        Save(repository, preset.Id, preset.Name, version, payload);
+
+    private static void Save(IPeriodTemplateRepository repository, string periodId, string source, int version, string payload) =>
         repository.Save(new PeriodTemplateRecord
         {
-            PeriodId = preset.Id,
+            PeriodId = periodId,
             Version = version,
             PayloadJson = payload,
             CreatedAtUtc = DateTime.UtcNow,
-            Source = preset.Name,
+            Source = source,
         });
 
     /// <summary>AD-180: clima ligado com o tempo diário da Inglaterra baixa (o padrão de <c>WeatherRules</c>): estações, temperatura,

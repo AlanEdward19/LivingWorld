@@ -302,7 +302,7 @@ public static class LivingScopeProjector
 
     private static bool FitsInside(Building building, CellCoord position, int orientation, CityBounds bounds)
     {
-        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation, building.Shape);
         for (int i = 0; i < footprint.Count; i++)
             if (!bounds.Contains(new CellCoord(position.X + footprint[i].Cell.X, position.Y + footprint[i].Cell.Y)))
                 return false;

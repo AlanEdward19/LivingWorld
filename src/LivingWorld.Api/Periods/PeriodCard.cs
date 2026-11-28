@@ -5,7 +5,8 @@ namespace LivingWorld.Api.Periods;
 
 /// <summary>AD-175: o que o menu mostra de um período antes de escolhê-lo. <see cref="Name"/>, <see cref="Era"/>,
 /// <see cref="Description"/> e <see cref="StartingTechnology"/> vêm do bloco opcional <c>Presentation</c> declarado no
-/// próprio período (texto vazio quando o período não declara; o nome cai na fonte do cadastro); os números saem da
+/// próprio período (texto vazio quando o período não declara; o nome cai na fonte do cadastro); <c>Presentation.QuickStart</c> (#252) diz que o menu
+/// oferece o período num botão que cria e abre o mundo direto, sem o assistente; os números saem da
 /// definição validada, do mesmo jeito que <c>ScenarioLoaderV2</c> monta o mundo. Nenhum motor lê este bloco.</summary>
 public sealed record PeriodCard(
     string Name,
@@ -16,7 +17,8 @@ public sealed record PeriodCard(
     int SettlementCount,
     int ProfessionCount,
     IReadOnlyList<string> Professions,
-    bool InventionEnabled);
+    bool InventionEnabled,
+    bool QuickStart = false);
 
 public static class PeriodCards
 {
@@ -31,14 +33,16 @@ public static class PeriodCards
         string description = Text(presentation, "Description");
         string technology = Text(presentation, "Technology");
         bool invention = root?["Invention"]?["Enabled"]?.GetValue<bool>() != false;
+        bool quick = presentation?["QuickStart"] is JsonValue q && q.TryGetValue<bool>(out bool quickValue) && quickValue;
 
         var validation = PeriodDefinitionValidator.Validate(payloadJson);
         if (!validation.IsSuccess)
-            return new(name, era, description, technology, 0, 0, 0, [], invention);
+            return new(name, era, description, technology, 0, 0, 0, [], invention, quick);
 
         var definition = validation.Value!;
         var catalog = PeriodCatalog.From(definition);
-        int population = (int)Math.Min(int.MaxValue, definition.Population.InitialPopulation);
+        int authored = (root?["AuthoredHouseholds"] as JsonArray)?.Sum(f => (f?["Members"] as JsonArray)?.Count ?? 0) ?? 0; // #252: famílias autoradas
+        int population = (int)Math.Min(int.MaxValue, definition.Population.InitialPopulation + authored);
         // Mesma regra do loader: as cidades autoradas, mais a vila inicial fundada quando nenhuma está na célula dela.
         int settlements = definition.City.Cities.Count;
         if (population > 0 && definition.City.Cities.All(c => c.Location != definition.Population.Village)) settlements++;
@@ -46,7 +50,7 @@ public static class PeriodCards
             .Where(catalog.ProfessionNames.ContainsKey)
             .Select(id => catalog.ProfessionNames[id])
             .ToList();
-        return new(name, era, description, technology, population, settlements, catalog.ProfessionIds.Count, professions, invention);
+        return new(name, era, description, technology, population, settlements, catalog.ProfessionIds.Count, professions, invention, quick);
     }
 
     /// <summary>Só o nome legível (para listas que não precisam do cartão inteiro, como <c>GET /worlds</c>).</summary>

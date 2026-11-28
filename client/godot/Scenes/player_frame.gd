@@ -22,6 +22,7 @@ const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próx
 var card: PanelContainer
 var name_label: Label
 var action_label: Label
+var switch_label: Label ## #252: "G — passar a ser Rafael" (só com outra pessoa na casa)
 var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
 var clock_label: Label
 var prompt: Label
@@ -34,7 +35,13 @@ var inventory_box: VBoxContainer
 var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var entries: Array = []
-var busy_panel: PanelContainer ## #241: a ação em andamento (barra discreta acima do cartão do jogador)
+var busy_panel: PanelContainer ## #252: a troca de corpo disponível ("" = ninguém para quem trocar): uma linha discreta sob o nome.
+func set_switch(name: String) -> void:
+	switch_label.visible = name != ""
+	switch_label.text = "G — passar a ser %s" % name
+
+
+## #241: a ação em andamento (barra discreta acima do cartão do jogador)
 var busy_label: Label
 var busy_bar: ProgressBar
 var cooldown: ProgressBar ## #234
@@ -73,6 +80,9 @@ func _init() -> void:
 	box.add_child(name_label)
 	action_label = _label(14, Color(1, 1, 1, 0.7))
 	box.add_child(action_label)
+	switch_label = _label(13, Color("9ad0ff"))
+	switch_label.visible = false
+	box.add_child(switch_label)
 	purse_label = _label(15, Color("ffe9a6"))
 	purse_label.visible = false
 	box.add_child(purse_label)

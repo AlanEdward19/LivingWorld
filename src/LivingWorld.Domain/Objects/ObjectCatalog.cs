@@ -38,12 +38,14 @@ public static class ObjectEffectTargets
 
 /// <summary>Descritor imutável de um objeto (#47 fatia 1, ADR-0034). <c>Category</c> é string do cenário, não enum.
 /// <c>VariationSeed</c> 0 = sem variação (forma exatamente a declarada). <c>Interactions</c> e <c>Effects</c> (fatia 3) são
-/// opcionais e omitidos do snapshot quando nulos, para o hash de catálogos antigos não mudar.</summary>
+/// opcionais e omitidos do snapshot quando nulos, para o hash de catálogos antigos não mudar. <c>Name</c> (#252) é o nome que o cenário dá ao objeto
+/// para quem joga ("Fogão"); sem ele, o id.</summary>
 public sealed record ObjectDescriptor(
     string Id, string Category, IReadOnlyList<ObjectPart> Shape, int VariationSeed, IReadOnlyList<ObjectUsePoint> UsePoints,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectInteraction>? Interactions = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectEffect>? Effects = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Name = null);
 
 /// <summary>Catálogo de objetos do cenário: descritores e a mobília por tipo de prédio (chave "default" ou o id numérico).
 /// Nulo no mundo = cenário sem <c>Objects</c>: omitido do snapshot e do hash (opt-in).</summary>

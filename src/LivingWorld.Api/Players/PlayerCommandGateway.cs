@@ -102,6 +102,8 @@ public sealed partial class PlayerCommandGateway(
             {
                 PlayerCommandKind.Incarnate => Map(players.Incarnate(world, new NpcId(command.NpcId ?? -1), playerId, command.Mode),
                     _ => new { npcId = command.NpcId, playerId }),
+                PlayerCommandKind.Switch => Map(players.Switch(world, new NpcId(command.NpcId ?? -1), playerId),
+                    _ => new { npcId = command.NpcId, playerId }), // #252: troca de corpo sem sumir
                 PlayerCommandKind.Move => Map(players.Move(world, playerId, command.Dx, command.Dy),
                     _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Strike => Map(players.Strike(world, playerId, new NpcId(command.NpcId ?? -1)),

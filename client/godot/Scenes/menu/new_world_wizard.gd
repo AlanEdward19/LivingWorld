@@ -263,6 +263,8 @@ func load_periods() -> void:
 		period_info.text = "Não deu para ver os lugares disponíveis. O mundo está ligado?"
 		return
 	for item in response.body:
+		if bool(item.get("card", {}).get("quickStart", false)):
+			continue # #252: período de início rápido tem botão próprio no título, não cartão do assistente
 		periods.append(item)
 		period_ids.append(String(item.periodId))
 	Pages.fill_periods(self, periods)
@@ -308,6 +310,25 @@ func _card(id: String) -> Dictionary:
 	if index < 0 or index >= periods.size() or not (periods[index].get("card") is Dictionary):
 		return {}
 	return periods[index].card
+
+
+## #252: início rápido: o período como o servidor o declara (casal, casa e móveis vêm dele), só com semente nova e o nome do cartão,
+## criado e aberto direto, sem o assistente. Devolve true se o servidor criou; o erro fica em `message_label`.
+func quick_create(id: String, display_name: String) -> bool:
+	if busy:
+		return false
+	roll_seed()
+	world_name = display_name
+	selected_period = id
+	touchup_after = false
+	var scenario: String = await api.period_scenario(id, seed_value)
+	if scenario == "":
+		message_label.text = "Este lugar não está disponível no servidor."
+		create_failed.emit()
+		return false
+	draft = scenario
+	await create()
+	return message_label.text == ""
 
 
 ## Cartão apertado: escolhe; apertar de novo o já escolhido (Enter duas vezes) avança.

@@ -108,7 +108,7 @@ public static partial class PlayerInteractions
             var verbs = descriptor.UsePoints.Where(p => p.Action is int a && PlayerCommands.Choosable.Contains((ActionType)a)
                     && (ActionType)a != ActionType.UsePower && Objects.ObjectUse.Allows(descriptor, (ActionType)a, npc))
                 .Select(p => ((ActionType)p.Action!.Value).ToString().ToLowerInvariant()).Distinct().ToList();
-            if (verbs.Count > 0) offers.Add(Offer("object", here.Value * 1000 + i, descriptor.Id, verbs, at));
+            if (verbs.Count > 0) offers.Add(Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, verbs, at)); // #252: o nome do cenário, senão o id
         }
     }
 

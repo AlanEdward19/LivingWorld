@@ -87,13 +87,13 @@ public sealed class StreetGroundSystem : ISimulationSystem
             foreach (var building in derived.OrderBy(b => b.Id.Value))
             {
                 if (Construction.BuildingPlacementResolver.ResolveLot(building, city, world, bounds) is not { } lot) continue;
-                var cells = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, lot.Orientation)
+                var cells = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, lot.Orientation, building.Shape)
                     .Select(c => c.Cell).ToHashSet();
                 int chosen = lot.Orientation;
                 for (int r = 0; r < 4; r++)
                 {
                     int o = (lot.Orientation + r * 90) % 360;
-                    var shape = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, o);
+                    var shape = LivingWorld.Domain.Cities.Buildings.BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, o, building.Shape);
                     if (shape.Count != cells.Count || !shape.All(c => cells.Contains(c.Cell))) continue;
                     var (door, facing) = Layout.LotGeometry.DoorOf(shape);
                     var front = new LivingWorld.Domain.Geography.CellCoord(lot.Position.X + door.X + facing.X, lot.Position.Y + door.Y + facing.Y);

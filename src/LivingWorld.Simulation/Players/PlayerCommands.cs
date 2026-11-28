@@ -55,6 +55,28 @@ public static class PlayerCommands
         return result;
     }
 
+    /// <summary>#252 (sandbox): troca de corpo. O jogador solta o NPC que conduz, sem sumir (a pessoa volta à vontade do motor, na casa e no
+    /// trabalho dela; é o que <see cref="Logout"/> NÃO faz) e passa a conduzir <paramref name="targetId"/> no mesmo modo de posse. Uma peça só:
+    /// se o alvo não pode ser tomado (morto, já conduzido, vontade que impede na posse comum) nada muda e o jogador continua no corpo de antes.</summary>
+    public static Result<Unit> Switch(WorldState world, TickContext ctx, NpcId targetId, string playerId)
+    {
+        var current = ControlledBy(world, playerId);
+        if (current is null) return Result<Unit>.Fail($"{NotFound} jogador não controla nenhum NPC");
+        var target = world.FindNpc(targetId);
+        if (target is null || !target.IsAlive) return Result<Unit>.Fail($"{NotFound} NPC ausente ou morto");
+        if (target.Id == current.Id) return Result<Unit>.Fail($"{Conflict} jogador já controla este NPC");
+        if (target.ControllerId is not null) return Result<Unit>.Fail($"{Conflict} NPC já tem controlador");
+        var mode = current.ControlMode ?? PossessionMode.Common;
+        if (mode == PossessionMode.Common && PossessionContest.Prevents(world, target, ctx.CurrentTick))
+            return Result<Unit>.Fail($"{Refused} a vontade de {target.Name} impede a posse");
+
+        PossessionWill.Release(world, current, ctx.CurrentTick);
+        PossessionContest.End(world, current, ctx.CurrentTick);
+        current.SetCurrentActionAtMs(ActionType.Idle, world.CurrentDate.TotalMilliseconds); // o corpo solto recomeça a escolha do motor do zero
+        current.ReleaseController();
+        return Incarnate(world, ctx, targetId, playerId, mode);
+    }
+
     /// <summary>#222: possuído, o corpo para o que fazia (a viagem, o trabalho, a refeição, o sono) e fica à toa esperando o jogador;
     /// antes a ação do motor seguia e o corpo "não parava". Só no caminho do jogador; o tick comum não muda.</summary>
     internal static void StopOnPossession(WorldState world, Npc npc)

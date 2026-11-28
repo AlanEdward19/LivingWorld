@@ -21,7 +21,8 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch }
+
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -113,6 +114,17 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
             Record(world, playerId, PlayerCommandKind.Incarnate, npcId.Value,
                 new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Incarnate, Mode: mode == PossessionMode.Full ? mode : null,
                     Refused: refused, Reason: refused ? result.Error : null));
+        return result;
+    }
+
+    /// <summary>#252: troca de corpo (ver <see cref="PlayerCommands.Switch"/>); entra no registro como o comando aceito, com o alvo em <c>NpcId</c>.</summary>
+    public Result<Unit> Switch(WorldState world, NpcId targetId, string playerId)
+    {
+        var result = PlayerCommands.Switch(world, Context(world), targetId, playerId);
+        bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
+        if (result.IsSuccess || refused)
+            Record(world, playerId, PlayerCommandKind.Switch, targetId.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Switch, Refused: refused, Reason: refused ? result.Error : null));
         return result;
     }
 
@@ -334,6 +346,7 @@ public static class PlayerReplay
             {
                 PlayerCommandKind.Incarnate => service.Incarnate(world, new NpcId(record.NpcId!.Value), record.PlayerId,
                     record.Mode ?? PossessionMode.Common).IsSuccess,
+                PlayerCommandKind.Switch => service.Switch(world, new NpcId(record.NpcId!.Value), record.PlayerId).IsSuccess,
                 PlayerCommandKind.Act => service.Act(world, record.PlayerId, record.Action, record.PowerId).IsSuccess,
                 PlayerCommandKind.Move => service.Move(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0).IsSuccess,
                 PlayerCommandKind.Strike => service.Strike(world, record.PlayerId, new NpcId(record.TargetId!.Value)).IsSuccess,

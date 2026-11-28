@@ -22,6 +22,7 @@ var save_button: Button
 var saving := false
 var last_saved_iso := "" ## última gravação conhecida (da lista de mundos ou do Salvar agora)
 var options: Control
+var switch_button: Button ## #252: "Trocar para Rafael" (o outro da casa; só com alguém encarnado e outro na casa)
 var leave_button: Button ## #222: "Sair do personagem" (só com alguém encarnado)
 var _box: VBoxContainer
 var _column_root: Control
@@ -42,6 +43,10 @@ func _ready() -> void:
 	save_line = Kit.title(AUTO_SAVE, 15, _box, Kit.SOFT)
 	Kit.spacer(_box, 6)
 	continue_button = Kit.big_button("Continuar", _box, close)
+	switch_button = Kit.big_button("Trocar de pessoa", _box, func():
+		await close()
+		if app != null and app.player_hud != null:
+			await app.player_hud.switch_body())
 	leave_button = Kit.big_button("Sair do personagem", _box, func():
 		await close()
 		if app != null and app.player_hud != null:
@@ -69,6 +74,9 @@ func open() -> void:
 		app.first_steps.close_help() # #222: a pausa não abre por cima da ajuda
 	visible = true
 	leave_button.visible = app != null and app.player_hud != null and app.player_hud.is_active
+	var next: Dictionary = app.player_hud.next_housemate() if leave_button.visible else {}
+	switch_button.visible = not next.is_empty()
+	switch_button.text = "Trocar para %s" % String(next.get("name", ""))
 	Kit.fade_in(self)
 	continue_button.grab_focus()
 	var status: Dictionary = app.clock_panel.status if app != null else {}

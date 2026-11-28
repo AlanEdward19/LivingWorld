@@ -14,7 +14,7 @@ public static class DwellingCapacity
     {
         if (world.CityCatalog.BuildingRecipes.TryGetValue(building.BuildingTypeId, out var recipe) && recipe.HousingCapacityProvided > 0)
             return (int)Math.Min(recipe.HousingCapacityProvided, int.MaxValue);
-        return BuildingLayoutGenerator.FloorsOf(building.Id, building.BuildingTypeId);
+        return BuildingLayoutGenerator.Generate(building).Floors;
     }
 
     /// <summary>Domicílios por prédio em que moram agora, de uma só passada (O(domicílios)).</summary>

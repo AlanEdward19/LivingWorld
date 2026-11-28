@@ -6,7 +6,7 @@ extends RefCounted
 ##         play (entra no mundo; os passos seguintes são do jogo, ver dev_steps.gd) · quit.
 ## AD-175 (teste de verdade pelo play.sh): create (cria o mundo do assistente sem esperar, para fotografar o carregamento) ·
 ##         rename:Nome (renomeia o mundo aberto em Meus mundos) · title (volta ao título e relê o servidor) ·
-##         continue (Continuar) · savenow (no jogo: abre a pausa e aperta Salvar agora).
+##         sandbox[:periodo] (#252: o botão de início rápido do título; segue com passos do jogo) · continue (Continuar) · savenow (no jogo: abre a pausa e aperta Salvar agora).
 
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 
@@ -52,6 +52,11 @@ static func run(boot: Node, steps: Array) -> void:
 			"play":
 				boot._play()
 				await boot.get_tree().create_timer(0.2).timeout
+				await DevSteps.run(boot.app, steps.slice(i + 1))
+				return
+			"sandbox": # #252: o botão "Sandbox: casal" do título: cria o mundo do período de início rápido e entra nele; o resto são passos do jogo
+				await menu.quick_start(arg if arg != "" else "sandbox-casal")
+				await boot.get_tree().create_timer(0.5).timeout
 				await DevSteps.run(boot.app, steps.slice(i + 1))
 				return
 			"create":

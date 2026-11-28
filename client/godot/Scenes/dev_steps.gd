@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
@@ -82,6 +82,25 @@ static func run(app: Node, steps: Array) -> void:
 			"unplayer": # AD-197r: sai do personagem (o servidor o libera; encarnar o mesmo corpo na rodada seguinte não dá 409)
 				await app.player_hud.logout()
 				print("unplayer: ativo=", app.player_hud.is_active)
+			"switch": # #252 (sandbox do casal): troca de corpo para a outra pessoa da casa (o motor solta a de antes sem sumir)
+				if app.player_hud.housemates.is_empty():
+					await app.player_hud.refresh_housemates()
+				var before: int = app.player_hud.npc_id
+				var switched: bool = await app.player_hud.switch_body()
+				print("switch: ", before, " -> ", app.player_hud.npc_id, " ok=", switched, " ativo=", app.player_hud.is_active)
+			"use": # #252: `use:Geladeira` usa a oferta do motor cujo texto tem esse trecho (o que o E faria): imprime as ofertas e o que foi feito
+				var entries: Array = await app.player_hud._reach_entries()
+				var chosen: Dictionary = {}
+				for entry in entries:
+					if arg.to_lower() in String(entry.text).to_lower():
+						chosen = entry
+						break
+				print("use: ", arg, " -> ", chosen.get("text", "(nada)"), " | ofertas: ", entries.map(func(e): return String(e.text)))
+				if not chosen.is_empty():
+					await app.player_hud.interact(chosen)
+			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
+				print("where: npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
+					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
 			"act":
 				await app.player_hud.act(arg)
 			"creator": # AD-197q: abre o criador de personagem (cidades e primeira amostra do motor)

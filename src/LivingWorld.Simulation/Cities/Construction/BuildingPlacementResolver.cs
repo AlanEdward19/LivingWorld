@@ -52,7 +52,7 @@ public static class BuildingPlacementResolver
         // degraus antigos sem rua. Desce só quando o degrau anterior não achou terra em nenhum lugar do mapa.
         var lot = CityOccupancy.FindPlacement(
             world, city, bounds, building.Id, building.BuildingTypeId, orientation,
-            profile ?? CityOccupancy.DerivedProfile(world, building.BuildingTypeId), firstLevel, lastLevel, chooseOrientation);
+            profile ?? CityOccupancy.DerivedProfile(world, building.BuildingTypeId), firstLevel, lastLevel, chooseOrientation, building.Shape);
         return lot is { } found ? (found.Origin, found.Orientation, true, found.Croft) : null;
     }
 

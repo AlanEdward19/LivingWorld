@@ -296,6 +296,7 @@ func refresh_trees() -> void:
 
 
 func _process(delta: float) -> void:
+	_step_glide(delta)
 	_trees_clock += delta
 	if _trees_clock >= TREES_EVERY:
 		refresh_trees()
@@ -699,8 +700,83 @@ func _drive(id: int) -> void:
 		player_hud.set_powers(detail.body.get("powerIds", []))
 
 
+## #252 (sandbox do casal): trocou de corpo. O motor soltou a pessoa de antes SEM fazê-la sumir (ela volta à vontade dela e a figura segue
+## no mundo, só deixa de ser a conduzida) e agora conduzimos a outra. A câmera desliza da primeira figura até a segunda (um ponto de apoio
+## que anda entre as duas) e só então segue o corpo novo: sem corte seco, sem segundo jogador.
+const SWITCH_GLIDE_S := 0.8
+var _glide_t := -1.0 ## segundos desde o início do deslize (< 0: sem deslize)
+var _glide_from := Vector3.ZERO
+var _glide_anchor: Node3D = null
+
+
+func _on_player_switched(old_id: int, new_id: int) -> void:
+	var old_node = world_view.npc_nodes.get(old_id)
+	if old_node == null and stage != null and stage.active:
+		old_node = stage.interior_view.occupant_nodes.get(old_id)
+	if stage != null:
+		stage.interior_view.release_guided() # a figura adotada pela casa volta a ser só do mundo
+	_glide_from = rig.target
+	unfollow() # o diretor de seguir ainda tem a pessoa de antes: sem solta-la, ele puxaria a câmera de volta ao quadro seguinte
+	if old_node != null and is_instance_valid(old_node):
+		old_node.driven = false
+		old_node.set_self(false)
+		old_node.set_first_person(false)
+	selected_npc = new_id
+	if rig.mode == rig.ISO or _glide_from == Vector3.ZERO:
+		await _drive(new_id)
+		return
+	_glide_anchor = Node3D.new()
+	_glide_anchor.name = "SwitchGlide"
+	_glide_anchor.position = _glide_from
+	var old_scale: Vector3 = old_node.scale if old_node != null and is_instance_valid(old_node) else Vector3.ONE
+	_glide_anchor.scale = old_scale
+	add_child(_glide_anchor)
+	rig.follow(_glide_anchor)
+	_glide_t = 0.0
+	var detail: Dictionary = await api.npc_detail(new_id) # os poderes da pessoa nova viram botões do HUD
+	if detail.ok and detail.body is Dictionary:
+		player_hud.set_powers(detail.body.get("powerIds", []))
+
+
+## O deslize a cada quadro: o ponto de apoio sai de onde a câmera estava e chega ao corpo novo (onde ele estiver, mesmo andando).
+func _step_glide(delta: float) -> void:
+	if _glide_t < 0.0:
+		return
+	_glide_t += delta
+	var actor: Node3D = player_actor() if player_hud != null and player_hud.is_active else null
+	var dest: Vector3 = actor.position if actor != null else (Vector3(player_hud.fine.x * Grid.CELL, _glide_from.y, player_hud.fine.y * Grid.CELL)
+		if player_hud != null and player_hud.fine != Vector2.INF else _glide_from)
+	var k := smoothstep(0.0, 1.0, clampf(_glide_t / SWITCH_GLIDE_S, 0.0, 1.0))
+	if _glide_anchor != null and is_instance_valid(_glide_anchor):
+		_glide_anchor.position = _glide_from.lerp(dest, k)
+		if actor != null:
+			_glide_anchor.scale = _glide_anchor.scale.lerp(actor.scale, k)
+	if _glide_t >= SWITCH_GLIDE_S and (actor != null or player_hud.fine == Vector2.INF):
+		_end_glide()
+
+
+func _end_glide() -> void:
+	_glide_t = -1.0
+	if _glide_anchor != null and is_instance_valid(_glide_anchor):
+		_glide_anchor.queue_free()
+	_glide_anchor = null
+	if player_hud != null and player_hud.is_active:
+		follow(Registry.ref(Registry.PERSON, player_hud.npc_id)) # o diretor de seguir só entra depois do deslize (ele puxaria a câmera já)
+		var actor: Node3D = player_actor()
+		if actor != null:
+			actor.driven = true
+			actor.set_self(true)
+			actor.set_first_person(rig.mode == rig.FIRST)
+			rig.follow(actor)
+
+
 ## Saiu do personagem: a câmera volta à isométrica do espectador e para de segui-lo.
 func player_released() -> void:
+	if _glide_t >= 0.0: # #252: saiu no meio do deslize da troca de corpo
+		_glide_t = -1.0
+		if _glide_anchor != null and is_instance_valid(_glide_anchor):
+			_glide_anchor.queue_free()
+		_glide_anchor = null
 	if stage != null:
 		stage.interior_view.release_guided() # #227: o corpo guiado da casa não fica como fantasma
 	var node = world_view.npc_nodes.get(player_hud.npc_id)
@@ -1048,6 +1124,8 @@ var _last_body_scale := Vector3.ONE
 
 
 func _keep_the_body() -> void:
+	if _glide_t >= 0.0:
+		return # #252: a câmera desliza até o corpo novo; só ao fim ela o segue
 	if player_hud == null or not player_hud.is_active:
 		_body_missing_since = -1
 		body_scope.release()

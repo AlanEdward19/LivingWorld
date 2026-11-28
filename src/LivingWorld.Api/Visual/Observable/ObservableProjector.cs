@@ -71,7 +71,7 @@ public sealed class ObservableContext
 public static class ObservableProjector
 {
     private static readonly string[] SeasonKeys = ["winter", "spring", "summer", "autumn"];
-    private static readonly ConcurrentDictionary<(long, int, int), BuildingPlan> Plans = new();
+    private static readonly ConcurrentDictionary<(long, int, int, BuildingShape?), BuildingPlan> Plans = new();
 
     public static NpcObservable Npc(ObservableContext ctx, Npc npc) => Npc(ctx, npc, null);
 
@@ -219,9 +219,9 @@ public static class ObservableProjector
     public static BuildingPlan Plan(Building building, int orientation)
     {
         if (Plans.Count > 50_000) Plans.Clear();
-        return Plans.GetOrAdd((building.Id.Value, building.BuildingTypeId, orientation), key =>
+        return Plans.GetOrAdd((building.Id.Value, building.BuildingTypeId, orientation, building.Shape), key =>
         {
-            var layout = BuildingLayoutGenerator.Generate(new BuildingId(key.Item1), key.Item2, key.Item3);
+            var layout = BuildingLayoutGenerator.Generate(new BuildingId(key.Item1), key.Item2, key.Item3, key.Item4);
             var ground = layout.FloorLayouts[0];
             return new BuildingPlan(layout.Floors, new ValueList<FootprintCell>(ground.Cells.ToArray()),
                 new ValueList<LivingWorld.Domain.Cities.Buildings.WallSegment>((ground.Walls ?? []).ToArray()),

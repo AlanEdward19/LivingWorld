@@ -75,6 +75,7 @@ func _ready() -> void:
 	title.new_world_pressed.connect(show_new_world)
 	title.my_worlds_pressed.connect(show_saved_worlds)
 	title.options_pressed.connect(show_options)
+	title.quick_start_pressed.connect(quick_start)
 	title.quit_pressed.connect(func(): quit_requested.emit())
 	offline = OfflineScreen.new()
 	add_child(offline)
@@ -86,7 +87,7 @@ func _ready() -> void:
 	wizard.cancelled.connect(show_title)
 	wizard.creating.connect(func(): _show_loading("Criando " + wizard.world_name.strip_edges(), 1))
 	wizard.creation_progress.connect(func(index: int, count: int, text: String): loading.set_progress(index, count, text))
-	wizard.create_failed.connect(func(): _switch(wizard))
+	wizard.create_failed.connect(_on_create_failed)
 	wizard.created.connect(_on_created)
 	wizard.map_previewed.connect(func(body: Dictionary): backdrop.show_map(body))
 	wizard.family_requested.connect(show_family_builder)
@@ -99,6 +100,29 @@ func _ready() -> void:
 	for screen in [title, offline, wizard, loading, options]:
 		screen.visible = false
 	_switch(title)
+
+
+var _quick_start := false ## a criação em andamento veio de um botão do título (#252), não do assistente
+
+
+## #252: um período de início rápido do título: cria o mundo com o cenário do servidor e já entra nele.
+func quick_start(period_id: String) -> void:
+	_wizard_api()
+	var display := ""
+	for button in title.quick_buttons:
+		if button.name == "quick_" + period_id:
+			display = button.text
+	_quick_start = true
+	await wizard.quick_create(period_id, display if display != "" else period_id)
+	_quick_start = false
+
+
+func _on_create_failed() -> void:
+	if not _quick_start:
+		_switch(wizard)
+		return
+	show_title()
+	title.set_status(wizard.message_label.text, false)
 
 
 func _switch(screen: Control) -> void:
@@ -123,6 +147,7 @@ func refresh_server() -> void:
 	if server_online:
 		title.set_status("Mundo ligado", true)
 		title.set_continue(await continue_info(status.body))
+		await _load_quick_starts()
 		if current == offline:
 			_switch(title)
 		return
@@ -152,8 +177,15 @@ func _try_launcher_api() -> bool:
 	server_online = true
 	title.set_status("Mundo ligado", true)
 	title.set_continue(await continue_info(status.body))
+	await _load_quick_starts()
 	_switch(title)
 	return true
+
+
+## #252: os períodos que o servidor oferece como início rápido viram botões do título.
+func _load_quick_starts() -> void:
+	var response: Dictionary = await api.periods()
+	title.set_quick_starts(response.body if response.ok and response.body is Array else [])
 
 
 func _point_transport() -> void:
