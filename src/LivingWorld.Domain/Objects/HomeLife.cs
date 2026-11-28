@@ -22,7 +22,8 @@ public static class NeedEffectTargets
 public sealed record NeedDef(
     string Id, string Name, double Start, double DecayPerHour, double UrgentBelow, string? Color = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<NeedEffect>? Effects = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Alert = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Alert = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Icon = null);
 
 public static class NeedIds
 {

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
-## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
+## Passos (#260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
 ##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
@@ -178,6 +178,15 @@ static func run(app: Node, steps: Array) -> void:
 			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
 				print("where: chão=", app.player_frame._ground, " npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
 					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
+			"speedinfo": # #260: a velocidade do tempo como o HUD e o motor a mostram (botões, relógio, ritmo)
+				var st: Dictionary = (await app.api.clock_status()).body
+				print("speedinfo: botões=", app.player_frame.speed_box.visible, " marcado=", app.player_frame.speed_now, " hud=", app.player_hud.speed_now(), " motor=", st.get("playerSpeed"),
+					" Δ=", st.get("tickDeltaMs"), " modo=", st.get("rhythm"), " relógio=", app.player_frame.clock_label.text)
+			"lamps": # #260: as luzes dos objetos da casa (quantas, em que nível) e a luz do dia que o cliente usa
+				var view = app.stage.interior_view
+				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour)
+			"walls": # #260: troca o modo das paredes (a tecla V)
+				app.cycle_walls()
 			"hudclock": # #256: `hudclock:N` imprime a cada 1 s, por N s, o relógio que a TELA mostra (texto e horas do mundo) e o ritmo que o cliente usa
 				var clock_start := Time.get_ticks_msec()
 				var clock_first := -1.0

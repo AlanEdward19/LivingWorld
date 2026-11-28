@@ -66,7 +66,23 @@ public static class LlmContextAssembler
         var p = npc.Personality;
         return new NpcDialogueState(
             npc.Health, worst.Level <= UrgentSatisfaction ? worst.Name : null,
-            affection, trust, p.Agreeableness, p.Extroversion, p.Altruism);
+            affection, trust, p.Agreeableness, p.Extroversion, p.Altruism,
+            SpeakerRelation(world, npc), world.CurrentDate.Hour, world.CurrentDate.Calendar.HoursPerDay);
+    }
+
+    /// <summary>#260: o laço de quem fala com o NPC. Quem fala é um jogador, que conduz um corpo (<see cref="Npc.ControllerId"/>): cônjuge, pai ou mãe,
+    /// filho ou filha, lidos do estado da família; nulo se o corpo de quem fala não é da família do NPC.</summary>
+    private static string? SpeakerRelation(WorldState world, Npc npc)
+    {
+        foreach (var other in world.Npcs)
+        {
+            if (!other.IsAlive || other.ControllerId is null || other.Id == npc.Id) continue;
+            if (npc.Spouse == other.Id) return "spouse";
+            if (npc.MotherId == other.Id || npc.FatherId == other.Id) return "parent";
+            if (other.MotherId == npc.Id || other.FatherId == npc.Id) return "child";
+        }
+
+        return null;
     }
 
     /// <summary>Mesmo funil, para o caso de uso de narrativa — a LLM só

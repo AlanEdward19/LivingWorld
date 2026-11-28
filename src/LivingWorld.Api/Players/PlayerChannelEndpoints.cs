@@ -110,6 +110,7 @@ public static class PlayerChannelEndpoints
                 "sleep" => new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: node?["untilHour"]?.GetValue<int>()),
                 "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate),
                 "wake" => new PlayerCommandRequest(PlayerCommandKind.Wake),
+                "speed" => new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: node?["speed"]?.GetValue<int>()), // #260: 0 pausa, 1, 2, 3
                 // AD-197d: interagir com o que está perto, pela oferta do motor ("reach" lista o que se alcança)
                 "interact" when node?["kind"] is { } kind && node?["id"] is { } id && node?["verb"] is { } verb =>
                     new PlayerCommandRequest(PlayerCommandKind.Interact, Interaction: kind.GetValue<string>(), TargetId: id.GetValue<long>(),

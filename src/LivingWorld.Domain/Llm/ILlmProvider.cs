@@ -34,6 +34,8 @@ public sealed record LlmContext(
 /// provider): é com isto que o provider "sem LLM" monta a fala. Opcional — quem não o preenche mantém o contrato antigo.</summary>
 /// <param name="UrgentNeed">Necessidade mais urgente (<c>hunger</c>, <c>thirst</c>, <c>sleep</c> ou <c>social</c>); null se nenhuma aperta.</param>
 /// <param name="Affection">Afeto do NPC por quem fala (0 a 100; 0 = desconhecidos); null se ainda não se conhecem.</param>
+/// <param name="Relation">#260: o laço de quem fala com o NPC, lido da família do estado (<c>spouse</c>, <c>parent</c>, <c>child</c>); null para quem não é da família.</param>
+/// <param name="HourOfDay">#260: a hora do dia do mundo agora (0 a <paramref name="HoursPerDay"/> menos um): a saudação não diz "Bom dia" à meia-noite.</param>
 public sealed record NpcDialogueState(
     int Health,
     string? UrgentNeed,
@@ -41,7 +43,10 @@ public sealed record NpcDialogueState(
     double? Trust,
     int Agreeableness,
     int Extroversion,
-    int Altruism);
+    int Altruism,
+    string? Relation = null,
+    int? HourOfDay = null,
+    int HoursPerDay = 24);
 
 public sealed record MemoryCandidate(string Event, int Importance);
 

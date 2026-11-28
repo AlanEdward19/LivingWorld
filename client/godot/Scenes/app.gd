@@ -227,7 +227,7 @@ func _load_world_info() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	api.set_tick(int(float(status.get("atMs", 0)) / 60000.0)) # #222: o cache da ficha vence por minuto do mundo (em tempo real a hora leva 1 h)
-	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), hours_per_second(status), bool(status.isPaused))
+	day_cycle.sync(WorldTime.hours_f(status.get("atMs")), hours_per_second(status), clock_paused(status))
 	brain_panel.on_world_tick(WorldTime.hours_of(status, "atMs"))
 	player_hud.set_paused(bool(status.isPaused))
 	player_hud.set_world_rate(hours_per_second(status)) # #241: a barra da ação em andamento segue o ritmo (acelerado até acabar)
@@ -237,15 +237,83 @@ func _on_clock_status(status: Dictionary) -> void:
 		admin_window.note_running()
 	pause_label.text = admin_window.pause_banner(status)
 	pause_label.tooltip_text = pause_label.text
-	NpcActor.frozen = bool(status.isPaused)
-	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "atMs"), hours_per_second(status), bool(status.isPaused)) # rota (AD-181); #222: pelo ritmo do motor
-	sky_life.paused = bool(status.isPaused)
+	NpcActor.frozen = clock_paused(status)
+	world_view.npcs.clock.set_status(WorldTime.hours_of(status, "atMs"), hours_per_second(status), clock_paused(status)) # rota (AD-181); #222: pelo ritmo do motor
+	sky_life.paused = clock_paused(status)
 	_update_time_label(status)
 
 
 ## #222: quantas horas do mundo passam por segundo real, pelo ritmo que o motor diz (Δ por tick × ticks do laço). Com jogador o mundo
 ## anda em tempo real: estimar 1 hora por segundo (ticksPerSecond) adiantava o relógio e o motor o puxava para trás.
+## #260: o fim do relógio do jogador: "· ⏸ pausado" (admin ou o jogador pausou) ou a velocidade quando passa de 1×.
+static func speed_suffix(status: Dictionary) -> String:
+	if clock_paused(status):
+		return "  ·  ⏸ pausado"
+	var speed := int(status.get("playerSpeed", 1)) if status.get("playerSpeed") != null else 1
+	return "  ·  %d×" % speed if speed > 1 else ""
+
+
+## #260: o relógio parado: a pausa do admin ou a do jogador (velocidade 0, ele sozinho no mundo).
+static func clock_paused(status: Dictionary) -> bool:
+	return bool(status.get("isPaused", false)) or (status.get("playerSpeed") != null and int(status.playerSpeed) == 0)
+
+
+## #260: as luzes dos objetos da casa (abajur) acendem quando o motor diz que escureceu (o sol e o pôr do sol do motor, `day_cycle`) e há gente em casa: o
+## corpo do jogador ou alguém que o motor põe lá dentro. Sem objeto de luz no catálogo não há o que acender.
+const LAMP_FULL_BELOW := 0.15 ## luz do dia (0–1) abaixo da qual as luzes estão no máximo
+const LAMP_OFF_ABOVE := 0.6 ## e acima dela apagam
+
+
+static func lamp_level(daylight: float, occupied: bool) -> float:
+	if not occupied:
+		return 0.0
+	return clampf((LAMP_OFF_ABOVE - daylight) / (LAMP_OFF_ABOVE - LAMP_FULL_BELOW), 0.0, 1.0)
+
+
+func _update_house_lights() -> void:
+	if stage == null or stage.interior_view == null or day_cycle == null:
+		return
+	var view = stage.interior_view
+	var occupied: bool = stage.active and (view.immersive or not view.occupant_nodes.is_empty())
+	view.set_lamp_level(lamp_level(day_cycle.daylight(), occupied))
+
+
+## #260: ao entrar numa casa o olhar vai para onde há espaço (a direção mais livre até a parede), não para a parede de nariz: só gira se o olhar de agora
+## bate numa parede a menos de 1,6 célula; quem já entra olhando para dentro do cômodo não é mexido.
+
+static func yaw_toward(direction: Vector2) -> float:
+	return atan2(-direction.x, -direction.y)
+
+
+func face_into_room() -> void:
+	if stage == null or not stage.active or rig == null or rig.mode == rig.ISO or player_hud == null:
+		return
+	var node = world_view.npc_nodes.get(player_hud.npc_id)
+	if node == null or not is_instance_valid(node):
+		return
+	var from := Vector2(node.global_position.x, node.global_position.z)
+	var wanted: Vector2 = stage.interior_view.open_direction(from, rig.heading())
+	if wanted != Vector2.ZERO:
+		rig.yaw = yaw_toward(wanted)
+
+
+## #260: V troca o modo das paredes da casa em que o corpo está (o aviso diz qual).
+func cycle_walls() -> void:
+	if stage == null or stage.interior_view == null or not stage.active:
+		toasts.push("Sem paredes para cortar aqui: entre numa casa.")
+		return
+	var mode: int = stage.interior_view.cycle_wall_mode()
+	toasts.push(String(stage.interior_view.WALL_MODE_TEXT[mode]))
+
+
+## #260: o jogador mudou a velocidade do tempo: o relógio da tela relê o ritmo já (não extrapola o de antes).
+func on_speed_changed() -> void:
+	await clock_panel.refresh()
+
+
 static func hours_per_second(status: Dictionary) -> float:
+	if status.get("playerSpeed") != null and int(status.playerSpeed) == 0:
+		return 0.0 # #260: o jogador pausou: o relógio não corre
 	if status.get("tickDeltaMs") != null and status.get("loopTicksPerSecond") != null:
 		return float(status.tickDeltaMs) / 3600000.0 * float(status.loopTicksPerSecond)
 	return float(status.get("ticksPerSecond", 1.0))
@@ -258,10 +326,10 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var date: Dictionary = day_cycle.date_parts(WorldTime.hours_f(s.get("atMs")))
 	var weather := Season.hud_text(store.climate) if store != null else ""
 	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
-		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if s.isPaused else ""]
+		day_cycle.phase_name(), (" · " + weather) if weather != "" else "", "  ⏸" if clock_paused(s) else ""]
 	if player_frame != null: # #222: a hora do modo jogador, curta (dia, hora, fase e tempo)
 		player_frame.set_clock("Dia %d · %s · %s%s%s" % [date.day, day_cycle.clock_text(), day_cycle.phase_name(),
-			(" · " + weather) if weather != "" else "", "  ·  ⏸ pausado" if s.isPaused else ""])
+			(" · " + weather) if weather != "" else "", speed_suffix(s)])
 
 
 ## Tempo sob a câmera (AD-180): sol pelo nascer e pôr do motor, céu encoberto e o indicador do topo.
@@ -316,6 +384,7 @@ func _process(delta: float) -> void:
 		_player_view_effects()
 	if time_label != null and day_cycle != null:
 		_update_time_label()
+	_update_house_lights()
 	if world_view != null and rig != null:
 		world_view.view_center = rig.target
 		world_view.view_radius = rig.zoom_size * 1.5
@@ -870,6 +939,10 @@ func _on_player_fine(at: Vector2) -> void:
 func _on_player_menu(open: bool) -> void:
 	if rig.mode != rig.ISO:
 		rig.set_cursor_captured(not open)
+	NpcActor.labels_muted = open # #260: a roda aberta esconde o nome sobre a pessoa
+	for node in world_view.npc_nodes.values():
+		if is_instance_valid(node):
+			node._refresh_label()
 
 
 var _predicted_from := Vector2i.ZERO ## a célula de antes do passo previsto (a recusa volta para ela)
@@ -1166,6 +1239,7 @@ func _reconcile_placement() -> void:
 		_inside_busy = true
 		_inside_by_body = building
 		await enter_building(building)
+		face_into_room()
 		_inside_busy = false
 	elif building < 0 and _inside_by_body >= 0:
 		_inside_busy = true

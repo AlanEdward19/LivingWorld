@@ -64,3 +64,17 @@ barras, roda do E, fila e "andar até o móvel": não foram tocados aqui. Corrig
 1. #255: cenário 08:00, posições distintas, ofertas por proximidade sem "Vender", andar até o móvel, fila, barras com ícone e feedback de fim.
 2. Cliente: controle de velocidade do jogador (item 2), luz de cômodo e cutaway (1, 6), guia certo (11), retratos de troca (14).
 3. S3: menu social do casal (8) e habilidades/aspirações com nome (12). Rua e vizinhos: #257.
+
+## Resolvido em #260 (AD-224), conferido ao vivo depois do #255
+Capturas em `/private/tmp/claude-501/-Users-aoliveira-Desktop-Projects-LivingWorld/7392251a-1ec6-4bf2-8382-62ad34632fdc/scratchpad/play/fotos260/` (`d`: HUD e tempo, `n`/`m`: noite e paredes, `u`: uso e aviso de fim, `c`: conversa, `f`: 1ª pessoa).
+- **Já resolvido pelo #255 (conferido)**: 1 começa às 07:00 (`d01`); 3 o corpo anda até o móvel e o uso dura (`u01`, `u02`); 9 nomes do catálogo e usos (Sofá, TV, pia, chuveiro).
+- **2 resolvido**: velocidade 0/1/2/3 no HUD e nas teclas 0–3, só sozinho no mundo, validada e registrada pelo motor (`d02`: pausa; relógio medido 1,0/2,0/3,0 s por s).
+- **4 resolvido**: a venda da casa é a última e some da roda de dentro; a principal é o móvel mais perto ou o que está na mira (`Fogão ▸`, `d01`).
+- **5 resolvido**: o casal nasce em células livres de cômodos diferentes (`u02`: Rafael na cozinha).
+- **6 resolvido**: V alterna paredes cortadas, inteiras e baixas (`n01`–`n03`); ao entrar o olhar vai para o espaço livre (`f01`, antes parede em `32`); o anel segue, com a legenda `E Fogão ▸` no centro.
+- **Luz à noite (1)**: abajur e luminária do catálogo acendem à noite com gente em casa (`n04`, 21:00; o entardecer em `n01`). Falta ligar e desligar como uso (issue).
+- **8 (só o texto)**: cônjuge e hora do dia na conversa livre (`c01`: "Oi, meu bem. Ainda acordado a essa hora?"); o menu social é do S3.
+- **10, 11, 12, 13, 14 resolvidos**: barras com número, ícone e seta e a mais urgente pulsa (`d01`); o guia não manda entrar quem está em casa; "nível 7 de 10 · faltam 4 pontos para subir"; aviso "Terminou: Lavar o rosto e as mãos · Higiene 100%" (`u02`); a dica do G em 17 px.
+- **15, 16, 17, 18, 20 resolvidos**: nome da pessoa de tamanho fixo e escondido com a roda aberta; pausa com botões menores e "sair" à parte; ajuda do jogo com 6 linhas; "Continuar" sem "Mundo sem nome"; 1ª pessoa fora da parede.
+- **Seguem abertos**: 7 rua e bairro (#257); "Parado" no lugar de humor e aspiração, retratos para trocar, menu social e relação (S3, #259); luz com ligar e desligar.
+

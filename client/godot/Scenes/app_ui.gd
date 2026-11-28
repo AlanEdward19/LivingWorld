@@ -255,6 +255,9 @@ static func _side(app, ui: Control) -> void:
 	ui.add_child(app.player_frame)
 	app.player_hud.frame = app.player_frame
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
+	app.player_frame.speed_chosen.connect(func(speed: int): app.player_hud.set_speed(speed)) # #260: pausa/1×/2×/3× no HUD
+	app.player_hud.speed_changed.connect(func(_speed: int): app.on_speed_changed())
+	app.player_hud.walls_cycled.connect(func(): app.cycle_walls())
 	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.player_hud.acted.connect(app._on_player_acted)
 	app.player_hud.busy_changed.connect(app._on_player_busy)

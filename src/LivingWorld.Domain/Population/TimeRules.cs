@@ -44,13 +44,22 @@ public sealed record TimeRules
     /// próximo, não um estranho.</summary>
     public double CallerAffection { get; init; } = 30;
 
+    /// <summary>#260: a maior velocidade que o jogador escolhe (1×, 2×, 3× como no The Sims; 0 é a pausa). Nulo = 3 e some do JSON.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? MaxPlayerSpeedValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public int MaxPlayerSpeed => Math.Clamp(MaxPlayerSpeedValue ?? 3, 1, 10);
+
     public static readonly TimeRules Default = new();
 
     /// <summary>O Δ de mundo do tick fino: <see cref="FineTickRealMs"/> × <see cref="TimeScale"/>, ajustado ao divisor da hora mais
     /// próximo (o tick nunca atravessa a hora cheia).</summary>
-    public int FineDeltaMs()
+    public int FineDeltaMs() => FineDeltaMs(1.0);
+
+    /// <summary>#260: o mesmo Δ com a velocidade do jogador (1, 2 ou 3 vezes o ritmo do mundo), como o 1×/2×/3× do The Sims.</summary>
+    public int FineDeltaMs(double speed)
     {
-        double wanted = Math.Clamp(FineTickRealMs * TimeScale, 1, WorldMillis.PerHour);
+        double wanted = Math.Clamp(FineTickRealMs * TimeScale * Math.Max(1.0, speed), 1, WorldMillis.PerHour);
         int best = 1;
         double bestGap = double.MaxValue;
         for (int d = 1; (long)d * d <= WorldMillis.PerHour; d++)

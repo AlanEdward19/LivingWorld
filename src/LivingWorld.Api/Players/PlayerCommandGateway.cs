@@ -15,14 +15,14 @@ public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = 
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
     long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null, bool Run = false, int Seq = 0);
+    CharacterSpec? Spec = null, bool Run = false, int Seq = 0, int? Speed = null);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
 /// <c>LastWakeReason</c>: o que encerrou o último (golpe, fogo, fome, sede, chamado, hora, descansado, outro jogador, comando).</summary>
 public sealed record PlayerTimeView(
     string Rhythm, int TickDeltaMs, double TimeScale, int PlayersPresent, bool CanSkip, bool Skipping, bool Sleeping, long? UntilMs,
-    string? LastWakeReason);
+    string? LastWakeReason, int Speed = 1, int MaxSpeed = 3);
 
 /// <summary>A pose do corpo do jogador na resposta de um comando. <c>AirMs</c> (ms no ar) só na resposta do pulo (AD-197u). #248: <c>Seq</c> é o
 /// último número de comando de andar aplicado e <c>AtMs</c> o instante de mundo da pose.</summary>
@@ -119,6 +119,7 @@ public sealed partial class PlayerCommandGateway(
                 PlayerCommandKind.Sleep => Map(players.Sleep(world, playerId,
                         command.UntilHour is { } hour ? PlayerService.NextHourOfDayMs(world, hour) : null),
                     _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Speed => Map(players.SetSpeed(world, simulation, playerId, command.Speed ?? -1), _ => TimeOf(world, playerId)),
                 PlayerCommandKind.Accelerate => Map(players.Accelerate(world, playerId), _ => TimeOf(world, playerId)),
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
@@ -226,7 +227,8 @@ public sealed partial class PlayerCommandGateway(
         return new PlayerTimeView(
             plan.Mode.ToString(), plan.DeltaMs, world.Players.Time.TimeScale, PlayerService.PlayersPresent(world),
             simulation.AutoRhythm && PlayerService.CanSkip(world, playerId) && !simulation.IsPaused,
-            skip is not null, skip?.Sleeping == true, skip?.UntilMs, players.LastWakeReason);
+            skip is not null, skip?.Sleeping == true, skip?.UntilMs, players.LastWakeReason,
+            simulation.EffectiveSpeed(world), world.Players.Time.MaxPlayerSpeed);
     }
 
     /// <summary>Avanço do admin (<c>step</c>, <c>advance-year</c>) pelo registro do jogador (AD-197c): o replay roda os mesmos ticks.</summary>

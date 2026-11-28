@@ -104,4 +104,42 @@ public class RuleBasedLlmProviderTests
         Assert.Null(context.State.Affection); // desconhecidos: ler o estado não cria relação
         Assert.Equal(npc.Personality.Agreeableness, context.State.Agreeableness);
     }
+
+    private static NpcDialogueState At(int hour, string? relation, double? affection = null) =>
+        new(90, null, affection, null, 50, 50, 50, relation, hour, 24);
+
+    /// <summary>#260: o cônjuge não é tratado como desconhecido, e ninguém diz "Bom dia!" à meia-noite.</summary>
+    [Fact]
+    public async Task A_spouse_at_midnight_gets_an_intimate_late_greeting_not_good_morning_nor_a_stranger_offer_of_help()
+    {
+        var spouse = await Reply(Ctx("Oi! Como vai?", At(0, "spouse", 60)));
+
+        Assert.DoesNotContain("Bom dia", spouse.Dialogue);
+        Assert.DoesNotContain("Em que posso ajudar", spouse.Dialogue);
+        Assert.Contains("meu bem", spouse.Dialogue);
+        Assert.Equal("friendly", spouse.Emotion);
+    }
+
+    [Theory]
+    [InlineData(8, "Bom dia")]
+    [InlineData(15, "Boa tarde")]
+    [InlineData(20, "Boa noite")]
+    [InlineData(2, "Boa noite")]
+    public async Task A_stranger_is_greeted_by_the_part_of_the_day_the_world_clock_says(int hour, string expected)
+    {
+        var response = await Reply(Ctx("Oi! Como vai?", At(hour, null)));
+
+        Assert.Contains(expected, response.Dialogue);
+    }
+
+    [Fact]
+    public async Task The_spouse_news_reply_stays_at_home_and_the_greeting_follows_the_time_for_the_spouse_too()
+    {
+        var morning = await Reply(Ctx("Bom dia! Como vai?", At(8, "spouse", 60)));
+        var news = await Reply(Ctx("Tem alguma novidade por aqui?", At(14, "spouse", 60)));
+
+        Assert.Contains("Bom dia", morning.Dialogue);
+        Assert.DoesNotContain("Em que posso ajudar", morning.Dialogue);
+        Assert.Contains(news.Dialogue, new[] { "Nada de novo que eu tenha ouvido, meu bem.", "Por aqui em casa, o dia segue como sempre." });
+    }
 }

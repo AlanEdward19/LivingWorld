@@ -751,6 +751,22 @@
         },
         "type": "object"
       },
+      "PlayerSpeedRequest": {
+        "properties": {
+          "speed": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "speed"
+        ],
+        "type": "object"
+      },
       "PlayerStrikeRequest": {
         "properties": {
           "npcId": {
@@ -2821,6 +2837,38 @@
               }
             }
           }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/speed": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerSpeedRequest"
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "200": {

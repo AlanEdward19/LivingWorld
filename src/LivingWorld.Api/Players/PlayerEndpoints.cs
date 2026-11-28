@@ -147,6 +147,9 @@ public static class PlayerEndpoints
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: request?.UntilHour)));
         app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate)));
+        // #260: a velocidade do tempo do jogador (0 pausa, 1, 2, 3), só quem joga sozinho
+        app.MapPost("/players/{playerId}/speed", (HttpContext http, string playerId, PlayerSpeedRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: request.Speed)));
         app.MapPost("/players/{playerId}/wake", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Wake)));
         app.MapGet("/players/{playerId}/time", (HttpContext http, string playerId) =>
@@ -266,3 +269,6 @@ public static class PlayerEndpoints
         return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
     }
 }
+
+/// <summary>#260: corpo do <c>POST /players/{id}/speed</c>.</summary>
+public sealed record PlayerSpeedRequest(int Speed);

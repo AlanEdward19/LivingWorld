@@ -328,7 +328,9 @@
       "tv",
       "shower",
       "toilet",
-      "sink"
+      "sink",
+      "lamp",
+      "bedside"
     ]
   },
   "Rooms": {

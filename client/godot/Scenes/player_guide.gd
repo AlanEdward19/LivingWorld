@@ -164,6 +164,8 @@ static func _who(start: Dictionary, home: Variant, name: String, fine: Vector2, 
 	var who := "Você é %s%s." % [name if name != "" else "uma pessoa", ", ainda sem idade de adulto" if child else ""]
 	if home is Dictionary:
 		var place := "Sua casa fica %s. Na porta, aperte E para entrar." % where(home, fine, forward)
+		if bool(home.get("inside", false)): # #260: já está dentro: nada de "entrar"; o que fazer lá dentro vem do estado do motor
+			place = "Você está em casa. Ande pelos cômodos e aperte E perto de um móvel para usá-lo (segure E para a roda de ações)."
 		var members: Array = home.get("members", []) if home.get("members") is Array else []
 		if members.is_empty() or bool(home.get("alone", false)):
 			return "%s Você mora só: ninguém vai cuidar de você, então comer, beber e dormir ficam por sua conta. %s" % [who, place]

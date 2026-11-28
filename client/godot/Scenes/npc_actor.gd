@@ -25,6 +25,9 @@ const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa,
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
 static var frozen := false
+static var labels_muted := false ## #260: com a roda do E aberta o nome sobre a pessoa some (não cobre a roda)
+const NAME_PIXEL_SIZE := 0.0011 ## #260: o nome tem tamanho fixo na tela (não incha quando a câmera chega perto)
+const NAME_FONT := 22
 ## Hora do mundo contínua (RouteClock), posta pelo renderizador a cada quadro: quem tem rota anda por ela.
 static var world_tick := 0.0
 static var _meshes: Dictionary = {}
@@ -329,7 +332,10 @@ func _get_aura() -> MeshInstance3D:
 
 func _get_label() -> Label3D:
 	if _label == null:
-		_label = _text(Vector3(0, 1.45, 0), 26, Color.WHITE)
+		_label = _text(Vector3(0, 1.45, 0), NAME_FONT, Color.WHITE)
+		_label.fixed_size = true
+		_label.pixel_size = NAME_PIXEL_SIZE
+		_label.outline_size = 6
 		_label.visible = false
 	return _label
 
@@ -636,7 +642,7 @@ func _refresh_label() -> void:
 		return
 	var label := _get_label()
 	label.text = ("%s\n%s" % [display_name, label_text]) if display_name != "" else label_text
-	label.visible = (_selected or _hovered) and not is_self
+	label.visible = (_selected or _hovered) and not is_self and not labels_muted
 
 
 ## AD-197p: o corpo do próprio jogador: sem nome, ação nem anel sobre ele (quem joga já sabe quem é).

@@ -46,6 +46,13 @@ Higiene, diversão e bexiga, usos com duração, o corpo que anda até o móvel,
 No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necessidades), `Furnishings["-1"]` com chuveiro, vaso, pia e TV, `InitialPantryPerMember: 400`
 (a despensa dura; sem mercado ainda, nenhuma comida é criada do nada).
 
+## UX do sandbox (#260, AD-224)
+- **Velocidade do tempo** (HUD, canto de cima, e teclas **0** pausa, **1**, **2**, **3**): só sozinho no mundo (`canSkip` do `GET /players/{id}/time`), validada pelo motor
+  (`POST /players/{id}/speed {speed}` ou `{"command":"speed","speed":N}`; máximo em `Players.Time.MaxPlayerSpeedValue`, padrão 3). `SimulationHost.PlayerSpeed` multiplica o Δ fino
+  (1× = 50 ms, 2× = 100, 3× = 150); a pausa não roda tick e aceita comando; com dois jogadores volta a 1× e os botões somem. Entra no registro (`Speed`) e o Δ vai pelo registro de Δ.
+- **Casal**: o segundo morador começa numa célula livre de outro cômodo (`HouseholdStart.Spread`); **luz**: abajur e luminária são objetos do catálogo com `light`, acesos à noite com gente em casa.
+- **Câmera**: **V** alterna paredes cortadas (as do lado da câmera baixam), inteiras e baixas; ao entrar o olhar vai para o espaço livre. Passos de captura: `speedinfo`, `lamps`, `walls`.
+
 ## O que ainda não funciona
 - Rua e calçada sem superfície de partida; a porta da casa pode abrir para um caminho até a rua e o quintal tem as árvores da regra de 16% (nenhum parâmetro de cenário as tira).
 - Comida: só a despensa de partida (mercado ou entrega como prédio com estoque e preço fica em issue). Sono e comer à mesa seguem as ações do motor (dormir: `action`).

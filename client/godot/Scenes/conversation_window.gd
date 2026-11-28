@@ -14,7 +14,7 @@ const REFUSALS := {
 	"RejectedUnavailable": "%s não está disponível para conversar.",
 }
 ## #233: falas prontas do jogador (só o texto que o jogador diria; vão pelo mesmo `send`, e o motor/LLM decide a resposta).
-const CHOICES := ["Bom dia! Como vai?", "Tem alguma novidade por aqui?", "Preciso de ajuda.", "Posso ajudar em algo?", "Até logo."]
+const CHOICES := ["Oi! Como vai?", "Tem alguma novidade por aqui?", "Preciso de ajuda.", "Posso ajudar em algo?", "Até logo."]
 const EMOTIONS := {
 	"neutral": ["neutro", "c7ced9"], "concerned": ["preocupado", "e6c36a"], "happy": ["feliz", "7ccf88"],
 	"annoyed": ["irritado", "e0955a"], "curious": ["curioso", "6ab7e6"], "afraid": ["com medo", "b48ee0"],

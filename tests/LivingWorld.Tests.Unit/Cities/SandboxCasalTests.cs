@@ -191,4 +191,96 @@ public class SandboxCasalTests
         var distances = objects.Select(o => (long)(o.X - at.X) * (o.X - at.X) + (long)(o.Y - at.Y) * (o.Y - at.Y)).ToList();
         Assert.Equal(distances.Order().ToList(), distances); // do mais perto ao mais longe
     }
+
+    /// <summary>#260: o casal nascia empilhado na mesma célula da porta; agora cada morador começa numa célula livre distinta da casa, em outro cômodo.</summary>
+    [Fact]
+    public void The_couple_starts_in_distinct_free_cells_inside_the_house_in_different_rooms()
+    {
+        var (world, _) = Load();
+        var house = world.Buildings.Single();
+        var origin = house.Position!.Value;
+        var catalog = world.ObjectCatalog!;
+        var furniture = HomeFurniture.Of(house, catalog).Where(p => p.Spot is not null).Select(p => p.Spot!.Value.Cell).ToHashSet();
+        var rooms = BuildingRooms.Of(house, catalog).Floors[0];
+
+        var cells = world.Npcs.Select(n => new CellCoord(n.CurrentLocation.X - origin.X, n.CurrentLocation.Y - origin.Y)).ToList();
+
+        Assert.Equal(2, cells.Distinct().Count()); // ninguém um dentro do outro
+        Assert.All(cells, c => Assert.Contains(rooms.Rooms, r => r.Cells.Contains(c))); // dentro da casa
+        Assert.All(cells, c => Assert.DoesNotContain(c, furniture)); // nenhum em cima de móvel
+        Assert.NotEqual(rooms.Rooms.First(r => r.Cells.Contains(cells[0])).Kind, rooms.Rooms.First(r => r.Cells.Contains(cells[1])).Kind); // cômodos diferentes
+        Assert.Equal(world.Households.Single().Location, world.Npcs[0].CurrentLocation); // o primeiro fica na célula da casa
+    }
+
+    [Fact]
+    public void The_start_cells_are_the_same_for_the_same_seed()
+    {
+        var (a, _) = Load();
+        var (b, _) = Load();
+
+        Assert.Equal(a.Npcs.Select(n => n.CurrentLocation), b.Npcs.Select(n => n.CurrentLocation));
+    }
+
+    /// <summary>#260: vender a casa nunca é a oferta principal do E nem aparece na roda de dentro; "Cama" genérica e "Despensa" eram o mesmo móvel com outro nome.</summary>
+    [Fact]
+    public void The_main_offer_is_the_nearest_furniture_never_the_house_sale_and_the_names_have_no_duplicates()
+    {
+        var (world, _) = Load();
+        var service = new LivingWorld.Simulation.Players.PlayerService(new LivingWorld.Tests.Unit.Players.PlayerAbsenceTests.AllEvents());
+        Assert.True(service.Incarnate(world, world.Npcs[0].Id, "alan").IsSuccess);
+
+        var offers = LivingWorld.Simulation.Players.PlayerService.Reach(world, "alan")!;
+
+        Assert.NotEqual("house", offers[0].Kind); // a principal não é vender
+        Assert.DoesNotContain(offers, o => o.Kind == "bed"); // a cama é a "Cama de casal" do catálogo, uma só
+        Assert.Equal(1, offers.Count(o => o.Label == "Cama de casal"));
+        Assert.DoesNotContain(offers, o => o.Kind == "stock" && o.Verbs.Contains("take")); // comer é da geladeira, que tem nome de geladeira
+        Assert.DoesNotContain(offers, o => o.Label is "Cama" or "Despensa"); // os nomes vêm do catálogo, não os genéricos
+        if (offers.Any(o => o.Kind == "house")) Assert.Equal("house", offers[^1].Kind); // se aparece, é a última
+    }
+
+    [Fact]
+    public void The_sale_is_offered_from_the_outside_at_the_door_and_comes_last()
+    {
+        var (world, _) = Load();
+        var service = new LivingWorld.Simulation.Players.PlayerService(new LivingWorld.Tests.Unit.Players.PlayerAbsenceTests.AllEvents());
+        var npc = world.Npcs[0];
+        Assert.True(service.Incarnate(world, npc.Id, "alan").IsSuccess);
+        var doorstep = LivingWorld.Simulation.Players.PlayerGround.DoorOf(world.Buildings.Single())!.Value.Doorstep;
+        npc.MoveTo(doorstep, world.CurrentDate.TotalHours);
+
+        var offers = LivingWorld.Simulation.Players.PlayerService.Reach(world, "alan")!;
+
+        Assert.Equal("house", offers[^1].Kind); // de fora, ao mirar a casa, a venda está ao alcance e por último
+    }
+
+    /// <summary>#260: a luz da casa vem do catálogo (um abajur com `light`), na sala e no quarto; nada de luz escrita no código.</summary>
+    [Fact]
+    public void The_house_has_lamps_from_the_catalog_in_the_living_room_and_the_bedroom()
+    {
+        var (world, _) = Load();
+        var house = world.Buildings.Single();
+        var catalog = world.ObjectCatalog!;
+
+        var lamps = HomeFurniture.Of(house, catalog).Where(p => p.Id is "lamp" or "bedside").ToList();
+
+        Assert.Equal(2, lamps.Count);
+        Assert.All(lamps, l => Assert.NotNull(l.Spot));
+        Assert.Equal(new[] { "quarto", "sala" }, lamps.Select(l => HomeFurniture.RoomOf(house, catalog, l.Spot!.Value)!).Order(StringComparer.Ordinal).ToArray());
+        var light = catalog.Find("lamp")!.Light!;
+        Assert.True(light.RangeM > 0 && light.Energy > 0 && light.Color.Length == 6);
+    }
+
+    /// <summary>#260: a ficha traz o ritmo de cada necessidade (a seta de tendência): cai devagar parado e sobe com o uso que o corpo faz.</summary>
+    [Fact]
+    public void The_need_rates_fall_with_time_and_rise_with_the_use_in_progress()
+    {
+        var (world, _) = Load();
+        var npc = world.Npcs[0];
+
+        var idle = HomeLife.Rates(world, npc);
+
+        Assert.True(idle["hygiene"] < 0 && idle["fun"] < 0 && idle["bladder"] < 0);
+        Assert.True(idle["hunger"] <= 0);
+    }
 }

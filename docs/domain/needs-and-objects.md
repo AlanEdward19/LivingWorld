@@ -42,6 +42,11 @@ Ficha: `catalogNeeds:[{id,name,value,urgent,color}]`, `needHint:{need,alert,obje
 por objeto** (usos num submenu) e páginas (`Mais ▸`). `body_busy.gd`: "Indo: Tomar banho…" e a barra do progresso; a pose do catálogo escolhe o gesto que já existe.
 Passos de captura: `useverb:Objeto|Uso`, `needs`, `needslog:S`, `waituse:S`, `cancelq:N`, `sleepfast`, `theother`.
 
+## #260: leitura das barras, luz e fim do uso
+`needRates` (ficha, só com catálogo de necessidades): pontos por hora de cada necessidade agora, `-queda + o que o uso em curso entrega` (`HomeLife.Rates`); o cliente desenha número, ícone
+(`icon` da necessidade, `NeedIcon`) e seta de tendência (subindo/caindo, rápido). Objeto com `light` `{color,rangeM,energy,heightM}` (`ObjectLight`) dá luz; sem ligar e desligar ainda.
+Aviso de fim: "Terminou: Tomar banho · Higiene 92%" (a necessidade que o uso mais sobe, da oferta `need`).
+
 ## Fora desta fatia
 Mover as quatro necessidades de sempre para o catálogo; comida cozida como item novo (o fogão rende mais por unidade, não transforma); mercado/entrega como prédio com estoque
 (a despensa de partida do sandbox é `InitialPantryPerMember`); animações próprias (#254); rua, calçada e quintal sem árvore (a árvore é a regra de 16% do `cell_hash`).

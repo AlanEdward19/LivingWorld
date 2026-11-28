@@ -393,6 +393,12 @@ func player_accelerate(player_id: String) -> Dictionary:
 	return _checked("/players/accelerate", {"status": response.status, "body": response.body}, "player-time")
 
 
+## #260: a velocidade do tempo do jogador: 0 pausa, 1 normal, 2 e 3 acelerados. Só quem joga sozinho; o motor valida (409 com outro jogador) e devolve o tempo.
+func player_speed(player_id: String, speed: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "speed", "speed": speed}, "POST", "/players/%s/speed" % player_id.uri_encode(), {"speed": speed})
+	return _checked("/players/speed", {"status": response.status, "body": response.body}, "player-time")
+
+
 ## AD-197c: encerrar o pulo de tempo (acordar).
 func player_wake(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "wake"}, "POST", "/players/%s/wake" % player_id.uri_encode(), null)

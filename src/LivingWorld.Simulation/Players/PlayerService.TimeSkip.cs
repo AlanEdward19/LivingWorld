@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Simulation.Players;
 
@@ -57,6 +58,21 @@ public sealed partial class PlayerService
         if (!acted.IsSuccess) return acted;
         Begin(world, npc, playerId, sleeping: false, null);
         Record(world, playerId, PlayerCommandKind.Accelerate, npc.Id.Value);
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>#260: a velocidade do tempo do jogador (0 pausa, 1 normal, 2 e 3 acelerados, até <see cref="TimeRules.MaxPlayerSpeed"/>). Só quem
+    /// joga sozinho (<see cref="CanSkip"/>), validada aqui; o registro leva a escolha e o Δ que ela causa vai pelo registro de Δ, como
+    /// qualquer troca de ritmo, então o replay reproduz o mesmo mundo. Quem dorme acelerado ou faz ação longa não troca a velocidade.</summary>
+    public Result<Unit> SetSpeed(WorldState world, SimulationHost host, string playerId, int speed)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is null)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (!CanSkip(world, playerId)) return Result<Unit>.Fail($"{PlayerCommands.Conflict} só quem joga sozinho muda a velocidade do tempo");
+        if (speed < 0 || speed > world.Players.Time.MaxPlayerSpeed) return Result<Unit>.Fail($"speed: de 0 a {world.Players.Time.MaxPlayerSpeed}");
+        host.SetPlayerSpeed(speed);
+        Record(world, playerId, PlayerCommandKind.Speed, PlayerCommands.ControlledBy(world, playerId)!.Id.Value,
+            new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Speed, Count: speed));
         return Result<Unit>.Ok(Unit.Value);
     }
 

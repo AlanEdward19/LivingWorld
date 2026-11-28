@@ -21,6 +21,8 @@ signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
+signal speed_changed(speed: int) ## #260: o motor aceitou a velocidade (0 pausa, 1, 2, 3): o app relê o relógio
+signal walls_cycled() ## #260: V pede outro modo das paredes (cortadas, inteiras, baixas)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
 signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
 signal refused() ## #232: o motor recusou uma ação (o app toca só o som discreto de recusa)
@@ -195,6 +197,8 @@ func _time_button(row: HFlowContainer, text: String, action: Callable) -> Button
 ## com o pulo em curso). O motivo de ter acordado vira aviso uma vez.
 func apply_time(view: Dictionary) -> void:
 	time_view = view
+	if frame != null:
+		frame.set_speed(view) # #260: pausa/1×/2×/3× só quando o motor deixa
 	var rhythm := String(view.get("rhythm", ""))
 	if rhythm == "RealTime":
 		rhythm_label.text = "Tempo real 1:%s" % _scale_text(float(view.get("timeScale", 1.0)))
@@ -234,6 +238,33 @@ func refresh_time() -> void:
 ## Dormir até a hora do dia `hour`, ou, com −1, acelerando até descansar. O motor recusa (409) com outro jogador no mundo.
 func sleep(hour: int) -> void:
 	await _time_command(func(): return await api.player_sleep(player_id, hour), "Dormindo.")
+
+
+## #260: pausa (0), 1×, 2× ou 3×: o motor valida (só quem joga sozinho) e devolve o tempo; a resposta vira o desenho (botões, relógio, passada).
+func set_speed(speed: int) -> void:
+	if not is_active or speed == int(time_view.get("speed", 1)) and time_view.has("speed"):
+		return
+	var response: Dictionary = await api.player_speed(player_id, speed)
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		apply_time(response.body)
+		speed_changed.emit(speed)
+		warning.emit(speed_note(speed))
+	elif response.status == 409:
+		warning.emit("Só quem joga sozinho muda a velocidade do tempo.")
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou a velocidade (erro %d)." % response.status)
+
+
+static func speed_note(speed: int) -> String:
+	return "Tempo pausado (1 continua)." if speed == 0 else "Velocidade %d×." % speed
+
+
+## A velocidade que o motor diz estar valendo (0 = pausa); sem leitura, 1.
+func speed_now() -> int:
+	return int(time_view.get("speed", 1)) if time_view.get("speed") != null else 1
 
 
 func accelerate() -> void:
@@ -326,7 +357,7 @@ func _look_turned() -> bool:
 func set_reach_hint(from: Array) -> void:
 	_hint_from = from
 	_hint_look = aim_look.call()
-	var entries := without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, aim_look.call()), building_id)
+	var entries := without_sale(without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, aim_look.call()), building_id), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
 	_hint_offer = {}
 	if not entries.is_empty():
@@ -783,6 +814,9 @@ func _refresh_body(delta: float) -> void:
 			action = labels.label_for(int(body.currentAction))
 		frame.set_body(npc_name, action, body)
 		sheet_read.emit(body)
+		if not _ended_use.is_empty() and not busy.active(): # #260: o uso acabou sozinho: avisa com o que ficou
+			warning.emit(finish_text(String(_ended_use.label), String(_ended_use.need), body))
+			_ended_use = {}
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
 
@@ -836,6 +870,11 @@ const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cart
 func glide(direction: Vector2, delta: float) -> void:
 	if busy.active():
 		direction = Vector2.ZERO # #241: ocupado, o corpo não anda (o motor recusaria); não manda passo
+	if speed_now() == 0 and direction != Vector2.ZERO:
+		direction = Vector2.ZERO # #260: o tempo está pausado: o corpo não anda (o motor não roda tick); diz como voltar
+		if _busy_note_clock <= 0.0:
+			_busy_note_clock = 2.5
+			warning.emit("Tempo pausado: aperte 1 para continuar.")
 	var run_now := Input.is_key_pressed(KEY_SHIFT) and running
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
@@ -996,7 +1035,7 @@ func jump() -> void:
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
-		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		var scale := _time_scale()
 		jumped.emit(float(response.body.get("airMs", 0)) / 1000.0 / maxf(scale, 0.001))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
@@ -1015,7 +1054,8 @@ const USE_POLL_S := 0.12 ## s entre leituras da pose enquanto o motor leva o cor
 
 
 func _time_scale() -> float:
-	return float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	var base := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	return base * float(maxi(1, speed_now())) # #260: com 2× ou 3× o mundo anda mais por segundo real
 
 
 ## O ritmo do relógio do motor (`hours_per_second` do status): quanto do mundo passa por segundo real agora. O mundo acelera para a
@@ -1028,12 +1068,34 @@ func set_world_rate(hours_per_second: float) -> void:
 			frame.set_busy(busy.text(float(Time.get_ticks_msec())), busy.fraction(float(Time.get_ticks_msec())))
 
 
+var _ended_use: Dictionary = {} ## #260: o uso que acabou sozinho, à espera da ficha para dizer o que ficou ("Terminou: Tomar banho · Higiene 92%")
+var _use_needs: Dictionary = {} ## nome do uso -> necessidade que ele mais sobe (da oferta do motor)
+var _stopping := false
+
+
+## #260: "Terminou: Tomar banho · Higiene 92%": o aviso de fim do uso, com a necessidade que ele mais sobe lida da ficha do motor.
+static func finish_text(label: String, need_id: String, sheet: Dictionary) -> String:
+	var text := "Terminou: %s" % label
+	var names := {"hunger": "Fome", "thirst": "Sede", "sleep": "Sono", "social": "Social"}
+	if need_id == "":
+		return text
+	for row in sheet.get("catalogNeeds", []) if sheet.get("catalogNeeds") is Array else []:
+		if String(row.get("id", "")) == need_id:
+			return "%s · %s %d%%" % [text, String(row.get("name", need_id)), int(row.get("value", 0))]
+	if names.has(need_id) and sheet.get(need_id) != null:
+		return "%s · %s %d%%" % [text, names[need_id], int(sheet[need_id])]
+	return text
+
+
 func _note_busy(pose: Dictionary) -> void:
 	var now := float(Time.get_ticks_msec())
 	var before := busy.action
+	var was_use := busy.label if busy.action == "use" and busy.phase == "do" else ""
 	if busy.note_pose(pose, now, world_rate if world_rate > 0.0 else _time_scale()):
 		busy_changed.emit(busy.kind(), busy.seconds_left(now))
 		if before != "" and busy.action == "":
+			if was_use != "" and not _stopping:
+				_ended_use = {"label": was_use, "need": String(_use_needs.get(was_use, ""))}
 			_busy_ended()
 	if frame != null:
 		frame.set_busy(busy.text(now) if busy.active() else "", busy.fraction(now))
@@ -1050,6 +1112,8 @@ func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
 		return
 	var now := float(Time.get_ticks_msec())
 	if busy.expired(now):
+		if busy.action == "use" and busy.phase == "do" and not _stopping:
+			_ended_use = {"label": busy.label, "need": String(_use_needs.get(busy.label, ""))}
 		busy.clear()
 		busy_changed.emit("", 0.0)
 		if frame != null:
@@ -1093,10 +1157,12 @@ func interrupt() -> void:
 	if not is_active or _interrupting or not busy.active():
 		return
 	_interrupting = true
+	_stopping = true # #260: parar de propósito não é "terminou"
 	var stopped := busy.stopped_text()
 	var response: Dictionary = await api.player_interrupt(player_id)
 	_interrupting = false
 	if not is_active:
+		_stopping = false
 		return
 	if response.ok and response.body is Dictionary:
 		apply_pose(response.body)
@@ -1111,6 +1177,7 @@ func interrupt() -> void:
 		if error.find("não há ação") >= 0:
 			busy.clear()
 			busy_changed.emit("", 0.0)
+	_stopping = false
 
 var combat := CombatView.new() ## #234: recarga, guarda, alcance e último golpe recebido, como o motor disse
 var _guard_shown := "" ## a guarda que o app já mostra no corpo (para avisar só quando muda)
@@ -1134,7 +1201,7 @@ func apply_pose(pose: Dictionary, from_walk: bool = false) -> void:
 		frame.set_ground(pose.get("ground")) # #238: o chão sob o corpo e o que atrasa o passo, como o motor diz
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
-		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		var scale := _time_scale()
 		_cell_meters = float(pose.get("cellMeters", 1.5))
 		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(_cell_meters, 0.01) * scale
 		var on_ground: bool = body.ground != null and body.ground.is_valid()
@@ -1228,6 +1295,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			and frame != null and frame.queue_size() > 0:
 		get_viewport().set_input_as_handled()
 		cancel_queued(event.keycode - KEY_1) # #255: Shift+1–4 tira a ação da fila
+	elif event is InputEventKey and event.pressed and not event.echo and not event.shift_pressed and event.keycode in [KEY_0, KEY_1, KEY_2, KEY_3] \
+			and rpg and not popup_open() and not typing() and frame != null and frame.speed_box.visible:
+		get_viewport().set_input_as_handled() # #260: 0 pausa, 1/2/3 as velocidades (com a roda aberta, 1–9 escolhem a linha: tratado acima)
+		set_speed(event.keycode - KEY_0)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_goals() # #235: metas e diário
@@ -1272,7 +1346,7 @@ func step(dx: int, dy: int) -> void:
 
 ## AD-197j: o próximo passo só depois do tempo do corpo (`readyInMs` de mundo, na escala do relógio): a tecla segurada anda nesse ritmo.
 func _pace(pose: Dictionary) -> void:
-	var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	var scale := _time_scale()
 	var seconds := float(pose.get("readyInMs", 0)) / 1000.0 / maxf(scale, 0.001)
 	if seconds > 0.0:
 		step_seconds = seconds
@@ -1373,7 +1447,7 @@ func _reach_entries() -> Array:
 			_lost("Você não controla mais %s." % npc_name)
 		return []
 	offers = response.body.get("offers", [])
-	return without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id)
+	return without_sale(without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id), building_id)
 
 
 ## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
@@ -1402,7 +1476,7 @@ func open_interactions() -> void:
 		return
 	offers = response.body.get("offers", [])
 	if rpg and frame != null:
-		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()))
+		frame.show_menu(without_sale(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id))
 		menu_toggled.emit(true)
 		return
 	show_menu(menu_entries(offers, resource_name_of))
@@ -1414,11 +1488,18 @@ static func without_own_door(entries: Array, inside: int) -> Array:
 	return entries if inside < 0 else entries.filter(func(e): return not (String(e.kind) == "door" and String(e.verb) == "enter" and int(e.id) == inside))
 
 
+## #260: vender a própria casa não é coisa do dia a dia dentro dela: de dentro a roda não mostra a venda (o motor a deixa por último e de fora, na porta,
+## ela vem ao mirar a casa).
+static func without_sale(entries: Array, inside: int) -> Array:
+	return entries if inside < 0 else entries.filter(func(e): return String(e.kind) != "house")
+
+
 static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	var entries: Array = []
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
-		var title := String(offer.get("label", "")) if kind in ["person", "item", "object"] else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor
+		var named := String(offer.get("label", ""))
+		var title := named if kind in ["person", "item", "object"] or named != "" else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor (#260: a despensa tem o nome do móvel do catálogo)
 		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
 		if kind == "object" and offer.get("uses") != null and not (offer.uses as Array).is_empty():
 			# #255: um item por objeto (os usos vão num submenu), para cadeira, mesa e sofá não sumirem da roda
@@ -1449,7 +1530,8 @@ static func use_entries(object_entry: Dictionary, queueing: bool) -> Array:
 		if bool(use.get("busy", false)):
 			text += " (ocupado)"
 		var verb := ("queue:" if queueing else "use:") + String(use.id)
-		list.append({"text": ("Fila: " if queueing else "") + text, "kind": String(object_entry.kind), "id": int(object_entry.id), "verb": verb, "resource": -1})
+		list.append({"text": ("Fila: " if queueing else "") + text, "kind": String(object_entry.kind), "id": int(object_entry.id), "verb": verb, "resource": -1,
+			"name": String(use.name), "need": String(use.get("need", "")) if use.get("need") != null else ""})
 	return list
 
 
@@ -1489,6 +1571,8 @@ func interact(entry: Dictionary) -> void:
 		if frame != null:
 			frame.show_menu(use_entries(entry, busy.active() or frame.queue_size() > 0))
 		return
+	if (String(entry.get("verb", "")).begins_with("use:") or String(entry.get("verb", "")).begins_with("queue:")) and String(entry.get("name", "")) != "":
+		_use_needs[String(entry.name)] = String(entry.get("need", "")) # #260: para o aviso de fim
 	if busy.active() and String(entry.get("verb", "")).begins_with("use:"):
 		entry = entry.duplicate()
 		entry["verb"] = "queue:" + String(entry.verb).substr(4) # o corpo está ocupado: a ação entra na fila

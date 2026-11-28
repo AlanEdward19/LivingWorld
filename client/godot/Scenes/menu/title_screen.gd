@@ -76,8 +76,16 @@ func set_continue(info: Dictionary) -> void:
 			details.append("%d %s" % [int(info.population), "pessoa" if int(info.population) == 1 else "pessoas"])
 		if String(info.get("period", "")) != "":
 			details.append(String(info.period))
-		continue_button.text = "Continuar: %s\n%s" % [String(info.get("name", "seu mundo")), " · ".join(details)]
+		var world_name := String(info.get("name", ""))
+		continue_button.text = continue_text(world_name, " · ".join(details))
 	focus_default()
+
+
+## #260: "Continuar: Nome\nano 3 · 2 pessoas"; um mundo sem nome de verdade ("Mundo sem nome") não é anunciado como se fosse do jogador.
+static func continue_text(world_name: String, details: String) -> String:
+	if world_name.strip_edges() == "" or world_name.strip_edges().to_lower() == "mundo sem nome":
+		return "Continuar\n%s" % details if details != "" else "Continuar"
+	return "Continuar: %s\n%s" % [world_name, details]
 
 
 func set_status(text: String, ok: bool) -> void:

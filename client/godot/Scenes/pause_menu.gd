@@ -51,11 +51,12 @@ func _ready() -> void:
 		await close()
 		if app != null and app.player_hud != null:
 			await app.player_hud.logout())
-	save_button = Kit.big_button("Salvar agora", _box, save_now)
-	Kit.big_button("Opções", _box, show_options)
-	Kit.big_button("Ajuda e atalhos", _box, func(): close(); help_pressed.emit())
-	Kit.big_button("Voltar ao menu", _box, func(): await _restore_clock(); visible = false; _hide_hud_notices(false); menu_pressed.emit())
-	Kit.big_button("Sair do jogo", _box, func(): visible = false; _hide_hud_notices(false); quit_pressed.emit())
+	save_button = Kit.big_button("Salvar agora", _box, save_now, 48)
+	Kit.big_button("Opções", _box, show_options, 48)
+	Kit.big_button("Ajuda e atalhos", _box, func(): close(); help_pressed.emit(), 48)
+	Kit.spacer(_box, 8) # #260: sair fica separado do resto e menor (não pesa como Continuar)
+	Kit.big_button("Voltar ao menu", _box, func(): await _restore_clock(); visible = false; _hide_hud_notices(false); menu_pressed.emit(), 44)
+	Kit.big_button("Sair do jogo", _box, func(): visible = false; _hide_hud_notices(false); quit_pressed.emit(), 44)
 
 
 func is_open() -> bool:

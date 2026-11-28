@@ -47,7 +47,12 @@ public sealed record ObjectDescriptor(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Name = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectUseDef>? Uses = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Rooms = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Rooms = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ObjectLight? Light = null);
+
+/// <summary>#260: o objeto dá luz (lâmpada, abajur): cor (hex), alcance em metros, intensidade relativa e altura da luz acima do chão em metros. O cliente a
+/// acende quando o motor diz que é noite e a casa está ocupada; o objeto não tem estado de ligado e desligado ainda.</summary>
+public sealed record ObjectLight(string Color, double RangeM, double Energy, double HeightM);
 
 /// <summary>Catálogo de objetos do cenário: descritores e a mobília por tipo de prédio (chave "default" ou o id numérico).
 /// Nulo no mundo = cenário sem <c>Objects</c>: omitido do snapshot e do hash (opt-in).</summary>

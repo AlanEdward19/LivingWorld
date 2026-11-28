@@ -21,7 +21,7 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch, Speed }
 
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
@@ -359,6 +359,7 @@ public static class PlayerReplay
                 PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true, record.Seq ?? 0).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Interrupt => service.Interrupt(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Speed => true, // #260: estado do hospedeiro; o que muda o mundo é o Δ, que vai no registro de Δ
                 PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,
                 PlayerCommandKind.Block => service.Guard(world, record.PlayerId, CombatGuard.Block).IsSuccess,
                 PlayerCommandKind.Sample => service.Sample(world, record.PlayerId, new CityId(record.CityId!.Value),

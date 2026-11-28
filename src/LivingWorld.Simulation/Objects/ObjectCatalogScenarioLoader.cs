@@ -42,6 +42,9 @@ public static class ObjectCatalogScenarioLoader
             var inRooms = HomeLifeLoader.ParseRooms((array[i] as JsonObject)?["rooms"], $"Objects[{i}]");
             if (!inRooms.IsSuccess) return Fail(inRooms.Error!);
             if (inRooms.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Rooms = inRooms.Value });
+            var light = HomeLifeLoader.ParseLight((array[i] as JsonObject)?["light"], $"Objects[{i}]");
+            if (!light.IsSuccess) return Fail(light.Error!);
+            if (light.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Light = light.Value });
             if (objects.Any(o => o.Id == parsed.Value!.Id)) return Fail($"Objects[{i}].id: '{parsed.Value!.Id}' duplicado");
             if (parsed.Value!.ResourceId is int resourceId && objects.Any(o => o.ResourceId == resourceId))
                 return Fail($"Objects[{i}].resourceId: o recurso {resourceId} já tem descritor");

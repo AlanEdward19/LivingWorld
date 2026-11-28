@@ -58,6 +58,8 @@ public static class PopulationSeeder
             bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
             householdsComposed: groups => composition = groups);
         Register(world, generated, houseIds);
+        if (houseIds.Count > 0 && world.FindBuilding(houseIds[0]) is { } home)
+            HouseholdStart.Spread(world, generated.Npcs.Where(n => n.Household == generated.Households[0].Id).ToList(), home); // #260
     }
 
     private static void Register(WorldState world, PopulationGenerator.GeneratedPopulation generated, List<BuildingId> houseIds)
