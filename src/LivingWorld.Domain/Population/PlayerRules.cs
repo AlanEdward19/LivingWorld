@@ -81,6 +81,13 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public bool? BodyPace { get; init; }
 
+    /// <summary>#246 (5º teste, AD-237): sair do personagem devolve a pessoa à vontade do motor, na casa e no trabalho dela, em vez de
+    /// fazê-la desaparecer (largar casa e emprego e abrir procura). Dado do cenário; ausente = o sumiço de sempre (AD-196). O sandbox liga:
+    /// fechar o jogo e "Continuar" não pode desfazer a vida do casal.</summary>
+    public bool? LogoutKeepsLife { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public bool KeepsLifeOnLogout => LogoutKeepsLife ?? false;
+
     /// <summary>Sono (energia) que uma hora de caminhada gasta além do desgaste de sempre: andar cansa.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? StepSleepPerHour { get; init; }

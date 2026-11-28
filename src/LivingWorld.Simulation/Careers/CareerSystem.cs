@@ -26,6 +26,8 @@ public sealed class CareerSystem : ISimulationSystem
         long day = nowMs / dayMs;
         int hod = (int)(nowMs % dayMs / WorldMillis.PerHour);
 
+        RunDue(world, nowMs); // #246: a entrevista marcada
+
         foreach (var job in ledger.Jobs.ToList())
         {
             if (world.FindNpc(new NpcId(job.Npc)) is not { IsAlive: true } npc) { ledger.RemoveJob(job.Npc); world.CareersChanged(); continue; }
@@ -54,6 +56,13 @@ public sealed class CareerSystem : ISimulationSystem
         if (hod == catalog.Rules.BillHour) CareerWork.TickBills(world, ctx, nowMs);
         CareerWork.MeterLights(world);
         if (hod == 10) IdleSearch(world, ledger, catalog, nowMs);
+    }
+
+    /// <summary>#246 (AD-237): as entrevistas marcadas cuja hora chegou correm agora.</summary>
+    internal static void RunDue(WorldState world, long nowMs)
+    {
+        if (world.Careers is not { } ledger) return;
+        foreach (var search in ledger.Searches.Where(x => x.InterviewAtMs > 0 && x.InterviewAtMs <= nowMs).ToList()) CareerWork.RunInterview(world, search, nowMs);
     }
 
     /// <summary>Quem ninguém conduz, adulto, sem emprego e de casa de carreira, olha as vagas de vez em quando (a chance do dado por dia) e se candidata: o mesmo caminho do jogador.</summary>

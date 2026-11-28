@@ -220,6 +220,8 @@ func apply_time(view: Dictionary) -> void:
 	else:
 		rhythm_label.text = RHYTHM_TEXT.get(rhythm, "")
 	var skipping := bool(view.get("skipping", false))
+	if not skipping and not view.is_empty() and status_text.begins_with("Pulando até"): # #246 (5º teste): o aviso do salto sai quando o salto acaba (ficava às 18:02, já em casa)
+		_set_status("")
 	var can_skip := bool(view.get("canSkip", false)) and not skipping and is_active
 	sleep_hour.max_value = hours_per_day - 1
 	sleep_hour.visible = can_skip
@@ -2237,7 +2239,9 @@ func logout() -> void:
 		else:
 			warning.emit("Não foi possível sair do personagem anterior (erro %d)." % response.status)
 		return
-	if response.ok and response.body is Dictionary:
+	if response.ok and response.body is Dictionary and response.body.get("disappearedAtMs", response.body.get("disappearedAtTick")) == null:
+		_lost("Você saiu. %s volta à rotina, em casa e no trabalho." % npc_name) # #246 (AD-237): o cenário diz que sair não faz sumir
+	elif response.ok and response.body is Dictionary:
 		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, WorldTime.hours_of(response.body, "disappearedAtMs")])
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)

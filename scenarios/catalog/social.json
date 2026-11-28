@@ -672,8 +672,13 @@
     "pose": "plead",
     "targetPose": "talk",
     "accept": {
-     "base": 45,
+     "base": -15,
      "terms": [
+      {
+       "of": "target.moment.quarrel",
+       "weight": 60,
+       "from": 0
+      },
       {
        "of": "recent.mean",
        "weight": 40,
@@ -697,7 +702,7 @@
        "reason": "{target} lembra que você já pediu desculpa agora há pouco"
       }
      ],
-     "refuseReason": "{target} ainda está magoado"
+     "refuseReason": "{target} não vê motivo para desculpas ou ainda está magoado"
     },
     "effects": {
      "actor": {

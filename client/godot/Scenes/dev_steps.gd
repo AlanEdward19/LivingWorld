@@ -1189,6 +1189,11 @@ static func run(app: Node, steps: Array) -> void:
 						print("relinfo: ", offer.get("label"), " ", offer.get("relation"))
 			"closemenu": # #268: fecha a roda do E (o mundo espera enquanto ela está aberta: popup hold, #240)
 				app.player_frame.close_menu()
+			"hmdebug": # #246 (5º teste): diagnóstico do G após "Continuar": o que o leitor responde para a ficha do corpo e da casa
+				var hm_api = app.player_hud.api
+				print("hmdebug: api=", hm_api, " entity=", hm_api.has_method("entity"), " ativo=", app.player_hud.is_active, " npc=", app.player_hud.npc_id)
+				var hm_me: Dictionary = await hm_api.entity("npc", app.player_hud.npc_id)
+				print("hmdebug: ok=", hm_me.ok, " household=", str(hm_me.body.get("state", {}).get("npc", {}).get("household")) if hm_me.ok and hm_me.body is Dictionary else str(hm_me))
 			"gonow": # #267: o botão "Ir agora" do turno
 				await app.player_hud.go_now()
 			"skipreturn": # #267: o botão "Pular para a volta do turno"
