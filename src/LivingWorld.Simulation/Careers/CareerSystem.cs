@@ -1,4 +1,3 @@
-using LivingWorld.Domain.History;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
@@ -10,7 +9,7 @@ namespace LivingWorld.Simulation.Careers;
 /// <summary>#263: dono da capacidade CAREERS. De hora em hora, no dado do catálogo <c>Careers</c>: avisa quem o jogador conduz (a hora do trabalho), manda para o turno quem ninguém
 /// conduz, registra a falta de quem não saiu a tempo, emite e cobra as contas da casa e faz quem está sem emprego e é de casa de carreira procurar vaga. A volta do turno é evento
 /// agendado no instante exato (<see cref="HandleEvent"/>). Sem o bloco <c>Careers</c> no cenário ou sem ninguém no livro, nada roda (o hash do mundo não muda).</summary>
-[LivingCapability("CAREERS", Events = [WorldEventKind.WageUnpaid, WorldEventKind.Fired], Consumers = ["economy.wages", "player.career-card"])]
+[LivingCapability("CAREERS", Events = [], Consumers = ["economy.wages", "player.career-card"])]
 [RunsAfter(typeof(BehaviorDecisionSystem))]
 public sealed class CareerSystem : ISimulationSystem
 {
