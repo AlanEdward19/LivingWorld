@@ -1293,6 +1293,11 @@ func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
 			if _use_poll >= USE_POLL_S and not _walk_busy:
 				_use_poll = 0.0
 				sync_pose()
+	elif busy.action == "haul-drive": # #265: o motor leva o corpo e o carro até a loja ou a casa: a pose dele manda, lida várias vezes por segundo
+		_use_poll += delta
+		if _use_poll >= USE_POLL_S and not _walk_busy:
+			_use_poll = 0.0
+			sync_pose()
 	elif busy.action == "social": # #261: o corpo anda até a pessoa pelo motor (a pose dele manda) e o gesto começa e acaba lá: lê a pose enquanto dura
 		_use_poll += delta
 		if _use_poll >= (USE_POLL_S if busy.phase == "walk" else SOCIAL_POLL_S) and not _walk_busy:
@@ -1698,7 +1703,7 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 			# #255: um item por objeto (os usos vão num submenu), para cadeira, mesa e sofá não sumirem da roda
 			entries.append({"text": "%s ▸" % title, "kind": kind, "id": int(offer.id), "verb": "menu", "resource": -1, "uses": offer.uses, "title": title})
 			continue
-		if kind in ["job", "bills"] and offer.get("uses") != null: # #263: o texto de cada verbo (ir ao trabalho, candidatar-se, pagar a conta) é do dado, o motor o manda
+		if kind in ["job", "bills", "freight"] and offer.get("uses") != null: # #263: o texto de cada verbo (ir ao trabalho, candidatar-se, pagar a conta) é do dado, o motor o manda
 			for use in offer.uses:
 				entries.append({"text": String(use.name), "kind": kind, "id": int(offer.id), "verb": String(use.id), "resource": -1})
 			continue

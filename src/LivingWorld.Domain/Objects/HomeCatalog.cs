@@ -8,7 +8,8 @@ public sealed record HomeCatalog(
     IReadOnlyList<HomeCategory> Categories,
     IReadOnlyList<HomeItem> Items,
     IReadOnlyList<HomePaint> Paints,
-    HomeBuild Build)
+    HomeBuild Build,
+    HomeHaul? Haul = null)
 {
     public HomeItem? Item(string objectId) => IndexOf(this).ByObject.GetValueOrDefault(objectId);
     public HomeItem? ItemOfResource(int resourceId) => IndexOf(this).ByResource.GetValueOrDefault(resourceId);
@@ -53,3 +54,25 @@ public sealed record HomePaint(string Id, string Name, string Kind, string Color
 /// <summary>A obra: <c>Contractor</c> é o tipo de local (<c>LocationType</c>) cujo caixa recebe o que se paga; <c>Wall</c>, <c>Door</c>, <c>Demolish</c> e <c>Cell</c> são o preço
 /// de levantar um trecho de parede, abrir uma porta, derrubar e acrescentar uma célula de piso; <c>MaxExtraCells</c> limita a ampliação.</summary>
 public sealed record HomeBuild(int Contractor, long Wall = 0, long Door = 0, long Demolish = 0, long Cell = 0, int MaxExtraCells = 12);
+
+/// <summary>#265: como o móvel comprado chega em casa, tudo em dado (<c>Home.haul</c>). <c>Heft</c> diz o peso e o volume de cada móvel (por objeto); <c>Hands</c> o que o corpo leva andando e
+/// quanto isso o atrasa; <c>Vehicles</c> e <c>Fleet</c> os veículos (capacidade do porta-malas, velocidade) e quais a casa própria tem estacionados; <c>Delivery</c> o preço e o prazo de quem entrega;
+/// <c>ReachM</c> a distância (m) da porta da loja ou da casa em que se pega e se deixa a carga. Sem o bloco, comprar põe o móvel na casa de uma vez (o mundo de antes).</summary>
+public sealed record HomeHaul(
+    HomeHands Hands, HomeDelivery Delivery, IReadOnlyList<HomeVehicle> Vehicles, IReadOnlyList<string> Fleet, IReadOnlyDictionary<string, HomeHeft> Heft, double ReachM = 4.5)
+{
+    public HomeHeft? HeftOf(string objectId) => Heft.GetValueOrDefault(objectId);
+    public HomeVehicle? Vehicle(string id) => Vehicles.FirstOrDefault(v => v.Id == id);
+}
+
+/// <summary>Peso (kg) e volume (litros) de um móvel.</summary>
+public sealed record HomeHeft(double Kg, double Liters);
+
+/// <summary>O que cabe nas mãos de um corpo (<c>MaxKg</c>, <c>MaxLiters</c>; com ajuda de outra pessoa, <c>HelperFactor</c> vezes) e quanto atrasa o passo com a carga cheia (<c>SlowPercent</c>, proporcional ao peso).</summary>
+public sealed record HomeHands(double MaxKg, double MaxLiters, int SlowPercent, double HelperFactor = 2.0);
+
+/// <summary>Veículo em dado: o porta-malas (<c>TrunkKg</c>, <c>TrunkLiters</c>), a velocidade (m/s) e a cor com que o cliente o desenha.</summary>
+public sealed record HomeVehicle(string Id, string Name, double TrunkKg, double TrunkLiters, double Mps, string Color = "9aa5b1");
+
+/// <summary>A entrega pela loja: <c>Fee</c> fixa mais <c>PerKg</c> por quilo; sai entre <c>OpenHour</c> e <c>CloseHour</c> (hora do dia do mundo), <c>PrepMin</c> depois do pedido; o entregador anda a <c>Mps</c> (m/s) carregando.</summary>
+public sealed record HomeDelivery(long Fee, long PerKg, int OpenHour, int CloseHour, int PrepMin, double Mps);

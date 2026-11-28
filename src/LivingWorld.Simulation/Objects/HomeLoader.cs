@@ -22,6 +22,23 @@ public static class HomeLoader
         MergeList(own, baseHome, "categories", "id");
         MergeList(own, baseHome, "items", "object");
         MergeList(own, baseHome, "paints", "id");
+        MergeHaul(own, baseHome);
+    }
+
+    /// <summary>#265: o bloco <c>haul</c> do cenário vence; o que ele não diz (mãos, entrega, alcance) vem do catálogo-base, e peso e veículos juntam por id.</summary>
+    private static void MergeHaul(JsonObject own, JsonObject baseHome)
+    {
+        if (baseHome["haul"] is not JsonObject baseHaul) return;
+        if (own["haul"] is not JsonObject haul) { own["haul"] = baseHaul.DeepClone(); return; }
+        foreach (var key in new[] { "hands", "delivery", "reachM", "fleet" })
+            if (haul[key] is null && baseHaul[key] is { } value) haul[key] = value.DeepClone();
+        MergeList(haul, baseHaul, "vehicles", "id");
+        if (baseHaul["heft"] is JsonObject baseHeft)
+        {
+            var heft = haul["heft"] as JsonObject ?? (JsonObject)(haul["heft"] = new JsonObject());
+            foreach (var (id, value) in baseHeft)
+                if (!heft.ContainsKey(id) && value is not null) heft[id] = value.DeepClone();
+        }
     }
 
     private static void MergeList(JsonObject own, JsonObject baseHome, string key, string idKey)
@@ -73,7 +90,31 @@ public static class HomeLoader
             if (p.Price < 0 || !double.IsFinite(p.Beauty) || Math.Abs(p.Beauty) > 50) return Fail($"{at}: preço negativo ou beleza fora de -50 a 50");
         }
 
+        if (catalog.Haul is { } haul && HaulError(catalog, haul) is { } haulError) return Fail(haulError);
         return Result<HomeCatalog?>.Ok(catalog.Items.Count == 0 && catalog.Paints.Count == 0 ? null : catalog);
+    }
+
+    private static string? HaulError(HomeCatalog catalog, HomeHaul haul)
+    {
+        if (haul.Hands is null || haul.Delivery is null || haul.Vehicles is null || haul.Fleet is null || haul.Heft is null) return "Home.haul: precisa de hands, delivery, vehicles, fleet e heft";
+        var hands = haul.Hands;
+        if (!double.IsFinite(hands.MaxKg) || hands.MaxKg <= 0 || !double.IsFinite(hands.MaxLiters) || hands.MaxLiters <= 0 || hands.SlowPercent is < 0 or > 90 || hands.HelperFactor < 1) return "Home.haul.hands: {maxKg, maxLiters > 0, slowPercent 0 a 90, helperFactor >= 1}";
+        var d = haul.Delivery;
+        if (d.Fee < 0 || d.PerKg < 0 || d.OpenHour is < 0 or > 23 || d.CloseHour is < 1 or > 24 || d.CloseHour <= d.OpenHour || d.PrepMin < 0 || !double.IsFinite(d.Mps) || d.Mps <= 0) return "Home.haul.delivery: {fee, perKg >= 0, openHour < closeHour (0 a 24), prepMin >= 0, mps > 0}";
+        if (!double.IsFinite(haul.ReachM) || haul.ReachM <= 0 || haul.ReachM > 30) return "Home.haul.reachM: de 0 a 30 m";
+        for (int i = 0; i < haul.Vehicles.Count; i++)
+        {
+            var v = haul.Vehicles[i];
+            if (string.IsNullOrWhiteSpace(v.Id) || haul.Vehicles.Count(x => x.Id == v.Id) > 1 || v.Name.Length is 0 or > 24 || v.TrunkKg <= 0 || v.TrunkLiters <= 0 || !double.IsFinite(v.Mps) || v.Mps <= 0 || v.Color.Length != 6 || !v.Color.All(Uri.IsHexDigit))
+                return $"Home.haul.vehicles[{i}]: {{id único, name, trunkKg e trunkLiters > 0, mps > 0, color com 6 dígitos hexadecimais}}";
+        }
+
+        for (int i = 0; i < haul.Fleet.Count; i++)
+            if (haul.Vehicle(haul.Fleet[i]) is null) return $"Home.haul.fleet[{i}]: veículo '{haul.Fleet[i]}' não existe em Home.haul.vehicles";
+        for (int i = 0; i < catalog.Items.Count; i++)
+            if (haul.HeftOf(catalog.Items[i].Object) is not { } heft || !double.IsFinite(heft.Kg) || heft.Kg <= 0 || !double.IsFinite(heft.Liters) || heft.Liters <= 0)
+                return $"Home.haul.heft.{catalog.Items[i].Object}: o móvel precisa de peso (kg) e volume (litros) maiores que zero";
+        return null;
     }
 
     private static Result<HomeCatalog?> Fail(string error) => Result<HomeCatalog?>.Fail(error);

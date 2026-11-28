@@ -23,6 +23,7 @@ const PlayerFrame := preload("res://Scenes/player_frame.gd")
 const BuyMode := preload("res://Scenes/buy_mode.gd")
 const AimHighlight := preload("res://Scenes/aim_highlight.gd")
 const ReachRing := preload("res://Scenes/reach_ring.gd")
+const HomeFreightLayer := preload("res://Scenes/home_freight_layer.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
@@ -260,6 +261,14 @@ static func _side(app, ui: Control) -> void:
 	app.player_frame.speed_chosen.connect(func(speed: int): app.player_hud.set_speed(speed)) # #260: pausa/1×/2×/3× no HUD
 	app.player_hud.speed_changed.connect(func(_speed: int): app.on_speed_changed())
 	app.player_hud.walls_cycled.connect(func(): app.cycle_walls())
+	app.home_freight.api = app.player_hud.api
+	app.home_freight.id_of = func() -> String: return app.player_hud.player_id
+	app.home_freight.active = func() -> bool: return app.player_hud != null and app.player_hud.is_active
+	app.home_freight.actor_of = func() -> Node3D: return app.player_actor() if app.player_hud != null and app.player_hud.is_active else null
+	app.home_freight.catalog_of = func() -> Array: return app.store.interior.get("objects", {}).get("catalog", []) if app.store.interior.get("objects") is Dictionary else []
+	app.home_freight.set_driver_of(func() -> Node3D: return app.player_actor() if app.player_hud != null and app.player_hud.is_active else null)
+	app.home_freight.notice.connect(func(text: String): app.toasts.push(text))
+	app.player_hud.sheet_read.connect(func(body: Dictionary): app.home_freight.note_sheet(body))
 	app.buy_mode = BuyMode.new() # #264: modo comprar e construir (B): câmera de cima, catálogo, fantasma, obra
 	ui.add_child(app.buy_mode)
 	app.buy_mode.api = app.player_hud.api
@@ -480,6 +489,8 @@ static func build_scene(app) -> void:
 	app.world_view.add_child(app.aim_highlight)
 	app.reach_ring = ReachRing.new() # #234: o alcance do golpe em volta do corpo quando mira alguém
 	app.world_view.add_child(app.reach_ring)
+	app.home_freight = HomeFreightLayer.new() # #265: o móvel nas mãos, o carro da casa e o entregador, só do que o motor diz
+	app.world_view.add_child(app.home_freight)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
 	app.rig.walking = func() -> bool: return app.player_hud != null and app.player_hud.is_active # AD-197e: WASD/setas andam com o personagem

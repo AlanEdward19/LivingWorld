@@ -98,6 +98,7 @@ var selected_npc := -1
 var settings ## preferências locais (GameSettings) vindas do Boot; nulo nos testes e nas medidas
 var pause_menu ## PauseMenu (Esc)
 var buy_mode ## #264: BuyMode, o modo comprar e construir
+var home_freight ## #265: HomeFreightLayer, o transporte do móvel (nas mãos, carro, entregador)
 var modal ## #240: Modal, o registro único de popup aberto
 var popup_hold ## #240: PopupHold, o pedido de pausa de popup ao motor
 var first_steps ## FirstSteps: dicas da primeira vez e ajuda

@@ -48,17 +48,37 @@ public class HomeBuyTests
 
     private static long Stock(WorldState world, string item) => Shop(world).Stock.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(world.ObjectCatalog!.Home!.Item(item)!.Resource));
 
-    /// <summary>A primeira célula e o primeiro giro em que o motor aceita o móvel (o mesmo que o fantasma verde do cliente usa).</summary>
-    private static string Spot(WorldState world, Npc body, Building house, string item, int skip = 0)
+    /// <summary>Atalho dos testes de lugar e de beleza (o transporte tem os dele, em HomeFreightTests): compra de verdade (moeda, estoque), leva o móvel direto ao depósito da casa e o põe na
+    /// primeira célula e no primeiro giro em que o motor aceita (opcionalmente numa sala).</summary>
+    private static Result<InteractionResult> Furnish(PlayerService? service, WorldState world, Building house, Npc body, string item, Room? room = null)
     {
-        foreach (var cell in BuildingLayoutCache.Of(house).Layout.FloorLayouts[0].Cells.OrderBy(c => c.Cell.Y).ThenBy(c => c.Cell.X))
+        var bought = service is null ? HomeCommands.Apply(world, null!, body, house.Id.Value, $"buy:{item}") : Do(service, world, house, $"buy:{item}");
+        if (!bought.IsSuccess) return bought;
+        var parcel = house.Edit!.Parcels.Last();
+        HomeFreight.Update(world, house, parcel, parcel with { Where = "depot" });
+        string verb = PlaceVerb(world, body, house, parcel.Seq, room);
+        return service is null ? HomeCommands.Apply(world, null!, body, house.Id.Value, verb) : Do(service, world, house, verb);
+    }
+
+    private static string PlaceVerb(WorldState world, Npc body, Building house, int seq, Room? room = null)
+    {
+        var cells = room is null ? BuildingLayoutCache.Of(house).Layout.FloorLayouts[0].Cells.OrderBy(c => c.Cell.Y).ThenBy(c => c.Cell.X).Select(c => c.Cell).ToList() : room.Cells.ToList();
+        foreach (var cell in cells)
             foreach (int facing in new[] { 0, 90, 180, 270 })
             {
-                string verb = $"buy:{item}:0:{cell.Cell.X}:{cell.Cell.Y}:{facing}";
-                if (HomeCommands.Check(world, body, house.Id.Value, verb).IsSuccess && skip-- <= 0) return verb;
+                string verb = $"place:{seq}:0:{cell.X}:{cell.Y}:{facing}";
+                if (HomeCommands.Check(world, body, house.Id.Value, verb).IsSuccess) return verb;
             }
 
-        throw new InvalidOperationException($"sem lugar para {item}");
+        throw new InvalidOperationException("sem lugar para o móvel");
+    }
+
+    /// <summary>Um móvel já no depósito da casa (sem pagar), para os testes de lugar.</summary>
+    private static int InDepot(Building house, string item)
+    {
+        var edit = house.Edit ??= new HomeEdit();
+        edit.Parcels.Add(new Parcel(edit.NextParcel++, item, 0, 0, "depot"));
+        return edit.Parcels[^1].Seq;
     }
 
     private static Result<InteractionResult> Do(PlayerService service, WorldState world, Building house, string verb) => service.Interact(world, "alan", "home", house.Id.Value, verb);
@@ -107,7 +127,7 @@ public class HomeBuyTests
         var home = world.ObjectCatalog!.Home!;
         long total = Coins(world), wallet = body.Wallet.Amount, stock = Stock(world, "plant"), treasury = Shop(world).Treasury.Amount;
         int before = HomeFurniture.Of(house, world.ObjectCatalog!).Count;
-        string verb = Spot(world, body, house, "plant");
+        string verb = "buy:plant";
         var result = Do(service, world, house, verb);
         Assert.True(result.IsSuccess, result.Error);
 
@@ -116,10 +136,9 @@ public class HomeBuyTests
         Assert.Equal(treasury + price, Shop(world).Treasury.Amount);
         Assert.Equal(stock - 1, Stock(world, "plant"));
         Assert.Equal(total, Coins(world)); // moeda conservada
-        var pieces = HomeFurniture.Of(house, world.ObjectCatalog!);
-        Assert.Equal(before + 1, pieces.Count);
-        Assert.Equal("plant", pieces[^1].Id);
-        Assert.NotNull(pieces[^1].Spot);
+        Assert.Equal(before, HomeFurniture.Of(house, world.ObjectCatalog!).Count); // #265: pagar não põe o móvel em casa
+        var parcel = Assert.Single(house.Edit!.Parcels);
+        Assert.Equal(("plant", "shop", price), (parcel.Id, parcel.Where, parcel.Paid)); // reservado na loja, em nome da casa
         Assert.Contains(service.Log.Records, r => r.Kind == PlayerCommandKind.Interact && r.Interaction == "home" && r.Verb == verb);
     }
 
@@ -127,7 +146,7 @@ public class HomeBuyTests
     public void A_refused_purchase_changes_nothing_and_says_why()
     {
         var (world, _, service, body, _, house) = Playing();
-        string verb = Spot(world, body, house, "plant");
+        string verb = "buy:plant";
         body.TryDebitWallet(new Money(body.Wallet.Amount - 2)); // sobram 2 moedas
         string hash = WorldSnapshot.CanonicalHash(world);
         var poor = Do(service, world, house, verb);
@@ -146,8 +165,12 @@ public class HomeBuyTests
         var rooms = BuildingRooms.Of(house, world.ObjectCatalog);
         var pieces = HomeFurniture.Of(house, world.ObjectCatalog!);
         var taken = pieces.First(p => p.Spot is not null).Spot!.Value;
-        string Check(string item, CellCoord cell, int facing) =>
-            HomeCommands.Check(world, body, house.Id.Value, $"buy:{item}:0:{cell.X}:{cell.Y}:{facing}") is { IsSuccess: false } r ? r.Error! : "";
+        var depot = new Dictionary<string, int>();
+        string Check(string item, CellCoord cell, int facing)
+        {
+            if (!depot.TryGetValue(item, out int seq)) depot[item] = seq = InDepot(house, item);
+            return HomeCommands.Check(world, body, house.Id.Value, $"place:{seq}:0:{cell.X}:{cell.Y}:{facing}") is { IsSuccess: false } r ? r.Error! : "";
+        }
 
         Assert.Contains("já tem um móvel", Check("plant", taken.Cell, 0));
         var door = layout.Cells.Single(c => c.Material == BuildingMaterial.Door).Cell;
@@ -175,22 +198,20 @@ public class HomeBuyTests
         var home = world.ObjectCatalog!.Home!;
         Assert.Equal(0, Stock(world, "armchair"));
         long total = Coins(world), wood = Shop(world).Stock.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(40)), wallet = body.Wallet.Amount;
-        string verb = Spot(world, body, house, "armchair");
-        var ordered = Do(service, world, house, verb);
+        var ordered = Do(service, world, house, "buy:armchair");
         Assert.True(ordered.IsSuccess, ordered.Error);
         long price = home.Item("armchair")!.Price * (100 + home.Rules.OrderMarkupPercent) / 100;
         Assert.Equal(wallet - price, body.Wallet.Amount);
         Assert.Equal(wood - home.Item("armchair")!.Craft!.Materials["40"], Shop(world).Stock.GetValueOrDefault(new LivingWorld.Domain.Geography.ResourceType(40)));
         Assert.Equal(total, Coins(world));
-        Assert.Single(house.Edit!.Orders);
-        Assert.DoesNotContain(HomeFurniture.Of(house, world.ObjectCatalog!), p => p.Id == "armchair"); // ainda não chegou
-        // a célula reservada pela encomenda não aceita outra peça
-        Assert.False(HomeCommands.Check(world, body, house.Id.Value, $"buy:plant:{verb.Split(':', 3)[2]}").IsSuccess);
+        var parcel = Assert.Single(house.Edit!.Parcels);
+        Assert.DoesNotContain(HomeFurniture.Of(house, world.ObjectCatalog!), p => p.Id == "armchair"); // ainda não existe: a loja o faz
+        Assert.False(HomeCommands.Check(world, body, house.Id.Value, $"fetch:{parcel.Seq}").IsSuccess); // e ninguém leva o que ainda não está pronto
 
-        long ready = house.Edit.Orders[0].ReadyAtMs;
+        long ready = parcel.ReadyAtMs;
+        Assert.True(ready > world.CurrentDate.TotalMilliseconds);
         while (world.CurrentDate.TotalMilliseconds < ready + 1000) clock.Tick(world, 60_000);
-        Assert.Empty(house.Edit.Orders);
-        Assert.Contains(HomeFurniture.Of(house, world.ObjectCatalog!), p => p.Id == "armchair" && p.Spot is not null);
+        Assert.Equal("shop", house.Edit.Parcels[0].Where); // pronto, esperando na loja em nome da casa
     }
 
     [Fact]
@@ -198,7 +219,7 @@ public class HomeBuyTests
     {
         var (world, _, service, body, _, house) = Playing();
         var home = world.ObjectCatalog!.Home!;
-        Assert.True(Do(service, world, house, Spot(world, body, house, "plant")).IsSuccess);
+        Assert.True(Furnish(service, world, house, body, "plant").IsSuccess);
         int plant = HomeFurniture.Of(house, world.ObjectCatalog!).Count - 1;
         long total = Coins(world), wallet = body.Wallet.Amount, stock = Stock(world, "plant"), treasury = Shop(world).Treasury.Amount;
         var sold = Do(service, world, house, $"sell:{plant}");
@@ -361,8 +382,8 @@ public class HomeBuyTests
 
         foreach (string item in new[] { "painting", "plant" }) // a pintura (que pede parede) primeiro: a sala é pequena e a planta fica em qualquer lugar
         {
-            string verb = FirstSpotIn(world, body, house, item, living);
-            Assert.True(Do(service, world, house, verb).IsSuccess, verb);
+            var done = Furnish(service, world, house, body, item, living);
+            Assert.True(done.IsSuccess, done.Error);
         }
 
         double rich = RoomBeauty.At(house, catalog, 0, inside)!.Value;
@@ -374,18 +395,6 @@ public class HomeBuyTests
         body.MoveWithinBuilding(bath.Cells[0]);
         Assert.Contains(MoodMechanic.Moments(world, body, ms), m => m.Id == "ugly-room" && m.Name == "Cômodo feio" && m.Weight < 0);
         Assert.DoesNotContain(MoodMechanic.Moments(world, body, ms), m => m.Id == "pretty-room"); // vale pelo cômodo onde está
-    }
-
-    private static string FirstSpotIn(WorldState world, Npc body, Building house, string item, Room room)
-    {
-        foreach (var cell in room.Cells)
-            foreach (int facing in new[] { 0, 90, 180, 270 })
-            {
-                string verb = $"buy:{item}:0:{cell.X}:{cell.Y}:{facing}";
-                if (HomeCommands.Check(world, body, house.Id.Value, verb).IsSuccess) return verb;
-            }
-
-        throw new InvalidOperationException($"sem lugar para {item} na sala");
     }
 
     [Fact]
@@ -404,8 +413,7 @@ public class HomeBuyTests
         int oldTv = HomeFurniture.Of(house, catalog).ToList().FindIndex(p => p.Id == "tv");
         Assert.True(HomeCommands.Apply(world, null!, marina, house.Id.Value, $"discard:{oldTv}").IsSuccess);
         var living = BuildingRooms.Of(house, catalog).Floors[0].Rooms.First(r => r.Kind == "sala");
-        string verb = FirstSpotIn(world, marina, house, "tv", living);
-        Assert.True(HomeCommands.Apply(world, null!, marina, house.Id.Value, verb).IsSuccess);
+        Assert.True(Furnish(null, world, house, marina, "tv", living).IsSuccess);
         int newTv = HomeFurniture.Of(house, catalog).Count - 1;
         Assert.Equal("tv", HomeFurniture.Of(house, catalog)[newTv].Id);
         Assert.True(ObjectUsage.Resolve(world, house.Id.Value, newTv, "watch").IsSuccess); // o catálogo de usos enxerga a peça comprada
@@ -434,7 +442,7 @@ public class HomeBuyTests
         string Run()
         {
             var (world, _, service, body, _, house) = Playing(seed: 777);
-            Assert.True(Do(service, world, house, Spot(world, body, house, "plant")).IsSuccess);
+            Assert.True(Furnish(service, world, house, body, "plant").IsSuccess);
             var layout = BuildingLayoutCache.Of(house).Layout.FloorLayouts[0];
             var cells = layout.Cells.Select(c => c.Cell).ToHashSet();
             var outside = cells.SelectMany(c => HomeEditor.Around.Select(d => new CellCoord(c.X + d.X, c.Y + d.Y))).Where(c => !cells.Contains(c))
@@ -448,7 +456,7 @@ public class HomeBuyTests
         Assert.Equal(Run(), Run());
 
         var (w, _, s, b, _, h) = Playing(seed: 778);
-        Assert.True(Do(s, w, h, Spot(w, b, h, "plant")).IsSuccess);
+        Assert.True(Furnish(s, w, h, b, "plant").IsSuccess);
         var json = WorldSnapshot.Serialize(w);
         var restored = WorldSnapshot.Deserialize(json);
         var house = restored.FindBuilding(h.Id)!;
@@ -470,7 +478,7 @@ public class HomeBuyTests
     public void Without_a_furniture_shop_the_buy_mode_says_so_and_nothing_is_bought()
     {
         var (world, _, service, body, _, house) = Playing(shop: false);
-        var refused = Do(service, world, house, $"buy:plant:0:1:1:0");
+        var refused = Do(service, world, house, "buy:plant");
         Assert.False(refused.IsSuccess);
         Assert.Contains("loja", refused.Error);
     }
@@ -499,7 +507,7 @@ public class HomeBuyTests
         Assert.Equal(world.ObjectCatalog.Home.Build.Wall, view.Build.Wall);
         Assert.Empty(view.Orders);
 
-        Assert.True(Do(service, world, house, Spot(world, body, house, "plant")).IsSuccess);
+        Assert.True(Furnish(service, world, house, body, "plant").IsSuccess);
         var after = HomeView.Of(world, body)!;
         Assert.Equal(view.Items.Single(i => i.Object == "plant").Stock - 1, after.Items.Single(i => i.Object == "plant").Stock);
         Assert.Equal(view.Pieces.Count + 1, after.Pieces.Count);

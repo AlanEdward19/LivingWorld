@@ -17,9 +17,9 @@ namespace LivingWorld.Simulation.Objects;
 public sealed record HomeOutcome(long Price, long Refund, string Note);
 
 /// <summary>#264: modo comprar e construir. O motor valida e aplica; o cliente só pede (<c>interact {kind:"home", id: prédio, verb}</c>) e pergunta antes (<see cref="Check"/>) para o
-/// fantasma verde ou vermelho. Verbos: <c>buy:objeto:andar:x:y:giro</c>, <c>move:peça:andar:x:y:giro</c>, <c>sell:peça</c>, <c>discard:peça</c>, <c>wall|open|door|shut:andar:ax:ay:bx:by</c>
+/// fantasma verde ou vermelho. Verbos: <c>buy:objeto</c> (#265: paga e reserva na loja; trazer e posicionar são de <see cref="HomeFreight"/>: <c>fetch|fetchhelp|load|unload|drop|deliver|drive|place|stash|cancel|sellp</c>), <c>move:peça:andar:x:y:giro</c>, <c>sell:peça</c>, <c>discard:peça</c>, <c>wall|open|door|shut:andar:ax:ay:bx:by</c>
 /// (levantar, derrubar, abrir porta, fechar porta), <c>extend:x:y</c> e <c>paint:floor|wall:andar:x:y:tinta</c> (o cômodo inteiro). A moeda só muda de mão (carteira → caixa da loja de móveis,
-/// que também recebe a obra; a revenda sai do caixa dela) e o móvel sai do estoque da loja ou é feito por encomenda com material do estoque dela e prazo; nada nasce por regra.
+/// que também recebe a obra; a revenda sai do caixa dela) e o móvel sai do estoque da loja ou é feito por encomenda com material do estoque dela e prazo; nada nasce por regra e nada aparece em casa sem ser trazido.
 /// A obra nunca prende ninguém: depois de cada mudança toda célula livre segue ligada à porta.</summary>
 public static class HomeCommands
 {
@@ -58,14 +58,14 @@ public static class HomeCommands
         {
             return parts[0] switch
             {
-                "buy" when parts.Length == 6 => Buy(world, ctx, npc, building, catalog, home, parts[1], Int(parts[2]), Int(parts[3]), Int(parts[4]), Int(parts[5]), commit),
+                "buy" when parts.Length == 2 => Buy(world, npc, building, catalog, home, parts[1], commit),
                 "move" when parts.Length == 6 => Move(world, building, catalog, Int(parts[1]), Int(parts[2]), Int(parts[3]), Int(parts[4]), Int(parts[5]), commit),
                 "sell" when parts.Length == 2 => Retire(world, npc, building, catalog, home, Int(parts[1]), sell: true, commit),
                 "discard" when parts.Length == 2 => Retire(world, npc, building, catalog, home, Int(parts[1]), sell: false, commit),
                 "wall" or "open" or "door" or "shut" when parts.Length == 6 => Edge(world, npc, building, catalog, home, parts[0], Int(parts[1]), Int(parts[2]), Int(parts[3]), Int(parts[4]), Int(parts[5]), commit),
                 "extend" when parts.Length == 3 => Extend(world, npc, building, catalog, home, Int(parts[1]), Int(parts[2]), commit),
                 "paint" when parts.Length == 6 => Paint(world, npc, building, catalog, home, parts[1], Int(parts[2]), Int(parts[3]), Int(parts[4]), parts[5], commit),
-                _ => Refuse($"comando de casa desconhecido: {verb}"),
+                _ => HomeFreight.Run(world, ctx, npc, building, catalog, home, parts, commit) ?? Refuse($"comando de casa desconhecido: {verb}"),
             };
         }
         catch (FormatException)
@@ -76,9 +76,9 @@ public static class HomeCommands
 
     private static int Int(string text) => int.Parse(text, NumberStyles.Integer, CultureInfo.InvariantCulture);
 
-    private static Result<HomeOutcome> Refuse(string reason) => Result<HomeOutcome>.Fail($"{PlayerCommands.Conflict} {reason}");
+    internal static Result<HomeOutcome> Refuse(string reason) => Result<HomeOutcome>.Fail($"{PlayerCommands.Conflict} {reason}");
 
-    private static Result<HomeOutcome> Ok(long price, long refund, string note) => Result<HomeOutcome>.Ok(new HomeOutcome(price, refund, note));
+    internal static Result<HomeOutcome> Ok(long price, long refund, string note) => Result<HomeOutcome>.Ok(new HomeOutcome(price, refund, note));
 
     /// <summary>A loja de móveis do bairro: o local do tipo que o cenário põe como empreiteiro (<c>Home.build.contractor</c>), aberto; vende, recompra e recebe a obra.</summary>
     public static Workplace? Shop(WorldState world, HomeCatalog home) =>
@@ -86,20 +86,19 @@ public static class HomeCommands
 
     // ---------------- comprar ----------------
 
-    private static Result<HomeOutcome> Buy(WorldState world, TickContext? ctx, Npc npc, Building building, ObjectCatalog catalog, HomeCatalog home, string objectId,
-        int floor, int x, int y, int facing, bool commit)
+    /// <summary>#265: pagar não põe o móvel em casa. A compra tira 1 do estoque da loja (ou faz sob encomenda com o material dela, pelo preço com acréscimo e no prazo) e leva a moeda da
+    /// carteira ao caixa; o móvel fica reservado na loja em nome da casa (<see cref="Parcel"/>) até alguém o trazer (<see cref="HomeFreight"/>).</summary>
+    private static Result<HomeOutcome> Buy(WorldState world, Npc npc, Building building, ObjectCatalog catalog, HomeCatalog home, string objectId, bool commit)
     {
         if (home.Item(objectId) is not { } item || catalog.Find(objectId) is not { } descriptor) return Refuse("esse móvel não está à venda");
         if (Shop(world, home) is not { } shop) return Refuse("não há loja de móveis no bairro");
         var edit = building.Edit;
-        if ((edit?.Added.Count ?? 0) + (edit?.Orders.Count ?? 0) >= home.Rules.MaxPieces) return Refuse("a casa não comporta mais móveis comprados");
-        var pieces = HomeFurniture.Of(building, catalog);
-        if (Placement(building, catalog, home, pieces, -1, item, floor, new CellCoord(x, y), facing) is { } why) return Refuse(why);
+        if ((edit?.Added.Count ?? 0) + (edit?.Parcels.Count ?? 0) >= home.Rules.MaxPieces) return Refuse("a casa não comporta mais móveis comprados");
 
         var resource = new ResourceType(item.Resource);
         long price = item.Price;
         bool inStock = shop.Stock.GetValueOrDefault(resource) >= 1;
-        long readyAt = world.CurrentDate.TotalMilliseconds + home.Rules.DeliveryMin * 60_000L;
+        long readyAt = 0;
         if (!inStock)
         {
             if (item.Craft is not { } craft) return Refuse($"{descriptor.Name ?? descriptor.Id} está esgotado na loja");
@@ -122,32 +121,11 @@ public static class HomeCommands
         world.RecordTrade(shop.Id, resource, world.CurrentDate.TotalHours / world.CurrentDate.Calendar.HoursPerDay, 1, price);
 
         edit = Editable(world, building);
-        int variation = ObjectVariation.Index(descriptor.VariationSeed, HomeFurniture.BaseCount(building, catalog) + edit.Added.Count + edit.Orders.Count);
-        if (inStock && home.Rules.DeliveryMin == 0) edit.Added.Add(new EditedPiece(objectId, variation, floor, x, y, facing, price));
-        else
-        {
-            edit.Orders.Add(new PendingOrder(objectId, variation, floor, x, y, facing, readyAt, price));
-            ctx?.ScheduleEventAtMs(readyAt, BodyTaskSystem.SystemName, $"{building.Id.Value}|{readyAt}|d");
-        }
-
+        int variation = ObjectVariation.Index(descriptor.VariationSeed, HomeFurniture.BaseCount(building, catalog) + edit.Added.Count + edit.NextParcel);
+        HomeFreight.Reserve(world, building, objectId, variation, price, readyAt);
         Touched(world, building);
-        return Ok(price, 0, inStock ? $"Comprou {name}" : $"{name} encomendado: chega em {Math.Max(1, (readyAt - world.CurrentDate.TotalMilliseconds) / 60_000)} min");
-    }
-
-    /// <summary>A entrega: as encomendas que já venceram viram móveis da casa, na ordem em que foram feitas. Chamada pelo evento agendado (<see cref="BodyTaskSystem"/>).</summary>
-    public static void Deliver(WorldState world, long buildingId)
-    {
-        if (world.FindBuilding(new BuildingId(buildingId)) is not { Edit: { Orders.Count: > 0 } edit } building) return;
-        long now = world.CurrentDate.TotalMilliseconds;
-        var due = edit.Orders.Where(o => o.ReadyAtMs <= now).OrderBy(o => o.ReadyAtMs).ToList();
-        if (due.Count == 0) return;
-        foreach (var order in due)
-        {
-            edit.Orders.Remove(order);
-            edit.Added.Add(new EditedPiece(order.Id, order.Variation, order.Floor, order.X, order.Y, order.Facing, order.Paid));
-        }
-
-        Touched(world, building);
+        string where = home.Haul is null ? "no depósito da casa" : "na loja, em seu nome";
+        return Ok(price, 0, inStock ? $"Comprou {name}: {where}" : $"{name} encomendado: fica pronto em {Math.Max(1, (readyAt - world.CurrentDate.TotalMilliseconds) / 60_000)} min, {where}");
     }
 
     // ---------------- mover, vender, descartar ----------------
@@ -210,7 +188,7 @@ public static class HomeCommands
     }
 
     /// <summary>Alguém está usando (ou a caminho de usar) a peça.</summary>
-    private static bool Busy(WorldState world, Building building, int piece)
+    internal static bool Busy(WorldState world, Building building, int piece)
     {
         foreach (var other in world.AliveNpcIndex.Alive)
             if (other.BodyTask is { Action: ObjectUsage.Action } task && task.Building == building.Id.Value && task.Piece == piece) return true;
@@ -231,13 +209,9 @@ public static class HomeCommands
         if (!materials.TryGetValue(cell, out var material)) return "aqui não é piso da casa";
         if (material != BuildingMaterial.Floor) return "porta e escada ficam livres";
 
-        // #266: a pegada inteira vale, no giro pedido: em piso, sem outra peça (nem encomenda a caminho), fora da passagem das portas, sem atravessar parede, com lado livre
+        // #266: a pegada inteira vale, no giro pedido: em piso, sem outra peça (#265: o que foi comprado espera no depósito, sem lugar reservado), fora da passagem das portas, sem atravessar parede, com lado livre
         var body = FurnitureBody.Of(catalog.Find(item.Object), cell, facing);
         var others = HomeFurniture.CellsOf(pieces, catalog, floor, ignore);
-        if (building.Edit is { } edit)
-            foreach (var order in edit.Orders)
-                if (order.Floor == floor)
-                    foreach (var c in FurnitureBody.Of(catalog.Find(order.Id), new CellCoord(order.X, order.Y), order.Facing).Cells) others.Add(c);
         CellCoord? entry = FurniturePlanner.StartOf(materials, floor) is { } start ? FurniturePlanner.EntryOf(materials, start, floor) : null;
         var walls = rooms.Blocked[floor];
         var floorCells = materials.Where(kv => kv.Value == BuildingMaterial.Floor).Select(kv => kv.Key).ToHashSet();
@@ -384,10 +358,6 @@ public static class HomeCommands
     private static HashSet<CellCoord> Occupied(Building building, ObjectCatalog catalog, IReadOnlyList<HomePiece> pieces, int floor)
     {
         var cells = HomeFurniture.CellsOf(pieces, catalog, floor);
-        if (building.Edit is { } edit)
-            foreach (var order in edit.Orders)
-                if (order.Floor == floor)
-                    foreach (var c in FurnitureBody.Of(catalog.Find(order.Id), new CellCoord(order.X, order.Y), order.Facing).Cells) cells.Add(c);
         return cells;
     }
 
@@ -399,7 +369,9 @@ public static class HomeCommands
         Edges = [.. edit.Edges],
         Cells = [.. edit.Cells],
         Paints = [.. edit.Paints],
-        Orders = [.. edit.Orders],
+        Parcels = [.. edit.Parcels],
+        NextParcel = edit.NextParcel,
+        Car = edit.Car,
     };
 
     private static HomeEdit Editable(WorldState world, Building building)

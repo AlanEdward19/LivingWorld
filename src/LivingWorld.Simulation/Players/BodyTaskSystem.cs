@@ -29,9 +29,15 @@ public sealed class BodyTaskSystem : ISimulationSystem
             return;
         }
 
-        if (parts.Length == 3 && parts[2] == "d" && long.TryParse(parts[0], out long homeId))
+        if (parts.Length == 3 && parts[2] == "d" && long.TryParse(parts[0], out long homeId) && int.TryParse(parts[1], out int parcel))
         {
-            LivingWorld.Simulation.Objects.HomeCommands.Deliver(world, homeId); // #264: a encomenda de móvel chegou
+            LivingWorld.Simulation.Objects.HomeFreight.Arrive(world, homeId, parcel); // #265: o entregador chegou com o móvel
+            return;
+        }
+
+        if (parts.Length == 3 && parts[2] == "f" && long.TryParse(parts[0], out long driverId) && long.TryParse(parts[1], out long drove))
+        {
+            if (world.FindNpc(new NpcId(driverId)) is { IsAlive: true } driver) LivingWorld.Simulation.Objects.HomeFreight.DriveStep(world, ctx, driver, drove); // #265: o carro da casa anda
             return;
         }
 

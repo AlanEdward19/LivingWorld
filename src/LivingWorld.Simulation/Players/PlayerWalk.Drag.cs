@@ -31,7 +31,7 @@ public static partial class PlayerWalk
                 LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPm(world, from, to));
         var factors = new (string Cause, double Factor)[]
         {
-            ("load", LivingWorld.Simulation.Emergence.Mobility.LoadFactor(world, npc)),
+            ("load", LivingWorld.Simulation.Emergence.Mobility.LoadFactor(world, npc) * LivingWorld.Simulation.Objects.HomeFreight.LoadFactor(world, npc)),
             ("tired", tired),
             ("weather", weather),
             ("body", LivingWorld.Simulation.Behavior.Needs.BodyMechanic.MovementCostMultiplier(world, npc)),

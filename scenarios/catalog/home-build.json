@@ -657,6 +657,110 @@
    "demolish": 1,
    "cell": 6,
    "maxExtraCells": 12
+  },
+  "haul": {
+   "reachM": 4.5,
+   "hands": {
+    "maxKg": 12,
+    "maxLiters": 120,
+    "slowPercent": 45,
+    "helperFactor": 2
+   },
+   "delivery": {
+    "fee": 3,
+    "perKg": 0,
+    "openHour": 8,
+    "closeHour": 18,
+    "prepMin": 20,
+    "mps": 1.3
+   },
+   "vehicles": [
+    {
+     "id": "car",
+     "name": "Carro",
+     "trunkKg": 250,
+     "trunkLiters": 1400,
+     "mps": 8,
+     "color": "5b7fa6"
+    }
+   ],
+   "fleet": [
+    "car"
+   ],
+   "heft": {
+    "sofa": {
+     "kg": 45,
+     "liters": 900
+    },
+    "armchair": {
+     "kg": 18,
+     "liters": 300
+    },
+    "chair": {
+     "kg": 5,
+     "liters": 80
+    },
+    "bed": {
+     "kg": 60,
+     "liters": 1200
+    },
+    "bedside": {
+     "kg": 8,
+     "liters": 60
+    },
+    "fridge": {
+     "kg": 70,
+     "liters": 700
+    },
+    "stove": {
+     "kg": 55,
+     "liters": 500
+    },
+    "table": {
+     "kg": 30,
+     "liters": 600
+    },
+    "shower": {
+     "kg": 20,
+     "liters": 250
+    },
+    "toilet": {
+     "kg": 25,
+     "liters": 200
+    },
+    "sink": {
+     "kg": 15,
+     "liters": 120
+    },
+    "tv": {
+     "kg": 14,
+     "liters": 160
+    },
+    "bookshelf": {
+     "kg": 40,
+     "liters": 500
+    },
+    "plant": {
+     "kg": 3,
+     "liters": 20
+    },
+    "painting": {
+     "kg": 2,
+     "liters": 15
+    },
+    "rug": {
+     "kg": 6,
+     "liters": 60
+    },
+    "lamp": {
+     "kg": 2,
+     "liters": 25
+    },
+    "floorlamp": {
+     "kg": 5,
+     "liters": 40
+    }
+   }
   }
  }
 }
