@@ -27,7 +27,7 @@ public sealed record HomeBuildView(long Wall, long Door, long Demolish, long Cel
 /// Só leitura, sob pedido (nunca por tick).</summary>
 public sealed record HomeView(
     long Building, long Wallet, string? Shop, string? ShopNote, IReadOnlyList<HomeCategory> Categories, IReadOnlyList<HomeItemView> Items, IReadOnlyList<HomePieceView> Pieces,
-    IReadOnlyList<HomeRoomView> Rooms, IReadOnlyList<HomePaintView> Paints, HomeBuildView Build, IReadOnlyList<HomeOrderView> Orders, int Floors, int ResalePercent)
+    IReadOnlyList<HomeRoomView> Rooms, IReadOnlyList<HomePaintView> Paints, HomeBuildView Build, IReadOnlyList<HomeOrderView> Orders, int Floors, int ResalePercent, HomeHaulView? Haul = null)
 {
     public static HomeView? Of(WorldState world, Npc npc)
     {
@@ -62,13 +62,13 @@ public sealed record HomeView(
                 item is null ? 0 : item.Price * home.Rules.ResalePercent / 100, item is not null, Busy(world, building, i)));
         }
 
-        var orders = (building.Edit?.Orders ?? []).Select(o => new HomeOrderView(o.Id, catalog.Find(o.Id)?.Name ?? o.Id, o.Floor, o.X, o.Y, o.Facing, Math.Max(0, o.ReadyAtMs - now))).ToList();
+        var orders = new List<HomeOrderView>(); // #265: obsoleto (o móvel não ganha lugar ao ser comprado): segue no contrato, vazio; o que está pago vem em Haul.Parcels
         var rooms = RoomBeauty.Rooms(building, catalog).Select(r => new HomeRoomView(r.Floor, r.Index, r.Kind, r.Cells, r.Beauty, r.Items, r.Paint)).ToList();
         var paints = home.Paints.Select(p => new HomePaintView(p.Id, p.Name, p.Kind, p.Color, p.Price, p.Beauty)).ToList();
         var floors = BuildingLayoutCache(building);
         return new HomeView(building.Id.Value, npc.Wallet.Amount, shop is null ? null : $"Loja de móveis {shop.Id.Value}", shop is null ? "Sem loja de móveis no bairro" : null,
             home.Categories, items, pieces, rooms, paints,
-            new HomeBuildView(home.Build.Wall, home.Build.Door, home.Build.Demolish, home.Build.Cell, building.Edit?.Cells.Count ?? 0, home.Build.MaxExtraCells), orders, floors, home.Rules.ResalePercent);
+            new HomeBuildView(home.Build.Wall, home.Build.Door, home.Build.Demolish, home.Build.Cell, building.Edit?.Cells.Count ?? 0, home.Build.MaxExtraCells), orders, floors, home.Rules.ResalePercent, HomeFreightViews.Of(world, npc, building, catalog, home));
     }
 
     private static int BuildingLayoutCache(Building building) => Cities.BuildingLayoutCache.Of(building).Layout.Floors;

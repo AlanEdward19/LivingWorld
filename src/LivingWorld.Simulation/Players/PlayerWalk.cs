@@ -19,6 +19,7 @@ public static partial class PlayerWalk
     /// (<paramref name="running"/>, AD-197u), <see cref="PlayerRules.RunFactor"/> vezes, até o teto de <see cref="PlayerRules.RunMaxMps"/>.</summary>
     public static double SpeedMps(WorldState world, Npc npc, CellCoord from, CellCoord to, bool running = false)
     {
+        if (LivingWorld.Simulation.Objects.HomeFreight.DrivingMps(world, npc) is { } driving) return driving; // #265: quem dirige o carro da casa anda à velocidade do veículo (dado)
         if (!world.Map.TryGetCell(from, out _) || !world.Map.TryGetCell(to, out _)) return world.Players.WalkMps;
         // AD-197u: a referência é a passada NESTE par de células (terreno e subida do mapa, a conta de MovementCost.Between), não a do
         // terreno mais fácil do mapa: o peso de terreno e a altitude do mapa são a escala de 30 min por célula do mundo, e contá-los de
@@ -37,7 +38,7 @@ public static partial class PlayerWalk
             reference = Math.Max(1.0, LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, from, to) * WorldMillis.PerHour);
             factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
         }
-        double walk = world.Players.WalkMps / factor;
+        double walk = world.Players.WalkMps / factor / LivingWorld.Simulation.Objects.HomeFreight.LoadFactor(world, npc); // #265: o móvel nas mãos atrasa o passo
         return running ? Math.Max(walk, Math.Min(walk * world.Players.RunFactor, world.Players.RunMaxMps)) : walk;
     }
 
