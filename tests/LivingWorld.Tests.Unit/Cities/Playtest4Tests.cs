@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Careers;
@@ -92,7 +91,7 @@ public class Playtest4Tests
 
         Assert.True(applied.IsSuccess, applied.Error);
         Assert.Equal("later", applied.Value.Outcome);
-        Assert.Contains("amanhã 08:00", applied.Value.Note); // a hora da entrevista é a abertura do dado
+        Assert.Contains("às 08:00", applied.Value.Note); // a hora da entrevista é a abertura do dado
         Assert.Contains(world.Careers!.Notices, n => n.Kind == "interview");
         Assert.NotNull(world.Careers.SearchOf(marina.Id.Value)); // a busca segue valendo para voltar na hora
         Assert.NotNull(clock);

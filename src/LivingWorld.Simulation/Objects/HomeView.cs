@@ -19,7 +19,7 @@ public sealed record HomePaintView(string Id, string Name, string Kind, string C
 
 public sealed record HomeOrderView(string Id, string Name, int Floor, int X, int Y, int Facing, long ReadyInMs);
 
-public sealed record HomeRoomView(int Floor, int Index, string? Kind, int Cells, double Beauty, double Items, double Paint);
+public sealed record HomeRoomView(int Floor, int Index, string? Kind, int Cells, double Beauty, double Items, double Paint, double Expected = 0);
 
 public sealed record HomeBuildView(long Wall, long Door, long Demolish, long Cell, int ExtraCells, int MaxExtraCells);
 
@@ -63,7 +63,7 @@ public sealed record HomeView(
         }
 
         var orders = new List<HomeOrderView>(); // #265: obsoleto (o móvel não ganha lugar ao ser comprado): segue no contrato, vazio; o que está pago vem em Haul.Parcels
-        var rooms = RoomBeauty.Rooms(building, catalog).Select(r => new HomeRoomView(r.Floor, r.Index, r.Kind, r.Cells, r.Beauty, r.Items, r.Paint)).ToList();
+        var rooms = RoomBeauty.Rooms(building, catalog).Select(r => new HomeRoomView(r.Floor, r.Index, r.Kind, r.Cells, r.Beauty, r.Items, r.Paint, r.Expected)).ToList();
         var paints = home.Paints.Select(p => new HomePaintView(p.Id, p.Name, p.Kind, p.Color, p.Price, p.Beauty)).ToList();
         var floors = BuildingLayoutCache(building);
         return new HomeView(building.Id.Value, npc.Wallet.Amount, shop is null ? null : $"Loja de móveis {shop.Id.Value}", shop is null ? "Sem loja de móveis no bairro" : null,

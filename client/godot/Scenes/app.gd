@@ -1487,6 +1487,9 @@ func _player_view_effects() -> void:
 		world_view.buildings.set_cover_segment(rig.camera.global_position, own.position + Vector3(0, rig.eye_height() * 0.55, 0))
 	else:
 		world_view.buildings.clear_cover_segment()
+	if own != null: # #268: visto de cima (câmera alta ou dentro de casa) o corpo conduzido leva o realce, com tamanho aparente mínimo
+		var meters: float = rig.camera.global_position.distance_to(own.global_position) / maxf(Grid.units(1.0), 0.0001) if rig.camera.is_inside_tree() else 0.0
+		own.set_legible(rig.mode == rig.THIRD and (inside or rig.view_pitch < deg_to_rad(-32.0) or rig.lift > Grid.units(0.5)), meters)
 	var mark: int = player_hud.npc_id if own != null and rig.mode == rig.THIRD and not inside and not rig.opened_ids().is_empty() else -1
 	if mark != _marked:
 		var old = world_view.npc_nodes.get(_marked)

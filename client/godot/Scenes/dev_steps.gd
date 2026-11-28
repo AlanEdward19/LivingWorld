@@ -90,7 +90,7 @@ static func _social_line(app: Node, person: String, interaction: String) -> Dict
 			if String(cat.get("verb", "")) != "social_cat":
 				continue
 			for line in SocialMenu.interaction_entries(cat):
-				if String(line.verb).begins_with("social:") and interaction.to_lower() in String(line.text).to_lower():
+				if (String(line.verb).begins_with("social:") or String(line.verb) in ["call", "wait_use"]) and interaction.to_lower() in String(line.text).to_lower(): # #268: Chamar e Esperar terminar também
 					return line
 	return {}
 

@@ -76,6 +76,21 @@ var reason_label: Label ## #259: o motivo de a linha esmaecida não valer, sob a
 var _all_entries: Array = [] ## a lista inteira da roda; `entries` é a página mostrada
 var _page := 0
 var busy_panel: PanelContainer ## #252: a troca de corpo disponível ("" = ninguém para quem trocar): uma linha discreta sob o nome.
+var will_label: Label ## #268: "U · Livre-arbítrio: ligado" (some sem necessidade crítica no cenário)
+
+
+## #268: o motor diz se o corpo se cuida sozinho sem ordem (`career.freeWill`); nulo esconde a linha.
+func set_free_will(on: Variant) -> void:
+	will_label.visible = on is bool
+	if on is bool:
+		will_label.text = "U · Livre-arbítrio: %s" % ("ligado (se cuida sozinho sem ordem)" if on else "desligado (só o que você manda)")
+
+
+## #268: a faixa de pausa: "⏸ Tempo pausado (menu aberto)" com a roda do E; "(janela aberta)" com qualquer outro popup.
+static func pause_text(wheel: bool) -> String:
+	return "⏸ Tempo pausado (%s)" % ("menu aberto" if wheel else "janela aberta")
+
+
 func set_switch(name: String) -> void:
 	switch_label.visible = name != ""
 	switch_label.text = "G — passar a ser %s" % name
@@ -86,9 +101,14 @@ var busy_label: Label
 var busy_bar: ProgressBar
 var cooldown: ProgressBar ## #234
 var guard_label: Label ## #234
+var pause_band: PanelContainer
+var pause_label: Label
 var blocked := false: ## #240: popup aberto: a dica do E some (volta ao fechar, se ainda houver alvo)
 	set(value):
 		blocked = value
+		if pause_band != null: # #268: o mundo está pausado enquanto houver popup (hold do motor)
+			pause_band.visible = value
+			pause_label.text = pause_text(menu_panel != null and menu_panel.visible)
 		prompt.visible = prompt.text != "" and not menu_panel.visible and not blocked
 var _engine_action := ""
 var _doing := "" ## #246: a ação do corpo (uso, interação) como a barra a diz; vence o "Parado" do motor no cartão
@@ -146,6 +166,9 @@ func _init() -> void:
 	career_label.custom_minimum_size.x = 244
 	career_label.visible = false
 	box.add_child(career_label)
+	will_label = _label(12, Color(1, 1, 1, 0.55)) # #268: o livre-arbítrio do corpo sem ordem (U liga e desliga), como no Sims
+	will_label.visible = false
+	box.add_child(will_label)
 	for spec in BARS:
 		var made := _make_bar_row(String(spec[0]), String(spec[1]), spec[2], String(NeedIcon.DEFAULT_ICONS.get(spec[0], "")), box)
 		bars[spec[0]] = made.bar
@@ -228,6 +251,16 @@ func _init() -> void:
 	clock_label.add_theme_constant_override("outline_size", 6)
 	clock_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	add_child(clock_label)
+	pause_band = PanelContainer.new() # #268: o mundo parou porque a roda (ou uma janela) está aberta: uma faixa discreta no topo diz isso e por quê
+	pause_band.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.62), 8))
+	pause_band.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	pause_band.offset_top = 68
+	pause_band.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	pause_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pause_band.visible = false
+	pause_label = _label(14, Color("ffe9a6"))
+	pause_band.add_child(pause_label)
+	add_child(pause_band)
 	speed_box = HBoxContainer.new()
 	speed_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	speed_box.offset_top = 12
@@ -516,7 +549,7 @@ static func queue_text(list: Array) -> String:
 ## #241: a ação em andamento ("Cortando lenha — 40%", `fraction` 0..1); texto vazio esconde a barra. Fica logo acima do cartão do corpo.
 func set_busy(text: String, fraction: float) -> void:
 	busy_panel.visible = text != ""
-	var doing := text.get_slice(" — ", 0) if text != "" and not text.begins_with("Indo:") else "" # #246: o cartão diz o que faz, não "Parado" com a barra acima
+	var doing := text.get_slice(" — ", 0).trim_suffix("…") if text != "" else "" # #246: o cartão diz o que faz, não "Parado" com a barra acima; #268: nem quando o motor leva o corpo ("Indo: Escritório")
 	if doing != _doing:
 		_doing = doing
 		_show_action()

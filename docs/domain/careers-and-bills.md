@@ -57,3 +57,8 @@ momentos (#262) no desempenho (hoje só necessidades e habilidade); aluguel a um
 ## #267: turno sem armadilha
 `CareerWork.NoticeOnTakeover` (ao assumir o corpo na janela do turno sem o aviso dela no livro), `Careers.rules.stopKinds` (ficha `career.stopKinds`) e `career.mates` (quem mais da casa tem emprego: `away`, `returnMs`, `returnText`).
 A volta (`Return`) põe o corpo conduzido logo depois da porta (`EnterHome`). `POST /players/{id}/accelerate` com `{untilReturn:true}` salta até a volta do primeiro da casa (409 se ninguém está fora). Ver [sandbox.md](sandbox.md).
+
+## #268: emprego guiado
+Ler o jornal lista as vagas (cargo, empregador, salário) e o cliente as abre na roda com "Candidatar-se" (`career.listings`, com `commuteMin`). `CareerWork.BeginApply`: com `Careers.rules.applyAtEmployer` e o corpo longe do empregador
+(`applyReachM`), o motor põe o corpo a caminho (o mesmo `PlayerGo` do "ir até", candidatura guardada em `JobSearched.PendingCareer`) e `OnArrived` a corre na chegada. Fora do horário de atendimento (`applyOpenHour` a
+`applyCloseHour`) vira entrevista marcada para a próxima abertura (`later`, aviso `interview`); dentro, o sorteio decide: contratado ou recusado com a chance dita. Desfechos da interação: `done`, `refused`, `going`, `later`.

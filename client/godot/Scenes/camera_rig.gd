@@ -728,10 +728,13 @@ static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, bo
 			best = {"arm": free, "lift": option[0], "shoulder": option[1]}
 	if float(best.arm) < length * COMFORT: # nada abriu: curta e um pouco acima, olhando o corpo (o que cobrir fica translúcido); só sobe a prumo se colada
 		var shallow := float(best.arm) * tan(deg_to_rad(SHALLOW_DEG))
-		best.lift = maxf(float(best.lift), shallow)
+		var view := Grid.units(STREET_VIEW_M) * scale # #268: colado à parede ou ao portal, a câmera não fica sobre a cabeça: sobe até ficar a esta distância do corpo (o que cobrir fica translúcido)
+		var rise := sqrt(maxf(0.0, view * view - float(best.arm) * float(best.arm)))
+		best.lift = maxf(float(best.lift), maxf(shallow, rise))
 	return best
 
 
+const STREET_VIEW_M := 1.3 ## #268: distância mínima do olho à câmera de rua colada em parede (a mola sobe, em vez de grudar na cabeça)
 const SHALLOW_DEG := 35.0 ## sem caminho livre, a subida extra mantém a inclinação até este ângulo (não olha a prumo para a cabeça)
 
 

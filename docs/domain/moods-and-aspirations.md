@@ -59,3 +59,10 @@ catálogo que o uso durou: comer à mesa sem fome dura um minuto e não rende mo
 
 ## #268 (AD-235)
 `trigger.needs` (id de momento): o momento só nasce em quem vive esse outro agora; "Fez as pazes" exige "Brigou" (pedir desculpa sem briga rende só o efeito do social).
+
+## #268: humor com teto e beleza esperada
+`scorePerWeight` 2,2 e `scoreSwing` 16 (`moods.json`) e "Radiante" só a partir de 80 (`social.json`): banho, abraço e elogio em 30 min dão "Bem", não "Radiante". `Home.rules.expectedBeauty` (dado, por tipo de cômodo): o gatilho
+`ambient` mede a beleza do cômodo menos a esperada (`RoomBeauty.RelativeAt`), então o banheiro de vaso e chuveiro não é "Cômodo feio −1"; `RoomBeautyView.expected` expõe o número.
+## #268: necessidade crítica
+`NeedCritical` (`home-life.json`): limiar por necessidade (de sempre ou do catálogo). Abaixo dele o corpo conduzido recebe o aviso `need-critical` (em `Careers.rules.stopKinds`: o cliente desce o tempo a 1×) e, com o
+livre-arbítrio ligado (padrão do dado; `career.freeWill`, comando `interact will freewill:on|off`) e sem ordem do jogador, se cuida sozinho (`ObjectUsage.TryCritical`: usa o móvel da casa que mais sobe a necessidade).

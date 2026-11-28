@@ -161,6 +161,7 @@ public static partial class PlayerInteractions
     {
         if (kind == WillKind) return FreeWillSwitch(world, npc, verb); // #268: o livre-arbítrio do corpo, ligado ou desligado no HUD
         if (kind is JobKind or BillsKind) return CareerInteract(world, ctx, npc, kind, id, verb); // #263
+        if (kind == FreightKind && verb == GoShopVerb) return GoShop(world, ctx, npc); // #268
         if (kind == FreightKind) return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #265: o transporte do móvel, pela roda do E
         if (kind == "home") return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #264: comprar, mover, vender e construir na própria casa
         if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila

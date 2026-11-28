@@ -78,7 +78,7 @@ func test_the_body_card_says_what_the_body_is_doing_instead_of_idle() -> void:
 	frame.set_busy("Tomar banho — 12% · faltam 3 min", 0.12)
 	eq(frame.action_label.text, "Tomar banho", "no uso o cartão diz o uso, não Parado")
 	frame.set_busy("Indo: Abraçar…", 0.1)
-	eq(frame.action_label.text, "Parado", "caminhando até a pessoa o cartão não finge que já abraça")
+	eq(frame.action_label.text, "Indo: Abraçar", "#268: caminhando até a pessoa o cartão diz que vai (nem 'Parado', nem finge que já abraça)")
 	frame.set_busy("", 0.0)
 	eq(frame.action_label.text, "Parado", "ao acabar volta ao motor")
 	frame.free()

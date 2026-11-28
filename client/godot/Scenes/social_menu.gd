@@ -46,6 +46,13 @@ static func interaction_entries(cat_entry: Dictionary) -> Array:
 		var ok := bool(option.get("available", false))
 		list.append({"text": "%s · %s" % [String(option.name), duration_text(int(option.get("seconds", 0)))], "kind": "person", "id": int(cat_entry.id),
 			"verb": "social:" + String(option.id), "resource": -1, "disabled": not ok, "dim": not ok, "reason": String(option.get("reason", "")) if not ok else ""})
+	var callable := (cat_entry.get("social", []) as Array).filter(func(o): return String(o.get("category", "")) == String(cat_entry.get("cat", "")) and bool(o.get("canCall", false)))
+	if not callable.is_empty(): # #268: a pessoa está num móvel: chamá-la (ela levanta se quiser, o motor decide) ou esperar terminar (a hora é do motor)
+		var title := String(cat_entry.get("title", ""))
+		var free_at := String(callable[0].get("freeAtText", ""))
+		list.append({"text": "Chamar %s (pedir que levante)" % title, "kind": "person", "id": int(cat_entry.id), "verb": "call", "resource": -1})
+		list.append({"text": "Esperar terminar%s" % ((" (%s)" % free_at) if free_at != "" else ""), "kind": "person", "id": int(cat_entry.id), "verb": "wait_use", "resource": -1,
+			"title": title})
 	list.append({"text": "‹ Voltar", "kind": "person", "id": int(cat_entry.id), "verb": "social_back", "resource": -1, "social": cat_entry.get("social", []),
 		"title": cat_entry.get("title", "")})
 	return list

@@ -315,6 +315,60 @@ func _get_ring() -> MeshInstance3D:
 	return _ring
 
 
+## #268: o corpo que o jogador conduz, visto de cima (câmera alta, de cômodo ou de rua colada na parede), é uma "bolinha" de chapéu e cabelo: um realce sutil no chão (disco
+## suave com contorno) o separa do resto e cresce com a distância da câmera (tamanho aparente mínimo), sem mexer na escala do corpo (a pegada e o chão são os do motor).
+const HALO_RADIUS_M := 0.5
+const HALO_REF_M := 3.0 ## até esta distância da câmera o realce tem o tamanho de base; depois cresce com ela
+const HALO_MAX := 2.2
+var _halo: Node3D
+var legible := false
+
+
+func _get_halo() -> Node3D:
+	if _halo == null:
+		_halo = Node3D.new()
+		var fill := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = HALO_RADIUS_M
+		disc.bottom_radius = HALO_RADIUS_M
+		disc.height = 0.01
+		fill.mesh = disc
+		var fill_material := _mat(Color(0.55, 0.85, 1.0, 0.22))
+		fill_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		fill_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		fill.material_override = fill_material
+		_halo.add_child(fill)
+		var outline := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = HALO_RADIUS_M - 0.035
+		torus.outer_radius = HALO_RADIUS_M
+		outline.mesh = torus
+		var outline_material := _mat(Color(0.7, 0.92, 1.0, 0.7))
+		outline_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		outline_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline.material_override = outline_material
+		_halo.add_child(outline)
+		_halo.position.y = 0.025
+		_halo.visible = false
+		add_child(_halo)
+	return _halo
+
+
+## Liga o realce quando o corpo é visto de cima; `distance_m` é a da câmera ao corpo em metros (o realce nunca fica menor que isto na tela).
+func set_legible(on: bool, distance_m: float) -> void:
+	if not is_self:
+		on = false
+	if not on and _halo == null:
+		legible = false
+		return
+	legible = on
+	var halo := _get_halo()
+	halo.visible = on
+	if on:
+		var k := clampf(distance_m / HALO_REF_M, 1.0, HALO_MAX)
+		halo.scale = Vector3(k, 1.0, k)
+
+
 func _get_aura() -> MeshInstance3D:
 	if _aura == null:
 		_aura = MeshInstance3D.new()

@@ -433,7 +433,7 @@ public static class CareerWork
         {
             long opens = DayOf(world, nowMs) * DayMs(world) + rules.ApplyOpenHour * (long)WorldMillis.PerHour;
             if (hour >= rules.ApplyOpenHour) opens += DayMs(world);
-            string text = $"{vacancy.Career.Name} está fechado: entrevista marcada {Clock(world, opens)} para {vacancy.Entry.Title}.";
+            string text = $"{vacancy.Career.Name} está fechado: entrevista marcada {When(world, opens)} para {vacancy.Entry.Title}.";
             var ledger = world.CareersLedger();
             if (ledger.SearchOf(npc.Id.Value) is { } search) { search.PendingCareer = null; search.PendingEmployer = 0; }
             Notify(world, ledger, catalog, nowMs, npc, "interview", text, opens, null);

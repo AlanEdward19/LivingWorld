@@ -872,6 +872,10 @@ func _note_career(view: Variant) -> void:
 		return
 	var was_primed := _career_primed
 	var someone_returned := false
+	var read_the_paper := false
+	free_will = view.get("freeWill") if view.get("freeWill") is bool else null
+	if frame != null:
+		frame.set_free_will(free_will)
 	stop_kinds = view.get("stopKinds", []) if view.get("stopKinds") is Array else []
 	for notice in view.get("notices", []):
 		var id := int(notice.get("id", 0))
@@ -879,6 +883,7 @@ func _note_career(view: Variant) -> void:
 			_career_seen = id
 			if _career_primed:
 				someone_returned = someone_returned or String(notice.get("kind", "")) == "returned"
+				read_the_paper = read_the_paper or String(notice.get("kind", "")) == "search"
 				var text := String(notice.get("text", ""))
 				if String(notice.get("kind", "")) == "shift-soon":
 					text += "  ·  E: Ir ao trabalho"
@@ -888,6 +893,11 @@ func _note_career(view: Variant) -> void:
 					_slow_for_shift() # #246/#267: a 300× a hora do turno passava em 12 s e o corpo faltava; o tempo desce à primeira velocidade do motor (também a conta que vence e quem chega)
 				warning.emit(text)
 	_career_primed = true
+	if read_the_paper and was_primed and view.get("listings") is Array:
+		if _show_vacancies_hook.is_valid():
+			_show_vacancies_hook.call(view.listings)
+		else:
+			_show_vacancies.call_deferred(view.listings) # #268: ler o jornal abre as vagas na própria roda, com "Candidatar-se"
 	var job = view.get("job")
 	career_job = job if job is Dictionary else {}
 	var away: bool = job is Dictionary and bool(job.get("away", false))
@@ -906,6 +916,42 @@ func _note_career(view: Variant) -> void:
 		if away and was_primed:
 			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
 	_career_away = away
+
+
+var _show_vacancies_hook: Callable = Callable() ## só os testes trocam: quem mostra as vagas
+## #268: o livre-arbítrio do corpo (nulo: o cenário não tem necessidade crítica): sem ordem, ele se cuida sozinho quando uma necessidade fica crítica.
+var free_will: Variant = null
+
+
+## #268: ligar ou desligar o livre-arbítrio (U): o motor guarda e diz de volta no `career.freeWill`.
+func toggle_free_will() -> void:
+	if not is_active or free_will == null:
+		return
+	await interact({"text": "Livre-arbítrio", "kind": "will", "id": npc_id, "verb": "freewill:off" if bool(free_will) else "freewill:on", "resource": -1})
+
+
+## #268: as vagas que o jornal achou como linhas da roda, "Candidatar-se: Auxiliar administrativo · Escritório, 9/h, 40 min de ida · chance 62%". Tudo vem do motor (`career.listings`).
+static func vacancy_entries(listings: Array, who: int) -> Array:
+	var list: Array = []
+	for item in listings:
+		var commute := int(item.get("commuteMin", 0))
+		var text := "Candidatar-se: %s · %s, %d/h" % [String(item.get("title", "")), String(item.get("careerName", "")), int(item.get("wagePerHour", 0))]
+		if commute > 0:
+			text += ", %d min de ida" % commute
+		text += " · chance %d%%" % int(round(float(item.get("chance", 0.0)) * 100.0))
+		list.append({"text": text, "kind": "job", "id": who, "verb": "apply:%s@%d" % [String(item.get("career", "")), int(item.get("employer", 0))], "resource": -1})
+	return list
+
+
+func _show_vacancies(listings: Array) -> void:
+	if not is_active or frame == null or not rpg or popup_open() or frame.menu_open():
+		return
+	var entries := vacancy_entries(listings, npc_id)
+	if entries.is_empty():
+		return
+	_root_entries = entries
+	frame.show_menu(entries)
+	menu_toggled.emit(true)
 
 
 ## #267: todos da casa com emprego estão fora (este corpo e os outros): a cena de casa vazia diz quem volta primeiro e quando, e oferece pular até lá. O motor diz quem e quando (`mates`).
@@ -1535,6 +1581,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		var with := _chat_with
 		_chat_with = -1
 		interact({"text": "Conversar", "kind": "person", "id": with, "verb": "talk", "resource": -1})
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_U and rpg and not popup_open() and not typing() and free_will != null:
+		get_viewport().set_input_as_handled()
+		toggle_free_will() # #268: livre-arbítrio do corpo sem ordem
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
 		get_viewport().set_input_as_handled()
 		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
@@ -1956,6 +2005,11 @@ func interact(entry: Dictionary) -> void:
 			if frame != null:
 				frame.show_menu(_root_entries)
 			return
+	if String(entry.get("verb", "")) == "wait_use": # #268: esperar o outro terminar com o móvel: o corpo vai até ele e fica por perto (a hora vem do motor)
+		close_menu()
+		warning.emit(String(entry.get("text", "Esperando…")))
+		await _go({"npcId": int(entry.id)}, String(entry.get("title", "")), {})
+		return
 	if bool(entry.get("disabled", false)): # #259: a interação que não vale agora diz por quê (o motivo é do motor) e não pede nada
 		refused.emit()
 		warning.emit(String(entry.get("reason", "Isso não vale agora.")))
@@ -2014,6 +2068,8 @@ static func _text_of(value: Variant) -> String:
 
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
 static func done_text(entry: Dictionary, body: Dictionary) -> String:
+	if body.get("outcome") is String and String(body.outcome) in ["going", "later"] and body.get("note") != null: # #268: o corpo vai até o empregador / a entrevista marcada: a frase é do motor
+		return String(body.note)
 	if body.get("outcome") is String and String(body.outcome) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo
 		return "✓ " + String(body.note)
 	var text := String(entry.get("text", "")).get_slice(" (", 0)

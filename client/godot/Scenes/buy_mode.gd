@@ -452,6 +452,12 @@ static func _num(value: float) -> String:
 	return str(int(value)) if is_equal_approx(value, roundf(value)) else "%.1f" % value
 
 
+## #268: a cor da linha do cômodo: feio (vermelho) só abaixo do esperado para o tipo dele; bonito (verde) bem acima.
+static func room_color(beauty: float, expected: float) -> Color:
+	var relative := beauty - expected
+	return Color("9fd6b0") if relative >= 6.0 else Color("e8a090") if relative < -1.0 else Color(0.85, 0.88, 0.94)
+
+
 static func beauty_text(beauty: float) -> String:
 	return "Beleza %s%s" % ["+" if beauty > 0 else "", _num(beauty)]
 
@@ -616,6 +622,10 @@ func _parcel_row(data: Dictionary) -> Control:
 		button.tooltip_text = String(action.get("reason", ""))
 		button.pressed.connect(func(): command(verb))
 		buttons.add_child(button)
+		if bool(action.ok) and kind == "deliver" and String(action.get("label", "")) != "": # #268: o motor diz quando chega ANTES de pagar ("Seu Tomás entrega Sofá por 30: chega amanhã às 08:12")
+			var when := _label(String(action.label), 12, Color("a8d8a0"))
+			when.name = "when_deliver"
+			column.add_child(when)
 		if not bool(action.ok) and kind == "fetch" and String(action.get("reason", "")) != "":
 			var why := _label(String(action.reason), 12, Color("e8a090"))
 			why.name = "why_fetch"
@@ -626,12 +636,18 @@ func _parcel_row(data: Dictionary) -> Control:
 static func parcel_status(data: Dictionary) -> String:
 	match String(data.where):
 		"shop":
-			return "esperando na loja" if int(data.get("readyInMs", 0)) <= 0 else "a loja está fazendo (%d min)" % int(ceil(float(data.readyInMs) / 60000.0))
+			if int(data.get("readyInMs", 0)) <= 0:
+				return "esperando na loja"
+			var ready_text := String(data.get("readyText", "")) if data.get("readyText") != null else "" # #268: a hora do jogo, do motor
+			return "a loja está fazendo: pronto %s" % ready_text if ready_text != "" else "a loja está fazendo (%d min)" % int(ceil(float(data.readyInMs) / 60000.0))
 		"hands":
 			return "nas mãos de %s" % String(data.get("carrier", "alguém"))
 		"car":
 			return "no porta-malas"
 		"courier":
+			var due_text := String(data.get("dueText", "")) if data.get("dueText") != null else "" # #268: "chega amanhã às 08:12", não "em 788 min"
+			if due_text != "":
+				return "%s está trazendo: chega %s" % [String(data.get("courier", "o entregador")), due_text]
 			return "%s está trazendo (%d min)" % [String(data.get("courier", "o entregador")), maxi(1, int(ceil(float(data.get("dueInMs", 0)) / 60000.0)))]
 		"depot":
 			return "no depósito"
@@ -738,8 +754,9 @@ func _rebuild_rooms() -> void:
 			continue
 		any = true
 		var beauty := float(room.beauty)
-		var color := Color("9fd6b0") if beauty >= 6.0 else Color("e8a090") if beauty < -1.0 else Color(0.85, 0.88, 0.94)
-		var line := _label("%s · %s" % [_text(room.get("kind")).capitalize(), beauty_text(beauty)], 14, color)
+		var expected := float(room.get("expected", 0.0)) if room.get("expected") != null else 0.0 # #268: o que se espera do tipo de cômodo (dado do motor): feio é abaixo disso
+		var color := room_color(beauty, expected)
+		var line := _label("%s · %s%s" % [_text(room.get("kind")).capitalize(), beauty_text(beauty), (" (esperado %s)" % _num(expected)) if expected != 0.0 else ""], 14, color)
 		_rooms_box.add_child(line)
 	_rooms_panel.visible = any
 
