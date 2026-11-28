@@ -55,6 +55,7 @@ var build_view := false ## #264: o modo comprar toma a câmera (o corpo não a s
 var build_center := Vector3.ZERO
 var build_size := 12.0
 var build_yaw := 0.0
+var build_pitch := BUILD_PITCH ## #266: só captura (passo `buylook`): a vista de comprar mais de lado para ver a altura dos móveis
 var iso_pitch := ISO_PITCH ## #264: o modo comprar olha a casa de cima (mais a prumo que a isométrica); fora dele, a de sempre
 var pitch := deg_to_rad(-15.0) ## olhar do jogador (só 1ª/3ª pessoa)
 
@@ -160,7 +161,7 @@ func _apply() -> void:
 		position = build_center
 		rotation = Vector3(0, build_yaw, 0)
 		_pivot.position = Vector3.ZERO
-		_pivot.rotation = Vector3(BUILD_PITCH, 0, 0)
+		_pivot.rotation = Vector3(build_pitch, 0, 0)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.size = build_size
 		camera.near = 0.05

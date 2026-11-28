@@ -227,29 +227,36 @@ public static class HomeCommands
         if (floor < 0 || floor >= layout.FloorLayouts.Count) return "esse andar não existe";
         if (facing is not (0 or 90 or 180 or 270)) return "giro inválido (0, 90, 180 ou 270)";
         var floorLayout = layout.FloorLayouts[floor];
-        var material = floorLayout.Cells.FirstOrDefault(c => c.Cell == cell);
-        if (material is null) return "aqui não é piso da casa";
-        if (material.Material != BuildingMaterial.Floor) return "porta e escada ficam livres";
-        var blocked = new HashSet<CellCoord>();
-        for (int i = 0; i < pieces.Count; i++)
-            if (i != ignore && pieces[i].Spot is { } spot && spot.Floor == floor) blocked.Add(spot.Cell);
+        var materials = floorLayout.Cells.ToDictionary(c => c.Cell, c => c.Material);
+        if (!materials.TryGetValue(cell, out var material)) return "aqui não é piso da casa";
+        if (material != BuildingMaterial.Floor) return "porta e escada ficam livres";
+
+        // #266: a pegada inteira vale, no giro pedido: em piso, sem outra peça (nem encomenda a caminho), fora da passagem das portas, sem atravessar parede, com lado livre
+        var body = FurnitureBody.Of(catalog.Find(item.Object), cell, facing);
+        var others = HomeFurniture.CellsOf(pieces, catalog, floor, ignore);
         if (building.Edit is { } edit)
             foreach (var order in edit.Orders)
-                if (order.Floor == floor) blocked.Add(new CellCoord(order.X, order.Y));
-        if (blocked.Contains(cell)) return "já tem um móvel aqui";
-
-        var materials = floorLayout.Cells.ToDictionary(c => c.Cell, c => c.Material);
+                if (order.Floor == floor)
+                    foreach (var c in FurnitureBody.Of(catalog.Find(order.Id), new CellCoord(order.X, order.Y), order.Facing).Cells) others.Add(c);
         CellCoord? entry = FurniturePlanner.StartOf(materials, floor) is { } start ? FurniturePlanner.EntryOf(materials, start, floor) : null;
-        if (HomeEditor.Doorways(rooms.Floors[floor], entry).Contains(cell)) return "bloquearia a passagem da porta";
-        if (item.Rooms is { Count: > 0 } allowed && rooms.RoomAt(floor, cell) is { } room && room.Kind is { } kind && !allowed.Contains(kind))
-            return $"esse móvel só vai em: {string.Join(", ", allowed)}";
-        if (item.Wall)
+        var walls = rooms.Blocked[floor];
+        var floorCells = materials.Where(kv => kv.Value == BuildingMaterial.Floor).Select(kv => kv.Key).ToHashSet();
+        var walkable = materials.Where(kv => InteriorWalkability.IsWalkable(kv.Value)).Select(kv => kv.Key).ToHashSet();
+        var doorways = HomeEditor.Doorways(rooms.Floors[floor], entry);
+        if (FurniturePlacement.Refusal(body, floorCells, others, doorways, walls, walkable, needWall: item.Wall) is { } geometry) return geometry;
+        foreach (var c in body.Cells)
+            if (item.Rooms is { Count: > 0 } allowed && rooms.RoomAt(floor, c) is { } room && room.Kind is { } kind && !allowed.Contains(kind))
+                return $"esse móvel só vai em: {string.Join(", ", allowed)}";
+
+        var blocked = new HashSet<CellCoord>(others);
+        foreach (var c in body.Cells) blocked.Add(c);
+        for (int i = 0; i < pieces.Count; i++) // a peça nova não pode deixar outra sem lado livre
         {
-            var back = facing switch { 0 => new CellCoord(0, -1), 90 => new CellCoord(-1, 0), 270 => new CellCoord(1, 0), _ => new CellCoord(0, 1) };
-            if (!rooms.Blocked[floor].Contains(WallEdge.Between(cell, new CellCoord(cell.X + back.X, cell.Y + back.Y)))) return "precisa ficar encostado na parede (gire para o fundo ficar na parede)";
+            if (i == ignore || pieces[i].Spot is not { } other || other.Floor != floor || catalog.Find(item.Object)?.Near?.Contains(pieces[i].Id) == true) continue; // a cadeira junto da mesa não tira o acesso dela
+            var neighbour = FurnitureBody.Of(catalog.Find(pieces[i].Id), other.Cell, other.Facing);
+            if (FurniturePlacement.HasAccess(neighbour, others, walls, walkable) && !FurniturePlacement.HasAccess(neighbour, blocked, walls, walkable)) return "tiraria o acesso de outro móvel";
         }
 
-        blocked.Add(cell);
         if (!HomeEditor.AllConnected(floorLayout, rooms.Floors[floor], blocked)) return "fecharia o caminho até a porta";
         return null;
     }
@@ -281,7 +288,7 @@ public static class HomeCommands
         var wall = BuildingFootprintGenerator.WallMaterialOf(building.BuildingTypeId);
         var after = HomeEditor.ApplyRooms(BuildingRooms.BaseOf(building, catalog).Floors[floor], layout.FloorLayouts[floor], simulated, floor, wall);
         var pieces = HomeFurniture.Of(building, catalog);
-        if (!HomeEditor.AllConnected(layout.FloorLayouts[floor], after, Occupied(building, pieces, floor))) return Refuse("deixaria parte da casa sem caminho até a porta");
+        if (!HomeEditor.AllConnected(layout.FloorLayouts[floor], after, Occupied(building, catalog, pieces, floor))) return Refuse("deixaria parte da casa sem caminho até a porta");
         if (Pay(world, npc, home, price, commit, "a obra") is { } refusal) return Refuse(refusal);
         if (!commit) return Ok(price, 0, op switch { "wall" => "Levantar parede", "open" => "Derrubar parede", "door" => "Abrir porta", _ => "Fechar porta" });
 
@@ -374,14 +381,13 @@ public static class HomeCommands
         return null;
     }
 
-    private static HashSet<CellCoord> Occupied(Building building, IReadOnlyList<HomePiece> pieces, int floor)
+    private static HashSet<CellCoord> Occupied(Building building, ObjectCatalog catalog, IReadOnlyList<HomePiece> pieces, int floor)
     {
-        var cells = new HashSet<CellCoord>();
-        foreach (var piece in pieces)
-            if (piece.Spot is { } spot && spot.Floor == floor) cells.Add(spot.Cell);
+        var cells = HomeFurniture.CellsOf(pieces, catalog, floor);
         if (building.Edit is { } edit)
             foreach (var order in edit.Orders)
-                if (order.Floor == floor) cells.Add(new CellCoord(order.X, order.Y));
+                if (order.Floor == floor)
+                    foreach (var c in FurnitureBody.Of(catalog.Find(order.Id), new CellCoord(order.X, order.Y), order.Facing).Cells) cells.Add(c);
         return cells;
     }
 

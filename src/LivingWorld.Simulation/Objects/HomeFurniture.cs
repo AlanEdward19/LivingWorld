@@ -44,7 +44,12 @@ public static class HomeFurniture
         var wanted = new List<IReadOnlySet<CellCoord>?>();
         for (int i = 0; i < lodgingBeds; i++) wanted.Add(RoomCells(rooms.Floors[0], catalog, "bed"));
         foreach (var id in furnishing) wanted.Add(RoomCells(rooms.Floors[0], catalog, id));
-        var ground = FurniturePlanner.Plan(layout, rooms.Floors[0], 0, lodgingBeds + furnishing.Count, seed, wanted);
+        // #266: com cômodos no catálogo (ou pegada declarada) cada peça entra com a pegada dela; sem isso, o plano de uma célula por peça de sempre
+        var sizes = Enumerable.Repeat(SizeOf(catalog, "bed"), lodgingBeds).Concat(furnishing.Select(id => SizeOf(catalog, id))).ToList();
+        bool footprints = catalog.Rooms is not null || sizes.Any(s => s != (1, 1));
+        var ground = footprints
+            ? FurniturePlanner.Plan(layout, rooms.Floors[0], 0, lodgingBeds + furnishing.Count, seed, wanted, sizes, NearOf(catalog, furnishing, lodgingBeds))
+            : FurniturePlanner.Plan(layout, rooms.Floors[0], 0, lodgingBeds + furnishing.Count, seed, wanted);
         for (int slot = 0; slot < furnishing.Count; slot++)
         {
             var id = furnishing[slot];
@@ -56,8 +61,10 @@ public static class HomeFurniture
         for (int i = 0; i < lodgingBeds; i++)
             if (ground[i] is { } spot) { result.Add(new HomePiece("bed", 0, spot)); remaining--; }
         for (int floor = 1; floor < layout.Floors && remaining > 0; floor++)
-            foreach (var spot in FurniturePlanner.Plan(layout, rooms.Floors[floor], floor, remaining, seed,
-                         Enumerable.Repeat(RoomCells(rooms.Floors[floor], catalog, "bed"), remaining).ToArray()))
+            foreach (var spot in footprints
+                         ? FurniturePlanner.Plan(layout, rooms.Floors[floor], floor, remaining, seed, Enumerable.Repeat(RoomCells(rooms.Floors[floor], catalog, "bed"), remaining).ToArray(),
+                             Enumerable.Repeat(SizeOf(catalog, "bed"), remaining).ToArray())
+                         : FurniturePlanner.Plan(layout, rooms.Floors[floor], floor, remaining, seed, Enumerable.Repeat(RoomCells(rooms.Floors[floor], catalog, "bed"), remaining).ToArray()))
                 if (spot is not null) { result.Add(new HomePiece("bed", 0, spot)); remaining--; }
 
         return result;
@@ -74,6 +81,31 @@ public static class HomeFurniture
             if (gone >= 0 && gone < pieces.Count) pieces[gone] = pieces[gone] with { Spot = null };
         foreach (var bought in edit.Added)
             pieces.Add(new HomePiece(bought.Id, bought.Variation, bought.Gone ? null : new FurnitureSpot(bought.Floor, new CellCoord(bought.X, bought.Y), bought.Facing)));
+    }
+
+    /// <summary>#266: por peça (as camas de hospedagem primeiro), os índices das peças anteriores do catálogo junto das quais ela prefere ficar (<c>near</c> do descritor).</summary>
+    private static IReadOnlyList<IReadOnlyList<int>?> NearOf(ObjectCatalog catalog, IReadOnlyList<string> furnishing, int lodgingBeds)
+    {
+        var list = new List<IReadOnlyList<int>?>(Enumerable.Repeat<IReadOnlyList<int>?>(null, lodgingBeds));
+        for (int i = 0; i < furnishing.Count; i++)
+        {
+            var near = catalog.Find(furnishing[i])?.Near;
+            list.Add(near is null ? null : [.. Enumerable.Range(0, i).Where(j => near.Contains(furnishing[j])).Select(j => lodgingBeds + j)]);
+        }
+
+        return list;
+    }
+
+    private static (int W, int D) SizeOf(ObjectCatalog catalog, string id) => ObjectFootprint.SizeOf(catalog.Find(id));
+
+    /// <summary>#266: todas as células de piso que as peças do andar ocupam (a pegada de cada uma, no giro dela), com <paramref name="ignore"/> de fora.</summary>
+    public static HashSet<CellCoord> CellsOf(IReadOnlyList<HomePiece> pieces, ObjectCatalog catalog, int floor, int ignore = -1)
+    {
+        var cells = new HashSet<CellCoord>();
+        for (int i = 0; i < pieces.Count; i++)
+            if (i != ignore && pieces[i].Spot is { } spot && spot.Floor == floor)
+                foreach (var cell in FurnitureBody.Of(catalog.Find(pieces[i].Id), spot.Cell, spot.Facing).Cells) cells.Add(cell);
+        return cells;
     }
 
     /// <summary>Quantas peças do catálogo do tipo de prédio há (as compradas vêm depois delas na mobília).</summary>

@@ -3,6 +3,7 @@ extends RefCounted
 ## pequeno num SubViewport com câmera isométrica e luz. Nenhuma imagem guardada: o que o cenário descreve é o que se vê no painel de compra.
 
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
+const FurnitureModels := preload("res://Scenes/render/furniture_models.gd")
 
 const LOOK_FROM := Vector3(1.0, 0.9, 1.0) ## de onde a câmera olha (a diagonal de cima, como a vista de comprar)
 
@@ -49,7 +50,7 @@ static func make(factory, descriptor: Dictionary, px: int = 72, variation: int =
 	if node == null:
 		return rect
 	viewport.add_child(node)
-	var box := bounds_of(descriptor)
+	var box := FurnitureModels.node_bounds(node) if FurnitureModels.supports(descriptor) else bounds_of(descriptor) # #266: o modelo novo enquadra pelas próprias partes
 	var center := box.get_center()
 	var extent := maxf(box.size.length(), 0.3)
 	var camera := Camera3D.new()

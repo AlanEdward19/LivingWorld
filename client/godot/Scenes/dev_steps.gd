@@ -245,6 +245,15 @@ static func run(app: Node, steps: Array) -> void:
 				print("mousepos: ", where, " -> célula local ", app.buy_mode.hover, " aresta ", app.buy_mode.hover_edge, " | volta ao pixel (centro da célula) ", back, " | mouse da janela ", app.get_viewport().get_mouse_position())
 			"mousebuy": # #264: o fantasma volta a seguir o mouse (use `hover:X,Y` para movê-lo)
 				app.buy_mode.mouse_follow = true
+			"buylook": # #266: `buylook:X,Y,tamanho[,giro[,inclinação]][,sem-painel]` aponta a câmera do modo comprar para o ponto X,Y da planta (célula + fração; tamanho = largura vista em unidades; giro em graus); "sem-painel" esconde os painéis
+				var look := arg.split(",")
+				var look_origin: Vector2i = app.stage.interior_view.origin
+				var look_at := Vector3((float(look_origin.x) + float(look[0]) + 0.5) * Grid.CELL, float(app.buy_mode.floor_level) * Grid.floor_height(), (float(look_origin.y) + float(look[1]) + 0.5) * Grid.CELL)
+				app.rig.build_pitch = -deg_to_rad(float(look[4])) if look.size() > 4 and look[4].is_valid_float() else app.rig.BUILD_PITCH
+				app.rig.set_build_view(true, look_at, float(look[2]), deg_to_rad(float(look[3])) if look.size() > 3 and look[3].is_valid_float() else 0.0)
+				for panel in [app.buy_mode._top, app.buy_mode._side, app.buy_mode._rooms_panel, app.buy_mode._foot]:
+					if panel != null:
+						panel.visible = not ("sem-painel" in look)
 			"buytab": # #264: `buytab:buy|mine|build`
 				app.buy_mode.set_tab(arg)
 			"buycat": # #264: filtra a categoria (`buycat:decor`; vazio = tudo)
@@ -806,6 +815,17 @@ static func run(app: Node, steps: Array) -> void:
 							app.store.npcs[id].cell = to_cell
 							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
 				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
+			"fps": # #266: `fps:S` mede os quadros por segundo da cena de agora durante S segundos (a casa do sandbox com a mobília inteira); imprime a média e os nós
+				var fps_frames := 0
+				var fps_elapsed := 0.0
+				var fps_worst := 0.0
+				while fps_elapsed < float(arg if arg != "" else "4"):
+					await app.get_tree().process_frame
+					var fps_dt: float = app.get_process_delta_time()
+					fps_elapsed += fps_dt
+					fps_worst = maxf(fps_worst, fps_dt)
+					fps_frames += 1
+				print("fps: ", snappedf(fps_frames / fps_elapsed, 0.1), " pior_quadro_ms=", snappedf(fps_worst * 1000.0, 0.1), " nos=", Performance.get_monitor(Performance.OBJECT_NODE_COUNT), " objetos_desenhados=", Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
 			"bench", "benchbig":
 				# quem olha a janela durante a medida precisa saber que isto não é o mundo: é carga sintética local
 				if app.banner != null:

@@ -20,8 +20,7 @@ internal static class HouseholdStart
         var cached = BuildingLayoutCache.Of(house);
         var rooms = BuildingRooms.Of(house, catalog).Floors[0];
         var taken = new HashSet<CellCoord>();
-        foreach (var piece in HomeFurniture.Of(house, catalog))
-            if (piece.Spot is { Floor: 0 } spot) taken.Add(spot.Cell);
+        taken.UnionWith(HomeFurniture.CellsOf(HomeFurniture.Of(house, catalog), catalog, 0)); // #266: a pegada inteira de cada peça
         var start = new CellCoord(members[0].CurrentLocation.X - origin.X, members[0].CurrentLocation.Y - origin.Y);
         taken.Add(start);
         var startRoom = RoomIndex(rooms, start);

@@ -55,10 +55,15 @@ public static class ObjectUsage
         double turns = spot.Facing / 360.0, cos = DeterministicMath.CosTurns(turns), sin = DeterministicMath.SinTurns(turns);
         double sx = use.Slot?[0] ?? 0.0, sz = use.Slot?[1] ?? 0.0;
         double cellM = Math.Max(0.1, world.Players.CellM);
-        long fx = cell.X * FinePose.PerCell + 500 + (long)Math.Round((sx * cos + sz * sin) / cellM * FinePose.PerCell);
-        long fy = cell.Y * FinePose.PerCell + 500 + (long)Math.Round((-sx * sin + sz * cos) / cellM * FinePose.PerCell);
-        fx = Math.Clamp(fx, cell.X * FinePose.PerCell + 40, (cell.X + 1) * FinePose.PerCell - 40);
-        fy = Math.Clamp(fy, cell.Y * FinePose.PerCell + 40, (cell.Y + 1) * FinePose.PerCell - 40);
+        // #266: o lugar do uso é medido a partir do centro da pegada (a cama de 1×2 deita no meio), e o corpo fica dentro dela
+        var body = FurnitureBody.Of(descriptor, cell, spot.Facing);
+        var (cx, cy) = ObjectFootprint.CenterOffset(body.Width, body.Depth, spot.Facing);
+        var cells = body.Cells.ToList();
+        long fx = cell.X * FinePose.PerCell + 500 + (long)Math.Round((cx + (sx * cos + sz * sin) / cellM) * FinePose.PerCell);
+        long fy = cell.Y * FinePose.PerCell + 500 + (long)Math.Round((cy + (-sx * sin + sz * cos) / cellM) * FinePose.PerCell);
+        fx = Math.Clamp(fx, cells.Min(c => c.X) * FinePose.PerCell + 40, (cells.Max(c => c.X) + 1) * FinePose.PerCell - 40);
+        fy = Math.Clamp(fy, cells.Min(c => c.Y) * FinePose.PerCell + 40, (cells.Max(c => c.Y) + 1) * FinePose.PerCell - 40);
+        cell = new CellCoord((int)Math.Floor((double)fx / FinePose.PerCell), (int)Math.Floor((double)fy / FinePose.PerCell));
         return Result<UseTarget>.Ok(new UseTarget(building, piece, descriptor, use, cell, spot.Floor, fx, fy, spot.Facing + use.Facing));
     }
 

@@ -10,56 +10,14 @@
     {
      "shape": "box",
      "size": [
-      0.8,
-      0.45,
-      0.75
+      0.567,
+      0.567,
+      0.567
      ],
      "offset": [
       0,
-      0.225,
+      0.283,
       0
-     ],
-     "color": "8a5a44"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.8,
-      0.45,
-      0.14
-     ],
-     "offset": [
-      0,
-      0.65,
-      -0.3
-     ],
-     "color": "774b38"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.14,
-      0.3,
-      0.6
-     ],
-     "offset": [
-      -0.33,
-      0.55,
-      0.02
-     ],
-     "color": "774b38"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.14,
-      0.3,
-      0.6
-     ],
-     "offset": [
-      0.33,
-      0.55,
-      0.02
      ],
      "color": "774b38"
     }
@@ -100,7 +58,25 @@
      ],
      "facing": 0
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "armchair",
+    "sizeM": [
+     0.85,
+     0.85,
+     0.85
+    ],
+    "align": "back",
+    "style": {
+     "fabric": "774b38",
+     "accent": "8a5a44",
+     "wood": "3a2c22"
+    }
+   }
   },
   {
    "id": "plant",
@@ -109,56 +85,38 @@
    "variationSeed": 0,
    "shape": [
     {
-     "shape": "cylinder",
+     "shape": "box",
      "size": [
-      0.17,
-      0.3
+      0.367,
+      0.733,
+      0.367
      ],
      "offset": [
       0,
-      0.15,
-      0
-     ],
-     "color": "9a5b3c"
-    },
-    {
-     "shape": "sphere",
-     "size": [
-      0.28
-     ],
-     "offset": [
-      0,
-      0.62,
+      0.367,
       0
      ],
      "color": "3f7d3a"
-    },
-    {
-     "shape": "sphere",
-     "size": [
-      0.2
-     ],
-     "offset": [
-      0.12,
-      0.88,
-      0.04
-     ],
-     "color": "4f9147"
-    },
-    {
-     "shape": "sphere",
-     "size": [
-      0.18
-     ],
-     "offset": [
-      -0.1,
-      0.84,
-      -0.06
-     ],
-     "color": "356c34"
     }
    ],
-   "usePoints": []
+   "usePoints": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "plant",
+    "sizeM": [
+     0.55,
+     0.55,
+     1.1
+    ],
+    "align": "center",
+    "style": {
+     "leaf": "3f7d3a",
+     "pot": "9a5b3c"
+    }
+   }
   },
   {
    "id": "painting",
@@ -169,47 +127,36 @@
     {
      "shape": "box",
      "size": [
-      0.9,
-      0.62,
-      0.04
+      0.6,
+      1.2,
+      0.053
      ],
      "offset": [
       0,
-      1.45,
-      -0.46
-     ],
-     "color": "5a4630"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.8,
-      0.52,
-      0.02
-     ],
-     "offset": [
-      0,
-      1.45,
-      -0.44
-     ],
-     "color": "d8b66a"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.5,
-      0.22,
-      0.015
-     ],
-     "offset": [
-      -0.06,
-      1.38,
-      -0.43
+      0.6,
+      0
      ],
      "color": "4d7ea8"
     }
    ],
-   "usePoints": []
+   "usePoints": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "painting",
+    "sizeM": [
+     0.9,
+     0.08,
+     1.8
+    ],
+    "align": "back",
+    "style": {
+     "wood": "5a4630",
+     "accent": "4d7ea8"
+    }
+   }
   },
   {
    "id": "bookshelf",
@@ -220,58 +167,16 @@
     {
      "shape": "box",
      "size": [
-      1.0,
-      1.7,
-      0.32
+      0.733,
+      1.2,
+      0.233
      ],
      "offset": [
       0,
-      0.85,
-      -0.3
+      0.6,
+      0
      ],
      "color": "6b4a2c"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.88,
-      0.3,
-      0.26
-     ],
-     "offset": [
-      0,
-      0.45,
-      -0.3
-     ],
-     "color": "b5523f"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.88,
-      0.3,
-      0.26
-     ],
-     "offset": [
-      0,
-      0.95,
-      -0.3
-     ],
-     "color": "3f6e9a"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.88,
-      0.3,
-      0.26
-     ],
-     "offset": [
-      0,
-      1.45,
-      -0.3
-     ],
-     "color": "c7a23a"
     }
    ],
    "usePoints": [
@@ -305,7 +210,24 @@
      ],
      "facing": 180
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "bookshelf",
+    "sizeM": [
+     1.1,
+     0.35,
+     1.8
+    ],
+    "align": "back",
+    "style": {
+     "wood": "6b4a2c",
+     "accent": "b5523f"
+    }
+   }
   },
   {
    "id": "rug",
@@ -316,33 +238,36 @@
     {
      "shape": "box",
      "size": [
-      1.25,
-      0.02,
-      1.25
+      0.767,
+      0.013,
+      0.767
      ],
      "offset": [
       0,
-      0.01,
-      0
-     ],
-     "color": "a85a4a"
-    },
-    {
-     "shape": "box",
-     "size": [
-      1.0,
-      0.025,
-      1.0
-     ],
-     "offset": [
-      0,
-      0.012,
+      0.007,
       0
      ],
      "color": "d9b88f"
     }
    ],
-   "usePoints": []
+   "usePoints": [],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "rug",
+    "sizeM": [
+     1.15,
+     1.15,
+     0.02
+    ],
+    "align": "center",
+    "style": {
+     "fabric": "a85a4a",
+     "accent": "d9b88f"
+    }
+   }
   },
   {
    "id": "floorlamp",
@@ -353,44 +278,16 @@
     {
      "shape": "box",
      "size": [
-      0.34,
-      0.04,
-      0.34
+      0.267,
+      1.1,
+      0.267
      ],
      "offset": [
       0,
-      0.02,
+      0.55,
       0
      ],
      "color": "2f2f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.04,
-      1.5,
-      0.04
-     ],
-     "offset": [
-      0,
-      0.77,
-      0
-     ],
-     "color": "2f2f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.44,
-      0.32,
-      0.44
-     ],
-     "offset": [
-      0,
-      1.6,
-      0
-     ],
-     "color": "f6e6b4"
     }
    ],
    "usePoints": [],
@@ -427,7 +324,24 @@
      "facing": 180,
      "occupies": false
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "floorlamp",
+    "sizeM": [
+     0.4,
+     0.4,
+     1.65
+    ],
+    "align": "center",
+    "style": {
+     "metal": "2f2f35",
+     "fabric": "f6e6b4"
+    }
+   }
   }
  ],
  "Home": {

@@ -350,13 +350,16 @@ public class HomeBuyTests
         var (world, _, service, body, _, house) = Playing();
         var catalog = world.ObjectCatalog!;
         var living = BuildingRooms.Of(house, catalog).Floors[0].Rooms.First(r => r.Kind == "sala");
+        // #266: a sala é pequena e cada móvel tem pegada e lado livre; sem o abajur do canto cabem a pintura (na parede) e a planta
+        int lamp = HomeFurniture.Of(house, catalog).ToList().FindIndex(p => p.Id == "lamp");
+        Assert.True(Do(service, world, house, $"discard:{lamp}").IsSuccess);
         var inside = living.Cells.First(c => HomeFurniture.Of(house, catalog).All(p => p.Spot?.Cell != c));
         body.EnterBuilding(house.Id, new FloorLevel(0), inside);
         long ms = world.CurrentDate.TotalMilliseconds;
         double start = RoomBeauty.At(house, catalog, 0, inside)!.Value;
         Assert.DoesNotContain(MoodMechanic.Moments(world, body, ms), m => m.Id == "pretty-room");
 
-        foreach (string item in new[] { "plant", "painting" })
+        foreach (string item in new[] { "painting", "plant" }) // a pintura (que pede parede) primeiro: a sala é pequena e a planta fica em qualquer lugar
         {
             string verb = FirstSpotIn(world, body, house, item, living);
             Assert.True(Do(service, world, house, verb).IsSuccess, verb);
