@@ -80,6 +80,7 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.SocialBusy)] = (dto, _, _) => !dto.SocialBusy, // #259: ninguém está numa interação social no cenário de comparação
         [nameof(NpcInspectionDto.Mood)] = (dto, _, world) => dto.Mood is null && world.ObjectCatalog?.Moods is null, // #262: só com catálogo de humor
         [nameof(NpcInspectionDto.Career)] = (dto, _, world) => dto.Career is null && world.Careers is null, // #263: só com o livro de carreiras no mundo
+        [nameof(NpcInspectionDto.Home)] = (dto, _, world) => dto.Home is null, // #265: só com móvel nas mãos ou entrega (o mundo sem modo comprar nunca tem)
         [nameof(NpcInspectionDto.Employment)] = (dto, npc, world) =>
             dto.Employment?.Id == npc.Employer
             && dto.Employment?.BuildingId == world.Workplaces.FirstOrDefault(w => w.Id == npc.Employer)?.Building,
