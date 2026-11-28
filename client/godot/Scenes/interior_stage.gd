@@ -92,7 +92,7 @@ func set_floor(level: int) -> void:
 
 
 func _update_floor_label() -> void:
-	floor_label.visible = active
+	floor_label.visible = active and interior_view.floor_count > 1 # #246: casa de um andar não ganha "Andar 1 de 1" (cobria as dicas de teclas)
 	floor_label.text = "Andar %d de %d  (PgUp/PgDn)" % [interior_view.current_floor + 1, interior_view.floor_count]
 
 

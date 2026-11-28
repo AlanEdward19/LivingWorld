@@ -85,6 +85,8 @@ func _after_snapshot(kind: String, drawn_before: String, city_before: String) ->
 		if not _driving(): # #237: com o corpo do jogador a câmera é dele: a troca de escopo não a recentra nem muda o zoom
 			app.rig.set_zoom(clampf(maxf(area.size.x, area.size.y) * 1.15 + 5.0, 7.0, app.rig.city_exit_size - 0.6))
 		app._load_names()
+		if _driving():
+			app.announce_area() # #246: voltou à cidade com o corpo: o nome do bairro, discreto
 	elif kind == "World":
 		app.breadcrumb.text = "Mundo"
 		if not app.inspector.current.is_empty() and String(app.inspector.current.kind) == Registry.CITY:

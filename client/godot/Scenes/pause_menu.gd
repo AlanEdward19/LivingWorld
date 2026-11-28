@@ -54,8 +54,8 @@ func _ready() -> void:
 	save_button = Kit.big_button("Salvar agora", _box, save_now)
 	Kit.big_button("Opções", _box, show_options)
 	Kit.big_button("Ajuda e atalhos", _box, func(): close(); help_pressed.emit())
-	Kit.big_button("Voltar ao menu", _box, func(): await _restore_clock(); visible = false; menu_pressed.emit())
-	Kit.big_button("Sair do jogo", _box, func(): visible = false; quit_pressed.emit())
+	Kit.big_button("Voltar ao menu", _box, func(): await _restore_clock(); visible = false; _hide_hud_notices(false); menu_pressed.emit())
+	Kit.big_button("Sair do jogo", _box, func(): visible = false; _hide_hud_notices(false); quit_pressed.emit())
 
 
 func is_open() -> bool:
@@ -73,6 +73,7 @@ func open() -> void:
 	if app != null and app.first_steps != null:
 		app.first_steps.close_help() # #222: a pausa não abre por cima da ajuda
 	visible = true
+	_hide_hud_notices(true)
 	leave_button.visible = app != null and app.player_hud != null and app.player_hud.is_active
 	var next: Dictionary = app.player_hud.next_housemate() if leave_button.visible else {}
 	switch_button.visible = not next.is_empty()
@@ -148,11 +149,24 @@ func close() -> void:
 		options = null
 		_column_root.visible = true
 	visible = false
+	_hide_hud_notices(false)
 	save_button.text = "Salvar agora"
 	await _restore_clock()
 	resume_pressed.emit()
 	if app != null and app.player_mode and app.rig != null: # #222: de volta ao jogo, o mouse volta a olhar
 		app.rig.set_cursor_captured(true)
+
+
+## #246: os avisos do topo ("Mundo pausado", toasts) ficam sob o painel da pausa e liam como texto sobreposto ao título; somem enquanto ela está aberta.
+func _hide_hud_notices(hidden: bool) -> void:
+	if app == null:
+		return
+	if app.toasts != null:
+		app.toasts.visible = not hidden
+	if app.pause_label != null:
+		app.pause_label.modulate.a = 0.0 if hidden else 1.0
+	if app.player_hud != null: # a faixa "Mundo pausado: suas ações só andam…" mora no painel do HUD do jogador; a pausa já diz isso
+		app.player_hud.modulate.a = 0.0 if hidden else 1.0
 
 
 func _restore_clock() -> void:
