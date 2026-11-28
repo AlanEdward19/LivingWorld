@@ -78,7 +78,19 @@ public static class CareerLoader
         foreach (var error in new[] { e1, e2, e3, e4, e5, e6, e7 }) if (error is not null) return Result<CareerRules>.Fail(error);
         double idle = d.IdleSearchPerDay;
         if (o["idleSearchPerDay"] is not null && (!Number(o["idleSearchPerDay"], out idle) || idle is < 0 or > 1)) return Result<CareerRules>.Fail("Careers.rules.idleSearchPerDay: número de 0 a 1");
-        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle));
+        List<string>? names = null;
+        if (o["dayNames"] is not null)
+        {
+            if (o["dayNames"] is not JsonArray nameArray || nameArray.Count != week) return Result<CareerRules>.Fail("Careers.rules.dayNames: lista de textos, um por dia da semana (weekDays)");
+            names = [];
+            foreach (var item in nameArray)
+            {
+                if (!Text(item, out var n) || n.Length is 0 or > 8) return Result<CareerRules>.Fail("Careers.rules.dayNames: textos de 1 a 8 caracteres");
+                names.Add(n);
+            }
+        }
+
+        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle, names));
     }
 
     private static Result<CareerDef> ParseCareer(JsonNode? node, string at, Func<string, bool> knownNeed)

@@ -95,7 +95,8 @@ public static class NpcInspectionQuery
             NeedHint: LivingWorld.Simulation.Objects.HomeLife.Hint(world, npc, nowMs),
             NeedRates: world.ObjectCatalog?.Needs is not null ? LivingWorld.Simulation.Objects.HomeLife.Rates(world, npc) : null,
             SocialNote: LivingWorld.Simulation.Objects.SocialInteractions.LastFor(world, npc, 5 * 60_000),
-            SocialBusy: LivingWorld.Simulation.Objects.SocialInteractions.Active(npc));
+            SocialBusy: LivingWorld.Simulation.Objects.SocialInteractions.Active(npc),
+            Career: LivingWorld.Simulation.Careers.CareerViews.Of(world, npc));
     }
 
     /// <summary>O nível no instante de agora (#255): com o corpo gastando e recuperando energia e comida no meio da hora, ler no começo dela dava um valor que o

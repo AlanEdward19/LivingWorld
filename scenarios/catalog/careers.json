@@ -9,7 +9,7 @@
     }
   ],
   "Careers": {
-    "rules": {"weekDays": 7, "noticeLeadHours": 1, "graceHours": 1, "absencesToFire": 3, "billHour": 8, "noticeKeep": 40, "searchValidHours": 24, "idleSearchPerDay": 0.15},
+    "rules": {"weekDays": 7, "noticeLeadHours": 1, "graceHours": 1, "absencesToFire": 3, "billHour": 8, "noticeKeep": 40, "searchValidHours": 24, "idleSearchPerDay": 0.15, "dayNames": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]},
     "careers": [
       {
         "id": "escritorio", "name": "Escritório", "employerType": 2, "commuteMin": 40, "skillId": 1, "skillName": "Administração",

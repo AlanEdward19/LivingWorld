@@ -93,7 +93,9 @@ public sealed record NpcInspectionDto(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? NeedRates = null,
     // #259, só acréscimo: o último fato social (texto do catálogo, quando, com quem, ganho de afeto) e se o corpo está numa interação agora
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.SocialEvent? SocialNote = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool SocialBusy = false);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool SocialBusy = false,
+    // #263, só acréscimo: o emprego (cargo, salário, horário, próximo turno, desempenho), as contas abertas da casa, os avisos e as vagas achadas; omitido sem carreira no mundo
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Careers.CareerView? Career = null);
 
 /// <summary>#222: o que a pessoa leva nas mãos ou no recipiente agora: o recurso (nome pelo catálogo do período) e a quantidade.</summary>
 public sealed record NpcCarryDto(int ResourceId, long Quantity);

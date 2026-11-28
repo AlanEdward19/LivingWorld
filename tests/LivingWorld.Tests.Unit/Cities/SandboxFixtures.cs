@@ -22,6 +22,9 @@ public static class SandboxFixtures
         root["Workplaces"] = new JsonArray();
         root["MarketLocationTypeIds"] = new JsonArray();
         root.Remove("CareerStart"); // #263: o emprego do Rafael mora num empregador que o casal sozinho não tem
+        root["CatalogExtends"] = new JsonArray("home-life", "social"); // e sem carreiras nem contas: os testes de vida em casa não as querem
+        var furnished = root["Furnishings"]!["-1"]!.AsArray();
+        foreach (var node in furnished.Where(n => n!.ToString() == "newspaper").ToList()) furnished.Remove(node);
         var households = root["AuthoredHouseholds"]!.AsArray();
         while (households.Count > 1) households.RemoveAt(households.Count - 1);
         return root;

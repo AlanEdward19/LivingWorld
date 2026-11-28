@@ -20,22 +20,33 @@ public static partial class PlayerInteractions
         if (CareerWork.CatalogOf(world) is not { } catalog || world.Careers is not { } ledger) return;
         long nowMs = world.CurrentDate.TotalMilliseconds;
         var verbs = new List<string>();
+        var uses = new List<OfferUse>(); // o texto de cada verbo, do dado: o cliente só o mostra
         string label = "";
         if (ledger.JobOf(npc.Id.Value) is { } job && catalog.Find(job.Career) is { } def)
         {
             label = def.Levels[Math.Clamp(job.Level, 0, def.Levels.Count - 1)].Title;
-            if (CareerWork.CannotGo(world, npc, nowMs) is null) verbs.Add("go");
+            if (CareerWork.CannotGo(world, npc, nowMs) is null) { verbs.Add("go"); uses.Add(new OfferUse("go", $"Ir ao trabalho · {label}", 0, null, false)); }
         }
         else if (CareerWork.SearchIsValid(world, catalog, npc, nowMs))
         {
-            foreach (var vacancy in CareerWork.Vacancies(world, npc)) verbs.Add($"apply:{vacancy.Career.Id}@{vacancy.Employer.Id.Value}");
+            foreach (var vacancy in CareerWork.Vacancies(world, npc))
+            {
+                string verb = $"apply:{vacancy.Career.Id}@{vacancy.Employer.Id.Value}";
+                verbs.Add(verb);
+                uses.Add(new OfferUse(verb, $"Candidatar-se: {vacancy.Entry.Title} ({vacancy.Career.Name}, {vacancy.Entry.WagePerHour}/h)", 0, null, false));
+            }
+
             label = "Vagas";
         }
 
-        if (verbs.Count > 0) offers.Add(Offer(JobKind, npc.Id.Value, label, verbs, at));
+        if (verbs.Count > 0) offers.Add(Offer(JobKind, npc.Id.Value, label, verbs, at) with { Uses = uses });
         if (household is null || inside is null || household.Dwelling != inside) return;
-        var open = ledger.Bills.Where(b => b.Household == household.Id.Value && b.Open > 0).Select(b => $"pay:{b.Bill}").ToList();
-        if (open.Count > 0) offers.Add(Offer(BillsKind, household.Id.Value, "Contas", open, at));
+        var open = ledger.Bills.Where(b => b.Household == household.Id.Value && b.Open > 0).ToList();
+        if (open.Count > 0)
+            offers.Add(Offer(BillsKind, household.Id.Value, "Contas", open.Select(b => $"pay:{b.Bill}").ToList(), at) with
+            {
+                Uses = open.Select(b => new OfferUse($"pay:{b.Bill}", $"Pagar {catalog.FindBill(b.Bill)?.Name ?? b.Bill}: {b.Open + b.Fee}", 0, null, false)).ToList(),
+            });
     }
 
     private static Result<InteractionResult> CareerInteract(WorldState world, TickContext ctx, Npc npc, string kind, long id, string verb)
