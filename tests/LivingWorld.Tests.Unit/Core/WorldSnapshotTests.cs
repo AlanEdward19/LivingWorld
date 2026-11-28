@@ -138,7 +138,7 @@ public class WorldSnapshotTests
         world.RestoreLights(new LivingWorld.Simulation.Objects.LightLedger { On = [new() { Building = 1, Piece = 2 }] }); // #258: sem luz ligada some do snapshot
         world.RestoreCareers(new LivingWorld.Simulation.Careers.CareerLedger // #263: livro de carreiras vazio some do snapshot
         {
-            Jobs = [new() { Npc = 1, Career = "escritorio", Level = 1, Employer = 1, Good = 1, Bad = 1, Absences = 1, Score = 50, Shifts = 2, Earned = 3, ShiftDay = 1, DepartMs = 1, ArriveMs = 2, WorkEndMs = 3, ReturnMs = 4, PendingScore = 5 }],
+            Jobs = [new() { Npc = 1, Career = "escritorio", Level = 1, Employer = 1, Good = 1, Bad = 1, Absences = 1, Score = 50, Shifts = 2, Earned = 3, ShiftDay = 1, DepartMs = 1, ArriveMs = 2, WorkEndMs = 3, ReturnMs = 0, PendingScore = 5 }],
             Bills = [new() { Household = 1, Bill = "agua", Usage = 1.5, Open = 10, Fee = 1, DueMs = 100, NextIssueDay = 3, Warned = true, Cut = true, Paid = 7 }],
             Notices = [new() { Id = 1, Ms = 5, Npc = 1, Household = 1, Kind = "paid", Text = "+1", Amount = 1, Verb = "pay" }],
             Searches = [new() { Npc = 1, AtMs = 9 }],
