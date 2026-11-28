@@ -56,6 +56,15 @@ public static partial class SocialInteractions
     private static (double Affection, double Trust)? SpouseBaseline(WorldState world, Npc from, Npc to) =>
         from.Spouse == to.Id && CatalogOf(world)?.Rules is { } rules && (rules.SpouseAffection > 0 || rules.SpouseTrust > 0) ? (rules.SpouseAffection, rules.SpouseTrust) : null;
 
+    /// <summary>Ao começar o mundo: o casal ganha o laço que o catálogo diz que sentem (gravado, para não esfriar até zero sem convívio registrado). Sem catálogo social, nada.</summary>
+    public static void SeedBond(WorldState world, Npc npc)
+    {
+        if (npc.Spouse is not { } id || world.FindNpc(id) is not { } spouse || npc.Id.Value > id.Value || SpouseBaseline(world, npc, spouse) is null) return;
+        long hours = world.CurrentDate.TotalHours;
+        Ensure(world, npc, spouse, hours);
+        Ensure(world, spouse, npc, hours);
+    }
+
     /// <summary>O laço de <paramref name="from"/> por <paramref name="to"/> para escrever: o que existe, ou um novo (de um casal, com o que o catálogo diz que sentem desde o começo).</summary>
     private static Relationship Ensure(WorldState world, Npc from, Npc to, long hours)
     {
@@ -387,8 +396,10 @@ public static partial class SocialInteractions
         var (px, py) = FineOf(world, partner);
         var (ax, ay) = FineOf(world, actor);
         double dx = ax - px, dy = ay - py;
-        double reach = (CatalogOf(world)?.Rules.ReachM ?? 1.4) / Math.Max(0.1, world.Players.CellM) * FinePose.PerCell;
-        if (dx * dx + dy * dy <= reach * reach)
+        double perM = FinePose.PerCell / Math.Max(0.1, world.Players.CellM);
+        double reach = (CatalogOf(world)?.Rules.ReachM ?? 1.4) * perM, close = 0.55 * perM; // ao lado: nem longe demais, nem em cima do outro
+        bool tooClose = dx * dx + dy * dy < close * close;
+        if (!tooClose && dx * dx + dy * dy <= reach * reach)
         {
             actor.SetFine(new FinePose(ax, ay, 0, 0, now));
             Arrive(world, ctx, actor, partner, def, now);
@@ -400,7 +411,7 @@ public static partial class SocialInteractions
         long elapsed = Math.Clamp(now - Math.Max(task.LastMs, pose.AtMs), 0, 4L * Math.Max(1, world.TickDeltaMs));
         var moved = PlayerWalk.Approach(world, ctx, actor, pose, sx, sy, elapsed);
         actor.SetFine(moved.Pose with { AtMs = now, HeadingX = moved.Arrived ? 0 : moved.Pose.HeadingX, HeadingY = moved.Arrived ? 0 : moved.Pose.HeadingY });
-        if (moved.Arrived)
+        if (moved.Arrived || (moved.Blocked && tooClose)) // sem lugar para se afastar (parede): faz ali mesmo
         {
             Arrive(world, ctx, actor, partner, def, now);
             return;

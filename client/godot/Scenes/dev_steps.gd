@@ -142,6 +142,28 @@ static func run(app: Node, steps: Array) -> void:
 						app.player_hud._show_relation_of([entry])
 						print("socialmenu: ", shown.map(func(e): return String(e.text) + (" [esmaecida: " + String(e.reason) + "]" if bool(e.get("disabled", false)) else "")))
 						break
+			"warnlog": # #259: imprime os avisos do HUD (os que o jogador lê: recusas, "Marina gostou do elogio (+5)"...)
+				if not app.player_hud.warning.is_connected(_print_warning):
+					app.player_hud.warning.connect(_print_warning)
+			"socialnote": # #259: imprime o último fato social e se o corpo está numa interação, pela ficha do motor
+				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+				var note_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				print("socialnote: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " fato=", note_sheet.get("socialNote"), " ocupado=", note_sheet.get("socialBusy"), " tarefa=", app.player_hud.busy.kind(), " | ", app.player_frame.busy_label.text)
+			"accel": # #259: o tempo acelerado com o corpo parado (só quem joga sozinho): o motor corre até algo chamar
+				await app.player_hud.accelerate()
+			"watchsocial": # #259: `watchsocial:S` imprime por S s reais a ficha social do corpo e a da outra pessoa (ação e ocupação), a cada 2 s
+				var watched := 0.0
+				while watched < float(arg):
+					app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+					var mine_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+					var other_line := ""
+					for housemate in app.player_hud.housemates:
+						app.player_hud.api.invalidate_npc(int(housemate.id))
+						var other_sheet: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
+						other_line += " | %s ação=%s ocupado=%s social=%s" % [other_sheet.name, other_sheet.get("currentAction"), other_sheet.get("socialBusy"), other_sheet.get("social")]
+					print("watchsocial: [", app.player_frame.clock_label.text, "] fato=", mine_sheet.get("socialNote"), " ocupado=", mine_sheet.get("socialBusy"), " tarefa=", app.player_hud.busy.kind(), other_line)
+					await app.get_tree().create_timer(2.0).timeout
+					watched += 2.0
 			"relation": # #259: imprime a relação com a pessoa ao alcance, como o motor a diz (a que o painel mostra)
 				await app.player_hud._reach_entries()
 				for offer in app.player_hud.offers:

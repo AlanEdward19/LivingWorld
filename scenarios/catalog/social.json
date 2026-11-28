@@ -5,7 +5,7 @@
    "reachM": 1.4,
    "cooldownMin": 15,
    "initiateNeed": "social",
-   "initiateBelow": 55,
+   "initiateBelow": 90,
    "checkEveryMin": 10,
    "historyHours": 6,
    "spouseAffection": 72,
@@ -157,7 +157,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -211,7 +211,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -256,7 +256,7 @@
      "reason": "{target} ainda não tem tanta intimidade com {actor}"
     },
     "accept": {
-     "base": 82,
+     "base": 75,
      "terms": [
       {
        "of": "target.mood",
@@ -272,12 +272,12 @@
       {
        "of": "actor.need.hygiene",
        "weight": 0.4,
-       "from": 35,
+       "from": 50,
        "reason": "{actor} está precisando de um banho"
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -334,7 +334,7 @@
      "reason": "{target} não vê {actor} dessa forma"
     },
     "accept": {
-     "base": 78,
+     "base": 55,
      "terms": [
       {
        "of": "relation.affection",
@@ -350,30 +350,30 @@
       {
        "of": "actor.need.hygiene",
        "weight": 0.7,
-       "from": 40,
+       "from": 60,
        "reason": "{actor} está precisando de um banho antes"
       },
       {
        "of": "target.need.hygiene",
-       "weight": 0.3,
-       "from": 40,
+       "weight": 0.25,
+       "from": 60,
        "reason": "{target} está precisando de um banho"
       },
       {
        "of": "target.need.bladder",
-       "weight": 0.3,
-       "from": 30,
+       "weight": 0.15,
+       "from": 50,
        "reason": "{target} está apertado para ir ao banheiro"
       },
       {
        "of": "target.need.sleep",
-       "weight": 0.3,
-       "from": 30,
+       "weight": 0.15,
+       "from": 50,
        "reason": "{target} está cansado demais"
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -441,7 +441,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -642,7 +642,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -698,7 +698,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }
@@ -765,7 +765,7 @@
       },
       {
        "of": "recent.mean",
-       "weight": -40,
+       "weight": -60,
        "from": 0,
        "reason": "{target} ainda está remoendo a última briga"
       }

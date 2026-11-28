@@ -78,6 +78,7 @@ public static class PopulationSeeder
             world.AddHousehold(generated.Households[i]);
         }
 
+        foreach (var npc in generated.Npcs) LivingWorld.Simulation.Objects.SocialInteractions.SeedBond(world, npc); // #259: o casal começa com o afeto do catálogo social
         world.AdvanceNpcIdTo(generated.NextNpcId);
         world.AdvanceHouseholdIdTo(generated.NextHouseholdId);
 
