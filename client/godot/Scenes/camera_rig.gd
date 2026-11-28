@@ -34,6 +34,7 @@ const NEAR_PERSON_M := 1.0 ## na 1ª pessoa quem está a menos disto do olho nã
 const CEILING_M := 0.2 ## folga da câmera até o teto do andar
 const INDOOR_SHOULDER := 0.3 ## #227: em casa a câmera fica na altura da cabeça (fração do ombro da 3ª pessoa de rua), não sobre o ombro
 const INDOOR_ARM_OMEGA := 4.0 ## #250: o braço de dentro de casa (entrar, sair, girar) muda suave nos dois sentidos, sem salto
+const INDOOR_ARM_SPEED := 5.0 ## #268: unidades/s: o enquadramento do cômodo muda sem arranco, mesmo ao passar de um cômodo pequeno a um grande
 const INDOOR_TRANSITION_S := 0.8 ## depois de entrar ou sair, o braço segue a mola (não o encurtar rápido de quem bate na parede)
 const INDOOR_FOV_BONUS := 12.0 ## graus a mais em cômodo apertado (a vista abre sem recuar a câmera)
 const INDOOR_OMEGA := 3.5 ## rad/s: altura, FOV e inclinação de dentro de casa mudam suave (~0,8 s, sem salto)
@@ -614,7 +615,7 @@ func _spring_arm(delta: float) -> void:
 	else:
 		if _indoor or _trans > 0.0: # #250: dentro de casa a câmera é de enquadramento (não de colisão): mola nos dois sentidos
 			_trans = maxf(0.0, _trans - delta)
-			arm = lerpf(arm, free, 1.0 - exp(-INDOOR_ARM_OMEGA * delta))
+			arm = move_toward(arm, lerpf(arm, free, 1.0 - exp(-INDOOR_ARM_OMEGA * delta)), INDOOR_ARM_SPEED * delta) # #268: e nunca mais rápido que isto (cômodo grande ↔ pequeno)
 			_arm_hold = 0.0
 		else:
 			arm = _next_arm(free, cap, delta)
