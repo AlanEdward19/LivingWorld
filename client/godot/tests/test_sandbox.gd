@@ -10,6 +10,8 @@ const FakeTransport := preload("res://tests/fake_transport.gd")
 const MenuTest := preload("res://tests/test_main_menu.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
+const App := preload("res://Scenes/app.gd")
+const Fx := preload("res://tests/fixtures.gd")
 
 const SETTINGS_PATH := "user://test-sandbox-settings.cfg"
 const DEFINITION := '{"periodId":"sandbox-casal","periodDefinition":{"Width":24,"Height":24,"Seed": 252,"InitialPopulation":0},"version":1}'
@@ -179,3 +181,53 @@ func test_alone_in_the_house_there_is_nobody_to_switch_to() -> void:
 	eq(await hud.switch_body(), false, "e a tecla não faz nada")
 	check(not ("POST /players/p-1/switch" in transport.calls), "nenhuma chamada ao motor")
 	hud.free()
+
+
+## #256: o relógio dos dois ritmos: sem jogador o sandbox corre uma hora por tick; com jogador, tempo real 1:1 (50 ms por tick, 20 por segundo).
+func _app_transport(rhythm: Dictionary) -> RefCounted:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	var status := {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 5 * 3600000, "year": 0}
+	status.merge(rhythm)
+	transport.on("GET /simulation/status", {"status": 200, "body": status})
+	transport.on("GET /npcs?", {"status": 200, "body": {"total": 2, "skip": 0, "take": 50, "items": [
+		{"id": {"value": 12}, "name": "Rafael"}, {"id": {"value": 11}, "name": "Marina"}]}})
+	transport.on("POST /players/11/incarnate", {"status": 200, "body": {"npcId": 11, "playerId": "p-1"}})
+	transport.on("GET /npcs/11", Fx.npc_inspect([]))
+	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
+		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
+		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
+	return transport
+
+
+func test_a_quick_start_world_opens_already_inside_the_first_person_of_the_family() -> void:
+	var transport := _app_transport({"tickDeltaMs": 50, "loopTicksPerSecond": 20.0, "rhythm": "RealTime", "playersPresent": 1})
+	var app := App.new()
+	app.player_id = "p-1"
+	app.quick_start = true
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	var entered: bool = await app.enter_first_of_family()
+
+	eq(entered, true, "entrou no corpo")
+	eq(app.player_hud.npc_id, 11, "o primeiro da família (menor id), não o segundo")
+	eq(app.player_hud.npc_name, "Marina", "com o nome que o motor deu")
+	eq(app.quick_entered, true, "a entrada do início rápido terminou (os passos de captura esperam por isto)")
+	check("POST /players/11/incarnate" in transport.calls or "POST /players/possess" in transport.calls, "possuiu pelo motor")
+	app.queue_free()
+
+
+func test_the_clock_is_read_again_right_after_possessing_and_runs_one_to_one() -> void:
+	var transport := _app_transport({"tickDeltaMs": 50, "loopTicksPerSecond": 20.0, "rhythm": "RealTime", "playersPresent": 1})
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	var before: int = transport.calls.count("GET /simulation/status")
+
+	await app.incarnate(11)
+
+	check(transport.calls.count("GET /simulation/status") > before, "releu o status na hora de possuir, sem esperar o próximo ciclo")
+	var rate := App.hours_per_second(app.clock_panel.status)
+	check(absf(rate * 3600.0 - 1.0) < 1e-6, "o relógio anda 1 s de mundo por segundo real (%s)" % (rate * 3600.0))
+	app.queue_free()

@@ -32,6 +32,15 @@ motor**: é o período `scenarios/periods/sandbox-casal.json`. Decisão: AD-218.
   do motor (`/entities/household`). A figura de antes segue no mundo como gente do motor; a câmera desliza do corpo velho ao novo (0,8 s).
 - Passos de captura: `sandbox` (o botão do título), `switch`, `use:Geladeira` (a oferta do motor), `where`; ver `dev_steps.gd`.
 
+## Tempo real e passo (#256, AD-221)
+- **Início rápido entra no corpo**: ao terminar a criação (o job assíncrono), o cliente possui a pessoa de menor id da casa (`App.enter_first_of_family`),
+  no modo de posse do jogador (plena com o token de admin, comum sem ele), com a câmera nela e o guia da primeira posse; **G** troca.
+- **Todo caminho de posse conta como jogador presente** (`PlayersPresent` = corpo vivo com controlador): comum, plena, troca G e reconexão; com jogador o relógio é
+  1:1 (Δ 50 ms, 20 ticks/s). O Δ manual e o acelerado do admin são do mundo que estava aberto: criar ou abrir outro mundo os zera (`ResetRhythmOverrides`).
+- **Relógio da tela fiel**: `GET /simulation/status` devolve o ritmo de agora (não o do último ciclo); o cliente o relê ao possuir, trocar e criar personagem.
+- **Passada**: `BodyPose.gait_params` (cadência e amplitude pela velocidade real em m/s e pela escala do corpo) e `drop_for_reach` (o quadril desce o que o alcance
+  pede): ~2,1 passos/s a 1,1 m/s, pé de apoio parado no chão. Passos de captura: `hudclock:N` (relógio da tela) e `gait:W=S` (m/s, passos/s, deslize).
+
 ## O que ainda não funciona (S2 em diante)
 - Usar o móvel não leva o corpo até ele: o corpo dorme ou come onde está (o NPC do motor usa o ponto de uso).
 - Banho, vaso e TV: sem necessidade nem efeito. Reposição de comida: só a despensa de partida.

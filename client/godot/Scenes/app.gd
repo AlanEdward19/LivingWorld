@@ -122,10 +122,18 @@ var _sun: DirectionalLight3D
 var _environment: Environment
 
 
+## #256: veio do botão de início rápido (sandbox): ao abrir, o jogo já está no corpo de uma pessoa da casa, sem passo extra.
+var quick_start := false
+var quick_entered := false ## a entrada do início rápido terminou (entrou no corpo ou desistiu)
+signal quick_entry_done
+
+
 func _ready() -> void:
 	var real := HttpTransport.new()
 	add_child(real)
 	await start(real)
+	if quick_start:
+		await enter_first_of_family()
 	var steps := DevSteps.parse(OS.get_cmdline_user_args())
 	if not steps.is_empty() and not MenuSteps.is_menu(steps): # roteiro do menu roda o resto ele mesmo
 		await DevSteps.run(self, steps)
@@ -652,7 +660,30 @@ func _toggle_brain() -> void:
 func incarnate(id: int) -> void:
 	await resume_for_play()
 	if await player_hud.incarnate(id, registry.person_name(id)):
+		await clock_panel.refresh() # #256: com jogador o ritmo muda; o relógio da tela relê já, não extrapola o ritmo velho até o próximo ciclo
 		await _drive(id)
+
+
+## #256: início rápido: entra no corpo da primeira pessoa da família autorada (a de menor id: o motor numera pela ordem em que as
+## pessoas da casa são criadas), no modo de posse do jogador (plena com o token de admin, comum sem ele). O G troca para a outra.
+func enter_first_of_family() -> bool:
+	var page: Dictionary = await api.npc_page("", 0, 50, "")
+	var first := -1
+	var first_name := ""
+	if page.ok and page.body is Dictionary:
+		for item in page.body.get("items", []):
+			var id := int(item.id.value)
+			if first < 0 or id < first:
+				first = id
+				first_name = String(item.name)
+	if first >= 0:
+		store.names[first] = first_name
+		await select_npc(first)
+		await incarnate(first)
+	quick_start = false
+	quick_entered = true
+	quick_entry_done.emit()
+	return first >= 0 and player_hud.is_active
 
 
 ## #222: quem vai jogar quer o tempo correndo: com o mundo pausado e o relógio nas mãos (jogo local, admin), o tempo volta a andar
@@ -680,6 +711,7 @@ func open_creator() -> void:
 ## AD-197q: entrou como pessoa nova: a cidade dela, o corpo que o motor materializou e a 3ª pessoa, como ao encarnar.
 func _on_created(id: int, name: String, city_id: String) -> void:
 	store.names[id] = name
+	clock_panel.refresh() # #256
 	if session.world_ref != ["City", city_id]:
 		await enter_scope("City", city_id)
 	await _drive(id)
@@ -712,6 +744,7 @@ var _glide_anchor: Node3D = null
 
 
 func _on_player_switched(old_id: int, new_id: int) -> void:
+	clock_panel.refresh() # #256: o ritmo do relógio é relido na hora da troca
 	var old_node = world_view.npc_nodes.get(old_id)
 	if old_node == null and stage != null and stage.active:
 		old_node = stage.interior_view.occupant_nodes.get(old_id)

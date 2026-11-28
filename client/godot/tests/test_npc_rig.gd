@@ -220,3 +220,71 @@ func test_proportions_follow_the_age_stage() -> void:
 	child.set_detail(false)
 	check(absf(child._head.scale.y - 1.0) < 0.01, "e a cabeça volta ao normal ao sair do detalhe")
 	child.free()
+
+
+## #256: a passada sai da velocidade REAL em m/s e do tamanho do corpo: a 1,1 m/s a cadência é de caminhada calma (~1,8 passos/s, não
+## 2,5 de quem trota) e o pé de apoio recua na velocidade do corpo (sem patinar).
+func test_the_cadence_follows_the_real_speed_and_stays_calm_at_the_sandbox_walk() -> void:
+	var cell := 1.5
+	var scale := 1.13
+	var walk := BodyPose.gait_params(1.1 / cell, scale, "adult", 0.0, cell)
+	check(float(walk.steps) > 1.6 and float(walk.steps) < 2.2, "1,1 m/s: %.2f passos/s (calma)" % float(walk.steps))
+	var slow := BodyPose.gait_params(0.4 / cell, scale, "adult", 0.0, cell)
+	check(float(slow.steps) >= 1.0 and float(slow.steps) < float(walk.steps), "mais devagar, menos passos (%.2f)" % float(slow.steps))
+	var run := BodyPose.gait_params(3.0 / cell, scale, "adult", 1.0, cell)
+	check(float(run.steps) > 2.6 and float(run.steps) < 3.8, "3 m/s corre a %.2f passos/s" % float(run.steps))
+	var child := BodyPose.gait_params(1.1 / cell, 0.7, "child", 0.0, cell)
+	check(float(child.stride) < float(walk.stride), "criança passada curta")
+	for params in [walk, slow, run, child]: # sem deslize: o pé recua `stride` em `duty` do ciclo, na velocidade do corpo
+		var speed_local: float = float(params.mps) / cell / (scale if params != child else 0.7)
+		var foot_speed: float = float(params.stride) / (float(params.duty) / float(params.cycles))
+		check(absf(foot_speed - speed_local) < 0.001, "pé de apoio na velocidade do corpo (%.3f x %.3f)" % [foot_speed, speed_local])
+
+
+## #256: medido no corpo desenhado andando a 1,1 m/s: passos por segundo e o pé de apoio parado no chão (a distância que ele anda no
+## mundo no apoio é ~0 em relação ao que o corpo percorre).
+func test_a_body_walking_at_one_point_one_meters_per_second_steps_calmly_and_the_stance_foot_does_not_skate() -> void:
+	var actor := _walker()
+	actor.scale = Vector3.ONE * 1.13
+	actor.walk = null
+	var step := 1.1 / 1.5 # unidades de mundo por segundo
+	var phase0 := 0.0
+	var frames := 0
+	var stance_drift := 0.0
+	var stance_samples := 0
+	var last_foot := Vector3.INF
+	for i in 140:
+		actor.position += actor.transform.basis.z.normalized() * step * 0.02 # anda para onde o corpo olha
+		actor.animate(0.02)
+		if i == 60:
+			phase0 = actor._rig.phase
+			frames = 0
+		if i > 60:
+			frames += 1
+			var u := fposmod(actor._rig.phase / TAU, 1.0)
+			if u < actor._rig._duty: # perna 0 em apoio: o tornozelo no mundo não pode correr com o corpo
+				var foot: Vector3 = actor.transform * _ankle(actor, 0)
+				if last_foot != Vector3.INF:
+					stance_drift += foot.distance_to(last_foot)
+					stance_samples += 1
+				last_foot = foot
+			else:
+				last_foot = Vector3.INF
+	var seconds: float = frames * 0.02
+	var cycles: float = (actor._rig.phase - phase0) / TAU / seconds
+	check(cycles * 2.0 > 1.5 and cycles * 2.0 < 2.1, "andando a 1,1 m/s: %.2f passos/s" % (cycles * 2.0))
+	var body_travel := step * 0.02 * stance_samples
+	check(stance_samples > 10 and stance_drift < body_travel * 0.35, "o pé de apoio não patina: andou %.3f no mundo para %.3f do corpo" % [stance_drift, body_travel])
+	actor.free()
+
+
+## #256: a perna mede o que mede: com o pé à frente o quadril desce o que o alcance pede (senão o IK esticava e o pé escorregava), e com o pé
+## sob o corpo não desce.
+func test_the_hip_drops_just_enough_for_the_planted_foot_to_reach_the_ground() -> void:
+	check(BodyPose.drop_for_reach(0.0, 0.0) < 0.01, "pé sob o quadril: quase não precisa descer")
+	var open_legs := BodyPose.drop_for_reach(0.2, 0.0)
+	check(open_legs > 0.04 and open_legs < 0.09, "pé 0,20 à frente: o quadril desce %.3f" % open_legs)
+	var leg := BodyPose.THIGH + BodyPose.SHIN
+	var reach := sqrt(pow(BodyPose.HIP_Y - open_legs - BodyPose.ANKLE_H, 2.0) + 0.2 * 0.2)
+	check(reach <= leg, "e com isso o pé está ao alcance da perna (%.3f <= %.3f)" % [reach, leg])
+	check(BodyPose.drop_for_reach(0.2, 0.05) < open_legs, "no balanço o pé sobe e pede menos")
