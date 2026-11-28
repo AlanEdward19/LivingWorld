@@ -1,7 +1,7 @@
 extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
-## Passos (#264, modo comprar: buy · buytab:buy|mine|build · buycat · buyitem:id · buyfind:id[,cômodo] · buyat:X,Y[,giro] · buyface:graus · buyask · buyclick · buycmd:verbo · buyhome · buycut:cômodo · buyedgefind:op · buyextendfind · buytool:nome · buypaint:id · buyroomcell:tipo · buymovefind:N · buyonpiece:N · mousepos:X,Y · mousebuy · golocal:X,Y · partner) · (#269: sky · #258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
+## Passos (#264, modo comprar: buy · buytab:buy|mine|build · buycat · buyitem:id · buyfind:id[,cômodo] · buyat:X,Y[,giro] · buyface:graus · buyask · buyclick · buycmd:verbo · buyhome · buycut:cômodo · buyedgefind:op · buyextendfind · buytool:nome · buypaint:id · buyroomcell:tipo · buymovefind:N · buyonpiece:N · mousepos:X,Y · mousebuy · golocal:X,Y · partner) · (#269: sky · places · #258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
 ##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
@@ -621,6 +621,11 @@ static func run(app: Node, steps: Array) -> void:
 				var view = app.stage.interior_view
 				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " ligadas pelo motor=", view.lit_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour, " | luzes do motor (delta)=", app.store.interior.get("lights"),
 					" | peças das luzes=", view._lamps.map(func(l): return [l.get_meta("piece", -1), l.get_meta("switch", false), l.visible]))
+			"places": # #269: os nomes dos prédios como o cliente os rotula (o que `clickgo:place=` procura) e a casa do corpo conduzido
+				var names: Array = []
+				for bid in app.store.buildings:
+					names.append("%s=%s" % [bid, app.world_view.building_labels.text_for(app.store.buildings[bid], app.store.building_states.get(bid, {}), app.registry)])
+				print("places: casa=", app.player_hud.home_building, " | ", names)
 			"sky": # #269: o céu que o cliente usa agora (hora, nascer e pôr do sol, fase, luz) e o tempo do motor que chegou
 				var cycle = app.day_cycle
 				print("sky: hora=", snapped(cycle.hour, 0.01), " nascer=", cycle.sunrise, " pôr=", cycle.sunset, " fase=", cycle.phase_name(), " luz=", snapped(cycle.daylight(), 0.01),

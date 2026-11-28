@@ -69,3 +69,6 @@ Pagar não põe o móvel em casa: ele fica **reservado na loja em nome da casa**
 ## #268: entrega com hora
 A entrega diz a hora do jogo calculada pelo motor ("Seu Tomás entrega Sofá por 30: chega amanhã às 08:12", `CareerWork.When`), no preview do botão, no `parcel.dueText` e no preparo da loja (`readyText`), em vez de "em 788 min".
 "Ir à loja" é uma linha da roda do E de qualquer lugar (oferta `freight`, verbo `goto:shop`: o mesmo "ir até", desfecho `going`).
+## #269: onde o móvel cabe (AD-238)
+`fit:seq[:cômodo | :andar:x:y:giro]` (só leitura, em `home/check` como `fit {floor,x,y,facing}`) e `autoplace:seq[...]` (põe) respondem o lugar válido mais perto da âncora (célula pedida, cômodo pedido ou o centro do térreo), com a regra de `Placement`
+(`HomeFit`). Sem lugar, recusa dizendo o que fazer. O depósito ganha a ação "Pôr onde cabe" (`autoplace`) e o clique em lugar vermelho põe onde o motor disse. Passo de captura: `buyfind:#N[,cômodo]`.

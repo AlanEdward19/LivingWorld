@@ -1837,6 +1837,10 @@ func _after_go() -> void:
 		if int(then.get("id", -2)) == home_building: # #269: a própria casa: o motor entra sozinho ao chegar à soleira (a roda não abre sobre a porta)
 			warning.emit("Entrando em casa…")
 			return
+		if is_inside_tree(): # o passo para dentro leva um instante: se o corpo entrou nesse prédio, a roda de fora não abre
+			await get_tree().create_timer(0.5).timeout
+			if building_id == int(then.get("id", -2)):
+				return
 		warning.emit("Chegou: %s." % String(then.get("label", "o prédio")))
 		await open_interactions()
 	else:
