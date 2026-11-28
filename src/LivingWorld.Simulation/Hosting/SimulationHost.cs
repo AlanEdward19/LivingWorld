@@ -79,6 +79,20 @@ public sealed class SimulationHost(WorldHost host)
 
     public void SetAccelerated(bool on) => Accelerated = on;
 
+    /// <summary>Velocidades que o jogador escolhe (#260): 0 pausa, 1 normal, 2 e 3 vezes o ritmo do mundo. Os valores vêm de dado
+    /// (<see cref="TimeRules.MaxPlayerSpeed"/>); aqui só se guarda a escolha.</summary>
+    public int PlayerSpeed { get; private set; } = 1;
+
+    /// <summary>#260: a velocidade que vale agora: a do jogador só quando um único jogador conduz um corpo (com dois, o relógio é de todos
+    /// e volta a 1×).</summary>
+    public int EffectiveSpeed(WorldState world) => PlayerService.PlayersPresent(world) == 1 ? PlayerSpeed : 1;
+
+    /// <summary>O mundo está parado pela pausa do jogador (velocidade 0 com ele sozinho).</summary>
+    public bool PlayerPaused(WorldState world) => AutoRhythm && ManualDeltaMs is null && EffectiveSpeed(world) == 0;
+
+    /// <summary>Escolhe a velocidade do jogador; a validação (só quem joga sozinho, valor do dado) é de <see cref="PlayerService.SetSpeed"/>.</summary>
+    public void SetPlayerSpeed(int speed) => PlayerSpeed = speed;
+
     public void SetManualDelta(int? deltaMs) => ManualDeltaMs = deltaMs;
 
     /// <summary>#256: criar ou abrir outro mundo larga o que o admin fixou no mundo anterior (Δ manual e acelerado). Sem isto o Δ de
@@ -87,6 +101,7 @@ public sealed class SimulationHost(WorldHost host)
     {
         ManualDeltaMs = null;
         Accelerated = false;
+        PlayerSpeed = 1;
     }
 
     /// <summary>O ritmo agora (ADR-0050, decisão 3): Δ fixado pelo admin; acelerado (admin, ou o pulo de quem joga sozinho): uma
@@ -99,7 +114,7 @@ public sealed class SimulationHost(WorldHost host)
         var time = world.Players.Time;
         if (Accelerated || players.Skip is not null)
             return new RhythmPlan(RhythmMode.Accelerated, WorldMillis.HourTick, Math.Max(TicksPerSecond, time.AcceleratedHoursPerSecond));
-        var real = new RhythmPlan(RhythmMode.RealTime, time.FineDeltaMs(), 1000.0 / Math.Max(1, time.FineTickRealMs));
+        var real = new RhythmPlan(RhythmMode.RealTime, time.FineDeltaMs(Math.Max(1, EffectiveSpeed(world))), 1000.0 / Math.Max(1, time.FineTickRealMs));
         if (PlayerService.PlayersPresent(world) > 0) return real;
         return time.IdleRhythm == IdleRhythm.RealTime ? real : new RhythmPlan(RhythmMode.Fast, WorldMillis.HourTick, TicksPerSecond);
     }

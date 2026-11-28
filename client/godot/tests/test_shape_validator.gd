@@ -90,7 +90,7 @@ func _sample_for(shape: Variant) -> Variant:
 
 func test_api_client_rejects_mistyped_status() -> void:
 	var transport := FakeTransport.new()
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "atMs": 1 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "atMs": 1 * 3600000, "tickDeltaMs": 3600000, "year": 0, "playerSpeed": 1}})
 	var api := ApiClient.new(transport)
 	var errors: Array = []
 	api.contract_error.connect(func(_route, e): errors.append(e))
@@ -100,7 +100,7 @@ func test_api_client_rejects_mistyped_status() -> void:
 	eq(response.ok, false, "campo de tipo errado (isPaused como texto) é rejeitado")
 	eq(errors.size(), 1, "o erro de contrato é anunciado")
 
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 1 * 3600000, "tickDeltaMs": 3600000, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 1 * 3600000, "tickDeltaMs": 3600000, "year": 0, "playerSpeed": 1}})
 	var good: Dictionary = await api.clock_status()
 	eq(good.ok, true, "resposta fiel ao contrato passa")
 
@@ -204,14 +204,14 @@ func test_world_info_and_pause_status_shapes_are_frozen() -> void:
 	var transport := FakeTransport.new()
 	var scale := {"cellMeters": 1.5, "doorMeters": 2.0, "doorWidthMeters": 0.9, "floorMeters": 3.0, "windowMeters": 1.0, "windowSillMeters": 1.0}
 	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "periodId": "", "technologyAxes": ["pace"], "scale": scale}})
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "pausedBy": "alan", "pauseReason": "x", "pausedAtMs": 3 * 3600000, "pauseMaxMs": 48 * 3600000}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "playerSpeed": 1, "pausedBy": "alan", "pauseReason": "x", "pausedAtMs": 3 * 3600000, "pauseMaxMs": 48 * 3600000}})
 	var api := ApiClient.new(transport)
 	eq((await api.world_info()).ok, true)
 	eq((await api.clock_status()).ok, true, "pausa de admin preenchida passa")
 
 	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "technologyAxes": ["pace"], "scale": scale}})
 	eq((await api.world_info()).ok, false, "sem periodId reprova")
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "pausedBy": 7}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "playerSpeed": 1, "pausedBy": 7}})
 	eq((await api.clock_status()).ok, false, "pausedBy com tipo errado reprova (opcional tipado)")
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "pausedBy": null}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "atMs": 3 * 3600000, "tickDeltaMs": 3600000, "year": 0, "playerSpeed": 1, "pausedBy": null}})
 	eq((await api.clock_status()).ok, true, "nulo passa")

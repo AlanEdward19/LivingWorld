@@ -4,11 +4,17 @@ extends Control
 ## o menu do E (numerado, 1–9 escolhe, Esc fecha). Só desenha: o que vale e o que acontece é do motor (via player_hud).
 
 signal chosen(entry: Dictionary)
+signal speed_chosen(speed: int) ## #260: o jogador pediu pausa (0), 1×, 2× ou 3× (botão ou tecla 0–3); o motor valida
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   V paredes   0–3 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
+const NeedIcon := preload("res://Scenes/need_icon.gd")
+const SPEED_TEXT := ["II", "1×", "2×", "3×"] ## #260: pausa e as velocidades do tempo, como no The Sims
+const SPEED_TIP := ["Pausa (0)", "Velocidade normal (1)", "Rápido (2)", "Mais rápido (3)"]
+const BAR_WIDTH := 112.0 ## #260: a barra encolhe para caber o ícone, o número e a seta de tendência na mesma linha
+const PULSE_HZ := 1.4 ## a necessidade mais urgente pulsa (ciclos por segundo)
 const PlayerGuide := preload("res://Scenes/player_guide.gd")
 const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
 const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
@@ -25,6 +31,9 @@ var action_label: Label
 var switch_label: Label ## #252: "G — passar a ser Rafael" (só com outra pessoa na casa)
 var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
 var clock_label: Label
+var speed_box: HBoxContainer ## #260: pausa/1×/2×/3× no canto de cima (só quando o motor deixa: sozinho no mundo)
+var speed_buttons: Array[Button] = []
+var speed_now := 1
 var prompt: Label
 var hints: Label
 var bars: Dictionary = {} ## "health" -> ProgressBar
@@ -36,6 +45,10 @@ var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o re
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
 var catalog_box: VBoxContainer ## #255
 var catalog_bars: Dictionary = {} ## id da necessidade do catálogo -> {bar, name}
+var _rows: Dictionary = {} ## #260: id (as de sempre e as do catálogo) -> {row, bar, name, pct, icon, trend}
+var _pulse_id := "" ## a necessidade mais urgente agora: a barra pulsa
+var _pulse_clock := 0.0
+var _builtin_urgent := ""
 var need_hint: Label ## "Você está com a bexiga cheia → Vaso" (o alerta é do cenário; o objeto, do catálogo)
 var queue_label: Label ## #255: a fila de ações ("1 Tomar banho · 2 Assistir TV"), Shift+1–4 tira
 var _queue_size := 0
@@ -87,29 +100,16 @@ func _init() -> void:
 	box.add_child(name_label)
 	action_label = _label(14, Color(1, 1, 1, 0.7))
 	box.add_child(action_label)
-	switch_label = _label(13, Color("9ad0ff"))
+	switch_label = _label(17, Color("9ad0ff")) # #260: a troca de pessoa (G) é uma das coisas centrais do sandbox: maior e mais clara
 	switch_label.visible = false
 	box.add_child(switch_label)
 	purse_label = _label(15, Color("ffe9a6"))
 	purse_label.visible = false
 	box.add_child(purse_label)
 	for spec in BARS:
-		var row := HBoxContainer.new()
-		var text := _label(13, Color(1, 1, 1, 0.8))
-		text.text = spec[1]
-		text.custom_minimum_size.x = 52
-		row.add_child(text)
-		var bar := ProgressBar.new()
-		bar.show_percentage = false
-		bar.max_value = 100.0
-		bar.custom_minimum_size = Vector2(190, 10)
-		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		bar.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.12), 4))
-		bar.add_theme_stylebox_override("fill", _style(spec[2], 4))
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(bar)
-		box.add_child(row)
-		bars[spec[0]] = bar
+		var made := _make_bar_row(String(spec[0]), String(spec[1]), spec[2], String(NeedIcon.DEFAULT_ICONS.get(spec[0], "")), box)
+		bars[spec[0]] = made.bar
+		_rows[spec[0]] = made
 	catalog_box = VBoxContainer.new() # #255: as barras das necessidades do catálogo do cenário (higiene, diversão, bexiga...), criadas pelo que o motor diz
 	catalog_box.add_theme_constant_override("separation", 4)
 	box.add_child(catalog_box)
@@ -154,6 +154,30 @@ func _init() -> void:
 	clock_label.add_theme_constant_override("outline_size", 6)
 	clock_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	add_child(clock_label)
+	speed_box = HBoxContainer.new()
+	speed_box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	speed_box.offset_top = 12
+	speed_box.offset_right = -16
+	speed_box.offset_left = -190
+	speed_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	speed_box.add_theme_constant_override("separation", 4)
+	speed_box.alignment = BoxContainer.ALIGNMENT_END
+	speed_box.visible = false
+	add_child(speed_box)
+	for i in SPEED_TEXT.size():
+		var button := Button.new()
+		button.text = SPEED_TEXT[i]
+		button.tooltip_text = SPEED_TIP[i]
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.custom_minimum_size = Vector2(38, 30)
+		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
+		button.add_theme_stylebox_override("hover", _style(Color(0.15, 0.17, 0.22, 0.85), 8))
+		button.add_theme_stylebox_override("pressed", _style(Color("b0873a"), 8))
+		var speed := i
+		button.pressed.connect(func(): speed_chosen.emit(speed))
+		speed_box.add_child(button)
+		speed_buttons.append(button)
 	goal_label = _label(14, Color(1, 1, 1, 0.65))
 	goal_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	goal_label.offset_top = 40
@@ -261,19 +285,30 @@ func set_body(name: String, action: String, needs: Dictionary) -> void:
 	name_label.text = name
 	_engine_action = action
 	_show_action()
+	var rates: Variant = needs.get("needRates")
+	var lowest := ""
+	var lowest_value := 25.0
 	for key in bars:
 		if needs.has(key) and needs[key] != null:
 			var value := float(needs[key])
 			bars[key].value = value
 			bars[key].modulate = Color.WHITE if value >= 25.0 else Color(1.0, 0.55, 0.55)
-	set_catalog_needs(needs.get("catalogNeeds", []), needs.get("needHint"))
+			_note_row(key, value, rates.get(key) if rates is Dictionary else null)
+			if value < lowest_value and key != "health":
+				lowest = key
+				lowest_value = value
+	_builtin_urgent = lowest
+	set_catalog_needs(needs.get("catalogNeeds", []), needs.get("needHint"), rates)
 
 
 ## #255: as barras do catálogo do cenário (`catalogNeeds` da ficha: id, name, value, urgent, color), uma por necessidade na ordem do motor, com a mais
 ## urgente destacada (nome com seta e cor de alerta), e a dica `needHint` ("Você está com a bexiga cheia → Vaso"). Sem catálogo, nada aparece.
-func set_catalog_needs(list: Variant, hint: Variant) -> void:
+func set_catalog_needs(list: Variant, hint: Variant, rates: Variant = null) -> void:
 	var rows: Array = list if list is Array else []
 	var worst := most_urgent(rows)
+	_pulse_id = worst if worst != "" else _builtin_urgent
+	if _pulse_id == "":
+		_pulse_clock = 0.0
 	for row in rows:
 		var id := String(row.id)
 		if not catalog_bars.has(id):
@@ -284,11 +319,13 @@ func set_catalog_needs(list: Variant, hint: Variant) -> void:
 		var urgent := bool(row.get("urgent", false))
 		entry.bar.modulate = Color(1.0, 0.55, 0.55) if urgent else Color.WHITE
 		entry.name.text = ("▶ " if id == worst else "") + String(row.name)
+		_note_row(id, value, rates.get(id) if rates is Dictionary else null)
 		entry.name.add_theme_color_override("font_color", Color("ffd27a") if id == worst else Color(1, 1, 1, 0.8))
 	for id in catalog_bars.keys():
 		if rows.filter(func(r): return String(r.id) == id).is_empty():
 			catalog_bars[id].row.queue_free()
 			catalog_bars.erase(id)
+			_rows.erase(id)
 	need_hint.text = hint_line(hint)
 	need_hint.visible = need_hint.text != ""
 
@@ -314,21 +351,63 @@ static func hint_line(hint: Variant) -> String:
 
 
 func _make_catalog_row(row: Dictionary) -> Dictionary:
+	var tint := Color(String(row.get("color", "9aa5b1")) if row.get("color") != null else "9aa5b1")
+	var made := _make_bar_row(String(row.id), String(row.name), tint, String(row.get("icon", "")) if row.get("icon") != null else "", catalog_box)
+	_rows[String(row.id)] = made
+	return made
+
+
+## #260: uma linha de necessidade: ícone, nome, barra, número (%) e seta de tendência. `parent` recebe a linha.
+func _make_bar_row(id: String, text_name: String, tint: Color, icon: String, parent: Control) -> Dictionary:
 	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 4)
+	var glyph := NeedIcon.new(icon, tint)
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(glyph)
 	var text := _label(13, Color(1, 1, 1, 0.8))
 	text.custom_minimum_size.x = 52
+	text.text = text_name
 	line.add_child(text)
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	bar.max_value = 100.0
-	bar.custom_minimum_size = Vector2(190, 10)
+	bar.custom_minimum_size = Vector2(BAR_WIDTH, 10)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.12), 4))
-	bar.add_theme_stylebox_override("fill", _style(Color(String(row.get("color", "9aa5b1")) if row.get("color") != null else "9aa5b1"), 4))
+	bar.add_theme_stylebox_override("fill", _style(tint, 4))
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(bar)
-	catalog_box.add_child(line)
-	return {"row": line, "bar": bar, "name": text}
+	var pct := _label(12, Color(1, 1, 1, 0.85))
+	pct.custom_minimum_size.x = 34
+	pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	line.add_child(pct)
+	var arrow := NeedIcon.new("", Color.WHITE, true)
+	arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(arrow)
+	parent.add_child(line)
+	return {"row": line, "bar": bar, "name": text, "pct": pct, "icon": glyph, "trend": arrow, "id": id, "tint": tint}
+
+
+## #260: o número e a seta de uma linha: `value` 0..100 e `per_hour` o ritmo que o motor diz (nulo = sem seta).
+func _note_row(id: String, value: float, per_hour: Variant) -> void:
+	if not _rows.has(id):
+		return
+	var row: Dictionary = _rows[id]
+	row.pct.text = "%d%%" % roundi(value)
+	var level := NeedIcon.level_for(float(per_hour)) if per_hour != null else 0
+	row.trend.visible = per_hour != null
+	row.trend.set_trend(level)
+	row.trend.tooltip_text = NeedIcon.trend_text(level)
+	row.row.tooltip_text = "%s %d%% · %s" % [String(row.name.text).trim_prefix("▶ "), roundi(value), NeedIcon.trend_text(level)]
+
+
+func _process(delta: float) -> void:
+	if _pulse_id == "" or not _rows.has(_pulse_id):
+		return
+	_pulse_clock += delta
+	var wave := 0.5 + 0.5 * sin(_pulse_clock * TAU * PULSE_HZ)
+	var bar: ProgressBar = _rows[_pulse_id].bar
+	bar.modulate = Color(1.0, 0.55 + 0.4 * wave, 0.55 + 0.4 * wave)
 
 
 ## #255: a fila de ações (`queue` da pose: use, label, object); vazia esconde.
@@ -440,6 +519,18 @@ func set_purse(money: Variant, carrying: Variant, name_of: Callable) -> void:
 
 func set_clock(text: String) -> void:
 	clock_label.text = text
+
+
+## #260: a velocidade do tempo como o motor diz (`GET /players/{id}/time`: `canSkip`, `speed`, `maxSpeed`). Os botões só aparecem quando o
+## jogador pode mudar o tempo (sozinho no mundo); com mais de um jogador somem. `maxSpeed` esconde as velocidades que o cenário não permite.
+func set_speed(view: Dictionary) -> void:
+	var can := bool(view.get("canSkip", false)) or bool(view.get("canSetSpeed", false))
+	speed_box.visible = can
+	speed_now = int(view.get("speed", 1)) if view.get("speed") != null else 1
+	var top := int(view.get("maxSpeed", 3)) if view.get("maxSpeed") != null else 3
+	for i in speed_buttons.size():
+		speed_buttons[i].visible = i <= top
+		speed_buttons[i].set_pressed_no_signal(i == speed_now)
 
 
 ## A dica sob a mira: "E  Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").

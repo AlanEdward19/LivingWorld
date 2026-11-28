@@ -89,7 +89,8 @@ public sealed record NpcInspectionDto(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NpcCarryDto? Carrying = null,
     // #255, só acréscimo: as necessidades do catálogo do cenário (higiene, diversão, bexiga...) como a pessoa as sente agora e a dica da mais urgente
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.NeedReading>? CatalogNeeds = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.NeedHint? NeedHint = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.NeedHint? NeedHint = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? NeedRates = null);
 
 /// <summary>#222: o que a pessoa leva nas mãos ou no recipiente agora: o recurso (nome pelo catálogo do período) e a quantidade.</summary>
 public sealed record NpcCarryDto(int ResourceId, long Quantity);

@@ -38,6 +38,8 @@ var object_points: Array = [] ## [{id, level, position}] cada peça de mobília,
 var _occupants: Array = []
 var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
+var _lamps: Array = [] ## #260: as luzes dos objetos do catálogo que dão luz (abajur)
+var _lamp_level := -1.0
 var _pieces: Array = [] ## #250: [{node, bounds, xf, meshes, fade}] cada peça de mobília: o que fica entre a câmera e o corpo vira translúcido
 var _center := Vector3.ZERO
 var _span := 0.0
@@ -222,8 +224,41 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 	node.position += Grid.to_world(cell)
 	node.rotation.y = yaw
 	parent.add_child(node)
+	var light: Dictionary = factory.light_of(piece_id)
+	if not light.is_empty():
+		_add_lamp(node, light) # #260: a luz é do objeto do catálogo (abajur): o cliente só a desenha
 	_register_point(piece_id, cell, parent)
 	_register_piece(node)
+
+
+## #260: a luz de um objeto do catálogo: um ponto de luz quente na altura que o descritor diz, apagado até `set_lamp_level` acendê-lo.
+func _add_lamp(node: Node3D, light: Dictionary) -> void:
+	var lamp := OmniLight3D.new()
+	lamp.name = "Lamp"
+	lamp.light_color = Color(String(light.get("color", "ffd9a0")))
+	lamp.omni_range = Grid.units(float(light.get("rangeM", 6.0)))
+	lamp.set_meta("energy", float(light.get("energy", 1.0)))
+	lamp.light_energy = 0.0
+	lamp.visible = false
+	lamp.position = Vector3(0, Grid.units(float(light.get("heightM", 1.3))), 0)
+	node.add_child(lamp)
+	_lamps.append(lamp)
+
+
+## #260: 0 apaga as luzes das peças e 1 acende por inteiro (o app dá o nível pela hora que o motor diz e pela casa estar ocupada).
+func set_lamp_level(level: float) -> void:
+	level = clampf(level, 0.0, 1.0)
+	if is_equal_approx(level, _lamp_level):
+		return
+	_lamp_level = level
+	for lamp in _lamps:
+		if is_instance_valid(lamp):
+			lamp.light_energy = float(lamp.get_meta("energy", 1.0)) * level
+			lamp.visible = level > 0.01
+
+
+func lamp_count() -> int:
+	return _lamps.size()
 
 
 ## #250: guarda a caixa da peça (no espaço dela) e a malha para a translucidez quando ela cobre o corpo.
@@ -423,6 +458,52 @@ func obstacles_near(center: Vector2, reach: float, level: int = -1) -> Array:
 	return out
 
 
+const FACE_NEAR := 1.6 ## #260: se o olhar bate numa parede a menos disto (células), o corpo está "de nariz na parede"
+const FACE_MAX := 8.0
+const FACE_STEP := 0.1
+const FACE_RAYS := 16
+
+
+## #260: até onde (células, no máximo FACE_MAX) se vê em linha reta de `from` na direção `dir` antes de bater numa parede do andar visível.
+func free_distance(from: Vector2, dir: Vector2) -> float:
+	var rects: Array = _panels.get(current_floor, [])
+	var t := 0.0
+	while t < FACE_MAX:
+		t += FACE_STEP
+		var point := from + dir * t
+		if _bounds.size != Vector2.ZERO and not _bounds.has_point(point):
+			return t # a rua é de fora: olhar para dentro da casa é olhar até o limite dela
+		for rect: Rect2 in rects:
+			if rect.has_point(point):
+				return t
+	return FACE_MAX
+
+
+## #260: para onde olhar ao entrar na casa: o olhar de agora fica se há espaço à frente; se bate na parede a menos de FACE_NEAR, vai para a direção mais livre
+## (a mais perto do olhar entre as que têm ao menos 85% da maior distância: gira o menos possível). ZERO = não mexe.
+func open_direction(from: Vector2, heading: Vector2) -> Vector2:
+	if heading == Vector2.ZERO or free_distance(from, heading.normalized()) >= FACE_NEAR:
+		return Vector2.ZERO
+	var best := Vector2.ZERO
+	var best_distance := 0.0
+	var distances: Array = []
+	for i in FACE_RAYS:
+		var angle := TAU * float(i) / float(FACE_RAYS)
+		var dir := Vector2(cos(angle), sin(angle))
+		var distance := free_distance(from, dir)
+		distances.append([dir, distance])
+		best_distance = maxf(best_distance, distance)
+	var closest := -2.0
+	for entry in distances:
+		if float(entry[1]) < best_distance * 0.85:
+			continue
+		var align: float = (entry[0] as Vector2).dot(heading.normalized())
+		if align > closest:
+			closest = align
+			best = entry[0]
+	return best
+
+
 ## #227: a caixa do andar visível no mundo (a câmera do jogador não sai dela) e as caixas dos painéis finos desse andar.
 func floor_box() -> AABB:
 	var base := current_floor * Grid.floor_height()
@@ -465,6 +546,8 @@ func _clear() -> void:
 	_uses.clear()
 	_walls.clear()
 	_pieces.clear()
+	_lamps.clear()
+	_lamp_level = -1.0
 	_panels.clear()
 	_plans.clear()
 	_view_dir = Vector3.ZERO
@@ -508,9 +591,42 @@ const FADE_WALL_NEAR := 0.5 ## unidades: parede mais perto que isto da câmera s
 const FADE_WALL_FAR := 1.3
 const FADE_LID_NEAR := 0.9 ## forro em volta da câmera: o círculo de baixo dela some, o resto fica
 const FADE_LID_FAR := 1.8
+const WALLS_CUT := 0 ## #260: o corte do The Sims: as paredes do lado da câmera ficam baixas (padrão)
+const WALLS_UP := 1 ## paredes inteiras (translúcidas só onde tapam o corpo)
+const WALLS_DOWN := 2 ## todas baixas
+const WALLS_LOW_SIDE := 0.5 ## no corte: a parede com `_camera_side` acima disto fica baixa
+const WALL_MODE_TEXT := ["Paredes: cortadas do lado da câmera", "Paredes: inteiras", "Paredes: todas baixas"]
+var wall_mode := WALLS_CUT
 var _last_fade_at := Vector3(INF, INF, INF)
 var _last_chest := Vector3(INF, INF, INF)
 const WALL_BETWEEN := 0.88 ## `transparency` da parede entre a câmera e o corpo
+
+
+## #260: V troca o modo das paredes (cortadas, inteiras, baixas); devolve o novo modo.
+func cycle_wall_mode() -> int:
+	wall_mode = (wall_mode + 1) % WALL_MODE_TEXT.size()
+	_last_fade_at = Vector3(INF, INF, INF) # refaz já, mesmo com a câmera parada
+	return wall_mode
+
+
+## Esta parede (posição `wall_pos` no espaço da casa) fica baixa agora? No corte, só as do lado da câmera; fora da vista de dentro (sem corpo adotado) nenhuma.
+func wall_is_low(at: Vector3, chest: Vector3, wall_pos: Vector3) -> bool:
+	if wall_mode == WALLS_DOWN:
+		return true
+	if wall_mode == WALLS_UP or chest == Vector3.INF:
+		return false
+	return _camera_side(at, chest, wall_pos) > WALLS_LOW_SIDE
+
+
+func _set_wall_low(wall: Dictionary, low: bool) -> void:
+	if bool(wall.get("low", false)) == low:
+		return
+	wall["low"] = low
+	var node: MeshInstance3D = wall.node
+	var box: BoxMesh = wall.mesh
+	var height := cutaway_height() if low else wall_height()
+	box.size = Vector3(box.size.x, height, box.size.z)
+	node.position = Vector3(node.position.x, height / 2.0, node.position.z)
 
 
 ## #227: com a câmera do jogador dentro da casa, paredes e forro perto dela ficam translúcidos (nada opaco tampa a tela); fora, tudo opaco.
@@ -520,6 +636,9 @@ func update_near(camera_pos: Vector3) -> void:
 			_last_fade_at = Vector3(INF, INF, INF)
 			_last_chest = Vector3(INF, INF, INF)
 			_set_fade(_walls, 1.0)
+			for wall in _walls:
+				if bool(wall.get("low", false)) and not wall.get("lintel", false):
+					_set_wall_low(wall, false) # #260: saiu da vista de dentro: o corte de maquete volta a mandar
 			for piece in _pieces:
 				piece.fade = 0.0
 				for mesh in piece.meshes:
@@ -540,9 +659,15 @@ func update_near(camera_pos: Vector3) -> void:
 	_last_fade_at = at
 	_last_chest = chest
 	for wall in _walls:
-		if wall.get("lintel", false):
-			continue
 		var node: MeshInstance3D = wall.node
+		if wall.get("lintel", false):
+			node.visible = not wall_is_low(at, chest, node.position) # a verga some onde a parede foi cortada (#260)
+			continue
+		var low := wall_is_low(at, chest, node.position)
+		_set_wall_low(wall, low)
+		if low:
+			node.transparency = 0.0 # baixa e opaca: lê-se a planta e vê-se por cima
+			continue
 		var half: Vector3 = (wall.mesh as BoxMesh).size * 0.5
 		var closest := Vector3(clampf(at.x, node.position.x - half.x, node.position.x + half.x), clampf(at.y, node.position.y - half.y, node.position.y + half.y),
 			clampf(at.z, node.position.z - half.z, node.position.z + half.z))

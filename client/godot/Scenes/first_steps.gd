@@ -18,16 +18,12 @@ const TIPS: Array[Dictionary] = [
 ]
 ## #222: com um personagem, a ajuda mostra os comandos do jogo (o resto é do observador).
 const PLAYER_SHORTCUTS: Array[Array] = [
-	["Andar", "W A S D (para onde a câmera olha)"],
-	["Olhar em volta", "mexer o mouse"],
-	["Correr", "Shift + andar (o corpo cansa)"],
-	["Pular", "Espaço"],
-	["Interagir (comprar, beber, conversar, porta, cama…)", "E, depois o número da opção"],
-	["Bater em quem está na mira", "clique"],
-	["1ª ou 3ª pessoa", "C"],
-	["Aproximar e afastar a câmera", "+ e − (ou a rodinha)"],
-	["Soltar o mouse", "Z"],
-	["Menu (continuar, sair do personagem)", "Esc"],
+	["Andar e olhar", "W A S D · mexer o mouse (Shift corre, Espaço pula)"],
+	["Interagir com o que está na mira", "E (segure E para a roda de ações)"],
+	["Velocidade do tempo (só sozinho no mundo)", "0 pausa · 1 normal · 2 · 3"],
+	["Paredes: cortadas, inteiras ou baixas", "V"],
+	["Câmera: 1ª ou 3ª pessoa, zoom", "C · + e −"],
+	["Menu", "Esc"],
 ]
 ## #238: "O que dá para fazer": os tipos de oferta que o motor tem (`/reach`), onde cada um acontece e a tecla. A oferta só aparece
 ## com o corpo ao lado do alvo; esta lista diz o que procurar e onde.

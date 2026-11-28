@@ -2,6 +2,7 @@
  "Needs": [
   {
    "id": "hygiene",
+   "icon": "soap",
    "name": "Higiene",
    "start": 85,
    "decayPerHour": 2.5,
@@ -23,6 +24,7 @@
   },
   {
    "id": "fun",
+   "icon": "star",
    "name": "Diversão",
    "start": 80,
    "decayPerHour": 2.0,
@@ -39,6 +41,7 @@
   },
   {
    "id": "bladder",
+   "icon": "drop",
    "name": "Bexiga",
    "start": 70,
    "decayPerHour": 3.0,
@@ -744,6 +747,126 @@
      "untilFull": "fun"
     }
    ]
+  },
+  {
+   "id": "lamp",
+   "name": "Abajur",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.3,
+      0.04,
+      0.3
+     ],
+     "offset": [
+      0,
+      0.02,
+      0
+     ],
+     "color": "4a3f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.05,
+      1.1,
+      0.05
+     ],
+     "offset": [
+      0,
+      0.57,
+      0
+     ],
+     "color": "4a3f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.4,
+      0.3,
+      0.4
+     ],
+     "offset": [
+      0,
+      1.2,
+      0
+     ],
+     "color": "f3dca0"
+    }
+   ],
+   "usePoints": [],
+   "rooms": [
+    "sala"
+   ],
+   "light": {
+    "color": "ffd9a0",
+    "rangeM": 7.0,
+    "energy": 1.6,
+    "heightM": 1.3
+   }
+  },
+  {
+   "id": "bedside",
+   "name": "Luminária",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.3,
+      0.04,
+      0.3
+     ],
+     "offset": [
+      0,
+      0.02,
+      0
+     ],
+     "color": "4a3f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.05,
+      1.1,
+      0.05
+     ],
+     "offset": [
+      0,
+      0.57,
+      0
+     ],
+     "color": "4a3f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.4,
+      0.3,
+      0.4
+     ],
+     "offset": [
+      0,
+      1.2,
+      0
+     ],
+     "color": "f3dca0"
+    }
+   ],
+   "usePoints": [],
+   "rooms": [
+    "quarto"
+   ],
+   "light": {
+    "color": "ffd9a0",
+    "rangeM": 7.0,
+    "energy": 1.6,
+    "heightM": 1.3
+   }
   }
  ]
 }

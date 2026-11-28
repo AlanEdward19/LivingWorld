@@ -83,12 +83,13 @@ static func when_text(entry: Dictionary) -> String:
 	return "Ano %d · mês %d · dia %d · %dh" % [int(entry.get("year", 1)), int(entry.get("month", 1)), int(entry.get("day", 1)), int(entry.get("hour", 0))]
 
 
-## "Nível 2 · faltam 5 pontos" (ou "no teto"), com ▲ quando ela sobe agora.
+## #260: linguagem de jogo, sem "7/10" nem casas decimais: "Ferreiro · nível 2 de 10 · faltam 5 pontos para subir" (ou "no nível máximo"), com ▲ quando sobe agora.
 static func skill_text(skill: Dictionary) -> String:
 	var name := String(skill.get("name", ""))
 	var to_next := float(skill.get("toNext", 0.0))
-	var tail := "no nível máximo" if to_next <= 0.0 else "faltam %s pontos" % str(snappedf(to_next, 0.1))
-	return "%s%s  nível %d/%d · %s" % [(PRACTICE_ICON + " ") if bool(skill.get("practicing", false)) else "", name if name != "" else "Ofício",
+	var left := ceili(to_next - 0.0001)
+	var tail := "no nível máximo" if to_next <= 0.0 else ("falta só %d ponto para subir" % left if left == 1 else "faltam %d pontos para subir" % left)
+	return "%s%s · nível %d de %d · %s" % [(PRACTICE_ICON + " ") if bool(skill.get("practicing", false)) else "", name if name != "" else "Ofício",
 		int(skill.get("level", 0)), int(skill.get("maxLevel", 0)), tail]
 
 
@@ -120,7 +121,7 @@ func _rebuild() -> void:
 		var urgent := is_urgent(goal, urgent_line)
 		box.add_child(_label(("! " if urgent else "• ") + goal_line(goal), 14, Color("ff9a8a") if urgent else Color.WHITE))
 	if not skills.is_empty():
-		box.add_child(_label("Habilidades", 14, Color(1, 1, 1, 0.6)))
+		box.add_child(_label("O que você sabe fazer", 14, Color(1, 1, 1, 0.6)))
 		for skill in skills:
 			box.add_child(_label(skill_text(skill), 14, Color.WHITE))
 			var bar := ProgressBar.new()

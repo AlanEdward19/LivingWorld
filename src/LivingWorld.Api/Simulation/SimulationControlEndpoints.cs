@@ -23,7 +23,7 @@ public sealed record SetAcceleratedRequest(bool On);
 public sealed record SimulationStatusResponse(
     bool IsPaused, double TicksPerSecond, long AtMs, long Year, int TickDeltaMs,
     string? PausedBy = null, string? PauseReason = null, long? PausedAtTick = null, long? PauseMaxTicks = null,
-    string? Rhythm = null, double? LoopTicksPerSecond = null, double? TimeScale = null, int? PlayersPresent = null, bool? Accelerated = null);
+    string? Rhythm = null, double? LoopTicksPerSecond = null, double? TimeScale = null, int? PlayersPresent = null, bool? Accelerated = null, int? PlayerSpeed = null);
 
 /// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP. Pausa, retomada, velocidade, passo e avanço de ano
 /// mexem no relógio de todo o branch, então são exclusivos do admin (ADR-0015): exigem <c>X-Admin-Token</c>, vão para a
@@ -149,7 +149,8 @@ public static class SimulationControlEndpoints
                 plan.TicksPerSecond,
                 world.Players.Time.TimeScale,
                 LivingWorld.Simulation.Players.PlayerService.PlayersPresent(world),
-                host.Accelerated));
+                host.Accelerated,
+                host.EffectiveSpeed(world)));
         });
     }
 }

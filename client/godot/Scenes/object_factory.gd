@@ -20,6 +20,12 @@ func has(id: String) -> bool:
 	return _descriptors.has(id)
 
 
+## #260: a luz que o objeto dá (`light` do descritor: cor, alcance em metros, intensidade, altura em metros); {} se não dá luz.
+func light_of(id: String) -> Dictionary:
+	var light: Variant = _descriptors.get(id, {}).get("light")
+	return light if light is Dictionary else {}
+
+
 ## Nó do objeto com a base no chão da célula; null se o id não existe no catálogo.
 ## Uma parte só sem simetria vira o próprio MeshInstance3D (igual à caixa de antes).
 func build(id: String, variation: int = 0) -> Node3D:

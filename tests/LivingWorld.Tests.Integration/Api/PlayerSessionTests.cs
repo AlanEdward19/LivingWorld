@@ -289,7 +289,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/accelerate",
             "/players/{playerId}/action", "/players/{playerId}/block", "/players/{playerId}/candidates", "/players/{playerId}/character", "/players/{playerId}/character/preview", "/players/{playerId}/create", "/players/{playerId}/dodge", "/players/{playerId}/interact", "/players/{playerId}/interrupt", "/players/{playerId}/jump", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
-            "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/switch", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
+            "/players/{playerId}/sleep", "/players/{playerId}/speed", "/players/{playerId}/strike", "/players/{playerId}/switch", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
         var leaks = new List<string>();
@@ -307,7 +307,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"move","dx":1,"dy":0}""",
                 $$"""{"seq":4,"command":"strike","npcId":{{other}}}""", """{"seq":6,"command":"sleep","untilHour":6}""",
                 $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0,"run":true}""", """{"seq":13,"command":"jump"}""", $$"""{"seq":16,"command":"switch","npcId":{{other}}}""", """{"seq":14,"command":"dodge"}""", """{"seq":15,"command":"block"}""",
-                """{"seq":7,"command":"accelerate"}""", """{"seq":8,"command":"wake"}""", """{"seq":5,"command":"logout"}""",
+                """{"seq":7,"command":"accelerate"}""", """{"seq":17,"command":"speed","speed":2}""", """{"seq":8,"command":"wake"}""", """{"seq":5,"command":"logout"}""",
                 $$"""{"seq":11,"command":"candidates","cityId":"{{World().ActiveCities().First().Id.Value}}"}""",
                 $$"""{"seq":12,"command":"create","cityId":"{{World().ActiveCities().First().Id.Value}}","npcId":{{other}},"sample":0}""" })
                 if ((await Send(socket, command))["status"]!.GetValue<int>() != 409) leaks.Add("ws:" + command);

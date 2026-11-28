@@ -7,7 +7,8 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Objects;
 
 /// <summary>Uma necessidade do catálogo como a pessoa a sente agora: o que o cliente desenha (barra, cor, se pede atenção).</summary>
-public sealed record NeedReading(string Id, string Name, int Value, bool Urgent, string? Color);
+public sealed record NeedReading(string Id, string Name, int Value, bool Urgent, string? Color,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Icon = null);
 
 /// <summary>A dica da necessidade mais urgente: o alerta do cenário ("Você está com a bexiga cheia") e o que a atende em casa (objeto e uso).</summary>
 public sealed record NeedHint(string Need, string Alert, string? Object, string? Use);
@@ -56,10 +57,32 @@ public static class HomeLife
         foreach (var def in catalog.Needs)
         {
             double v = Value(world, npc, def.Id, ms) ?? def.Start;
-            list.Add(new NeedReading(def.Id, def.Name, (int)Math.Round(v, MidpointRounding.AwayFromZero), v <= def.UrgentBelow, def.Color));
+            list.Add(new NeedReading(def.Id, def.Name, (int)Math.Round(v, MidpointRounding.AwayFromZero), v <= def.UrgentBelow, def.Color, def.Icon));
         }
 
         return list;
+    }
+
+    /// <summary>#260: para onde cada necessidade vai agora, em pontos por hora de mundo (positivo sobe, negativo cai): a queda da necessidade (de sempre ou do
+    /// catálogo, a taxa que o corpo tem neste instante, inclusive recuperando ao dormir ou comer) mais o que o uso do catálogo em curso entrega. É o que o cliente
+    /// desenha como seta de tendência: nunca ele adivinha pela diferença de duas leituras.</summary>
+    public static IReadOnlyDictionary<string, double> Rates(WorldState world, Npc npc)
+    {
+        var rates = new Dictionary<string, double>
+        {
+            ["hunger"] = -npc.HungerNeed.DecayRatePerHour,
+            ["thirst"] = -npc.ThirstNeed.DecayRatePerHour,
+            ["sleep"] = -npc.SleepNeed.DecayRatePerHour,
+            ["social"] = -npc.SocialNeed.DecayRatePerHour,
+        };
+        if (Catalog(world) is { } catalog)
+            foreach (var def in catalog.Needs)
+                rates[def.Id] = npc.ExtraNeeds is { } extra && extra.TryGetValue(def.Id, out var need) ? -need.DecayRatePerHour : -def.DecayPerHour;
+        if (npc.BodyTask is { Action: ObjectUsage.Action, Use: { } useId, Doing: true } task
+            && ObjectUsage.Resolve(world, task.Building, task.Piece, useId) is { IsSuccess: true, Value: { } target })
+            foreach (var effect in target.Use.Effects)
+                if (rates.ContainsKey(effect.Need)) rates[effect.Need] += effect.PerHour;
+        return rates;
     }
 
     /// <summary>A necessidade do catálogo mais urgente (a mais abaixo do próprio limite) se já passou dele; nula se nenhuma pede atenção.</summary>

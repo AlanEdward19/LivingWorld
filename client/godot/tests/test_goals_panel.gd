@@ -65,7 +65,7 @@ func test_step_and_goal_text_come_only_from_the_engine_fields() -> void:
 
 
 func test_skill_and_diary_lines_show_level_what_is_missing_and_milestones() -> void:
-	eq(GoalsPanel.skill_text(GOALS.skills[0]), "▲ Ferreiro  nível 2/10 · faltam 5.0 pontos", "sobe agora: ▲, nível e o que falta")
+	eq(GoalsPanel.skill_text(GOALS.skills[0]), "▲ Ferreiro · nível 2 de 10 · faltam 5 pontos para subir", "sobe agora: ▲, nível e o que falta")
 	var top: Dictionary = GOALS.skills[0].duplicate()
 	top.toNext = 0.0
 	top.practicing = false
@@ -93,7 +93,7 @@ func test_j_opens_the_panel_reads_goals_and_diary_from_the_engine_and_j_closes_i
 	check(transport.count_calls("GET /players/p-1/goals") >= 1 and transport.count_calls("GET /players/p-1/diary") >= 1, "pede metas e diário ao motor")
 	var text := _texts(hud.frame.goals)
 	check("Você está com fome → Pegar comida na despensa" in text, "a meta e o passo (%s)" % text)
-	check("nível 2/10" in text and "Ferreiro" in text, "a habilidade com o nível")
+	check("nível 2 de 10" in text and "Ferreiro" in text, "a habilidade com o nível, em linguagem de jogo")
 	check("★ Dois habitantes se casaram" in text and "Comeu" in text, "o diário com o marco e o que o jogador fez")
 	hud._unhandled_input(key)
 	check(not hud.frame.goals_open(), "a mesma tecla fecha")

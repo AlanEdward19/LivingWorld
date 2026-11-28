@@ -66,18 +66,22 @@ public static partial class PlayerInteractions
                 else if (at == door.Door) offers.Add(Offer("door", building.Id.Value, "", ["exit"], door.Doorstep));
             }
 
+        InteractionOffer? sale = null; // #260: vender a casa nunca é a oferta principal: vai para o fim da lista (e a casa de dentro nem a mostra no cliente)
         if (household is not null && Near(at, inside, household.Location, household.Dwelling))
         {
+            // #260: com a mobília do catálogo na casa, a cama e a geladeira já são os móveis (cada um com o nome do cenário e os usos dele);
+            // a "Cama" genérica e a "Despensa" ao lado deles eram o mesmo móvel com outro nome
+            var home = inside is { } within && household.Dwelling == within ? CatalogHome(world, within) : null;
             var stock = household.Stock.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key.Id)
                 .Select(kv => new InteractionResource(kv.Key.Id, kv.Value, 0)).ToList();
             var verbs = new List<string>();
-            if (!npc.IsCarrying && stock.Count > 0) verbs.Add("take");
+            if (!npc.IsCarrying && stock.Count > 0 && home?.Pantry is null) verbs.Add("take");
             if (npc.IsCarrying || Laden(world, npc)) verbs.Add("deposit");
-            if (verbs.Count > 0) offers.Add(Offer("stock", household.Id.Value, "", verbs, household.Location, stock));
+            if (verbs.Count > 0) offers.Add(Offer("stock", household.Id.Value, home?.Pantry ?? "", verbs, household.Location, stock));
             var bed = world.BedOf(household.Id)?.Location ?? household.Location;
-            if (Near(at, inside, bed, household.Dwelling)) offers.Add(Offer("bed", household.Id.Value, "", ["sleep"], bed));
+            if (home?.HasBed != true && Near(at, inside, bed, household.Dwelling)) offers.Add(Offer("bed", household.Id.Value, "", ["sleep"], bed));
             if (household.Dwelling is { } dwelling && OwnedHome(world, dwelling) && world.FindBuilding(dwelling) is { Position: { } spot })
-                offers.Add(Offer("house", dwelling.Value, "", ["sell"], spot));
+                sale = Offer("house", dwelling.Value, "", ["sell"], spot);
         }
 
         if (world.EconomyRules.Enabled)
@@ -105,7 +109,28 @@ public static partial class PlayerInteractions
             offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose));
         }
         WorldOffers(world, npc, at, floor, inside, household, offers);
+        // #260: de fora, "ao mirar a casa": na porta ou na soleira dela (de dentro a oferta já vale em qualquer lugar da casa)
+        if (sale is null && household?.Dwelling is { } own && inside != own && OwnedHome(world, own) && world.FindBuilding(own) is { Position: { } at0 } ownHouse
+            && PlayerGround.DoorOf(ownHouse) is { } entrance && (at == entrance.Door || at == entrance.Doorstep))
+            sale = Offer("house", own.Value, "", ["sell"], at0);
+        if (sale is not null) offers.Add(sale);
         return offers;
+    }
+
+    /// <summary>#260: o que o catálogo do cenário já cobre na casa onde o corpo está: o nome do móvel que gasta da despensa (a geladeira) e se há cama
+    /// com lugar na planta. Tudo vem do catálogo; sem ele (ou fora do dado) é nulo e as ofertas genéricas ficam como eram.</summary>
+    private static (string? Pantry, bool HasBed)? CatalogHome(WorldState world, BuildingId dwelling)
+    {
+        if (world.ObjectCatalog is not { } catalog || world.FindBuilding(dwelling) is not { Position: not null } building) return null;
+        string? pantry = null;
+        bool hasBed = false;
+        foreach (var piece in Objects.HomeFurniture.Of(building, catalog))
+        {
+            if (piece.Spot is null || catalog.Find(piece.Id) is not { } descriptor) continue;
+            if (descriptor.Uses?.Any(u => u.Consumes is { Count: > 0 }) == true && pantry is null) pantry = descriptor.Name ?? descriptor.Id;
+            if (descriptor.Uses?.Any(u => u.Action == (int)ActionType.Sleep) == true || descriptor.UsePoints.Any(p => p.Action == (int)ActionType.Sleep)) hasBed = true;
+        }
+        return pantry is null && !hasBed ? null : (pantry, hasBed);
     }
 
     /// <summary>Faz a interação, se ela está na oferta de agora. Erros começam como os de <see cref="PlayerCommands"/> (a borda mapeia

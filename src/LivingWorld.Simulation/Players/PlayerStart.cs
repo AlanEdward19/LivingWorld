@@ -8,8 +8,9 @@ namespace LivingWorld.Simulation.Players;
 /// <summary>Quem mora com o corpo e o laço dele: <c>spouse</c>, <c>child</c> (dependente), <c>parent</c> ou <c>housemate</c>.</summary>
 public sealed record StartMember(long Id, string Name, string Relation);
 
-/// <summary>A casa do corpo (#238): onde fica, quem mora nela e o que a despensa tem (recurso e quantidade).</summary>
-public sealed record StartHome(int X, int Y, int Distance, bool Alone, IReadOnlyList<StartMember> Members, IReadOnlyList<InteractionResource> Pantry);
+/// <summary>A casa do corpo (#238): onde fica, quem mora nela e o que a despensa tem (recurso e quantidade). #260: <c>Inside</c> diz que o corpo já está dentro dela (o guia não manda entrar).</summary>
+public sealed record StartHome(int X, int Y, int Distance, bool Alone, IReadOnlyList<StartMember> Members, IReadOnlyList<InteractionResource> Pantry,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool Inside = false);
 
 /// <summary>Um lugar para ir: a célula do mundo e a distância em células.</summary>
 public sealed record StartPlace(int X, int Y, int Distance, int LocationType = 0);
@@ -40,7 +41,8 @@ public static class PlayerStartQuery
                 .Select(m => new StartMember(m.Id.Value, m.Name, RelationOf(world, npc, m))).ToList();
             var pantry = household.Stock.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key.Id)
                 .Select(kv => new InteractionResource(kv.Key.Id, kv.Value, 0)).ToList();
-            home = new StartHome(household.Location.X, household.Location.Y, Dist(household.Location), members.Count == 0, members, pantry);
+            home = new StartHome(household.Location.X, household.Location.Y, Dist(household.Location), members.Count == 0, members, pantry,
+                Inside: household.Dwelling is { } dwelling && PlayerGround.At(world, pose)?.Building.Id == dwelling);
         }
 
         StartPlace? job = null, vacancy = null;

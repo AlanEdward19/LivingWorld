@@ -113,7 +113,9 @@ public static class HomeLifeLoader
 
             string? alert = null;
             if (o["alert"] is not null && (!Text(o["alert"], out alert) || alert.Length > 60)) return Result<NeedCatalog?>.Fail($"{at}.alert: texto de até 60 caracteres");
-            needs.Add(new NeedDef(id, name, start, decay, urgent, color, effects.Count > 0 ? effects : null, alert));
+            string? icon = null;
+            if (o["icon"] is not null && (!Text(o["icon"], out icon) || icon.Length > 24)) return Result<NeedCatalog?>.Fail($"{at}.icon: nome de até 24 caracteres");
+            needs.Add(new NeedDef(id, name, start, decay, urgent, color, effects.Count > 0 ? effects : null, alert, icon));
         }
 
         return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs) : null);
@@ -202,6 +204,18 @@ public static class HomeLifeLoader
         }
 
         return Result<IReadOnlyList<string>?>.Ok(list.Count > 0 ? list : null);
+    }
+
+    /// <summary>#260: o <c>light</c> de um objeto: <c>{color, rangeM, energy, heightM}</c>; ausente = o objeto não ilumina.</summary>
+    public static Result<ObjectLight?> ParseLight(JsonNode? node, string at)
+    {
+        if (node is null) return Result<ObjectLight?>.Ok(null);
+        if (node is not JsonObject o) return Result<ObjectLight?>.Fail($"{at}.light: precisa ser um objeto");
+        if (!Text(o["color"], out var color) || color.Length != 6 || !color.All(Uri.IsHexDigit)) return Result<ObjectLight?>.Fail($"{at}.light.color: seis dígitos hexadecimais");
+        if (!Number(o["rangeM"], out var range) || range is <= 0 or > 20) return Result<ObjectLight?>.Fail($"{at}.light.rangeM: metros de 0 a 20");
+        if (!Number(o["energy"], out var energy) || energy is <= 0 or > 10) return Result<ObjectLight?>.Fail($"{at}.light.energy: de 0 a 10");
+        if (!Number(o["heightM"], out var height) || height is < 0 or > 4) return Result<ObjectLight?>.Fail($"{at}.light.heightM: metros de 0 a 4");
+        return Result<ObjectLight?>.Ok(new ObjectLight(color, range, energy, height));
     }
 
     private static Result<IReadOnlyList<ObjectUseDef>?> Fail(string error) => Result<IReadOnlyList<ObjectUseDef>?>.Fail(error);

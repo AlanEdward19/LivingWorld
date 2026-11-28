@@ -239,6 +239,7 @@ func test_the_wall_between_the_camera_and_the_body_turns_translucent() -> void:
 	var view := InteriorView.new()
 	tree.root.add_child(view)
 	view.immersive = true
+	view.wall_mode = view.WALLS_UP # #260: o modo "paredes inteiras" é o de antes (translúcidas só onde tapam); o corte tem teste próprio
 	view.show_interior({"building": 1, "floors": 1, "layout": [{"level": 0, "cells": cells, "walls": walls, "doors": []}], "occupants": []}, Vector2i(0, 0), ActionLabels.new())
 	var actor := NpcActor.new()
 	actor.setup(1, Vector2i(3, 1), -1, ActionLabels.new())
