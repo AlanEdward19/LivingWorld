@@ -107,6 +107,7 @@ AD-197s4 (resto da escala em metros, ombro que mira o corpo), contra `077982d8` 
 AD-198 a AD-206 (épico AAA #228: controle local, corpo articulado, câmera, retorno, roda, combate, metas, casa em foco), contra `96b892b1` (medianas de 3): `stress` 115,1 → 115,0; com controle+câmera+roda+corpo 115,7 → 115,3.
 #238 (guia da primeira posse, "O que dá para fazer" na ajuda e chão no cartão; só texto e um rótulo, sem custo por quadro), contra `0978b90f` (medianas de 3): `stress` 115,9 → 115,8.
 #254 (arte procedural dos NPCs: malhas geradas e compartilhadas, rosto, cabelo, roupa por período, mistura de poses), contra `97cee901` (medianas de 3): `stress` 114,1 → 113,7, `stress_look` 115,7 → 114,4 FPS. Capturas: `tools/portraits.tscn`.
+#262 (humor, momentos e desejos no cartão; só rótulos, sem custo por quadro), contra `origin/feat/gameplay-aaa` (3 pares alternados): `stress` 116,6 → 115,8 (ruído: 115,4 a 116,7).
 AD-189: chuva e neve inclinam pela direção do vento do motor (`windFromDeg`), a copa enche, vira e cai pela `foliage`, a janela
 acende pelo `lit` do prédio, o tracejado vai até o `intentTarget` e a temperatura da hora sai de `hourlyC` (o clima não volta a cada tick). Aparência pelo estado, rua, rota e tempo do
 dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).

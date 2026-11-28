@@ -68,6 +68,7 @@ public sealed partial class PlayerCommandGateway
             var result = new Dictionary<string, object?>();
             foreach (var property in fields.EnumerateObject()) result[property.Name] = property.Value;
             if (start) result["start"] = PlayerStartQuery.Of(world, npc);
+            if (LivingWorld.Simulation.Objects.MoodMechanic.ViewOf(world, npc, world.CurrentDate.TotalMilliseconds) is { } mood) result["mood"] = mood; // #262: aspiração, pontos, desejos e o que acabou de cumprir
             return new PlayerReply(StatusCodes.Status200OK, result, null);
         }
     }

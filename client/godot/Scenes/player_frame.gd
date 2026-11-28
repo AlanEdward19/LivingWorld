@@ -28,6 +28,12 @@ const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próx
 var card: PanelContainer
 var name_label: Label
 var action_label: Label
+var mood_row: HBoxContainer ## #262: o rosto e o nome da emoção dominante ("Feliz · Tomando banho"), do motor
+var mood_icon: Control
+var mood_label: Label
+var moments_box: VBoxContainer ## #262: os momentos com causa e tempo restante ("Bem descansado +2 · 3 h")
+var _mood: Dictionary = {}
+var _moments_key := ""
 var switch_label: Label ## #252: "G — passar a ser Rafael" (só com outra pessoa na casa)
 var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
 var clock_label: Label
@@ -104,6 +110,20 @@ func _init() -> void:
 	box.add_child(name_label)
 	action_label = _label(14, Color(1, 1, 1, 0.7))
 	box.add_child(action_label)
+	mood_row = HBoxContainer.new()
+	mood_row.add_theme_constant_override("separation", 6)
+	mood_row.visible = false
+	box.add_child(mood_row)
+	mood_icon = NeedIcon.new("calm", Color("9fc9a2"))
+	mood_icon.set_zoom(1.4)
+	mood_row.add_child(mood_icon)
+	mood_label = _label(16, Color("9fc9a2"))
+	mood_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mood_row.add_child(mood_label)
+	moments_box = VBoxContainer.new()
+	moments_box.add_theme_constant_override("separation", 1)
+	moments_box.visible = false
+	box.add_child(moments_box)
 	switch_label = _label(17, Color("9ad0ff")) # #260: a troca de pessoa (G) é uma das coisas centrais do sandbox: maior e mais clara
 	switch_label.visible = false
 	box.add_child(switch_label)
@@ -292,6 +312,7 @@ func set_body(name: String, action: String, needs: Dictionary) -> void:
 				lowest_value = value
 	_builtin_urgent = lowest
 	set_catalog_needs(needs.get("catalogNeeds", []), needs.get("needHint"), rates)
+	set_mood(needs.get("mood"))
 
 
 ## #255: as barras do catálogo do cenário (`catalogNeeds` da ficha: id, name, value, urgent, color), uma por necessidade na ordem do motor, com a mais
@@ -500,7 +521,79 @@ func _show_action() -> void:
 		text = "%s · %s" % [_motion, _ground]
 	action_label.add_theme_color_override("font_color", Color("ffcf8a") if _motion != "" and _ground_slow >= 30 else Color(1, 1, 1, 0.7))
 	action_label.text = text
-	action_label.visible = text != ""
+	var named := String(_mood.get("emotionName", "")) != "" # #262: com humor do motor, o "Parado" vira "Feliz · Parado" na linha do rosto
+	action_label.visible = text != "" and not named
+	mood_row.visible = named
+	if named:
+		mood_label.text = mood_line(_mood, text)
+
+
+## #262: a emoção dominante do motor (`mood` da ficha): rosto, cor e nome; os momentos com causa e tempo; vazio ou nulo esconde tudo.
+func set_mood(mood: Variant) -> void:
+	_mood = mood if mood is Dictionary else {}
+	var named := String(_mood.get("emotionName", "")) != ""
+	if named:
+		mood_icon.kind = String(_mood.get("icon", "")) if _mood.get("icon") != null else ""
+		var hex := String(_mood.get("color", "")) if _mood.get("color") != null else ""
+		mood_icon.color = Color(hex) if hex.is_valid_html_color() else Color("c9d3da")
+		mood_icon.queue_redraw()
+		mood_label.add_theme_color_override("font_color", mood_icon.color.lightened(0.25))
+	_show_action()
+	var lines := moment_lines(_mood.get("moments", []))
+	var key := "|".join(lines.map(func(l): return String(l.text)))
+	if key == _moments_key:
+		return
+	_moments_key = key
+	for child in moments_box.get_children():
+		moments_box.remove_child(child)
+		child.queue_free()
+	for line in lines:
+		var label := _label(13, Color("8fdc9a") if bool(line.good) else Color("ff9a8a"))
+		label.text = String(line.text)
+		label.tooltip_text = String(line.tip)
+		moments_box.add_child(label)
+	moments_box.visible = not lines.is_empty()
+
+
+## "Feliz · Parado": a emoção e o que o corpo faz (sem ação, só a emoção).
+static func mood_line(mood: Dictionary, action: String) -> String:
+	var name := String(mood.get("emotionName", ""))
+	return name if action == "" else "%s · %s" % [name, action]
+
+
+const MOMENTS_SHOWN := 5 ## momentos no cartão (os de maior peso primeiro); o resto vira "+N"
+
+
+## Cada momento do motor vira uma linha: "Bem descansado +2 · 3 h", "Brigou com Marina ×2 −6 · 5 h", "Cheira mal −2" (sem tempo: dura enquanto a condição valer).
+static func moment_lines(list: Variant) -> Array:
+	var lines: Array = []
+	var moments: Array = list if list is Array else []
+	for m in moments.slice(0, MOMENTS_SHOWN):
+		var weight := float(m.get("weight", 0))
+		var sign_text := ("+%s" if weight >= 0.0 else "−%s") % _num(absf(weight))
+		var count := int(m.get("count", 1))
+		var left := remaining_text(m.get("remainingMs"))
+		var text := "%s%s %s%s" % [String(m.get("name", "")), (" ×%d" % count) if count > 1 else "", sign_text, (" · " + left) if left != "" else ""]
+		lines.append({"text": text, "good": weight >= 0.0, "tip": "%s (%s)" % [String(m.get("name", "")), left if left != "" else "enquanto durar"]})
+	if moments.size() > MOMENTS_SHOWN:
+		lines.append({"text": "+%d momentos" % (moments.size() - MOMENTS_SHOWN), "good": true, "tip": ""})
+	return lines
+
+
+static func _num(value: float) -> String:
+	return "%d" % int(value) if is_equal_approx(value, round(value)) else ("%.1f" % value).replace(".", ",")
+
+
+## O que falta para o momento acabar, em tempo de mundo: "3 h", "45 min", "2 d"; nulo (sem prazo) vira vazio.
+static func remaining_text(ms: Variant) -> String:
+	if ms == null:
+		return ""
+	var minutes := ceili(float(ms) / 60000.0)
+	if minutes >= 2880:
+		return "%d d" % int(round(minutes / 1440.0))
+	if minutes >= 120:
+		return "%d h" % int(round(minutes / 60.0))
+	return "%d min" % maxi(1, minutes)
 
 
 ## #222: "Dinheiro 120 · Leva 3 Comida" (o que o motor diz; sem campo, nada).

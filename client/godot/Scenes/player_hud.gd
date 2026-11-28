@@ -799,6 +799,12 @@ func toggle_goals() -> void:
 		_goals_clock = GOALS_EVERY
 
 
+## #262: lê a ficha do corpo agora (captura e teste), sem esperar o intervalo.
+func refresh_body_now() -> void:
+	_body_clock = BODY_EVERY * 2.0
+	await _refresh_body(0.0)
+
+
 ## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
 func _refresh_body(delta: float) -> void:
 	_body_clock += delta
@@ -820,11 +826,40 @@ func _refresh_body(delta: float) -> void:
 		if not _ended_use.is_empty() and not busy.active(): # #260: o uso acabou sozinho: avisa com o que ficou
 			warning.emit(finish_text(String(_ended_use.label), String(_ended_use.need), body))
 			_ended_use = {}
+		_note_mood(body.get("mood")) # #262: desejo cumprido e marco de aspiração viram aviso
 		_note_social(body.get("socialNote")) # #259: o que aconteceu entre este corpo e alguém (a interação que o outro começou inclusive)
 		if bool(body.get("socialBusy", false)) and not busy.active():
 			sync_pose() # o motor ocupou este corpo numa interação que a outra pessoa começou: lê a pose para o gesto e a barra
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
+
+
+var _wish_seen := 0
+var _wish_primed := false
+
+
+## #262: "Desejo cumprido: Abraçar Rafael (+10 pontos)" / "Marco alcançado: Mente curiosa".
+static func wish_notice(done: Dictionary) -> String:
+	if bool(done.get("milestone", false)):
+		return "Marco alcançado: %s" % String(done.get("text", ""))
+	return "Desejo cumprido: %s (+%d pontos)" % [String(done.get("text", "")), int(done.get("points", 0))]
+
+
+## #262: os cumpridos do motor (`mood.recent`, do mais novo): avisa cada um uma vez, do mais antigo ao mais novo; a primeira leitura só aprende.
+func _note_mood(mood: Variant) -> void:
+	if not mood is Dictionary or not mood.get("recent") is Array:
+		return
+	var fresh: Array = []
+	for done in mood.recent:
+		if int(done.get("atMs", 0)) > _wish_seen:
+			fresh.push_front(done)
+	for done in mood.recent:
+		_wish_seen = maxi(_wish_seen, int(done.get("atMs", 0)))
+	if not _wish_primed:
+		_wish_primed = true
+		return
+	for done in fresh:
+		warning.emit(wish_notice(done))
 
 
 ## #259: o último fato social do corpo (texto do catálogo, "Marina gostou do elogio (+5)"): avisa uma vez por instante; a primeira leitura só aprende.

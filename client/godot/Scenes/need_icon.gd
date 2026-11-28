@@ -11,6 +11,7 @@ var kind := ""
 var color := Color.WHITE
 var trend_mode := false
 var trend := 0
+var zoom := 1.0 ## #262: o rosto do humor é desenhado maior no cartão (mesma grade de 16 px, só ampliada)
 
 
 static func level_for(per_hour: float) -> int:
@@ -43,6 +44,20 @@ func _init(icon_kind: String = "", tint: Color = Color.WHITE, is_trend: bool = f
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func set_zoom(value: float) -> void:
+	zoom = value
+	custom_minimum_size = Vector2(16, 16) * value
+	queue_redraw()
+
+
+## #262: os ícones do humor do catálogo (`icon` da emoção): rostos feitos por código, um por nome; nome desconhecido cai no ponto.
+const FACES := ["joy", "sad", "anger", "tense", "shame", "lonely", "bored", "tired", "calm", "spark"]
+
+
+static func is_face(name: String) -> bool:
+	return FACES.has(name)
+
+
 func set_trend(level: int) -> void:
 	if level == trend:
 		return
@@ -70,7 +85,64 @@ func _draw_trend() -> void:
 		draw_colored_polygon(points, tint)
 
 
+func _draw_face() -> void:
+	var c := Vector2(8, 8)
+	var dark := Color(0.08, 0.07, 0.1, 0.95)
+	if kind == "spark":
+		var pts := PackedVector2Array()
+		for i in 8:
+			var r := 7.5 if i % 2 == 0 else 2.6
+			var a := -PI / 2.0 + TAU * float(i) / 8.0
+			pts.append(c + Vector2(cos(a), sin(a)) * r)
+		draw_colored_polygon(pts, color)
+		return
+	draw_circle(c, 7.0, color)
+	match kind:
+		"joy":
+			draw_circle(Vector2(5.5, 6.2), 1.0, dark)
+			draw_circle(Vector2(10.5, 6.2), 1.0, dark)
+			draw_arc(Vector2(8, 8.4), 3.6, 0.35, PI - 0.35, 10, dark, 1.4)
+		"sad":
+			draw_circle(Vector2(5.5, 6.2), 1.0, dark)
+			draw_circle(Vector2(10.5, 6.2), 1.0, dark)
+			draw_arc(Vector2(8, 12.6), 3.4, PI + 0.4, TAU - 0.4, 10, dark, 1.4)
+		"anger":
+			draw_line(Vector2(3.8, 4.2), Vector2(7, 6), dark, 1.5)
+			draw_line(Vector2(12.2, 4.2), Vector2(9, 6), dark, 1.5)
+			draw_circle(Vector2(5.5, 7.4), 0.9, dark)
+			draw_circle(Vector2(10.5, 7.4), 0.9, dark)
+			draw_line(Vector2(5.2, 11.4), Vector2(10.8, 11.4), dark, 1.5)
+		"tense":
+			draw_circle(Vector2(5.5, 6.2), 1.5, dark)
+			draw_circle(Vector2(10.5, 6.2), 1.5, dark)
+			draw_circle(Vector2(8, 11.2), 1.7, dark)
+		"shame":
+			draw_arc(Vector2(5.5, 6.2), 1.2, PI, TAU, 6, dark, 1.2)
+			draw_arc(Vector2(10.5, 6.2), 1.2, PI, TAU, 6, dark, 1.2)
+			draw_line(Vector2(5.8, 11), Vector2(10.2, 10.4), dark, 1.4)
+		"lonely":
+			draw_circle(Vector2(5.5, 7), 1.0, dark)
+			draw_circle(Vector2(10.5, 7), 1.0, dark)
+			draw_line(Vector2(6, 11.4), Vector2(10, 11.4), dark, 1.3)
+		"bored":
+			draw_line(Vector2(4.2, 6.4), Vector2(6.8, 6.4), dark, 1.4)
+			draw_line(Vector2(9.2, 6.4), Vector2(11.8, 6.4), dark, 1.4)
+			draw_line(Vector2(5.6, 11), Vector2(10.4, 11), dark, 1.4)
+		"tired":
+			draw_arc(Vector2(5.5, 6.6), 1.4, 0.1, PI - 0.1, 6, dark, 1.3)
+			draw_arc(Vector2(10.5, 6.6), 1.4, 0.1, PI - 0.1, 6, dark, 1.3)
+			draw_circle(Vector2(8, 11.2), 1.3, dark)
+		_: # calm
+			draw_circle(Vector2(5.5, 6.4), 0.9, dark)
+			draw_circle(Vector2(10.5, 6.4), 0.9, dark)
+			draw_arc(Vector2(8, 9.4), 2.6, 0.5, PI - 0.5, 8, dark, 1.2)
+
+
 func _draw_icon() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(zoom, zoom))
+	if is_face(kind):
+		_draw_face()
+		return
 	var c := Vector2(8, 8)
 	match kind:
 		"heart":

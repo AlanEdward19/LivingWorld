@@ -87,6 +87,7 @@ public static partial class SocialInteractions
         double score = 50 + mood.ValenceWeight * valence;
         foreach (var term in mood.Needs)
             score += term.Weight * ((HomeLife.Value(world, npc, term.Need, nowMs) ?? 50) - 50) / 50.0;
+        if (MoodMechanic.CatalogOf(world) is { } moments) score += moments.Rules.ScorePerWeight * MoodMechanic.Sum(world, npc, nowMs); // #262: os momentos pesam na nota (e na aceitação)
         score = Math.Clamp(score, 0, 100);
         string label = mood.Labels[^1].Label;
         foreach (var l in mood.Labels)
@@ -266,6 +267,8 @@ public static partial class SocialInteractions
         }
     }
 
+    public static double TraitOf(Personality p, string name) => Trait(p, name);
+
     internal static double Trait(Personality p, string name) => name switch
     {
         "extroversion" => p.Extroversion,
@@ -316,6 +319,7 @@ public static partial class SocialInteractions
         {
             if (def.OnRefuse is { } refusal) ApplyEffects(world, refusal, actor, target, 1.0, now, def.Id);
             MarkPair(world, def, actor, target, now, accepted: false);
+            MoodMechanic.OnSocial(world, def, actor, target, accepted: false, now); // #262
             string why2 = string.IsNullOrWhiteSpace(reason) ? Text(catalog, "refused", actor, target, "não quis") : reason;
             string refusedText = Format(def.RefusedText ?? "{target} recusou", actor.Name, target.Name, Delta(def, false), why2);
             return Result<SocialStart>.Ok(new SocialStart(false, refusedText.Contains(why2, StringComparison.Ordinal) ? refusedText : $"{refusedText}: {why2}", why2));
@@ -498,6 +502,7 @@ public static partial class SocialInteractions
     {
         ApplyEffects(world, def.Effects, actor, partner, fraction, now, def.Id);
         MarkPair(world, def, actor, partner, now, accepted: true);
+        MoodMechanic.OnSocial(world, def, actor, partner, accepted: true, now); // #262
         Release(world, ctx, actor, now);
     }
 
@@ -531,6 +536,7 @@ public static partial class SocialInteractions
             {
                 ApplyEffects(world, def.Effects, actor, partner, fraction, now, def.Id);
                 MarkPair(world, def, actor, partner, now, accepted: true);
+                MoodMechanic.OnSocial(world, def, actor, partner, accepted: true, now); // #262
             }
         }
 
@@ -634,6 +640,7 @@ public static partial class SocialInteractions
 
         ApplyEffects(world, def.Effects, actor, target, 1.0, now, def.Id); // os laços e o humor da atividade valem ao começar; as necessidades do objeto sobem pelo uso, no tempo dele
         MarkPair(world, def, actor, target, now, accepted: true);
+        MoodMechanic.OnSocial(world, def, actor, target, accepted: true, now); // #262
         return Result<SocialStart>.Ok(new SocialStart(true, Format(def.Name, actor.Name, target.Name, 0, null), null));
     }
 }

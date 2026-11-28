@@ -598,7 +598,8 @@ public sealed class Npc
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
         long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
         long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null, BodyTask? bodyTask = null,
-        SortedDictionary<string, LazyNeed>? extraNeeds = null, IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? useQueue = null)
+        SortedDictionary<string, LazyNeed>? extraNeeds = null, IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? useQueue = null,
+        LivingWorld.Domain.Objects.MoodState? moods = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -636,6 +637,7 @@ public sealed class Npc
         BodyTask = bodyTask;
         ExtraNeeds = extraNeeds;
         UseQueue = useQueue;
+        Moods = moods;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -965,6 +967,16 @@ public sealed class Npc
     public void SetExtraNeed(string id, LazyNeed need)
     {
         (ExtraNeeds ??= new SortedDictionary<string, LazyNeed>(StringComparer.Ordinal))[id] = need;
+        TouchCanonical();
+    }
+
+    /// <summary>#262: momentos vivos, desejos ativos e pontos de satisfação (catálogo de humor do cenário). Nulo enquanto nada aconteceu (fora do snapshot e do hash).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Objects.MoodState? Moods { get; private set; }
+
+    public void SetMoods(LivingWorld.Domain.Objects.MoodState? state)
+    {
+        Moods = state;
         TouchCanonical();
     }
 

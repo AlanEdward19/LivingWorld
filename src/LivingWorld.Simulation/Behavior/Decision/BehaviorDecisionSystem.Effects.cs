@@ -26,9 +26,11 @@ public sealed partial class BehaviorDecisionSystem
         {
             case ActionType.Eat:
                 ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat, ctx);
+                LivingWorld.Simulation.Objects.MoodMechanic.OnAction(world, npc, action, world.CurrentDate.TotalMilliseconds); // #262
                 break;
             case ActionType.Sleep:
                 ApplySleep(world, npc, tick);
+                LivingWorld.Simulation.Objects.MoodMechanic.OnAction(world, npc, action, world.CurrentDate.TotalMilliseconds); // #262
                 break;
             case ActionType.Socialize:
                 ApplySocialize(world, npc, tick, ctx);
