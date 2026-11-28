@@ -7,6 +7,9 @@ namespace LivingWorld.Api.Players;
 
 /// <summary><c>PlayerId</c> é opcional com sessão (o jogador vem do token); no modo local é obrigatório.</summary>
 public sealed record IncarnateRequest(string? PlayerId);
+
+/// <summary>#252: o corpo para onde o jogador passa (troca sem sumir com o de antes).</summary>
+public sealed record PlayerSwitchRequest(long NpcId);
 /// <summary><c>Action</c> é o nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); vazio devolve a escolha ao motor.
 /// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
 public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
@@ -83,6 +86,10 @@ public static class PlayerEndpoints
             if (!TryParseAction(request.Action, out var action)) return Results.BadRequest(new { error = "action: desconhecida" });
             return Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: request.PowerId));
         });
+
+        // #252: troca de corpo (sandbox do casal): solta o NPC conduzido, sem sumir, e conduz o outro no mesmo modo de posse
+        app.MapPost("/players/{playerId}/switch", (HttpContext http, string playerId, PlayerSwitchRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Switch, request.NpcId)));
 
         app.MapPost("/players/{playerId}/logout", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Logout)));

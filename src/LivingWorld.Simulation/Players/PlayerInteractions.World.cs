@@ -102,14 +102,24 @@ public static partial class PlayerInteractions
         bool mine = household?.Dwelling == here || (npc.Employer is { } e && world.FindWorkplace(e)?.Building == here);
         if (!mine) return;
         var furnishing = catalog.FurnishingFor(building.BuildingTypeId);
+        // #252: cada móvel oferecido no lugar onde o motor o pôs (a mira e a roda escolhem pelo que está à frente e mais perto), do mais perto
+        // do corpo ao mais longe; sem lugar (a peça não coube), na célula do corpo como antes
+        var pieces = building.Position is not null ? Objects.HomeFurniture.Of(building, catalog) : [];
+        var found = new List<(InteractionOffer Offer, long Distance, int Index)>();
         for (int i = 0; i < furnishing.Count; i++)
         {
             if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
             var verbs = descriptor.UsePoints.Where(p => p.Action is int a && PlayerCommands.Choosable.Contains((ActionType)a)
                     && (ActionType)a != ActionType.UsePower && Objects.ObjectUse.Allows(descriptor, (ActionType)a, npc))
                 .Select(p => ((ActionType)p.Action!.Value).ToString().ToLowerInvariant()).Distinct().ToList();
-            if (verbs.Count > 0) offers.Add(Offer("object", here.Value * 1000 + i, descriptor.Id, verbs, at));
+            if (verbs.Count == 0) continue;
+            var cell = at;
+            if (i < pieces.Count && pieces[i].Id == furnishing[i] && pieces[i].Spot is { } spot && building.Position is { } origin)
+                cell = new CellCoord(origin.X + spot.Cell.X, origin.Y + spot.Cell.Y);
+            long dx = cell.X - at.X, dy = cell.Y - at.Y;
+            found.Add((Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, verbs, cell), dx * dx + dy * dy, i)); // #252: o nome do cenário, senão o id
         }
+        foreach (var entry in found.OrderBy(f => f.Distance).ThenBy(f => f.Index)) offers.Add(entry.Offer);
     }
 
     /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>

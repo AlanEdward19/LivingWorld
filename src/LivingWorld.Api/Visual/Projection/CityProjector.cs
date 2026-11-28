@@ -96,7 +96,7 @@ public static class CityProjector
             {
                 if (BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is not { } resolved)
                     return null;
-                var layout = BuildingLayoutGenerator.Generate(b.Id, b.BuildingTypeId, resolved.Orientation);
+                var layout = BuildingLayoutGenerator.Generate(b.Id, b.BuildingTypeId, resolved.Orientation, b.Shape);
                 var footprint = layout.FloorLayouts[0].Cells
                     .Select(cell => new CellCoord(
                         resolved.Position.X + cell.Cell.X,

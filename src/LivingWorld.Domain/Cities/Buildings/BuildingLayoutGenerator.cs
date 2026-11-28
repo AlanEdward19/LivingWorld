@@ -26,15 +26,15 @@ public static class BuildingLayoutGenerator
     public static int FloorsOf(BuildingId id, int buildingTypeId) => Generate(id, buildingTypeId).Floors;
 
     public static BuildingLayout Generate(Building building) =>
-        Generate(building.Id, building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId));
+        Generate(building.Id, building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId), building.Shape);
 
-    public static BuildingLayout Generate(BuildingId id, int buildingTypeId, int? orientation = null)
+    public static BuildingLayout Generate(BuildingId id, int buildingTypeId, int? orientation = null, BuildingShape? shape = null)
     {
-        var ground = BuildingFootprintGenerator.Generate(id, buildingTypeId, orientation);
+        var ground = BuildingFootprintGenerator.Generate(id, buildingTypeId, orientation, shape);
         var wall = BuildingFootprintGenerator.WallMaterialOf(buildingTypeId);
         var (outer, doors) = OuterWalls(ground, wall);
         int stairIndex = IndexOfFirst(ground, BuildingMaterial.Floor);
-        int floors = DesiredFloors(id, buildingTypeId);
+        int floors = shape?.Floors ?? DesiredFloors(id, buildingTypeId);
         if (stairIndex < 0 || floors == 1)
             return new BuildingLayout(1, [new FloorLayout(0, ground, outer, doors)]);
 

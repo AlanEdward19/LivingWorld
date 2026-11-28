@@ -26,16 +26,16 @@ public static class BuildingFootprintGenerator
     // limite em mundos com milhões de prédios.
     private const int MaxCachedFootprints = 100_000;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<
-        (long Id, int Type, int Orientation), IReadOnlyList<FootprintCell>> Cache = new();
+        (long Id, int Type, int Orientation, BuildingShape? Shape), IReadOnlyList<FootprintCell>> Cache = new();
 
     public static IReadOnlyList<FootprintCell> Generate(
-        BuildingId buildingId, int buildingTypeId, int? orientation = null)
+        BuildingId buildingId, int buildingTypeId, int? orientation = null, BuildingShape? shape = null)
     {
-        var key = (buildingId.Value, buildingTypeId, NormalizeOrientation(orientation ?? 0));
+        var key = (buildingId.Value, buildingTypeId, NormalizeOrientation(orientation ?? 0), shape);
         if (Cache.TryGetValue(key, out var cached))
             return cached;
 
-        var footprint = Compute(buildingId, buildingTypeId, key.Item3);
+        var footprint = Compute(buildingId, buildingTypeId, key.Item3, shape);
         if (Cache.Count >= MaxCachedFootprints)
             Cache.Clear();
         Cache[key] = footprint;
@@ -60,7 +60,7 @@ public static class BuildingFootprintGenerator
     private static readonly CellCoord[] DoorDirections = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
 
     private static IReadOnlyList<FootprintCell> Compute(
-        BuildingId buildingId, int buildingTypeId, int normalizedOrientation)
+        BuildingId buildingId, int buildingTypeId, int normalizedOrientation, BuildingShape? shape)
     {
         // A casa inicial precisa de uma célula interna real, mas não pode dominar visualmente a
         // cidade: 3x3 é o menor footprint que satisfaz ambos. Outros prédios variam apenas entre
@@ -70,6 +70,8 @@ public static class BuildingFootprintGenerator
         int width = buildingTypeId == -1 ? 3 : 3 + (int)(typeVariant % 2);
         int height = width;
         bool isLShape = buildingTypeId != -1 && typeVariant > 0 && typeVariant % 7 == 0 && width == 4;
+        // o cenário pode declarar o tamanho da planta (retângulo, sem L); a porta segue na borda de baixo
+        if (shape is { } declared) { width = declared.Width; height = declared.Depth; isLShape = false; }
 
         bool InBase(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
         bool InNotch(int x, int y) => isLShape && x >= width / 2 && y >= height / 2;
@@ -107,7 +109,8 @@ public static class BuildingFootprintGenerator
         Generate(
             building.Id,
             building.BuildingTypeId,
-            building.Orientation ?? DerivedOrientation(building.Id, building.BuildingTypeId));
+            building.Orientation ?? DerivedOrientation(building.Id, building.BuildingTypeId),
+            building.Shape);
 
     private static int NormalizeOrientation(int orientation)
     {

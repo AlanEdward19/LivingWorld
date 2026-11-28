@@ -117,7 +117,29 @@ public static class ObjectCatalogScenarioLoader
             }
         }
 
-        return Result<RoomCatalog?>.Ok(new RoomCatalog(kinds, plans));
+        var shapes = new Dictionary<string, BuildingShape>();
+        if (block["shapes"] is not null)
+        {
+            if (block["shapes"] is not JsonObject shapeTable) return Result<RoomCatalog?>.Fail("Rooms.shapes: precisa ser um objeto");
+            foreach (var (key, value) in shapeTable)
+            {
+                if (!(int.TryParse(key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId)
+                        && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == key))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: a chave é o id do tipo de prédio");
+                if (value is not JsonObject s) return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: precisa ser um objeto {{width, depth, floors}}");
+                int width = 0, depth = 0, floors = 1;
+                if (!(s["width"] is JsonValue wv && wv.TryGetValue(out width)) || !(s["depth"] is JsonValue dv && dv.TryGetValue(out depth)))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: width e depth são inteiros obrigatórios");
+                if (s["floors"] is not null && !(s["floors"] is JsonValue fv && fv.TryGetValue(out floors)))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}.floors: inteiro inválido");
+                var shape = new BuildingShape(width, depth, floors);
+                if (!shape.IsValid)
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: width e depth em [3,{BuildingShape.MaxSide}] e floors em [1,{BuildingShape.MaxFloors}]");
+                shapes[key] = shape;
+            }
+        }
+
+        return Result<RoomCatalog?>.Ok(new RoomCatalog(kinds, plans, shapes.Count > 0 ? shapes : null));
     }
 
     private static Result<ObjectCatalog?> Fail(string error) => Result<ObjectCatalog?>.Fail(error);
@@ -183,7 +205,13 @@ public static class ObjectCatalogScenarioLoader
 
         var effects = ParseEffects(o["effects"], at, isResource: resourceId is not null);
         if (!effects.IsSuccess) return Result<ObjectDescriptor>.Fail(effects.Error!);
-        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId));
+        string? display = null;
+        if (o["name"] is not null)
+        {
+            if (!TryString(o["name"], out var named) || named.Trim().Length == 0 || named.Length > 40) return Result<ObjectDescriptor>.Fail($"{at}.name: texto de 1 a 40 caracteres");
+            display = named.Trim();
+        }
+        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId, display));
     }
 
     private static Result<IReadOnlyList<ObjectInteraction>?> ParseInteractions(JsonNode? node, string at)

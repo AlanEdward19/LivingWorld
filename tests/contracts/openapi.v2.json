@@ -767,6 +767,22 @@
         ],
         "type": "object"
       },
+      "PlayerSwitchRequest": {
+        "properties": {
+          "npcId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "npcId"
+        ],
+        "type": "object"
+      },
       "PowerCommandRequest": {
         "properties": {
           "powerId": {
@@ -2833,6 +2849,38 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PlayerStrikeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/switch": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerSwitchRequest"
               }
             }
           },

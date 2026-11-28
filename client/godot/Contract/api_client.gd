@@ -217,6 +217,13 @@ func player_possess(npc_id: int) -> Dictionary:
 	return _checked("/players/possess", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
+## #252 (sandbox do casal): troca de corpo. O motor solta o corpo conduzido SEM fazê-lo sumir (volta à vontade dele, na casa dele) e passa a
+## conduzir `npc_id` no mesmo modo de posse; recusa (409/422) deixa o jogador no corpo de antes.
+func player_switch(player_id: String, npc_id: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "switch", "npcId": npc_id}, "POST", "/players/%s/switch" % player_id.uri_encode(), {"npcId": npc_id})
+	return _checked("/players/switch", {"status": response.status, "body": response.body}, "player-incarnate")
+
+
 ## AD-197q: de onde dá para sair como pessoa nova (`{cities:[{cityId,name,aggregateCount,detailedCount}]}`), do motor.
 func player_origins() -> Dictionary:
 	var response: Dictionary = await transport.request("GET", "/players/origins", null, _player_headers())

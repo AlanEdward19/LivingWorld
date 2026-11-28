@@ -57,6 +57,32 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
     }
 
+    /// <summary>#252 (sandbox do casal): trocar de corpo pela rota solta o NPC sem fazê-lo sumir e passa ao outro; sem corpo, 404; alvo sem dono é o único aceito.</summary>
+    [Fact]
+    public async Task Switching_bodies_releases_the_old_one_without_it_disappearing_and_takes_the_other()
+    {
+        _factory.Services.GetRequiredService<SimulationHost>().Resume();
+        var (client, session) = await Session();
+        var free = World().Npcs.Where(n => n.IsAlive && n.ControllerId is null && n.DisappearedAtTick is null).Take(2).ToList();
+        long first = free[0].Id.Value, second = free[1].Id.Value;
+
+        var without = await client.PostAsJsonAsync($"/players/{session.PlayerId}/switch", new { npcId = second }); // ainda sem corpo
+        await client.PostAsJsonAsync($"/players/{first}/incarnate", new { });
+        var same = await client.PostAsJsonAsync($"/players/{session.PlayerId}/switch", new { npcId = first });
+        var switched = await client.PostAsJsonAsync($"/players/{session.PlayerId}/switch", new { npcId = second });
+        var body = (await switched.Content.ReadFromJsonAsync<JsonObject>())!;
+
+        Assert.Equal(HttpStatusCode.NotFound, without.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, same.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, switched.StatusCode);
+        Assert.Equal(second, body["npcId"]!.GetValue<long>());
+        var old = World().FindNpc(new LivingWorld.Domain.Shared.NpcId(first))!;
+        Assert.Null(old.ControllerId);
+        Assert.Null(old.DisappearedAtTick); // não é o logout
+        Assert.Equal(session.PlayerId, World().FindNpc(new LivingWorld.Domain.Shared.NpcId(second))!.ControllerId);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/players/{session.PlayerId}/logout", null)).StatusCode);
+    }
+
     [Fact]
     public async Task With_auth_required_a_request_without_token_is_401_and_the_local_mode_keeps_the_old_routes()
     {
@@ -263,7 +289,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
             .Select(e => e.RoutePattern.RawText!).OrderBy(r => r).ToList();
         Assert.Equal(["/players/{npcId:long}/incarnate", "/players/{npcId:long}/possess", "/players/{playerId}/accelerate",
             "/players/{playerId}/action", "/players/{playerId}/block", "/players/{playerId}/candidates", "/players/{playerId}/character", "/players/{playerId}/character/preview", "/players/{playerId}/create", "/players/{playerId}/dodge", "/players/{playerId}/interact", "/players/{playerId}/interrupt", "/players/{playerId}/jump", "/players/{playerId}/logout", "/players/{playerId}/move", "/players/{playerId}/persuade",
-            "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
+            "/players/{playerId}/sleep", "/players/{playerId}/strike", "/players/{playerId}/switch", "/players/{playerId}/wake", "/players/{playerId}/walk"], routes); // rota nova sem cobertura reprova
         fresh.DefaultRequestHeaders.Add("X-Admin-Token", LivingWorldApiFactory.AdminToken); // a posse plena é do admin
 
         var leaks = new List<string>();
@@ -280,7 +306,7 @@ public class PlayerSessionTests : IClassFixture<LivingWorldApiFactory>
         using (var socket = await Channel(session.SessionToken))
             foreach (string command in new[] { """{"seq":2,"command":"action","action":"Idle"}""", """{"seq":3,"command":"move","dx":1,"dy":0}""",
                 $$"""{"seq":4,"command":"strike","npcId":{{other}}}""", """{"seq":6,"command":"sleep","untilHour":6}""",
-                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0,"run":true}""", """{"seq":13,"command":"jump"}""", """{"seq":14,"command":"dodge"}""", """{"seq":15,"command":"block"}""",
+                $$"""{"seq":9,"command":"interact","kind":"person","id":{{other}},"verb":"talk"}""", """{"seq":10,"command":"walk","dx":1000,"dy":0,"run":true}""", """{"seq":13,"command":"jump"}""", $$"""{"seq":16,"command":"switch","npcId":{{other}}}""", """{"seq":14,"command":"dodge"}""", """{"seq":15,"command":"block"}""",
                 """{"seq":7,"command":"accelerate"}""", """{"seq":8,"command":"wake"}""", """{"seq":5,"command":"logout"}""",
                 $$"""{"seq":11,"command":"candidates","cityId":"{{World().ActiveCities().First().Id.Value}}"}""",
                 $$"""{"seq":12,"command":"create","cityId":"{{World().ActiveCities().First().Id.Value}}","npcId":{{other}},"sample":0}""" })

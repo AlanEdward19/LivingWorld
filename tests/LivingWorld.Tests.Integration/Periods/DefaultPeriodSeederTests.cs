@@ -25,7 +25,7 @@ public class DefaultPeriodSeederTests
         var repository = new SqlitePeriodTemplateRepository(context);
         DefaultPeriodSeeder.SeedIfEmpty(repository);
 
-        foreach (var template in repository.ListLatestPerPeriod())
+        foreach (var template in repository.ListLatestPerPeriod().Where(t => DefaultPeriodSeeder.PresetIds.Contains(t.PeriodId)))
         {
             Assert.Equal(1, template.Version);
             var payload = JsonNode.Parse(template.PayloadJson)!.AsObject();
@@ -217,6 +217,57 @@ public class DefaultPeriodSeederTests
         context.Database.Migrate();
         var repository = new SqlitePeriodTemplateRepository(context);
         DefaultPeriodSeeder.SeedIfEmpty(repository);
-        return repository.ListLatestPerPeriod().Select(t => t.PayloadJson).ToList();
+        return repository.ListLatestPerPeriod().Where(t => DefaultPeriodSeeder.PresetIds.Contains(t.PeriodId)).Select(t => t.PayloadJson).ToList();
+    }
+
+    /// <summary>#252: o período de dados (sandbox do casal) é semeado do arquivo embutido, uma vez, e o cartão diz que é de início rápido.</summary>
+    [Fact]
+    public void SeedIfEmpty_seeds_the_data_periods_from_the_embedded_file_once()
+    {
+        var (repository, _) = EmptyRepository();
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+        DefaultPeriodSeeder.SeedIfEmpty(repository); // idempotente
+
+        var template = repository.FindLatestVersion("sandbox-casal")!;
+        Assert.Equal(1, template.Version);
+        Assert.Equal(DefaultPeriodSeeder.DataPayloadFor("sandbox-casal"), template.PayloadJson);
+        var card = PeriodCards.From(template.PeriodId, template.Source, template.PayloadJson);
+        Assert.Equal("Sandbox: casal", card.Name);
+        Assert.True(card.QuickStart);
+        Assert.Equal(2, card.InitialPopulation); // as duas pessoas da família autorada
+        Assert.Equal(1, card.SettlementCount);
+        Assert.All(DefaultPeriodSeeder.PresetIds, id => Assert.False(PeriodCards.From(id, "", DefaultPeriodSeeder.PayloadFor(id)).QuickStart));
+        Assert.True(PeriodDefinitionValidator.Validate(template.PayloadJson).IsSuccess);
+    }
+
+    [Fact]
+    public void A_data_period_changed_in_the_file_gets_a_new_version_and_an_operator_registration_is_never_touched()
+    {
+        var (repository, _) = EmptyRepository();
+        string payload = DefaultPeriodSeeder.DataPayloadFor("sandbox-casal")!;
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = "sandbox-casal",
+            Version = 1,
+            PayloadJson = payload.Replace("\"Seed\": 252", "\"Seed\": 1"),
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = "Sandbox: casal",
+        });
+
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+
+        Assert.Equal(2, repository.FindLatestVersion("sandbox-casal")!.Version); // o arquivo mudou: versão nova
+
+        repository.Save(new LivingWorld.Infrastructure.Records.PeriodTemplateRecord
+        {
+            PeriodId = "sandbox-casal",
+            Version = 3,
+            PayloadJson = "{}",
+            CreatedAtUtc = DateTime.UnixEpoch,
+            Source = "operador",
+        });
+        DefaultPeriodSeeder.SeedIfEmpty(repository);
+        Assert.Equal(3, repository.FindLatestVersion("sandbox-casal")!.Version);
     }
 }

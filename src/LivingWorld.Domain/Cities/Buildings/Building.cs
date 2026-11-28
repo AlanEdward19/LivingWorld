@@ -10,7 +10,8 @@ namespace LivingWorld.Domain.Cities.Buildings;
 /// (<see cref="ConstructionSystem"/> ainda não escolhe posição/orientação, G4).</summary>
 public sealed class Building(
     BuildingId id, CityId city, int buildingTypeId, long completedAtTick,
-    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null, int? croftCells = null)
+    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null, int? croftCells = null,
+    BuildingShape? shape = null)
 {
     private static long s_layoutVersion = 1;
 
@@ -63,6 +64,11 @@ public sealed class Building(
     /// <summary>AD-173: fundo do quintal (croft) que quem construiu escolheu, em células atrás da parede oposta à porta;
     /// 0 = sem quintal. Nulo nos prédios de antes e nos que o motor deriva (aí a escolha é recalculada pelo lugar).</summary>
     public int? CroftCells { get; private set; } = croftCells;
+
+    /// <summary>Tamanho da planta declarado pelo cenário (<c>Rooms.shapes</c>: largura, fundo e andares); nulo = o de sempre pelo tipo
+    /// (<see cref="BuildingFootprintGenerator"/>). Gravado ao semear a casa, para a planta não depender de nada fora do prédio.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public BuildingShape? Shape { get; } = shape;
 
     /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
     /// — espelha <see cref="City.FoundingScheduledAtTick"/>.

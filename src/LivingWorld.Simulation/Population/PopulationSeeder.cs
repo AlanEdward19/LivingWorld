@@ -135,7 +135,8 @@ public static class PopulationSeeder
         for (int i = 0; i < householdCount; i++)
         {
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, InitialHouseBuildingTypeId, world.CurrentDate.TotalHours);
+            var shape = world.ObjectCatalog?.Rooms?.ShapeFor(InitialHouseBuildingTypeId); // o tamanho da casa vem do cenário (Rooms.shapes)
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, InitialHouseBuildingTypeId, world.CurrentDate.TotalHours, shape: shape);
             // Post-ship fix (real-household-workplace-buildings, map-auto-resize removal): a
             // small authored map can run out of free rectangular room for every household before
             // this loop is done -- now common, since the map is never silently regenerated bigger
@@ -181,7 +182,7 @@ public static class PopulationSeeder
 
             var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
-                world.CurrentDate.TotalHours, position, orientation, croftCells: croft);
+                world.CurrentDate.TotalHours, position, orientation, croftCells: croft, shape: shape);
             world.AddBuilding(house);
             houseIds.Add(house.Id);
             locations.Add(DwellingCapacity.InteriorCellOf(house, position));
@@ -193,7 +194,7 @@ public static class PopulationSeeder
     /// footprint inteiro fique dentro dele (nada nasce fora do mundo, mesmo quando falta terra).</summary>
     private static CellCoord ClampFootprintIntoMap(WorldState world, Building house, CellCoord origin)
     {
-        var shape = BuildingFootprintGenerator.Generate(house.Id, house.BuildingTypeId, orientation: 0);
+        var shape = BuildingFootprintGenerator.Generate(house.Id, house.BuildingTypeId, orientation: 0, house.Shape);
         int width = shape.Max(c => c.Cell.X) + 1, height = shape.Max(c => c.Cell.Y) + 1;
         return new CellCoord(
             Math.Clamp(origin.X, 0, Math.Max(0, world.Map.Width - width)),
