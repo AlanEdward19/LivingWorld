@@ -13,7 +13,8 @@ namespace LivingWorld.Api.Visual.Projection;
 public sealed record InteriorOccupant(
     NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingObject = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingObject = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingUse = null);
 
 /// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
@@ -46,7 +47,7 @@ public static class InteriorProjector
         var plan = BuildingLayoutGenerator.Generate(building);
         return world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(plan, interior))
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world.ObjectCatalog, building.BuildingTypeId, n)))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n)))
             .ToArray();
     }
 
@@ -63,7 +64,7 @@ public static class InteriorProjector
         var layout = BuildingLayoutGenerator.Generate(building);
         var occupants = world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId && IsInside(layout, interior))
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world.ObjectCatalog, building.BuildingTypeId, n)))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(world, building, n), UsingUseOf(n)))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
@@ -72,10 +73,20 @@ public static class InteriorProjector
 
     /// <summary>Id do primeiro objeto da mobília do tipo de prédio que atende à ação do NPC e que ele pode usar (mesma regra do motor,
     /// <see cref="LivingWorld.Simulation.Objects.ObjectUse.Serving"/>). Nulo sem catálogo: o cliente fica com a pose da ação (ADR-0037).</summary>
-    private static string? UsingObjectOf(LivingWorld.Domain.Objects.ObjectCatalog? catalog, int buildingTypeId, Npc npc) =>
-        catalog is not null && npc.CurrentAction is { } action
-            ? LivingWorld.Simulation.Objects.ObjectUse.Serving(catalog, buildingTypeId, action, npc)?.Id
+    private static string? UsingObjectOf(WorldState world, Building building, Npc npc)
+    {
+        // #255: quem usa uma peça do catálogo (banho, vaso, TV) aparece nela, com a pose e o lugar do uso
+        if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action, Use: { } use } task && task.Building == building.Id.Value
+            && LivingWorld.Simulation.Objects.ObjectUsage.Resolve(world, task.Building, task.Piece, use) is { IsSuccess: true } resolved)
+            return resolved.Value!.Descriptor.Id;
+        return world.ObjectCatalog is { } catalog && npc.CurrentAction is { } action
+            ? LivingWorld.Simulation.Objects.ObjectUse.Serving(catalog, building.BuildingTypeId, action, npc)?.Id
             : null;
+    }
+
+    /// <summary>#255: o id do uso do catálogo em curso (o cliente acha a pose e o lugar no descritor); nulo fora de um uso.</summary>
+    private static string? UsingUseOf(Npc npc) =>
+        npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action, Use: { } use } ? use : null;
 
     private static InteriorObjects? BuildObjects(WorldState world, Building building)
     {
