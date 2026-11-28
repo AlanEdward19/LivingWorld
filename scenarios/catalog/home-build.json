@@ -737,7 +737,7 @@
    }
   ],
   "build": {
-   "contractor": 2,
+   "contractor": 4,
    "wall": 4,
    "door": 3,
    "demolish": 1,

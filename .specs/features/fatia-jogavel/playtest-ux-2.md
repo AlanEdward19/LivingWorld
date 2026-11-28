@@ -44,7 +44,7 @@ na tela (ver P0-2); beijo e briga nem chegaram a rodar porque o parceiro saiu do
 ## O que falta para ser divertido (as 5 maiores lacunas)
 1. **Objetivos e aspirações**: nenhuma meta de curto prazo ("fique com 80% de Diversão") nem aspiração de vida; "Metas" lista habilidade técnica. Sem isso não há "só mais um dia".
 2. **Humor e emoções visíveis**: há `mood` no motor (Radiante) mas só no painel da relação; sem ícone de humor no cartão nem no boneco, sem moodlets ("tomou um bom banho").
-3. **Carreira e dinheiro**: "Dinheiro 50" não muda; nenhum emprego, salário, conta. Sem gasto nem ganho o jogador não tem escolha.
+3. **Carreira e dinheiro**: "Dinheiro 50" não muda; nenhum emprego, salário, conta. Sem gasto nem ganho o jogador não tem escolha. **[feito em #263]**: carreiras e contas em dados, turno fora do mapa, salário do empregador, promoção, jornal de vagas e painel O (AD-229, `docs/domain/careers-and-bills.md`).
 4. **Comprar, construir e decorar**: o modo compra do Sims é metade da graça; aqui a casa é fixa (e "Vender sua casa" é a última oferta do E).
 5. **Eventos e vizinhos**: sem visita, festa, chamada de emprego, carteiro; o mundo só tem 2 pessoas e uma cerca. Rua e vizinhos (#257) abrem isso.
 

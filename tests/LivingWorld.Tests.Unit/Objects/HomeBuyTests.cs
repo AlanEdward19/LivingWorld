@@ -26,7 +26,7 @@ public class HomeBuyTests
         var root = LivingWorld.Tests.Unit.Cities.SandboxFixtures.Parse();
         var households = root["AuthoredHouseholds"]!.AsArray();
         while (households.Count > 1) households.RemoveAt(households.Count - 1);
-        if (!shop) root["Workplaces"] = new JsonArray();
+        if (!shop) { var all = root["Workplaces"]!.AsArray(); all.RemoveAt(all.Count - 1); }
         root["Seed"] = seed;
         edit?.Invoke(root);
         var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());
@@ -69,7 +69,7 @@ public class HomeBuyTests
         var (world, _, _, _, _, _) = Playing();
         var home = world.ObjectCatalog!.Home!;
         Assert.True(home.Items.Count >= 15 && home.Paints.Count >= 6 && home.Categories.Count >= 6);
-        Assert.Equal(2, home.Build.Contractor);
+        Assert.Equal(4, home.Build.Contractor);
         Assert.NotNull(Shop(world));
         foreach (var item in home.Items)
         {
@@ -87,7 +87,7 @@ public class HomeBuyTests
         root["Seed"] = 1;
         var items = root["CatalogExtends"]!.AsArray();
         items.Clear();
-        foreach (var name in new[] { "home-life", "social", "moods" }) items.Add(name);
+        foreach (var name in new[] { "home-life", "social", "moods", "careers" }) items.Add(name);
         var without = ScenarioLoaderV2.LoadWorld(root.ToJsonString());
         Assert.True(without.IsSuccess, without.Error);
         Assert.Null(without.Value.World.ObjectCatalog!.Home);

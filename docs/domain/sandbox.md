@@ -71,7 +71,7 @@ Tudo é dado do período e do catálogo (`home-life.json`); o código só tem os
 - **Mercado do bairro** (comida que se repõe sem nascer): um `Workplaces[]` do tipo 1 (nome "Mercado", `Descriptors.LocationType/BuildingType`) com estoque, preço e caixa, de porta
   para a rua (`Orientation: 180`). Quem o abastece é o trabalho de verdade: **Seu Joaquim** (profissão 2, `Members[].Workplace: 0` = já empregado), pela receita do local
   (`Recipes["1"]`) com `CropYear: {Enabled:false}` (sem safra anual, o lote diário). Comprar = a banca de sempre (`stall`/`buy`): moeda e comida só mudam de mão (carteira → caixa,
-  estoque → despensa da casa, que é a geladeira); sem moeda, recusa. **Renda do casal fica para a próxima etapa** (emprego; hoje ele vive de 50 moedas cada e da despensa).
+  estoque → despensa da casa, que é a geladeira); sem moeda, recusa. A renda do casal veio em #263 (emprego e contas, [careers-and-bills.md](careers-and-bills.md)): o período agora tem também o escritório e a escola como empregadores (`Workplaces[]` 1 e 2).
 - **Refeição**: recurso 3 ("Refeição"). O fogão (`cook`, 10 min, `consumes` 2 comida, `produces` 2 refeição) só produz no fim natural (interromper perde o preparo); a mesa (`meal`) gasta
   1 refeição e 1 água e sacia mais (300/h, +diversão); a comida crua do catálogo sacia 60 (`food` `hunger:60`), a refeição 100. Quem ninguém conduz cozinha antes da refeição sem
   urgência e `FoodResolver.ResolveMeal` prefere a refeição pronta.
@@ -90,5 +90,5 @@ Tudo é dado do período e do catálogo (`home-life.json`); o código só tem os
 Tecla **B**: a câmera sobe sobre a casa e o motor vende móveis do estoque da loja do bairro (ou faz sob encomenda), valida o lugar, deixa mover, vender e descartar, e faz obra simples (parede, porta, ampliar, pintar); a beleza do cômodo vira o momento "Cômodo bonito". Ver [buy-and-build.md](buy-and-build.md). No período: `CatalogExtends` ganha `home-build`, a loja de móveis (tipo 2) e o marceneiro (profissão 3).
 
 ## O que ainda não funciona
-- O casal não tem renda (próxima etapa: emprego); fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).
+- O emprego e as contas são do catálogo `careers` (#263, [careers-and-bills.md](careers-and-bills.md)): Rafael começa no escritório, Marina procura no jornal da sala; fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).
 - Sem instalação pública (banheiro de rua); o mercado só vende comida e água; sem entrega por telefone.

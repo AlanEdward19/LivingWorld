@@ -132,6 +132,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.Act(world, npc.Id, playerId, action, powerId);
         if (result.IsSuccess) PlayerCommands.Witness(world, Context(world), npc.Id, action); // AD-197f: quem convive compara com o costume
@@ -141,11 +142,16 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    private static string? AwayRefusal(WorldState world, Npc npc) =>
+        LivingWorld.Simulation.Careers.CareerWork.IsAway(world, npc) && world.Careers!.JobOf(npc.Id.Value) is { } job
+            ? $"{PlayerCommands.Conflict} você está no trabalho até {LivingWorld.Simulation.Careers.CareerWork.Clock(world, job.ReturnMs)}" : null;
+
     /// <summary>Intenção de passo (−1..1 em cada eixo), não posição: o motor decide onde o corpo chega.</summary>
     public Result<Unit> Move(WorldState world, string playerId, int dx, int dy)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.Move(world, Context(world), npc.Id, playerId, dx, dy);
         if (result.IsSuccess)
@@ -157,6 +163,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<StrikeResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<StrikeResult>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.StrikeWithResult(world, Context(world), npc.Id, playerId, target);
         bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
@@ -172,6 +179,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.Guard(world, npc.Id, playerId, guard);
         if (result.IsSuccess) Record(world, playerId, guard == CombatGuard.Dodge ? PlayerCommandKind.Dodge : PlayerCommandKind.Block, npc.Id.Value);
@@ -185,6 +193,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<InteractionResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<InteractionResult>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerInteractions.Interact(world, Context(world), npc, kind, id, verb, resourceId, quantity);
         if (result.IsSuccess) BeginTaskSkip(world, npc, playerId); // #241: ação longa com o mundo só dele: o tempo acelera até acabar
@@ -201,6 +210,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy, run, seq);
         if (result.IsSuccess)
@@ -214,6 +224,7 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<int>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<int>.Fail(away); // #263: no turno de trabalho o corpo não responde
         if (PlayerJump.Refusal(world, npc) is { } refused) return Result<int>.Fail(refused); // recusado: nada muda, nem o pulo de tempo
         EndSkipOnCommand(world, playerId);
         var result = PlayerJump.Jump(world, npc);

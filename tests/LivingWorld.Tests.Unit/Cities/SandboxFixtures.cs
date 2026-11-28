@@ -20,9 +20,11 @@ public static class SandboxFixtures
     public static JsonObject WithoutFurnitureShop(JsonObject root)
     {
         var workplaces = root["Workplaces"]!.AsArray();
-        while (workplaces.Count > 1) workplaces.RemoveAt(workplaces.Count - 1);
+        workplaces.RemoveAt(workplaces.Count - 1); // a loja de móveis é o último local (tipo 4); o mercado, o escritório e a escola (#263) ficam
         var households = root["AuthoredHouseholds"]!.AsArray();
-        while (households.Count > 2) households.RemoveAt(households.Count - 1);
+        households.RemoveAt(households.Count - 1); // e o marceneiro, a última família
+        var extends = root["CatalogExtends"]!.AsArray();
+        foreach (var node in extends.Where(n => n!.ToString() == "home-build").ToList()) extends.Remove(node);
         return root;
     }
 
@@ -31,6 +33,10 @@ public static class SandboxFixtures
     {
         root["Workplaces"] = new JsonArray();
         root["MarketLocationTypeIds"] = new JsonArray();
+        root.Remove("CareerStart"); // #263: o emprego do Rafael mora num empregador que o casal sozinho não tem
+        root["CatalogExtends"] = new JsonArray("home-life", "social", "moods"); // sem carreiras nem contas (#263): os testes de vida em casa não as querem; o humor (#262) fica
+        var furnished = root["Furnishings"]!["-1"]!.AsArray();
+        foreach (var node in furnished.Where(n => n!.ToString() == "newspaper").ToList()) furnished.Remove(node);
         var households = root["AuthoredHouseholds"]!.AsArray();
         while (households.Count > 1) households.RemoveAt(households.Count - 1);
         return root;

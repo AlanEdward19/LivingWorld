@@ -101,11 +101,15 @@
     ],
     "LocationType": [
       { "Id": 1, "Name": "Mercado" },
-      { "Id": 2, "Name": "Loja de móveis" }
+      { "Id": 2, "Name": "Escritório" },
+      { "Id": 3, "Name": "Escola" },
+      { "Id": 4, "Name": "Loja de móveis" }
     ],
     "BuildingType": [
       { "Id": 1, "Name": "Mercado" },
-      { "Id": 2, "Name": "Loja de móveis" }
+      { "Id": 2, "Name": "Escritório" },
+      { "Id": 3, "Name": "Escola" },
+      { "Id": 4, "Name": "Loja de móveis" }
     ]
   },
   "Climate": {
@@ -178,6 +182,16 @@
         "SkillId": 0,
         "Weight": 1.0,
         "Name": "Agricultura"
+      },
+      {
+        "SkillId": 1,
+        "Weight": 0.01,
+        "Name": "Administração"
+      },
+      {
+        "SkillId": 2,
+        "Weight": 0.01,
+        "Name": "Didática"
       }
     ]
   },
@@ -194,6 +208,7 @@
           "AgeYears": 32,
           "ProfessionId": 1,
           "Spouse": 1,
+          "Skills": { "2": 22 },
           "Personality": {
             "Extroversion": 62,
             "Agreeableness": 70,
@@ -213,6 +228,7 @@
           "AgeYears": 35,
           "ProfessionId": 1,
           "Spouse": 0,
+          "Skills": { "1": 14 },
           "Personality": {
             "Extroversion": 45,
             "Agreeableness": 64,
@@ -260,7 +276,7 @@
           "Sex": "Male",
           "AgeYears": 48,
           "ProfessionId": 3,
-          "Workplace": 1,
+          "Workplace": 3,
           "Personality": {
             "Extroversion": 50,
             "Agreeableness": 62,
@@ -422,7 +438,7 @@
       "RequiresCellResource": null,
       "MaxWorkersPerCycle": 2
     },
-    "2": {
+    "4": {
       "Inputs": { "40": 20 },
       "Outputs": { "20": 1, "21": 1, "22": 1, "23": 1, "24": 1, "25": 1, "26": 1, "27": 1, "28": 1, "29": 1, "30": 1, "31": 1, "32": 1, "33": 1, "34": 1, "35": 1, "36": 1, "37": 1 },
       "RequiresCellResource": null,
@@ -430,7 +446,7 @@
     }
   },
   "MarketLocationTypeIds": [1],
-  "LocationTypeByProfession": { "2": 1, "3": 2 },
+  "LocationTypeByProfession": { "2": 1, "3": 4 },
   "Workplaces": [
     {
       "LocationTypeId": 1,
@@ -444,6 +460,26 @@
     },
     {
       "LocationTypeId": 2,
+      "X": 18,
+      "Y": 14,
+      "Orientation": 180,
+      "MaxVacancies": 3,
+      "Treasury": 20000,
+      "Stock": {},
+      "Prices": {}
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 9,
+      "Y": 14,
+      "Orientation": 180,
+      "MaxVacancies": 2,
+      "Treasury": 12000,
+      "Stock": {},
+      "Prices": {}
+    },
+    {
+      "LocationTypeId": 4,
       "X": 14,
       "Y": 10,
       "Orientation": 0,
@@ -452,6 +488,9 @@
       "Stock": { "20": 1, "21": 0, "22": 3, "23": 1, "24": 2, "25": 1, "26": 1, "27": 1, "28": 1, "29": 1, "30": 1, "31": 1, "32": 1, "33": 3, "34": 2, "35": 2, "36": 2, "37": 1, "40": 60 },
       "Prices": {}
     }
+  ],
+  "CareerStart": [
+    { "Member": "Rafael", "Career": "escritorio", "Level": 0, "Employer": 1 }
   ],
   "Cities": [
     {
@@ -501,7 +540,7 @@
   "MaterializationIdleTicksBeforeEligible": 1,
   "BuildingRecipes": {},
   "StartHour": 7,
-  "CatalogExtends": ["home-life", "social", "moods", "home-build"],
+  "CatalogExtends": ["home-life", "social", "moods", "careers", "home-build"],
   "Furnishings": {
     "default": [
       "table",
@@ -520,7 +559,8 @@
       "toilet",
       "sink",
       "lamp",
-      "bedside"
+      "bedside",
+      "newspaper"
     ]
   },
   "Rooms": {

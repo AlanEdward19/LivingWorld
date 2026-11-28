@@ -139,6 +139,12 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
                 continue;
             }
+            // #263: quem está no turno de trabalho (fora do mapa) fica fora da rotina até voltar
+            if (world.Careers is not null && LivingWorld.Simulation.Careers.CareerWork.IsAway(world, npc))
+            {
+                NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
             // #234: quem apanhou do jogador e marcou o revide (ou acode a quem pediu ajuda) golpeia na hora marcada
             if (npc.Combat is { RetaliateAtMs: > 0 }) LivingWorld.Simulation.Players.PlayerCombat.OnWake(world, ctx, npc, nowMs);
             // AD-197f: a disputa de vontade da posse comum é checada quando o possuído desperta (sem evento agendado)
