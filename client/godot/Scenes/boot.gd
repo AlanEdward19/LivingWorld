@@ -64,11 +64,13 @@ func _show_menu() -> void:
 
 
 func _play() -> void:
+	var quick: bool = menu != null and menu.is_quick_start() # #256: o início rápido já entra no corpo de uma pessoa da casa
 	if menu != null:
 		menu.queue_free()
 		menu = null
 	app = App.new()
 	app.settings = settings
+	app.quick_start = quick
 	app.menu_requested.connect(_show_menu)
 	app.quit_requested.connect(quit_gracefully)
 	add_child(app)

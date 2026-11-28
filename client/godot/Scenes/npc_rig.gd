@@ -6,6 +6,7 @@ extends RefCounted
 ## Pivôs `Node3D` (sem Skeleton3D: a hierarquia de 4 membros já existia e um esqueleto custaria mais para o mesmo resultado).
 
 const Pose := preload("res://Scenes/body_pose.gd")
+const Grid := preload("res://Scenes/grid.gd")
 const NpcMesh := preload("res://Scenes/npc_mesh.gd")
 const SHOE := Color("4a3524")
 const BELT := Color("3a2a1c")
@@ -252,13 +253,12 @@ func locomotion(a, dt: float, moving: bool) -> void:
 		run = Pose.approach(run, 1.0 if (moving and a.running) else 0.0, 5.0, dt)
 	_last = a.position
 	var stage := String(a.spec.get("stage", "adult"))
-	var factor := Pose.stride_factor(stage)
-	_stride = lerpf(0.30, 0.46, run) * factor
+	var gait_now := Pose.gait_params(speed, a.scale.x, stage, run, Grid.cell_meters) # #256: cadência e passada pela velocidade real e pela altura
+	_stride = float(gait_now.stride)
 	_lift = lerpf(0.05, 0.11, run)
-	_duty = lerpf(0.6, 0.4, run)
+	_duty = float(gait_now.duty)
 	if gait > 0.004:
-		var f := clampf(speed * _duty / _stride, lerpf(1.1, 2.0, run), 3.4)
-		phase = fmod(phase + TAU * f * maxf(dt, 0.0), TAU * 64.0)
+		phase = fmod(phase + TAU * float(gait_now.cycles) * maxf(dt, 0.0), TAU * 64.0)
 	else:
 		gait = 0.0
 	if stage == "elder":
@@ -281,7 +281,11 @@ func locomotion(a, dt: float, moving: bool) -> void:
 	_pelvis.rotation.y = -twist * 0.6
 	a._head.rotation.y -= twist * 0.6
 	a._head.rotation.x -= lean * 0.6
-	_drop += (lerpf(0.025, 0.06, run) + 0.012 * (1.0 + run) * 0.5 * (1.0 + cos(2.0 * phase))) * gait
+	var reach_need := 0.0 # #256: o quadril desce o que a abertura das pernas pede (o pé de apoio alcança o chão, sem escorregar)
+	for i in 2:
+		var fp_need := Pose.foot_path(fposmod(phase / TAU + (0.0 if i == 0 else 0.5), 1.0), _stride, _lift, _duty)
+		reach_need = maxf(reach_need, Pose.drop_for_reach(fp_need.x * gait, fp_need.y * gait))
+	_drop += (lerpf(0.012, 0.035, run) * gait + reach_need)
 
 
 func air(lift: float, tuck: float) -> void:

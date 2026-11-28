@@ -46,6 +46,34 @@ static func foot_path(u: float, stride: float, lift: float, duty: float) -> Vect
 	return Vector2(stride * (-0.5 + smoothstep(0.0, 1.0, v)), lift * sin(PI * v))
 
 
+const WALK_EXCURSION := 0.40 ## #256: amplitude do pé no apoio andando (±0,20 na perna de 0,34, o quadril desce o que o alcance pede): passada calma do boneco
+const RUN_EXCURSION := 0.44
+const WALK_DUTY := 0.55 ## fração do ciclo com o pé no chão ao andar (0,6 era de quem anda apertado: pedia cadência de trote)
+const MIN_CYCLES := 0.55 ## ciclos/s mínimos (1,1 passos/s): mais devagar que isto o passo encurta em vez de arrastar
+
+## #256: a passada pela velocidade REAL desenhada: `speed` em unidades de mundo/s (a célula tem `cell_meters` m) e `body_scale` a escala
+## do corpo (altura). Sem deslize: o pé de apoio recua `stride` (unidades do boneco) em `duty` do ciclo na velocidade do corpo, então
+## ciclos/s = v·duty/stride. A amplitude é a do tamanho do corpo (teto de andar ou correr, menor em criança e idoso); só se encurta
+## quando andar tão devagar pediria menos de MIN_CYCLES. Devolve {stride, duty, cycles (ciclos/s), steps (passos/s), mps (m/s)}.
+static func gait_params(speed: float, body_scale: float, stage: String, run: float, cell_meters: float) -> Dictionary:
+	var local_speed := speed / maxf(body_scale, 0.01) # unidades do boneco por segundo (o boneco é desenhado ×escala no mundo)
+	var duty := lerpf(WALK_DUTY, 0.4, run)
+	var stride := lerpf(WALK_EXCURSION, RUN_EXCURSION, run) * stride_factor(stage)
+	stride = minf(stride, local_speed * duty / MIN_CYCLES) if local_speed > 0.0001 else stride
+	var cycles := local_speed * duty / maxf(stride, 0.0001)
+	return {"stride": stride, "duty": duty, "cycles": cycles, "steps": cycles * 2.0, "mps": speed * cell_meters}
+
+
+## #256: quanto o quadril tem de descer para o pé (a `reach_z` à frente ou atrás do quadril, `lift` acima do chão) ser alcançado sem
+## esticar a perna além do osso: a perna mede THIGH+SHIN e o quadril está a HIP_Y-ANKLE_H do tornozelo; sem isto o IK esticava e o pé de
+## apoio escorregava. Dá o balanço natural do quadril (mais baixo com as pernas abertas, mais alto com elas sob o corpo).
+static func drop_for_reach(reach_z: float, lift: float) -> float:
+	var leg := THIGH + SHIN - 0.004
+	var up := HIP_Y - ANKLE_H - lift
+	var vertical := sqrt(maxf(leg * leg - reach_z * reach_z, 0.0))
+	return maxf(up - vertical, 0.0)
+
+
 ## Aproximação exponencial independente do quadro: `rate` em 1/s. Sem estalo ao mudar de alvo.
 static func approach(current: float, target: float, rate: float, dt: float) -> float:
 	return lerpf(current, target, 1.0 - exp(-rate * dt))
