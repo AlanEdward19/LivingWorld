@@ -29,6 +29,12 @@ public sealed class BodyTaskSystem : ISimulationSystem
             return;
         }
 
+        if (parts.Length == 3 && parts[2] == "d" && long.TryParse(parts[0], out long homeId))
+        {
+            LivingWorld.Simulation.Objects.HomeCommands.Deliver(world, homeId); // #264: a encomenda de móvel chegou
+            return;
+        }
+
         if (parts.Length == 3 && parts[2] == "s" && long.TryParse(parts[0], out long actorId) && long.TryParse(parts[1], out long met))
         {
             if (world.FindNpc(new NpcId(actorId)) is { IsAlive: true } actor) LivingWorld.Simulation.Objects.SocialInteractions.Step(world, ctx, actor, met); // #259: interação social

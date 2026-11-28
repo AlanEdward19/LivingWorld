@@ -15,7 +15,7 @@ public sealed record HomePiece(string Id, int Variation, FurnitureSpot? Spot);
 /// depois as camas de hospedagem que couberam. Função pura da planta e do catálogo.</summary>
 public static class HomeFurniture
 {
-    private sealed record Plan(ObjectCatalog Catalog, IReadOnlyList<HomePiece> Pieces);
+    private sealed record Plan(ObjectCatalog Catalog, int Version, IReadOnlyList<HomePiece> Pieces);
 
     private static readonly ConditionalWeakTable<Building, Plan> Cache = new();
 
@@ -23,16 +23,18 @@ public static class HomeFurniture
     public static IReadOnlyList<HomePiece> Of(Building building, ObjectCatalog catalog, int lodgingBeds = 0)
     {
         if (lodgingBeds != 0) return Compute(building, catalog, lodgingBeds);
-        if (Cache.TryGetValue(building, out var cached) && ReferenceEquals(cached.Catalog, catalog)) return cached.Pieces;
+        int version = building.Edit?.Version ?? -1;
+        if (Cache.TryGetValue(building, out var cached) && ReferenceEquals(cached.Catalog, catalog) && cached.Version == version) return cached.Pieces;
         var pieces = Compute(building, catalog, 0);
-        Cache.AddOrUpdate(building, new Plan(catalog, pieces));
+        Cache.AddOrUpdate(building, new Plan(catalog, version, pieces));
         return pieces;
     }
 
     private static IReadOnlyList<HomePiece> Compute(Building building, ObjectCatalog catalog, int lodgingBeds)
     {
-        var layout = BuildingLayoutCache.Of(building).Layout;
-        var rooms = BuildingRooms.Of(building, catalog);
+        // #264: o planejador trabalha na planta e nos cômodos de ORIGEM (a obra do morador não reembaralha a mobília do catálogo); a compra, a venda e a mudança entram por cima
+        var layout = BuildingLayoutCache.BaseOf(building).Layout;
+        var rooms = BuildingRooms.BaseOf(building, catalog);
         long seed = building.Id.Value * 31 + building.BuildingTypeId;
         var furnishing = catalog.FurnishingFor(building.BuildingTypeId);
         var result = new List<HomePiece>();
@@ -49,6 +51,7 @@ public static class HomeFurniture
             result.Add(new HomePiece(id, ObjectVariation.Index(catalog.Find(id)?.VariationSeed ?? 0, slot), ground[lodgingBeds + slot]));
         }
 
+        ApplyEdit(building, result);
         int remaining = lodgingBeds;
         for (int i = 0; i < lodgingBeds; i++)
             if (ground[i] is { } spot) { result.Add(new HomePiece("bed", 0, spot)); remaining--; }
@@ -59,6 +62,22 @@ public static class HomeFurniture
 
         return result;
     }
+
+    /// <summary>#264: por cima da mobília do catálogo, o que o morador fez: a peça vendida some (o índice fica), a movida muda de lugar e as compradas entram no fim, na ordem da compra.</summary>
+    private static void ApplyEdit(Building building, List<HomePiece> pieces)
+    {
+        if (building.Edit is not { } edit) return;
+        foreach (var move in edit.Moved)
+            if (move.Piece >= 0 && move.Piece < pieces.Count)
+                pieces[move.Piece] = pieces[move.Piece] with { Spot = new FurnitureSpot(move.Floor, new CellCoord(move.X, move.Y), move.Facing) };
+        foreach (var gone in edit.Removed)
+            if (gone >= 0 && gone < pieces.Count) pieces[gone] = pieces[gone] with { Spot = null };
+        foreach (var bought in edit.Added)
+            pieces.Add(new HomePiece(bought.Id, bought.Variation, bought.Gone ? null : new FurnitureSpot(bought.Floor, new CellCoord(bought.X, bought.Y), bought.Facing)));
+    }
+
+    /// <summary>Quantas peças do catálogo do tipo de prédio há (as compradas vêm depois delas na mobília).</summary>
+    public static int BaseCount(Building building, ObjectCatalog catalog) => catalog.FurnishingFor(building.BuildingTypeId).Count;
 
     /// <summary>As células dos cômodos do andar que atendem a algum uso do objeto (pontos de uso com ação, no catálogo, contra os usos do cômodo); nulo = sem
     /// restrição (objeto sem uso declarado, andar sem divisão ou nenhum cômodo que o atenda).</summary>

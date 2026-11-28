@@ -25,7 +25,12 @@ public static class BuildingLayoutGenerator
 
     public static int FloorsOf(BuildingId id, int buildingTypeId) => Generate(id, buildingTypeId).Floors;
 
+    /// <summary>A planta do prédio como está agora: a de origem (<see cref="GenerateBase"/>) com as células novas que o morador acrescentou (#264).</summary>
     public static BuildingLayout Generate(Building building) =>
+        HomeEditor.ApplyLayout(GenerateBase(building), building.Edit, BuildingFootprintGenerator.WallMaterialOf(building.BuildingTypeId));
+
+    /// <summary>A planta de origem, função pura de (id, tipo, orientação, forma): é nela que o planejador de cômodos e de móveis trabalha.</summary>
+    public static BuildingLayout GenerateBase(Building building) =>
         Generate(building.Id, building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId), building.Shape);
 
     public static BuildingLayout Generate(BuildingId id, int buildingTypeId, int? orientation = null, BuildingShape? shape = null)

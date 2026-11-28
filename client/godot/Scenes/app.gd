@@ -97,6 +97,7 @@ var hover_text := ""
 var selected_npc := -1
 var settings ## preferências locais (GameSettings) vindas do Boot; nulo nos testes e nas medidas
 var pause_menu ## PauseMenu (Esc)
+var buy_mode ## #264: BuyMode, o modo comprar e construir
 var modal ## #240: Modal, o registro único de popup aberto
 var popup_hold ## #240: PopupHold, o pedido de pausa de popup ao motor
 var first_steps ## FirstSteps: dicas da primeira vez e ajuda
@@ -1130,6 +1131,28 @@ func _on_modal(active: bool) -> void:
 			player_hud._reach_at = Vector2.INF
 	if feedback != null:
 		feedback.suppressed = active
+
+
+## #264: B abre ou fecha o modo comprar e construir (só em casa, com o corpo dentro; o motor diz se há loja e casa própria).
+func toggle_buy_mode() -> void:
+	if buy_mode == null:
+		return
+	if buy_mode.is_open:
+		buy_mode.close()
+		return
+	if player_hud == null or not player_hud.is_active or not stage.active:
+		toasts.push("Entre na sua casa para comprar e construir (tecla B).")
+		return
+	buy_mode.player_id = player_hud.player_id
+	await buy_mode.open()
+
+
+## #264: o motor aceitou uma compra, venda ou obra: a casa em foco é relida e redesenhada, e o aviso diz o que foi.
+func on_home_changed(note: String) -> void:
+	if note != "":
+		toasts.push(note)
+	await session.refresh_interior()
+	buy_mode.after_redraw()
 
 
 ## AD-197j: a mira (uma cruz no centro) só no modo jogador.

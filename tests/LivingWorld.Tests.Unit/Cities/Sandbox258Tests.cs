@@ -27,7 +27,7 @@ public class Sandbox258Tests
 
     private static (WorldState World, WorldClock Clock) Load(Action<JsonObject>? edit = null, bool full = true, ulong seed = 258)
     {
-        var root = full ? SandboxFixtures.Parse() : SandboxFixtures.CoupleOnly(SandboxFixtures.Parse());
+        var root = full ? SandboxFixtures.WithoutFurnitureShop(SandboxFixtures.Parse()) : SandboxFixtures.CoupleOnly(SandboxFixtures.Parse());
         root["Seed"] = seed;
         edit?.Invoke(root);
         var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());

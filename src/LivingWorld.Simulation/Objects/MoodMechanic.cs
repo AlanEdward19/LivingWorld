@@ -154,7 +154,8 @@ public static class MoodMechanic
 
     private static bool StateHolds(WorldState world, Npc npc, MomentTrigger t, long ms)
     {
-        if (t.Need is null || HomeLife.Value(world, npc, t.Need, ms) is not { } v) return false;
+        double? value = t.Ambient is not null ? RoomBeauty.Ambient(world, npc, t.Ambient) : t.Need is null ? null : HomeLife.Value(world, npc, t.Need, ms); // #264: ambiente = o cômodo onde está
+        if (value is not { } v) return false;
         return (t.Below is null || v < t.Below) && (t.Above is null || v >= t.Above);
     }
 

@@ -9,16 +9,16 @@ namespace LivingWorld.Api.Visual.Observable;
 /// no terreno). Guardado por mundo e refeito quando muda o conjunto de prédios (a planta é função pura do prédio).</summary>
 internal static class BuildingFootprints
 {
-    private sealed record Index(int Count, long IdSum, HashSet<CellCoord> Cells);
+    private sealed record Index(int Count, long IdSum, long Edits, HashSet<CellCoord> Cells);
 
     private static readonly ConditionalWeakTable<WorldState, Index> Cache = new();
 
     public static HashSet<CellCoord> Of(WorldState world)
     {
         var buildings = world.Buildings;
-        long idSum = 0;
-        for (int i = 0; i < buildings.Count; i++) idSum += buildings[i].Id.Value;
-        if (Cache.TryGetValue(world, out var known) && known.Count == buildings.Count && known.IdSum == idSum) return known.Cells;
+        long idSum = 0, edits = 0;
+        for (int i = 0; i < buildings.Count; i++) { idSum += buildings[i].Id.Value; edits += buildings[i].Edit?.Version + 1 ?? 0; }
+        if (Cache.TryGetValue(world, out var known) && known.Count == buildings.Count && known.IdSum == idSum && known.Edits == edits) return known.Cells;
 
         var cells = new HashSet<CellCoord>();
         foreach (var building in buildings)
@@ -28,7 +28,7 @@ internal static class BuildingFootprints
                 cells.Add(new CellCoord(origin.X + cell.Cell.X, origin.Y + cell.Cell.Y));
         }
 
-        Cache.AddOrUpdate(world, new Index(buildings.Count, idSum, cells));
+        Cache.AddOrUpdate(world, new Index(buildings.Count, idSum, edits, cells));
         return cells;
     }
 }

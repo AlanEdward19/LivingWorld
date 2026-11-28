@@ -1,0 +1,748 @@
+{
+ "objectsFormat": 1,
+ "Objects": [
+  {
+   "id": "armchair",
+   "name": "Poltrona",
+   "category": "furniture",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.8,
+      0.45,
+      0.75
+     ],
+     "offset": [
+      0,
+      0.225,
+      0
+     ],
+     "color": "8a5a44"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.8,
+      0.45,
+      0.14
+     ],
+     "offset": [
+      0,
+      0.65,
+      -0.3
+     ],
+     "color": "774b38"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.14,
+      0.3,
+      0.6
+     ],
+     "offset": [
+      -0.33,
+      0.55,
+      0.02
+     ],
+     "color": "774b38"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.14,
+      0.3,
+      0.6
+     ],
+     "offset": [
+      0.33,
+      0.55,
+      0.02
+     ],
+     "color": "774b38"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "sentar",
+     "offset": [
+      0,
+      0,
+      0.0
+     ],
+     "facing": 0,
+     "action": 3,
+     "pose": "socialize"
+    }
+   ],
+   "uses": [
+    {
+     "id": "relax",
+     "name": "Sentar e relaxar",
+     "durationMin": 20,
+     "effects": [
+      {
+       "need": "fun",
+       "perHour": 35
+      },
+      {
+       "need": "sleep",
+       "perHour": 8
+      }
+     ],
+     "pose": "rest",
+     "poseFallback": "socialize",
+     "slot": [
+      0,
+      0.0
+     ],
+     "facing": 0
+    }
+   ]
+  },
+  {
+   "id": "plant",
+   "name": "Planta",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "cylinder",
+     "size": [
+      0.17,
+      0.3
+     ],
+     "offset": [
+      0,
+      0.15,
+      0
+     ],
+     "color": "9a5b3c"
+    },
+    {
+     "shape": "sphere",
+     "size": [
+      0.28
+     ],
+     "offset": [
+      0,
+      0.62,
+      0
+     ],
+     "color": "3f7d3a"
+    },
+    {
+     "shape": "sphere",
+     "size": [
+      0.2
+     ],
+     "offset": [
+      0.12,
+      0.88,
+      0.04
+     ],
+     "color": "4f9147"
+    },
+    {
+     "shape": "sphere",
+     "size": [
+      0.18
+     ],
+     "offset": [
+      -0.1,
+      0.84,
+      -0.06
+     ],
+     "color": "356c34"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "painting",
+   "name": "Quadro",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.9,
+      0.62,
+      0.04
+     ],
+     "offset": [
+      0,
+      1.45,
+      -0.46
+     ],
+     "color": "5a4630"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.8,
+      0.52,
+      0.02
+     ],
+     "offset": [
+      0,
+      1.45,
+      -0.44
+     ],
+     "color": "d8b66a"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.5,
+      0.22,
+      0.015
+     ],
+     "offset": [
+      -0.06,
+      1.38,
+      -0.43
+     ],
+     "color": "4d7ea8"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "bookshelf",
+   "name": "Estante",
+   "category": "furniture",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      1.0,
+      1.7,
+      0.32
+     ],
+     "offset": [
+      0,
+      0.85,
+      -0.3
+     ],
+     "color": "6b4a2c"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.88,
+      0.3,
+      0.26
+     ],
+     "offset": [
+      0,
+      0.45,
+      -0.3
+     ],
+     "color": "b5523f"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.88,
+      0.3,
+      0.26
+     ],
+     "offset": [
+      0,
+      0.95,
+      -0.3
+     ],
+     "color": "3f6e9a"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.88,
+      0.3,
+      0.26
+     ],
+     "offset": [
+      0,
+      1.45,
+      -0.3
+     ],
+     "color": "c7a23a"
+    }
+   ],
+   "usePoints": [
+    {
+     "name": "ler",
+     "offset": [
+      0,
+      0,
+      0.2
+     ],
+     "facing": 180,
+     "action": 3,
+     "pose": "idle"
+    }
+   ],
+   "uses": [
+    {
+     "id": "read",
+     "name": "Ler um livro",
+     "durationMin": 30,
+     "effects": [
+      {
+       "need": "fun",
+       "perHour": 35
+      }
+     ],
+     "pose": "idle",
+     "slot": [
+      0,
+      0.5
+     ],
+     "facing": 180
+    }
+   ]
+  },
+  {
+   "id": "rug",
+   "name": "Tapete",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      1.25,
+      0.02,
+      1.25
+     ],
+     "offset": [
+      0,
+      0.01,
+      0
+     ],
+     "color": "a85a4a"
+    },
+    {
+     "shape": "box",
+     "size": [
+      1.0,
+      0.025,
+      1.0
+     ],
+     "offset": [
+      0,
+      0.012,
+      0
+     ],
+     "color": "d9b88f"
+    }
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "floorlamp",
+   "name": "Luminária de chão",
+   "category": "decor",
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "box",
+     "size": [
+      0.34,
+      0.04,
+      0.34
+     ],
+     "offset": [
+      0,
+      0.02,
+      0
+     ],
+     "color": "2f2f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.04,
+      1.5,
+      0.04
+     ],
+     "offset": [
+      0,
+      0.77,
+      0
+     ],
+     "color": "2f2f35"
+    },
+    {
+     "shape": "box",
+     "size": [
+      0.44,
+      0.32,
+      0.44
+     ],
+     "offset": [
+      0,
+      1.6,
+      0
+     ],
+     "color": "f6e6b4"
+    }
+   ],
+   "usePoints": [],
+   "light": {
+    "color": "ffd9a0",
+    "rangeM": 7.0,
+    "energy": 1.6,
+    "heightM": 1.3
+   },
+   "uses": [
+    {
+     "id": "on",
+     "name": "Ligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:on",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    },
+    {
+     "id": "off",
+     "name": "Desligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:off",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    }
+   ]
+  }
+ ],
+ "Home": {
+  "rules": {
+   "resalePercent": 60,
+   "deliveryMin": 0,
+   "orderMarkupPercent": 20,
+   "maxPieces": 60
+  },
+  "categories": [
+   {
+    "id": "seat",
+    "name": "Sentar"
+   },
+   {
+    "id": "bed",
+    "name": "Dormir"
+   },
+   {
+    "id": "cook",
+    "name": "Cozinhar"
+   },
+   {
+    "id": "bath",
+    "name": "Banheiro"
+   },
+   {
+    "id": "fun",
+    "name": "Diversão"
+   },
+   {
+    "id": "decor",
+    "name": "Decoração"
+   },
+   {
+    "id": "light",
+    "name": "Luz"
+   }
+  ],
+  "items": [
+   {
+    "object": "sofa",
+    "category": "seat",
+    "price": 30,
+    "beauty": 3,
+    "resource": 20,
+    "craft": {
+     "hours": 8,
+     "materials": {
+      "40": 3
+     }
+    }
+   },
+   {
+    "object": "armchair",
+    "category": "seat",
+    "price": 18,
+    "beauty": 2,
+    "resource": 21,
+    "craft": {
+     "hours": 6,
+     "materials": {
+      "40": 2
+     }
+    }
+   },
+   {
+    "object": "chair",
+    "category": "seat",
+    "price": 5,
+    "beauty": 0.5,
+    "resource": 22,
+    "craft": {
+     "hours": 2,
+     "materials": {
+      "40": 1
+     }
+    }
+   },
+   {
+    "object": "bed",
+    "category": "bed",
+    "price": 30,
+    "beauty": 2,
+    "resource": 23,
+    "craft": {
+     "hours": 10,
+     "materials": {
+      "40": 4
+     }
+    }
+   },
+   {
+    "object": "bedside",
+    "category": "light",
+    "price": 7,
+    "beauty": 1,
+    "resource": 24,
+    "craft": {
+     "hours": 2,
+     "materials": {
+      "40": 1
+     }
+    }
+   },
+   {
+    "object": "fridge",
+    "category": "cook",
+    "price": 40,
+    "beauty": 0,
+    "resource": 25,
+    "rooms": [
+     "cozinha"
+    ]
+   },
+   {
+    "object": "stove",
+    "category": "cook",
+    "price": 35,
+    "beauty": 0,
+    "resource": 26,
+    "rooms": [
+     "cozinha"
+    ]
+   },
+   {
+    "object": "table",
+    "category": "cook",
+    "price": 12,
+    "beauty": 1,
+    "resource": 27,
+    "craft": {
+     "hours": 4,
+     "materials": {
+      "40": 2
+     }
+    }
+   },
+   {
+    "object": "shower",
+    "category": "bath",
+    "price": 25,
+    "beauty": 1,
+    "resource": 28,
+    "rooms": [
+     "banheiro"
+    ]
+   },
+   {
+    "object": "toilet",
+    "category": "bath",
+    "price": 15,
+    "beauty": 0,
+    "resource": 29,
+    "rooms": [
+     "banheiro"
+    ]
+   },
+   {
+    "object": "sink",
+    "category": "bath",
+    "price": 12,
+    "beauty": 0.5,
+    "resource": 30,
+    "rooms": [
+     "banheiro"
+    ]
+   },
+   {
+    "object": "tv",
+    "category": "fun",
+    "price": 28,
+    "beauty": 1,
+    "resource": 31
+   },
+   {
+    "object": "bookshelf",
+    "category": "fun",
+    "price": 20,
+    "beauty": 3,
+    "resource": 32,
+    "wall": true,
+    "craft": {
+     "hours": 6,
+     "materials": {
+      "40": 3
+     }
+    }
+   },
+   {
+    "object": "plant",
+    "category": "decor",
+    "price": 8,
+    "beauty": 2,
+    "resource": 33
+   },
+   {
+    "object": "painting",
+    "category": "decor",
+    "price": 12,
+    "beauty": 3,
+    "resource": 34,
+    "wall": true
+   },
+   {
+    "object": "rug",
+    "category": "decor",
+    "price": 10,
+    "beauty": 2,
+    "resource": 35
+   },
+   {
+    "object": "lamp",
+    "category": "light",
+    "price": 6,
+    "beauty": 1,
+    "resource": 36,
+    "craft": {
+     "hours": 2,
+     "materials": {
+      "40": 1
+     }
+    }
+   },
+   {
+    "object": "floorlamp",
+    "category": "light",
+    "price": 9,
+    "beauty": 2,
+    "resource": 37
+   }
+  ],
+  "paints": [
+   {
+    "id": "concrete",
+    "name": "Concreto nu",
+    "kind": "floor",
+    "color": "8a8a85",
+    "beauty": -2,
+    "price": 0,
+    "default": true
+   },
+   {
+    "id": "wood",
+    "name": "Tábua corrida",
+    "kind": "floor",
+    "color": "b58253",
+    "beauty": 2,
+    "price": 1
+   },
+   {
+    "id": "tile",
+    "name": "Ladrilho",
+    "kind": "floor",
+    "color": "cfd6d6",
+    "beauty": 1.5,
+    "price": 1
+   },
+   {
+    "id": "carpet",
+    "name": "Carpete",
+    "kind": "floor",
+    "color": "8c5a5f",
+    "beauty": 2.5,
+    "price": 2
+   },
+   {
+    "id": "plaster",
+    "name": "Reboco cru",
+    "kind": "wall",
+    "color": "c9c3b8",
+    "beauty": -1,
+    "price": 0,
+    "default": true
+   },
+   {
+    "id": "cream",
+    "name": "Creme",
+    "kind": "wall",
+    "color": "eadfc2",
+    "beauty": 1,
+    "price": 1
+   },
+   {
+    "id": "sky",
+    "name": "Azul-céu",
+    "kind": "wall",
+    "color": "7fa8cc",
+    "beauty": 1.5,
+    "price": 1
+   },
+   {
+    "id": "sage",
+    "name": "Verde-sálvia",
+    "kind": "wall",
+    "color": "9fb8a0",
+    "beauty": 1.5,
+    "price": 1
+   },
+   {
+    "id": "brick",
+    "name": "Tijolo à vista",
+    "kind": "wall",
+    "color": "a4523a",
+    "beauty": 1,
+    "price": 2
+   }
+  ],
+  "build": {
+   "contractor": 2,
+   "wall": 4,
+   "door": 3,
+   "demolish": 1,
+   "cell": 6,
+   "maxExtraCells": 12
+  }
+ }
+}

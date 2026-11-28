@@ -42,10 +42,11 @@ public sealed record MoodRules(
 public sealed record MoodEmotion(string Id, string Name, string Icon, string? Face = null, string? Psyche = null, string? Color = null);
 
 /// <summary>Quando o momento surge. <c>Kind</c>: <c>use</c> (fim natural do uso do catálogo), <c>action</c> (ação do motor concluída), <c>social</c> (interação aceita ou
-/// recusada), <c>life</c> (fato da vida, <c>LifeEventKind</c>), <c>reward</c> (só o motor o dá: desejo cumprido, marco) ou <c>state</c> (enquanto a condição vale, sem estado guardado: necessidade abaixo ou acima de um nível).</summary>
+/// recusada), <c>life</c> (fato da vida, <c>LifeEventKind</c>), <c>reward</c> (só o motor o dá: desejo cumprido, marco) ou <c>state</c> (enquanto a condição vale, sem estado guardado: necessidade abaixo ou acima de um nível, ou, #264, <c>Ambient</c>: uma medida do cômodo onde a pessoa está, hoje <c>beauty</c>).</summary>
 public sealed record MomentTrigger(
     string Kind, string? Use = null, string? Action = null, string? Interaction = null, string? Category = null, string? Result = null, string? Side = null,
-    string? Life = null, string? Need = null, double? Below = null, double? Above = null);
+    string? Life = null, string? Need = null, double? Below = null, double? Above = null,
+    string? Ambient = null);
 
 /// <summary>Efeitos reais do momento: <c>UseRate</c> multiplica o que os usos de objeto entregam (rendimento); <c>SocialBias</c> multiplica a vontade de iniciar interações de cada
 /// categoria (o que o NPC escolhe fazer).</summary>

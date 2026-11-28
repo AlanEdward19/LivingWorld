@@ -52,6 +52,8 @@ var _plans: Dictionary = {} ## nível -> {célula local: material} (a planta do 
 var _panels: Dictionary = {} ## nível -> [Rect2] painéis finos de parede (células absolutas) para a colisão do corpo (#226)
 var _view_dir := Vector3.ZERO
 var _tint: Dictionary = {} ## célula local -> cor do piso do cômodo (#226: só apresentação: o cômodo e o tipo são do motor)
+var _paint_floor: Dictionary = {} ## #264: "andar|x|y" -> cor que o morador deu ao piso (o motor diz; o cliente só pinta)
+var _paint_wall: Dictionary = {} ## #264: "andar|ax,ay,bx,by" -> cor da parede
 var _bounds := Rect2() ## planta do térreo em células absolutas (para a caixa da câmera do jogador)
 var _immersive_applied := false
 var immersive := false ## #227: o jogador está na casa: nada de corte de maquete, as paredes ficam na altura inteira
@@ -71,6 +73,7 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 	origin = p_origin
 	_labels = labels
 	floor_count = int(info.floors)
+	_read_paint(info)
 	for floor_layout in info.layout:
 		var level := int(floor_layout.level)
 		var node := Node3D.new()
@@ -394,7 +397,7 @@ func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
 			node.position = Grid.to_world(cell, 0.0)
 		_:
 			mesh.size = Vector3(Grid.CELL, 0.08, Grid.CELL)
-			node.material_override = _material(_floor_color(Vector2i(int(entry.cell.x), int(entry.cell.y)), (cell.x + cell.y + level) % 2 == 0))
+			node.material_override = _material(_floor_color(Vector2i(int(entry.cell.x), int(entry.cell.y)), (cell.x + cell.y + level) % 2 == 0, level))
 			node.position = Grid.to_world(cell, 0.0)
 	node.mesh = mesh
 	parent.add_child(node)
@@ -413,7 +416,28 @@ func _tints_of(info: Dictionary, level: int) -> Dictionary:
 	return tints
 
 
-func _floor_color(local: Vector2i, even: bool) -> Color:
+## #264: a pintura do piso e das paredes que o morador deu (`paint` do retrato da casa: marcas e a cor de cada tinta).
+func _read_paint(info: Dictionary) -> void:
+	_paint_floor = {}
+	_paint_wall = {}
+	var paint = info.get("paint")
+	if not paint is Dictionary:
+		return
+	var colors: Dictionary = paint.get("colors", {})
+	for mark in paint.get("marks", []):
+		var hex := String(colors.get(String(mark.paint), ""))
+		if hex == "":
+			continue
+		if String(mark.kind) == "floor":
+			_paint_floor["%d|%d|%d" % [int(mark.floor), int(mark.x), int(mark.y)]] = Color(hex)
+		else:
+			_paint_wall["%d|%d,%d,%d,%d" % [int(mark.floor), int(mark.x), int(mark.y), int(mark.bx), int(mark.by)]] = Color(hex)
+
+
+func _floor_color(local: Vector2i, even: bool, level: int = 0) -> Color:
+	var painted: Variant = _paint_floor.get("%d|%d|%d" % [level, local.x, local.y])
+	if painted is Color:
+		return painted if even else (painted as Color).darkened(0.04)
 	var base: Color = _tint.get(local, Color("c9b896") if even else Color("bfae8c"))
 	return base if even or not _tint.has(local) else base.darkened(0.05)
 
@@ -468,7 +492,9 @@ func _add_panels(parent: Node3D, plan: Dictionary, level: int, walls: Array, doo
 		var box := BoxMesh.new()
 		box.size = Vector3(rect.size.x * Grid.CELL, wall_height(), rect.size.y * Grid.CELL)
 		node.mesh = box
-		node.material_override = _material(Color("9a948a") if int(panel.material) == WALL_STONE else Color("a27b52"))
+		var base_wall := Color("9a948a") if int(panel.material) == WALL_STONE else Color("a27b52")
+		var painted_wall: Variant = _paint_wall.get("%d|%s" % [level, String(panel.get("edge", ""))])
+		node.material_override = _material(painted_wall if painted_wall is Color else base_wall) # #264: a cor da parede é a tinta que o motor diz
 		var center := absolute.get_center()
 		node.position = Vector3(center.x * Grid.CELL, wall_height() / 2.0, center.y * Grid.CELL)
 		parent.add_child(node)

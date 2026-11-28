@@ -1,7 +1,7 @@
 extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
-## Passos (#258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
+## Passos (#264, modo comprar: buy · buytab:buy|mine|build · buycat · buyitem:id · buyfind:id[,cômodo] · buyat:X,Y[,giro] · buyface:graus · buyask · buyclick · buycmd:verbo · buyhome · buycut:cômodo · buyedgefind:op · buyextendfind · buytool:nome · buypaint:id · buyroomcell:tipo · buymovefind:N · buyonpiece:N · mousepos:X,Y · mousebuy · golocal:X,Y · partner) · (#258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
 ##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
@@ -216,6 +216,205 @@ static func run(app: Node, steps: Array) -> void:
 					await app.player_hud.interact(picked)
 			"needs": # #255: imprime as barras do corpo (as de sempre e as do catálogo), a dica, a ação em curso e a fila
 				await _print_needs(app)
+			"buy": # #264: abre (ou fecha) o modo comprar e construir (a tecla B)
+				await app.toggle_buy_mode()
+				app.buy_mode.mouse_follow = false # a captura manda a célula; `mousebuy` devolve o mouse
+				print("buy: aberto=", app.buy_mode.is_open, " dinheiro=", app.buy_mode.home.get("wallet"), " itens=", app.buy_mode.home.get("items", []).size(), " peças=", app.buy_mode.home.get("pieces", []).size(), " loja=", app.buy_mode.home.get("shop"))
+			"mousepos": # #264: `mousepos:X,Y` põe o mouse da janela ali (o fantasma segue; o ponto vira célula pela câmera de cima) e imprime a célula e a volta ao pixel
+				var mp: PackedStringArray = arg.split(",")
+				var where := Vector2(float(mp[0]), float(mp[1]))
+				app.get_viewport().warp_mouse(where)
+				await app.get_tree().process_frame
+				await app.get_tree().process_frame
+				var cell_point: Vector3 = app.buy_mode.floor_point(where)
+				app.buy_mode.point_hovered(cell_point)
+				var back: Vector2 = app.rig.camera.unproject_position(Grid.to_world(app.stage.interior_view.origin + app.buy_mode.hover, 0.0))
+				print("mousepos: ", where, " -> célula local ", app.buy_mode.hover, " aresta ", app.buy_mode.hover_edge, " | volta ao pixel (centro da célula) ", back, " | mouse da janela ", app.get_viewport().get_mouse_position())
+			"mousebuy": # #264: o fantasma volta a seguir o mouse (use `hover:X,Y` para movê-lo)
+				app.buy_mode.mouse_follow = true
+			"buytab": # #264: `buytab:buy|mine|build`
+				app.buy_mode.set_tab(arg)
+			"buycat": # #264: filtra a categoria (`buycat:decor`; vazio = tudo)
+				app.buy_mode.set_category(arg)
+			"buyitem": # #264: escolhe o móvel (`buyitem:sofa`)
+				app.buy_mode.select_item(arg)
+			"buytool": # #264: `buytool:wall|open|door|shut|extend|paint_floor|paint_wall` (+ `buypaint:id`)
+				app.buy_mode.use_tool(arg)
+			"buypaint":
+				app.buy_mode.paint_id = arg
+				app.buy_mode._rebuild()
+			"buyface": # #264: giro em graus
+				app.buy_mode.facing = int(arg)
+				app.buy_mode._update_ghost()
+			"buyat": # #264: `buyat:X,Y[,giro]` põe o fantasma na célula local e pergunta ao motor (imprime o veredito)
+				var at: PackedStringArray = arg.split(",")
+				app.buy_mode.hover = Vector2i(int(at[0]), int(at[1]))
+				if at.size() > 2:
+					app.buy_mode.facing = int(at[2])
+				await app.buy_mode.ask(app.buy_mode.current_verb())
+				app.buy_mode._update_ghost()
+				app.buy_mode._update_marks()
+				print("buyat: ", app.buy_mode.current_verb(), " -> ", app.buy_mode.verdict, " verde=", app.buy_mode.ghost_is_green(), " vermelho=", app.buy_mode.ghost_is_red())
+			"buyedge": # #264: `buyedge:ax,ay,bx,by` a aresta alvo das ferramentas de obra
+				var edge: PackedStringArray = arg.split(",")
+				app.buy_mode.hover_edge = [int(edge[0]), int(edge[1]), int(edge[2]), int(edge[3])]
+				app.buy_mode.hover = Vector2i(int(edge[0]), int(edge[1]))
+				await app.buy_mode.ask(app.buy_mode.current_verb())
+				app.buy_mode._update_marks()
+				print("buyedge: ", app.buy_mode.current_verb(), " -> ", app.buy_mode.verdict)
+			"buyfind": # #264: `buyfind:sofa[,sala]` acha pelo motor a primeira célula e giro onde o móvel cabe (opcionalmente no cômodo do tipo) e põe o fantasma ali
+				var want: PackedStringArray = arg.split(",")
+				app.buy_mode.select_item(want[0])
+				var rooms: Array = app.store.interior.get("rooms", [])
+				var allowed := {}
+				if want.size() > 1 and rooms.size() > 0:
+					for room in rooms[0].get("rooms", []):
+						if String(room.get("kind", "")) == want[1]:
+							for room_cell in room.cells:
+								allowed[Vector2i(int(room_cell.x), int(room_cell.y))] = true
+				var found := false
+				for entry in app.store.interior.layout[0].cells:
+					var cell := Vector2i(int(entry.cell.x), int(entry.cell.y))
+					if found or (not allowed.is_empty() and not allowed.has(cell)):
+						continue
+					for turn in [0, 90, 180, 270]:
+						app.buy_mode.hover = cell
+						app.buy_mode.facing = turn
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						if bool(app.buy_mode.verdict.get("ok", false)):
+							found = true
+							break
+				app.buy_mode._update_ghost()
+				app.buy_mode._update_marks()
+				print("buyfind: cômodo ", want[1] if want.size() > 1 else "-", " células=", allowed.size(), " cômodos no retrato=", rooms.size(), " | ", want[0], " -> ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict.get("note", ""), " verde=", app.buy_mode.ghost_is_green())
+			"buyonpiece": # #264: `buyonpiece:N` põe o fantasma sobre a peça N da casa (o motor deve dizer que já tem móvel ali)
+				var onto: Dictionary = app.buy_mode.piece_by_index(int(arg))
+				app.buy_mode.hover = Vector2i(int(onto.x), int(onto.y))
+				await app.buy_mode.ask(app.buy_mode.current_verb())
+				app.buy_mode._update_ghost()
+				app.buy_mode._update_marks()
+				print("buyonpiece: ", app.buy_mode.current_verb(), " -> ", app.buy_mode.verdict.get("reason"), " vermelho=", app.buy_mode.ghost_is_red())
+			"buyask": # #264: pergunta ao motor o verbo de agora e imprime o veredito
+				await app.buy_mode.ask(app.buy_mode.current_verb())
+				app.buy_mode._update_ghost()
+				app.buy_mode._update_marks()
+				print("buyask: ", app.buy_mode.current_verb(), " -> ", app.buy_mode.verdict, " verde=", app.buy_mode.ghost_is_green(), " vermelho=", app.buy_mode.ghost_is_red())
+			"buymovefind": # #264: `buymovefind:N` começa a mover a peça N e acha pelo motor outra célula e giro onde ela cabe
+				var piece := int(arg)
+				var from: Dictionary = app.buy_mode.piece_by_index(piece)
+				app.buy_mode.start_move(piece)
+				var moved := false
+				for entry in app.store.interior.layout[0].cells:
+					var cell := Vector2i(int(entry.cell.x), int(entry.cell.y))
+					if moved or (cell == Vector2i(int(from.x), int(from.y))):
+						continue
+					for turn in [0, 90, 180, 270]:
+						app.buy_mode.hover = cell
+						app.buy_mode.facing = turn
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						if bool(app.buy_mode.verdict.get("ok", false)):
+							moved = true
+							break
+				app.buy_mode._update_ghost()
+				print("buymovefind: ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict)
+			"buyedgefind": # #264: `buyedgefind:wall|open|door|shut` acha pelo motor a primeira aresta onde a obra vale (e a marca)
+				var op := arg
+				app.buy_mode.use_tool(op)
+				var cells := {}
+				for entry in app.store.interior.layout[0].cells:
+					cells[Vector2i(int(entry.cell.x), int(entry.cell.y))] = true
+				var picked := false
+				for cell in cells:
+					for step_dir in [Vector2i(1, 0), Vector2i(0, 1)]:
+						var other: Vector2i = cell + step_dir
+						if picked or not cells.has(other):
+							continue
+						app.buy_mode.hover = cell
+						app.buy_mode.hover_edge = [cell.x, cell.y, other.x, other.y]
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						if bool(app.buy_mode.verdict.get("ok", false)):
+							picked = true
+				app.buy_mode._update_marks()
+				print("buyedgefind: ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict)
+			"buycut": # #264: `buycut:sala` divide o cômodo por uma linha reta de paredes (a primeira com porta, para ninguém ficar preso); cada trecho é um comando ao motor
+				var rooms3: Array = app.store.interior.get("rooms", [])
+				var room_cells := {}
+				for room in rooms3[0].get("rooms", []) if rooms3.size() > 0 else []:
+					if String(room.get("kind", "")) == arg and room_cells.is_empty():
+						for room_cell in room.cells:
+							room_cells[Vector2i(int(room_cell.x), int(room_cell.y))] = true
+				var line: Array = []
+				var xs: Array = room_cells.keys().map(func(c): return c.x)
+				var ys: Array = room_cells.keys().map(func(c): return c.y)
+				var cuts: Array = range(xs.min(), xs.max())
+				cuts.sort_custom(func(a, b): return absf(a - (xs.min() + xs.max() - 1) / 2.0) < absf(b - (xs.min() + xs.max() - 1) / 2.0)) # do meio para as pontas
+				for cut_x in cuts:
+					var edges: Array = []
+					for y in range(ys.min(), ys.max() + 1):
+						if room_cells.has(Vector2i(cut_x, y)) and room_cells.has(Vector2i(cut_x + 1, y)):
+							edges.append([cut_x, y, cut_x + 1, y])
+					if line.is_empty() and edges.size() == ys.max() - ys.min() + 1:
+						line = edges
+				app.buy_mode.use_tool("wall")
+				var made := 0
+				for index in line.size():
+					var e: Array = line[index]
+					var wall_verb := "wall:0:%d:%d:%d:%d" % [e[0], e[1], e[2], e[3]]
+					await app.buy_mode.ask(wall_verb)
+					var ok_wall: bool = await app.buy_mode.command(wall_verb)
+					print("buycut: ", wall_verb, " ", app.buy_mode.verdict.get("reason", "ok") if not ok_wall else "ok")
+					made += 1 if ok_wall else 0
+					if index == 0 and ok_wall:
+						var door_verb := "door:0:%d:%d:%d:%d" % [e[0], e[1], e[2], e[3]]
+						await app.buy_mode.ask(door_verb)
+						var ok_door: bool = await app.buy_mode.command(door_verb)
+						print("buycut: ", door_verb, " ", app.buy_mode.verdict.get("reason", "ok") if not ok_door else "ok")
+				print("buycut: ", arg, " linha=", line, " trechos=", made, " dinheiro=", app.buy_mode.home.get("wallet"), " cômodos=", app.buy_mode.home.get("rooms", []).map(func(r): return "%s:%s" % [r.kind, r.cells]))
+			"buyextendfind": # #264: acha pelo motor a primeira célula onde a casa pode ampliar e a marca
+				app.buy_mode.use_tool("extend")
+				var known := {}
+				for entry in app.store.interior.layout[0].cells:
+					known[Vector2i(int(entry.cell.x), int(entry.cell.y))] = true
+				var chosen := false
+				for cell in known:
+					for dir in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+						var out: Vector2i = cell + dir
+						if chosen or known.has(out):
+							continue
+						app.buy_mode.hover = out
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						if bool(app.buy_mode.verdict.get("ok", false)):
+							chosen = true
+				app.buy_mode._update_marks()
+				print("buyextendfind: ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict)
+			"buyroomcell": # #264: `buyroomcell:sala` põe o mouse numa célula do cômodo (para pintar)
+				var rooms2: Array = app.store.interior.get("rooms", [])
+				for room in rooms2[0].get("rooms", []) if rooms2.size() > 0 else []:
+					if String(room.get("kind", "")) == arg:
+						app.buy_mode.hover = Vector2i(int(room.cells[0].x), int(room.cells[0].y))
+						break
+				await app.buy_mode.ask(app.buy_mode.current_verb())
+				app.buy_mode._update_marks()
+				print("buyroomcell: ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict)
+			"buyclick": # #264: o clique do mouse (manda o verbo se o motor disse que pode)
+				var before_money := int(app.buy_mode.home.get("wallet", 0))
+				await app.buy_mode.click()
+				print("buyclick: dinheiro ", before_money, " -> ", app.buy_mode.home.get("wallet"), " | ", app.buy_mode.last_note, " | peças=", app.buy_mode.home.get("pieces", []).size())
+			"buycmd": # #264: manda um verbo de casa direto (`buycmd:sell:3`)
+				var full_verb: String = step.substr(name.length() + 1)
+				var sent: bool = await app.buy_mode.command(full_verb)
+				print("buycmd: ", full_verb, " aceito=", sent, " dinheiro=", app.buy_mode.home.get("wallet"))
+			"buyhome": # #264: o que o motor diz da casa: dinheiro, peças, cômodos com a beleza e as encomendas
+				await app.buy_mode.reload()
+				var home: Dictionary = app.buy_mode.home
+				print("buyhome: dinheiro=", home.get("wallet"), " loja=", home.get("shop"), " peças=", home.get("pieces", []).map(func(p): return "%d:%s@%d,%d/%d" % [int(p.piece), p.id, int(p.x), int(p.y), int(p.facing)]),
+					" cômodos=", home.get("rooms", []).map(func(r): return "%s %s cél beleza %s" % [r.kind, r.cells, r.beauty]), " encomendas=", home.get("orders", []), " estoque=", home.get("items", []).map(func(i): return "%s:%d" % [i.object, int(i.stock)]))
+			"partner": # #264: o que as outras pessoas da casa fazem agora (o uso do catálogo e a peça): o parceiro usando o móvel novo
+				var doing: Array = []
+				for occupant in app.store.interior.get("occupants", []):
+					var who := int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
+					doing.append("%s:%s/%s@%d,%d" % [app.store.names.get(who, who), occupant.get("usingObject"), occupant.get("usingUse"), int(occupant.localCell.x), int(occupant.localCell.y)])
+				print("partner: ", doing, " peças do motor=", app.store.interior.objects.furniture.size())
 			"mood": # #262: imprime o humor do corpo e da outra pessoa como o motor diz (emoção, nota, momentos com causa e tempo, aspiração, desejos) e o que o cartão mostra
 				await app.player_hud.refresh_body_now()
 				await _print_mood(app)
@@ -848,6 +1047,9 @@ static func run(app: Node, steps: Array) -> void:
 				await app.get_tree().create_timer(float(arg if arg != "" else "1")).timeout
 				await app.api.transport.request("POST", "/simulation/accelerate", {"on": false})
 				print("skip: relógio=", app.player_frame.clock_label.text if app.player_frame != null else app.day_cycle.clock_text())
+			"golocal": # #264: `golocal:X,Y` anda até a célula X,Y da planta da casa em foco (converte para a do mundo e usa `goto`)
+				var origin: Vector2i = app.stage.interior_view.origin
+				await run(app, ["goto:%d,%d" % [origin.x + int(arg.get_slice(",", 0)), origin.y + int(arg.get_slice(",", 1))]])
 			"goto": # #258: `goto:X,Y` anda com W até a célula X,Y (até 120 s): o olhar vira para ela a cada 0,1 s e o passo para a ~0,3 célula; imprime onde parou
 				var goal := Vector2(float(arg.get_slice(",", 0)) + 0.5, float(arg.get_slice(",", 1)) + 0.5)
 				var go_press := InputEventKey.new()

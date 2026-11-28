@@ -23,6 +23,7 @@ signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
 signal speed_changed(speed: int) ## #260: o motor aceitou a velocidade (0 pausa, 1, 2, 3): o app relê o relógio
+signal buy_requested() ## #264: B pede o modo comprar e construir (o app sobe a câmera sobre a casa)
 signal walls_cycled() ## #260: V pede outro modo das paredes (cortadas, inteiras, baixas)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
 signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
@@ -1397,6 +1398,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
 		get_viewport().set_input_as_handled()
 		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_B and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		buy_requested.emit() # #264
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_goals() # #235: metas e diário

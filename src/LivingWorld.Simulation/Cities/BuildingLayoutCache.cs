@@ -38,13 +38,38 @@ internal sealed class CachedBuildingLayout
     public bool CoversGround(CellCoord localCell) => _ground.Contains(localCell);
 }
 
-/// <summary>Planta por prédio, gerada uma vez. A planta é função pura de <c>(Id, BuildingTypeId, Orientation)</c>, os três
-/// fixos na construção de <see cref="Building"/>, então a entrada nunca fica velha; a tabela fraca solta a planta junto
-/// com o prédio (demolido, ou mundo descartado). Gerar a planta a cada entrada de NPC era ~10% do tempo de tick (#154).</summary>
+/// <summary>Planta por prédio, gerada uma vez. A planta de origem é função pura de <c>(Id, BuildingTypeId, Orientation, Shape)</c>, fixos na construção de
+/// <see cref="Building"/>; a tabela fraca solta a planta junto com o prédio. #264: a obra do morador (<see cref="Building.Edit"/>) acrescenta células por cima; a
+/// planta de agora é refeita quando a versão da edição muda, e a de origem (<see cref="BaseOf"/>) nunca muda (o planejador de cômodos e de móveis trabalha nela).
+/// Gerar a planta a cada entrada de NPC era ~10% do tempo de tick (#154).</summary>
 internal static class BuildingLayoutCache
 {
-    private static readonly ConditionalWeakTable<Building, CachedBuildingLayout> Cache = new();
+    private sealed class Holder
+    {
+        public int Version = int.MinValue;
+        public CachedBuildingLayout? Layout;
+    }
 
-    public static CachedBuildingLayout Of(Building building) =>
-        Cache.GetValue(building, static b => new CachedBuildingLayout(BuildingLayoutGenerator.Generate(b)));
+    private static readonly ConditionalWeakTable<Building, Holder> Cache = new();
+    private static readonly ConditionalWeakTable<Building, CachedBuildingLayout> Bases = new();
+
+    public static CachedBuildingLayout Of(Building building)
+    {
+        var holder = Cache.GetOrCreateValue(building);
+        int version = building.Edit?.Version ?? -1;
+        lock (holder)
+        {
+            if (holder.Layout is null || holder.Version != version)
+            {
+                holder.Layout = building.Edit is null ? BaseOf(building) : new CachedBuildingLayout(BuildingLayoutGenerator.Generate(building));
+                holder.Version = version;
+            }
+
+            return holder.Layout;
+        }
+    }
+
+    /// <summary>A planta de origem do prédio, sem a obra do morador.</summary>
+    public static CachedBuildingLayout BaseOf(Building building) =>
+        Bases.GetValue(building, static b => new CachedBuildingLayout(BuildingLayoutGenerator.GenerateBase(b)));
 }

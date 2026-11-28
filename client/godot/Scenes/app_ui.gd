@@ -20,6 +20,7 @@ const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const BuyMode := preload("res://Scenes/buy_mode.gd")
 const AimHighlight := preload("res://Scenes/aim_highlight.gd")
 const ReachRing := preload("res://Scenes/reach_ring.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
@@ -258,6 +259,25 @@ static func _side(app, ui: Control) -> void:
 	app.player_frame.speed_chosen.connect(func(speed: int): app.player_hud.set_speed(speed)) # #260: pausa/1×/2×/3× no HUD
 	app.player_hud.speed_changed.connect(func(_speed: int): app.on_speed_changed())
 	app.player_hud.walls_cycled.connect(func(): app.cycle_walls())
+	app.buy_mode = BuyMode.new() # #264: modo comprar e construir (B): câmera de cima, catálogo, fantasma, obra
+	ui.add_child(app.buy_mode)
+	app.buy_mode.api = app.player_hud.api
+	app.buy_mode.rig = app.rig
+	app.buy_mode.stage = app.stage
+	app.buy_mode.modal = app.modal
+	app.buy_mode.catalog_of = func() -> Array: return app.store.interior.get("objects", {}).get("catalog", []) if app.store.interior.get("objects") is Dictionary else []
+	app.buy_mode.info_of = func() -> Dictionary: return app.store.interior
+	app.buy_mode.building_of = func() -> int: return app.session.interior_building
+	app.modal.watch(app.buy_mode) # a pausa de popup vale também aqui: o tempo para enquanto se compra e se constrói
+	app.player_hud.buy_requested.connect(func(): app.toggle_buy_mode())
+	app.buy_mode.opened.connect(func():
+		app._on_player_menu(true)
+		app.player_frame.visible = false) # a moldura de jogo (barras, relógio) fica atrás do painel: some enquanto se compra
+	app.buy_mode.closed.connect(func():
+		app._on_player_menu(false)
+		app.player_frame.visible = app.player_hud.rpg)
+	app.buy_mode.warning.connect(func(text: String): app.toasts.push(text))
+	app.buy_mode.acted.connect(func(note: String): app.on_home_changed(note))
 	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.player_hud.acted.connect(app._on_player_acted)
 	app.player_hud.busy_changed.connect(app._on_player_busy)
