@@ -3,6 +3,7 @@ extends Node
 ## mundo: o único que escreve no servidor são os comandos explícitos (relógio do admin, conversa, jogador).
 ## Módulos: Session (escopos), Selection (clique e dica), Inspector (ficha), WindowRouter (janelas que convivem),
 ## FollowDirector (seguir), AppUi (montagem da interface), WorldView (um renderizador por tipo).
+const NpcLook := preload("res://Scenes/npc_look.gd")
 const WorldTime := preload("res://Contract/world_time.gd")
 const BodyBusy := preload("res://Scenes/body_busy.gd")
 
@@ -208,6 +209,7 @@ func _load_world_info() -> void:
 	var identity: Dictionary = await api.world_identity()
 	Grid.use_scale(identity.get("scale", {})) # ADR-0052: andar, porta e janela nas medidas do motor
 	period_id = identity.period_id
+	NpcLook.set_era(NpcLook.era_for(period_id, String(identity.get("name", "")))) # #254: roupa do período (moderno x medieval)
 	player_hud.world_key = String(identity.get("name", "")) if String(identity.get("name", "")) != "" else identity.period_id # #238
 	if identity.period_id != "" or not identity.axes.is_empty():
 		technology.axis_names = identity.axes

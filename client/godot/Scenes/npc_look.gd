@@ -24,6 +24,14 @@ const TRADE_WORDS := [
 	[["merca", "comerc", "vend", "trader", "merchant", "lojist"], "cloth", "scale"],
 	[["tecel", "weav", "costur", "tailor"], "cloth", "needle"],
 ]
+## #254: estilo do período (o cliente só estiliza a roupa; o corpo, a idade, o sexo e a cor vêm do motor). "medieval": túnica, bota;
+## "modern": camiseta, calça, vestido, tênis. Quem decide o período é o mundo aberto (`era_for`); sem dado, medieval (os presets atuais).
+static var era := "medieval"
+const JEANS: Array[Color] = [Color("3d5a80"), Color("2f4468"), Color("4a4a52"), Color("6b5b3e"), Color("22262e")]
+const HOSE: Array[Color] = [Color("5a4a3a"), Color("4a4a44"), Color("6a5a42"), Color("3f3a33")]
+const SNEAKERS: Array[Color] = [Color("e8e8e8"), Color("2a2a30"), Color("c0392b"), Color("3d6fb4")]
+const BOOT := Color("4a3524")
+const EYE_COLORS: Array[Color] = [Color("3b2a1e"), Color("1c1410"), Color("6b4a2b"), Color("4f7fa8"), Color("5f8a62")]
 const RESOURCE_PALETTE: Array[Color] = [Color("c8a25a"), Color("8a6a43"), Color("6f8f4a"), Color("9a9a9a"), Color("b0603a"),
 	Color("d8cfb8"), Color("5a7a9a")]
 
@@ -88,7 +96,7 @@ static func spec_of(obs: Dictionary, catalog = null) -> Dictionary:
 		"cloth": cloth, "hat": hat, "tool": tool, "mourning": mourning, "ill": bool(obs.get("ill", false)),
 		"sick_pose": "bed" if bedridden else ("slump" if bool(obs.get("symptomatic", false)) else ""),
 		"belly": clampf(float(obs.get("pregnancy", 0.0)), 0.0, 1.0), "expression": expression,
-		"posture": posture_of(expression, bool(obs.get("symptomatic", false))),
+		"posture": posture_of(expression, bool(obs.get("symptomatic", false))), "era": era,
 		"sack": sack_of(obs.get("carried", [])), "held": obs.get("held", {}),
 	}
 
@@ -144,3 +152,59 @@ static func hint_of(obs: Dictionary) -> String:
 	if not sack.is_empty():
 		parts.append("carrega %d %s" % [int(sack.total), String(sack.name) if String(sack.name) != "" else "unidades"])
 	return " · ".join(parts.filter(func(p): return p != ""))
+
+
+static func set_era(value: String) -> void:
+	era = "modern" if value == "modern" else "medieval"
+
+
+## Período do mundo aberto -> estilo de roupa. Os presets do motor são aldeias agrícolas (medieval); mundos de época moderna
+## (casal no subúrbio, etc.) trazem "moder", "contemp", "suburb" ou "sandbox" no id ou no nome.
+static func era_for(period_id: String, world_name: String = "") -> String:
+	var text := (period_id + " " + world_name).to_lower()
+	for word in ["moder", "contemp", "suburb", "subúrb", "sandbox", "casal"]:
+		if word in text:
+			return "modern"
+	return "medieval"
+
+
+## Variação estável por id e sal (mesma pessoa, mesmo traço; nada aleatório): inteiro não negativo.
+static func pick(id: int, salt: int) -> int:
+	return posmod((id * 73856093) ^ (salt * 19349663 + 83492791), 1000003)
+
+
+## Estilo gerado pela semente (id): cabelo, barba, roupa e cores que o motor não diz. Nunca contradiz o corpo: sexo, idade e cor de pele
+## e cabelo vêm do motor; aqui só o corte, a barba e o corte da roupa. Devolve {hair, beard (0 nenhuma, 1 curta, 2 cheia), outfit, skirt,
+## belt, long_sleeves, pants, shoe, boot, eyes}.
+static func style_of(id: int, stage: String, female: bool, the_era: String = "") -> Dictionary:
+	var e := the_era if the_era != "" else era
+	var hair := "short"
+	var beard := 0
+	match stage:
+		"baby":
+			hair = "tuft"
+		"child":
+			hair = ["bob", "ponytail", "long"][pick(id, 1) % 3] if female else ["short", "buzz", "short"][pick(id, 1) % 3]
+		"elder":
+			hair = ["bun", "bob", "bun"][pick(id, 1) % 3] if female else ["fringe", "buzz", "fringe", "short"][pick(id, 1) % 4]
+			beard = (1 + pick(id, 2) % 2) if (not female and pick(id, 3) % 10 < 6) else 0
+		_:
+			hair = ["long", "ponytail", "bun", "bob", "long"][pick(id, 1) % 5] if female else ["short", "short", "buzz", "curly", "short"][pick(id, 1) % 5]
+			beard = (1 + pick(id, 2) % 2) if (not female and pick(id, 3) % 10 < 3) else 0
+	var modern := e == "modern"
+	var outfit := "tunic"
+	var skirt := false
+	var belt := true
+	var long_sleeves := true
+	if modern:
+		outfit = "dress" if (female and stage != "baby" and pick(id, 4) % 3 == 0) else ("shirt" if (not female and pick(id, 4) % 2 == 0 and stage == "adult") else "tee")
+		skirt = outfit == "dress"
+		belt = outfit == "shirt"
+		long_sleeves = outfit == "shirt"
+	else:
+		skirt = stage != "baby" # túnica até o joelho
+	var pants: Color = JEANS[pick(id, 5) % JEANS.size()] if modern else HOSE[pick(id, 5) % HOSE.size()]
+	if stage == "child" or stage == "baby":
+		pants = pants.lightened(0.25)
+	return {"hair": hair, "beard": beard, "outfit": outfit, "skirt": skirt, "belt": belt, "long_sleeves": long_sleeves, "pants": pants,
+		"shoe": SNEAKERS[pick(id, 6) % SNEAKERS.size()] if modern else BOOT, "boot": not modern, "eyes": EYE_COLORS[pick(id, 7) % EYE_COLORS.size()]}
