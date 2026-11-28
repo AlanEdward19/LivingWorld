@@ -258,6 +258,9 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.frame = app.player_frame
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
 	app.player_frame.speed_chosen.connect(func(speed: int): app.player_hud.set_speed(speed)) # #260: pausa/1×/2×/3× no HUD
+	app.player_frame.go_now_requested.connect(func(): app.player_hud.go_now()) # #267: o turno sem armadilha
+	app.player_frame.skip_requested.connect(func(): app.player_hud.skip_to_return())
+	app.player_hud.both_away_changed.connect(app._on_both_away)
 	app.player_hud.speed_changed.connect(func(_speed: int): app.on_speed_changed())
 	app.player_hud.walls_cycled.connect(func(): app.cycle_walls())
 	app.buy_mode = BuyMode.new() # #264: modo comprar e construir (B): câmera de cima, catálogo, fantasma, obra

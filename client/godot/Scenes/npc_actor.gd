@@ -20,6 +20,7 @@ const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a065
 const SKIN_RAMP: Array[Color] = [Color("f6dcc2"), Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30"), Color("4e2f1f")]
 const HAIR_RAMP: Array[Color] = [Color("e9dcae"), Color("d6b36a"), Color("a0652a"), Color("5a3a22"), Color("2b1b12")]
 const EYE_RAMP: Array[Color] = [Color("8fb4d8"), Color("6f9f8a"), Color("7d6b3a"), Color("4a2f1c"), Color("1c1410")] ## AD-197t: olhos, do claro ao escuro
+const OUTFIT_HATS: Array[String] = ["straw", "cap", "none", "none", "hood", "cap"] ## #267: o chapéu de cada traje (mesma ordem): duas pessoas do mesmo ofício não usam o mesmo chapéu se o motor deu trajes diferentes
 const OUTFIT_COLORS: Array[Color] = [Color("8a7a52"), Color("5a6a7a"), Color("8a3a3a"), Color("5a3a8a"), Color("e8e4d8"), Color("4a6a3a")] ## AD-197t: traje, na ordem de `Appearance.OutfitNames` do motor
 const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa, compartilhados entre todos os NPCs
 
@@ -171,6 +172,7 @@ func _apply_made_look() -> void:
 	if look.has("outfit"):
 		_outfit_color = OUTFIT_COLORS[clampi(int(look.outfit), 0, OUTFIT_COLORS.size() - 1)]
 		_shirt.albedo_color = _outfit_color
+		_set_hat(hat_for(String(spec.get("hat", "none")))) # #267: o traje que o motor deu também escolhe o chapéu
 
 
 func _apply_head_scale() -> void:
@@ -381,7 +383,15 @@ func apply_model(catalog, profession: int, age_years: float) -> void:
 		_hair_mesh.material_override = _shared_mat(Color(String(by_age.hair)))
 
 
+## #267: o chapéu: o do traje do motor (`look.outfit`) vence o do ofício; sem traje, o do ofício.
+func hat_for(trade_hat: String) -> String:
+	if look.has("outfit"):
+		return OUTFIT_HATS[clampi(int(look.outfit), 0, OUTFIT_HATS.size() - 1)]
+	return trade_hat
+
+
 func _set_hat(kind: String) -> void:
+	kind = hat_for(kind)
 	if _hat != null:
 		_hat.free()
 		_hat = null
@@ -416,7 +426,7 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 		if _hat != null:
 			_hat.free()
 			_hat = null
-		_hat = Props.hat(_head, String(spec.hat))
+		_hat = Props.hat(_head, hat_for(String(spec.hat)))
 	_apply_style()
 	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
 	_skin_mesh.material_override = _shared_mat(skin)

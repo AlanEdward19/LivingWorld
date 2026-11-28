@@ -50,6 +50,7 @@ public static class PlayerCommands
         StopOnPossession(world, npc);
         PlayerSettle.OutOfTheWall(world, ctx, npc); // #227: nunca preso na parede de um prédio (só o corpo conduzido; o sumiço não passa por aqui)
         LivingWorld.Simulation.Objects.MoodMechanic.Hourly(world, npc, world.CurrentDate.TotalMilliseconds); // #262: quem o jogador conduz já nasce com os desejos do momento (a troca de corpo passa por aqui)
+        if (world.Careers is not null) LivingWorld.Simulation.Careers.CareerWork.NoticeOnTakeover(world, npc, world.CurrentDate.TotalMilliseconds); // #267: o aviso do turno vale também para quem assume depois da hora
         // AD-196: encarnar não é fato do mundo (ninguém dentro dele percebe quem conduz): fica no registro de sessões do hospedeiro
         if (!world.Players.Enabled)
             ctx.LogEvent(WorldEventKind.PlayerIncarnated, $"{npc.Id.Value}|{playerId}", sourceSystem: "PlayerCommands");

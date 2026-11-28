@@ -241,7 +241,7 @@ public class SandboxCasalTests
     }
 
     [Fact]
-    public void The_sale_is_offered_from_the_outside_at_the_door_and_comes_last()
+    public void The_sale_is_never_offered_on_the_doorstep_only_from_the_house_menu()
     {
         var (world, _) = Load();
         var service = new LivingWorld.Simulation.Players.PlayerService(new LivingWorld.Tests.Unit.Players.PlayerAbsenceTests.AllEvents());
@@ -252,7 +252,7 @@ public class SandboxCasalTests
 
         var offers = LivingWorld.Simulation.Players.PlayerService.Reach(world, "alan")!;
 
-        Assert.Equal("house", offers[^1].Kind); // de fora, ao mirar a casa, a venda está ao alcance e por último
+        Assert.DoesNotContain(offers, o => o.Kind == "house"); // #267: na soleira o E principal nunca é "Vender · Sua casa" (vender é do menu da casa, de dentro)
     }
 
     /// <summary>#260: a luz da casa vem do catálogo (um abajur com `light`), na sala e no quarto; nada de luz escrita no código.</summary>

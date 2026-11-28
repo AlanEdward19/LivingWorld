@@ -54,3 +54,9 @@ viram silhuetas na porta (`62`). 6. Durações do catálogo trocam por situaçã
 ## Corrigido neste passo (só cliente, `tests/test_careers.gd`, 784 testes do cliente verdes)
 - `player_hud._note_career`: tempo cai ao abrir a janela do turno (`shift_speed_target`, primeira velocidade do cenário, sem número no código) e avisa quem assumiu o
   corpo já dentro da janela; a volta de outra pessoa com este corpo fora chama `switch_body` (`follow_home_requests`). Decisão: AD-231.
+
+## Corrigido em #267 (AD-234)
+- **P0-1**: o aviso do turno vale a quem assume depois (`CareerWork.NoticeOnTakeover`); `Careers.rules.stopKinds` (dado) manda descer o tempo; "Ir agora" e "Pular para a volta do turno" (`accelerate` com `untilReturn`).
+- **P1-1**: a volta do turno põe o corpo conduzido dentro de casa; a venda da casa só do menu dela (nunca na soleira). **P1-2**: humor (`scoreSwing`, `emotionCap`, `falloff`, `scoreMin/Max`, `wishDailyPool`), briga que custa.
+- **P1-3**: clique = ir até/interagir (`POST /players/{id}/go`); golpe no R. **P1-4**: aparência autorada por pessoa e chapéu pelo traje. **P1-5**: relação empilhada. **P1-6**: cena "Os dois estão fora".
+- **P1-7**: `minShare` (comer sem fome). **P1-8**: câmera de interior sobre a casa. **P2-1/2**: rótulos sem sobreposição; B fora de casa avisa.

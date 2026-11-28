@@ -31,22 +31,25 @@ public sealed record MoodCatalog(
 }
 
 /// <summary><c>ScorePerWeight</c>: pontos da nota de humor (0–100) por ponto de peso dos momentos; <c>PsycheWeight</c>: o peso (em pontos de momento) da emoção
-/// da psique no máximo; <c>WishSlots</c>/<c>WishHours</c>: quantos desejos de cada vez e por quanto tempo valem; <c>WishPoints</c>: pontos de satisfação padrão;
+/// da psique no máximo; <c>ScoreSwing</c> (#267): amplitude máxima, em pontos, que os momentos movem a nota (curva suave, 0 = linear de antes: a nota não satura em 20 minutos);
+/// <c>EmotionCap</c>: teto, em pontos de peso, da soma dos momentos de uma mesma emoção (0 = sem teto); <c>WishDailyPool</c>: quantos desejos do catálogo valem por dia para cada
+/// pessoa (rotação diária pelo RNG do mundo; 0 = todos); <c>WishCooldownHours</c>: horas até um desejo cumprido poder voltar; <c>WishSlots</c>/<c>WishHours</c>: quantos desejos de cada vez e por quanto tempo valem; <c>WishPoints</c>: pontos de satisfação padrão;
 /// <c>RewardMoment</c>: momento que o desejo cumprido dá; <c>GoalUrgency</c>: urgência do desejo na lista de metas; <c>Calm</c>: emoção quando nada pesa.</summary>
 public sealed record MoodRules(
     double ScorePerWeight = 4, double PsycheWeight = 4, int WishSlots = 3, int WishHours = 6, int WishPoints = 10, string? RewardMoment = null,
-    int GoalUrgency = 25, string? Calm = null, int MaxMoments = 16, double EmotionMin = 1, double AspirationBoost = 3);
+    int GoalUrgency = 25, string? Calm = null, int MaxMoments = 16, double EmotionMin = 1, double AspirationBoost = 3,
+    double ScoreSwing = 0, double EmotionCap = 0, int WishDailyPool = 0, int WishCooldownHours = 0);
 
 /// <summary>Emoção do humor: <c>Face</c> é a emoção da psique que o rosto do boneco já sabe desenhar (joy, grief, fear, anger, shame, loneliness); <c>Psyche</c> liga a emoção
 /// da psique a esta (a mais forte entra no humor); <c>Icon</c> é o nome do ícone do cliente.</summary>
-public sealed record MoodEmotion(string Id, string Name, string Icon, string? Face = null, string? Psyche = null, string? Color = null);
+public sealed record MoodEmotion(string Id, string Name, string Icon, string? Face = null, string? Psyche = null, string? Color = null, int? ScoreMin = null, int? ScoreMax = null);
 
 /// <summary>Quando o momento surge. <c>Kind</c>: <c>use</c> (fim natural do uso do catálogo), <c>action</c> (ação do motor concluída), <c>social</c> (interação aceita ou
 /// recusada), <c>life</c> (fato da vida, <c>LifeEventKind</c>), <c>reward</c> (só o motor o dá: desejo cumprido, marco) ou <c>state</c> (enquanto a condição vale, sem estado guardado: necessidade abaixo ou acima de um nível, ou, #264, <c>Ambient</c>: uma medida do cômodo onde a pessoa está, hoje <c>beauty</c>).</summary>
 public sealed record MomentTrigger(
     string Kind, string? Use = null, string? Action = null, string? Interaction = null, string? Category = null, string? Result = null, string? Side = null,
     string? Life = null, string? Need = null, double? Below = null, double? Above = null,
-    string? Ambient = null);
+    string? Ambient = null, double? MinShare = null);
 
 /// <summary>Efeitos reais do momento: <c>UseRate</c> multiplica o que os usos de objeto entregam (rendimento); <c>SocialBias</c> multiplica a vontade de iniciar interações de cada
 /// categoria (o que o NPC escolhe fazer).</summary>
@@ -56,7 +59,7 @@ public sealed record MomentEffects(double UseRate = 1, IReadOnlyDictionary<strin
 /// <c>Stack</c> soma até <c>MaxStack</c> ocorrências (senão renova).</summary>
 public sealed record MomentDef(
     string Id, string Name, string Emotion, double Weight, MomentTrigger Trigger, int DurationMin = 0, bool Stack = false, int MaxStack = 1,
-    MomentEffects? Effects = null);
+    MomentEffects? Effects = null, double Falloff = 1);
 
 public sealed record AspirationMilestone(int Points, string Name, string? Moment = null);
 
@@ -70,7 +73,7 @@ public sealed record WishWhen(string? Need = null, double? Below = null, double?
 
 /// <summary>Como o desejo se cumpre: pelo mesmo vocabulário dos gatilhos; <c>Target</c> (<c>spouse</c>|<c>housemate</c>) liga a uma pessoa e vale só com ela.</summary>
 public sealed record WishFulfill(
-    string Kind, string? Use = null, string? Interaction = null, string? Category = null, string? Action = null, string? Need = null, double? Above = null);
+    string Kind, string? Use = null, string? Interaction = null, string? Category = null, string? Action = null, string? Need = null, double? Above = null, double? MinShare = null);
 
 /// <summary>Desejo curto: <c>Text</c> cita <c>{other}</c>; <c>When</c> é o estado que o faz surgir; <c>Aspirations</c> lista as que o favorecem (peso × <c>AspirationBoost</c>).</summary>
 public sealed record WishDef(

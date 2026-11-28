@@ -16,10 +16,7 @@ var shown_id := -1
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	offset_left = 16
 	custom_minimum_size.x = 250
-	grow_vertical = Control.GROW_DIRECTION_BOTH
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.06, 0.09, 0.78)
 	style.set_corner_radius_all(10)

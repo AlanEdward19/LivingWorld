@@ -178,7 +178,8 @@ func test_interior_people_and_objects_are_clickable() -> void:
 	if hit.get("kind") == Registry.PERSON: # a pessoa usa o banco: está em cima dele
 		app.stage.interior_view.occupant_nodes[7].visible = false
 		hit = app.selection.hit_at(object_point)
-	eq(hit, Registry.ref(Registry.OBJECT, "stool"))
+	eq(Registry.ref(hit.get("kind", ""), hit.get("id")), Registry.ref(Registry.OBJECT, "stool")) # #267: o acerto também diz a célula do móvel (para o clique ir até)
+	check(hit.has("cell"), "e a célula do móvel clicado")
 	await app.inspect(hit)
 	check("furniture" in app.inspector.text and "Trabalhando" in app.inspector.text, "categoria e para que serve: " + app.inspector.text)
 	eq(app.inspector.link_refs, [Registry.ref(Registry.PERSON, 7)], "quem usa o objeto agora")

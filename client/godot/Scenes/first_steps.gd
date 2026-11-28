@@ -39,7 +39,8 @@ const PLAYER_ACTIONS: Array[Array] = [
 	["Entrar, sair e subir", "na porta ou na escada do prédio: E"],
 	["Recolher espólio", "onde alguém deixou coisas no chão: E"],
 	["Furtar", "banca ou casa alheia: segure E e escolha Furtar (tem consequência)"],
-	["Bater e se defender", "clique bate; botão direito ou F bloqueia; Ctrl ou Alt esquiva"],
+	["Ir até", "clique numa pessoa, móvel ou prédio vai até lá e abre a roda dele (WASD ou Espaço param)"],
+	["Bater e se defender", "R (ou Shift+clique parado) bate; botão direito ou F bloqueia; Ctrl ou Alt esquiva"],
 ]
 var spectator_grid: GridContainer
 var player_grid: GridContainer

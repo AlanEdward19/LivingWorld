@@ -59,15 +59,17 @@ public sealed partial class PlayerService
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Acelerar parado: o corpo fica à toa e o mundo corre até o jogador agir, parar, ou algo o chamar.</summary>
-    public Result<Unit> Accelerate(WorldState world, string playerId)
+    /// <summary>Acelerar parado: o corpo fica à toa e o mundo corre até o jogador agir, parar, ou algo o chamar. #267: com <paramref name="untilMs"/> (a volta do turno de quem da casa
+    /// está no trabalho) o salto acaba nesse instante ("Pular para a volta do turno").</summary>
+    public Result<Unit> Accelerate(WorldState world, string playerId, long? untilMs = null)
     {
+        if (untilMs is { } until && until <= world.CurrentDate.TotalMilliseconds) return Result<Unit>.Fail("accelerate: o horário já passou");
         if (Refusal(world, playerId) is { } refused) return refused;
         var npc = PlayerCommands.ControlledBy(world, playerId)!;
         var acted = PlayerCommands.Act(world, npc.Id, playerId, ActionType.Idle);
         if (!acted.IsSuccess) return acted;
-        Begin(world, npc, playerId, sleeping: false, null);
-        Record(world, playerId, PlayerCommandKind.Accelerate, npc.Id.Value);
+        Begin(world, npc, playerId, sleeping: false, untilMs);
+        Record(world, playerId, PlayerCommandKind.Accelerate, npc.Id.Value, untilMs is null ? null : new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Accelerate, UntilMs: untilMs));
         return Result<Unit>.Ok(Unit.Value);
     }
 

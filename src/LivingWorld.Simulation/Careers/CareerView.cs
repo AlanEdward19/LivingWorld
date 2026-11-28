@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Careers;
@@ -11,7 +12,12 @@ public sealed record CareerView(
     IReadOnlyList<BillView> Bills,
     IReadOnlyList<NoticeView> Notices,
     IReadOnlyList<ListingView> Listings,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? DayNames = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? DayNames = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? StopKinds = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MateView>? Mates = null);
+
+/// <summary>#267: quem mais da casa tem emprego: se está no trabalho e quando volta (para o aviso "Os dois estão fora — Rafael volta às 17:40").</summary>
+public sealed record MateView(long Id, string Name, bool Away, long ReturnMs, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ReturnText);
 
 public sealed record JobView(
     string Career, string CareerName, string Title, int LevelIndex, int Levels, long WagePerHour, int StartHour, int Hours, IReadOnlyList<int> Days, int Score, int Shifts, long Earned,
@@ -65,6 +71,12 @@ public static class CareerViews
         if (job is null && CareerWork.SearchIsValid(world, catalog, npc, nowMs))
             foreach (var v in CareerWork.Vacancies(world, npc))
                 listings.Add(new ListingView(v.Career.Id, v.Career.Name, v.Employer.Id.Value, v.Entry.Title, v.Entry.WagePerHour, v.Entry.StartHour, v.Entry.Hours, v.Free, Math.Round(v.Chance, 2)));
-        return job is null && bills.Count == 0 && notices.Count == 0 && listings.Count == 0 && !ledger.HasAccount(npc.Household?.Value ?? -1) ? null : new CareerView(job, bills, notices, listings, catalog.Rules.DayNames);
+        List<MateView>? mates = null;
+        if (npc.Household is { } house)
+            foreach (var other in ledger.Jobs)
+                if (other.Npc != npc.Id.Value && world.FindNpc(new NpcId(other.Npc)) is { IsAlive: true } mate && mate.Household == house)
+                    (mates ??= []).Add(new MateView(mate.Id.Value, mate.GivenName, other.ReturnMs > 0, other.ReturnMs, other.ReturnMs > 0 ? CareerWork.Clock(world, other.ReturnMs) : null));
+        return job is null && bills.Count == 0 && notices.Count == 0 && listings.Count == 0 && !ledger.HasAccount(npc.Household?.Value ?? -1) ? null
+            : new CareerView(job, bills, notices, listings, catalog.Rules.DayNames, catalog.Rules.StopKinds, mates);
     }
 }

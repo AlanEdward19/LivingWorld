@@ -16,6 +16,7 @@ const FOV_DEG := 70.0
 const CAP_RATIO := 1.4 ## o braço nunca passa disto vezes o braço da 3ª pessoa de rua
 const CLEARANCE_M := 0.25 ## folga da câmera acima do topo das paredes
 const MIN_SIN := 0.35 ## seno mínimo da inclinação (evita braço infinito com o olhar quase horizontal)
+const OUTSIDE_MARGIN_M := 2.2 ## #267: a câmera pode passar da parede da casa até esta folga (ela está acima das paredes cortadas); mais que isso é "de fora e de lado"
 
 
 ## Lado maior da planta do andar em foco, em unidades da grade (a caixa do andar da entrada).
@@ -53,4 +54,24 @@ static func plan(eye: Vector3, back: Vector3, pitch: float, entry: Array, zoom: 
 		var hit = shell.intersects_segment(eye, far)
 		if hit != null:
 			best = minf(best, eye.distance_to(hit) - Grid.units(0.25))
+	best = keep_in_house(eye, back, best, entry[1], min_arm)
 	return {"arm": maxf(best, min_arm), "lift": 0.0, "shoulder": 0.0, "room": true, "indoor": true, "pitch": default_pitch(entry)}
+
+
+## #267: o braço encurtado até a câmera ficar sobre a casa (a caixa da planta com a folga `OUTSIDE_MARGIN_M`): sem isso, com o olhar de lado, a câmera ia para fora da casa e via
+## só a parede ou a fachada. Nunca menor que `min_arm`. Só olha o plano horizontal (a altura já é a do corte das paredes).
+static func keep_in_house(eye: Vector3, back: Vector3, arm: float, box: AABB, min_arm: float) -> float:
+	var limit := box.grow(Grid.units(OUTSIDE_MARGIN_M))
+	var best := arm
+	for axis in [0, 2]:
+		var direction := back.x if axis == 0 else back.z
+		if absf(direction) < 0.001:
+			continue
+		var start := eye.x if axis == 0 else eye.z
+		var low := limit.position.x if axis == 0 else limit.position.z
+		var high := low + (limit.size.x if axis == 0 else limit.size.z)
+		var bound := high if direction > 0.0 else low
+		var reach := (bound - start) / direction
+		if reach >= 0.0:
+			best = minf(best, reach)
+	return maxf(best, min_arm)

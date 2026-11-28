@@ -55,6 +55,8 @@ func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 		accelerated = false
 		return before != ""
 	action = String(busy.action)
+	if action == "go": # #267: "ir até" é andar até o lugar pelo motor, como o uso de móvel na fase de ir: o resto do cliente já o entende (barra "Indo: …", WASD para)
+		action = "use"
 	use = String(busy.get("use", ""))
 	label = String(busy.get("label", ""))
 	phase = String(busy.get("phase", ""))

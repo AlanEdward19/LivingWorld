@@ -400,9 +400,25 @@ func player_sleep(player_id: String, until_hour: int = -1) -> Dictionary:
 
 
 ## AD-197c: acelerar parado (o corpo fica à toa, o mundo corre e as necessidades caem).
-func player_accelerate(player_id: String) -> Dictionary:
-	var response: Dictionary = await _player_command({"command": "accelerate"}, "POST", "/players/%s/accelerate" % player_id.uri_encode(), null)
+func player_accelerate(player_id: String, until_return: bool = false) -> Dictionary:
+	var command := {"command": "accelerate"}
+	var body: Variant = null
+	if until_return: # #267: "Pular para a volta do turno": o salto acaba quando alguém da casa volta do trabalho
+		command["untilReturn"] = true
+		body = {"untilReturn": true}
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/accelerate" % player_id.uri_encode(), body)
 	return _checked("/players/accelerate", {"status": response.status, "body": response.body}, "player-time")
+
+
+## #267: ir até uma pessoa (`npcId`), um prédio (`buildingId`, a soleira) ou uma célula (`x`, `y`) pela rota do motor: o corpo anda sozinho; WASD ou interromper param. `label` é só o nome que se mostra.
+func player_go(player_id: String, target: Dictionary, label: String = "") -> Dictionary:
+	var body := target.duplicate()
+	if label != "":
+		body["label"] = label
+	var command := body.duplicate()
+	command["command"] = "go"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/go" % player_id.uri_encode(), body)
+	return _checked("/players/go", {"status": response.status, "body": response.body}, "")
 
 
 ## #260: a velocidade do tempo do jogador: 0 pausa, 1 normal, 2 e 3 acelerados. Só quem joga sozinho; o motor valida (409 com outro jogador) e devolve o tempo.

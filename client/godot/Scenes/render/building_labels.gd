@@ -6,8 +6,77 @@ extends Node3D
 const Describe := preload("res://Scenes/inspector_describe.gd")
 
 const LABEL_ZOOM := 11.0
+const DECLUTTER_EVERY := 0.25 ## s entre duas conferências de sobreposição (as câmeras andam; o rótulo não precisa piscar a cada quadro)
+const SIGN_GROUP := "building_signs" ## as placas de texto da fachada (building_dress) entram no mesmo corte
+const PAD_PX := 6.0 ## folga entre dois rótulos na tela
 var labels: Dictionary = {} ## id do prédio -> Label3D
 var shown := false
+var _clock := 0.0
+var hidden_by_overlap: Dictionary = {} ## id -> true: o rótulo que cederia lugar a outro mais perto (#267)
+
+
+## #267: quais rótulos ficam escondidos para nenhum cobrir outro ("Loja de móveis" e "Mercado" viravam "Ljarcadoóvei"). `items`: [{id, rect: Rect2 (tela), priority: float}]; o de menor
+## prioridade (mais perto da câmera) fica, o que o cobre some. Pura: a ordem de entrada não muda o resultado.
+static func hidden_ids(items: Array) -> Dictionary:
+	var order := items.duplicate()
+	order.sort_custom(func(a, b): return float(a.priority) < float(b.priority) or (float(a.priority) == float(b.priority) and int(a.id) < int(b.id)))
+	var kept: Array[Rect2] = []
+	var hidden := {}
+	for item in order:
+		var rect: Rect2 = (item.rect as Rect2).grow(PAD_PX * 0.5)
+		var clash := false
+		for other in kept:
+			if rect.intersects(other):
+				clash = true
+				break
+		if clash:
+			hidden[int(item.id)] = true
+		else:
+			kept.append(rect)
+	return hidden
+
+
+func _process(delta: float) -> void:
+	_clock += delta
+	if _clock < DECLUTTER_EVERY:
+		return
+	_clock = 0.0
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera != null:
+		declutter(camera)
+
+
+## Esconde os rótulos que cobririam outros pela tela da câmera `camera`: os rótulos de prédio (só quando aparecem) e as placas de texto dos prédios (grupo `building_signs`, o texto da fachada).
+func declutter(camera: Camera3D) -> void:
+	var items: Array = []
+	var nodes := {}
+	var height := float(get_viewport().get_visible_rect().size.y) if is_inside_tree() else 900.0
+	var fov := deg_to_rad(camera.fov) if camera.projection == Camera3D.PROJECTION_PERSPECTIVE else 1.0
+	var candidates: Array = []
+	if shown:
+		for id in labels:
+			candidates.append([int(id), labels[id]])
+	if is_inside_tree():
+		for sign_text in get_tree().get_nodes_in_group(SIGN_GROUP):
+			if sign_text is Label3D:
+				candidates.append([(sign_text as Label3D).get_instance_id(), sign_text])
+	for entry in candidates:
+		var label: Label3D = entry[1]
+		if not is_instance_valid(label) or not label.is_inside_tree() or camera.is_position_behind(label.global_position):
+			continue
+		var world := label.global_position
+		var screen := camera.unproject_position(world)
+		var distance := maxf(0.5, camera.global_position.distance_to(world))
+		var meters := float(label.text.length()) * 0.55 * float(label.font_size) * label.pixel_size
+		var scale_px := height / (2.0 * distance * tan(fov * 0.5)) if camera.projection == Camera3D.PROJECTION_PERSPECTIVE else height / maxf(camera.size, 0.1)
+		var px := meters * scale_px
+		var tall := float(label.font_size) * label.pixel_size * scale_px * 1.2
+		items.append({"id": entry[0], "rect": Rect2(screen - Vector2(px * 0.5, tall * 0.5), Vector2(px, tall)), "priority": distance})
+		nodes[entry[0]] = label
+	hidden_by_overlap = hidden_ids(items)
+	for id in nodes:
+		var label: Label3D = nodes[id]
+		label.visible = not hidden_by_overlap.has(id) and (shown or not labels.has(id))
 
 
 func rebuild(store, registry, building_nodes: Dictionary) -> void:
@@ -70,5 +139,6 @@ func set_zoom(zoom_size: float, city_lod: bool) -> void:
 	if want == shown:
 		return
 	shown = want
+	hidden_by_overlap = {}
 	for label in labels.values():
 		label.visible = want

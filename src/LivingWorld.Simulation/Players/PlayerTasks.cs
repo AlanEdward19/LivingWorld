@@ -55,6 +55,7 @@ public static class PlayerTasks
             return view with { Use = use.Use, Label = use.Label, Phase = use.Phase, Pose = use.Pose, SlotFx = use.Fx, SlotFy = use.Fy, Facing = use.Facing };
         if (task.Action == LivingWorld.Simulation.Objects.SocialInteractions.Action && LivingWorld.Simulation.Objects.SocialInteractions.ViewOf(world, task) is { } social)
             return view with { Use = social.Id, Label = social.Name, Phase = social.Phase, Pose = social.Pose, With = social.With, Initiator = social.Initiator, PartnerPose = social.PartnerPose };
+        if (PlayerGo.View(task) is { } go) return view with { Use = PlayerGo.Action, Label = go.Label, Phase = "walk", SlotFx = go.Fx, SlotFy = go.Fy }; // #267
         return task is { Action: Gather, PerUnitMs: > 0 }
             ? view with { Units = task.Units, Done = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs), ResourceId = task.ResourceId }
             : view;
@@ -146,6 +147,11 @@ public static class PlayerTasks
         if (task.Action == LivingWorld.Simulation.Objects.SocialInteractions.Action) // #259: a fração vivida vale; o outro corpo é solto junto
         {
             LivingWorld.Simulation.Objects.SocialInteractions.Stop(world, ctx, npc);
+            return Result<BusyView>.Ok(busy);
+        }
+        if (task.Action == PlayerGo.Action) // #267: parou onde está
+        {
+            PlayerGo.Stop(world, npc);
             return Result<BusyView>.Ok(busy);
         }
         if (task.Action == Gather) Settle(world, ctx, npc, task.StartedAtMs); // o que já devia ter saído entre dois ticks sai agora

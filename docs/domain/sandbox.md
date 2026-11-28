@@ -92,3 +92,9 @@ Tecla **B**: a câmera sobe sobre a casa e o motor vende móveis do estoque da l
 ## O que ainda não funciona
 - O emprego e as contas são do catálogo `careers` (#263, [careers-and-bills.md](careers-and-bills.md)): Rafael começa no escritório, Marina procura no jornal da sala; fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).
 - Sem instalação pública (banheiro de rua); o mercado só vende comida e água; sem entrega por telefone.
+
+## 3º teste de jogo (#267, AD-234)
+**Clique = ir até/interagir**: pessoa, móvel ou prédio sob a mira (ou o cursor livre): ao alcance abre a roda dele; senão `POST /players/{id}/go` (`{npcId}`, `{buildingId}` ou `{x,y}`) leva o corpo pela rota do motor e a roda abre ao chegar;
+WASD e Espaço param. Golpe: **R** (ou Shift+clique parado). **Turno**: o aviso `shift-soon` vale também a quem assume depois; "Ir agora", "Pular para a volta do turno" (`accelerate` com `untilReturn`) e a cena "Os dois estão fora";
+`Careers.rules.stopKinds` diz que avisos descem o tempo. **Casa**: o corpo volta do trabalho para dentro, pela porta; vender a casa só do menu dela. **Aparência**: `Appearance` por membro autorado (olhos, rosto, traje, arcabouço). Ver
+[moods-and-aspirations.md](moods-and-aspirations.md#267-humor-com-consequência-ad-234) e [careers-and-bills.md](careers-and-bills.md).

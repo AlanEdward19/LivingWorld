@@ -143,6 +143,12 @@ static func run(app: Node, steps: Array) -> void:
 			"social": # #259: `social:Marina|Elogiar` pede a interação social do catálogo (pelo menu "Interagir ▸" da oferta do motor); a recusa diz o motivo
 				var sparts := arg.split("|")
 				var picked_social := await _social_line(app, sparts[0], sparts[1] if sparts.size() > 1 else "")
+				for _try in 15: # #267: a outra pessoa pode estar ocupada (usa um móvel, anda): espera ela ficar livre (até ~60 s) e vai até ela de novo
+					if picked_social.is_empty() or not bool(picked_social.get("disabled", false)) or not "disponível" in String(picked_social.get("reason", "")):
+						break
+					await app.get_tree().create_timer(4.0).timeout
+					await run(app, ["clickgo:" + sparts[0]])
+					picked_social = await _social_line(app, sparts[0], sparts[1] if sparts.size() > 1 else "")
 				print("social: ", arg, " -> ", picked_social.get("text", "(nada)"), " ", "(esmaecida: " + String(picked_social.get("reason", "")) + ")" if bool(picked_social.get("disabled", false)) else "")
 				if not picked_social.is_empty():
 					await app.player_hud.interact(picked_social)
@@ -1033,6 +1039,66 @@ static func run(app: Node, steps: Array) -> void:
 					wp_up.pressed = false
 					Input.parse_input_event(wp_up)
 					print("walkperson: chegou em ", snappedf(spent_wp, 0.1), " s")
+			"clickgo": # #267: `clickgo:Rafael` (pessoa da casa), `clickgo:obj=Sofá` (móvel, pela oferta do motor) ou `clickgo:place=Mercado` (prédio): o clique do jogador (ir até / interagir); espera até 60 s o corpo chegar e imprime
+				var cg_hit: Dictionary = {}
+				var cg_label := arg
+				if arg.begins_with("obj="):
+					cg_label = arg.substr(4)
+					var cg_reach: Dictionary = await app.player_hud.api.player_reach(app.player_hud.player_id)
+					for offer in cg_reach.body.get("offers", []):
+						if String(offer.get("kind", "")) == "object" and cg_label.to_lower() in String(offer.get("label", "")).to_lower():
+							cg_hit = {"kind": "object", "id": String(offer.label), "cell": Vector2i(int(offer.x), int(offer.y))}
+							break
+				elif arg.begins_with("place="):
+					cg_label = arg.substr(6)
+					for bid in app.store.buildings:
+						var named: String = app.world_view.building_labels.text_for(app.store.buildings[bid], app.store.building_states.get(bid, {}), app.registry)
+						if cg_label.to_lower() in named.to_lower():
+							cg_hit = {"kind": "building", "id": int(bid)}
+							cg_label = named
+							break
+				else:
+					if app.player_hud.housemates.is_empty():
+						await app.player_hud.refresh_housemates()
+					for mate in app.player_hud.housemates:
+						if arg.to_lower() in String(mate.get("name", "")).to_lower():
+							cg_hit = {"kind": "person", "id": int(mate.id)}
+							cg_label = String(mate.name)
+				print("clickgo: ", arg, " -> ", cg_hit)
+				if not cg_hit.is_empty():
+					var cg_from: Vector2 = app.player_hud.fine
+					await app.player_hud.click_target(cg_hit, cg_label)
+					var cg_spent := 0.0
+					while cg_spent < 60.0 and (app.player_hud.busy.active() or cg_spent < 0.6):
+						await app.get_tree().create_timer(0.1).timeout
+						cg_spent += 0.1
+					await app.get_tree().create_timer(0.6).timeout
+					print("clickgo: de ", cg_from, " a ", app.player_hud.fine, " em ", snappedf(cg_spent, 0.1), " s · roda aberta=", app.player_frame.menu_open(), " linhas=", app.player_frame.entries.map(func(e): return String(e.text)), " prédio=", app.player_hud.building_id)
+			"until": # #267: `until:2 07:00` espera (até 900 s reais) o relógio da tela chegar ao dia 2, 07:00 (ou depois): o passo vira robusto a velocidade e a pausas
+				var until_parts := arg.split(" ")
+				var want_day := int(until_parts[0])
+				var want_min := int(until_parts[1].get_slice(":", 0)) * 60 + int(until_parts[1].get_slice(":", 1))
+				var until_re := RegEx.create_from_string("Dia (\\d+) · (\\d+):(\\d+)")
+				var waited := 0.0
+				while waited < 900.0:
+					var m := until_re.search(app.player_frame.clock_label.text)
+					if m != null and (int(m.get_string(1)) > want_day or (int(m.get_string(1)) == want_day and int(m.get_string(2)) * 60 + int(m.get_string(3)) >= want_min)):
+						break
+					await app.get_tree().create_timer(0.5).timeout
+					waited += 0.5
+				print("until: ", arg, " -> ", app.player_frame.clock_label.text, " (", snappedf(waited, 0.1), " s)")
+			"relinfo": # #267: `relinfo:Rafael` imprime a relação do motor (afeição e confiança dele por quem joga, estado, humor, último fato) pela oferta da pessoa
+				var ri_reach: Dictionary = await app.player_hud.api.player_reach(app.player_hud.player_id)
+				for offer in ri_reach.body.get("offers", []):
+					if String(offer.get("kind", "")) == "person" and arg.to_lower() in String(offer.get("label", "")).to_lower():
+						print("relinfo: ", offer.get("label"), " ", offer.get("relation"))
+			"gonow": # #267: o botão "Ir agora" do turno
+				await app.player_hud.go_now()
+			"skipreturn": # #267: o botão "Pular para a volta do turno"
+				await app.player_hud.skip_to_return()
+			"turnui": # #267: imprime os botões do turno e a cena dos dois fora
+				print("turnui: ir agora=", app.player_frame.go_now_button.visible, " pular=", app.player_frame.skip_button.visible, " cena=", app.player_frame.away_panel.visible, " texto=", app.player_frame.away_label.text,
+					" | relógio=", app.player_frame.clock_label.text)
 			"speed": # #246: `speed:N` (0 a 3) aperta o botão de velocidade do HUD (o motor valida)
 				await app.player_hud.set_speed(int(arg))
 			"key": # #246: `key:G` ou `key:E=1.5` aperta a tecla (segura por s segundos, padrão 0,1), como o jogador

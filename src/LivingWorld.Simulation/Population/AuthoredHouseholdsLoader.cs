@@ -85,6 +85,19 @@ public static class AuthoredHouseholdsLoader
             var made = Appearance.Create(g[0], g[1], g[2], g[3]);
             if (!made.IsSuccess) return Result<AuthoredPerson>.Fail($"{at}.Appearance.{made.Error}");
             appearance = made.Value;
+            // #267: o cenário também declara o que o criador de personagem monta (olhos, rosto, traje, arcabouço): cada pessoa autorada tem a cara e a roupa dela
+            int? Optional(string key, int max, out string? error)
+            {
+                error = null;
+                if (genes[key] is null) return null;
+                if (genes[key]!.GetValue<int>() is { } v && v >= 0 && v <= max) return v;
+                error = $"{at}.Appearance.{key}: de 0 a {max}";
+                return null;
+            }
+
+            int? eye = Optional("EyeTone", 100, out var e1), face = Optional("FaceShape", 100, out var e2), outfit = Optional("Outfit", Appearance.OutfitCount - 1, out var e3), frame = Optional("BodyFrame", 100, out var e4);
+            if (new[] { e1, e2, e3, e4 }.FirstOrDefault(e => e is not null) is { } bad) return Result<AuthoredPerson>.Fail(bad);
+            appearance = made.Value! with { EyeTone = eye, FaceShape = face, Outfit = outfit, BodyFrame = frame };
         }
 
         Dictionary<int, int>? skills = null;

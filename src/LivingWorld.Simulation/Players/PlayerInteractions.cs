@@ -132,10 +132,7 @@ public static partial class PlayerInteractions
         }
         WorldOffers(world, npc, at, floor, inside, household, offers);
         CareerOffers(world, npc, at, inside, household, offers); // #263
-        // #260: de fora, "ao mirar a casa": na porta ou na soleira dela (de dentro a oferta já vale em qualquer lugar da casa)
-        if (sale is null && household?.Dwelling is { } own && inside != own && OwnedHome(world, own) && world.FindBuilding(own) is { Position: { } at0 } ownHouse
-            && PlayerGround.DoorOf(ownHouse) is { } entrance && (at == entrance.Door || at == entrance.Doorstep))
-            sale = Offer("house", own.Value, "", ["sell"], at0);
+        // #267: vender a casa só do menu dela (de dentro): na soleira, o E principal nunca é "Vender · Sua casa"
         if (sale is not null) offers.Add(sale);
         return offers;
     }

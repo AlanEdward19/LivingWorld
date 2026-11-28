@@ -15,7 +15,7 @@ public sealed record PlayerCommandRequest(PlayerCommandKind Kind, long? NpcId = 
     LivingWorld.Domain.Population.PossessionMode Mode = LivingWorld.Domain.Population.PossessionMode.Common, int Dx = 0, int Dy = 0,
     int? UntilHour = null, string? Interaction = null, long? TargetId = null, string? Verb = null, int? ResourceId = null,
     long? Quantity = null, Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null, bool Run = false, int Seq = 0, int? Speed = null);
+    CharacterSpec? Spec = null, bool Run = false, int Seq = 0, int? Speed = null, bool UntilReturn = false, int? X = null, int? Y = null, long? BuildingId = null, string? Label = null);
 
 /// <summary>AD-197c: o tempo visto pelo jogador. <c>Rhythm</c>: Fast, RealTime, Accelerated ou Manual; <c>CanSkip</c>: pode dormir
 /// acelerado ou acelerar (só quem joga sozinho); <c>Skipping</c>/<c>Sleeping</c>/<c>UntilMs</c>: o pulo em curso;
@@ -121,13 +121,19 @@ public sealed partial class PlayerCommandGateway(
                         command.UntilHour is { } hour ? PlayerService.NextHourOfDayMs(world, hour) : null),
                     _ => TimeOf(world, playerId)),
                 PlayerCommandKind.Speed => Map(players.SetSpeed(world, simulation, playerId, command.Speed ?? -1), _ => TimeOf(world, playerId)),
-                PlayerCommandKind.Accelerate => Map(players.Accelerate(world, playerId), _ => TimeOf(world, playerId)),
+                PlayerCommandKind.Accelerate when command.UntilReturn && (PlayerCommands.ControlledBy(world, playerId) is not { } body
+                    || LivingWorld.Simulation.Careers.CareerWork.NextReturnMs(world, body) is null) =>
+                    new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} ninguém da casa está no trabalho"), // #267
+                PlayerCommandKind.Accelerate => Map(players.Accelerate(world, playerId, command.UntilReturn
+                        ? LivingWorld.Simulation.Careers.CareerWork.NextReturnMs(world, PlayerCommands.ControlledBy(world, playerId)!) : null),
+                    _ => TimeOf(world, playerId)),
                 PlayerCommandKind.Wake => players.Skip?.PlayerId == playerId
                     ? Map(players.EndSkip(world, "jogador"), _ => TimeOf(world, playerId))
                     : new PlayerReply(StatusCodes.Status409Conflict, null, $"{PlayerCommands.Conflict} sem pulo de tempo em curso"),
                 PlayerCommandKind.Walk => Map(players.Walk(world, playerId, command.Dx, command.Dy, command.Run, command.Seq), _ => PoseOf(world, playerId)),
                 PlayerCommandKind.Jump => Map(players.Jump(world, playerId), air => PoseOf(world, playerId, air)),
                 PlayerCommandKind.Interrupt => Map(players.Interrupt(world, playerId), _ => PoseOf(world, playerId)),
+                PlayerCommandKind.Go => Map(players.Go(world, playerId, command.X, command.Y, command.NpcId, command.BuildingId, command.Label), _ => PoseOf(world, playerId)), // #267
                 PlayerCommandKind.Interact => Map(players.Interact(world, playerId, command.Interaction ?? "", command.TargetId ?? -1,
                     command.Verb ?? "", command.ResourceId, command.Quantity), done => Interacted(world, playerId, done)),
                 PlayerCommandKind.Sample => Map(players.Sample(world, playerId, new CityId(command.CityId ?? Guid.Empty),

@@ -29,6 +29,12 @@ public sealed class BodyTaskSystem : ISimulationSystem
             return;
         }
 
+        if (parts.Length == 3 && parts[2] == "g" && long.TryParse(parts[0], out long walkerId) && long.TryParse(parts[1], out long began))
+        {
+            if (world.FindNpc(new NpcId(walkerId)) is { IsAlive: true } walker) PlayerGo.Step(world, ctx, walker, began); // #267: ir até
+            return;
+        }
+
         if (parts.Length == 3 && parts[2] == "d" && long.TryParse(parts[0], out long homeId))
         {
             LivingWorld.Simulation.Objects.HomeCommands.Deliver(world, homeId); // #264: a encomenda de móvel chegou

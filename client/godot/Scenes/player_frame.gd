@@ -4,11 +4,13 @@ extends Control
 ## o menu do E (numerado, 1–9 escolhe, Esc fecha). Só desenha: o que vale e o que acontece é do motor (via player_hud).
 
 signal chosen(entry: Dictionary)
+signal go_now_requested() ## #267: "Ir agora" (o turno pode começar)
+signal skip_requested() ## #267: "Pular para a volta do turno" (salto de tempo, só sozinho)
 signal speed_chosen(speed: int) ## #260: o jogador pediu pausa (0), 1×, 2× ou 3× (botão ou tecla 0–3); o motor valida
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   O carreira   B comprar   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique ir até/interagir   R golpe\nI mochila   J metas   O carreira   B comprar   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
 const CareerPanel := preload("res://Scenes/career_panel.gd") ## #263: emprego, desempenho, contas e vagas (tecla O)
 const NeedIcon := preload("res://Scenes/need_icon.gd")
@@ -17,7 +19,7 @@ const BAR_WIDTH := 112.0 ## #260: a barra encolhe para caber o ícone, o número
 const PULSE_HZ := 1.4 ## a necessidade mais urgente pulsa (ciclos por segundo)
 const PlayerGuide := preload("res://Scenes/player_guide.gd")
 const RelationPanel := preload("res://Scenes/relation_panel.gd")
-const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (Clique bate já está nas dicas)
+const COMBAT_HINTS := "   Botão direito/F bloquear   Ctrl esquivar" ## #234: combate (o golpe é R ou Shift+clique parado; já está nas dicas)
 const COOLDOWN_MAX_MS := 2000.0 ## a barra de recarga enche em até isto
 const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro, a mira, fica limpo)
 const WHEEL_AIM_CLEAR := 30.0 ## px de folga em volta da mira (centro da tela) sem botão
@@ -61,6 +63,12 @@ var _pulse_id := "" ## a necessidade mais urgente agora: a barra pulsa
 var _pulse_clock := 0.0
 var _builtin_urgent := ""
 var need_hint: Label ## "Você está com a bexiga cheia → Vaso" (o alerta é do cenário; o objeto, do catálogo)
+var turn_box: HBoxContainer ## #267: os botões do turno: "Ir agora" e "Pular para a volta do turno"
+var go_now_button: Button
+var skip_button: Button
+var away_panel: PanelContainer ## #267: a cena de casa vazia ("Os dois estão fora — Rafael volta às 17:40") com a opção de pular
+var away_label: Label
+var away_skip: Button
 var queue_label: Label ## #255: a fila de ações ("1 Tomar banho · 2 Assistir TV"), Shift+1–4 tira
 var _queue_size := 0
 var entries: Array = []
@@ -156,7 +164,39 @@ func _init() -> void:
 	queue_label.visible = false
 	box.add_child(queue_label)
 	relation = RelationPanel.new()
+	relation.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT) # #267: empilhado acima do cartão (antes ficava no meio e cobria o cartão do corpo)
+	relation.offset_left = 16
+	relation.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(relation)
+	turn_box = HBoxContainer.new() # #267: o turno sem armadilha: o botão de ir agora e o de pular até a volta
+	turn_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	turn_box.offset_top = 66
+	turn_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	turn_box.add_theme_constant_override("separation", 8)
+	turn_box.visible = false
+	add_child(turn_box)
+	go_now_button = _turn_button("Ir agora (E)", func(): go_now_requested.emit())
+	skip_button = _turn_button("Pular para a volta do turno", func(): skip_requested.emit())
+	away_panel = PanelContainer.new()
+	away_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.82), 12))
+	away_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	away_panel.offset_top = -190 # acima da mira e do alvo do E (o aviso não cobre o centro da tela)
+	away_panel.offset_bottom = -190
+	away_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	away_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	away_panel.visible = false
+	add_child(away_panel)
+	var away_box := VBoxContainer.new()
+	away_box.add_theme_constant_override("separation", 8)
+	away_panel.add_child(away_box)
+	away_label = _label(22, Color("ffe9a6"))
+	away_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	away_box.add_child(away_label)
+	away_skip = Button.new()
+	away_skip.text = "Pular para a volta do turno"
+	away_skip.add_theme_font_size_override("font_size", 16)
+	away_skip.pressed.connect(func(): skip_requested.emit())
+	away_box.add_child(away_skip)
 	busy_panel = PanelContainer.new() # #241: "Cortando lenha — 40%" e a barra, acima do cartão; só enquanto o motor diz que o corpo está ocupado
 	busy_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
 	busy_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -276,6 +316,17 @@ func _init() -> void:
 	inventory_box.add_theme_constant_override("separation", 4)
 	inventory.add_child(inventory_box)
 	set_inventory(null, null, Callable())
+
+
+func _turn_button(text: String, action: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.add_theme_font_size_override("font_size", 15)
+	button.focus_mode = Control.FOCUS_NONE
+	button.visible = false
+	button.pressed.connect(action)
+	turn_box.add_child(button)
+	return button
 
 
 static func _style(color: Color, radius: int) -> StyleBoxFlat:
@@ -425,7 +476,14 @@ func _note_row(id: String, value: float, per_hour: Variant) -> void:
 	row.row.tooltip_text = "%s %d%% · %s" % [String(row.name.text).trim_prefix("▶ "), roundi(value), NeedIcon.trend_text(level)]
 
 
+## #267: o painel da relação fica acima do cartão do corpo (e da barra de ação): nunca o cobre. `card_height` e `busy_height` (0 sem barra) vêm do layout.
+static func stack_offset(card_height: float, busy_height: float) -> float:
+	return -(44.0 + card_height + 8.0 + (busy_height + 8.0 if busy_height > 0.0 else 0.0))
+
+
 func _process(delta: float) -> void:
+	if relation != null and relation.visible:
+		relation.offset_bottom = stack_offset(card.size.y, busy_panel.size.y if busy_panel.visible else 0.0)
 	if _pulse_id == "" or not _rows.has(_pulse_id):
 		return
 	_pulse_clock += delta
@@ -619,10 +677,34 @@ func set_purse(money: Variant, carrying: Variant, name_of: Callable) -> void:
 
 ## #263: o emprego e as contas como o motor diz (`career` da ficha): a linha do cartão e o painel da carreira.
 func set_career(view: Variant) -> void:
+	_set_turn_buttons(view)
 	var lines := CareerPanel.card_lines(view)
 	career_label.text = "\n".join(lines)
 	career_label.visible = not lines.is_empty()
 	career_panel.set_career(view)
+
+
+## #267: "Ir agora" com a janela do turno aberta; "Pular para a volta do turno" com este corpo (ou alguém da casa) no trabalho e o motor deixando pular (sozinho no mundo).
+var can_skip_time := false
+
+
+func _set_turn_buttons(view: Variant) -> void:
+	var job: Dictionary = view.get("job") if view is Dictionary and view.get("job") is Dictionary else {}
+	var away := bool(job.get("away", false))
+	var mates_away: bool = view is Dictionary and view.get("mates") is Array and (view.mates as Array).any(func(m): return bool(m.get("away", false)))
+	go_now_button.visible = bool(job.get("canGo", false)) and not away
+	skip_button.visible = (away or mates_away) and can_skip_time and not away_panel.visible # com a cena dos dois fora, o pulo é o botão dela
+	turn_box.visible = go_now_button.visible or skip_button.visible
+
+
+## #267: a cena de casa vazia: o aviso no centro, sem a figura; some quando alguém volta.
+func set_both_away(on: bool, text: String) -> void:
+	away_panel.visible = on
+	away_label.text = text
+	away_skip.visible = can_skip_time
+	if on:
+		skip_button.visible = false
+		turn_box.visible = go_now_button.visible
 
 
 func toggle_career() -> void:
@@ -646,6 +728,12 @@ func set_clock(text: String) -> void:
 ## jogador pode mudar o tempo (sozinho no mundo); com mais de um jogador somem. `maxSpeed` esconde as velocidades que o cenário não permite.
 func set_speed(view: Dictionary) -> void:
 	var can := bool(view.get("canSkip", false)) or bool(view.get("canSetSpeed", false))
+	can_skip_time = bool(view.get("canSkip", false))
+	if away_panel != null:
+		away_skip.visible = can_skip_time and away_panel.visible
+	if turn_box != null and not can_skip_time:
+		skip_button.visible = false
+		turn_box.visible = go_now_button.visible
 	speed_box.visible = can
 	speed_now = int(view.get("speed", 1)) if view.get("speed") != null else 1
 	var list: Array = speeds_of(view)

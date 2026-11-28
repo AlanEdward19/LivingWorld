@@ -331,4 +331,4 @@ func test_projection_parses_the_optional_combat_field_and_the_reach_ring_follows
 
 func test_the_hint_line_tells_how_to_block_and_dodge() -> void:
 	check("bloquear" in PlayerFrame.COMBAT_HINTS and "esquivar" in PlayerFrame.COMBAT_HINTS, "a dica diz como defender")
-	check("Clique bater" in PlayerFrame.HINTS, "a dica de bater continua")
+	check("R golpe" in PlayerFrame.HINTS and "Clique ir até" in PlayerFrame.HINTS, "a dica do golpe (R) e do clique (ir até) estão na tela") # #267: o clique vai até; o golpe é R

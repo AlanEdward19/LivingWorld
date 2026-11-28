@@ -21,7 +21,7 @@ namespace LivingWorld.Simulation.Players;
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch, Speed }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch, Speed, Go }
 
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
@@ -205,6 +205,22 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>#267: "ir até" uma célula, uma pessoa ou um prédio: o corpo anda sozinho pela rota do motor (<see cref="PlayerGo"/>); 409 ocupado, longe demais ou sem rota. Entra no registro com o alvo já resolvido.</summary>
+    public Result<Unit> Go(WorldState world, string playerId, int? x, int? y, long? person, long? building, string? label)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away);
+        var target = PlayerGo.Resolve(world, npc, x, y, person, building);
+        if (!target.IsSuccess) return Result<Unit>.Fail(target.Error!);
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerGo.Begin(world, Context(world), npc, target.Value, label);
+        if (result.IsSuccess)
+            Record(world, playerId, PlayerCommandKind.Go, npc.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Go, Dx: target.Value.Cell.X, Dy: target.Value.Cell.Y, TargetId: target.Value.Person, Interaction: label));
+        return result;
+    }
+
     /// <summary>AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para): o motor anda o corpo pelo rumo anterior até agora.</summary>
     public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy, bool run = false, int seq = 0)
     {
@@ -365,11 +381,12 @@ public static class PlayerReplay
                 PlayerCommandKind.TickDelta => service.SetTickDelta(world, record.PlayerId, record.DeltaMs!.Value).IsSuccess,
                 PlayerCommandKind.Advance => service.Advance(world, clock, record.PlayerId, record.Ticks!.Value, record.DeltaMs!.Value).IsSuccess,
                 PlayerCommandKind.Sleep => service.Sleep(world, record.PlayerId, record.UntilMs).IsSuccess,
-                PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId, record.UntilMs).IsSuccess,
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
                 PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true, record.Seq ?? 0).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
                 PlayerCommandKind.Interrupt => service.Interrupt(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Go => service.Go(world, record.PlayerId, record.Dx, record.Dy, record.TargetId, null, record.Interaction).IsSuccess,
                 PlayerCommandKind.Speed => true, // #260: estado do hospedeiro; o que muda o mundo é o Δ, que vai no registro de Δ
                 PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,
                 PlayerCommandKind.Block => service.Guard(world, record.PlayerId, CombatGuard.Block).IsSuccess,

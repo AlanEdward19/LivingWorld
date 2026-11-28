@@ -39,12 +39,13 @@ public static class MoodMechanic
     // ---------------- gatilhos ----------------
 
     /// <summary>O uso do catálogo terminou por inteiro (<paramref name="useId"/>): dá os momentos do gatilho e cumpre os desejos que ele atende.</summary>
-    public static void OnUse(WorldState world, Npc npc, string useId, long ms)
+    /// <param name="share">#267: que fração do tempo do catálogo o uso durou de fato (1 = inteiro): comer à mesa com a barriga cheia dura um minuto e não rende momento nem desejo (<c>minShare</c>).</param>
+    public static void OnUse(WorldState world, Npc npc, string useId, long ms, double share = 1)
     {
         if (CatalogOf(world) is not { } catalog) return;
         foreach (var def in IndexOf(catalog).Events)
-            if (def.Trigger is { Kind: "use" } t && t.Use == useId) Add(world, catalog, npc, def, ms, 0);
-        Fulfill(world, catalog, npc, ms, w => w.Kind == "use" && w.Use == useId, other: 0);
+            if (def.Trigger is { Kind: "use" } t && t.Use == useId && share >= (t.MinShare ?? 0)) Add(world, catalog, npc, def, ms, 0);
+        Fulfill(world, catalog, npc, ms, w => w.Kind == "use" && w.Use == useId && share >= (w.MinShare ?? 0), other: 0);
     }
 
     /// <summary>Uma ação do motor concluída (dormir, comer): momentos e desejos pelo nome da ação.</summary>
@@ -90,6 +91,24 @@ public static class MoodMechanic
 
     // ---------------- momentos ----------------
 
+    /// <summary>#267: quantas repetições seguidas (com o momento ainda vivo) o <c>falloff</c> conta.</summary>
+    private const int MaxRepeats = 6;
+
+    /// <summary>#267: o peso do momento com <paramref name="count"/> ocorrências: empilha (soma) ou, com <c>falloff</c> menor que 1, cada repetição vale esse tanto da anterior.</summary>
+    internal static double WeightOf(MomentDef def, int count) =>
+        def.Stack ? def.Weight * count : def.Falloff < 1 && count > 1 ? def.Weight * Repeated(def.Falloff, count - 1) : def.Weight;
+
+    /// <summary>Potência inteira só com multiplicação (a <c>Math.Pow</c> da plataforma não entra no estado do mundo).</summary>
+    private static double Repeated(double factor, int times)
+    {
+        double value = 1;
+        for (int i = 0; i < times; i++) value *= factor;
+        return value;
+    }
+
+    /// <summary>Quantas vezes os efeitos do momento valem (só o que empilha multiplica; repetir com <c>falloff</c> não).</summary>
+    private static int Times(MomentDef def, int count) => def.Stack ? count : 1;
+
     private static void Add(WorldState world, MoodCatalog catalog, Npc npc, MomentDef def, long ms, long other)
     {
         if (!npc.IsAlive) return;
@@ -103,7 +122,8 @@ public static class MoodMechanic
             if (m.Id == def.Id)
             {
                 found = true;
-                list.Add(new MomentInstance(def.Id, until, def.Stack ? Math.Min(Math.Max(2, def.MaxStack), m.Count + 1) : 1, other != 0 ? other : m.Other));
+                int count = def.Stack ? Math.Min(Math.Max(2, def.MaxStack), m.Count + 1) : def.Falloff < 1 ? Math.Min(m.Count + 1, MaxRepeats) : 1; // #267: repetir o mesmo momento vale cada vez menos
+                list.Add(new MomentInstance(def.Id, until, count, other != 0 ? other : m.Other));
             }
             else list.Add(m);
         }
@@ -149,7 +169,7 @@ public static class MoodMechanic
             name = name.Replace("{other}", cause, StringComparison.Ordinal);
         }
 
-        return new MomentView(def.Id, name, def.Emotion, def.Weight * count, count, remaining, cause);
+        return new MomentView(def.Id, name, def.Emotion, WeightOf(def, count), count, remaining, cause);
     }
 
     private static bool StateHolds(WorldState world, Npc npc, MomentTrigger t, long ms)
@@ -159,17 +179,58 @@ public static class MoodMechanic
         return (t.Below is null || v < t.Below) && (t.Above is null || v >= t.Above);
     }
 
-    /// <summary>A soma dos pesos dos momentos de agora (para a nota de humor); 0 sem catálogo.</summary>
+    /// <summary>A soma dos pesos dos momentos de agora (para a nota de humor); 0 sem catálogo. #267: com <c>emotionCap</c>, a soma de cada emoção tem teto (felicidade não empilha sem fim).</summary>
     public static double Sum(WorldState world, Npc npc, long ms)
     {
         if (CatalogOf(world) is not { } catalog) return 0;
-        double sum = 0;
+        double cap = catalog.Rules.EmotionCap;
+        if (cap <= 0)
+        {
+            double plain = 0;
+            if (npc.Moods is { } live)
+                foreach (var m in live.Moments)
+                    if (m.UntilMs > ms && catalog.Moment(m.Id) is { } def) plain += WeightOf(def, m.Count);
+            foreach (var def in IndexOf(catalog).States)
+                if (StateHolds(world, npc, def.Trigger, ms)) plain += def.Weight;
+            return plain;
+        }
+
+        var per = catalog.Emotions.Count <= 32 ? stackalloc double[catalog.Emotions.Count] : new double[catalog.Emotions.Count];
+        double rest = 0; // emoção que o catálogo não lista: sem teto
         if (npc.Moods is { } state)
             foreach (var m in state.Moments)
-                if (m.UntilMs > ms && catalog.Moment(m.Id) is { } def) sum += def.Weight * m.Count;
+                if (m.UntilMs > ms && catalog.Moment(m.Id) is { } def) Put(catalog, per, ref rest, def, WeightOf(def, m.Count));
         foreach (var def in IndexOf(catalog).States)
-            if (StateHolds(world, npc, def.Trigger, ms)) sum += def.Weight;
+            if (StateHolds(world, npc, def.Trigger, ms)) Put(catalog, per, ref rest, def, def.Weight);
+        double sum = rest;
+        for (int i = 0; i < per.Length; i++) sum += Math.Clamp(per[i], -cap, cap);
         return sum;
+    }
+
+    private static void Put(MoodCatalog catalog, Span<double> per, ref double rest, MomentDef def, double weight)
+    {
+        for (int i = 0; i < catalog.Emotions.Count; i++)
+            if (catalog.Emotions[i].Id == def.Emotion) { per[i] += weight; return; }
+        rest += weight;
+    }
+
+    /// <summary>#267: a nota de humor acompanha a emoção dominante: cada emoção pode pedir uma faixa (<c>scoreMin</c>/<c>scoreMax</c>), então "Irritado" não convive com "Radiante 100".</summary>
+    public static double Band(WorldState world, Npc npc, long ms, double score)
+    {
+        if (CatalogOf(world) is null || EmotionOf(world, npc, ms) is not { } emotion) return score;
+        if (emotion.ScoreMax is { } max) score = Math.Min(score, max);
+        if (emotion.ScoreMin is { } min) score = Math.Max(score, min);
+        return score;
+    }
+
+    /// <summary>#267: os pontos que os momentos de agora movem a nota: linear, ou, com <c>scoreSwing</c>, por uma curva suave que nunca passa dessa amplitude.</summary>
+    public static double ScoreShift(WorldState world, Npc npc, long ms)
+    {
+        if (CatalogOf(world) is not { } catalog) return 0;
+        double raw = catalog.Rules.ScorePerWeight * Sum(world, npc, ms), swing = catalog.Rules.ScoreSwing;
+        if (swing <= 0) return raw;
+        double e = DeterministicMath.Exp(2 * Math.Clamp(raw / swing, -20, 20)); // tanh x = (e^2x - 1) / (e^2x + 1), sem a libm da plataforma
+        return swing * (e - 1) / (e + 1);
     }
 
     // ---------------- emoção dominante ----------------
@@ -203,7 +264,7 @@ public static class MoodMechanic
     private static void Strengthen(MoodCatalog catalog, double[] strength, MomentDef def, int count)
     {
         for (int i = 0; i < catalog.Emotions.Count; i++)
-            if (catalog.Emotions[i].Id == def.Emotion) { strength[i] += Math.Abs(def.Weight) * count; return; }
+            if (catalog.Emotions[i].Id == def.Emotion) { strength[i] += Math.Abs(WeightOf(def, count)); return; }
     }
 
     /// <summary>O rosto que o boneco desenha pelo humor (emoção da psique que o cliente sabe mostrar), ou nulo. Só quando a psique não manda nenhuma.</summary>
@@ -218,7 +279,7 @@ public static class MoodMechanic
         double rate = 1;
         if (npc.Moods is { } state)
             foreach (var m in state.Moments)
-                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects: { } fx }) for (int k = 0; k < m.Count; k++) rate *= fx.UseRate;
+                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects: { } fx }) for (int k = 0; k < Times(catalog.Moment(m.Id)!, m.Count); k++) rate *= fx.UseRate;
         foreach (var def in IndexOf(catalog).States)
             if (def.Effects is { } fx && StateHolds(world, npc, def.Trigger, ms)) rate *= fx.UseRate;
         return Math.Clamp(rate, 0.5, 2);
@@ -231,7 +292,7 @@ public static class MoodMechanic
         double bias = 1;
         if (npc.Moods is { } state)
             foreach (var m in state.Moments)
-                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects.SocialBias: { } map } && map.TryGetValue(category, out var f)) for (int k = 0; k < m.Count; k++) bias *= f;
+                if (m.UntilMs > ms && catalog.Moment(m.Id) is { Effects.SocialBias: { } map } && map.TryGetValue(category, out var f)) for (int k = 0; k < Times(catalog.Moment(m.Id)!, m.Count); k++) bias *= f;
         foreach (var def in IndexOf(catalog).States)
             if (def.Effects?.SocialBias is { } map && map.TryGetValue(category, out var f) && StateHolds(world, npc, def.Trigger, ms)) bias *= f;
         return Math.Clamp(bias, 0.1, 5);
@@ -321,6 +382,13 @@ public static class MoodMechanic
         }
 
         if (pool is null) return; // nada pede nada agora: sem sorteio, sem escrita
+        if (catalog.Rules.WishDailyPool > 0)
+        {
+            var today = DailyWishes(world, catalog, npc, ms);
+            pool.RemoveAll(p => !today.Contains(p.Def.Id) || ColdDown(catalog, state, p.Def.Id, ms));
+            if (pool.Count == 0) return;
+        }
+
         var rng = world.Rng.OneShot($"wish-{npc.Id.Value}-{hour}");
         var wishes = state.Wishes.ToList();
         for (int slot = 0; slot < free && pool.Count > 0; slot++)
@@ -338,6 +406,30 @@ public static class MoodMechanic
         }
 
         npc.SetMoods(state with { Wishes = wishes.OrderBy(w => w.SinceMs).ThenBy(w => w.Id, StringComparer.Ordinal).ToList() });
+    }
+
+    /// <summary>#267: os desejos do catálogo que valem hoje para a pessoa: <c>wishDailyPool</c> deles, embaralhados pelo RNG do mundo com o dia e a pessoa (desejos novos a cada dia).</summary>
+    internal static HashSet<string> DailyWishes(WorldState world, MoodCatalog catalog, Npc npc, long ms)
+    {
+        long day = ms / ((long)world.Calendar.HoursPerDay * WorldMillis.PerHour);
+        var rng = world.Rng.OneShot($"wishday-{npc.Id.Value}-{day}");
+        var ids = catalog.Wishes.Select(w => w.Id).ToList();
+        for (int i = ids.Count - 1; i > 0; i--)
+        {
+            int j = (int)(rng.NextDouble() * (i + 1));
+            (ids[i], ids[j]) = (ids[j], ids[i]);
+        }
+
+        return ids.Take(catalog.Rules.WishDailyPool).ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>#267: o desejo foi cumprido há menos que <c>wishCooldownHours</c>: ainda não volta.</summary>
+    private static bool ColdDown(MoodCatalog catalog, MoodState state, string id, long ms)
+    {
+        if (catalog.Rules.WishCooldownHours <= 0 || state.Recent is not { } recent) return false;
+        foreach (var done in recent)
+            if (done.Id == id && ms - done.AtMs < catalog.Rules.WishCooldownHours * WorldMillis.PerHour) return true;
+        return false;
     }
 
     /// <summary>Horas entre uma tentativa de sortear desejos e a seguinte para quem ninguém conduz (a conta é a mesma para todos; só o instante muda).</summary>
@@ -402,7 +494,7 @@ public static class MoodMechanic
 
         state = npc.Moods ?? state;
         recent.AddRange(state.Recent ?? []);
-        npc.SetMoods(state with { Wishes = state.Wishes.Where(x => x != wish).ToList(), Points = after, Done = state.Done + 1, Recent = recent.Take(4).ToList() });
+        npc.SetMoods(state with { Wishes = state.Wishes.Where(x => x != wish).ToList(), Points = after, Done = state.Done + 1, Recent = recent.Take(8).ToList() });
         string? reward = def.Reward ?? catalog.Rules.RewardMoment;
         if (reward is not null && catalog.Moment(reward) is { } rd) Add(world, catalog, npc, rd, ms, wish.Other);
     }
@@ -429,7 +521,7 @@ public static class MoodMechanic
         int score;
         string? label = null;
         if (world.ObjectCatalog?.Social is { } social) (score, label) = SocialInteractions.Mood(world, social, npc, ms);
-        else score = (int)Math.Round(Math.Clamp(50 + Sum(world, npc, ms) * catalog.Rules.ScorePerWeight, 0, 100));
+        else score = (int)Math.Round(Math.Clamp(Band(world, npc, ms, 50 + ScoreShift(world, npc, ms)), 0, 100));
         var aspiration = AspirationOf(world, npc);
         int points = npc.Moods?.Points ?? 0;
         var next = aspiration?.Milestones.Where(m => m.Points > points).OrderBy(m => m.Points).FirstOrDefault();

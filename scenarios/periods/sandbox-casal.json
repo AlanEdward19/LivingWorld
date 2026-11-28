@@ -204,6 +204,7 @@
       "Members": [
         {
           "Name": "Marina",
+          "Appearance": { "SkinTone": 30, "HairTone": 12, "HairCurl": 62, "Build": 34, "EyeTone": 72, "FaceShape": 34, "Outfit": 2, "BodyFrame": 30 },
           "Sex": "Female",
           "AgeYears": 32,
           "ProfessionId": 1,
@@ -224,6 +225,7 @@
         },
         {
           "Name": "Rafael",
+          "Appearance": { "SkinTone": 64, "HairTone": 36, "HairCurl": 14, "Build": 66, "EyeTone": 38, "FaceShape": 64, "Outfit": 5, "BodyFrame": 64 },
           "Sex": "Male",
           "AgeYears": 35,
           "ProfessionId": 1,
@@ -249,6 +251,7 @@
       "Members": [
         {
           "Name": "Seu Joaquim",
+          "Appearance": { "SkinTone": 70, "HairTone": 88, "HairCurl": 40, "Build": 58, "EyeTone": 50, "FaceShape": 56, "Outfit": 0, "BodyFrame": 56 },
           "Sex": "Male",
           "AgeYears": 52,
           "ProfessionId": 2,
@@ -273,6 +276,7 @@
       "Members": [
         {
           "Name": "Seu Tomás",
+          "Appearance": { "SkinTone": 46, "HairTone": 22, "HairCurl": 28, "Build": 74, "EyeTone": 60, "FaceShape": 70, "Outfit": 1, "BodyFrame": 72 },
           "Sex": "Male",
           "AgeYears": 48,
           "ProfessionId": 3,

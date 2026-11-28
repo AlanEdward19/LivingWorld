@@ -101,6 +101,8 @@ public static class PlayerChannelEndpoints
                 "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
                     Run: node?["run"]?.GetValue<bool>() ?? false, Seq: node?["wseq"]?.GetValue<int>() ?? 0),
                 "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
+                "go" => new PlayerCommandRequest(PlayerCommandKind.Go, NpcId: node?["npcId"]?.GetValue<long>(), X: node?["x"]?.GetValue<int>(), Y: node?["y"]?.GetValue<int>(),
+                    BuildingId: node?["buildingId"]?.GetValue<long>(), Label: node?["label"]?.GetValue<string>()), // #267: ir até
                 "interrupt" => new PlayerCommandRequest(PlayerCommandKind.Interrupt), // #241: para a ação em andamento
                 "dodge" => new PlayerCommandRequest(PlayerCommandKind.Dodge), // #234: esquiva e bloqueio (janela curta)
                 "block" => new PlayerCommandRequest(PlayerCommandKind.Block),
@@ -108,7 +110,7 @@ public static class PlayerChannelEndpoints
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 // AD-197c: dormir (até a hora do dia "untilHour", ou acelerando), acelerar parado e acordar: só quem joga sozinho
                 "sleep" => new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: node?["untilHour"]?.GetValue<int>()),
-                "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate),
+                "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate, UntilReturn: node?["untilReturn"]?.GetValue<bool>() ?? false), // #267: até a volta do turno
                 "wake" => new PlayerCommandRequest(PlayerCommandKind.Wake),
                 "speed" => new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: node?["speed"]?.GetValue<int>()), // #260: 0 pausa, 1, 2, 3
                 // AD-197d: interagir com o que está perto, pela oferta do motor ("reach" lista o que se alcança)

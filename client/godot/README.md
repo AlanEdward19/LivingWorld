@@ -119,3 +119,8 @@ dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
 #252 (sandbox do casal: botão de início rápido, troca de corpo por G com a câmera deslizando, nome dos móveis do cenário), contra `3f1ba09d` (2 rodadas): `stress` 115,7 / 115,5 FPS (antes ~116); motor 150 NPCs, 5,56 → 5,53 µs/NPC-tick e 12,50 KB/tick iguais.
 #256 (início rápido entra no corpo, relógio relido ao possuir, passada pela velocidade real): `stress` 116,5 / 116,4 FPS (2 rodadas; antes ~116, README #252); motor: só o plano do status e o zerar do Δ manual, sem custo por NPC-tick.
 #259 (S3 do sandbox: interações sociais em dados, relação visível, menu "Interagir ▸"): `stress` 117,1 / 117,1 FPS (2 rodadas, monitor 120 Hz; antes ~116). Motor, `profile.sh --pop 300 --ticks 720` contra `4023b328`: 6,056 → 6,120 µs/NPC-tick (ruído), 77 B/NPC-tick iguais; o mundo sem catálogo social só paga uma checagem de nulo.
+
+## 3º teste de jogo (#267)
+Clique = ir até/interagir (pessoa, móvel, prédio; `player_hud.click_target`, `POST /players/{id}/go`); golpe: **R** ou Shift+clique parado. "Ir agora" e "Pular para a volta do turno" sob o relógio; "Os dois estão fora"
+(`player_hud.both_away_changed`); relação empilhada acima do cartão; rótulos de prédio sem sobreposição (`building_labels.hidden_ids`); câmera de interior sobre a casa (`interior_camera.keep_in_house`); chapéu pelo traje do motor.
+Passos de captura: `clickgo:Rafael|obj=Sofá|place=Mercado`, `relinfo:Rafael`, `gonow`, `skipreturn`, `turnui`. Medidas contra `14a3af4b` (2 rodadas alternadas): `stress:500` 115,9 / 116,1 → 116,2 / 116,0 FPS (monitor 120 Hz); motor `profile.sh --pop 300 --ticks 720` 5,327 / 5,391 → 5,479 / 5,320 µs/NPC-tick (ruído), 78 B/NPC-tick iguais; o humor só custa em mundo com catálogo.

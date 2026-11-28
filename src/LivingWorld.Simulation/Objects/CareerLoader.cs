@@ -90,7 +90,19 @@ public static class CareerLoader
             }
         }
 
-        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle, names));
+        List<string>? stop = null; // #267: os tipos de aviso que pedem tempo normal
+        if (o["stopKinds"] is not null)
+        {
+            if (o["stopKinds"] is not JsonArray stopArray) return Result<CareerRules>.Fail("Careers.rules.stopKinds: lista de textos");
+            stop = [];
+            foreach (var item in stopArray)
+            {
+                if (!Text(item, out var kind) || kind.Length is 0 or > 24) return Result<CareerRules>.Fail("Careers.rules.stopKinds: textos de 1 a 24 caracteres");
+                stop.Add(kind);
+            }
+        }
+
+        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle, names, stop));
     }
 
     private static Result<CareerDef> ParseCareer(JsonNode? node, string at, Func<string, bool> knownNeed)

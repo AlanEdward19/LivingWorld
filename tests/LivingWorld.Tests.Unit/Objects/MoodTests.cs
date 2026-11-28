@@ -104,13 +104,13 @@ public class MoodTests
         Assert.Equal("Brigou com Rafael", quarrel.Name);
         Assert.Equal("Rafael", quarrel.Cause);
         Assert.Equal(3, quarrel.Count);
-        Assert.Equal(-9, quarrel.Weight);
+        Assert.Equal(-12, quarrel.Weight); // #267: a briga pesa mais (-4 por vez, até 3)
         Assert.Equal("Marina", Assert.Single(Moments(world, other), m => m.Id == "quarrel").Cause); // o id 0 também é alguém: a causa não se perde
         Assert.Equal("angry", MoodMechanic.EmotionOf(world, other, Now(world))!.Id);
         Assert.Equal("anger", MoodMechanic.FaceOf(world, body, Now(world))); // o rosto que o boneco já sabe desenhar
         var view = MoodMechanic.ViewOf(world, body, Now(world))!;
         Assert.Equal("Irritado", view.EmotionName);
-        Assert.True(view.Score < 20, $"nota {view.Score}");
+        Assert.True(view.Score <= 34, $"nota {view.Score}"); // #267: a nota acompanha a emoção (irritado)
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public class MoodTests
         HomeLife.Add(world, body, "hygiene", -50, Now(world));
         MoodMechanic.Hourly(world, body, Now(world));
         var wishes = MoodMechanic.Wishes(world, body, Now(world));
-        Assert.Equal(3, wishes.Count);
+        Assert.InRange(wishes.Count, 2, 3); // #267: a rotação diária limita o que vale hoje
         Assert.All(wishes, w => Assert.False(string.IsNullOrWhiteSpace(w.Text)));
         Assert.Equal("knowledge", MoodMechanic.AspirationOf(world, body)!.Id); // a personalidade escolhe
         Assert.Equal("comfort", MoodMechanic.AspirationOf(world, other)!.Id);
