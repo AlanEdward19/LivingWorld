@@ -14,7 +14,7 @@ namespace LivingWorld.Api.Players;
 /// <c>{"seq":8,"command":"interact","kind":"stall","id":3,"verb":"buy","resourceId":1,"quantity":2}</c>
 /// — e a resposta vem pelo mesmo canal: <c>{"seq":1,"ok":true,"status":200,"body":{...}}</c> ou
 /// <c>{"seq":2,"ok":false,"status":409,"error":"..."}</c>. Os comandos passam pela mesma fila das rotas HTTP
-/// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). As rotas HTTP continuam valendo.</summary>
+/// (<see cref="PlayerCommandGateway"/>), com os mesmos status (pausa do admin = 409). #240: <c>{"seq":9,"command":"hold","on":true}</c> pede a pausa de popup. As rotas HTTP continuam valendo.</summary>
 public static class PlayerChannelEndpoints
 {
     private static readonly JsonSerializerOptions Wire = LivingWorld.Api.Realtime.WireMillis.Apply(new(JsonSerializerDefaults.Web));
@@ -35,6 +35,15 @@ public static class PlayerChannelEndpoints
             }
 
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
+            gateway.Hold.Connected(playerId);
+            try { await Serve(socket, http, gateway, tokens, playerId); }
+            finally { gateway.Hold.Disconnected(playerId); } // desconectar solta o hold: o mundo nunca fica parado sem ninguém
+        });
+    }
+
+    private static async Task Serve(WebSocket socket, HttpContext http, PlayerCommandGateway gateway, PlayerSessionTokens tokens, string playerId)
+    {
+        {
             var buffer = new byte[16 * 1024];
             var message = new MemoryStream();
             while (socket.State == WebSocketState.Open && !http.RequestAborted.IsCancellationRequested)
@@ -57,7 +66,7 @@ public static class PlayerChannelEndpoints
 
             if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
                 await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
-        });
+        }
     }
 
     private static long? SeqOf(string text)
@@ -84,19 +93,26 @@ public static class PlayerChannelEndpoints
                 "incarnate" when node?["npcId"] is { } id => new PlayerCommandRequest(PlayerCommandKind.Incarnate, id.GetValue<long>()),
                 "action" when PlayerEndpoints.TryParseAction(node?["action"]?.GetValue<string>(), out var action) =>
                     new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: node?["powerId"]?.GetValue<string>()),
+                "switch" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Switch, target.GetValue<long>()), // #252
                 "logout" => new PlayerCommandRequest(PlayerCommandKind.Logout),
                 "persuade" => new PlayerCommandRequest(PlayerCommandKind.Persuade),
                 // AD-197k: o rumo do passo solto, em milésimos (0, 0 para)
                 // AD-197u: "run": true corre (só com fôlego e saúde); "jump" pula
                 "walk" => new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0,
-                    Run: node?["run"]?.GetValue<bool>() ?? false),
+                    Run: node?["run"]?.GetValue<bool>() ?? false, Seq: node?["wseq"]?.GetValue<int>() ?? 0),
                 "jump" => new PlayerCommandRequest(PlayerCommandKind.Jump),
+                "go" => new PlayerCommandRequest(PlayerCommandKind.Go, NpcId: node?["npcId"]?.GetValue<long>(), X: node?["x"]?.GetValue<int>(), Y: node?["y"]?.GetValue<int>(),
+                    BuildingId: node?["buildingId"]?.GetValue<long>(), Label: node?["label"]?.GetValue<string>()), // #267: ir até
+                "interrupt" => new PlayerCommandRequest(PlayerCommandKind.Interrupt), // #241: para a ação em andamento
+                "dodge" => new PlayerCommandRequest(PlayerCommandKind.Dodge), // #234: esquiva e bloqueio (janela curta)
+                "block" => new PlayerCommandRequest(PlayerCommandKind.Block),
                 "move" => new PlayerCommandRequest(PlayerCommandKind.Move, Dx: node?["dx"]?.GetValue<int>() ?? 0, Dy: node?["dy"]?.GetValue<int>() ?? 0),
                 "strike" when node?["npcId"] is { } target => new PlayerCommandRequest(PlayerCommandKind.Strike, target.GetValue<long>()),
                 // AD-197c: dormir (até a hora do dia "untilHour", ou acelerando), acelerar parado e acordar: só quem joga sozinho
                 "sleep" => new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: node?["untilHour"]?.GetValue<int>()),
-                "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate),
+                "accelerate" => new PlayerCommandRequest(PlayerCommandKind.Accelerate, UntilReturn: node?["untilReturn"]?.GetValue<bool>() ?? false), // #267: até a volta do turno
                 "wake" => new PlayerCommandRequest(PlayerCommandKind.Wake),
+                "speed" => new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: node?["speed"]?.GetValue<int>()), // #260: 0 pausa, 1, 2, 3
                 // AD-197d: interagir com o que está perto, pela oferta do motor ("reach" lista o que se alcança)
                 "interact" when node?["kind"] is { } kind && node?["id"] is { } id && node?["verb"] is { } verb =>
                     new PlayerCommandRequest(PlayerCommandKind.Interact, Interaction: kind.GetValue<string>(), TargetId: id.GetValue<long>(),
@@ -119,10 +135,26 @@ public static class PlayerChannelEndpoints
         {
             return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "campo com tipo errado" };
         }
+        // #240: pausa de popup ({"command":"hold","on":true}, renovada pelo cliente): honrada só para o único conectado; vence em 30 s sem renovar
+        if (command == "hold")
+        {
+            bool held = gateway.SetHold(playerId, node?["on"]?.GetValue<bool>() ?? false);
+            return new JsonObject
+            {
+                ["seq"] = seq,
+                ["ok"] = true,
+                ["status"] = 200,
+                ["body"] = new JsonObject { ["held"] = held, ["leaseMs"] = (int)PopupHold.Lease.TotalMilliseconds }
+            };
+        }
         if (command == "ping") return new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = "pong" };
         if (command == "reach")
             return gateway.Reach(playerId) is { } offers
                 ? new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = JsonSerializer.SerializeToNode(new { offers }, Wire) }
+                : new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 404, ["error"] = $"{PlayerCommands.NotFound} jogador não controla nenhum NPC" };
+        if (command == "ground") // #248: a máscara de passos ao redor do corpo
+            return gateway.Ground(playerId, node?["r"]?.GetValue<int>() ?? 8) is { } ground
+                ? new JsonObject { ["seq"] = seq, ["ok"] = true, ["status"] = 200, ["body"] = JsonSerializer.SerializeToNode(ground, Wire) }
                 : new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 404, ["error"] = $"{PlayerCommands.NotFound} jogador não controla nenhum NPC" };
         if (request is null) return new JsonObject { ["seq"] = seq, ["ok"] = false, ["status"] = 400, ["error"] = "comando desconhecido ou incompleto" };
 

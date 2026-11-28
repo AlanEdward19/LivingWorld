@@ -153,22 +153,68 @@ func bind(p_store, p_labels) -> void:
 	store.processes_changed.connect(_rebuild_processes)
 
 
+## #249: snapshot novo (troca de escopo, volta de outra cidade, reenvio do canal no abrir): aplica a DIFERENÇA, não refaz tudo. Cada
+## camada guarda a assinatura do que está desenhado; igual = fica como está (mesma instância, sem quadro caro); o que mudou refaz só
+## aquilo. O terreno e os rios são os mesmos entre escopos (`terrain_rev`); prédio e boneco comparam um a um.
+var _layer_signatures: Dictionary = {}
+
+
+## true quando `value` (o que a camada vai desenhar) difere do último desenhado; guarda a assinatura nova.
+func _layer_changed(layer: String, value: Variant) -> bool:
+	var signature: int = hash(value)
+	if _layer_signatures.get(layer, -1) == signature:
+		return false
+	_layer_signatures[layer] = signature
+	return true
+
+
 func _on_reloaded(kind: String) -> void:
 	if kind == "Interior":
 		return
-	terrain.rebuild(store)
-	_rebuild_cities()
-	buildings.rebuild(store)
-	_rebuild_npcs()
-	_rebuild_crops()
-	_rebuild_processes()
-	_rebuild_fauna()
-	_rebuild_items()
+	var city_id: String = String(store.city.get("id", "")) if kind == "City" else ""
+	var scope_key := "%s|%s" % [kind, city_id]
+	var scope_changed: bool = scope_key != _drawn_scope
+	_drawn_scope = scope_key
+	var bounds := _scope_bounds()
+	var started := Time.get_ticks_usec()
+	terrain.rebuild(store) # termina sozinho se o terreno é o mesmo
+	FrameCost.add("reload.terrain", started)
+	started = Time.get_ticks_usec()
+	if _layer_changed("cities", [kind, store.cities]):
+		_rebuild_cities()
+	FrameCost.add("reload.cities", started)
+	started = Time.get_ticks_usec()
+	buildings.rebuild(store, view_center) # diferença por prédio (o que falta entra por fatias, do mais perto)
+	FrameCost.add("reload.buildings", started)
+	started = Time.get_ticks_usec()
+	npcs.sync(view_center)
+	FrameCost.add("reload.npcs", started)
+	started = Time.get_ticks_usec()
+	if _layer_changed("crops", [scope_key, store.crops, bounds]):
+		_rebuild_crops()
+	if _layer_changed("processes", [scope_key, store.processes, store.crops, bounds]):
+		_rebuild_processes()
+	if _layer_changed("fauna", [scope_key, store.animals, store.fauna_groups, bounds]):
+		_rebuild_fauna()
+	if _layer_changed("items", [scope_key, store.leavings, store.objects, bounds]):
+		_rebuild_items()
+	FrameCost.add("reload.layers", started)
+	started = Time.get_ticks_usec()
 	_apply_climate()
-	events.clear()
-	ground.rebuild()
-	_ground_dirty = false
+	FrameCost.add("reload.climate", started)
+	if scope_changed:
+		events.clear()
+	started = Time.get_ticks_usec()
+	if _layer_changed("ground", [scope_key, store.roads, store.buildings, store.rivers]):
+		ground.rebuild()
+		_ground_dirty = false
+	FrameCost.add("reload.ground", started)
+	started = Time.get_ticks_usec()
 	_relabel()
+	FrameCost.add("reload.labels", started)
+
+
+var _drawn_scope := ""
 
 
 func _rebuild_cities() -> void:
@@ -321,8 +367,9 @@ func building_center(id: int) -> Vector3:
 
 
 ## Nível de LOD pelo escopo e pelo zoom: mundo, cidade ou perto.
-static func lod_for(scope_kind: String, zoom_size: float) -> String:
-	if zoom_size <= NEAR_ZOOM:
+## #228: no modo jogador (3ª/1ª pessoa) a câmera é de gente (o zoom da isométrica não vale): o detalhe do corpo vale ao redor do corpo.
+static func lod_for(scope_kind: String, zoom_size: float, player_view: bool = false) -> String:
+	if player_view or zoom_size <= NEAR_ZOOM:
 		return "near" # bem perto, também no mapa-múndi (quem está no campo, fora das cidades)
 	return "world" if scope_kind == "World" else "city"
 

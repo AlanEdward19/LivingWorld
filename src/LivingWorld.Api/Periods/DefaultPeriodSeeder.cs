@@ -38,8 +38,35 @@ public static class DefaultPeriodSeeder
     public static string PayloadFor(string periodId) =>
         BuildPayload(Presets.FirstOrDefault(p => p.Id == periodId) ?? throw new ArgumentException($"período desconhecido: {periodId}", nameof(periodId)));
 
+    /// <summary>#252: períodos do menu que são só um arquivo de dados (<c>scenarios/periods/*.json</c>, embutido no assembly): id do período e do
+    /// arquivo. O motor não sabe de nenhum; o conteúdo (casal, casa, móveis) é todo do arquivo.</summary>
+    public static IReadOnlyList<string> DataPeriodIds { get; } = ["sandbox-casal"];
+
+    /// <summary>O payload do período de dados (o arquivo embutido), ou nulo se o id não é um deles.</summary>
+    public static string? DataPayloadFor(string periodId)
+    {
+        using var stream = typeof(DefaultPeriodSeeder).Assembly.GetManifestResourceStream($"period.{periodId}.json");
+        if (stream is null) return null;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static void SeedDataPeriods(IPeriodTemplateRepository repository)
+    {
+        foreach (var id in DataPeriodIds)
+        {
+            string? payload = DataPayloadFor(id);
+            if (payload is null) continue;
+            var latest = repository.FindLatestVersion(id);
+            string source = PeriodCards.NameOf(id, "", payload);
+            if (latest is null) Save(repository, id, source, 1, payload);
+            else if (latest.Source == source && latest.PayloadJson != payload) Save(repository, id, source, latest.Version + 1, payload); // o arquivo mudou
+        }
+    }
+
     public static void SeedIfEmpty(IPeriodTemplateRepository repository)
     {
+        SeedDataPeriods(repository);
         foreach (var preset in Presets)
         {
             var latest = repository.FindLatestVersion(preset.Id);
@@ -59,7 +86,12 @@ public static class DefaultPeriodSeeder
             }
             // AD-190: o clima gravado sem o desvio do ano de safra (faixa uniforme) ganha o do cenário de código
             bool oldClimate = stored["Climate"] is JsonObject climate && !climate.ContainsKey("StdDevMilli");
-            if (stored.ContainsKey("Presentation") && stored.ContainsKey("Climate") && !oldClimate && stored.ContainsKey("Descriptors")) continue;
+            // AD-197o2: o mundo gravado na escala antiga (0,05 h por célula) vai para a de metros (versão nova)
+            bool oldScale = stored["CostWeights"] is JsonObject cost && cost["Base"] is JsonValue baseCost
+                && baseCost.TryGetValue<double>(out double b) && Math.Abs(b - 0.05) < 1e-9;
+            if (oldScale)
+                stored["CostWeights"] = BuildPayloadNode(preset)["CostWeights"]!.DeepClone();
+            if (!oldScale && stored.ContainsKey("Presentation") && stored.ContainsKey("Climate") && !oldClimate && stored.ContainsKey("Descriptors")) continue;
             if (!stored.ContainsKey("Presentation")) stored["Presentation"] = PresentationOf(preset);
             if (!stored.ContainsKey("Descriptors")) stored["Descriptors"] = DescriptorsOf(); // #222: o nome do que se compra e se guarda
             if (!stored.ContainsKey("Climate") || oldClimate) stored["Climate"] = ClimateOf(); // AD-180: o tempo do lugar (versão nova)
@@ -68,13 +100,16 @@ public static class DefaultPeriodSeeder
     }
 
     private static void Save(IPeriodTemplateRepository repository, Preset preset, int version, string payload) =>
+        Save(repository, preset.Id, preset.Name, version, payload);
+
+    private static void Save(IPeriodTemplateRepository repository, string periodId, string source, int version, string payload) =>
         repository.Save(new PeriodTemplateRecord
         {
-            PeriodId = preset.Id,
+            PeriodId = periodId,
             Version = version,
             PayloadJson = payload,
             CreatedAtUtc = DateTime.UtcNow,
-            Source = preset.Name,
+            Source = source,
         });
 
     /// <summary>AD-180: clima ligado com o tempo diário da Inglaterra baixa (o padrão de <c>WeatherRules</c>): estações, temperatura,
@@ -165,7 +200,9 @@ public static class DefaultPeriodSeeder
         return list;
     }
 
-    private static string BuildPayload(Preset preset)
+    private static string BuildPayload(Preset preset) => BuildPayloadNode(preset).ToJsonString();
+
+    private static JsonObject BuildPayloadNode(Preset preset)
     {
         var root = new JsonObject
         {
@@ -182,9 +219,9 @@ public static class DefaultPeriodSeeder
             ["ResourceIds"] = new JsonArray(),
             ["CostWeights"] = new JsonObject
             {
-                // AD-179: a escala da vila de código (célula de ~30 min a pé); 1,0 fazia cada célula valer horas
-                ["Base"] = 0.05,
-                ["AltitudeWeight"] = 0.05,
+                // AD-197o2 (ADR-0052): a escala única da grade, 1,5 m por célula a 1,4 m/s (~1,07 s); antes 0,05 h (3 min por célula)
+                ["Base"] = LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
+                ["AltitudeWeight"] = LivingWorld.Domain.Geography.WorldScale.CellBaseHours,
                 ["TerrainWeight"] = new JsonObject { ["1"] = 1.0, ["2"] = 1.5, ["3"] = 3.0 },
             },
             ["Settlements"] = new JsonArray(new JsonObject
@@ -326,6 +363,6 @@ public static class DefaultPeriodSeeder
 
         // Mobília como dado de cenário (#47 fatia 1, ADR-0034): o interior sai do catálogo do mundo, não do assets.json do cliente.
         LivingWorld.Simulation.Objects.DefaultObjects.AddTo(root);
-        return root.ToJsonString();
+        return root;
     }
 }

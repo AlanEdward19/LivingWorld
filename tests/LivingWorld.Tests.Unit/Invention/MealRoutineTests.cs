@@ -20,7 +20,7 @@ public class MealRoutineTests
 {
     private static readonly InventionRules Rules = InventionRules.Default with { PantryNeedsPresence = true };
 
-    private static WorldState NewWorld(InventionRules? rules = null) => ScenarioRunner.Create(1, inventionRules: rules ?? Rules).World;
+    private static WorldState NewWorld(InventionRules? rules = null) => ScenarioRunner.Create(1, costWeights: ScenarioRunner.RegionalCostWeights, inventionRules: rules ?? Rules).World;
 
     private static Household HomeOf(WorldState world, Npc npc) => world.FindHousehold(npc.Household!.Value)!;
 

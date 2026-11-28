@@ -72,6 +72,15 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.Carrying)] = (dto, npc, _) => npc.IsCarrying
             ? dto.Carrying is { } carry && carry.ResourceId == npc.CarriedResourceId && carry.Quantity == npc.CarriedQuantity
             : dto.Carrying is null,
+        // #255: sem necessidades do catálogo no cenário (o mundo comum) o DTO não as traz
+        [nameof(NpcInspectionDto.CatalogNeeds)] = (dto, _, world) => dto.CatalogNeeds is null && world.ObjectCatalog?.Needs is null,
+        [nameof(NpcInspectionDto.NeedHint)] = (dto, _, world) => dto.NeedHint is null && world.ObjectCatalog?.Needs is null,
+        [nameof(NpcInspectionDto.NeedRates)] = (dto, _, world) => dto.NeedRates is null && world.ObjectCatalog?.Needs is null, // #260: só com catálogo de necessidades
+        [nameof(NpcInspectionDto.SocialNote)] = (dto, _, world) => dto.SocialNote is null && world.ObjectCatalog?.Social is null, // #259: só com catálogo social
+        [nameof(NpcInspectionDto.SocialBusy)] = (dto, _, _) => !dto.SocialBusy, // #259: ninguém está numa interação social no cenário de comparação
+        [nameof(NpcInspectionDto.Mood)] = (dto, _, world) => dto.Mood is null && world.ObjectCatalog?.Moods is null, // #262: só com catálogo de humor
+        [nameof(NpcInspectionDto.Career)] = (dto, _, world) => dto.Career is null && world.Careers is null, // #263: só com o livro de carreiras no mundo
+        [nameof(NpcInspectionDto.Home)] = (dto, _, world) => dto.Home is null, // #265: só com móvel nas mãos ou entrega (o mundo sem modo comprar nunca tem)
         [nameof(NpcInspectionDto.Employment)] = (dto, npc, world) =>
             dto.Employment?.Id == npc.Employer
             && dto.Employment?.BuildingId == world.Workplaces.FirstOrDefault(w => w.Id == npc.Employer)?.Building,

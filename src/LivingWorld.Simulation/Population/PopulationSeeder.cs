@@ -58,6 +58,8 @@ public static class PopulationSeeder
             bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules,
             householdsComposed: groups => composition = groups);
         Register(world, generated, houseIds);
+        if (houseIds.Count > 0 && world.FindBuilding(houseIds[0]) is { } home)
+            HouseholdStart.Spread(world, generated.Npcs.Where(n => n.Household == generated.Households[0].Id).ToList(), home); // #260
     }
 
     private static void Register(WorldState world, PopulationGenerator.GeneratedPopulation generated, List<BuildingId> houseIds)
@@ -65,6 +67,7 @@ public static class PopulationSeeder
         foreach (var npc in generated.Npcs)
         {
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
+            LivingWorld.Simulation.Objects.HomeLife.Seed(world, npc); // #255: necessidades do catálogo do cenário
             LivingWorld.Simulation.Population.Body.BodyGrowth.InitializeFounder(world, npc); // corpo da idade (AD-134)
             world.AddNpc(npc);
             LivingWorld.Simulation.Ontogeny.OntogenyMechanic.Initialize(world, npc);
@@ -77,6 +80,7 @@ public static class PopulationSeeder
             world.AddHousehold(generated.Households[i]);
         }
 
+        foreach (var npc in generated.Npcs) LivingWorld.Simulation.Objects.SocialInteractions.SeedBond(world, npc); // #259: o casal começa com o afeto do catálogo social
         world.AdvanceNpcIdTo(generated.NextNpcId);
         world.AdvanceHouseholdIdTo(generated.NextHouseholdId);
 
@@ -135,7 +139,8 @@ public static class PopulationSeeder
         for (int i = 0; i < householdCount; i++)
         {
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, InitialHouseBuildingTypeId, world.CurrentDate.TotalHours);
+            var shape = world.ObjectCatalog?.Rooms?.ShapeFor(InitialHouseBuildingTypeId); // o tamanho da casa vem do cenário (Rooms.shapes)
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, InitialHouseBuildingTypeId, world.CurrentDate.TotalHours, shape: shape);
             // Post-ship fix (real-household-workplace-buildings, map-auto-resize removal): a
             // small authored map can run out of free rectangular room for every household before
             // this loop is done -- now common, since the map is never silently regenerated bigger
@@ -181,7 +186,7 @@ public static class PopulationSeeder
 
             var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
-                world.CurrentDate.TotalHours, position, orientation, croftCells: croft);
+                world.CurrentDate.TotalHours, position, orientation, croftCells: croft, shape: shape);
             world.AddBuilding(house);
             houseIds.Add(house.Id);
             locations.Add(DwellingCapacity.InteriorCellOf(house, position));
@@ -193,7 +198,7 @@ public static class PopulationSeeder
     /// footprint inteiro fique dentro dele (nada nasce fora do mundo, mesmo quando falta terra).</summary>
     private static CellCoord ClampFootprintIntoMap(WorldState world, Building house, CellCoord origin)
     {
-        var shape = BuildingFootprintGenerator.Generate(house.Id, house.BuildingTypeId, orientation: 0);
+        var shape = BuildingFootprintGenerator.Generate(house.Id, house.BuildingTypeId, orientation: 0, house.Shape);
         int width = shape.Max(c => c.Cell.X) + 1, height = shape.Max(c => c.Cell.Y) + 1;
         return new CellCoord(
             Math.Clamp(origin.X, 0, Math.Max(0, world.Map.Width - width)),

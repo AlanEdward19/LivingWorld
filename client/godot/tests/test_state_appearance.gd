@@ -163,12 +163,17 @@ func test_world_map_shows_density_fauna_groups_and_lod_levels() -> void:
 	var app = await T.make_app(tree, fake)
 	eq(app.world_view.cities.dot_count, 12, "um ponto por morador na rua")
 	var text: String = app.world_view.cities.label_text(app.store.cities["city-a"])
-	check("12 na rua" in text and "40 no pool" in text and "trabalhando 8" in text, text)
+	# #242: "na cidade" é quem está dentro dos limites; "na rua" é o que o motor diz (fora de prédio)
+	check("12 na cidade" in text and "5 na rua" in text and "40 no pool" in text and "trabalhando 8" in text, text)
+	var no_outdoors: String = app.world_view.cities.label_text({"name": "Alfa", "population": 3, "density": {"inside": 12, "pooled": 40,
+		"actions": [], "temperature": 11.0}})
+	check("12 na cidade" in no_outdoors and not "na rua" in no_outdoors, "sem o dado do motor não se inventa a rua: " + no_outdoors)
 	check(app.world_view.fauna.group_positions.has("wolf:1"), "bando de lobos no mapa")
 	eq(WorldView.lod_for("World", 30.0), "world")
 	eq(WorldView.lod_for("World", 5.0), "near", "quem está no campo também, de perto")
 	eq(WorldView.lod_for("City", 12.0), "city")
 	eq(WorldView.lod_for("City", 5.0), "near")
+	eq(WorldView.lod_for("City", 22.0, true), "near", "#228: no modo jogador o detalhe do corpo vale (o zoom da isométrica não conta)")
 	app.queue_free()
 
 

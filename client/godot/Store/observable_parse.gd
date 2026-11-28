@@ -86,6 +86,7 @@ static func observable(raw: Variant) -> Dictionary:
 		"emotions": emotions,
 		"dominant": _s(raw, "dominantEmotion", "") if raw.get("dominantEmotion") != null else "",
 		"mourning": _b(raw, "mourning", false), "carried": carried,
+		"combat": _s(raw, "combat", "") if raw.get("combat") != null else "", # #234: reação de briga em curso (omitida sem briga)
 		"held": {"item_id": _i(held, "itemId", 0), "design_id": _i(held, "designId", 0)} if held is Dictionary else {},
 	}
 
@@ -97,15 +98,16 @@ static func target(raw: Variant) -> Dictionary:
 	return {}
 
 
-## `cities[].density` (escopo Mundo): quem está dentro, quantos no pool, ações mais comuns e temperatura.
+## `cities[].density` (escopo Mundo): quem está dentro da cidade, quantos fora de prédio, quantos no pool, ações mais comuns e temperatura.
 static func density(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return {}
 	var actions: Array = []
 	for entry in raw.get("actions", []) if raw.get("actions") is Array else []:
 		actions.append({"action": _int_or(entry.get("action")), "count": _i(entry, "count", 0)})
+	# `outdoors` (aditivo, #242): dos de dentro da cidade, quantos estão fora de prédio; -1 = o motor não disse
 	return {"inside": _i(raw, "inside", 0), "pooled": _i(raw, "pooled", 0), "actions": actions,
-		"temperature": _f(raw, "temperatureC", 0.0)}
+		"temperature": _f(raw, "temperatureC", 0.0), "outdoors": _i(raw, "outdoors", -1)}
 
 
 static func building_state(raw: Dictionary) -> Dictionary:

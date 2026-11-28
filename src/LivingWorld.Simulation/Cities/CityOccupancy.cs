@@ -393,7 +393,7 @@ public static class CityOccupancy
     /// contra o chão de quem tem Id menor (e os autorados). Devolve a origem e o quintal escolhido.</summary>
     internal static (CellCoord Origin, int Croft, int Orientation)? FindPlacement(
         WorldState world, City city, CityBounds bounds, BuildingId id, int buildingTypeId, int orientation, LotProfile profile,
-        int firstLevel, int lastLevel, bool chooseOrientation = false)
+        int firstLevel, int lastLevel, bool chooseOrientation = false, BuildingShape? shape = null)
     {
         var ground = GroundOfCity(world, city, bounds, id);
         PlacementPlan? plan = null;
@@ -401,7 +401,7 @@ public static class CityOccupancy
             && cached.Bounds == bounds && cached.MapWidth == world.Map.Width && cached.MapHeight == world.Map.Height)
             plan = cached;
         return PlaceAcrossLevels(world, city, bounds, ground, plan, id, buildingTypeId, orientation, profile, firstLevel, lastLevel,
-            writeScanMarks: false, chooseOrientation);
+            writeScanMarks: false, chooseOrientation, shape);
     }
 
     /// <summary>AD-184: até <paramref name="max"/> lotes de rua possíveis no degrau <paramref name="level"/>, do mais perto do largo
@@ -480,14 +480,14 @@ public static class CityOccupancy
 
     /// <summary>As plantas que quem constrói pode escolher: a da identidade primeiro, depois as outras três rotações em
     /// ordem; só a da identidade quando a orientação não será gravada (prédio derivado).</summary>
-    private static LotPlanner.Option[] OptionsOf(BuildingId id, int buildingTypeId, int orientation, bool choose)
+    private static LotPlanner.Option[] OptionsOf(BuildingId id, int buildingTypeId, int orientation, bool choose, BuildingShape? shape = null)
     {
-        if (!choose) return [new LotPlanner.Option(orientation, BuildingFootprintGenerator.Generate(id, buildingTypeId, orientation))];
+        if (!choose) return [new LotPlanner.Option(orientation, BuildingFootprintGenerator.Generate(id, buildingTypeId, orientation, shape))];
         var options = new LotPlanner.Option[4];
         for (int r = 0; r < 4; r++)
         {
             int o = (orientation + r * 90) % 360;
-            options[r] = new LotPlanner.Option(o, BuildingFootprintGenerator.Generate(id, buildingTypeId, o));
+            options[r] = new LotPlanner.Option(o, BuildingFootprintGenerator.Generate(id, buildingTypeId, o, shape));
         }
         return options;
     }
@@ -515,9 +515,9 @@ public static class CityOccupancy
 
     private static (CellCoord Origin, int Croft, int Orientation)? PlaceAcrossLevels(
         WorldState world, City city, CityBounds bounds, CityGround ground, PlacementPlan? plan, BuildingId id, int buildingTypeId,
-        int orientation, LotProfile profile, int firstLevel, int lastLevel, bool writeScanMarks, bool chooseOrientation = false)
+        int orientation, LotProfile profile, int firstLevel, int lastLevel, bool writeScanMarks, bool chooseOrientation = false, BuildingShape? declared = null)
     {
-        var options = OptionsOf(id, buildingTypeId, orientation, chooseOrientation);
+        var options = OptionsOf(id, buildingTypeId, orientation, chooseOrientation, declared);
         var footprint = options[0].Footprint;
         var layout = world.CityRules.EffectiveLayout();
         var network = CityStreets.Of(world, city);
@@ -810,7 +810,7 @@ public static class CityOccupancy
                 // anterior não achou terra em lugar nenhum do mapa.
                 int orientation = building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
                 var lot = PlaceAcrossLevels(world, city, bounds, plan.Ground, plan, building.Id, building.BuildingTypeId, orientation,
-                    DerivedProfile(world, building.BuildingTypeId), 0, PlacementPolicy.LevelCount - 1, writeScanMarks: true);
+                    DerivedProfile(world, building.BuildingTypeId), 0, PlacementPolicy.LevelCount - 1, writeScanMarks: true, declared: building.Shape);
                 position = lot?.Origin;
                 croft = lot?.Croft ?? 0;
                 derived[i] = position;

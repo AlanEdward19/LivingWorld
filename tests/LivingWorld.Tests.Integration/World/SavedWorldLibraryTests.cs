@@ -57,8 +57,11 @@ public class SavedWorldLibraryTests
         Assert.Equal(404, library.Delete(Guid.Empty));
         var (b, bClock) = ScenarioRunner.Create(2, initialPopulation: 4);
         simulation.PauseFor("admin", "old world", 2, a.CurrentDate.TotalHours);
+        simulation.SetManualDelta(3_600_000);
+        simulation.SetAccelerated(true);
         Assert.True(library.Create(host, simulation, b, bClock));
         Assert.Null(simulation.AdminPause);
+        Assert.Equal((null, false), (simulation.ManualDeltaMs, simulation.Accelerated)); // #256: o Δ do admin não passa ao mundo novo
         for (int i = 0; i < 3; i++) simulation.CountPausedCycle();
         Assert.True(simulation.IsPaused);
         Assert.Equal(new ulong[] { 1, 2 }, library.List().Select(w => w.Seed).Order().ToArray());
@@ -67,7 +70,9 @@ public class SavedWorldLibraryTests
             _ => throw new InvalidOperationException("clock assembly failed")));
         Assert.Same(currentRepository, library.Repository);
         Assert.Same(b, host.Current);
+        simulation.SetManualDelta(1_000);
         Assert.True(library.Load(WorldIdentity.WorldIdFor(1), host, simulation, _ => clock));
+        Assert.Null(simulation.ManualDeltaMs); // #256
         Assert.Equal(hash, WorldSnapshot.CanonicalHash(host.Current));
         Assert.Equal(204, library.Delete(WorldIdentity.WorldIdFor(2)));
         Assert.Equal(404, library.Delete(WorldIdentity.WorldIdFor(2)));

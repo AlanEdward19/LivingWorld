@@ -96,6 +96,7 @@ public static partial class ScenarioRunner
         new MarketPricingSystem(),
         new LivingWorld.Simulation.Economy.Credit.WorkingCapitalSystem(DefaultSkillsRules), // AD-155: giro antes da folha
         new WagePaymentSystem(),
+        new LivingWorld.Simulation.Careers.CareerSystem(), // #263: o turno, o salário do empregador e as contas da casa (só com o bloco Careers e gente no livro)
         new LivingWorld.Simulation.Economy.Credit.CreditSystem(), // AD-155: parcela, calote e falência antes do lucro
         new OwnerDrawSystem(),
         new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio
@@ -116,6 +117,8 @@ public static partial class ScenarioRunner
         new SpatialSettlementFoundingSystem(),
         new PlayerSearchSystem(),
         new PossessionSystem(), // AD-197f: a disputa de vontade da posse comum (só eventos agendados)
+        new PlayerWalkSystem(), // #248: o corpo conduzido anda a cada tick fino pelo rumo mantido (só eventos agendados)
+        new BodyTaskSystem(), // #243: cortar lenha rende unidade a unidade, no instante em que sai (só eventos agendados)
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

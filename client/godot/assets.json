@@ -17,13 +17,14 @@
     "3": ["bed", "table", "chest"],
     "4": ["anvil", "shelf", "barrel", "crate"],
     "10": ["bed", "bed", "table", "chest"],
-    "11": ["counter", "table", "shelf", "crate"]
+    "11": ["counter", "table", "shelf", "crate"],
+    "-1": ["bed", "table", "bench", "chest"]
   },
   "pieces": {
     "table": {"size": [0.8, 0.4, 0.5], "color": "8a6a43"}, "bench": {"size": [0.7, 0.25, 0.25], "color": "7a5a38"},
     "crate": {"size": [0.4, 0.4, 0.4], "color": "a27b52"}, "barrel": {"size": [0.35, 0.5, 0.35], "color": "6b4a2b"},
     "counter": {"size": [0.9, 0.45, 0.3], "color": "5c4630"}, "shelf": {"size": [0.7, 0.8, 0.2], "color": "6f5436"},
-    "bed": {"size": [0.5, 0.2, 0.9], "color": "d8cfb8"}, "chest": {"size": [0.5, 0.3, 0.3], "color": "4f3a26"},
+    "bed": {"size": [0.6, 0.2, 1.0], "color": "d8cfb8"}, "chest": {"size": [0.5, 0.3, 0.3], "color": "4f3a26"},
     "anvil": {"size": [0.35, 0.3, 0.2], "color": "5b6068"}
   },
   "models": {

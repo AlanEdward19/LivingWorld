@@ -99,7 +99,7 @@ public class PlayerPossessionTests
     [Fact]
     public void A_move_needs_the_controller_and_one_step_and_the_log_with_moves_and_a_refusal_replays_to_the_same_hash()
     {
-        var (arm, npc, beloved, stranger) = Scene(5, PlayerRules.Default with { CellCrowdLimit = 1 }); // AD-197u: gente barra a célula de uma pessoa só
+        var (arm, npc, beloved, stranger) = Scene(6, PlayerRules.Default with { CellCrowdLimit = 1 }); // AD-197u: gente barra a célula de uma pessoa só
         var w = arm.World;
         string snapshot = WorldSnapshot.Serialize(w);
         var service = new PlayerService(arm.Sink);

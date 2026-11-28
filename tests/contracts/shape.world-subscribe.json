@@ -235,7 +235,9 @@
             "value": "string"
           },
           "floors": "number",
+          "groundDoors?": "[]",
           "groundFootprint": "[]",
+          "groundWalls?": "[]",
           "id": {
             "value": "number"
           },
@@ -298,6 +300,7 @@
               }
             ],
             "inside": "number",
+            "outdoors?": "number",
             "pooled": "number",
             "temperatureC": "number"
           },
@@ -494,6 +497,7 @@
                 "resourceName?": "string"
               }
             ],
+            "combat?": "string",
             "dominantEmotion?": "string",
             "emotions": {
               "anger": "number",

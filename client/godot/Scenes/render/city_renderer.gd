@@ -12,6 +12,7 @@ const ACTION_COLORS := {0: Color("e0a24f"), 1: Color("7fa8e0"), 2: Color("c9a36b
 var nodes: Dictionary = {} ## id -> Node3D
 var labels ## ActionLabels (rótulo da ação na placa); nulo = número
 var dot_count := 0
+var labels_visible := true ## #246: no modo jogador a placa gigante some (o nome do bairro vira um aviso discreto do HUD)
 var _dots: MultiMeshInstance3D
 
 
@@ -36,13 +37,16 @@ func _init() -> void:
 	add_child(_dots)
 
 
-## Placa da cidade: nome, população, quem está na rua e no pool, as ações mais comuns e a temperatura.
+## Placa da cidade: nome, população, quem está na cidade (dentro dos limites) e, do que o motor diz, quem está na rua (fora de prédio), o pool, as
+## ações mais comuns e a temperatura.
 func label_text(info: Dictionary) -> String:
 	var lines: Array[String] = ["%s · %d hab." % [info.name if info.name != "" else "Cidade", int(info.population)]]
 	var density: Dictionary = info.get("density", {})
 	if density.is_empty():
 		return lines[0]
-	lines.append("%d na rua · %d no pool · %d °C" % [int(density.inside), int(density.pooled), roundi(float(density.temperature))])
+	var outdoors := int(density.get("outdoors", -1))
+	var where := "%d na cidade" % int(density.inside) if outdoors < 0 else "%d na cidade · %d na rua" % [int(density.inside), outdoors]
+	lines.append("%s · %d no pool · %d °C" % [where, int(density.pooled), roundi(float(density.temperature))])
 	var doing: Array[String] = []
 	for entry in density.actions:
 		var action := int(entry.action)
@@ -79,6 +83,15 @@ static func dots_of(info: Dictionary) -> Array:
 		var at := Vector3(bounds.position.x + 0.5 + fx * maxf(bounds.size.x - 1, 0.1), 0.3, bounds.position.y + 0.5 + fy * maxf(bounds.size.y - 1, 0.1))
 		out.append([at, colors[i]])
 	return out
+
+
+## #246: liga/desliga a placa 3D de todas as cidades já desenhadas (e das que vierem no próximo `rebuild`).
+func set_labels_visible(on: bool) -> void:
+	labels_visible = on
+	for node in nodes.values():
+		var label = node.get_node_or_null("CityLabel")
+		if label != null:
+			label.visible = on
 
 
 func rebuild(store) -> void:
@@ -118,6 +131,7 @@ func rebuild(store) -> void:
 		label.outline_modulate = Color(0.05, 0.05, 0.08, 0.95)
 		label.no_depth_test = true
 		label.position = Vector3(info.location.x + 0.5, 1.6, info.location.y + 0.5)
+		label.visible = labels_visible
 		root.add_child(label)
 		var body := StaticBody3D.new()
 		body.set_meta("city_id", id)

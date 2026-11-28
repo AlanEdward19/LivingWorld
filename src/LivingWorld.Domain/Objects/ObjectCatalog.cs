@@ -38,17 +38,75 @@ public static class ObjectEffectTargets
 
 /// <summary>Descritor imutável de um objeto (#47 fatia 1, ADR-0034). <c>Category</c> é string do cenário, não enum.
 /// <c>VariationSeed</c> 0 = sem variação (forma exatamente a declarada). <c>Interactions</c> e <c>Effects</c> (fatia 3) são
-/// opcionais e omitidos do snapshot quando nulos, para o hash de catálogos antigos não mudar.</summary>
+/// opcionais e omitidos do snapshot quando nulos, para o hash de catálogos antigos não mudar. <c>Name</c> (#252) é o nome que o cenário dá ao objeto
+/// para quem joga ("Fogão"); sem ele, o id.</summary>
 public sealed record ObjectDescriptor(
     string Id, string Category, IReadOnlyList<ObjectPart> Shape, int VariationSeed, IReadOnlyList<ObjectUsePoint> UsePoints,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectInteraction>? Interactions = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectEffect>? Effects = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Name = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectUseDef>? Uses = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Rooms = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ObjectLight? Light = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<int>? Footprint = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Near = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ObjectModel? Model = null);
+
+/// <summary>#266: o modelo procedural do móvel como dado: <c>Kind</c> escolhe o gerador genérico do cliente (cama, sofá, geladeira...), <c>SizeM</c> é [largura, profundidade, altura]
+/// em metros (cabe na pegada: <see cref="ObjectFootprint"/>, célula de 1,5 m) <c>Style</c> dá as cores por material (madeira, tecido, metal, cerâmica, destaque) e <c>Align</c> diz onde o modelo fica na pegada (<c>back</c>: encostado no fundo, junto à parede; <c>center</c>: no meio). O código do cliente só
+/// conhece os geradores; o que cada móvel é (tamanho, cor, tipo) vem do cenário.</summary>
+public sealed record ObjectModel(string Kind, IReadOnlyList<double> SizeM, IReadOnlyDictionary<string, string>? Style = null, string Align = "back");
+
+/// <summary>#266: a pegada do móvel em células da planta (largura, profundidade), com a frente voltada para +z e o fundo para -z no giro 0; sem <c>Footprint</c> no descritor vale 1×1.
+/// A célula de origem (<c>Spot.Cell</c>) é a de trás à esquerda (a que fica em (0,0) do móvel); o giro (0, 90, 180, 270) gira a pegada em volta dela. Funções puras.</summary>
+public static class ObjectFootprint
+{
+    /// <summary>Largura e profundidade em células (mínimo 1 cada); 1×1 sem declaração.</summary>
+    public static (int W, int D) SizeOf(ObjectDescriptor? descriptor) =>
+        descriptor?.Footprint is { Count: >= 2 } f ? (Math.Max(1, f[0]), Math.Max(1, f[1])) : (1, 1);
+
+    /// <summary>Deslocamento em células de um ponto local (i à direita, j à frente) para o mundo no giro dado.</summary>
+    public static (double X, double Y) Turn(double i, double j, int facing) => facing switch
+    {
+        90 => (j, -i),
+        180 => (-i, -j),
+        270 => (-j, i),
+        _ => (i, j),
+    };
+
+    /// <summary>As células que a peça ocupa com a origem em (<paramref name="ox"/>, <paramref name="oy"/>).</summary>
+    public static IEnumerable<(int X, int Y)> Cells(int ox, int oy, int w, int d, int facing)
+    {
+        for (int j = 0; j < d; j++)
+            for (int i = 0; i < w; i++)
+            {
+                var (dx, dy) = Turn(i, j, facing);
+                yield return (ox + (int)dx, oy + (int)dy);
+            }
+    }
+
+    /// <summary>O deslocamento do centro da pegada em relação ao centro da célula de origem, em células (o cliente desenha o modelo ali).</summary>
+    public static (double X, double Y) CenterOffset(int w, int d, int facing) => Turn((w - 1) / 2.0, (d - 1) / 2.0, facing);
+
+    /// <summary>A direção (dx, dy) para onde fica o fundo da peça no giro dado (a parede).</summary>
+    public static (int X, int Y) Back(int facing) => facing switch { 90 => (-1, 0), 180 => (0, 1), 270 => (1, 0), _ => (0, -1) };
+}
+
+/// <summary>#260: o objeto dá luz (lâmpada, abajur): cor (hex), alcance em metros, intensidade relativa e altura da luz acima do chão em metros. O cliente a
+/// acende quando o motor diz que é noite e a casa está ocupada; o objeto não tem estado de ligado e desligado ainda.</summary>
+public sealed record ObjectLight(string Color, double RangeM, double Energy, double HeightM);
 
 /// <summary>Catálogo de objetos do cenário: descritores e a mobília por tipo de prédio (chave "default" ou o id numérico).
 /// Nulo no mundo = cenário sem <c>Objects</c>: omitido do snapshot e do hash (opt-in).</summary>
 public sealed record ObjectCatalog(
-    int Format, IReadOnlyList<ObjectDescriptor> Objects, IReadOnlyDictionary<string, IReadOnlyList<string>> Furnishings)
+    int Format, IReadOnlyList<ObjectDescriptor> Objects, IReadOnlyDictionary<string, IReadOnlyList<string>> Furnishings,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Cities.Buildings.RoomCatalog? Rooms = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NeedCatalog? Needs = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] SocialCatalog? Social = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] MoodCatalog? Moods = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] CareerCatalog? Careers = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] HomeCatalog? Home = null)
 {
     public const int CurrentFormat = 1;
 

@@ -56,6 +56,12 @@ func world_calendar() -> Dictionary:
 	return await _fetch("/world/calendar", "world-calendar")
 
 
+## #243: as árvores cortadas (em parte ou até o toco) e a madeira de cada uma (`{trees:[{x,y,left,capacity,stage}]}`); a que ninguém
+## tocou segue a regra do cliente.
+func world_trees() -> Dictionary:
+	return await _fetch("/world/trees", "world-trees")
+
+
 func action_catalog() -> Dictionary:
 	return await _fetch("/visual/catalog/actions", "action-catalog")
 
@@ -194,6 +200,12 @@ func _player_command(command: Dictionary, method: String, path: String, body: Va
 	return await transport.request(method, path, body, _player_headers())
 
 
+## #240: pausa de popup (só pelo canal persistente): o motor honra se este for o único jogador conectado; vence em 30 s sem renovar.
+func player_hold(on: bool) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "hold", "on": on}, "POST", "/players/hold", {"on": on})
+	return {"ok": response.status == 200, "held": response.body is Dictionary and bool(response.body.get("held", false))}
+
+
 func incarnate(npc_id: int, player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "incarnate", "npcId": npc_id}, "POST", "/players/%d/incarnate" % npc_id, {"playerId": player_id})
 	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
@@ -203,6 +215,13 @@ func incarnate(npc_id: int, player_id: String) -> Dictionary:
 func player_possess(npc_id: int) -> Dictionary:
 	var response: Dictionary = await transport.request("POST", "/players/%d/possess" % npc_id, {}, _player_headers())
 	return _checked("/players/possess", {"status": response.status, "body": response.body}, "player-incarnate")
+
+
+## #252 (sandbox do casal): troca de corpo. O motor solta o corpo conduzido SEM fazê-lo sumir (volta à vontade dele, na casa dele) e passa a
+## conduzir `npc_id` no mesmo modo de posse; recusa (409/422) deixa o jogador no corpo de antes.
+func player_switch(player_id: String, npc_id: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "switch", "npcId": npc_id}, "POST", "/players/%s/switch" % player_id.uri_encode(), {"npcId": npc_id})
+	return _checked("/players/switch", {"status": response.status, "body": response.body}, "player-incarnate")
 
 
 ## AD-197q: de onde dá para sair como pessoa nova (`{cities:[{cityId,name,aggregateCount,detailedCount}]}`), do motor.
@@ -269,8 +288,10 @@ func player_move(player_id: String, dx: int, dy: int) -> Dictionary:
 
 
 ## AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para); a resposta é a pose com a posição fina e a velocidade.
-func player_walk(player_id: String, dx: int, dy: int, run: bool = false) -> Dictionary:
+func player_walk(player_id: String, dx: int, dy: int, run: bool = false, wseq: int = 0) -> Dictionary:
 	var body := {"dx": dx, "dy": dy}
+	if wseq > 0:
+		body["wseq"] = wseq # #248: número do comando; a pose do motor devolve o último aplicado (`seq`)
 	if run:
 		body["run"] = true # #222: Shift corre; o motor decide se o corpo aguenta (cansado, anda)
 	var command := body.duplicate()
@@ -279,10 +300,22 @@ func player_walk(player_id: String, dx: int, dy: int, run: bool = false) -> Dict
 	return _checked("/players/walk", {"status": response.status, "body": response.body}, "")
 
 
+## #248: a máscara de passos ao redor do corpo (a regra do chão do motor): `x`/`y` do canto, `size`, `floor`, `buildingId`, `crowdLimit`, `mask`.
+func player_ground(player_id: String, radius: int = 8) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "ground", "r": radius}, "GET", "/players/%s/ground?r=%d" % [player_id.uri_encode(), radius], null)
+	return _checked("/players/ground", {"status": response.status, "body": response.body}, "")
+
+
 ## #222: pular; o motor diz se o corpo consegue e quanto tempo fica no ar (`airMs`), ou 409 com o motivo.
 func player_jump(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "jump"}, "POST", "/players/%s/jump" % player_id.uri_encode(), {})
 	return _checked("/players/jump", {"status": response.status, "body": response.body}, "")
+
+
+## #241: interrompe a ação que ocupa o corpo (cortar lenha...); o motor deixa a parte proporcional e devolve a pose, ou 409 sem ação.
+func player_interrupt(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "interrupt"}, "POST", "/players/%s/interrupt" % player_id.uri_encode(), {})
+	return _checked("/players/interrupt", {"status": response.status, "body": response.body}, "")
 
 
 ## AD-197d: golpe no NPC sob a mira; o motor valida o alcance e a vontade da pessoa possuída.
@@ -291,10 +324,36 @@ func player_strike(player_id: String, npc_id: int) -> Dictionary:
 	return _checked("/players/strike", {"status": response.status, "body": response.body}, "")
 
 
+## #234: esquiva (janela curta de evitar o golpe); o motor responde a `pose` com `combat`, ou 409 na recarga da guarda.
+func player_dodge(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "dodge"}, "POST", "/players/%s/dodge" % player_id.uri_encode(), {})
+	return _checked("/players/dodge", {"status": response.status, "body": response.body}, "")
+
+
+## #234: bloqueio (segurar a guarda): deixa passar só parte do golpe; 409 na recarga.
+func player_block(player_id: String) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "block"}, "POST", "/players/%s/block" % player_id.uri_encode(), {})
+	return _checked("/players/block", {"status": response.status, "body": response.body}, "")
+
+
 ## AD-197d: o que o corpo alcança agora e o que dá para fazer ali (`{offers:[{kind,id,label,verbs,x,y,resources}]}`), do motor.
 func player_reach(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "reach"}, "GET", "/players/%s/reach" % player_id.uri_encode(), null)
 	return _checked("/players/reach", {"status": response.status, "body": response.body}, "player-reach")
+
+
+## #235: as metas do corpo (nascem do estado do motor, cada uma com motivo, urgência e próximo passo) e o progresso das habilidades.
+func player_goals(player_id: String, with_start: bool = false) -> Dictionary:
+	## #238: `with_start` pede também o ponto de partida (casa, família, emprego, mata): só o guia da primeira posse usa
+	var path := "/players/%s/goals" % player_id.uri_encode() + ("?start=true" if with_start else "")
+	var response: Dictionary = await transport.request("GET", path, null, _player_headers())
+	return _checked("/players/goals", {"status": response.status, "body": response.body}, "player-goals")
+
+
+## #235: o diário do corpo: o que o mundo registrou sobre ele e o que o jogador fez, os marcos de vida marcados.
+func player_diary(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/diary" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/diary", {"status": response.status, "body": response.body}, "player-diary")
 
 
 ## AD-197d: interagir com uma oferta (porta, estoque, banca, cama, pessoa, casa); a recusa da vontade vem 409 com o motivo.
@@ -308,6 +367,18 @@ func player_interact(player_id: String, kind: String, id: int, verb: String, res
 	command["command"] = "interact"
 	var response: Dictionary = await _player_command(command, "POST", "/players/%s/interact" % player_id.uri_encode(), body)
 	return _checked("/players/interact", {"status": response.status, "body": response.body}, "player-interact")
+
+
+## #264: o modo comprar lido do motor (catálogo com o estoque da loja, peças da casa, beleza dos cômodos, tintas, preço da obra); 404 sem casa própria.
+func player_home(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/home" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/home", {"status": response.status, "body": response.body}, "")
+
+
+## #264: o motor diz se o verbo de casa (`buy:objeto:andar:x:y:giro`, `wall:...`) vale agora e por quê, sem mudar nada (o fantasma verde ou vermelho).
+func player_home_check(player_id: String, verb: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/home/check?verb=%s" % [player_id.uri_encode(), verb.uri_encode()], null, _player_headers())
+	return _checked("/players/home/check", {"status": response.status, "body": response.body}, "")
 
 
 ## AD-197c: o tempo como o jogador o vê (`GET /players/{id}/time`): o ritmo (Fast, RealTime, Accelerated, Manual), se ele pode
@@ -329,9 +400,31 @@ func player_sleep(player_id: String, until_hour: int = -1) -> Dictionary:
 
 
 ## AD-197c: acelerar parado (o corpo fica à toa, o mundo corre e as necessidades caem).
-func player_accelerate(player_id: String) -> Dictionary:
-	var response: Dictionary = await _player_command({"command": "accelerate"}, "POST", "/players/%s/accelerate" % player_id.uri_encode(), null)
+func player_accelerate(player_id: String, until_return: bool = false) -> Dictionary:
+	var command := {"command": "accelerate"}
+	var body: Variant = null
+	if until_return: # #267: "Pular para a volta do turno": o salto acaba quando alguém da casa volta do trabalho
+		command["untilReturn"] = true
+		body = {"untilReturn": true}
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/accelerate" % player_id.uri_encode(), body)
 	return _checked("/players/accelerate", {"status": response.status, "body": response.body}, "player-time")
+
+
+## #267: ir até uma pessoa (`npcId`), um prédio (`buildingId`, a soleira) ou uma célula (`x`, `y`) pela rota do motor: o corpo anda sozinho; WASD ou interromper param. `label` é só o nome que se mostra.
+func player_go(player_id: String, target: Dictionary, label: String = "") -> Dictionary:
+	var body := target.duplicate()
+	if label != "":
+		body["label"] = label
+	var command := body.duplicate()
+	command["command"] = "go"
+	var response: Dictionary = await _player_command(command, "POST", "/players/%s/go" % player_id.uri_encode(), body)
+	return _checked("/players/go", {"status": response.status, "body": response.body}, "")
+
+
+## #260: a velocidade do tempo do jogador: 0 pausa, 1 normal, 2 e 3 acelerados. Só quem joga sozinho; o motor valida (409 com outro jogador) e devolve o tempo.
+func player_speed(player_id: String, speed: int) -> Dictionary:
+	var response: Dictionary = await _player_command({"command": "speed", "speed": speed}, "POST", "/players/%s/speed" % player_id.uri_encode(), {"speed": speed})
+	return _checked("/players/speed", {"status": response.status, "body": response.body}, "player-time")
 
 
 ## AD-197c: encerrar o pulo de tempo (acordar).
@@ -342,7 +435,10 @@ func player_wake(player_id: String) -> Dictionary:
 
 func player_logout(player_id: String) -> Dictionary:
 	var response: Dictionary = await _player_command({"command": "logout"}, "POST", "/players/%s/logout" % player_id.uri_encode(), null)
-	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
+	# #246 (AD-237): num cenário em que sair não faz a pessoa sumir (`LogoutKeepsLife`) o carimbo do sumiço vem nulo; o formato aceita os dois, então
+	# a resposta é conferida só quando traz o carimbo (o teste de contrato do servidor segue cobrindo o sumiço de sempre)
+	var kept: bool = response.body is Dictionary and response.body.has("npcId") and response.body.get("disappearedAtMs", "x") == null
+	return _checked("/players/logout", {"status": response.status, "body": response.body}, "" if kept else "player-logout")
 
 
 # --- console de admin (ADR-0015): o token vem de LW_ADMIN_TOKEN no transporte; o ator vai no cabeçalho -------

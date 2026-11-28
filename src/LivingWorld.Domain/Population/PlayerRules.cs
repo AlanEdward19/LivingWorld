@@ -81,6 +81,13 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public bool? BodyPace { get; init; }
 
+    /// <summary>#246 (5º teste, AD-237): sair do personagem devolve a pessoa à vontade do motor, na casa e no trabalho dela, em vez de
+    /// fazê-la desaparecer (largar casa e emprego e abrir procura). Dado do cenário; ausente = o sumiço de sempre (AD-196). O sandbox liga:
+    /// fechar o jogo e "Continuar" não pode desfazer a vida do casal.</summary>
+    public bool? LogoutKeepsLife { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public bool KeepsLifeOnLogout => LogoutKeepsLife ?? false;
+
     /// <summary>Sono (energia) que uma hora de caminhada gasta além do desgaste de sempre: andar cansa.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? StepSleepPerHour { get; init; }
@@ -93,6 +100,12 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? WalkMetersPerSecond { get; init; }
 
+    /// <summary>#269: até que distância da soleira (m) a roda do E já oferece "Entrar" na porta (antes só na célula exata, e a 1,5 m ela sumia): chegando por um clique ou pela roda o corpo anda até a soleira e entra.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? DoorReachMeters { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double DoorReachM => DoorReachMeters ?? 2.4;
+
     /// <summary>AD-197k: metros de uma célula para o passo solto (a escala do desenho: uma pessoa tem pouco mais de uma célula).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? CellMeters { get; init; }
@@ -100,6 +113,10 @@ public sealed record PlayerRules
     /// <summary>AD-197k: até quanto tempo de mundo (ms) um rumo vale sem novo comando (o cliente manda o rumo a cada ~100 ms).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? WalkHoldMs { get; init; }
+
+    /// <summary>#248: quanto tempo REAL (ms) o corpo segue o rumo sem notícia do cliente antes de parar (o cliente manda a cada ~100 ms; sumiu, para).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? WalkIdleStopMs { get; init; }
 
     // --- AD-197u: multidão na célula, correr e pular. Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
 
@@ -169,10 +186,59 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore] public double WalkMps => WalkMetersPerSecond ?? LivingWorld.Domain.Geography.WorldScale.ReferenceWalkMps;
     [System.Text.Json.Serialization.JsonIgnore] public double CellM => CellMeters ?? LivingWorld.Domain.Geography.WorldScale.CellMeters;
     [System.Text.Json.Serialization.JsonIgnore] public int WalkHold => WalkHoldMs ?? 300;
+    /// <summary>#248: o prazo sem comando, em ms de MUNDO (o tempo real do prazo vezes a escala do relógio).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public long WalkIdleStop => (long)Math.Round((WalkIdleStopMs ?? 1000) * Math.Max(1.0, Time.TimeScale));
 
     [System.Text.Json.Serialization.JsonIgnore] public bool PaceOn => BodyPace ?? true;
     [System.Text.Json.Serialization.JsonIgnore] public double StepSleep => StepSleepPerHour ?? 3.0;
     [System.Text.Json.Serialization.JsonIgnore] public double Tired => TiredBelow ?? 50.0;
+
+    // --- #234: combate (alcance, recarga, esquiva, bloqueio, reação). Nulos no JSON enquanto valem o padrão (os bytes de antes). ---
+
+    /// <summary>Falso desliga o combate com tempo (volta ao golpe imediato do AD-197e): sem alcance em metros, recarga, guarda nem reação.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CombatTiming { get; init; }
+
+    /// <summary>Alcance do golpe (m) entre o corpo e o alvo: 2,2 m cobre toda célula vizinha de 1,5 m (centro a centro, até 2,12 m na
+    /// diagonal) e deixa o passo fino fugir do golpe (escolha do modelo).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? StrikeReachMeters { get; init; }
+
+    /// <summary>Recarga do golpe (ms) de um adulto de força média; o corpo (força) escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? StrikeCooldownMsValue { get; init; }
+
+    /// <summary>Janela (ms) da esquiva e recarga até levantar a guarda de novo.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? DodgeWindowMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? BlockWindowMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? GuardCooldownMsValue { get; init; }
+
+    /// <summary>Chance base (0–1) de a esquiva evitar o golpe de um corpo de força média e descansado; o corpo escala.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? DodgeChanceValue { get; init; }
+
+    /// <summary>Fração do dano que passa pelo bloqueio (menor = bloqueia mais).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? BlockPassesValue { get; init; }
+
+    /// <summary>Tempo (ms) que quem apanhou leva para revidar, de um impulsivo (0,5×) a um calmo (1,5×).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetaliateWindupMsValue { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public bool CombatOn => Enabled && (CombatTiming ?? true);
+    [System.Text.Json.Serialization.JsonIgnore] public double StrikeReachM => StrikeReachMeters ?? 2.2;
+    [System.Text.Json.Serialization.JsonIgnore] public int StrikeCooldownMs => StrikeCooldownMsValue ?? 900;
+    [System.Text.Json.Serialization.JsonIgnore] public int DodgeWindowMs => DodgeWindowMsValue ?? 350;
+    [System.Text.Json.Serialization.JsonIgnore] public int BlockWindowMs => BlockWindowMsValue ?? 700;
+    [System.Text.Json.Serialization.JsonIgnore] public int GuardCooldownMs => GuardCooldownMsValue ?? 1200;
+    [System.Text.Json.Serialization.JsonIgnore] public double DodgeChance => DodgeChanceValue ?? 0.7;
+    [System.Text.Json.Serialization.JsonIgnore] public double BlockPasses => BlockPassesValue ?? 0.3;
+    [System.Text.Json.Serialization.JsonIgnore] public int RetaliateWindupMs => RetaliateWindupMsValue ?? 600;
 
     public static readonly PlayerRules Default = new();
 

@@ -4,6 +4,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const Scenery := preload("res://Scenes/scenery.gd")
+const WallPanels := preload("res://Scenes/wall_panels.gd")
 const Dress := preload("res://Scenes/render/building_dress.gd")
 const Works := preload("res://Store/work_book.gd")
 const Site := preload("res://Scenes/render/work_site.gd")
@@ -18,14 +19,67 @@ var dressed: Dictionary = {} ## id -> assinatura do estado desenhado (estilo, pl
 var work_of: Callable = func(_id: int) -> Dictionary: return {} ## AD-193: obra do canteiro (o world_view liga à store)
 
 
-func rebuild(store) -> void:
-	for node in nodes.values():
-		_dispose(node)
-	nodes.clear()
+## #249: aplica a diferença: o prédio que continua igual (mesma planta e mesmo estado desenhado) fica na mesma instância. O que falta
+## desenhar entra por fatias de ~`SLICE_MS` por quadro, do mais perto de `center` para o mais longe: trocar de escopo não custa um quadro
+## de centenas de ms numa cidade grande (a cidade aparece em poucos quadros, o que importa primeiro).
+const SLICE_MS := 8.0
+var _pending: Array = []
+var _store
+
+
+func rebuild(store, center: Vector3 = Vector3.INF) -> void:
+	_store = store
+	_pending.clear()
 	if store.kind != "City":
+		for node in nodes.values():
+			_dispose(node)
+		nodes.clear()
+		_info_signature.clear()
 		return
+	for id in nodes.keys():
+		if not store.buildings.has(id):
+			remove(id)
 	for id in store.buildings:
-		upsert(store.buildings[id], store.building_states.get(id, {}))
+		if _needs_drawing(store, id):
+			_pending.append(id)
+		else:
+			set_lit(int(id), bool(store.building_states.get(id, {}).get("lit", false)))
+	if center != Vector3.INF:
+		_pending.sort_custom(func(a, b) -> bool:
+			return Vector2(store.buildings[a].cell).distance_squared_to(Vector2(center.x, center.z)) < Vector2(store.buildings[b].cell).distance_squared_to(Vector2(center.x, center.z)))
+	step(SLICE_MS * 1.5)
+
+
+func _needs_drawing(store, id: Variant) -> bool:
+	var info: Dictionary = store.buildings[id]
+	var state: Dictionary = store.building_states.get(id, {})
+	return not (nodes.has(id) and _info_signature.get(id, -1) == info.hash() \
+		and String(dressed.get(id, "")) == signature(state, work_of.call(int(id))))
+
+
+## Desenha da fila até `budget_ms`; o resto fica para os próximos quadros.
+func step(budget_ms: float = SLICE_MS) -> void:
+	if _pending.is_empty() or _store == null:
+		return
+	var started := Time.get_ticks_usec()
+	while not _pending.is_empty():
+		var id = _pending.pop_front()
+		if _store.buildings.has(id) and _needs_drawing(_store, id):
+			upsert(_store.buildings[id], _store.building_states.get(id, {}))
+		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
+			break
+
+
+func _process(_delta: float) -> void:
+	step()
+	_reap()
+
+
+func pending_count() -> int:
+	return _pending.size()
+
+
+var _info_signature: Dictionary = {} ## id -> hash da planta desenhada (a diferença do `rebuild`)
 
 
 ## Desenha (ou redesenha) um prédio. Sem planta (veio por delta e o snapshot ainda não chegou), usa um canteiro
@@ -85,6 +139,7 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 func _draw(info: Dictionary, state: Dictionary) -> Node3D:
 	var work: Dictionary = work_of.call(int(info.id))
 	dressed[int(info.id)] = signature(state, work)
+	_info_signature[int(info.id)] = info.hash()
 	if not work.is_empty() and not info.footprint.is_empty():
 		var site := Site.make(info, work, Grid.floor_height())
 		add_child(site)
@@ -168,15 +223,50 @@ func set_faded(ids: Dictionary) -> void:
 			faded[id] = true
 
 
+## #227: com a câmera da 3ª pessoa e o corpo conhecidos, só as peças que cortam a linha entre eles ficam translúcidas (e mais, para
+## quem olha através); o resto do prédio fica opaco, em vez de lajes pálidas inteiras. Sem segmento, o prédio inteiro (iso e raio-x).
+const COVER_FADE := 0.9
+const COVER_GROW := 0.12
+var _cover: Array = [] ## [de, até] ou vazio
+
+
+func set_cover_segment(from: Vector3, to: Vector3) -> void:
+	if not _cover.is_empty() and (_cover[0] as Vector3).distance_to(from) < 0.02 and (_cover[1] as Vector3).distance_to(to) < 0.02:
+		return
+	_cover = [from, to]
+	for id in faded:
+		_fade(id, FADE)
+
+
+func clear_cover_segment() -> void:
+	if _cover.is_empty():
+		return
+	_cover = []
+	for id in faded:
+		_fade(id, FADE)
+
+
+## A peça cobre a linha da câmera ao corpo (caixa dela, com folga, cruzada pelo segmento).
+func covers(child: GeometryInstance3D) -> bool:
+	if _cover.is_empty():
+		return true
+	var box: AABB = child.global_transform * child.get_aabb()
+	return box.grow(COVER_GROW).intersects_segment(_cover[0], _cover[1]) != null or box.grow(COVER_GROW).has_point(_cover[0])
+
+
 func _fade(id: int, amount: float) -> void:
 	if not nodes.has(id):
 		return
 	for child in nodes[id].find_children("*", "GeometryInstance3D", true, false):
 		var value := amount
+		if amount > 0.0 and not _cover.is_empty():
+			value = COVER_FADE if covers(child) else 0.0
 		if xray:
 			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
 		if opened.has(id) and child.name.begins_with("Roof"):
 			value = maxf(value, ROOF_OPEN)
+		if is_equal_approx((child as GeometryInstance3D).transparency, value):
+			continue
 		(child as GeometryInstance3D).transparency = value
 		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua
@@ -194,17 +284,34 @@ func passes_mouse(id: int) -> bool:
 
 func remove(id: int) -> void:
 	dressed.erase(id)
+	_info_signature.erase(id)
 	faded.erase(id)
 	if nodes.has(id):
 		_dispose(nodes[id])
 		nodes.erase(id)
 
 
+## #249: o prédio que sai some do desenho na hora, mas o nó só é liberado aos poucos (uma cidade inteira de uma vez custava um quadro).
+const REAP_PER_FRAME := 6
+var _dying: Array = []
+
+
 func _dispose(node: Node) -> void:
 	if node.is_inside_tree():
-		node.queue_free()
+		if node is Node3D:
+			(node as Node3D).visible = false
+		_dying.append(node)
 	else:
 		node.free()
+
+
+func _reap() -> void:
+	var count := 0
+	while not _dying.is_empty() and count < REAP_PER_FRAME:
+		var node = _dying.pop_front()
+		if is_instance_valid(node):
+			node.queue_free()
+		count += 1
 
 
 const WALL_COLORS := {
@@ -263,10 +370,14 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
 	var door_at := Vector3.INF
 	var door_out := Vector3(0, 0, 1)
+	var solid: Array = [] # #229/#226: painéis finos de parede (sem a porta): o que o corpo do jogador não atravessa
 	var walls: Array = [] # AD-197s2: as caixas sólidas das células de parede (a câmera do jogador fica no cômodo, fora delas)
+	var legacy: bool = info.get("walls", []).is_empty() # #226: sem arestas do motor (servidor antigo, placeholder), a parede é a célula de material de parede
 	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
+		if not legacy:
+			continue
 		var material: int = cells[cell]
 		match material:
 			MATERIAL_WALL_STONE, MATERIAL_WALL_WOOD:
@@ -304,6 +415,15 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)
 			_:
 				pass
+	if legacy:
+		for panel in WallPanels.legacy_panels(cells): # painel fino a partir de células de parede (contorno rente à borda de fora)
+			var rect: Rect2 = panel.rect
+			solid.append(AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, height, rect.size.y)))
+	else:
+		var edged := _edge_walls(root, info, cells, height, wall_materials, trim, door, step, window_material, windows, walls, solid)
+		if edged.door_at != Vector3.INF:
+			door_at = edged.door_at
+			door_out = edged.door_out
 	var lit := Dress.lit_windows(state, windows.size())
 	for i in range(lit, windows.size()):
 		windows[i].material_override = dark_window_material
@@ -366,11 +486,73 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	root.add_child(body)
 	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + Dress.u(0.9), span.y)))
 	root.set_meta("walls", walls)
+	root.set_meta("solid", solid)
 	# AD-197s: a casca que a câmera não toca: o beiral do telhado (0,2 de cada lado) e a cumeeira (acima da caixa nos telhados altos)
 	var roof_top: float = height + (float(form.pitch) if rectangular else 0.62)
 	var eave_shell := Grid.units(ROOF_EAVE_M)
 	root.set_meta("shell", AABB(Vector3(min_cell.x - eave_shell, 0, min_cell.y - eave_shell), Vector3(span.x + eave_shell * 2.0, maxf(height + Dress.u(0.9), roof_top + Dress.u(0.1)), span.y + eave_shell * 2.0)))
 	return root
+
+
+## #226: a parede de fora desenhada onde o motor diz (uma por aresta da borda, painel fino rente à borda por dentro) e a porta no vão que o motor
+## deixa aberto (verga, laterais e folha). Devolve onde a porta abre ({door_at, door_out}; INF sem porta). Preenche `windows`, `walls` e `solid`.
+func _edge_walls(root: Node3D, info: Dictionary, cells: Dictionary, height: float, wall_materials: Dictionary, trim: Material, door: Material,
+		step: Material, window_mat: Material, windows: Array, walls: Array, solid: Array) -> Dictionary:
+	var floors: int = info.floors
+	var found := {"door_at": Vector3.INF, "door_out": Vector3(0, 0, 1)}
+	for panel in WallPanels.panels(info.walls, cells, info.cell):
+		var rect: Rect2 = panel.rect
+		var center := Vector3(rect.get_center().x * Grid.CELL, 0.0, rect.get_center().y * Grid.CELL)
+		var inner: Vector2i = panel.cell
+		var outward: Vector2i = panel.outward
+		var material: int = int(panel.material)
+		var size := Vector3(rect.size.x * Grid.CELL, height, rect.size.y * Grid.CELL)
+		walls.append(AABB(Vector3(rect.position.x * Grid.CELL, 0, rect.position.y * Grid.CELL), size))
+		solid.append(AABB(Vector3(rect.position.x, 0, rect.position.y), Vector3(rect.size.x, height, rect.size.y)))
+		_box(root, size, center + Vector3(0, height / 2.0, 0), wall_materials.get(material, wall_materials[0]))
+		_box(root, Vector3(size.x + 0.04, 0.12, size.z + 0.04), center + Vector3(0, 0.06, 0), trim) # rodapé
+		for level in range(1, floors):
+			_box(root, Vector3(size.x + 0.03, 0.07, size.z + 0.03), center + Vector3(0, level * Grid.floor_height(), 0), trim) # friso entre andares
+		if outward == Vector2i.ZERO:
+			continue
+		var face := Vector3(outward.x, 0, outward.y)
+		var thickness: float = size.x if outward.x != 0 else size.z
+		for level in floors:
+			if Scenery.cell_hash(inner, level * 4 + DIRS.find(outward) + 11) < 0.5:
+				var pane := Grid.units(Grid.window_meters) # ADR-0052: janela e peitoril em metros do motor
+				var window := _box(root, Vector3(pane if outward.x == 0 else 0.04, pane, pane if outward.y == 0 else 0.04),
+					center + Vector3(0, level * Grid.floor_height() + Grid.units(Grid.window_sill_meters) + pane / 2.0, 0) + face * (thickness / 2.0 + 0.005), window_mat)
+				window.name = "Window"
+				windows.append(window)
+	for opening in WallPanels.openings(info.doors, cells, info.cell):
+		var span: Rect2 = opening.rect
+		var cell: Vector2i = opening.cell
+		var outward: Vector2i = opening.outward
+		if outward == Vector2i.ZERO:
+			continue
+		var face := Vector3(outward.x, 0, outward.y)
+		var door_w := Grid.units(Grid.door_width_meters) # ADR-0052: porta em metros do motor
+		var door_h := Grid.units(Grid.door_meters)
+		var middle := Vector3(span.get_center().x * Grid.CELL, 0.0, span.get_center().y * Grid.CELL)
+		var along := Vector3(absf(face.z), 0, absf(face.x)) # eixo do vão
+		var open_w := span.size.x * Grid.CELL if outward.y != 0 else span.size.y * Grid.CELL
+		var depth := span.size.y * Grid.CELL if outward.y != 0 else span.size.x * Grid.CELL
+		var wall_material: Material = wall_materials[0]
+		_box(root, Vector3(open_w if outward.y != 0 else depth, height - door_h, depth if outward.y != 0 else open_w),
+			middle + Vector3(0, door_h + (height - door_h) / 2.0, 0), wall_material).name = "Lintel" # verga: a parede acima da porta
+		var side := (open_w - door_w) / 2.0
+		if side > 0.01:
+			for lateral in [-1.0, 1.0]:
+				_box(root, Vector3(side if outward.y != 0 else depth, door_h, depth if outward.y != 0 else side),
+					middle + along * (lateral * (door_w + side) / 2.0) + Vector3(0, door_h / 2.0, 0), wall_material) # ombreira
+		var outer := middle + face * (depth / 2.0)
+		if found.door_at == Vector3.INF:
+			found.door_at = outer
+			found.door_out = face
+		_box(root, Vector3(door_w if outward.x == 0 else 0.1, door_h, door_w if outward.y == 0 else 0.1), middle + Vector3(0, door_h / 2.0, 0) + face * (depth / 2.0), door).name = "Door"
+		_box(root, Vector3(0.9 if outward.x == 0 else 0.3, 0.06, 0.9 if outward.y == 0 else 0.3), Grid.to_world(cell, 0.03) + face * 0.78, step)
+		_lamp_post(root, Grid.to_world(cell) + face * 1.15 + Vector3(face.z, 0, face.x) * 0.5)
+	return found
 
 
 func _lamp_post(parent: Node3D, at: Vector3) -> void:

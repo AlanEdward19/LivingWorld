@@ -38,8 +38,8 @@ pessoa o dono viu casas quase da altura das pessoas e tudo amontoado.
 - **Entrega em partes**:
   - AD-197o (feito): este ADR, `WorldScale` no motor e `scale` em `GET /world/info`; o cliente desenha andar (3 m), porta (2 m) e
     janela nas medidas do motor; teste de pessoa × andar × porta e medida da largura das ruas.
-  - AD-197o2: viagem dos NPCs em metros (`Base` pela escala) e o passo do jogador pela mesma conta. Provado à parte (commit
-    `b1896f67`, revertido): mundos do menu 3 × 6 sementes por 10 anos sem fome nem colapso, mas 41 testes de Unit e os limiares em
-    horas (alcance da despensa, ida ao espólio, obra de rua, "longe de casa") precisam ser revistos em metros antes de entrar.
+  - AD-197o2 (feito, #242): viagem dos NPCs em metros (`Base` = `WorldScale.CellBaseHours`) no mundo do menu e na vila de código; o passo
+    do jogador e o NPC saem da mesma régua. Os limiares em horas (despensa, espólio, obra de rua, mobilidade) seguem em horas de
+    caminhada reais e são testados num mapa de região (`ScenarioRunner.RegionalCostWeights`); ver AD-197o2 no log.
   - AD-197o3: plantas, ruas (4 a 6 m), vielas, lotes e quintais em metros; o mapa cresce pelo gerador.
   - AD-197o4: objetos, móveis, árvores e lavoura na mesma escala.

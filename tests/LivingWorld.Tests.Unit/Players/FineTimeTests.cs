@@ -15,6 +15,7 @@ namespace LivingWorld.Tests.Unit.Players;
 public class FineTimeTests
 {
     private const int Minute = 60_000;
+    private const int Second = 1_000;
 
     private sealed record Host(Arm Arm, SimulationHost Simulation, PlayerService Players);
 
@@ -31,15 +32,16 @@ public class FineTimeTests
             long now = arm.World.CurrentDate.TotalMilliseconds;
             walker = arm.World.Npcs.FirstOrDefault(n => n.IsAlive && n.CurrentAction == ActionType.Travel && n.ActionStartedAtMs == now
                 && BehaviorDecisionSystem.TravelDestinationFor(arm.World, n, LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(arm.World)) is { } to
-                && LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(arm.World, n.CurrentLocation, to).Count >= 4);
+                && LivingWorld.Simulation.Cities.Streets.StreetRoutes.PathOf(arm.World, n.CurrentLocation, to).Count >= 6);
         }
         Assert.NotNull(walker);
         var origin = walker!.CurrentLocation;
         var poses = new List<(long Ms, LivingWorld.Domain.Geography.CellCoord Cell)>();
+        // AD-197o2 (1,5 m por célula): seis células andam-se em ~10 s, não em ~40 min; o passo fino é o do andar (um segundo)
         while (walker.CurrentAction == ActionType.Travel && walker.CurrentLocation == origin && poses.Count < 6 * 60)
         {
             poses.Add((arm.World.CurrentDate.TotalMilliseconds, TravelPose.CellAt(arm.World, walker, arm.World.CurrentDate.TotalMilliseconds)));
-            arm.Clock.Tick(arm.World, Minute);
+            arm.Clock.Tick(arm.World, Second);
         }
 
         var cells = poses.Select(p => p.Cell).Distinct().ToList();
@@ -53,10 +55,17 @@ public class FineTimeTests
         var fine = Village(92, initialPopulation: 40);
         var hourly = Village(92, initialPopulation: 40);
 
-        fine.Clock.Run(fine.World, 6 * 60, Minute);
+        // AD-197o2: a viagem dura segundos e a ação seguinte começa logo, dentro da hora; o instante de começo se vê ao longo das 6 horas
+        // (a hora cheia seguinte o zera), não só no último tick
+        bool startedInsideTheHour = false;
+        for (int i = 0; i < 6 * 60 && !startedInsideTheHour; i++)
+        {
+            fine.Clock.Tick(fine.World, Minute);
+            startedInsideTheHour = fine.World.Npcs.Any(n => n.ActionPhaseMs != 0);
+        }
         hourly.Clock.Run(hourly.World, 6);
 
-        Assert.Equal((true, 0), (fine.World.Npcs.Any(n => n.ActionPhaseMs != 0), hourly.World.Npcs.Count(n => n.ActionPhaseMs != 0)));
+        Assert.Equal((true, 0), (startedInsideTheHour, hourly.World.Npcs.Count(n => n.ActionPhaseMs != 0)));
     }
 
     [Fact]
@@ -75,6 +84,47 @@ public class FineTimeTests
 
         Assert.Equal((RhythmMode.RealTime, asked + 50, true),
             (host.Simulation.LastPlan.Mode, npc.ActionStartedAtMs, npc.ActionStartedAtMs % WorldMillis.PerHour != 0));
+    }
+
+    /// <summary>#256: todo caminho de posse (comum, plena do admin, troca G, reconexão) conta como jogador presente e põe o relógio em tempo real
+    /// 1:1; nunca cai no ritmo de "sem jogador" enquanto alguém conduz um corpo.</summary>
+    [Theory]
+    [InlineData("common")]
+    [InlineData("full")]
+    [InlineData("switch")]
+    [InlineData("reconnect")]
+    public void Every_possession_path_counts_as_a_present_player_and_runs_real_time(string path)
+    {
+        var host = HostOf(Village(194, initialPopulation: 20, rules: PlayerRules.Default with { Time = TimeRules.Default with { TimeScale = 1 } }));
+        var world = host.Arm.World;
+        var a = Pick(world);
+        var b = world.Npcs.First(n => n.IsAlive && n.Id != a.Id);
+        b.ImprintPersonality(b.Personality with { Conscientiousness = 0, EmotionalStability = 0 });
+        var mode = path == "full" ? PossessionMode.Full : PossessionMode.Common;
+        Assert.True(host.Players.Incarnate(world, a.Id, "ana", mode).IsSuccess);
+        if (path == "switch") Assert.True(host.Players.Switch(world, b.Id, "ana").IsSuccess);
+        if (path == "reconnect")
+        {
+            Assert.True(host.Players.Logout(world, "ana").IsSuccess);
+            Assert.Equal(0, PlayerService.PlayersPresent(world));
+            Assert.True(host.Players.Incarnate(world, a.Id, "ana").IsSuccess);
+        }
+
+        host.Simulation.Cycle(host.Players);
+
+        Assert.Equal((1, RhythmMode.RealTime, 50), (PlayerService.PlayersPresent(world), host.Simulation.LastPlan.Mode, host.Simulation.LastPlan.DeltaMs));
+    }
+
+    [Fact]
+    public void The_admin_manual_delta_and_acceleration_do_not_survive_a_new_world()
+    {
+        var host = HostOf(Village(195, initialPopulation: 20));
+        host.Simulation.SetManualDelta(3_600_000);
+        host.Simulation.SetAccelerated(true);
+
+        host.Simulation.ResetRhythmOverrides(); // o que criar ou abrir outro mundo faz (SavedWorldLibrary.Create/Load)
+
+        Assert.Equal((null, false), (host.Simulation.ManualDeltaMs, host.Simulation.Accelerated));
     }
 
     [Fact]

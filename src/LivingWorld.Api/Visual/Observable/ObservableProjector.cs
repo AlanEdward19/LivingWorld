@@ -71,7 +71,7 @@ public sealed class ObservableContext
 public static class ObservableProjector
 {
     private static readonly string[] SeasonKeys = ["winter", "spring", "summer", "autumn"];
-    private static readonly ConcurrentDictionary<(long, int, int), BuildingPlan> Plans = new();
+    private static readonly ConcurrentDictionary<(long, int, int, BuildingShape?), BuildingPlan> Plans = new();
 
     public static NpcObservable Npc(ObservableContext ctx, Npc npc) => Npc(ctx, npc, null);
 
@@ -107,7 +107,9 @@ public static class ObservableProjector
         string lifeStage = world.LifeStageRules.LifeStageOf(age).ToString();
         string? profession = ctx.Names.Profession(npc.Profession.Id);
         bool mourning = PsycheMechanic.Mourns(affect); // AD-183: o critério do motor, não um limiar de tela
-        if (previous is not null && previous.Mourning == mourning && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
+        string? combat = CombatOf(world, npc);
+        string? dominant = Dominant(emotions) ?? LivingWorld.Simulation.Objects.MoodMechanic.FaceOf(world, npc, world.CurrentDate.TotalMilliseconds); // #262: sem emoção da psique, o rosto vem do humor
+        if (previous is not null && previous.Mourning == mourning && previous.Combat == combat && previous.DominantEmotion == dominant && ReferenceEquals(previous.Emotions, emotions) && ReferenceEquals(previous.Carried, carried)
             && ReferenceEquals(previous.Held, held) && ReferenceEquals(previous.Illness, illness)
             && ReferenceEquals(previous.Pregnancy, pregnancy) && previous.AgeYears == age && previous.HeightCm == heightCm
             && previous.GrowthFraction == growth && previous.ProfessionId == npc.Profession.Id && previous.Name == npc.Name
@@ -115,8 +117,20 @@ public static class ObservableProjector
             return previous;
         return new NpcObservable(
             npc.Name, sex, age, lifeStage, npc.Profession.Id, profession, heightCm, growth,
-            pregnancy, illness, emotions, Dominant(emotions), mourning, carried, held);
+            pregnancy, illness, emotions, dominant, mourning, carried, held, combat);
     }
+
+    /// <summary>#234: a reação de briga ainda em curso (até o instante marcado pelo motor); só leitura, nula sem briga.</summary>
+    private static string? CombatOf(WorldState world, Npc npc) =>
+        npc.Combat is { Reaction: not CombatReaction.None } c && world.CurrentDate.TotalMilliseconds <= c.ReactionUntilMs
+            ? c.Reaction switch
+            {
+                CombatReaction.Retaliate => "retaliate",
+                CombatReaction.Flee => "flee",
+                CombatReaction.CallHelp => "callHelp",
+                _ => "recoil",
+            }
+            : null;
 
     private static IReadOnlyList<CarriedVisual> CarriedOf(ObservableContext ctx, Npc npc, IReadOnlyList<CarriedVisual>? previous)
     {
@@ -176,10 +190,13 @@ public static class ObservableProjector
     public static Dictionary<CityId, CityDensityVisual> Densities(WorldState world, IReadOnlyList<LivingWorld.Api.Visual.Scope.ScopedNpc> npcs)
     {
         var inside = new Dictionary<CityId, (int Count, Dictionary<int, int> Actions)>();
+        var outdoors = new Dictionary<CityId, int>();
+        var footprints = BuildingFootprints.Of(world);
         foreach (var scoped in npcs)
         {
             if (!scoped.HasCityBounds || !scoped.InsideCity) continue;
             var npc = scoped.Npc;
+            if (!footprints.Contains(npc.CurrentLocation)) outdoors[npc.City] = outdoors.GetValueOrDefault(npc.City) + 1;
             if (!inside.TryGetValue(npc.City, out var entry)) entry = (0, new Dictionary<int, int>());
             int key = npc.CurrentAction is { } action ? (int)action : -1;
             entry.Actions[key] = entry.Actions.GetValueOrDefault(key) + 1;
@@ -193,7 +210,8 @@ public static class ObservableProjector
             var top = actions.OrderByDescending(a => a.Value).ThenBy(a => a.Key).Take(4)
                 .Select(a => new ActionCount(a.Key < 0 ? null : (ActionType)a.Key, a.Value)).ToArray();
             result[city.Id] = new CityDensityVisual(count, city.PoolNpcIds.Count, new ValueList<ActionCount>(top),
-                Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, city.Location, world.CurrentDate.TotalHours)));
+                Half(EnvironmentTemperatureMechanic.EffectiveTemperature(world, city.Location, world.CurrentDate.TotalHours)),
+                outdoors.GetValueOrDefault(city.Id));
         }
 
         return result;
@@ -202,10 +220,13 @@ public static class ObservableProjector
     public static BuildingPlan Plan(Building building, int orientation)
     {
         if (Plans.Count > 50_000) Plans.Clear();
-        return Plans.GetOrAdd((building.Id.Value, building.BuildingTypeId, orientation), key =>
+        return Plans.GetOrAdd((building.Id.Value, building.BuildingTypeId, orientation, building.Shape), key =>
         {
-            var layout = BuildingLayoutGenerator.Generate(new BuildingId(key.Item1), key.Item2, key.Item3);
-            return new BuildingPlan(layout.Floors, new ValueList<FootprintCell>(layout.FloorLayouts[0].Cells.ToArray()));
+            var layout = BuildingLayoutGenerator.Generate(new BuildingId(key.Item1), key.Item2, key.Item3, key.Item4);
+            var ground = layout.FloorLayouts[0];
+            return new BuildingPlan(layout.Floors, new ValueList<FootprintCell>(ground.Cells.ToArray()),
+                new ValueList<LivingWorld.Domain.Cities.Buildings.WallSegment>((ground.Walls ?? []).ToArray()),
+                new ValueList<LivingWorld.Domain.Cities.Buildings.WallSegment>((ground.Doors ?? []).ToArray()));
         });
     }
 
@@ -304,13 +325,7 @@ public static class ObservableProjector
     }
 
     /// <summary>AD-189: depois do pôr e antes do nascer do sol do dia (hora solar, a luz do tempo do motor); sem o tempo, nunca.</summary>
-    public static bool IsNight(WorldState world)
-    {
-        if (world.Weather is not { Day: >= 0 } ledger) return false;
-        double hour = world.CurrentDate.TotalHours % world.Calendar.HoursPerDay * 24.0 / world.Calendar.HoursPerDay;
-        double half = ledger.DaylightMinutes / 120.0;
-        return hour < 12 - half || hour >= 12 + half;
-    }
+    public static bool IsNight(WorldState world) => LivingWorld.Simulation.Objects.HomeTending.IsDark(world); // #258: a mesma conta do NPC que acende a luz
 
     /// <summary>AD-189: alguém acordado dentro: morador vivo na célula da casa sem estar dormindo, ou trabalhador na oficina.</summary>
     private static bool SomeoneAwakeInside(WorldState world, List<Household>? homes, int homeCount, Workplace? workplace)
@@ -485,6 +500,7 @@ public static class ObservableProjector
         var date = world.CurrentDate;
         int monthsPerSeason = Math.Max(1, world.Calendar.MonthsPerYear / 4);
         int season = date.Month / monthsPerSeason;
+        if (world.ClimateRules.Weather is { LatitudeDeg: < 0 }) season = (season + 2) % 4; // #269: no hemisfério sul janeiro é verão (a luz do dia do motor já segue a latitude)
         int region = world.Map.TryGetCell(cell, out _) ? world.Map.RegionOf(cell).Value : -1;
         int factor = world.ClimateYears.LastOrDefault(y => y.Region.Value == region && y.Year == date.Year)?.FactorMilli ?? 1000;
         double temperature = world.Map.TryGetCell(cell, out _)

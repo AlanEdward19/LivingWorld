@@ -40,6 +40,11 @@ public sealed class NeedsDecaySystem : ISimulationSystem
             HandleDehydration(world, ctx, npc, rules, now);
             if (!npc.IsAlive) continue;
             HandleExhaustion(world, ctx, npc, rules, now);
+            if (npc.ExtraNeeds is not null)
+            {
+                LivingWorld.Simulation.Objects.HomeLife.Hourly(world, npc, world.CurrentDate.TotalMilliseconds); // #255: o que a necessidade baixa do catálogo faz
+                LivingWorld.Simulation.Objects.MoodMechanic.Hourly(world, npc, world.CurrentDate.TotalMilliseconds); // #262: momentos que vencem, desejos que renovam
+            }
         }
     }
 

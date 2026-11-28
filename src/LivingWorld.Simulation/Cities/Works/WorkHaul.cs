@@ -4,6 +4,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Streets;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Works;
@@ -104,8 +105,24 @@ internal static class WorkHaul
                     bool working = npc.CurrentAction == LivingWorld.Domain.Behavior.ActionType.Work;
                     if (working && ++trip.GatherDone >= perUnit)
                     {
-                        work.CutStock += trip.GatherDone / perUnit;
-                        trip.GatherDone %= perUnit;
+                        // #243: cada unidade sai da madeira da árvore (a mesma que o jogador corta): a árvore esgota e vira toco
+                        long ready = trip.GatherDone / perUnit;
+                        long got = CutFrom(world, new CellCoord(trip.X, trip.Y), ready);
+                        work.CutStock += got;
+                        trip.GatherDone = got < ready ? 0 : trip.GatherDone % perUnit;
+                        if (got < ready)
+                        {
+                            // a árvore acabou: segue para a árvore viva mais perto (a mata da obra muda), ou larga a viagem para planejar de novo
+                            if (PlayerNature.NearestLive(world, new CellCoord(trip.X, trip.Y), NextTreeRadius) is { } next)
+                            {
+                                (trip.X, trip.Y, work.WoodsX, work.WoodsY) = (next.X, next.Y, next.X, next.Y);
+                                trip.Reached = false;
+                                trip.Started = ctx.CurrentTick;
+                                continue;
+                            }
+                            work.WoodsX = -1;
+                            if (work.CutStock <= 0) { work.Hauls.RemoveAt(i); continue; }
+                        }
                     }
                     if (work.CutStock < trip.Units && (working || work.CutStock <= 0)) continue;
                     trip.Units = Math.Min(trip.Units, work.CutStock);
@@ -202,6 +219,9 @@ internal static class WorkHaul
         else if (seller is not null && seller.Stock.GetValueOrDefault(resource) >= units && WorkMaterial.CanPay(world, work, units * price))
             return new HaulTrip { Npc = who.Id.Value, X = seller.Location.X, Y = seller.Location.Y, Source = "banca", Seller = seller.Id.Value, Units = units };
         if (rules.HouseGatherHours <= 0) return null;
+        if (work.WoodsX >= 0 && PlayerNature.TreeAt(world, new CellCoord(work.WoodsX, work.WoodsY)) is not null
+            && PlayerNature.Left(world, new CellCoord(work.WoodsX, work.WoodsY), world.CurrentDate.TotalMilliseconds) <= 0)
+            work.WoodsX = -1; // #243: a árvore da mata da obra virou toco: a próxima viagem acha outra
         if (work.WoodsX < 0) // a mata da obra é uma só: quem vai depois encontra a pilha de quem cortou antes
         {
             var found = WoodsFor(world, city, new CellCoord(work.X, work.Y), resource);
@@ -278,6 +298,17 @@ internal static class WorkHaul
         return units;
     }
 
+    /// <summary>Até onde, em células do lote, a obra procura a árvore viva mais perto (a mata fica fora do contorno da cidade).</summary>
+    private const int TreeSearchRadius = 12;
+
+    /// <summary>Até onde, em células, o corte procura outra árvore viva quando a da viagem acaba.</summary>
+    private const int NextTreeRadius = 6;
+
+    /// <summary>#243: tira <paramref name="units"/> da madeira da árvore da célula da viagem; devolve quanto saiu. Célula sem árvore do motor
+    /// (a mata do mapa, a borda da cidade) corta sem limite, como antes.</summary>
+    private static long CutFrom(WorldState world, CellCoord cell, long units) =>
+        PlayerNature.TreeAt(world, cell) is null ? units : PlayerNature.Take(world, cell, world.CurrentDate.TotalMilliseconds, units);
+
     /// <summary>Quanto do material a pessoa aguenta numa viagem: o teto de carga dela e o peso que ainda deixa andar
     /// (<c>CarryMaxKg</c>); ao menos uma unidade.</summary>
     internal static long CapacityUnits(WorldState world, Npc npc, ResourceType resource)
@@ -295,9 +326,22 @@ internal static class WorkHaul
     /// (água e terreno sem passagem ficam de fora); sem nenhuma, a borda mais perto.</summary>
     private static CellCoord WoodsFor(WorldState world, LivingWorld.Domain.Cities.City city, CellCoord site, ResourceType resource)
     {
-        // a célula mais perto do lote onde o mapa tem o material (a mata de verdade), alcançável a pé
+        // #243: a árvore viva mais perto do lote (a mesma que o jogador vê e corta, com madeira que se esgota), alcançável a pé
         var map = world.Map;
+        long now = world.CurrentDate.TotalMilliseconds;
         int tried = 0;
+        for (int r = 1; r <= TreeSearchRadius && tried < 6; r++)
+            for (int dy = -r; dy <= r && tried < 6; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                    var tree = new CellCoord(site.X + dx, site.Y + dy);
+                    if (PlayerNature.TreeAt(world, tree) is null || PlayerNature.Left(world, tree, now) <= 0) continue;
+                    tried++;
+                    if (LivingWorld.Simulation.Behavior.Resolvers.RestPlaceResolver.IsReachable(map, site, tree)) return tree;
+                }
+        tried = 0;
+        // a célula mais perto do lote onde o mapa tem o material (a mata de verdade), alcançável a pé
         for (int r = 1; r <= 24 && tried < 6; r++)
             for (int dy = -r; dy <= r && tried < 6; dy++)
                 for (int dx = -r; dx <= r; dx++)

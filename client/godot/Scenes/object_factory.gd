@@ -3,6 +3,9 @@ extends RefCounted
 ## simetria e variação. Mesh e material são compartilhados por (id, variação) — nunca um mesh por instância.
 ## Só apresentação: a forma vem do servidor; a variação (índice) também.
 
+const FurnitureModels := preload("res://Scenes/render/furniture_models.gd")
+const FurnitureFootprint := preload("res://Scenes/furniture_footprint.gd")
+
 const SHADE_PER_VARIATION := 0.05 ## variação 0 = cor declarada, sem alteração
 
 var _descriptors: Dictionary = {} ## id -> descritor
@@ -20,11 +23,32 @@ func has(id: String) -> bool:
 	return _descriptors.has(id)
 
 
+## #266: a pegada do objeto em células (largura, profundidade), do catálogo; 1×1 sem ela.
+func footprint_of(id: String) -> Vector2i:
+	return FurnitureFootprint.size_of(_descriptors.get(id, {}))
+
+
+## #260: a luz que o objeto dá (`light` do descritor: cor, alcance em metros, intensidade, altura em metros); {} se não dá luz.
+func light_of(id: String) -> Dictionary:
+	var light: Variant = _descriptors.get(id, {}).get("light")
+	return light if light is Dictionary else {}
+
+
+## #258: o objeto tem um uso que liga ou desliga a luz (`toggle` "light:on" / "light:off" nos usos do descritor): a luz dele é estado do motor.
+func switchable(id: String) -> bool:
+	for use in _descriptors.get(id, {}).get("uses", []):
+		if use is Dictionary and String(use.get("toggle", "")).begins_with("light:"):
+			return true
+	return false
+
+
 ## Nó do objeto com a base no chão da célula; null se o id não existe no catálogo.
 ## Uma parte só sem simetria vira o próprio MeshInstance3D (igual à caixa de antes).
 func build(id: String, variation: int = 0) -> Node3D:
 	if not _descriptors.has(id):
 		return null
+	if FurnitureModels.supports(_descriptors[id]): # #266: o modelo procedural do catálogo, centrado na pegada
+		return FurnitureModels.build(_descriptors[id], variation)
 	var shape: Array = _descriptors[id].shape
 	if shape.size() == 1 and String(shape[0].get("symmetry", "none")) == "none":
 		return _instance(id, variation, 0, shape[0], _offset(shape[0], 1.0, 1.0))

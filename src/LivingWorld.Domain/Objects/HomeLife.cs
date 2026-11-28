@@ -1,0 +1,100 @@
+using System.Text.Json.Serialization;
+
+namespace LivingWorld.Domain.Objects;
+
+/// <summary>#255: reação de uma necessidade do catálogo quando o nível cai abaixo de <c>Below</c> (0–100). <c>Target</c> é um
+/// mecanismo genérico do motor, nunca uma regra de uma necessidade: <c>health</c> (saúde por hora de mundo), <c>social</c> (a solidão cresce
+/// mais rápido, por hora) e <c>bond</c> (cada conversa da pessoa com alguém pesa no laço dos dois). <c>PerHour</c> é a magnitude (negativa: piora).</summary>
+public sealed record NeedEffect(double Below, string Target, double PerHour);
+
+/// <summary>Alvos de <see cref="NeedEffect"/> que o motor conhece.</summary>
+public static class NeedEffectTargets
+{
+    public const string Health = "health";
+    public const string Social = "social";
+    public const string Bond = "bond";
+    public static readonly IReadOnlyList<string> Known = [Health, Social, Bond];
+}
+
+/// <summary>#255: uma necessidade declarada no cenário (higiene, diversão, bexiga...): nome, nível de partida, taxa de queda por hora, abaixo de
+/// quanto é urgente (a pessoa a atende e a barra a destaca) e o que acontece quando está baixa. <c>SeekBelow</c> (#261, acima de <c>UrgentBelow</c>): quem ninguém
+/// conduz e está à toa já procura um uso que a atenda abaixo deste nível, não só quando urgente (variedade de rotina). Ids <c>hunger</c>, <c>thirst</c>, <c>sleep</c> e
+/// <c>social</c> são as necessidades de sempre do motor (<see cref="NeedIds.Builtin"/>); o resto vive em <c>Npc.ExtraNeeds</c>.</summary>
+public sealed record NeedDef(
+    string Id, string Name, double Start, double DecayPerHour, double UrgentBelow, string? Color = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<NeedEffect>? Effects = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Alert = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Icon = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NeedVariation? Variation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? SeekBelow = null);
+
+/// <summary>#261: cada pessoa sente a necessidade a seu modo: o nível de partida varia até <c>Jitter</c> pontos (sorteio semeado do mundo, por pessoa) e a
+/// taxa de queda muda pela personalidade: fator = 1 + soma de peso × (traço − 50) / 50 (traços 0–100, nome como no catálogo social, ex. <c>conscientiousness</c>),
+/// limitado a 0,5–1,5. Sem o bloco, todos iguais (como antes).</summary>
+public sealed record NeedVariation(double Jitter, IReadOnlyDictionary<string, double>? Traits = null);
+
+public static class NeedIds
+{
+    public static readonly IReadOnlyList<string> Builtin = ["hunger", "thirst", "sleep", "social"];
+    public static bool IsBuiltin(string id) => id is "hunger" or "thirst" or "sleep" or "social";
+}
+
+/// <summary>#268: quando uma necessidade passa a ser crítica (abaixo do limiar de cada uma, de sempre ou do catálogo): o motor avisa (<c>need-critical</c>, que desce o tempo) e o corpo
+/// conduzido sem ordem se cuida sozinho (livre-arbítrio, ligado por padrão se <c>FreeWillDefault</c>). <c>RepeatHours</c>: o aviso da mesma necessidade não se repete antes disso.</summary>
+public sealed record NeedCritical(IReadOnlyDictionary<string, double> Below, int RepeatHours = 3, bool FreeWillDefault = true,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? Texts = null);
+
+/// <summary>As necessidades do cenário. Nulo no catálogo = cenário sem elas (omitido do snapshot e do hash).</summary>
+public sealed record NeedCatalog(
+    IReadOnlyList<NeedDef> Needs,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? StartJitter = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] NeedCritical? Critical = null)
+{
+    public NeedDef? Find(string id)
+    {
+        for (int i = 0; i < Needs.Count; i++)
+            if (Needs[i].Id == id) return Needs[i];
+        return null;
+    }
+}
+
+/// <summary>#255: o que um uso entrega por hora de mundo a uma necessidade (<c>Need</c>: id do catálogo ou uma das de sempre).</summary>
+public sealed record UseEffect(string Need, double PerHour);
+
+/// <summary>#255: o que o uso gasta da despensa da casa, por vez (comida do fogão e da geladeira).</summary>
+public sealed record UseConsume(int Resource, long Quantity);
+
+/// <summary>#255: um uso de objeto, tudo em dado: o que a pessoa faz (<c>Name</c>), quanto leva (<c>DurationMin</c> de mundo; com
+/// <c>UntilFull</c>, até a necessidade citada encher, no máximo isso), o que entrega (<c>Effects</c>), o que gasta (<c>Consumes</c>), a pose do
+/// corpo (nome declarado aqui; sem animação própria o cliente usa <c>PoseFallback</c>, uma de <see cref="ObjectPoses"/>), o lugar onde o corpo fica (<c>Slot</c>: deslocamento x, z em
+/// metros a partir do centro da peça, no referencial dela) e para onde olha. <c>Action</c> (id de <c>ActionType</c>) delega o uso à ação do motor
+/// (dormir, comer à mesa) depois de o corpo chegar ao lugar; sem ela, a duração e os efeitos daqui valem. <c>Occupies</c>: só uma pessoa por vez. <c>Hidden</c> (#259): uso só de convite (atividade conjunta
+/// da <see cref="SocialJoint"/>): fora da roda do objeto e da escolha de quem cuida de si. <c>Produces</c> (#258): o que o uso põe na despensa da casa ao
+/// terminar de verdade (o fogão transforma o que gastou em refeição; interromper antes perde o preparo). <c>Toggle</c> (#258): <c>light:on</c> ou
+/// <c>light:off</c>, o uso liga ou desliga a luz do objeto (estado do mundo, <c>LightLedger</c>); acontece na hora em que o corpo chega.</summary>
+public sealed record ObjectUseDef(
+    string Id, string Name, int DurationMin, IReadOnlyList<UseEffect> Effects,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<UseConsume>? Consumes = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Pose = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<double>? Slot = null,
+    double Facing = 0.0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Action = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UntilFull = null,
+    bool Occupies = true,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PoseFallback = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Hidden = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<UseConsume>? Produces = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Toggle = null);
+
+/// <summary>#255: uma entrada da fila de ações do corpo conduzido: o uso de um objeto de um prédio (índice da peça na mobília).</summary>
+public sealed record QueuedUse(long Building, int Piece, string Use);
+
+/// <summary>#258: os valores de <see cref="ObjectUseDef.Toggle"/> que o motor conhece.</summary>
+public static class ObjectToggles
+{
+    public const string LightOn = "light:on";
+    public const string LightOff = "light:off";
+
+    /// <summary>#263: o uso (um jornal, um computador) lista as vagas reais do mundo ao terminar; candidatar-se é uma oferta do corpo (<c>CareerLedger</c>).</summary>
+    public const string JobSearch = "job:search";
+}

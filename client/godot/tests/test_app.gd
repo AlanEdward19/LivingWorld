@@ -43,17 +43,51 @@ func _app(transport) -> Node:
 	return app
 
 
-func test_enter_subscribes_and_dims_exterior() -> void:
+func test_enter_subscribes_and_focuses_the_house() -> void:
 	var transport := _transport()
 	var app = await _app(transport)
-	eq(app.stage.dim_rect.visible, false, "mundo aberto: sem escurecer")
+	eq(app.world_view.visible, true, "mundo aberto: tudo desenhado")
 
 	await app.enter_building(4)
 
 	check(transport.calls.any(func(c): return c.begins_with("GET /visual/subscribe?scope=Interior&refId=4")), "assina o escopo interior do prédio 4")
-	eq(app.stage.dim_rect.visible, true, "exterior escurecido e desfocado")
+	eq(app.world_view.visible, true, "#249: a casa em foco não esconde o mundo: a cidade segue desenhada")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizada")
+	eq(app.stream.scope_kind, "World", "a assinatura do mundo segue aberta")
+	eq(app.interior_stream.scope_kind, "Interior", "a casa tem assinatura própria")
 	eq(app.stage.active, true)
 	eq(app.stage.interior_view.floor_count, 2)
+	app.queue_free()
+
+
+## #226/#227: dentro da casa em foco, a vizinhança do corpo vem dos painéis finos da planta e da câmera segue o ocupante do interior.
+func test_inside_the_house_the_body_neighborhood_comes_from_the_thin_panels() -> void:
+	var transport := _transport()
+	var app = await _app(transport)
+	var outside: Array = app.player_neighborhood(Vector2(0, 0))
+	await app.enter_building(4)
+	var view = app.stage.interior_view
+	var cells: Array = [] # a planta do fixture: 3x3 de piso e o contorno em arestas de parede (#226), como o motor manda numa casa de verdade
+	var walls: Array = []
+	for y in 3:
+		for x in 3:
+			cells.append({"cell": {"x": x, "y": y}, "material": 3})
+			if x == 0:
+				walls.append({"a": {"x": -1, "y": y}, "b": {"x": 0, "y": y}, "material": 1})
+			if x == 2:
+				walls.append({"a": {"x": 2, "y": y}, "b": {"x": 3, "y": y}, "material": 1})
+			if y == 0:
+				walls.append({"a": {"x": x, "y": -1}, "b": {"x": x, "y": 0}, "material": 1})
+			if y == 2:
+				walls.append({"a": {"x": x, "y": 2}, "b": {"x": x, "y": 3}, "material": 1})
+	view.show_interior({"building": 4, "floors": 1, "layout": [{"level": 0, "cells": cells, "walls": walls, "doors": []}], "occupants": []}, Vector2i(5, 5), app.labels)
+	var middle: Vector3 = view.center()
+	var near: Array = app.player_neighborhood(Vector2(middle.x, middle.z))
+	check(not near[0].is_empty(), "painéis do interior ao redor do corpo")
+	for entry in near[0]:
+		check(minf(entry[0].size.x, entry[0].size.y) < 0.3, "só painéis finos (%s)" % entry[0].size)
+	check(app.rig.camera.current, "a câmera do mundo é a única (sem câmera à parte)")
+	check(outside[0].is_empty(), "fora, sem prédios por perto, nada a tocar")
 	app.queue_free()
 
 
@@ -129,7 +163,7 @@ func test_exit_returns_to_the_previous_city_scope() -> void:
 
 	await app.exit_building()
 
-	eq(transport.count_calls("GET /visual/subscribe?scope=City"), before + 1, "volta à CIDADE, não ao mundo")
+	eq(transport.count_calls("GET /visual/subscribe?scope=City"), before, "#249: sair da casa não pede a cidade de novo: ela nunca saiu")
 	eq(app.store.kind, "City")
 	eq(app.list_panel.city_filter, "city-a", "a lista segue o escopo atual")
 	app.queue_free()
@@ -166,9 +200,13 @@ func test_exit_restores_exterior_and_scope() -> void:
 
 	await app.exit_building()
 
-	eq(app.stage.dim_rect.visible, false, "exterior restaurado")
+	eq(app.world_view.visible, true, "mundo desenhado")
+	eq(app.world_view.process_mode, Node.PROCESS_MODE_INHERIT, "e atualizado")
 	eq(app.stage.active, false)
-	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before + 1, "volta à assinatura anterior (Mundo)")
+	for id in app.world_view.buildings.nodes:
+		check((app.world_view.buildings.nodes[id] as Node3D).is_visible_in_tree(), "#227: ao sair, o prédio %s do mundo volta a se desenhar" % id)
+	check(app.stage.interior_view.ceiling == null or not app.stage.interior_view.ceiling.visible, "#227: o forro da casa não fica no mundo")
+	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before, "#249: sair da casa não refaz a assinatura do mundo")
 	eq(app.store.kind, "World")
 	app.queue_free()
 
@@ -316,3 +354,27 @@ func test_the_window_close_request_is_intercepted_so_release_can_finish() -> voi
 	tree.root.add_child(boot)
 	eq(boot.get_tree().auto_accept_quit, false, "sem isto o Godot sairia antes de retirar a fonte")
 	boot.free()
+
+
+## #227: o motor diz que o corpo está no prédio (pose): o app entra na casa com a câmera do jogador; diz que saiu: volta ao mundo.
+func test_body_inside_by_the_pose_enters_the_house_with_the_player_camera_and_leaving_goes_back() -> void:
+	var transport := _transport()
+	var app = await _app(transport)
+	app.player_hud.is_active = true
+	app.player_hud.npc_id = 1
+	app.rig.set_mode(app.rig.THIRD)
+	await app._on_player_placed(4, 1)
+	await app.get_tree().process_frame
+	eq(app.stage.active, true, "dentro do prédio: a casa em foco")
+	eq(app.stage.interior_view.immersive, true, "sem corte de maquete: câmera do jogador")
+	var blockers: Array = app.camera_blockers()
+	eq(blockers.size(), 1, "só os painéis finos da casa contam para a câmera")
+	eq(bool(blockers[0][4]), true, "marcada como interior")
+	check(app.player_actor() == app.stage.interior_view.occupant_nodes.get(1), "o corpo é o ocupante da casa")
+	await app._on_player_placed(4, 1)
+	eq(app.stage.active, true, "pose repetida não reentra")
+	await app._on_player_placed(-1, 0)
+	eq(app.stage.active, false, "o motor diz que saiu: volta ao mundo")
+	eq(app.player_hud.is_active, true, "a posse fica")
+	eq(app.rig.mode, app.rig.THIRD, "o modo de câmera fica")
+	app.queue_free()

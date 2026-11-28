@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using LivingWorld.Api.Conversation;
 using LivingWorld.Infrastructure.Records;
 using LivingWorld.Infrastructure.Repositories;
@@ -26,7 +27,9 @@ public sealed record PeriodCatalogResponse(
     IReadOnlyList<int> SkillIds,
     IReadOnlyDictionary<int, string> ProfessionNames,
     IReadOnlyDictionary<int, string> SkillNames,
-    PeriodDescriptors Descriptors);
+    PeriodDescriptors Descriptors,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    string? Wardrobe = null); // #254: estilo de roupa que o período declara em Presentation.Wardrobe (o cliente veste por ele)
 
 /// <summary><c>POST
 /// /periods</c> valida (<see cref="PeriodDefinitionValidator"/>) e persiste (<see
@@ -103,7 +106,8 @@ public static class PeriodsEndpoints
 
             return Results.Ok(new PeriodCatalogResponse(
                 template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds,
-                catalog.ProfessionNames, catalog.SkillNames, catalog.Descriptors));
+                catalog.ProfessionNames, catalog.SkillNames, catalog.Descriptors,
+                JsonNode.Parse(template.PayloadJson)?["Presentation"]?["Wardrobe"]?.GetValue<string>()));
         });
     }
 }

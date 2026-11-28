@@ -44,6 +44,31 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(400, Assert.Single(periods, p => p.PeriodId == "grande-metropole").Card.InitialPopulation);
     }
 
+    /// <summary>#252: o período de dados do sandbox sai da rota de períodos com o cartão de início rápido e o <c>POST /worlds/create</c> o transforma
+    /// num mundo com exatamente o casal, na casa que o cenário declara.</summary>
+    [Fact]
+    public async Task The_sandbox_period_is_served_as_quick_start_and_creates_a_world_with_exactly_the_couple()
+    {
+        var client = _factory.CreateClient();
+        var detail = (await client.GetFromJsonAsync<PeriodDetailResponse>("/periods/sandbox-casal", Web))!;
+        Assert.True(detail.Card.QuickStart);
+        Assert.Equal("Sandbox: casal", detail.Card.Name);
+        Assert.Equal(4, detail.Card.InitialPopulation); // o casal, o comerciante do mercado (#258) e o marceneiro da loja de móveis (#264)
+        var definition = JsonNode.Parse(detail.PeriodDefinition.GetRawText())!.AsObject();
+        definition["Seed"] = 90210; // a semente nova a cada criação, como o botão do menu faz
+
+        var created = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(definition.ToJsonString(), "Sandbox: casal", "sandbox-casal"), Web);
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        Assert.Equal(4, world.Npcs.Count); // o casal, o comerciante e o marceneiro (#264)
+        Assert.Equal(world.Npcs[0].Spouse, world.Npcs[1].Id);
+        Assert.Equal(7, world.Buildings.Count); // o mercado, as três casas, o escritório e a escola (#263) e a loja de móveis (#264)
+        Assert.All(world.Buildings.Where(b => b.BuildingTypeId == -1), house => Assert.Equal(new LivingWorld.Domain.Cities.Buildings.BuildingShape(7, 6, 1), house.Shape));
+        Assert.Equal(4, world.Workplaces.Count); // o mercado, o escritório e a escola (#263) e a loja de móveis (#264)
+        Assert.Equal("sandbox-casal", world.PeriodId);
+    }
+
     [Fact]
     public async Task The_three_presets_are_the_same_era_so_the_menu_does_not_promise_other_eras()
     {
@@ -200,6 +225,31 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, (await _factory.CreateClient().PostAsync($"/worlds/{WorldIdentity.WorldIdFor(75701)}/load?startRunning=true", null)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"/worlds/{WorldIdentity.WorldIdFor(75701)}/load?startRunning=true", null)).StatusCode);
         Assert.False(simulation.IsPaused);
+    }
+
+    [Fact]
+    public async Task Loading_a_saved_world_with_the_token_makes_the_clock_advance_and_a_popup_hold_of_the_old_world_does_not_stop_it()
+    {
+        // #237: carregar um mundo salvo tem de deixá-lo andando (como o mundo novo) e a pausa de popup do mundo anterior não o segura
+        var admin = _factory.CreateAdminClient();
+        var simulation = _factory.Services.GetRequiredService<SimulationHost>();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var loop = _factory.Services.GetRequiredService<LivingWorld.Api.Simulation.TickLoopService>();
+        var gateway = _factory.Services.GetRequiredService<LivingWorld.Api.Players.PlayerCommandGateway>();
+        await admin.PostAsJsonAsync("/worlds/create?startRunning=true", Request(76101, "Salvo A"));
+        await admin.PostAsJsonAsync("/worlds/create", Request(76102, "Salvo B"));
+        gateway.Hold.Connected("jogador-237");
+        Assert.True(gateway.SetHold("jogador-237", true)); // popup aberto no mundo B
+        Assert.True(gateway.PopupHolding);
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"/worlds/{WorldIdentity.WorldIdFor(76101)}/load?startRunning=true", null)).StatusCode);
+
+        Assert.False(simulation.IsPaused);
+        Assert.False(gateway.PopupHolding); // o hold era do outro mundo
+        long before = worldHost.Current.CurrentDate.TotalHours;
+        for (int i = 0; i < 3; i++) loop.RunOneCycle();
+        Assert.True(worldHost.Current.CurrentDate.TotalHours > before, "o relógio do mundo carregado tem de andar");
+        gateway.Hold.Disconnected("jogador-237");
     }
 
     [Fact]

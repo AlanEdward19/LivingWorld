@@ -167,6 +167,31 @@ func test_logout_posts_and_shows_that_the_character_disappeared_at_the_tick() ->
 	hud.free()
 
 
+func test_logout_in_a_scenario_where_leaving_keeps_the_life_says_so_instead_of_disappeared() -> void: # #246 (AD-237)
+	var transport := _transport()
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtMs": null}})
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	await hud.logout()
+
+	eq(hud.is_active, false)
+	check("volta à rotina" in hud.status_text and not "desapareceu" in hud.status_text, hud.status_text)
+	hud.free()
+
+
+func test_the_skip_to_return_note_goes_away_when_the_skip_ends() -> void: # #246 (5º teste)
+	var hud := _hud(_transport())
+	await hud.incarnate(7, "Ana")
+	hud._set_status("Pulando até a volta do turno…")
+
+	hud.apply_time({"skipping": true, "canSkip": false})
+	eq(hud.status_text, "Pulando até a volta do turno…", "pulando: o aviso fica")
+	hud.apply_time({"skipping": false, "canSkip": true})
+	eq(hud.status_text, "", "acabou o salto: o aviso sai")
+	hud.free()
+
+
 func test_paused_world_note_only_while_controlling() -> void:
 	var hud := _hud(_transport())
 	hud.set_paused(true)
@@ -293,6 +318,33 @@ func test_incarnating_hides_the_spectator_ui_and_leaving_restores_it() -> void:
 	eq(toasts_while_playing, [], "acontecimento não vira aviso sobre a cena do jogador")
 	eq([after, app.player_mode, node.is_self], [before, false, false], "o espectador volta intacto")
 	app.queue_free()
+
+
+## #237: "E Beber · Fonte" some no quadro em que o corpo passa do alcance que o motor disse (reachCells), sem esperar a próxima leitura;
+## dentro do alcance (com a folga da latência) fica; oferta sem alcance (porta, banca) segue a leitura de sempre.
+func test_a_positional_hint_leaves_the_screen_as_soon_as_the_body_is_out_of_the_engines_reach() -> void:
+	var hud := _hud(_transport())
+	await hud.incarnate(7, "Ana")
+	hud.set_rpg(true)
+	var spring := {"kind": "water", "id": 4294967296 * 10 + 20, "verbs": ["drink"], "x": 10, "y": 20, "resources": [], "reachCells": 1.0}
+	hud.fine = Vector2(11.5, 20.5) # 0,5 célula da borda da fonte
+	hud.set_reach_hint([spring])
+	eq(hud.reach_hint.text, "Fonte: Beber", "perto: a dica da oferta")
+	eq(hud.hint_out_of_reach(), false, "perto: dentro do alcance")
+	hud.fine = Vector2(12.1, 20.5) # 1,1 célula: passou do alcance de 1, mas dentro da folga da latência
+	eq(hud.hint_out_of_reach(), false, "na folga da latência a dica fica")
+	hud.fine = Vector2(12.5, 20.5) # 1,5 célula
+	eq(hud.hint_out_of_reach(), true, "além do alcance e da folga: a dica não vale mais")
+	hud._busy = true # só a parte síncrona: nenhuma leitura nova vai ao motor neste teste
+	hud._refresh_reach_hint(0.016)
+	hud._busy = false
+	eq([hud.reach_hint.text, hud.reach_hint.visible], ["", false], "e some no mesmo quadro, sem esperar outra leitura")
+	eq(PlayerHud.reach_gap(Vector2(10.5, 20.5), 10.0, 20.0), 0.0, "dentro da própria célula: folga 0")
+	check(absf(PlayerHud.reach_gap(Vector2(12.0, 22.0), 10.0, 20.0) - sqrt(2.0)) < 0.001, "na diagonal: a distância ao canto")
+	hud.set_reach_hint([{"kind": "stall", "id": 3, "verbs": ["buy"], "x": 4, "y": 5, "resources": [{"resourceId": 1, "quantity": 2, "price": 4}]}])
+	hud.fine = Vector2(80.5, 80.5)
+	eq(hud.hint_out_of_reach(), false, "oferta sem alcance no motor: o cliente não inventa um")
+	hud.free()
 
 
 func test_tab_opens_the_orders_and_releases_the_cursor_and_the_reach_hint_comes_from_the_offer() -> void:
@@ -628,3 +680,23 @@ class SlowIncarnate extends "res://tests/fake_transport.gd":
 			Engine.get_main_loop().create_timer(0.5).timeout.connect(func(): release.emit(), CONNECT_ONE_SHOT)
 			await release
 		return await super.request(method, path, body, extra_headers)
+
+
+func test_inside_a_building_its_own_door_does_not_offer_enter() -> void:
+	var entries := [{"text": "Porta: Entrar", "kind": "door", "id": 8, "verb": "enter", "resource": -1},
+		{"text": "Porta: Entrar", "kind": "door", "id": 9, "verb": "enter", "resource": -1},
+		{"text": "Cama: Dormir", "kind": "bed", "id": 8, "verb": "sleep", "resource": -1}]
+	eq(PlayerHud.without_own_door(entries, -1).size(), 3, "fora de prédio: tudo continua")
+	var inside := PlayerHud.without_own_door(entries, 8)
+	eq(inside.size(), 2, "dentro do 8: some só a porta do 8")
+	check(inside[0].id == 9 and inside[1].verb == "sleep", "o resto fica")
+
+
+func test_pose_building_id_is_read_and_announced() -> void:
+	var hud := _hud(_transport())
+	var seen: Array = []
+	hud.placed.connect(func(building: int, level: int): seen.append([building, level]))
+	hud.apply_pose({"buildingId": 8, "floor": 1})
+	hud.apply_pose({"floor": 0})
+	eq(seen, [[8, 1], [-1, 0]], "o motor diz o prédio e o andar; sem buildingId, fora")
+	eq(hud.building_id, -1, "fora de novo")

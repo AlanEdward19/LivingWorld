@@ -27,7 +27,9 @@ public sealed record CityResidentMarker(
 /// iteração que o anel client-side usa hoje.</summary>
 public sealed record CityBuildingMarker(
     BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0,
-    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null, long Value = 0, LodgingMarker? Lodging = null);
+    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null, long Value = 0, LodgingMarker? Lodging = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundWalls = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundDoors = null);
 
 /// <summary>Hospedagem de um prédio (lodging-and-rent): vagas, vagas ocupadas por domicílios, aluguel mensal e diária de hoje —
 /// o preço já acompanha local e demanda. Só existe em prédio cujo tipo declara <c>Lodging</c>.</summary>
@@ -68,7 +70,7 @@ public static class CityProjector
             return Result<CitySnapshot>.Fail($"cidade {cityId} não encontrada");
 
         var residents = world.Npcs
-            .Where(n => n.IsAlive && n.City == cityId)
+            .Where(n => n.IsAlive && n.City == cityId && !LivingWorld.Simulation.Careers.CareerWork.IsAway(world, n)) // #263: quem está no turno de trabalho não está no mapa
             .Select(n => new CityResidentMarker(
                 n.Id, n.CurrentLocation, n.CurrentAction, ExtraordinaryNpcVisualProjector.Build(world, n.Id), n.Appearance))
             .ToList();
@@ -94,7 +96,7 @@ public static class CityProjector
             {
                 if (BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is not { } resolved)
                     return null;
-                var layout = BuildingLayoutGenerator.Generate(b.Id, b.BuildingTypeId, resolved.Orientation);
+                var layout = BuildingLayoutGenerator.Generate(b.Id, b.BuildingTypeId, resolved.Orientation, b.Shape);
                 var footprint = layout.FloorLayouts[0].Cells
                     .Select(cell => new CellCoord(
                         resolved.Position.X + cell.Cell.X,
@@ -115,7 +117,8 @@ public static class CityProjector
 
                 return new CityBuildingMarker(
                     b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation,
-                    layout.Floors, layout.FloorLayouts[0].Cells, value, lodging);
+                    layout.Floors, layout.FloorLayouts[0].Cells, value, lodging,
+                    layout.FloorLayouts[0].Walls, layout.FloorLayouts[0].Doors);
             })
             .OfType<CityBuildingMarker>()
             .ToList();

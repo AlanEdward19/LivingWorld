@@ -451,6 +451,7 @@ public sealed class NatalitySystem : ISimulationSystem
         if (world.OntogenyRules.Enabled)
             baby.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn);
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
+        LivingWorld.Simulation.Objects.HomeLife.Seed(world, baby); // #255: necessidades do catálogo do cenário
         household.AddMember(baby.Id);
         LivingWorld.Simulation.Health.Lactation.TryNurse(world, baby, ctx.CurrentTick); // primeira mamada
         long birthEventId = ctx.LogEvent(

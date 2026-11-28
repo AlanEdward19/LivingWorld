@@ -6,7 +6,7 @@ extends RefCounted
 ##         play (entra no mundo; os passos seguintes são do jogo, ver dev_steps.gd) · quit.
 ## AD-175 (teste de verdade pelo play.sh): create (cria o mundo do assistente sem esperar, para fotografar o carregamento) ·
 ##         rename:Nome (renomeia o mundo aberto em Meus mundos) · title (volta ao título e relê o servidor) ·
-##         continue (Continuar) · savenow (no jogo: abre a pausa e aperta Salvar agora).
+##         sandbox[:periodo] (#252: o botão de início rápido do título; segue com passos do jogo) · continue (Continuar) · resume (#246: Continuar o mundo atual, sem recriar, e segue com passos do jogo; a API fica ligada entre rodadas) · savenow (no jogo: abre a pausa e aperta Salvar agora).
 
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 
@@ -54,6 +54,15 @@ static func run(boot: Node, steps: Array) -> void:
 				await boot.get_tree().create_timer(0.2).timeout
 				await DevSteps.run(boot.app, steps.slice(i + 1))
 				return
+			"sandbox": # #252: o botão "Sandbox: casal" do título: cria o mundo do período de início rápido e entra nele; o resto são passos do jogo
+				await menu.quick_start(arg if arg != "" else "sandbox-casal")
+				await boot.get_tree().create_timer(0.5).timeout
+				for _i in 400: # #256: o início rápido entra sozinho no corpo da primeira pessoa da casa; espera isso terminar (até ~40 s)
+					if boot.app == null or boot.app.quick_entered:
+						break
+					await boot.get_tree().create_timer(0.1).timeout
+				await DevSteps.run(boot.app, steps.slice(i + 1))
+				return
 			"create":
 				menu.wizard.creation_progress.connect(func(index: int, count: int, text: String): print("etapa %d/%d: %s" % [index + 1, count, text]))
 				menu.wizard.created.connect(func(_t: bool): print("criado: ", menu.wizard.world_name))
@@ -77,6 +86,15 @@ static func run(boot: Node, steps: Array) -> void:
 				print("continue: ", menu.title.continue_button.visible, " ", menu.title.continue_button.text.replace("\n", " | "))
 			"continue":
 				menu._on_continue()
+			"resume": # #246 (5º teste): Continuar o mundo que a API já tem (sem recriar) e seguir com passos do jogo: dois dias no mesmo mundo
+				menu._on_continue()
+				for _i in 300:
+					if boot.app != null:
+						break
+					await boot.get_tree().create_timer(0.1).timeout
+				await boot.get_tree().create_timer(1.5).timeout
+				await DevSteps.run(boot.app, steps.slice(i + 1))
+				return
 			"savenow":
 				await boot.app.pause_menu.open()
 				await boot.app.pause_menu.save_now()

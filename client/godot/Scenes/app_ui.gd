@@ -7,6 +7,9 @@ const Panels := preload("res://Scenes/panels.gd")
 const UiTheme := preload("res://Scenes/ui_theme.gd")
 const Minimap := preload("res://Scenes/minimap.gd")
 const Toasts := preload("res://Scenes/toasts.gd")
+const Feedback := preload("res://Scenes/feedback.gd")
+const Modal := preload("res://Scenes/modal.gd")
+const PopupHold := preload("res://Scenes/popup_hold.gd")
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const Inspector := preload("res://Scenes/inspector.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
@@ -17,6 +20,10 @@ const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const BuyMode := preload("res://Scenes/buy_mode.gd")
+const AimHighlight := preload("res://Scenes/aim_highlight.gd")
+const ReachRing := preload("res://Scenes/reach_ring.gd")
+const HomeFreightLayer := preload("res://Scenes/home_freight_layer.gd")
 const CharacterCreator := preload("res://Scenes/character_creator.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
@@ -45,8 +52,10 @@ static func build(app) -> void:
 	layer.layer = 5
 	app.add_child(layer)
 	layer.add_child(ui)
+	app.modal = Modal.new() # #240: o registro único de popup aberto (popup novo: `app.modal.watch(controle)`)
 	app.stage = InteriorStage.new()
 	ui.add_child(app.stage)
+	app.stage.world = app.world_view # #227: o mundo que a casa em foco esconde
 	_top_bar(app, ui)
 	_side(app, ui)
 	_windows(app, ui)
@@ -211,9 +220,12 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.labels = app.labels
 	app.player_hud.player_id = app.player_id if app.player_id != "" else PlayerProfile.load_or_create()
 	app.player_hud.session_enabled = true
+	app.player_hud.settings = app.settings # #238: o guia da primeira posse lembra, nas preferências locais, em que mundo já foi visto
 	app.player_hud.full_possession = app.admin_enabled # #222: jogo local (admin): posse plena, sem recusa de vontade # AD-197a: sessão por token e canal persistente; o id local fica só como reserva
 	app.player_hud.warning.connect(func(text: String): app.toasts.push(text))
 	app.player_hud.released.connect(func(): app.player_released())
+	app.player_hud.switched.connect(app._on_player_switched)
+	app.player_hud.body_away.connect(app._on_player_away) # #263: o corpo no turno de trabalho some do mapa
 	app.player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	app.player_hud.offset_left = 310
 	app.player_hud.offset_right = -316
@@ -221,14 +233,24 @@ static func _side(app, ui: Control) -> void:
 	ui.add_child(app.player_hud)
 	# AD-197d/197j: WASD relativo ao olhar da câmera; o passo previsto e corrigido pelo motor; golpe, nomes e mira
 	app.player_hud.heading = app.rig.heading
+	app.player_hud.aim_look = app.rig.heading # #243: o alvo do E é o que está sob o olhar
 	app.player_hud.predicted.connect(app._on_player_predicted)
 	app.player_hud.confirmed.connect(app._on_player_confirmed)
 	app.player_hud.rejected.connect(app._on_player_rejected)
 	app.player_hud.conversation_opened.connect(func(id: int, name: String, session: int):
 		app._on_player_menu(true)
+		app.conversation.game_style = app.player_mode # #233: caixa de diálogo de jogo com escolhas (e números)
 		app.conversation.attach(id, name, session))
+	app.player_hud.input_blocked = func() -> bool: return app.modal.active # #240: qualquer popup aberto, não só a conversa
+	app.player_hud.target_changed.connect(app._on_player_target)
+	app.player_hud.placed.connect(app._on_player_placed)
 	app.player_hud.struck.connect(app._on_player_struck)
+	app.player_hud.struck_result.connect(app._on_player_struck_result) # #234: combate: reação no alvo e no corpo pelo resultado do motor
+	app.player_hud.defended.connect(app._on_player_defended)
+	app.player_hud.guard_changed.connect(app._on_player_guard_changed)
+	app.player_hud.incoming.connect(app._on_player_incoming)
 	app.player_hud.glided.connect(app._on_player_fine)
+	app.player_hud.neighborhood = app.player_neighborhood # #229: paredes e gente ao redor do corpo
 	app.player_hud.settled.connect(app._on_player_fine)
 	app.player_hud.menu_toggled.connect(app._on_player_menu)
 	app.player_hud.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
@@ -236,8 +258,43 @@ static func _side(app, ui: Control) -> void:
 	ui.add_child(app.player_frame)
 	app.player_hud.frame = app.player_frame
 	app.player_frame.chosen.connect(func(entry: Dictionary): app.player_hud.interact(entry))
+	app.player_frame.speed_chosen.connect(func(speed: int): app.player_hud.set_speed(speed)) # #260: pausa/1×/2×/3× no HUD
+	app.player_frame.go_now_requested.connect(func(): app.player_hud.go_now()) # #267: o turno sem armadilha
+	app.player_frame.skip_requested.connect(func(): app.player_hud.skip_to_return())
+	app.player_hud.both_away_changed.connect(app._on_both_away)
+	app.player_hud.speed_changed.connect(func(_speed: int): app.on_speed_changed())
+	app.player_hud.walls_cycled.connect(func(): app.cycle_walls())
+	app.home_freight.api = app.player_hud.api
+	app.home_freight.id_of = func() -> String: return app.player_hud.player_id
+	app.home_freight.active = func() -> bool: return app.player_hud != null and app.player_hud.is_active
+	app.home_freight.actor_of = func() -> Node3D: return app.player_actor() if app.player_hud != null and app.player_hud.is_active else null
+	app.home_freight.catalog_of = func() -> Array: return app.store.interior.get("objects", {}).get("catalog", []) if app.store.interior.get("objects") is Dictionary else []
+	app.home_freight.set_driver_of(func() -> Node3D: return app.player_actor() if app.player_hud != null and app.player_hud.is_active else null)
+	app.home_freight.notice.connect(func(text: String): app.toasts.push(text))
+	app.player_hud.sheet_read.connect(func(body: Dictionary): app.home_freight.note_sheet(body))
+	app.buy_mode = BuyMode.new() # #264: modo comprar e construir (B): câmera de cima, catálogo, fantasma, obra
+	ui.add_child(app.buy_mode)
+	app.buy_mode.api = app.player_hud.api
+	app.buy_mode.rig = app.rig
+	app.buy_mode.stage = app.stage
+	app.buy_mode.modal = app.modal
+	app.buy_mode.catalog_of = func() -> Array: return app.store.interior.get("objects", {}).get("catalog", []) if app.store.interior.get("objects") is Dictionary else []
+	app.buy_mode.info_of = func() -> Dictionary: return app.store.interior
+	app.buy_mode.building_of = func() -> int: return app.session.interior_building
+	app.modal.watch(app.buy_mode) # a pausa de popup vale também aqui: o tempo para enquanto se compra e se constrói
+	app.player_hud.buy_requested.connect(func(): app.toggle_buy_mode())
+	app.buy_mode.opened.connect(func():
+		app._on_player_menu(true)
+		app.player_frame.visible = false) # a moldura de jogo (barras, relógio) fica atrás do painel: some enquanto se compra
+	app.buy_mode.closed.connect(func():
+		app._on_player_menu(false)
+		app.player_frame.visible = app.player_hud.rpg)
+	app.buy_mode.warning.connect(func(text: String): app.toasts.push(text))
+	app.buy_mode.acted.connect(func(note: String): app.on_home_changed(note))
 	app.player_hud.jumped.connect(app._on_player_jumped)
 	app.player_hud.acted.connect(app._on_player_acted)
+	app.player_hud.busy_changed.connect(app._on_player_busy)
+	_wire_feedback(app)
 	app.crosshair = Label.new() # AD-197j: a mira do modo jogador
 	app.crosshair.text = "+"
 	app.crosshair.add_theme_font_size_override("font_size", 28)
@@ -317,6 +374,8 @@ static func _windows(app, ui: Control) -> void:
 	app.conversation = ConversationWindow.new()
 	app.conversation.api = app.api
 	app.conversation.closed.connect(func(): app._on_player_menu(false)) # AD-197k: fechada a conversa, o cursor volta a ser o olhar
+	if app.player_frame != null:
+		app.modal.cover(app.player_frame.hints) # #237/#240: a dica de teclas fica atrás de qualquer popup: some enquanto ele está aberto
 	app.conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
 	app.conversation.anchor_top = 1.0 # faixa fixa na base da tela
 	app.conversation.offset_left = 310
@@ -383,6 +442,21 @@ static func _bottom(app, ui: Control) -> void:
 	app.loading = loading
 
 
+## #240: as janelas centrais do jogador entram no registro de popup (uma linha cada); quem cria popup novo faz o mesmo.
+static func _popups(app) -> void:
+	for popup in [app.conversation, app.first_steps.help, app.pause_menu, app.creator]:
+		if popup != null:
+			app.modal.watch(popup)
+	if app.player_frame != null:
+		for popup in [app.player_frame.inventory, app.player_frame.goals, app.player_frame.menu_panel, app.player_frame.guide]:
+			app.modal.watch(popup)
+	app.modal.changed.connect(app._on_modal)
+	app.popup_hold = PopupHold.new()
+	app.popup_hold.api = app.api
+	app.popup_hold.bind(app.modal)
+	app.add_child(app.popup_hold)
+
+
 ## Por cima de tudo: dicas dos primeiros passos, ajuda, menu de pausa e a cortina que abre suave ao entrar no mundo.
 static func _overlays(app, ui: Control) -> void:
 	app.first_steps = FirstSteps.new()
@@ -395,6 +469,7 @@ static func _overlays(app, ui: Control) -> void:
 	app.pause_menu.quit_pressed.connect(func(): app.quit_requested.emit())
 	app.pause_menu.help_pressed.connect(func(): app.first_steps.open_help())
 	ui.add_child(app.pause_menu)
+	_popups(app)
 	app.curtain = ColorRect.new()
 	app.curtain.color = Color("0d1420")
 	app.curtain.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -413,6 +488,12 @@ static func build_scene(app) -> void:
 		renderer.design_of = func(id: int) -> Variant: return app.api.cached_design(id)
 		renderer.request_design = func(id: int) -> void: app.request_design(id)
 	app.add_child(app.world_view)
+	app.aim_highlight = AimHighlight.new() # #233: o anel do alvo do E
+	app.world_view.add_child(app.aim_highlight)
+	app.reach_ring = ReachRing.new() # #234: o alcance do golpe em volta do corpo quando mira alguém
+	app.world_view.add_child(app.reach_ring)
+	app.home_freight = HomeFreightLayer.new() # #265: o móvel nas mãos, o carro da casa e o entregador, só do que o motor diz
+	app.world_view.add_child(app.home_freight)
 	app.rig = CameraRig.new()
 	app.rig.city_at = func(point: Vector3) -> String: return app.world_view.city_at(point)
 	app.rig.walking = func() -> bool: return app.player_hud != null and app.player_hud.is_active # AD-197e: WASD/setas andam com o personagem
@@ -443,3 +524,36 @@ static func build_scene(app) -> void:
 	app.add_child(app.day_cycle)
 	app.day_cycle.bind(app._sun, app._environment, app.world_view.window_material, app.world_view.lamp_material)
 	app.world_view.weather_changed.connect(app._on_weather) # AD-180: sol do motor e indicador do tempo
+
+
+## #232: retorno a cada ação (sons, poeira, números, tremor), só do que o motor confirmou.
+static func _wire_feedback(app) -> void:
+	var fb = Feedback.new()
+	fb.name = "Feedback"
+	fb.settings = app.settings
+	fb.resource_name_of = func(id: int) -> String: return String(app.registry.resources.get(id, "recurso %d" % id))
+	var own := func() -> Node:
+		var id: int = app.player_hud.npc_id
+		var node = app.world_view.npc_nodes.get(id)
+		return node if node != null else app.stage.interior_view.occupant_nodes.get(id)
+	fb.body_node = own
+	fb.node_of = func(id: int) -> Node: return app.world_view.npc_nodes.get(id)
+	fb.listener_pos = func() -> Vector3: return app.rig.target
+	fb.surface_at = func(pos: Vector3) -> String:
+		if app.stage.active:
+			return "wood"
+		var road = app.world_view.ground.drawn_roads.get(Vector2i(floori(pos.x), floori(pos.z)))
+		return Feedback.surface_name(int(road.get("surface", -1))) if road is Dictionary else "grass"
+	fb.shake_cb = func(amount: float) -> void:
+		app.rig.shake_enabled = app.settings == null or app.settings.shake
+		app.rig.add_shake(amount)
+	app.add_child(fb)
+	app.feedback = fb
+	app.player_hud.acted.connect(fb.on_acted)
+	app.player_hud.struck_result.connect(fb.on_struck_result)
+	app.player_hud.defended.connect(fb.on_defended)
+	app.player_hud.incoming.connect(fb.on_incoming)
+	app.player_hud.refused.connect(fb.on_refused)
+	app.player_hud.jumped.connect(fb.on_jumped)
+	app.player_hud.sheet_read.connect(fb.note_sheet)
+	app.player_hud.released.connect(fb.reset)

@@ -130,10 +130,20 @@ public static class CityScenarioLoader
             employmentWeight, foodWeight, securityWeight, familyTiesWeight,
             concentration, resource, route, defensibility, leadership,
             organizationTicks, idleTicks);
+        if (!created.IsSuccess) return created;
+        var rules = created.Value!;
+        // #252: "AbsorptionRingCells" opcional (a folga em volta do limite da cidade onde o lote pode cair); sem ele, o padrão (3).
+        // Uma cidade de poucos moradores tem limite de 3×3 e uma casa grande de subúrbio só cabe com a folga declarada pelo cenário.
+        if (root["AbsorptionRingCells"] is not null)
+        {
+            if (!TryGetInt(root, "AbsorptionRingCells", out var ring) || ring < 0 || ring > 64)
+                return Result<CityRules>.Fail("AbsorptionRingCells: inteiro em [0,64]");
+            rules = rules with { AbsorptionRingCells = ring };
+        }
         // AD-173: "CityLayout" opcional (ruas e lotes); sem ele, o padrão ligado.
-        if (!created.IsSuccess || root["CityLayout"] is not JsonObject layoutNode) return created;
+        if (root["CityLayout"] is not JsonObject layoutNode) return Result<CityRules>.Ok(rules);
         var layout = layoutNode.Deserialize<CityLayoutRules>();
-        return layout is null ? created : Result<CityRules>.Ok(created.Value! with { Layout = layout });
+        return Result<CityRules>.Ok(layout is null ? rules : rules with { Layout = layout });
     }
 
     private static Result<CityCatalog> ParseCatalog(JsonObject root)

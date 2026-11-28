@@ -68,9 +68,35 @@
           "value": "string"
         },
         "floors": "number",
+        "groundDoors?": [
+          {
+            "a": {
+              "x": "number",
+              "y": "number"
+            },
+            "b": {
+              "x": "number",
+              "y": "number"
+            },
+            "material": "number"
+          }
+        ],
         "groundFootprint": [
           {
             "cell": {
+              "x": "number",
+              "y": "number"
+            },
+            "material": "number"
+          }
+        ],
+        "groundWalls?": [
+          {
+            "a": {
+              "x": "number",
+              "y": "number"
+            },
+            "b": {
               "x": "number",
               "y": "number"
             },
@@ -155,6 +181,7 @@
             }
           ],
           "inside": "number",
+          "outdoors?": "number",
           "pooled": "number",
           "temperatureC": "number"
         },
@@ -382,6 +409,7 @@
               "resourceName?": "string"
             }
           ],
+          "combat?": "string",
           "dominantEmotion?": "string",
           "emotions": {
             "anger": "number",

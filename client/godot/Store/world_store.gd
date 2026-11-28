@@ -31,6 +31,7 @@ const ScopeDelta := preload("res://Store/scope_delta.gd")
 const Works := preload("res://Store/work_book.gd")
 
 var kind := ""
+var terrain_rev := 0 ## #249: sobe quando o terreno ou os rios mudam de verdade (o desenho do chão só refaz nesse caso)
 var map_size := Vector2i.ZERO
 var rivers: Dictionary = {} ## Vector2i -> true
 var roads: Dictionary = {} ## Vector2i -> rua do motor (Ground.road: cidade, superfície, uso, pisoteio, obra, extra)
@@ -93,40 +94,50 @@ func weather_at(cell: Vector2i) -> Dictionary:
 	return climate.get("weather", {})
 
 
+## #249: o snapshot de interior (a casa em foco, assinatura à parte) não troca o escopo desenhado: `kind` segue o do mundo/cidade
+## que continua carregado e vivo; só `interior` muda.
 func apply_snapshot(envelope: Dictionary) -> void:
-	kind = scope_name(envelope.scope.kind)
+	var scope := scope_name(envelope.scope.kind)
 	var cursor = envelope.get("cursor")
-	last_tick = WorldTime.hours_of(cursor, "atMs", -1) if cursor is Dictionary else -1
 	var payload = envelope.get("payload")
+	if scope != "Interior":
+		kind = scope
+		last_tick = WorldTime.hours_of(cursor, "atMs", -1) if cursor is Dictionary else -1
 	if payload == null:
-		npcs.clear()
-		buildings.clear()
-		processes.clear()
-		_clear_observable()
-		reloaded.emit(kind)
+		if scope != "Interior":
+			npcs.clear()
+			buildings.clear()
+			processes.clear()
+			_clear_observable()
+		reloaded.emit(scope)
 		return
-	match kind:
+	match scope:
 		"World":
 			_load_world(payload)
 		"City":
 			_load_city(payload)
 		"Interior":
 			_load_interior(payload)
-	reloaded.emit(kind)
+	reloaded.emit(scope)
 
 
 func _load_world(payload: Dictionary) -> void:
 	map_size = Vector2i(int(payload.width), int(payload.height))
 	var layer = payload.get("layers", {}).get("Terrain")
+	var fresh_terrain: Dictionary = terrain
 	if layer != null and layer.get("isModeled", false):
-		terrain.clear()
+		fresh_terrain = {}
 		for entry in layer.payload:
-			terrain[cell_of(entry.key)] = int(entry.value.id)
+			fresh_terrain[cell_of(entry.key)] = int(entry.value.id)
 	var river_layer = payload.get("layers", {}).get("Rivers")
-	rivers.clear()
+	var fresh_rivers := {}
 	if river_layer != null and river_layer.get("isModeled", false):
 		for entry in river_layer.payload:
-			rivers[cell_of(entry)] = true
+			fresh_rivers[cell_of(entry)] = true
+	if fresh_terrain != terrain or fresh_rivers != rivers:
+		terrain_rev += 1
+	terrain = fresh_terrain
+	rivers = fresh_rivers
 	_load_roads(payload.get("livingState"), payload.get("layers", {}).get("Roads"))
 	var climate_layer = payload.get("layers", {}).get("Climate")
 	climate_regions = Parse.climate_regions(climate_layer.payload.get("regions", [])) if climate_layer is Dictionary \
@@ -275,6 +286,7 @@ func _load_interior(payload: Dictionary) -> void:
 		"building": id_of(payload.id), "city": id_of(payload.city), "floors": int(layout.floors),
 		"layout": layout.floorLayouts, "occupants": payload.occupants,
 		"objects": payload.get("objects"), ## catálogo + mobília do servidor (ADR-0034); null = cai no assets.json
+		"rooms": payload.get("rooms"), ## #226: cômodos, paredes e portas de dentro por andar (o motor diz); null = mundo sem cômodos
 	}
 
 
@@ -301,10 +313,23 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 	var footprint: Array = []
 	for entry in marker.get("groundFootprint", []) if marker.get("groundFootprint") != null else []:
 		footprint.append({"cell": cell_of(entry.cell), "material": int(entry.material)})
+	return _building_of(id, marker, footprint)
+
+
+## #226: a parede é aresta: `walls` (trechos {a, b, material}) e `doors` (a abertura) do térreo, em células locais.
+static func segments(raw: Variant) -> Array:
+	var out: Array = []
+	for entry in raw if raw is Array else []:
+		out.append({"a": cell_of(entry.a), "b": cell_of(entry.b), "material": int(entry.material)})
+	return out
+
+
+func _building_of(id: int, marker: Dictionary, footprint: Array) -> Dictionary:
 	return {
 		"id": id, "type": Parse._i(marker, "buildingTypeId", -1), "cell": cell_of(marker.get("location")),
 		"orientation": Parse._i(marker, "orientation", 0), "floors": Parse._i(marker, "floors", 1),
 		"footprint": footprint, "value": Parse._i(marker, "value", 0), "lodging": marker.get("lodging"),
+		"walls": segments(marker.get("groundWalls")), "doors": segments(marker.get("groundDoors")), ## #226: paredes de fora nas arestas e a abertura da porta
 		"lot": Ground.lot(marker.get("lot")), ## AD-173: quintal, caminho da porta e rua da frente; {} = sem lote
 		"work": _work_view(marker.get("work")), ## AD-184/193: canteiro (obra em curso no lote); {} = prédio pronto
 	}
@@ -380,6 +405,8 @@ func apply_delta(envelope: Dictionary) -> void:
 		buildings[id] = fresh
 		if buildings[id].footprint.is_empty() and known != null: # servidor antigo, só posição: vale o que o snapshot trouxe
 			buildings[id].footprint = known.footprint
+			buildings[id].walls = known.get("walls", [])
+			buildings[id].doors = known.get("doors", [])
 			buildings[id].floors = known.floors
 			buildings[id].value = known.value
 			buildings[id].lodging = known.lodging
@@ -466,4 +493,6 @@ func _apply_interior_delta(delta: Dictionary) -> void:
 		for occupant in delta.get(key, []):
 			by_npc[int(id_of(occupant.npc))] = occupant
 	interior["occupants"] = by_npc.values()
+	if delta.get("lights") is Array: # #258: o conjunto de luzes ligadas, quando mudou
+		interior["lights"] = delta.lights
 	interior_changed.emit()

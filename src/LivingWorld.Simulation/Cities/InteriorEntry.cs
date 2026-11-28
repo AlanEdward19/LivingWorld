@@ -26,4 +26,16 @@ public static class InteriorEntry
         npc.EnterBuilding(buildingId, floor, localCell);
         return Result<Unit>.Ok(Unit.Value);
     }
+
+    /// <summary>#223: o posto de trabalho no térreo, em coordenadas do mundo: uma célula de piso da planta ou, fora dela, o chão em volta
+    /// (o campo da lavoura). Dentro da planta só vale célula caminhável; fora, o mundo já escolheu a célula (<see cref="WorkStands"/>).</summary>
+    public static Result<Unit> TryStand(WorldState world, Npc npc, BuildingId buildingId, CellCoord worldCell)
+    {
+        if (world.FindBuilding(buildingId) is not { Position: { } origin } building) return Result<Unit>.Fail($"prédio {buildingId} sem posição");
+        var local = new CellCoord(worldCell.X - origin.X, worldCell.Y - origin.Y);
+        var cached = BuildingLayoutCache.Of(building);
+        if (cached.CoversGround(local) && !cached.IsWalkable(0, local)) return Result<Unit>.Fail($"célula {local} não caminhável");
+        npc.EnterBuilding(buildingId, new FloorLevel(0), local);
+        return Result<Unit>.Ok(Unit.Value);
+    }
 }

@@ -26,7 +26,7 @@ public static class PersonalCarry
 
     /// <summary>AD-157b: em casa, sem urgência, come quem tem a fome a partir deste déficit (a hora da refeição, um pouco antes da
     /// urgência de 70 do cenário). Escolha sem fonte.</summary>
-    internal const int MealTimeDeficit = 65;
+    internal const int MealTimeDeficit = LivingWorld.Domain.Behavior.NeedsRules.DefaultMealTimeDeficit;
 
     /// <summary>AD-157b: a refeição em casa de quem foi beber leva comida só a partir desta fome (déficit). Escolha sem fonte.</summary>
     internal const int AppetiteDeficit = 40;

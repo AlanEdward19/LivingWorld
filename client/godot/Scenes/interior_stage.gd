@@ -1,73 +1,25 @@
 extends Control
-## Palco do interior: o exterior (mundo na viewport principal) fica escurecido e desfocado por uma
-## camada de tela; o interior é desenhado nítido por cima, numa SubViewport com mundo 3D próprio e
-## câmera espelhada da câmera do espectador.
+## #227/#249: foco no interior. A casa é desenhada no próprio mundo, no lugar do prédio e na escala do mundo (mesma câmera, mesmo
+## sol, mesmas unidades): não há SubViewport nem outra escala. O mundo NÃO some: a cidade segue desenhada, atualizada e com os deltas
+## chegando (a rua continua visível e viva em volta da casa). Só o prédio em foco sai do desenho (a casa o substitui: telhado e
+## andares acima do corpo ficam de fora, paredes do lado da câmera baixas ou translúcidas) e quem está dentro é desenhado pela casa.
 
 const InteriorView := preload("res://Scenes/interior_view.gd")
 
-var dim_rect: ColorRect
 var interior_view
 var active := false
 var floor_label: Label
+var world: Node3D ## o mundo desenhado (WorldView): segue visível e vivo; só o prédio em foco sai do desenho
+var covered_building := -1 ## #249: prédio do mundo que a casa em foco substitui (some do desenho enquanto ela está)
 
-var _container: SubViewportContainer
-var _viewport: SubViewport
-var _camera: Camera3D
-var _sun: DirectionalLight3D
-var _environment: Environment
 var _source: Camera3D
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim_rect = ColorRect.new()
-	dim_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shader := Shader.new()
-	shader.code = """
-shader_type canvas_item;
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
-uniform float blur_lod = 3.0;
-uniform float darken = 0.38;
-void fragment() {
-	vec3 color = textureLod(screen_tex, SCREEN_UV, blur_lod).rgb;
-	COLOR = vec4(color * darken, 1.0);
-}
-"""
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	dim_rect.material = material
-	dim_rect.visible = false
-	add_child(dim_rect)
-
-	_container = SubViewportContainer.new()
-	_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_container.stretch = true
-	_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_container.visible = false
-	add_child(_container)
-	_viewport = SubViewport.new()
-	_viewport.own_world_3d = true
-	_viewport.transparent_bg = true
-	_viewport.handle_input_locally = false
-	_container.add_child(_viewport)
-	_camera = Camera3D.new()
-	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.far = 400.0
-	_viewport.add_child(_camera)
-	_sun = DirectionalLight3D.new()
-	_sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(30), 0)
-	_viewport.add_child(_sun)
-	var environment := WorldEnvironment.new()
-	_environment = Environment.new()
-	_environment.background_mode = Environment.BG_CLEAR_COLOR
-	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.environment = _environment
-	_viewport.add_child(environment)
-	set_daylight(1.0)
 	interior_view = InteriorView.new()
-	_viewport.add_child(interior_view)
+	add_child(interior_view)
 	floor_label = Label.new()
 	floor_label.visible = false
 	floor_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -76,34 +28,62 @@ void fragment() {
 	add_child(floor_label)
 
 
-func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1, lodging_units: int = 0) -> void:
+func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1, lodging_units: int = 0, building_id: int = -1) -> void:
 	_source = source_camera
 	interior_view.show_interior(info, origin, labels, building_type, lodging_units)
-	dim_rect.visible = true
-	_container.visible = true
+	covered_building = building_id
+	_cover_building()
 	active = true
 	_update_floor_label()
 	_sync_camera()
 
 
-## Luz do interior segue o dia: de noite fica à luz de lamparina (quente e baixa).
-func set_daylight(light: float) -> void:
-	_sun.light_energy = 0.25 + 0.75 * light
-	_sun.light_color = Color(1.0, 0.78, 0.55).lerp(Color(1, 0.97, 0.92), light)
-	_environment.ambient_light_color = Color(0.85, 0.65, 0.5).lerp(Color(0.75, 0.75, 0.8), light)
-	_environment.ambient_light_energy = 0.55 + 0.15 * light
+## O prédio do mundo some do desenho (a casa tomou o lugar dele); volta igual ao sair. O desenho do prédio pode ser refeito por delta
+## com a casa em foco: a cada quadro garante que o novo nó também fica de fora.
+func _cover_building() -> void:
+	if covered_building < 0 or world == null or not is_instance_valid(world) or not ("buildings" in world):
+		return
+	var node = world.buildings.nodes.get(covered_building)
+	if node != null and node.visible:
+		node.visible = false
 
 
-## Câmera do interior (espelho da do espectador): a seleção projeta ocupantes e objetos com ela.
+func _uncover_building() -> void:
+	if covered_building >= 0 and world != null and is_instance_valid(world) and "buildings" in world:
+		var node = world.buildings.nodes.get(covered_building)
+		if node != null:
+			node.visible = true
+	covered_building = -1
+	if world != null and is_instance_valid(world) and "npcs" in world:
+		world.npcs.set_interior_hidden({})
+
+
+## Ocupantes da casa (e seus nomes): o interior os desenha, o mundo deixa de desenhar o boneco da mesma pessoa (exceto o do corpo do
+## jogador, que é a mesma figura nos dois e fica sempre à vista).
+func sync_occupants(occupants: Array, names: Dictionary) -> void:
+	interior_view.set_occupants(occupants)
+	interior_view.apply_names(names)
+	if world == null or not is_instance_valid(world) or not ("npcs" in world):
+		return
+	var hidden := {}
+	for occupant in occupants:
+		var id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
+		if id != interior_view.guided_id:
+			hidden[id] = true
+	world.npcs.set_interior_hidden(hidden)
+
+
+## A câmera é a do mundo (a seleção projeta ocupantes e objetos com ela).
 func camera() -> Camera3D:
-	return _camera
+	return _source
 
 
 func leave() -> void:
-	dim_rect.visible = false
-	_container.visible = false
+	interior_view.immersive = false
 	floor_label.visible = false
 	active = false
+	interior_view.close() # #237: a casa sai do desenho de vez (antes ficava no lugar, escura, por cima do mundo)
+	_uncover_building()
 
 
 func set_floor(level: int) -> void:
@@ -112,18 +92,19 @@ func set_floor(level: int) -> void:
 
 
 func _update_floor_label() -> void:
-	floor_label.visible = active
+	floor_label.visible = active and interior_view.floor_count > 1 # #246: casa de um andar não ganha "Andar 1 de 1" (cobria as dicas de teclas)
 	floor_label.text = "Andar %d de %d  (PgUp/PgDn)" % [interior_view.current_floor + 1, interior_view.floor_count]
 
 
 func _process(_delta: float) -> void:
 	if active:
+		_cover_building()
 		_sync_camera()
 
 
 func _sync_camera() -> void:
 	if not is_inside_tree() or _source == null or not is_instance_valid(_source) or not _source.is_inside_tree():
 		return
-	_camera.global_transform = _source.global_transform
-	_camera.size = _source.size
 	interior_view.set_view_direction(_source.global_transform.basis.z)
+	interior_view.update_ceiling(_source.global_position.y)
+	interior_view.update_near(_source.global_position)

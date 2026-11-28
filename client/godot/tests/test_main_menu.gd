@@ -12,7 +12,7 @@ const FakeTransport := preload("res://tests/fake_transport.gd")
 const DEFINITION := '{"periodId":"medieval","periodDefinition":{"Width":2,"Height":2,"Seed": 1,"InitialPopulation":40,"Nested":{"Seed":9},"Name":"a \\"Seed\\": 5"},"version":1}'
 const SETTINGS_PATH := "user://test-menu-settings.cfg"
 const CARD := {"name": "Vila do vale", "era": "Aldeias agrícolas", "description": "Poucas famílias num vale.", "startingTechnology": "Ferramentas de mão",
-	"initialPopulation": 40, "settlementCount": 1, "professionCount": 1, "professions": ["Fazendeiro"], "inventionEnabled": true}
+	"initialPopulation": 40, "settlementCount": 1, "professionCount": 1, "professions": ["Fazendeiro"], "inventionEnabled": true, "quickStart": false}
 
 
 ## Mundo como `GET /worlds` devolve desde o AD-175 (aberto agora, ano, período e origem vêm do servidor).
@@ -352,6 +352,23 @@ func test_create_asks_the_server_for_a_running_world_when_the_session_has_the_to
 	await menu.wizard.create()
 	check("POST /worlds/create/async?startRunning=true" in transport.calls, "pede rodando: " + str(transport.calls))
 	eq(transport.count_calls("POST /simulation/resume"), 0, "o cliente não despausa por conta própria")
+	_done(menu)
+
+
+func test_can_run_clock_reads_the_token_when_used_not_when_the_menu_is_built() -> void:
+	# #237: o token entra no ambiente depois do menu (o cliente liga a API ou lê o api.state): pedir rodando tem de valer
+	var saved := OS.get_environment("LW_ADMIN_TOKEN")
+	OS.unset_environment("LW_ADMIN_TOKEN")
+	var menu := _menu(_transport())
+	check(not menu.can_run_clock, "sem token, não pede rodando")
+	OS.set_environment("LW_ADMIN_TOKEN", "tok-sessao")
+	check(menu.can_run_clock, "o token chegou depois do menu: passa a pedir rodando")
+	menu.show_saved_worlds()
+	check(menu.saved_worlds_screen.start_running, "Mundos salvos abre o mundo rodando")
+	if saved == "":
+		OS.unset_environment("LW_ADMIN_TOKEN")
+	else:
+		OS.set_environment("LW_ADMIN_TOKEN", saved)
 	_done(menu)
 
 

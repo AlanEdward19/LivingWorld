@@ -115,7 +115,7 @@ func test_interior_shows_furniture_for_building_type() -> void:
 	view.show_interior(_room(), Vector2i(10, 10), labels, 4)
 	eq(view.furniture.get_child(0).position, first, "mesma casa, mesma disposição")
 	view.show_interior(_room(), Vector2i(10, 10), labels, 999)
-	eq(view.furniture.get_child_count(), view.catalog.furniture_for(-1).size(), "tipo desconhecido usa o default")
+	eq(view.furniture.get_child_count(), 3, "tipo desconhecido usa o default (mesa, banco, caixa)")
 	view.free()
 
 
@@ -154,7 +154,7 @@ func test_lodging_beds_fill_available_floor_without_an_extra_twelve_bed_limit() 
 	for x in 20:
 		cells.append({"cell": {"x": x, "y": 0}, "material": 3})
 	var room := {"floors": 1, "layout": [{"level": 0, "cells": cells}], "occupants": []}
-	view.show_interior(room, Vector2i(10, 10), ActionLabels.new(), -1, 18)
+	view.show_interior(room, Vector2i(10, 10), ActionLabels.new(), 999, 18) # tipo sem cama própria: só as 18 da hospedagem
 	var beds := 0
 	for piece in view.furniture.get_children():
 		if String(piece.name).begins_with("bed") or String(piece.name).begins_with("@MeshInstance3D"):

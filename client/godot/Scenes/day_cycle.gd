@@ -26,6 +26,10 @@ var _tick := 0.0
 var _ticks_per_second := 1.0
 var _paused := true
 var _synced_at := 0.0
+var _error := 0.0 ## #241: com o tempo acelerado, o erro entre o céu e o motor se dilui em vez de saltar (sol sem trancos)
+var _synced_once := false
+const SMOOTH_RATE := 2.0 ## horas de mundo por segundo a partir das quais a leitura do motor corrige aos poucos
+const SMOOTH_MAX_ERROR := 3.0 ## erro maior que isto (horas) é salto de verdade (carga, outro mundo): corrige de uma vez
 
 
 func bind(p_sun: DirectionalLight3D, p_environment: Environment, p_window_material: StandardMaterial3D, p_lamp_material: StandardMaterial3D = null) -> void:
@@ -57,10 +61,17 @@ func set_weather(weather: Dictionary) -> void:
 func sync(tick: float, ticks_per_second: float, paused: bool, calendar: Dictionary = {}) -> void:
 	if not calendar.is_empty():
 		set_calendar(calendar)
-	_tick = tick
+	var smooth := _synced_once and not paused and not _paused and ticks_per_second >= SMOOTH_RATE and _ticks_per_second >= SMOOTH_RATE \
+		and absf(tick - _tick) <= SMOOTH_MAX_ERROR
+	_synced_once = true
 	_ticks_per_second = ticks_per_second
 	_paused = paused
 	_synced_at = Time.get_ticks_msec() / 1000.0
+	if smooth:
+		_error = tick - _tick
+		return
+	_error = 0.0
+	_tick = tick
 	hour = _hour_of(tick)
 	_apply()
 
@@ -69,6 +80,10 @@ func advance(seconds: float) -> void:
 	if _paused:
 		return
 	_tick += seconds * _ticks_per_second
+	if _error != 0.0:
+		var fix := _error * minf(1.0, seconds * 4.0) # a diferença com o motor some em ~meio segundo
+		_tick += fix
+		_error -= fix
 	hour = _hour_of(_tick)
 	_apply()
 

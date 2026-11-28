@@ -158,7 +158,8 @@ public class MenuWorldsYearsReport
         lines.Add(string.Create(inv,
             $"RESUMO {period} seed={seed} anos={years} pop0={pop0} popFim={popEnd} razao={popEnd / (double)Math.Max(1, pop0):F2} " +
             $"fome={starvTotal} sede={thirstTotal} fomePorMilPessoaAno={starvTotal * 1000.0 / Math.Max(1, personYears):F2} " +
-            $"predios1={built1} prediosFim={world.Buildings.Count(b => b.UnderWork is null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)}"));
+            $"predios1={built1} prediosFim={world.Buildings.Count(b => b.UnderWork is null)} semCasa={world.Households.Count(h => !h.IsEmpty && h.Dwelling is null)} " +
+            $"lenha={world.ResourceProduced.GetValueOrDefault(new ResourceType(world.StreetRules.HouseMaterialResourceId))} arvoresTocadas={world.Trees?.Cuts.Count ?? 0}")); // #243: a madeira cortada e as árvores ainda não recuperadas
         return lines;
     }
 

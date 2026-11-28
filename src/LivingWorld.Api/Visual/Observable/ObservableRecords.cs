@@ -9,7 +9,7 @@ namespace LivingWorld.Api.Visual.Observable;
 // mudou de um jeito que se vê.
 
 /// <summary>Sinais visíveis de um NPC no escopo que mudam devagar: nome, sexo, idade e estágio, ofício, corpo, gravidez já aparente,
-/// doença, emoções e o que leva consigo. A ação com alvo, o início e a intenção ficam no próprio <c>NpcVisual</c> (mudam junto com a
+/// doença, emoções e o que leva consigo. #234: <c>Combat</c> é a reação de briga em curso (retaliate, flee, callHelp, recoil), omitida sem briga. A ação com alvo, o início e a intenção ficam no próprio <c>NpcVisual</c> (mudam junto com a
 /// posição).</summary>
 public sealed record NpcObservable(
     string Name,
@@ -26,7 +26,9 @@ public sealed record NpcObservable(
     string? DominantEmotion,
     bool Mourning,
     IReadOnlyList<CarriedVisual> Carried,
-    HeldObjectVisual? Held);
+    HeldObjectVisual? Held,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    string? Combat = null);
 
 /// <summary>Gravidez só depois de aparecer (<c>Intimacy.ShowsAfterDays</c>, o mesmo marco em que a vila reage); fração da gestação
 /// em vigésimos.</summary>
@@ -45,8 +47,10 @@ public sealed record CarriedVisual(int ResourceId, int Quantity, string? Resourc
 public sealed record HeldObjectVisual(long ItemId, int DesignId);
 
 /// <summary>Densidade de uma cidade no escopo Mundo: quantos materializados estão dentro dos limites, quantos ainda são pool, as
-/// ações mais comuns e a temperatura do lugar. O mapa-múndi vê a cidade viva sem receber cada morador.</summary>
-public sealed record CityDensityVisual(int Inside, long Pooled, IReadOnlyList<ActionCount> Actions, double TemperatureC);
+/// ações mais comuns e a temperatura do lugar. O mapa-múndi vê a cidade viva sem receber cada morador. #242: <c>Inside</c> conta quem está dentro dos
+/// limites da cidade (não quem está na rua); <c>Outdoors</c> (aditivo) é quem, desses, está fora de qualquer prédio (o motor lê a planta do térreo).</summary>
+public sealed record CityDensityVisual(int Inside, long Pooled, IReadOnlyList<ActionCount> Actions, double TemperatureC,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Outdoors = null);
 
 public sealed record ActionCount(ActionType? Action, int Count);
 
@@ -163,7 +167,11 @@ public sealed record EventInvolved(
     long? WorkId = null);
 
 /// <summary>Planta e andares de um prédio (pura do id, tipo e orientação): guardada por chave para não regerar todo tick.</summary>
-public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint);
+/// <summary>#226: <c>GroundWalls</c> são as paredes de fora do térreo (uma por aresta da borda, sem a abertura) e <c>GroundDoors</c> a abertura da porta: a parede
+/// não ocupa célula, o cliente desenha onde o motor diz.</summary>
+public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundWalls = null,
+    IReadOnlyList<LivingWorld.Domain.Cities.Buildings.WallSegment>? GroundDoors = null);
 
 /// <summary>Camada <c>Climate</c> (AD-170): estação do mundo e clima por região (temperatura na célula representativa, fator de safra
 /// do ano e seca).</summary>

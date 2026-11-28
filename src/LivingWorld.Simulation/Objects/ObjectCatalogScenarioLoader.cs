@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Shared;
 
@@ -16,6 +17,8 @@ public static class ObjectCatalogScenarioLoader
 
     public static Result<ObjectCatalog?> Load(JsonObject root)
     {
+        var extended = HomeLifeLoader.Extend(root); // #255: catálogos padrão embutidos que o cenário estende (o do cenário vence por id)
+        if (!extended.IsSuccess) return Fail(extended.Error!);
         if (root["Objects"] is null)
             return root["objectsFormat"] is null && root["Furnishings"] is null
                 ? Result<ObjectCatalog?>.Ok(null)
@@ -26,11 +29,25 @@ public static class ObjectCatalogScenarioLoader
             return Fail($"objectsFormat: versão {format} desconhecida (suportada: {ObjectCatalog.CurrentFormat})");
         if (root["Objects"] is not JsonArray array) return Fail("Objects: precisa ser uma lista");
 
+        var needs = HomeLifeLoader.ParseNeeds(root["Needs"], root["NeedStartJitter"], root["NeedCritical"]);
+        if (!needs.IsSuccess) return Fail(needs.Error!);
         var objects = new List<ObjectDescriptor>();
         for (int i = 0; i < array.Count; i++)
         {
             var parsed = ParseObject(array[i], $"Objects[{i}]");
             if (!parsed.IsSuccess) return Fail(parsed.Error!);
+            var uses = HomeLifeLoader.ParseUses((array[i] as JsonObject)?["uses"], $"Objects[{i}]", needs.Value);
+            if (!uses.IsSuccess) return Fail(uses.Error!);
+            if (uses.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Uses = uses.Value });
+            var inRooms = HomeLifeLoader.ParseRooms((array[i] as JsonObject)?["rooms"], $"Objects[{i}]");
+            if (!inRooms.IsSuccess) return Fail(inRooms.Error!);
+            if (inRooms.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Rooms = inRooms.Value });
+            var light = HomeLifeLoader.ParseLight((array[i] as JsonObject)?["light"], $"Objects[{i}]");
+            if (!light.IsSuccess) return Fail(light.Error!);
+            if (light.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Light = light.Value });
+            var placed = ParsePlacement(array[i] as JsonObject, parsed.Value!, $"Objects[{i}]");
+            if (!placed.IsSuccess) return Fail(placed.Error!);
+            parsed = Result<ObjectDescriptor>.Ok(placed.Value!);
             if (objects.Any(o => o.Id == parsed.Value!.Id)) return Fail($"Objects[{i}].id: '{parsed.Value!.Id}' duplicado");
             if (parsed.Value!.ResourceId is int resourceId && objects.Any(o => o.ResourceId == resourceId))
                 return Fail($"Objects[{i}].resourceId: o recurso {resourceId} já tem descritor");
@@ -55,7 +72,98 @@ public static class ObjectCatalogScenarioLoader
                 furnishings[key] = list;
             }
         }
-        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings));
+        var rooms = ParseRooms(root["Rooms"]);
+        if (!rooms.IsSuccess) return Fail(rooms.Error!);
+        var social = SocialLoader.Parse(root["Social"], needs.Value, objects);
+        if (!social.IsSuccess) return Fail(social.Error!);
+        var moods = MoodLoader.Parse(root["Moods"]);
+        if (!moods.IsSuccess) return Fail(moods.Error!);
+        var careers = CareerLoader.Parse(root["Careers"], needs.Value, objects);
+        if (!careers.IsSuccess) return Fail(careers.Error!);
+        var home = HomeLoader.Parse(root["Home"], objects);
+        if (!home.IsSuccess) return Fail(home.Error!);
+        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value, needs.Value, social.Value, moods.Value, careers.Value, home.Value));
+    }
+
+    /// <summary>#226: o bloco opcional <c>Rooms</c> ({kinds:[{id,uses:[ActionType],weight,minCells}], plans:{"default"|id[@up]:[ids]}}): os tipos de cômodo e o
+    /// plano de cada tipo de prédio. Ausente = sem cômodos (um cômodo só por andar).</summary>
+    private static Result<RoomCatalog?> ParseRooms(JsonNode? node)
+    {
+        if (node is null) return Result<RoomCatalog?>.Ok(null);
+        if (node is not JsonObject block || block["kinds"] is not JsonArray kindArray) return Result<RoomCatalog?>.Fail("Rooms.kinds: precisa ser uma lista");
+        var kinds = new List<RoomKind>();
+        for (int i = 0; i < kindArray.Count; i++)
+        {
+            var at = $"Rooms.kinds[{i}]";
+            if (kindArray[i] is not JsonObject o || !TryString(o["id"], out var id) || id.Length == 0) return Result<RoomCatalog?>.Fail($"{at}.id: texto obrigatório");
+            if (kinds.Any(k => k.Id == id)) return Result<RoomCatalog?>.Fail($"{at}.id: '{id}' duplicado");
+            var uses = new List<int>();
+            if (o["uses"] is not null)
+            {
+                if (o["uses"] is not JsonArray useArray) return Result<RoomCatalog?>.Fail($"{at}.uses: precisa ser uma lista de ids de ActionType");
+                foreach (var use in useArray)
+                {
+                    if (use is not JsonValue uv || !uv.TryGetValue(out int action) || !Enum.IsDefined((LivingWorld.Domain.Behavior.ActionType)action))
+                        return Result<RoomCatalog?>.Fail($"{at}.uses: id de ActionType inválido");
+                    uses.Add(action);
+                }
+            }
+
+            double weight = 1;
+            if (o["weight"] is not null && !(o["weight"] is JsonValue wv && wv.TryGetValue(out weight) && double.IsFinite(weight) && weight > 0))
+                return Result<RoomCatalog?>.Fail($"{at}.weight: número maior que 0");
+            int minCells = 1;
+            if (o["minCells"] is not null && !(o["minCells"] is JsonValue mv && mv.TryGetValue(out minCells) && minCells >= 1))
+                return Result<RoomCatalog?>.Fail($"{at}.minCells: inteiro maior ou igual a 1");
+            kinds.Add(new RoomKind(id, uses, weight, minCells));
+        }
+
+        var plans = new Dictionary<string, IReadOnlyList<string>>();
+        if (block["plans"] is not null)
+        {
+            if (block["plans"] is not JsonObject table) return Result<RoomCatalog?>.Fail("Rooms.plans: precisa ser um objeto");
+            foreach (var (key, value) in table)
+            {
+                var bare = key.EndsWith(RoomCatalog.UpperSuffix, StringComparison.Ordinal) ? key[..^RoomCatalog.UpperSuffix.Length] : key;
+                if (bare != "default" && !(int.TryParse(bare, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId)
+                        && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == bare))
+                    return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: a chave é 'default' ou o id do tipo de prédio (com '@up' para os andares de cima)");
+                if (value is not JsonArray ids) return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: precisa ser uma lista de ids");
+                var list = new List<string>();
+                foreach (var entry in ids)
+                {
+                    if (entry is not JsonValue v || !v.TryGetValue(out string? kindId) || kinds.All(k => k.Id != kindId))
+                        return Result<RoomCatalog?>.Fail($"Rooms.plans.{key}: cômodo '{entry}' não existe em Rooms.kinds");
+                    list.Add(kindId);
+                }
+
+                plans[key] = list;
+            }
+        }
+
+        var shapes = new Dictionary<string, BuildingShape>();
+        if (block["shapes"] is not null)
+        {
+            if (block["shapes"] is not JsonObject shapeTable) return Result<RoomCatalog?>.Fail("Rooms.shapes: precisa ser um objeto");
+            foreach (var (key, value) in shapeTable)
+            {
+                if (!(int.TryParse(key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId)
+                        && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == key))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: a chave é o id do tipo de prédio");
+                if (value is not JsonObject s) return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: precisa ser um objeto {{width, depth, floors}}");
+                int width = 0, depth = 0, floors = 1;
+                if (!(s["width"] is JsonValue wv && wv.TryGetValue(out width)) || !(s["depth"] is JsonValue dv && dv.TryGetValue(out depth)))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: width e depth são inteiros obrigatórios");
+                if (s["floors"] is not null && !(s["floors"] is JsonValue fv && fv.TryGetValue(out floors)))
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}.floors: inteiro inválido");
+                var shape = new BuildingShape(width, depth, floors);
+                if (!shape.IsValid)
+                    return Result<RoomCatalog?>.Fail($"Rooms.shapes.{key}: width e depth em [3,{BuildingShape.MaxSide}] e floors em [1,{BuildingShape.MaxFloors}]");
+                shapes[key] = shape;
+            }
+        }
+
+        return Result<RoomCatalog?>.Ok(new RoomCatalog(kinds, plans, shapes.Count > 0 ? shapes : null));
     }
 
     private static Result<ObjectCatalog?> Fail(string error) => Result<ObjectCatalog?>.Fail(error);
@@ -121,7 +229,53 @@ public static class ObjectCatalogScenarioLoader
 
         var effects = ParseEffects(o["effects"], at, isResource: resourceId is not null);
         if (!effects.IsSuccess) return Result<ObjectDescriptor>.Fail(effects.Error!);
-        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId));
+        string? display = null;
+        if (o["name"] is not null)
+        {
+            if (!TryString(o["name"], out var named) || named.Trim().Length == 0 || named.Length > 40) return Result<ObjectDescriptor>.Fail($"{at}.name: texto de 1 a 40 caracteres");
+            display = named.Trim();
+        }
+        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId, display));
+    }
+
+    /// <summary>#266: <c>footprint</c> [largura, profundidade] em células (1 a 4) e <c>model</c> {kind, sizeM:[l,p,a] em metros, style:{papel:cor}}, ambos opcionais.</summary>
+    private static Result<ObjectDescriptor> ParsePlacement(JsonObject? o, ObjectDescriptor descriptor, string at)
+    {
+        if (o is null) return Result<ObjectDescriptor>.Ok(descriptor);
+        if (o["footprint"] is { } fp)
+        {
+            if (fp is not JsonArray { Count: 2 } cells || cells[0] is not JsonValue wv || cells[1] is not JsonValue dv || !wv.TryGetValue(out int w) || !dv.TryGetValue(out int d) || w is < 1 or > 4 || d is < 1 or > 4)
+                return Result<ObjectDescriptor>.Fail($"{at}.footprint: [largura, profundidade] em células, de 1 a 4");
+            descriptor = descriptor with { Footprint = [w, d] };
+        }
+
+        if (o["near"] is { } nearNode) // #266: a peça prefere ficar junto destes objetos (a cadeira junto da mesa) e de frente para eles
+        {
+            if (nearNode is not JsonArray list || list.Any(n => !TryString(n, out var id) || id.Length == 0)) return Result<ObjectDescriptor>.Fail($"{at}.near: lista de ids de objetos");
+            descriptor = descriptor with { Near = [.. list.Select(n => n!.GetValue<string>())] };
+        }
+
+        if (o["model"] is { } m)
+        {
+            if (m is not JsonObject model || !TryString(model["kind"], out var kind) || kind.Length == 0) return Result<ObjectDescriptor>.Fail($"{at}.model.kind: texto obrigatório");
+            var size = Numbers(model["sizeM"], 3, $"{at}.model.sizeM", requirePositive: true);
+            if (!size.IsSuccess) return Result<ObjectDescriptor>.Fail(size.Error!);
+            Dictionary<string, string>? style = null;
+            if (model["style"] is not null)
+            {
+                if (model["style"] is not JsonObject colors) return Result<ObjectDescriptor>.Fail($"{at}.model.style: objeto papel→cor");
+                style = [];
+                foreach (var (role, value) in colors)
+                    if (!TryString(value, out var color) || color.Length is not (6 or 7)) return Result<ObjectDescriptor>.Fail($"{at}.model.style.{role}: cor em hexadecimal");
+                    else style[role] = color;
+            }
+
+            string align = "back";
+            if (model["align"] is not null && (!TryString(model["align"], out align!) || align is not ("back" or "center"))) return Result<ObjectDescriptor>.Fail($"{at}.model.align: back ou center");
+            descriptor = descriptor with { Model = new ObjectModel(kind, size.Value!, style, align) };
+        }
+
+        return Result<ObjectDescriptor>.Ok(descriptor);
     }
 
     private static Result<IReadOnlyList<ObjectInteraction>?> ParseInteractions(JsonNode? node, string at)

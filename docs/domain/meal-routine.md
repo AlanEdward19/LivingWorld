@@ -12,6 +12,11 @@ mortes de fome e sede (longe inclusive). Compara-se a mesma seed em duas rodadas
 Ruído (AD-157b, cérebro ligado, desligar o sequestro): fome ±2,2 h (de 10,3), sede ±4,6 (de 512), dependentes ±7,7, trabalho
 ±0,05 h/dia. Por seed sai também a causa da fome crítica (o que a pessoa fazia: comendo, dormindo, trabalhando, viajando).
 
+## Escala e "uma hora de casa" (AD-197o2)
+A viagem dos NPCs custa metros reais (1,5 m por célula a 1,4 m/s). "Longe da despensa", `Leavings.MaxFetchHours` e a pressão de mobilidade
+seguem em **uma hora a pé (~5 km)**: numa vila de 30 a 80 m ninguém passa disso, então a despensa sempre alcança e nenhuma carga de
+viagem é arrumada para trajeto de vila. Os testes dessas regras montam um mapa de região (`ScenarioRunner.RegionalCostWeights`).
+
 ## A refeição de rotina (AD-157b)
 Com a despensa em casa, comer só na urgência custava uma viagem com fome: 34 mil voltas para comer por seed (24,5 por pessoa-ano).
 Medido: a fome crítica vinha de quem chegava em casa já crítico e passava a refeição de duas horas assim, de quem passeava à toa

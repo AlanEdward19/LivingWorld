@@ -4,7 +4,9 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Careers;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
@@ -14,12 +16,39 @@ public sealed record InteractionResource(int ResourceId, long Quantity, long Pri
 
 /// <summary>O que o corpo conduzido alcança agora e o que pode fazer ali (AD-197d). <c>Kind</c>: <c>door</c> (prédio: enter, exit),
 /// <c>stock</c> (casa: take, deposit), <c>stall</c> (oficina com preço: buy, sell), <c>bed</c> (casa: sleep), <c>person</c> (pessoa:
-/// talk, strike, abandon), <c>house</c> (a própria casa: sell). O cliente mostra só isto.</summary>
+/// talk, strike, abandon), <c>house</c> (a própria casa: sell), <c>nature</c> (mata ao alcance: gather, #239). O cliente mostra só isto.
+/// <c>ReachCells</c> (só fonte e mata, #237): o alcance, em células, da posição fina à borda da célula da oferta; com ele o cliente
+/// tira a dica assim que o corpo sai do alcance, sem esperar a próxima leitura.</summary>
 public sealed record InteractionOffer(
-    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources);
+    string Kind, long Id, string Label, IReadOnlyList<string> Verbs, int X, int Y, IReadOnlyList<InteractionResource> Resources,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    double? ReachCells = null)
+{
+    /// <summary>#241: onde está o alvo em células (fração), quando não é o centro da célula (a árvore da <c>nature</c>): o cliente mira o tronco.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? Fx { get; init; }
 
-/// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca).</summary>
-public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value);
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? Fy { get; init; }
+
+    /// <summary>#255: os usos que o catálogo dá ao objeto (a roda mostra um item por objeto e os usos num submenu); o verbo de cada um é <c>use:{id}</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<OfferUse>? Uses { get; init; }
+
+    /// <summary>#259 (pessoa): as interações sociais do catálogo para esta pessoa (as que valem e as que não, com o motivo) e a relação dela com quem joga: afeto, confiança, estado, humor, último fato.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<SocialOption>? Social { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public RelationView? Relation { get; init; }
+}
+
+/// <summary>#255: um uso do objeto como o cliente o lê: <c>Id</c> do catálogo, o nome (<c>Name</c>), os minutos de mundo, a necessidade que mais sobe (<c>Need</c>) e se já tem quem o ocupa (<c>Busy</c>).</summary>
+public sealed record OfferUse(string Id, string Name, int Minutes, string? Need, bool Busy);
+
+/// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca). #259 (aditivos, só na social): <c>Outcome</c> (<c>done</c> ou <c>refused</c>) e <c>Note</c>,
+/// a frase do catálogo (com o motivo, na recusa).</summary>
+public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value, string? Outcome = null, string? Note = null);
 
 /// <summary>Interagir com o que está perto (AD-197d, decisão do dono: "pode interagir com as coisas"), resolvido no motor pelos
 /// mesmos sistemas de qualquer NPC: a porta é o passo pela soleira (<see cref="PlayerGround"/>); o estoque é a despensa da casa e as
@@ -42,22 +71,26 @@ public static partial class PlayerInteractions
         foreach (var building in world.Buildings.OrderBy(b => b.Id.Value))
             if (floor == 0 && PlayerGround.DoorOf(building) is { } door && building.CompletedAtTick <= world.CurrentDate.TotalHours)
             {
-                if (at == door.Doorstep) offers.Add(Offer("door", building.Id.Value, "", ["enter"], door.Door));
+                if (at == door.Doorstep || at != door.Door && Chebyshev(at, door.Doorstep) <= DoorReachCells(world)) offers.Add(Offer("door", building.Id.Value, "", ["enter"], door.Door)); // #269: "Entrar" também a poucos passos da soleira
                 else if (at == door.Door) offers.Add(Offer("door", building.Id.Value, "", ["exit"], door.Doorstep));
             }
 
+        InteractionOffer? sale = null; // #260: vender a casa nunca é a oferta principal: vai para o fim da lista (e a casa de dentro nem a mostra no cliente)
         if (household is not null && Near(at, inside, household.Location, household.Dwelling))
         {
+            // #260: com a mobília do catálogo na casa, a cama e a geladeira já são os móveis (cada um com o nome do cenário e os usos dele);
+            // a "Cama" genérica e a "Despensa" ao lado deles eram o mesmo móvel com outro nome
+            var home = inside is { } within && household.Dwelling == within ? CatalogHome(world, within) : null;
             var stock = household.Stock.Where(kv => kv.Value > 0).OrderBy(kv => kv.Key.Id)
                 .Select(kv => new InteractionResource(kv.Key.Id, kv.Value, 0)).ToList();
             var verbs = new List<string>();
-            if (!npc.IsCarrying && stock.Count > 0) verbs.Add("take");
+            if (!npc.IsCarrying && stock.Count > 0 && home?.Pantry is null) verbs.Add("take");
             if (npc.IsCarrying || Laden(world, npc)) verbs.Add("deposit");
-            if (verbs.Count > 0) offers.Add(Offer("stock", household.Id.Value, "", verbs, household.Location, stock));
+            if (verbs.Count > 0) offers.Add(Offer("stock", household.Id.Value, home?.Pantry ?? "", verbs, household.Location, stock));
             var bed = world.BedOf(household.Id)?.Location ?? household.Location;
-            if (Near(at, inside, bed, household.Dwelling)) offers.Add(Offer("bed", household.Id.Value, "", ["sleep"], bed));
+            if (home?.HasBed != true && Near(at, inside, bed, household.Dwelling)) offers.Add(Offer("bed", household.Id.Value, "", ["sleep"], bed));
             if (household.Dwelling is { } dwelling && OwnedHome(world, dwelling) && world.FindBuilding(dwelling) is { Position: { } spot })
-                offers.Add(Offer("house", dwelling.Value, "", ["sell"], spot));
+                sale = Offer("house", dwelling.Value, "", ["sell"], spot);
         }
 
         if (world.EconomyRules.Enabled)
@@ -73,19 +106,52 @@ public static partial class PlayerInteractions
                 if (verbs.Count > 0) offers.Add(Offer("stall", stall.Id.Value, "", verbs, stall.Location, goods));
             }
 
+        var socialCatalog = SocialInteractions.CatalogOf(world);
+        int approachCells = socialCatalog is null ? 1 : Math.Max(1, (int)Math.Ceiling(socialCatalog.Rules.ApproachM / Math.Max(0.1, world.Players.CellM)) + 1); // #261: o menu social vale ao alcance da vista
         foreach (var other in world.AliveNpcIndex.Alive)
         {
-            if (other.Id == npc.Id || other.City != npc.City) continue;
-            if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > 1) continue;
+            if (other.Id == npc.Id || other.City != npc.City || (world.Careers is not null && CareerWork.IsAway(world, other))) continue; // #263: quem está no trabalho não está aqui
+            if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > approachCells) continue;
             var pose = PlayerGround.PoseOf(world, other);
-            if (Chebyshev(pose, at) > 1 || !PlayerGround.SameLevel(npc, other)) continue;
-            var verbs = new List<string> { "talk" };
-            if (world.CrimeOn) verbs.Add("strike");
-            if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
-            offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose));
+            if (Chebyshev(pose, at) > approachCells || !PlayerGround.SameLevel(npc, other)) continue;
+            bool adjacent = Chebyshev(pose, at) <= 1;
+            if (!adjacent && (socialCatalog is null || !SocialInteractions.InSight(world, socialCatalog, npc, other))) continue; // longe: só o menu social, e com linha de visão
+            var verbs = new List<string>();
+            if (adjacent)
+            {
+                verbs.Add("talk");
+                if (world.CrimeOn) verbs.Add("strike");
+                if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
+            }
+
+            offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose) with
+            {
+                Social = SocialInteractions.OptionsFor(world, npc, other),
+                Relation = SocialInteractions.RelationOf(world, npc, other),
+            });
         }
         WorldOffers(world, npc, at, floor, inside, household, offers);
+        CareerOffers(world, npc, at, inside, household, offers); // #263
+        FreightOffers(world, npc, at, offers); // #265
+        // #267: vender a casa só do menu dela (de dentro): na soleira, o E principal nunca é "Vender · Sua casa"
+        if (sale is not null) offers.Add(sale);
         return offers;
+    }
+
+    /// <summary>#260: o que o catálogo do cenário já cobre na casa onde o corpo está: o nome do móvel que gasta da despensa (a geladeira) e se há cama
+    /// com lugar na planta. Tudo vem do catálogo; sem ele (ou fora do dado) é nulo e as ofertas genéricas ficam como eram.</summary>
+    private static (string? Pantry, bool HasBed)? CatalogHome(WorldState world, BuildingId dwelling)
+    {
+        if (world.ObjectCatalog is not { } catalog || world.FindBuilding(dwelling) is not { Position: not null } building) return null;
+        string? pantry = null;
+        bool hasBed = false;
+        foreach (var piece in Objects.HomeFurniture.Of(building, catalog))
+        {
+            if (piece.Spot is null || catalog.Find(piece.Id) is not { } descriptor) continue;
+            if (descriptor.Uses?.Any(u => u.Consumes is { Count: > 0 }) == true && pantry is null) pantry = descriptor.Name ?? descriptor.Id;
+            if (descriptor.Uses?.Any(u => u.Action == (int)ActionType.Sleep) == true || descriptor.UsePoints.Any(p => p.Action == (int)ActionType.Sleep)) hasBed = true;
+        }
+        return pantry is null && !hasBed ? null : (pantry, hasBed);
     }
 
     /// <summary>Faz a interação, se ela está na oferta de agora. Erros começam como os de <see cref="PlayerCommands"/> (a borda mapeia
@@ -93,7 +159,16 @@ public static partial class PlayerInteractions
     public static Result<InteractionResult> Interact(WorldState world, TickContext ctx, Npc npc, string kind, long id, string verb,
         int? resourceId = null, long? quantity = null)
     {
-        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(verb));
+        if (kind == WillKind) return FreeWillSwitch(world, npc, verb); // #268: o livre-arbítrio do corpo, ligado ou desligado no HUD
+        if (kind is JobKind or BillsKind) return CareerInteract(world, ctx, npc, kind, id, verb); // #263
+        if (kind == FreightKind && verb == GoShopVerb) return GoShop(world, ctx, npc); // #268
+        if (kind == FreightKind) return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #265: o transporte do móvel, pela roda do E
+        if (kind == "home") return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #264: comprar, mover, vender e construir na própria casa
+        if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
+        if (kind == "person" && verb.StartsWith("social:", StringComparison.Ordinal)) return Social(world, ctx, npc, id, verb[7..]); // #259
+        if (kind == "person" && verb == "call") return CallOver(world, ctx, npc, id); // #268: chamar quem está num móvel
+        string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso
+        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(lookup));
         if (offer is null) return Fail($"{PlayerCommands.Conflict} interact: {kind} {id} {verb} fora do alcance ou indisponível agora");
         if (quantity is <= 0) return Fail("interact: quantidade deve ser > 0");
         return (kind, verb) switch
@@ -101,10 +176,11 @@ public static partial class PlayerInteractions
             ("door", _) => Walk(world, ctx, npc, offer),
             ("stairs", _) => Climb(world, npc, offer, verb == "up" ? 1 : -1),
             (_, "steal") => Steal(world, ctx, npc, offer, resourceId),
-            ("object", _) => Use(world, npc, offer, verb),
+            ("object", _) => Use(world, ctx, npc, offer, lookup, verb),
             ("item", _) => Carry(world, npc, offer, verb),
             ("workshop" or "field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
                 ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
+            ("nature", "gather") => Gather(world, ctx, npc, offer, quantity),
             ("water", _) => Water(world, npc, offer, verb),
             ("leaving", _) => Collect(world, ctx, npc, offer),
             ("stock", "take") => Take(world, npc, world.FindHousehold(new HouseholdId(id))!, resourceId, quantity, offer),
@@ -122,16 +198,47 @@ public static partial class PlayerInteractions
         };
     }
 
+    /// <summary>#259: uma interação social do catálogo com a pessoa ao alcance (o mesmo <see cref="SocialInteractions.Start"/> que a iniciativa de quem ninguém conduz usa). A recusa do alvo
+    /// não é erro: é a resposta <c>refused</c> com a frase e o motivo; o que não vale agora (ocupado, longe, falta afeto) é 409 com o motivo.</summary>
+    private static Result<InteractionResult> Social(WorldState world, TickContext ctx, Npc npc, long id, string interaction)
+    {
+        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == "person" && o.Id == id);
+        if (offer is null || world.FindNpc(new NpcId(id)) is not { } other) return Fail($"{PlayerCommands.Conflict} interact: person {id} social:{interaction} fora do alcance ou indisponível agora");
+        var started = SocialInteractions.Start(world, ctx, npc, other, interaction);
+        if (!started.IsSuccess) return Fail(started.Error!);
+        var begun = started.Value!;
+        return Result<InteractionResult>.Ok(new InteractionResult("person", id, "social:" + interaction, 0, 0, begun.Accepted ? "done" : "refused", begun.Note));
+    }
+
+    /// <summary>#268: chama a pessoa que usa um móvel: ela levanta se quiser (decisão do motor); a recusa é a resposta <c>refused</c> com o motivo.</summary>
+    private static Result<InteractionResult> CallOver(WorldState world, TickContext ctx, Npc npc, long id)
+    {
+        if (world.FindNpc(new NpcId(id)) is not { } other) return Fail($"{PlayerCommands.NotFound} interact: pessoa ausente");
+        var called = SocialInteractions.Call(world, ctx, npc, other);
+        if (!called.IsSuccess) return Fail(called.Error!);
+        return Result<InteractionResult>.Ok(new InteractionResult("person", id, "call", 0, 0, called.Value!.Accepted ? "done" : "refused", called.Value.Note));
+    }
+
     private static Result<InteractionResult> Sale(WorldState world, TickContext ctx, Npc npc, BuildingId house, InteractionOffer offer)
     {
         var sold = PlayerOrders.SellHouse(world, ctx, npc, world.FindHousehold(npc.Household!.Value)!, world.FindBuilding(house)!);
         return sold.IsSuccess ? Done(offer, "sell", 1, sold.Value) : Fail(sold.Error!);
     }
 
+    /// <summary>#269: quantas células da soleira ainda valem para a porta (o dado <c>Players.DoorReachMeters</c> sobre a célula do cenário).</summary>
+    private static int DoorReachCells(WorldState world) => Math.Max(0, (int)Math.Floor(world.Players.DoorReachM / Math.Max(0.1, world.Players.CellM) + 1e-9));
+
     private static Result<InteractionResult> Walk(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer)
     {
         var to = new CellCoord(offer.X, offer.Y);
         var from = PlayerGround.PoseOf(world, npc);
+        if (offer.Verbs.Contains("enter") && world.FindBuilding(new BuildingId(offer.Id)) is { } place && PlayerGround.DoorOf(place) is { } door && from != door.Doorstep)
+        {
+            // #269: a poucos passos da porta: o corpo anda até a soleira e entra ao chegar (o mesmo "ir até" do clique)
+            var going = PlayerGo.Begin(world, ctx, npc, new PlayerGo.Target(door.Doorstep, null, place.Id.Value + 1), null);
+            return going.IsSuccess ? Result<InteractionResult>.Ok(new InteractionResult("door", offer.Id, "enter", 0, 0, "going")) : Fail(going.Error!);
+        }
+
         var step = PlayerGround.Step(world, npc, from, to);
         if (!step.IsSuccess) return Fail(step.Error!);
         var walked = PlayerCommands.Walk(world, ctx, npc, from, to); // a porta é um passo: no tempo do corpo
@@ -221,6 +328,8 @@ public static partial class PlayerInteractions
             relationship.ApplyEvent(RelationshipEventType.Conversation, world.FamilyRules);
             relationship.MarkContact(hours);
         }
+        // #255: quem está com higiene baixa (ou outra necessidade do catálogo com peso nos laços) piora a conversa: o laço de quem ouve cai
+        HomeLife.WeighBond(world, npc, other, world.CurrentDate.TotalMilliseconds);
         PlayerCommands.WakeNow(world, other);
         return Done(offer, "talk", 0, 0);
     }
@@ -237,8 +346,8 @@ public static partial class PlayerInteractions
         && !(world.CityCatalog.BuildingRecipes.TryGetValue(building.BuildingTypeId, out var recipe) && recipe.Lodging is not null);
 
     private static InteractionOffer Offer(string kind, long id, string label, IReadOnlyList<string> verbs, CellCoord at,
-        IReadOnlyList<InteractionResource>? resources = null) =>
-        new(kind, id, label, verbs, at.X, at.Y, resources ?? []);
+        IReadOnlyList<InteractionResource>? resources = null, double? reachCells = null) =>
+        new(kind, id, label, verbs, at.X, at.Y, resources ?? [], reachCells);
 
     private static Result<InteractionResult> Done(InteractionOffer offer, string verb, long quantity, long value) =>
         Result<InteractionResult>.Ok(new InteractionResult(offer.Kind, offer.Id, verb, quantity, value));

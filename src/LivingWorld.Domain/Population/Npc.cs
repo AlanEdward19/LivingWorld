@@ -597,7 +597,9 @@ public sealed class Npc
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
         long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
-        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0)
+        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null, BodyTask? bodyTask = null,
+        SortedDictionary<string, LazyNeed>? extraNeeds = null, IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? useQueue = null,
+        LivingWorld.Domain.Objects.MoodState? moods = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -631,6 +633,11 @@ public sealed class Npc
         StepReadyAtMs = stepReadyAtMs;
         Fine = fine;
         JumpUntilMs = jumpUntilMs;
+        Combat = combat;
+        BodyTask = bodyTask;
+        ExtraNeeds = extraNeeds;
+        UseQueue = useQueue;
+        Moods = moods;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -750,6 +757,18 @@ public sealed class Npc
         if (quantity > capacity) return Result<Unit>.Fail("carry: excede capacidade");
         CarriedResourceId = resource.Id;
         CarriedQuantity = quantity;
+        TouchCanonical();
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>#243: junta <paramref name="quantity"/> ao que já leva nas mãos, se for o mesmo recurso e couber em <paramref name="capacity"/>
+    /// (mãos vazias: pega como <see cref="PickUp(ResourceType, long, long)"/>). O corte entrega a madeira unidade a unidade.</summary>
+    public Result<Unit> AddCarried(ResourceType resource, long quantity, long capacity)
+    {
+        if (!IsCarrying) return PickUp(resource, quantity, capacity);
+        if (CarriedResourceId != resource.Id) return Result<Unit>.Fail("carry: NPC já transporta outro recurso");
+        if (quantity <= 0 || CarriedQuantity + quantity > capacity) return Result<Unit>.Fail("carry: excede capacidade");
+        CarriedQuantity += quantity;
         TouchCanonical();
         return Result<Unit>.Ok(Unit.Value);
     }
@@ -926,6 +945,85 @@ public sealed class Npc
     {
         JumpUntilMs = untilMs;
         if (sleepCost > 0) SleepNeed = SleepNeed.WithValueAtMs(Math.Max(0, SleepNeed.ValueAtMs(nowMs) - sleepCost), nowMs);
+        TouchCanonical();
+    }
+
+    /// <summary>#241: a tarefa em curso que ocupa o corpo do jogador (cortar lenha...). Nula enquanto nunca houve; vencida (agora ≥
+    /// <c>UntilMs</c>) vale como livre.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BodyTask? BodyTask { get; private set; }
+
+    public void SetBodyTask(BodyTask? task)
+    {
+        BodyTask = task;
+        TouchCanonical();
+    }
+
+    /// <summary>#255: as necessidades do catálogo do cenário (higiene, diversão, bexiga...), por id, no mesmo molde preguiçoso das de sempre
+    /// (<see cref="LazyNeed"/>: nada escrito por tick). Nulo enquanto o cenário não declara nenhuma (fora do snapshot e do hash).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SortedDictionary<string, LazyNeed>? ExtraNeeds { get; private set; }
+
+    public void SetExtraNeed(string id, LazyNeed need)
+    {
+        (ExtraNeeds ??= new SortedDictionary<string, LazyNeed>(StringComparer.Ordinal))[id] = need;
+        TouchCanonical();
+    }
+
+    /// <summary>#262: momentos vivos, desejos ativos e pontos de satisfação (catálogo de humor do cenário). Nulo enquanto nada aconteceu (fora do snapshot e do hash).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Objects.MoodState? Moods { get; private set; }
+
+    public void SetMoods(LivingWorld.Domain.Objects.MoodState? state)
+    {
+        Moods = state;
+        TouchCanonical();
+    }
+
+    /// <summary>#255: a fila de ações do corpo conduzido (até <see cref="MaxUseQueue"/>): a próxima começa quando a atual termina.</summary>
+    public const int MaxUseQueue = 4;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? UseQueue { get; private set; }
+
+    public void SetUseQueue(IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? queue)
+    {
+        UseQueue = queue is { Count: > 0 } ? queue : null;
+        TouchCanonical();
+    }
+
+    /// <summary>#255: ajusta uma das quatro necessidades de sempre pelo id (<c>hunger</c>, <c>thirst</c>, <c>sleep</c>, <c>social</c>) no instante <paramref name="ms"/>.</summary>
+    public bool SetBuiltinNeedAtMs(string id, double value, long ms)
+    {
+        switch (id)
+        {
+            case "hunger": HungerNeed = HungerNeed.WithValueAtMs(value, ms); break;
+            case "thirst": ThirstNeed = ThirstNeed.WithValueAtMs(value, ms); break;
+            case "sleep": SleepNeed = SleepNeed.WithValueAtMs(value, ms); break;
+            case "social": SocialNeed = SocialNeed.WithValueAtMs(value, ms); break;
+            default: return false;
+        }
+        TouchCanonical();
+        return true;
+    }
+
+    /// <summary>#255: o valor de uma das de sempre pelo id, no instante <paramref name="ms"/>; nulo se o id não é uma delas.</summary>
+    public double? BuiltinNeedAtMs(string id, long ms) => id switch
+    {
+        "hunger" => HungerNeed.ValueAtMs(ms),
+        "thirst" => ThirstNeed.ValueAtMs(ms),
+        "sleep" => SleepNeed.ValueAtMs(ms),
+        "social" => SocialNeed.ValueAtMs(ms),
+        _ => null,
+    };
+
+    /// <summary>#234: o estado de combate (recarga do golpe, guarda, reação e revide pendente). Nulo enquanto a pessoa nunca lutou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CombatState? Combat { get; private set; }
+
+    public void SetCombat(CombatState? state)
+    {
+        Combat = state;
         TouchCanonical();
     }
 

@@ -88,7 +88,11 @@ public static class ScenarioLoaderV2
             emergenceRules: definition.Emergence,
             ontogenyRules: definition.Ontogeny,
             appearanceRules: definition.Appearance,
-            objectCatalog: definition.Objects, agricultureRules: LivingWorld.Domain.Economy.AgricultureRules.Default,
+            objectCatalog: definition.Objects,
+            // #258: lavoura de ano agrícola ligada por padrão; o bloco opcional {"CropYear": {"Enabled": false}} a desliga (o mercado do bairro é abastecido
+            // pelo trabalho da receita do local, o lote diário de antes, não por uma safra por ano)
+            agricultureRules: System.Text.Json.Nodes.JsonNode.Parse(json)?["CropYear"]?["Enabled"]?.GetValue<bool>() == false
+                ? LivingWorld.Domain.Economy.AgricultureRules.Disabled : LivingWorld.Domain.Economy.AgricultureRules.Default,
             // AD-135: água de rio e fonte ligada por padrão; o bloco opcional {"NaturalWater": {"Enabled": false}} desliga
             naturalWaterRules: System.Text.Json.Nodes.JsonNode.Parse(json)?["NaturalWater"]?["Enabled"]?.GetValue<bool>() == false
                 ? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled : LivingWorld.Domain.Economy.NaturalWaterRules.Default);
@@ -105,6 +109,14 @@ public static class ScenarioLoaderV2
         // {"Players": {"Abandonment": "DeclareDead", "DeclareDeadAfterDays": 2555, "PresumedDeadMayReturn": false}}; ausente = padrão
         if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Players"] is { } playersNode)
             world.UsePlayers(System.Text.Json.JsonSerializer.Deserialize<LivingWorld.Domain.Population.PlayerRules>(playersNode, PlayersJson));
+
+        // #255: hora do dia em que o mundo começa (0 até horas do dia − 1); ausente = meia-noite, como sempre. Vale antes de semear gente (as necessidades nascem na hora certa).
+        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["StartHour"] is { } startNode)
+        {
+            if (!(startNode is System.Text.Json.Nodes.JsonValue sv && sv.TryGetValue(out int startHour) && startHour >= 0 && startHour < world.Calendar.HoursPerDay))
+                return Result<(WorldState, WorldClock)>.Fail($"StartHour: inteiro de 0 a {world.Calendar.HoursPerDay - 1}");
+            world.CurrentDate = LivingWorld.Domain.Shared.WorldDate.FromHours(world.Calendar, startHour);
+        }
 
         progress?.Invoke(ScenarioLoadStages.Settlements);
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
@@ -229,8 +241,21 @@ public static class ScenarioLoaderV2
             if (home is null)
                 return Result<(WorldState, WorldClock)>.Fail(
                     $"AuthoredHouseholds: o assentamento '{family.Settlement ?? "inicial"}' não tem cidade no cenário");
+            long firstId = world.NextNpcId;
             PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
+            // #258: quem o cenário põe já empregado (o comerciante do mercado) começa na folha do local; os outros procuram emprego
+            foreach (var member in family.Members.Where(m => m.Workplace is not null))
+            {
+                var npc = world.Npcs.FirstOrDefault(n => n.Id.Value >= firstId && n.Name == member.Name);
+                var workplace = world.Workplaces.Skip(member.Workplace!.Value).FirstOrDefault();
+                if (npc is null || workplace is null)
+                    return Result<(WorldState, WorldClock)>.Fail($"AuthoredHouseholds: Workplace {member.Workplace} não existe em Workplaces[]");
+                if (workplace.Hire(npc.Id).IsSuccess) npc.Hire(workplace.Id);
+            }
         }
+
+        var careersSeeded = LivingWorld.Simulation.Careers.CareerSeeding.Seed(world, System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject()); // #263: quem já começa numa carreira
+        if (!careersSeeded.IsSuccess) return Result<(WorldState, WorldClock)>.Fail(careersSeeded.Error!);
 
         progress?.Invoke(ScenarioLoadStages.Economy);
         if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
@@ -244,6 +269,7 @@ public static class ScenarioLoaderV2
 
         ExtraordinaryPrevalenceSeeder.Seed(world);
         LivingWorld.Simulation.Cities.Streets.StreetGroundSystem.SeedHistory(world); // AD-179: a vila nasce com o chão que o uso fez
+        LivingWorld.Simulation.Cities.Streets.StreetPavement.Seed(world); // #258: e a rua e a calçada que o cenário declara
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios
@@ -260,6 +286,11 @@ public static class ScenarioLoaderV2
         IReadOnlyList<ISimulationSystem> systems =
             ScenarioRunner.DefaultSystems(
                 definition.Dynamics.TransformationRules, extraordinary: definition.Extraordinary);
+
+        // #269: o tempo do dia roda na primeira hora do dia; um mundo que começa às 07:00 ficava sem tempo (e sem nascer nem pôr do sol do motor: o cliente caía no 5–19 de
+        // sempre e a luz só mudava de um dia para o outro) até a meia-noite. Gera o tempo do dia de partida já na carga.
+        if (world.WeatherOn && world.CurrentDate.Hour != 0)
+            new LivingWorld.Simulation.Climate.WeatherSystem().Tick(world, new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler));
 
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }

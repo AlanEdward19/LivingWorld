@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
@@ -10,6 +11,7 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Crime;
 using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Invention;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
@@ -68,16 +70,9 @@ public static partial class PlayerInteractions
             if (verbs.Count > 0) offers.Add(Offer("workshop", shop.Id.Value, "", verbs, shop.Location, stock));
         }
 
-        if (WaterFetch.On(world))
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    var cell = new CellCoord(at.X + dx, at.Y + dy);
-                    if (!world.Map.TryGetCell(cell, out var water) || !water.HasWater) continue;
-                    offers.Add(Offer("water", WaterId(cell), "", household is null ? ["drink"] : ["drink", "fill"], cell));
-                    dy = 2;
-                    break;
-                }
+        if (WaterFetch.On(world) && inside is null && WaterWithinReach(world, npc, at) is { } spring)
+            offers.Add(Offer("water", WaterId(spring), "", household is null ? ["drink"] : ["drink", "fill"], spring, reachCells: ReachCells));
+        if (inside is null) GatherOffers(world, npc, at, offers);
 
         // AD-197n: recipientes e veículos inventados pela casa (os designs da invenção que ela fez): levar um é o que o NPC faz ao sair
         // com ele (a carga, a água e a compra passam a caber nele; o veículo enche o barril na fonte); devolver, ao chegar
@@ -108,19 +103,59 @@ public static partial class PlayerInteractions
         bool mine = household?.Dwelling == here || (npc.Employer is { } e && world.FindWorkplace(e)?.Building == here);
         if (!mine) return;
         var furnishing = catalog.FurnishingFor(building.BuildingTypeId);
+        // #252: cada móvel oferecido no lugar onde o motor o pôs (a mira e a roda escolhem pelo que está à frente e mais perto), do mais perto
+        // do corpo ao mais longe; sem lugar (a peça não coube), na célula do corpo como antes
+        var pieces = building.Position is not null ? Objects.HomeFurniture.Of(building, catalog) : [];
+        var found = new List<(InteractionOffer Offer, long Distance, int Index)>();
         for (int i = 0; i < furnishing.Count; i++)
         {
             if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
+            if (descriptor.Uses is { Count: > 0 } allUses)
+            {
+                var catalogUses = allUses.Where(u => !u.Hidden && !NoToggle(world, here, i, u)).ToList(); // #258: ligar o que já está ligado não é oferta; #259: os usos de convite (atividade conjunta) não entram na roda do objeto
+                if (catalogUses.Count == 0) continue;
+                // #255: os usos vêm do catálogo; cada um com o nome, os minutos e o que mais sobe. Só peças com lugar na planta (o corpo anda até elas).
+                if (i >= pieces.Count || pieces[i].Id != furnishing[i] || pieces[i].Spot is not { } placed || building.Position is not { } where) continue;
+                var spotCell = new CellCoord(where.X + placed.Cell.X, where.Y + placed.Cell.Y);
+                long ddx = spotCell.X - at.X, ddy = spotCell.Y - at.Y;
+                var offerUses = catalogUses.Select(u => new OfferUse(u.Id, u.Name, ObjectUsage.PlannedMinutes(world, npc, u), u.Effects.Where(e => e.PerHour > 0).OrderByDescending(e => e.PerHour).Select(e => e.Need).FirstOrDefault(),
+                    u.Occupies && ObjectUsage.OccupiedBy(world, here.Value, i, npc) is not null)).ToList();
+                found.Add((Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, catalogUses.Select(u => "use:" + u.Id).ToList(), spotCell) with { Uses = offerUses },
+                    ddx * ddx + ddy * ddy, i));
+                continue;
+            }
+
             var verbs = descriptor.UsePoints.Where(p => p.Action is int a && PlayerCommands.Choosable.Contains((ActionType)a)
                     && (ActionType)a != ActionType.UsePower && Objects.ObjectUse.Allows(descriptor, (ActionType)a, npc))
                 .Select(p => ((ActionType)p.Action!.Value).ToString().ToLowerInvariant()).Distinct().ToList();
-            if (verbs.Count > 0) offers.Add(Offer("object", here.Value * 1000 + i, descriptor.Id, verbs, at));
+            if (verbs.Count == 0) continue;
+            var cell = at;
+            if (i < pieces.Count && pieces[i].Id == furnishing[i] && pieces[i].Spot is { } spot && building.Position is { } origin)
+                cell = new CellCoord(origin.X + spot.Cell.X, origin.Y + spot.Cell.Y);
+            long dx = cell.X - at.X, dy = cell.Y - at.Y;
+            found.Add((Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, verbs, cell), dx * dx + dy * dy, i)); // #252: o nome do cenário, senão o id
         }
+        foreach (var entry in found.OrderBy(f => f.Distance).ThenBy(f => f.Index)) offers.Add(entry.Offer);
     }
 
+    /// <summary>#258: o uso que liga ou desliga uma luz que já está assim não muda nada: não se oferece.</summary>
+    private static bool NoToggle(WorldState world, BuildingId building, int piece, LivingWorld.Domain.Objects.ObjectUseDef use) =>
+        use.Toggle is { } toggle && toggle != LivingWorld.Domain.Objects.ObjectToggles.JobSearch && world.LightIsOn(building.Value, piece) == (toggle == LivingWorld.Domain.Objects.ObjectToggles.LightOn);
+
     /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>
-    private static Result<InteractionResult> Use(WorldState world, Npc npc, InteractionOffer offer, string verb)
+    private static Result<InteractionResult> Use(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, string verb, string requested)
     {
+        if (verb.StartsWith("use:", StringComparison.Ordinal))
+        {
+            // #255: o uso do catálogo: o corpo anda até a peça e a ação começa lá (ou entra na fila, se o corpo está ocupado)
+            string useId = verb[4..];
+            long building = offer.Id / 1000;
+            int piece = (int)(offer.Id % 1000);
+            var begun = requested.StartsWith("queue:", StringComparison.Ordinal) ? ObjectUsage.Enqueue(world, ctx, npc, building, piece, useId)
+                : ObjectUsage.Begin(world, ctx, npc, building, piece, useId);
+            return begun.IsSuccess ? Done(offer, requested, 0, 0) : Fail(begun.Error!);
+        }
+
         if (!Enum.TryParse<ActionType>(verb, ignoreCase: true, out var action)) return Fail("interact: ação desconhecida");
         var asked = PlayerCommands.Act(world, npc.Id, npc.ControllerId!, action);
         return asked.IsSuccess ? Done(offer, verb, 0, 0) : Fail(asked.Error!);
@@ -131,6 +166,83 @@ public static partial class PlayerInteractions
     {
         world.Invention!.Hold(npc.Id.Value, verb == "take" ? offer.Id : 0);
         return Done(offer, verb, 1, 0);
+    }
+
+    /// <summary>#239: acima disto o corpo está numa tarefa longa (cortar na mata), não no passo de um segundo: não anda até acabar.</summary>
+    public const long LongTaskMs = 5 * 60_000;
+
+    /// <summary>#237: o alcance da água, em milésimos de célula, do corpo (posição fina) à borda mais perto da célula d'água: uma célula
+    /// (1,5 m, o braço e uma inclinada). Antes valia a vizinhança 3×3 da célula do corpo, até ~3 m da água e através da parede.</summary>
+    public const long WaterReachThousandths = FinePose.PerCell;
+
+    /// <summary>O mesmo alcance em células (o que a oferta diz ao cliente).</summary>
+    public const double ReachCells = WaterReachThousandths / (double)FinePose.PerCell;
+
+    /// <summary>A célula d'água ao alcance do corpo agora (a mais perto; empate: menor linha, depois coluna), ou nula.</summary>
+    private static CellCoord? WaterWithinReach(WorldState world, Npc npc, CellCoord at) => CellWithinReach(world, npc, at, c => c.HasWater);
+
+    /// <summary>A célula que cumpre <paramref name="wanted"/> e está ao alcance do corpo (a mais perto, pela borda; empate: menor linha, depois
+    /// coluna), ou nula. O corpo solto conta pela posição fina; sem ela, pelo centro da célula.</summary>
+    private static CellCoord? CellWithinReach(WorldState world, Npc npc, CellCoord at, Func<MapCell, bool> wanted)
+    {
+        // #237: a posição fina AGORA (a gravada avançada pelo rumo desde o último comando), não a de uma latência atrás
+        var fine = npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? PlayerWalk.Projected(world, npc, f)
+            : new FinePose(at.X * FinePose.PerCell + 500, at.Y * FinePose.PerCell + 500, 0, 0, 0);
+        at = new CellCoord(fine.CellX, fine.CellY);
+        CellCoord? best = null;
+        long bestD2 = long.MaxValue;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                var cell = new CellCoord(at.X + dx, at.Y + dy);
+                if (!world.Map.TryGetCell(cell, out var found) || !wanted(found)) continue;
+                long gx = Math.Max(Math.Max(cell.X * FinePose.PerCell - fine.X, fine.X - (cell.X + 1) * FinePose.PerCell), 0);
+                long gy = Math.Max(Math.Max(cell.Y * FinePose.PerCell - fine.Y, fine.Y - (cell.Y + 1) * FinePose.PerCell), 0);
+                long d2 = gx * gx + gy * gy;
+                if (d2 > WaterReachThousandths * WaterReachThousandths || d2 >= bestD2) continue;
+                (best, bestD2) = (cell, d2);
+            }
+        return best;
+    }
+
+    /// <summary>#239: a mata ao alcance, com o que o motor diz que a célula tem e o que os NPCs da obra buscam na natureza
+    /// (<c>StreetRules.HouseMaterialResourceId</c>, AD-194/195). Fora de prédio e de célula construída, com as mãos e o corpo livres.</summary>
+    private static void GatherOffers(WorldState world, Npc npc, CellCoord at, List<InteractionOffer> offers)
+    {
+        var rules = world.StreetRules;
+        if (!world.StreetsOn || rules.HouseGatherHours <= 0 || rules.HouseMaterialUnits <= 0
+            || world.CurrentDate.TotalMilliseconds < npc.StepReadyAtMs) return;
+        var resource = new ResourceType(rules.HouseMaterialResourceId);
+        if (PlayerTasks.Room(world, npc, resource) <= 0) return; // mãos cheias, ou com outra coisa
+        if (PlayerNature.NearestWithinReach(world, at, npc.Fine is { } f && f.CellX == at.X && f.CellY == at.Y ? PlayerWalk.Projected(world, npc, f) : npc.Fine) is not { } tree) return;
+        var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
+        long left = PlayerNature.Left(world, tree.Cell, world.CurrentDate.TotalMilliseconds);
+        var (units, _) = PlayerTasks.CutSession(world, npc, resource, home ?? tree.Cell, tree.Cell, null, left);
+        var offer = Offer("nature", WaterId(tree.Cell), "Árvore", ["gather"], tree.Cell, [new InteractionResource(resource.Id, units, 0)]);
+        offers.Add(offer with { Fx = tree.FineX / (double)FinePose.PerCell, Fy = tree.FineY / (double)FinePose.PerCell });
+    }
+
+    /// <summary>#239/#241/#243: cortar lenha na árvore ao alcance. O corte leva o tempo dos NPCs da obra por unidade
+    /// (<c>WorkHaul.CutHours</c>, <see cref="PlayerTasks.CutSession"/>: no máximo uma jornada, a carga que o corpo aguenta e a madeira que a
+    /// árvore ainda tem); só o corte, a viagem o jogador anda. O corpo fica ocupado esse tempo (<see cref="BodyTask"/>: nem anda nem corta de
+    /// novo antes) e a madeira sai unidade a unidade, da árvore (estado do mundo, finita) para as mãos, a cada unidade de tempo
+    /// (<see cref="PlayerTasks.Settle"/>); <see cref="PlayerTasks.Interrupt"/> para a qualquer hora e deixa o que já saiu. A carga vai nas
+    /// mãos, de onde segue para a despensa como a de qualquer NPC.</summary>
+    private static Result<InteractionResult> Gather(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, long? quantity)
+    {
+        var resource = new ResourceType(offer.Resources[0].ResourceId);
+        if (quantity is <= 0) return Fail("interact: quantidade deve ser > 0");
+        long now = world.CurrentDate.TotalMilliseconds;
+        if (now < npc.StepReadyAtMs) return Fail($"{PlayerCommands.Conflict} gather: o corpo ainda está ocupado");
+        var home = npc.Household is { } h ? world.FindHousehold(h)?.Location : null;
+        var wood = new CellCoord(offer.X, offer.Y);
+        long left = PlayerNature.Left(world, wood, now);
+        if (left <= 0) return Fail($"{PlayerCommands.Conflict} gather: a árvore já não tem madeira");
+        if (PlayerTasks.Room(world, npc, resource) <= 0) return Fail($"{PlayerCommands.Conflict} gather: as mãos estão cheias");
+        var (units, perUnitMs) = PlayerTasks.CutSession(world, npc, resource, home ?? wood, wood, quantity, left);
+        PlayerCommands.TakeTheWheel(world, npc);
+        PlayerTasks.BeginGather(world, ctx, npc, resource, wood, units, perUnitMs);
+        return Done(offer, "gather", units, 0);
     }
 
     /// <summary>Uma célula como id de oferta (x na parte alta, y na baixa).</summary>

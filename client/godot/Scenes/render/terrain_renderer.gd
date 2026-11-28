@@ -18,8 +18,18 @@ var _base: Array = [] ## [cor, água] por instância: a estação recolore sem r
 var _season_key := "-"
 
 
+var _drawn_signature := "" ## #249: o que o chão desenhado representa (terreno, rios, tamanho, cidades); igual = nada a refazer
+
+
 func rebuild(p_store) -> void:
 	store = p_store
+	var rects_now: Array = []
+	for id in store.cities:
+		rects_now.append(store.cities[id].bounds)
+	var signature := "%d|%s|%d|%d|%d" % [store.terrain_rev, store.map_size, rects_now.hash(), store.terrain.size(), store.rivers.size()]
+	if terrain_root != null and signature == _drawn_signature:
+		return # troca de escopo (mundo, cidade, reenvio do canal): o terreno é o mesmo, fica como está
+	_drawn_signature = signature
 	if terrain_root != null:
 		if terrain_root.is_inside_tree():
 			terrain_root.queue_free()
@@ -75,8 +85,27 @@ func rebuild(p_store) -> void:
 	scenery = Scenery.new()
 	scenery.name = "Scenery"
 	terrain_root.add_child(scenery)
+	scenery.trees_state = trees_state
+	scenery.clear_zones = clear_zones
 	scenery.build(store.terrain, store.rivers, rects)
 	apply_season(store.climate)
+
+
+## #243: as árvores cortadas, como o motor diz (`GET /world/trees`); o terreno refeito as reaplica.
+var trees_state: Array = []
+var clear_zones: Array = [] ## #258: as zonas sem árvore que o motor diz (quintal limpo, rua e calçada)
+
+
+func apply_clear(zones: Array) -> void:
+	clear_zones = zones
+	if scenery != null:
+		scenery.apply_clear(zones)
+
+
+func apply_trees(list: Array) -> void:
+	trees_state = list
+	if scenery != null:
+		scenery.apply_trees(list)
 
 
 static func season_signature(climate: Dictionary) -> String:

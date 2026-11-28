@@ -40,14 +40,14 @@ static func levels(light: float) -> Dictionary:
 func _ready() -> void:
 	_rng.randomize()
 	_sfx = AudioStreamPlayer.new()
-	_sfx.volume_db = -10.0
+	_sfx.volume_db = -18.0
 	add_child(_sfx)
 	var stream := AudioStreamGenerator.new()
 	stream.mix_rate = MIX_RATE
 	stream.buffer_length = 0.25
 	_player = AudioStreamPlayer.new()
 	_player.stream = stream
-	_player.volume_db = -14.0
+	_player.volume_db = -22.0
 	add_child(_player)
 	_player.play()
 	_playback = _player.get_stream_playback()
@@ -100,7 +100,7 @@ static func _synthesize(spec: Dictionary) -> AudioStreamWAV:
 func set_muted(value: bool) -> void:
 	muted = value
 	if _player != null:
-		_player.volume_db = -80.0 if muted else -14.0
+		_player.volume_db = -80.0 if muted else -22.0
 
 
 func _process(delta: float) -> void:

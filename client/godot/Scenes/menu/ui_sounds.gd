@@ -7,7 +7,7 @@ extends Node
 const GROUP := "ui_sounds"
 const MIX_RATE := 22050
 const KINDS: Array[String] = ["click", "focus", "confirm", "back", "error"]
-const VOLUME_DB := -10.0
+const VOLUME_DB := -18.0
 const VOICES := 4 ## sons que podem soar ao mesmo tempo
 const MIN_GAP := 0.04 ## segundos: o mesmo som não repete mais rápido que isto (foco correndo pela lista)
 

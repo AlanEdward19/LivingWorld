@@ -155,15 +155,16 @@ public static class LivingScopeProjector
         var observable = ObservableProjector.Npc(frame.Observable, npc, previous?.Observable);
         var target = TargetOf(frame.World, npc, previous);
         var extraordinary = ExtraordinaryNpcVisualProjector.Build(frame.World, npc.Id);
+        var stand = StandOf(frame.World, npc);
         if (previous is not null && frame.WeatherAsBefore && ReferenceEquals(previous.Observable, observable) && ReferenceEquals(previous.ActionTarget, target)
-            && previous.Location == npc.CurrentLocation && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
+            && previous.Location == stand && previous.CurrentAction == npc.CurrentAction && previous.City == npc.City
             && previous.RelocationDestination == scoped.Relocation && Equals(previous.Extraordinary, extraordinary)
             && Equals(previous.Appearance, npc.Appearance) && previous.ActionStartedAtTick == npc.ActionStartedAtTick
             && previous.Intent == npc.CurrentIntent && previous.IntentKey == npc.IntentTarget)
             return previous; // AD-172: nada visível mudou desde o tick anterior
         var (route, arrival, over, intentTarget) = RouteOf(frame, npc, previous);
         return new NpcVisual(
-            npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
+            npc.Id, stand, npc.CurrentAction, npc.City, scoped.Relocation, extraordinary, npc.Appearance)
         {
             Route = route,
             RouteArrivalTick = arrival,
@@ -222,6 +223,13 @@ public static class LivingScopeProjector
     /// <c>NpcInspectionQuery.TargetOf</c>; o teste de cadência confere contra a projeção sem memória a cada tick.</summary>
     /// <summary>Alvo da ação. AD-193: quem trabalha no lote de uma obra (diarista ou ajudante, mesmo com emprego nas horas livres) tem a
     /// obra como alvo (<c>work:id</c>); senão o alvo de sempre. O registro anterior é reaproveitado quando o alvo não mudou.</summary>
+    /// <summary>#223: onde o corpo fica desenhado. Quem trabalha no prédio do ofício fica no posto que o motor lhe deu (a célula do campo
+    /// ou do piso, com lotação por célula) em vez de no ladrilho do prédio inteiro; o resto, no lugar de sempre.</summary>
+    private static CellCoord StandOf(WorldState world, Npc npc) =>
+        npc is { CurrentAction: ActionType.Work, Interior: { Floor.Value: 0 } inside } && world.FindBuilding(inside.Building) is { Position: { } origin }
+            ? new CellCoord(origin.X + inside.LocalCell.X, origin.Y + inside.LocalCell.Y)
+            : npc.CurrentLocation;
+
     private static NpcActionTargetDto? TargetOf(WorldState world, Npc npc, NpcVisual? previous)
     {
         if (WorkSiteProjector.SiteTargetOf(world, npc) is { } workId)
@@ -279,6 +287,8 @@ public static class LivingScopeProjector
             {
                 Floors = plan.Floors,
                 GroundFootprint = plan.GroundFootprint,
+                GroundWalls = plan.GroundWalls ?? [],
+                GroundDoors = plan.GroundDoors ?? [],
                 Value = value,
                 Lodging = lodging,
                 // AD-173: o lote de verdade (quintal, passagem da porta à rua, rua da frente)
@@ -292,7 +302,7 @@ public static class LivingScopeProjector
 
     private static bool FitsInside(Building building, CellCoord position, int orientation, CityBounds bounds)
     {
-        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation, building.Shape);
         for (int i = 0; i < footprint.Count; i++)
             if (!bounds.Contains(new CellCoord(position.X + footprint[i].Cell.X, position.Y + footprint[i].Cell.Y)))
                 return false;

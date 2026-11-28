@@ -12,6 +12,8 @@ var settings
 var scale_pick: OptionButton
 var volume_slider: HSlider
 var volume_label: Label
+var sfx_slider: HSlider
+var shake_check: CheckButton
 var fullscreen_check: CheckButton
 var vsync_check: CheckButton
 var language_pick: OptionButton
@@ -44,6 +46,16 @@ func _ready() -> void:
 	volume_label.custom_minimum_size.x = 56
 	volume_row.add_child(volume_label)
 	_line(box, "Volume", volume_row)
+	sfx_slider = HSlider.new()
+	sfx_slider.min_value = 0
+	sfx_slider.max_value = 100
+	sfx_slider.step = 5
+	sfx_slider.value = round(settings.sfx_volume * 100)
+	sfx_slider.focus_mode = Control.FOCUS_ALL
+	sfx_slider.value_changed.connect(func(v: float): settings.sfx_volume = v / 100.0; _changed())
+	_line(box, "Efeitos (passos, golpes)", sfx_slider)
+	shake_check = _check(settings.shake, func(on: bool): settings.shake = on; _changed())
+	_line(box, "Tremor da câmera", shake_check)
 	fullscreen_check = _check(settings.fullscreen, func(on: bool): settings.fullscreen = on; _changed())
 	_line(box, "Tela cheia", fullscreen_check)
 	vsync_check = _check(settings.vsync, func(on: bool): settings.vsync = on; _changed())

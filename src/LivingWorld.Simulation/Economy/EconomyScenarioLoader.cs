@@ -30,6 +30,10 @@ public sealed record InitialWorkplace(
 {
     /// <summary>Dono declarado (id de NPC do cenário, AD-144); <c>null</c> = a regra do mundo decide.</summary>
     public NpcId? Owner { get; init; }
+
+    /// <summary>#258: para onde a porta do prédio olha quando o cenário o põe na célula pedida (0, 90, 180 ou 270 graus); sem isso, a planta de sempre (0). Vale só
+    /// se a célula pedida está livre; senão o prédio vai para um lote de frente para a rua, como antes.</summary>
+    public int Orientation { get; init; }
 }
 
 /// <summary>Carrega <see cref="EconomyRules"/>/<see cref="EconomyCatalog"/>/<see
@@ -128,6 +132,12 @@ public static class EconomyScenarioLoader
             if (!(presenceNode is JsonValue pv && pv.TryGetValue<bool>(out bool presence)))
                 return Result<EconomyRules>.Fail("PresenceNeedsWork: deve ser booleano");
             rules = rules with { PresenceNeedsWork = presence };
+        }
+        if (root["InitialPantryPerMember"] is { } pantryNode)
+        {
+            if (!(pantryNode is JsonValue pantryValue && pantryValue.TryGetValue<long>(out long pantry) && pantry is >= 0 and <= 100_000))
+                return Result<EconomyRules>.Fail("InitialPantryPerMember: deve ser um inteiro de 0 a 100000");
+            rules = rules with { InitialPantryPerMember = pantry };
         }
         if (root["Venture"] is { } ventureNode)
         {
@@ -244,9 +254,13 @@ public static class EconomyScenarioLoader
             owner = new NpcId(ownerId);
         }
 
+        int orientation = 0;
+        if (wp["Orientation"] is not null && (!TryGetInt(wp, "Orientation", out orientation) || orientation is not (0 or 90 or 180 or 270)))
+            return Result<InitialWorkplace>.Fail("Workplaces[].Orientation: 0, 90, 180 ou 270");
+
         return Result<InitialWorkplace>.Ok(new InitialWorkplace(
             new LocationType(locationTypeId), new CellCoord(x, y), maxVacancies, stock, new Money(treasury), prices)
-        { Owner = owner });
+        { Owner = owner, Orientation = orientation });
     }
 
     private static Result<IReadOnlyList<InitialWorkplace>> ParseWorkplaces(JsonObject root)

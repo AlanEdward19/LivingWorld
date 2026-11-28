@@ -144,7 +144,7 @@ public class BuildingOccupancySystemTests
     }
 
     [Fact]
-    public void Sleepers_spread_over_the_floors_of_a_multi_floor_house()
+    public void Sleepers_of_a_multi_floor_house_each_take_a_floor_cell_of_their_own_the_ground_floor_first()
     {
         var world = ScenarioRunner.Create(seed: 41, initialPopulation: 40).World;
         var floors = new HashSet<int>();
@@ -157,8 +157,17 @@ public class BuildingOccupancySystemTests
 
         Tick(world);
 
-        foreach (var npc in world.Npcs.Where(n => n.Interior is not null)) floors.Add(npc.Interior!.Floor.Value);
+        // #226: com piso de sobra no térreo (a parede é aresta), cada morador fica com o seu lugar e o térreo vem primeiro; o andar de cima só
+        // recebe quando o térreo acaba (antes só havia a escada, e o segundo morador subia)
+        var inside = world.Npcs.Where(n => n.Interior is not null).ToList();
+        foreach (var npc in inside) floors.Add(npc.Interior!.Floor.Value);
+        Assert.NotEmpty(inside);
         Assert.Contains(0, floors);
-        Assert.Contains(1, floors);
+        foreach (var household in world.Households.Where(h => h.Dwelling is not null))
+        {
+            var places = world.Npcs.Where(n => n.Household == household.Id && n.Interior is not null)
+                .Select(n => (n.Interior!.Floor.Value, n.Interior.LocalCell)).ToList();
+            Assert.Equal(places.Count, places.Distinct().Count());
+        }
     }
 }

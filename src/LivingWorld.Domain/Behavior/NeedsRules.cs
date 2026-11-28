@@ -18,6 +18,16 @@ public sealed record NeedsRules(
     double HomelessSleepEfficiency,
     double StarvationSurvivalHours = 0)
 {
+    /// <summary>#269: o déficit de fome (100 − nível) em que, em casa e sem urgência, a pessoa vai comer (a hora da refeição). 0 = o padrão do motor
+    /// (<see cref="DefaultMealTimeDeficit"/>, um pouco antes da urgência); o cenário declara o dele (<c>MealTimeDeficit</c>) para pedir comida de 4 em 4 ou 6 em 6 h.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int MealDeficit { get; init; }
+
+    public const int DefaultMealTimeDeficit = 65;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int MealTimeDeficit => MealDeficit > 0 ? MealDeficit : DefaultMealTimeDeficit;
+
     /// <summary>Saúde dinâmica, desnutrição e amamentação (AD-134). Snapshot ou cenário sem o campo herda o padrão de época;
     /// <see cref="LivingWorld.Domain.Health.PhysiologyRules.Static"/> volta à saúde estática.</summary>
     public LivingWorld.Domain.Health.PhysiologyRules Physiology { get; init; } = LivingWorld.Domain.Health.PhysiologyRules.Default;

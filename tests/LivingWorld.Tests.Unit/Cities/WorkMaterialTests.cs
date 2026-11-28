@@ -22,9 +22,10 @@ public class WorkMaterialTests
         public void Record(WorldEvent evt) => Events.Add(evt);
     }
 
-    private static (WorldState World, Sink Sink, TickContext Ctx, BuildWork Work, Npc Builder) HouseWork(StreetRules streets)
+    private static (WorldState World, Sink Sink, TickContext Ctx, BuildWork Work, Npc Builder) HouseWork(StreetRules streets, bool regional = false)
     {
-        var (world, clock) = ScenarioRunner.Create(3, cityLayout: CityLayoutRules.Default with { Streets = streets });
+        var (world, clock) = ScenarioRunner.Create(3, cityLayout: CityLayoutRules.Default with { Streets = streets },
+            costWeights: regional ? ScenarioRunner.RegionalCostWeights : null); // AD-197o2: a caminhada só pesa nas horas no mapa de região
         clock.Run(world, 24);
         var sink = new Sink();
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
@@ -140,6 +141,42 @@ public class WorkMaterialTests
         Assert.EndsWith($"|{builder.Id.Value}|natureza", arrived.Payload, StringComparison.Ordinal);
     }
 
+    /// <summary>#243: o NPC da obra corta da mesma árvore que o jogador vê (a viva mais perto do lote): cada unidade sai da madeira dela, e a
+    /// que se esgota vira toco e a viagem segue para a árvore viva mais perto.</summary>
+    [Fact]
+    public void The_hauler_cuts_from_the_same_tree_the_player_sees_wears_it_down_and_moves_on_when_it_is_a_stump()
+    {
+        var (world, _, ctx, work, builder) = HouseWork(StreetRules.Default);
+        work.Helpers = [builder.Id.Value];
+        // a vila de código tem a mata longe (a obra só procura árvore até 12 células e, sem nenhuma, corta como antes); aqui a obra já
+        // escolheu a árvore viva mais perto do lote, que o jogador também vê
+        var tree = world.Map.Cells.Select(c => c.Coord).Where(c => LivingWorld.Simulation.Players.PlayerNature.TreeAt(world, c) is not null)
+            .OrderBy(c => Math.Max(Math.Abs(c.X - work.X), Math.Abs(c.Y - work.Y))).ThenBy(c => c.Y).ThenBy(c => c.X).First();
+        (work.WoodsX, work.WoodsY) = (tree.X, tree.Y);
+        Hour(world, ctx);
+        var trip = Assert.Single(work.Hauls);
+        var woods = new CellCoord(trip.X, trip.Y);
+        Assert.Equal(tree, woods);
+        Assert.NotNull(LivingWorld.Simulation.Players.PlayerNature.TreeAt(world, woods)); // a mata é uma árvore do motor, não um ponto qualquer
+        long cap = LivingWorld.Simulation.Players.PlayerNature.Capacity(world, woods);
+        long now = world.CurrentDate.TotalMilliseconds;
+        Assert.Equal(cap, LivingWorld.Simulation.Players.PlayerNature.Left(world, woods, now));
+
+        // deixa uma unidade só: o primeiro corte esgota a árvore
+        LivingWorld.Simulation.Players.PlayerNature.Take(world, woods, now, cap - 1);
+        builder.MoveTo(woods, world.CurrentDate.TotalHours);
+        builder.SetCurrentAction(LivingWorld.Domain.Behavior.ActionType.Work, world.CurrentDate.TotalHours);
+        for (long h = 0; h < trip.GatherHours * 2 && work.Hauls.Count > 0 && !builder.IsCarrying; h++)
+        {
+            Hour(world, ctx);
+            if (work.Hauls.Count > 0 && new CellCoord(work.Hauls[0].X, work.Hauls[0].Y) != woods) break; // já seguiu para outra árvore
+        }
+        Assert.Equal(0, LivingWorld.Simulation.Players.PlayerNature.Left(world, woods, world.CurrentDate.TotalMilliseconds)); // toco
+        Assert.Contains(LivingWorld.Simulation.Players.PlayerNature.Touched(world), t => t.Cell == woods && t.Left == 0);
+        Assert.NotEqual(woods, new CellCoord(work.WoodsX, work.WoodsY)); // a obra passou à árvore viva mais perto
+        Assert.True(LivingWorld.Simulation.Players.PlayerNature.Left(world, new CellCoord(work.WoodsX, work.WoodsY), world.CurrentDate.TotalMilliseconds) > 0);
+    }
+
     [Fact]
     public void The_household_brings_the_material_it_already_has_before_buying_or_cutting()
     {
@@ -223,11 +260,11 @@ public class WorkMaterialTests
     [Fact]
     public void Cutting_in_the_woods_does_not_count_again_the_walk_that_is_now_walked()
     {
-        var (world, _, _, work, _) = HouseWork(StreetRules.Default);
+        var (world, _, _, work, _) = HouseWork(StreetRules.Default, regional: true);
         var site = new CellCoord(work.X, work.Y);
         var far = new CellCoord(Math.Min(world.Map.Width - 1, site.X + 10), site.Y);
         long without = WorkHaul.CutHours(world, site, far, 10);
-        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"));
+        var (plain, _, _, _, _) = HouseWork(StreetRules.Default.WithAd195Mode("nocut"), regional: true);
         long with = WorkHaul.CutHours(plain, site, far, 10);
         Assert.Equal((long)Math.Ceiling(plain.StreetRules.HouseGatherHours * 10.0 / plain.StreetRules.HouseMaterialUnits), with);
         Assert.True(without < with, $"o corte sem a caminhada ({without} h) é menor que o total de antes ({with} h)");

@@ -1,0 +1,43 @@
+{
+  "damage": "number",
+  "lethal": "boolean",
+  "outcome": "string",
+  "playerId": "string",
+  "pose": {
+    "buildingId?": "number",
+    "cellMeters": "number",
+    "combat": {
+      "guard?": "string",
+      "guardMs": "number",
+      "guardReadyInMs": "number",
+      "lastIncoming?": {
+        "agoMs": "number",
+        "by": "number",
+        "damage": "number",
+        "outcome": "string"
+      },
+      "reachMeters": "number",
+      "strikeReadyInMs": "number"
+    },
+    "floor": "number",
+    "fx": "number",
+    "fy": "number",
+    "ground": {
+      "cause": "string",
+      "slowPct": "number",
+      "terrain": "number",
+      "terrainPct": "number"
+    },
+    "npcId": "number",
+    "playerId": "string",
+    "readyInMs": "number",
+    "running": "boolean",
+    "speedMps": "number",
+    "x": "number",
+    "y": "number"
+  },
+  "reaction?": "string",
+  "reactionMs": "number",
+  "readyInMs": "number",
+  "targetId": "number"
+}

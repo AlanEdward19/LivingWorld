@@ -36,6 +36,7 @@ func _init() -> void:
 		if file.begins_with("test_") and file.ends_with(".gd") and file != "test_base.gd":
 			files.append(file)
 	files.sort()
+	var admin_token := OS.get_environment("LW_ADMIN_TOKEN") # o ambiente é do processo: teste que liga a API o muda
 	for file in files:
 		var name := file.trim_suffix(".gd")
 		if file_filter != "" and name != file_filter:
@@ -46,6 +47,8 @@ func _init() -> void:
 				continue
 			if test_filter != "" and method.name != test_filter:
 				continue
+			if admin_token == "": OS.unset_environment("LW_ADMIN_TOKEN")
+			else: OS.set_environment("LW_ADMIN_TOKEN", admin_token)
 			var instance = script.new()
 			instance.tree = self
 			ran += 1

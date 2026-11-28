@@ -109,7 +109,10 @@ func _interior_hit(screen: Vector2) -> Dictionary:
 		objects[index] = points[index].position
 	var object = nearest(objects, camera, screen, 26.0)
 	if object != null:
-		return Registry.ref(Registry.OBJECT, String(points[int(object)].id))
+		var ref := Registry.ref(Registry.OBJECT, String(points[int(object)].id))
+		var spot: Vector3 = points[int(object)].position
+		ref["cell"] = Vector2i(Grid.to_cell(spot)) # #267: a célula do móvel clicado (o motor oferece cada peça na sua célula)
+		return ref
 	return {}
 
 
@@ -269,10 +272,22 @@ func focus_points(hovered: Dictionary) -> Array:
 	return points
 
 
-## Prédio que cobre o que importa fica translúcido enquanto cobrir (só a cidade; no interior não há prédio na frente).
+## Prédio que cobre o que importa fica translúcido enquanto cobrir (só a cidade). #249: com a casa em foco a cidade continua desenhada
+## em volta: os vizinhos que ficam entre a câmera e a casa (ou o corpo dentro dela) ficam translúcidos; a própria casa não é um deles.
 func update_fade(hovered: Dictionary) -> void:
-	if app.stage.active or app.store.kind != "City":
+	if app.store.kind != "City":
 		app.world_view.buildings.set_faded({})
+		return
+	if app.stage.active:
+		var neighbors: Dictionary = {}
+		if app.rig.mode != app.rig.ISO:
+			neighbors = app.rig.seen_ids().duplicate()
+		elif app.rig.camera.is_inside_tree():
+			var looking: Vector3 = -app.rig.camera.global_transform.basis.z
+			neighbors = app.world_view.buildings.occluders([[app.stage.interior_view.center() + Vector3(0, 0.5, 0), app.stage.covered_building]], looking)
+		neighbors.erase(-1)
+		neighbors.erase(app.stage.covered_building)
+		app.world_view.buildings.set_faded(neighbors)
 		return
 	if app.rig.mode != app.rig.ISO: # AD-197s: encarnado, quem cobre o corpo é a conta do braço de mola (não a das ortográficas, que apagava a dela)
 		var seen: Dictionary = app.rig.seen_ids()

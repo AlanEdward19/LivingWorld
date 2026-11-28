@@ -11,6 +11,17 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Relógio do mundo, ticks, agendamento de eventos | [time-and-ticks.md](domain/time-and-ticks.md) |
 | Tempo em milissegundos, Δ variável, contrato v2 (ADR-0050) | [time-in-milliseconds.md](domain/time-in-milliseconds.md) |
 | Tempo real com jogador, ritmo por mundo, passo fino dos NPCs, dormir e acelerar (AD-197c) | [real-time-rhythm.md](domain/real-time-rhythm.md) |
+| Combate do jogador: alcance em metros, recarga, esquiva, bloqueio e reação do NPC (#234) | [player-combat.md](domain/player-combat.md) |
+| Andar do jogador: o motor anda o rumo mantido, comando numerado, reconciliação e máscara de chão (#248) | [player-walk.md](domain/player-walk.md) |
+| Casa de verdade: parede em aresta, cômodos por função como catálogo do cenário, portas e móveis no cômodo certo (#226) | [house-rooms.md](domain/house-rooms.md) |
+| Necessidades e objetos da casa como dado: catálogo embutido, usos que andam até a peça, fila, parceiro que se cuida (#255) | [needs-and-objects.md](domain/needs-and-objects.md) |
+| Interações sociais como catálogo em dados: aceitação por termos, efeitos, par que lembra, iniciativa dos NPCs, relação visível (#259) | [social-interactions.md](domain/social-interactions.md) |
+| Humor: momentos com causa e duração, emoção dominante, aspirações e desejos como catálogo; efeitos na aceitação, nos usos e na iniciativa (#262) | [moods-and-aspirations.md](domain/moods-and-aspirations.md) |
+| Comprar, posicionar e construir: catálogo de móveis em dados, loja do bairro, beleza do cômodo, parede, porta, ampliar e pintar (#264) | [buy-and-build.md](domain/buy-and-build.md) |
+| Carreiras e contas da casa como dado: turno fora do mapa, desempenho, promoção, salário do empregador, contas que vencem e cortam (#263) | [careers-and-bills.md](domain/careers-and-bills.md) |
+| Sandbox do casal: período em dados, tamanho da casa no cenário, troca de corpo sem sumir (#252) | [sandbox.md](domain/sandbox.md) |
+| Metas que nascem do mundo, habilidades que sobem com o uso e diário do jogador (#235) | [player-goals.md](domain/player-goals.md) |
+| Extração: a madeira sai aos poucos de uma árvore que é estado finito do mundo; jogador e NPC usam a mesma fonte (#243) | [extraction.md](domain/extraction.md) |
 | Quanto detalhe simular por região, agregação, materialização de NPC | [simulation-lod.md](domain/simulation-lod.md) |
 | Identidade, atributos, personalidade, necessidades, habilidades | [npc.md](domain/npc.md) |
 | Decisão do NPC no dia a dia (utility AI, rotina, objetivos) | [behavior.md](domain/behavior.md) |
@@ -27,6 +38,8 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Toda construção é obra: casa, oficina, jornal que disputa a mão (AD-184) | [build-works.md](domain/build-works.md) |
 | Material de verdade no canteiro e o dia perdido pelo tempo (AD-194) | [work-material.md](domain/work-material.md) |
 | Bairro denso: sujeira da casa, higiene na doença, como cada um vê o bairro, onde morar (AD-192) | [dense-quarter.md](domain/dense-quarter.md) |
+| Depois do turno: casa, largo, conhecido, passeio; moradores em células distintas; "na cidade · na rua" (#242) | [after-work-outings.md](domain/after-work-outings.md) |
+| Onde cada trabalhador fica ao trabalhar: posto, campo da lavoura, lotação por célula (#223) | [work-stands.md](domain/work-stands.md) |
 | Mapa, regiões, biomas, terreno, camadas de visualização | [world-map.md](domain/world-map.md) |
 | Estações, temperatura, tempo do dia (chuva, neve, lama, seca, luz) e o que ele muda | [climate.md](domain/climate.md) |
 | Event log, linha do tempo, dinastias, crônicas | [history.md](domain/history.md) |

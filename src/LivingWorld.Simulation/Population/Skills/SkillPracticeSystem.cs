@@ -46,13 +46,20 @@ public sealed class SkillPracticeSystem : ISimulationSystem
             if (npc.CurrentLocation != workplace.Location) continue;
             if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) continue;
 
-            double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / world.CurrentDate.Calendar.HoursPerYear;
-            double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value)
-                * _rules.Learning.Aptitude(age) // plasticidade da idade (AD-132)
-                * SkillMechanic.ManifestedLearnRate(world, npc)
-                * VocationMechanic.LearningFit(_rules, npc) // aprende mais no que combina com ele (AD-136)
-                * world.OntogenyRules.FineMotorWorkFactor(npc.Development); // AD-163: a mão inábil pratica menos
+            double gain = PracticeGain(world, _rules, npc, skillType);
             npc.GainSkill(skillType, gain, _rules.Cap);
         }
+    }
+
+    /// <summary>Quanto uma prática rende a <paramref name="npc"/> em <paramref name="skill"/> agora: a mesma conta do <see cref="Tick"/>,
+    /// exposta para a consulta de progresso do jogador (#235) mostrar o ritmo sem reimplementá-la.</summary>
+    public static double PracticeGain(WorldState world, SkillsRules rules, Npc npc, SkillType skill)
+    {
+        double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / world.CurrentDate.Calendar.HoursPerYear;
+        return rules.Gain(npc.Skills.Get(skill), SkillGainSource.Practice, npc.RateGene.Value)
+            * rules.Learning.Aptitude(age) // plasticidade da idade (AD-132)
+            * SkillMechanic.ManifestedLearnRate(world, npc)
+            * VocationMechanic.LearningFit(rules, npc) // aprende mais no que combina com ele (AD-136)
+            * world.OntogenyRules.FineMotorWorkFactor(npc.Development); // AD-163: a mão inábil pratica menos
     }
 }

@@ -7,19 +7,28 @@ const Anim := preload("res://Scenes/animation_catalog.gd")
 const Look := preload("res://Scenes/npc_look.gd")
 const Props := preload("res://Scenes/npc_props.gd")
 const RouteWalk := preload("res://Scenes/route_walk.gd")
+const Rig := preload("res://Scenes/npc_rig.gd")
+const BodyPose := preload("res://Scenes/body_pose.gd")
+const NpcMesh := preload("res://Scenes/npc_mesh.gd")
 
 const LEG_X := 0.08
+## #237: o corpo deitado fica centrado na origem do ator (a pose antiga ia de z -1,43 a -0,28: com a origem na cama, o corpo cruzava a parede de trás)
+const LYING_SHIFT := 0.855
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
 const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a0652a"), Color("d6b36a"), Color("8b8b8b"), Color("b5482a")]
 ## Rampas dos genes de aparência do motor (#46 fatia 2), do mais claro ao mais escuro.
 const SKIN_RAMP: Array[Color] = [Color("f6dcc2"), Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30"), Color("4e2f1f")]
 const HAIR_RAMP: Array[Color] = [Color("e9dcae"), Color("d6b36a"), Color("a0652a"), Color("5a3a22"), Color("2b1b12")]
 const EYE_RAMP: Array[Color] = [Color("8fb4d8"), Color("6f9f8a"), Color("7d6b3a"), Color("4a2f1c"), Color("1c1410")] ## AD-197t: olhos, do claro ao escuro
+const OUTFIT_HATS: Array[String] = ["straw", "cap", "none", "none", "hood", "cap"] ## #267: o chapéu de cada traje (mesma ordem): duas pessoas do mesmo ofício não usam o mesmo chapéu se o motor deu trajes diferentes
 const OUTFIT_COLORS: Array[Color] = [Color("8a7a52"), Color("5a6a7a"), Color("8a3a3a"), Color("5a3a8a"), Color("e8e4d8"), Color("4a6a3a")] ## AD-197t: traje, na ordem de `Appearance.OutfitNames` do motor
 const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa, compartilhados entre todos os NPCs
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
 static var frozen := false
+static var labels_muted := false ## #260: com a roda do E aberta o nome sobre a pessoa some (não cobre a roda)
+const NAME_PIXEL_SIZE := 0.0011 ## #260: o nome tem tamanho fixo na tela (não incha quando a câmera chega perto)
+const NAME_FONT := 22
 ## Hora do mundo contínua (RouteClock), posta pelo renderizador a cada quadro: quem tem rota anda por ela.
 static var world_tick := 0.0
 static var _meshes: Dictionary = {}
@@ -35,7 +44,26 @@ var cell := Vector2i.ZERO
 var action := -1
 var pose := Anim.NEUTRAL_POSE
 var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre. AD-197t: quem o jogador montou traz também eye_tone, face_shape e outfit
-var _eyes: Array[MeshInstance3D] = [] ## só em quem tem eye_tone (a pessoa montada no criador): não custa nós nos demais
+var _eye_color: Variant = null ## cor da íris do criador (eye_tone); sem ela, a cor sai da semente (id)
+var _style: Dictionary = {} ## #254: corte de cabelo, barba, roupa do período e cores por semente (Look.style_of)
+var _beard: MeshInstance3D
+var _blink := 1.0 ## abertura dos olhos (1 aberto, ~0,1 piscando)
+var _blend := 1.0 ## #254: mistura da pose anterior com a nova (0 = pose velha, 1 = nova): troca suave
+var _blend_from: Array = []
+var _last_effective := ""
+var _rig = null ## #230: esqueleto articulado (npc_rig.gd), só de perto; longe é null e não custa nada
+var full_rig := false: ## prévia do criador: sempre articulado e com rosto
+	set(value):
+		full_rig = value
+		if value:
+			set_detail(true)
+		_sync_rig()
+var ground_probe := Callable() ## (Vector3 do mundo) -> altura do chão ou NAN: o pé acompanha o terreno; sem ele usa as alturas da rota
+var _pants_color := Color("5a5a66")
+var _torso_base := Vector3.ONE
+var _head_base := Vector3.ONE
+var _head_mult := Vector3.ONE
+var _gesture_target := Vector3.INF
 var _outfit_color: Variant = null ## cor do traje escolhido; vence a camisa do ofício
 var label_text := ""
 var display_name := ""
@@ -99,6 +127,9 @@ func _mat(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.85
+	material.rim_enabled = true # #254: contorno de luz suave (fresnel simples): a figura se destaca do fundo sem textura
+	material.rim = 0.28
+	material.rim_tint = 0.45
 	return material
 
 
@@ -118,35 +149,34 @@ func apply_look(p_look: Dictionary) -> void:
 	_skin_color = ramp_color(SKIN_RAMP, int(look.skin_tone))
 	_skin_mesh.material_override = _shared_mat(_skin_color)
 	_hair_mesh.material_override = _shared_mat(ramp_color(HAIR_RAMP, int(look.hair_tone)))
+	_face_expression = "-" # a cor do cabelo pinta as sobrancelhas e a barba: o rosto refaz na próxima vez que estiver perto
 	var curl := float(look.hair_curl) / 100.0
 	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
 	var width := 0.85 + 0.4 * float(look.build) / 100.0
-	_torso.scale = Vector3(width, 1.0, width)
+	_torso_base = Vector3(width, 1.0, width)
+	_torso.scale = _torso_base
 	_apply_made_look()
+	if _rig != null:
+		_rig.refit(self)
 
 
 ## AD-197t: o que só o criador de personagem manda: olhos, rosto (largura da cabeça) e traje. Quem não tem não cria nada.
 func _apply_made_look() -> void:
 	if look.has("face_shape"):
 		var wide := 0.88 + 0.3 * float(look.face_shape) / 100.0
-		_head.scale = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
+		_head_base = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
+		_apply_head_scale()
 	if look.has("eye_tone"):
-		if _eyes.is_empty():
-			var mesh := _shared_mesh("eye", func():
-				var m := SphereMesh.new()
-				m.radius = 0.022
-				m.height = 0.044
-				m.radial_segments = 8
-				m.rings = 4
-				return m)
-			for side in [-1, 1]:
-				_eyes.append(_part(_head, mesh, _shared_mat(Color.BLACK), Vector3(side * 0.045, 0.02, 0.118)))
-		var eye_color := ramp_color(EYE_RAMP, int(look.eye_tone))
-		for eye in _eyes:
-			eye.material_override = _shared_mat(eye_color)
+		_eye_color = ramp_color(EYE_RAMP, int(look.eye_tone))
+		_face_expression = "-"
 	if look.has("outfit"):
 		_outfit_color = OUTFIT_COLORS[clampi(int(look.outfit), 0, OUTFIT_COLORS.size() - 1)]
 		_shirt.albedo_color = _outfit_color
+		_set_hat(hat_for(String(spec.get("hat", "none")))) # #267: o traje que o motor deu também escolhe o chapéu
+
+
+func _apply_head_scale() -> void:
+	_head.scale = _head_base * _head_mult
 
 
 ## Materiais sem emissão variável são compartilhados entre todos os NPCs (menos memória e trocas de estado).
@@ -172,15 +202,11 @@ func _part(parent: Node3D, mesh: Mesh, material: Material, at: Vector3) -> MeshI
 	return node
 
 
-func _limb(parent: Node3D, shoulder: Vector3, size: Vector3, material: Material) -> Node3D:
+func _limb(parent: Node3D, shoulder: Vector3, mesh: Mesh, material: Material, length: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.position = shoulder
 	parent.add_child(pivot)
-	var mesh := _shared_mesh("limb%s" % size, func():
-		var m := BoxMesh.new()
-		m.size = size
-		return m)
-	_part(pivot, mesh, material, Vector3(0, -size.y / 2.0, 0))
+	_part(pivot, mesh, material, Vector3(0, -length / 2.0, 0))
 	return pivot
 
 
@@ -189,7 +215,8 @@ func _build() -> void:
 	rng.seed = npc_id * 7919 + 17
 	var hue := rng.randf()
 	_shirt = _mat(Color.from_hsv(hue, 0.55, 0.8))
-	var pants := _shared_mat(Color.from_hsv(snappedf(fmod(hue + 0.5, 1.0), 0.1), 0.35, 0.4))
+	_pants_color = Color.from_hsv(snappedf(fmod(hue + 0.5, 1.0), 0.1), 0.35, 0.4)
+	var pants := _shared_mat(_pants_color)
 	_skin_color = SKIN_TONES[rng.randi() % SKIN_TONES.size()]
 	var skin := _shared_mat(_skin_color)
 	var hair := _shared_mat(HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
@@ -198,37 +225,18 @@ func _build() -> void:
 
 	_body = Node3D.new()
 	add_child(_body)
-	var torso_mesh := _shared_mesh("torso", func():
-		var m := CapsuleMesh.new()
-		m.radius = 0.17
-		m.height = 0.55
-		return m)
-	_torso = _part(_body, torso_mesh, _shirt, Vector3(0, 0.62, 0))
+	_torso = _part(_body, NpcMesh.torso("male"), _shirt, Vector3(0, 0.62, 0))
 	_shadow_parts.append(_torso)
 	_head = Node3D.new()
 	_head.position = Vector3(0, 0.98, 0)
 	_body.add_child(_head)
-	var head_mesh := _shared_mesh("head", func():
-		var m := SphereMesh.new()
-		m.radius = 0.13
-		m.height = 0.26
-		m.radial_segments = 12
-		m.rings = 6
-		return m)
-	_skin_mesh = _part(_head, head_mesh, skin, Vector3.ZERO)
+	_skin_mesh = _part(_head, NpcMesh.head(), skin, Vector3.ZERO)
 	_shadow_parts.append(_skin_mesh)
-	var hair_mesh := _shared_mesh("hair", func():
-		var m := SphereMesh.new()
-		m.radius = 0.14
-		m.height = 0.2
-		m.radial_segments = 12
-		m.rings = 6
-		return m)
-	_hair_mesh = _part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02))
+	_hair_mesh = _part(_head, NpcMesh.hair("short"), hair, Vector3.ZERO)
 	_shadow_parts.append(_hair_mesh)
 	for side in [-1, 1]:
-		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), Vector3(0.08, 0.34, 0.08), _shirt))
-		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), Vector3(0.1, 0.36, 0.1), pants))
+		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), NpcMesh.limb(0.34, 0.05, 0.042), _shirt, 0.34))
+		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), NpcMesh.limb(0.36, 0.066, 0.05), pants, 0.36))
 
 	apply_look(look)
 
@@ -249,6 +257,8 @@ func _build() -> void:
 func _get_tool() -> Node3D:
 	if _tool == null:
 		_tool = Props.tool(_arms[1], _tool_kind)
+		if _rig != null and _rig.active:
+			_rig.attach_new_prop(_tool, false)
 	return _tool
 
 
@@ -278,13 +288,13 @@ func _get_bed() -> Node3D:
 		add_child(_bed)
 		var mattress := BoxMesh.new()
 		mattress.size = Vector3(0.7, 0.14, 1.15)
-		_part(_bed, mattress, _mat(Color("e9e2d0")), Vector3(0, 0.07, 0.1))
+		_part(_bed, mattress, _mat(Color("e9e2d0")), Vector3(0, 0.07, 0.0))
 		var frame := BoxMesh.new()
 		frame.size = Vector3(0.76, 0.06, 1.2)
-		_part(_bed, frame, _mat(Color("6b4a2b")), Vector3(0, 0.03, 0.1))
+		_part(_bed, frame, _mat(Color("6b4a2b")), Vector3(0, 0.03, 0.0))
 		var pillow := BoxMesh.new()
 		pillow.size = Vector3(0.3, 0.07, 0.2)
-		_part(_bed, pillow, _mat(Color("ffffff")), Vector3(0, 0.17, 0.5))
+		_part(_bed, pillow, _mat(Color("ffffff")), Vector3(0, 0.17, -0.38))
 	return _bed
 
 
@@ -303,6 +313,60 @@ func _get_ring() -> MeshInstance3D:
 		_ring.position.y = 0.03
 		add_child(_ring)
 	return _ring
+
+
+## #268: o corpo que o jogador conduz, visto de cima (câmera alta, de cômodo ou de rua colada na parede), é uma "bolinha" de chapéu e cabelo: um realce sutil no chão (disco
+## suave com contorno) o separa do resto e cresce com a distância da câmera (tamanho aparente mínimo), sem mexer na escala do corpo (a pegada e o chão são os do motor).
+const HALO_RADIUS_M := 0.5
+const HALO_REF_M := 3.0 ## até esta distância da câmera o realce tem o tamanho de base; depois cresce com ela
+const HALO_MAX := 2.2
+var _halo: Node3D
+var legible := false
+
+
+func _get_halo() -> Node3D:
+	if _halo == null:
+		_halo = Node3D.new()
+		var fill := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = HALO_RADIUS_M
+		disc.bottom_radius = HALO_RADIUS_M
+		disc.height = 0.01
+		fill.mesh = disc
+		var fill_material := _mat(Color(0.55, 0.85, 1.0, 0.22))
+		fill_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		fill_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		fill.material_override = fill_material
+		_halo.add_child(fill)
+		var outline := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = HALO_RADIUS_M - 0.035
+		torus.outer_radius = HALO_RADIUS_M
+		outline.mesh = torus
+		var outline_material := _mat(Color(0.7, 0.92, 1.0, 0.7))
+		outline_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		outline_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline.material_override = outline_material
+		_halo.add_child(outline)
+		_halo.position.y = 0.025
+		_halo.visible = false
+		add_child(_halo)
+	return _halo
+
+
+## Liga o realce quando o corpo é visto de cima; `distance_m` é a da câmera ao corpo em metros (o realce nunca fica menor que isto na tela).
+func set_legible(on: bool, distance_m: float) -> void:
+	if not is_self:
+		on = false
+	if not on and _halo == null:
+		legible = false
+		return
+	legible = on
+	var halo := _get_halo()
+	halo.visible = on
+	if on:
+		var k := clampf(distance_m / HALO_REF_M, 1.0, HALO_MAX)
+		halo.scale = Vector3(k, 1.0, k)
 
 
 func _get_aura() -> MeshInstance3D:
@@ -324,7 +388,10 @@ func _get_aura() -> MeshInstance3D:
 
 func _get_label() -> Label3D:
 	if _label == null:
-		_label = _text(Vector3(0, 1.45, 0), 26, Color.WHITE)
+		_label = _text(Vector3(0, 1.45, 0), NAME_FONT, Color.WHITE)
+		_label.fixed_size = true
+		_label.pixel_size = NAME_PIXEL_SIZE
+		_label.outline_size = 6
 		_label.visible = false
 	return _label
 
@@ -370,7 +437,15 @@ func apply_model(catalog, profession: int, age_years: float) -> void:
 		_hair_mesh.material_override = _shared_mat(Color(String(by_age.hair)))
 
 
+## #267: o chapéu: o do traje do motor (`look.outfit`) vence o do ofício; sem traje, o do ofício.
+func hat_for(trade_hat: String) -> String:
+	if look.has("outfit"):
+		return OUTFIT_HATS[clampi(int(look.outfit), 0, OUTFIT_HATS.size() - 1)]
+	return trade_hat
+
+
 func _set_hat(kind: String) -> void:
+	kind = hat_for(kind)
 	if _hat != null:
 		_hat.free()
 		_hat = null
@@ -391,6 +466,7 @@ func _set_hat(kind: String) -> void:
 ## Corpo pelo estado (ADR-0047 etapa 3): escala por altura e idade, roupa e chapéu do ofício, cabelo pelo sexo, barriga de
 ## gravidez, palidez e cama de doente, roupa de luto, carga nas costas, recipiente e ferramenta. Só muda o que mudou.
 func apply_observable(obs: Dictionary, catalog = null) -> void:
+	set_combat_reaction(String(obs.get("combat", ""))) # #234: a briga em curso vale mesmo sem mudar o corpo
 	var next := Look.spec_of(obs, catalog)
 	if next == spec:
 		return
@@ -404,14 +480,12 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 		if _hat != null:
 			_hat.free()
 			_hat = null
-		_hat = Props.hat(_head, String(spec.hat))
-	if bool(spec.female) and String(spec.stage) != "baby":
-		_hair_mesh.scale = Vector3(1.06, 1.45, 1.3)
-		_hair_mesh.position = Vector3(0, -0.01, -0.04)
-	else:
-		_hair_mesh.position = Vector3(0, 0.04, -0.02)
+		_hat = Props.hat(_head, hat_for(String(spec.hat)))
+	_apply_style()
 	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
 	_skin_mesh.material_override = _shared_mat(skin)
+	if _rig != null:
+		_rig.refit(self)
 	_set_tool_kind("hammer" if site_work else String(spec.tool))
 	if float(spec.belly) > 0.0:
 		if _belly == null:
@@ -436,10 +510,31 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 	_refresh_face()
 
 
+## #254: corte de cabelo, barba, roupa do período e proporções pelo estágio e sexo (do motor) e pela semente (id). Malhas compartilhadas:
+## trocar de estilo só troca a referência da malha, nunca cria geometria por NPC.
+func _apply_style() -> void:
+	var stage := String(spec.get("stage", "adult"))
+	var female := bool(spec.get("female", false))
+	_style = Look.style_of(npc_id, stage, female, String(spec.get("era", "")))
+	_hair_mesh.mesh = NpcMesh.hair(String(_style.hair))
+	_hair_mesh.position = Vector3.ZERO
+	var kind := "child" if (stage == "baby" or stage == "child") else ("elder" if stage == "elder" else ("female" if female else "male"))
+	_torso.mesh = NpcMesh.torso(kind)
+	_pants_color = _style.pants
+	for leg in _legs:
+		leg.get_child(0).material_override = _shared_mat(_pants_color)
+	var girth := 0.9 if female else (1.12 if (stage == "baby" or stage == "child") else (0.95 if stage == "elder" else 1.0))
+	for limb in _arms + _legs:
+		var mesh_node: Node3D = limb.get_child(0)
+		mesh_node.scale = Vector3(girth, mesh_node.scale.y, girth)
+
+
 func _refresh_held() -> void:
 	var wants: bool = not spec.get("held", {}).is_empty()
 	if wants and _held == null:
 		_held = Props.held(_arms[0], "cylinder", held_color)
+		if _rig != null and _rig.active:
+			_rig.attach_new_prop(_held, true)
 	if _held != null:
 		_held.material_override = Props.material(held_color)
 		_held.visible = wants and near_detail
@@ -458,6 +553,7 @@ func set_detail(value: bool) -> void:
 	if near_detail == value:
 		return
 	near_detail = value
+	_sync_rig()
 	_sync_props()
 	_refresh_held()
 	_refresh_face()
@@ -469,10 +565,22 @@ func _refresh_face() -> void:
 	if wants and expression != _face_expression:
 		if _face != null:
 			_face.free()
-		_face = Props.face(_head, expression)
+		var iris: Color = _eye_color if _eye_color != null else Color(_style.get("eyes", Look.EYE_COLORS[0]))
+		_face = Props.face(_head, expression, iris, _hair_mesh.material_override.albedo_color.darkened(0.15), String(spec.get("stage", "adult")), _skin_mesh.material_override)
 		_face_expression = expression
+		_blink = 1.0
 	if _face != null:
 		_face.visible = wants
+	var beard_kind := int(_style.get("beard", 0))
+	if wants and beard_kind > 0:
+		if _beard == null:
+			_beard = _part(_head, NpcMesh.beard(beard_kind == 2), _hair_mesh.material_override, Vector3.ZERO)
+			_beard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_beard.mesh = NpcMesh.beard(beard_kind == 2)
+		_beard.material_override = _hair_mesh.material_override
+		_beard.visible = true
+	elif _beard != null:
+		_beard.visible = false
 
 
 func set_action(new_action: int, labels, p_use_pose: String = "") -> void:
@@ -489,6 +597,7 @@ func set_far(value: bool) -> void:
 	if far_lod == value:
 		return
 	far_lod = value
+	_sync_rig()
 	for limb in _arms + _legs:
 		limb.visible = not value
 	for part in _shadow_parts:
@@ -502,6 +611,7 @@ func set_bubble(value: bool) -> void:
 	if bubble == value:
 		return
 	bubble = value
+	_sync_rig()
 	_body.visible = not value
 	for leg in _legs:
 		leg.visible = not value
@@ -524,6 +634,47 @@ func set_bubble(value: bool) -> void:
 		_reset_pose()
 	elif _bubble_node != null:
 		_bubble_node.visible = false
+
+
+## #232: fase, peso e corrida da passada do rig ([] sem rig): o tempo dos passos do corpo do jogador.
+func step_state() -> Array:
+	if _rig == null or not _rig.active:
+		return []
+	return [_rig.phase, _rig.gait, _rig.run]
+
+
+## #230: o rig só existe para quem está perto, é o corpo do jogador ou a prévia; ao sair de cena (longe/bolha) os nós são liberados.
+func _sync_rig() -> void:
+	if _body == null:
+		return
+	var want := (near_detail or driven or full_rig) and not far_lod and not bubble
+	if not want and _rig != null and (far_lod or bubble):
+		_rig.deactivate(self, true)
+		_rig = null
+		return
+	var on: bool = _rig != null and _rig.active
+	if want == on:
+		return
+	if want:
+		if _rig == null:
+			_rig = Rig.new()
+		_rig.activate(self)
+	else:
+		_rig.deactivate(self, false)
+
+
+## Altura do chão sob o pé que vai `ahead` à frente, relativa ao corpo (unidades do boneco): o pé sobe o degrau e desce a rampa.
+func foot_ground(ahead: float) -> float:
+	var raw := 0.0
+	if ground_probe.is_valid():
+		var fwd := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+		var y: Variant = ground_probe.call(position + fwd * ahead * scale.x)
+		if y is float and not is_nan(y):
+			raw = float(y) - position.y
+	elif walk != null and not walk.done:
+		var d: float = walk.fraction(world_tick) * walk.total
+		raw = BodyPose.route_height(walk.points, walk.along, d + ahead * scale.x) - BodyPose.route_height(walk.points, walk.along, d)
+	return clampf(raw / maxf(scale.y, 0.01), -BodyPose.MAX_STEP, BodyPose.MAX_STEP)
 
 
 func _sync_props() -> void:
@@ -555,7 +706,7 @@ func _refresh_label() -> void:
 		return
 	var label := _get_label()
 	label.text = ("%s\n%s" % [display_name, label_text]) if display_name != "" else label_text
-	label.visible = (_selected or _hovered) and not is_self
+	label.visible = (_selected or _hovered) and not is_self and not labels_muted
 
 
 ## AD-197p: o corpo do próprio jogador: sem nome, ação nem anel sobre ele (quem joga já sabe quem é).
@@ -639,7 +790,10 @@ func base_position() -> Vector3:
 	return _from.lerp(_to, _t)
 
 
-var driven := false ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+var driven := false: ## AD-197k: o corpo do jogador anda solto pela posição fina (o delta da grade não o puxa ao centro da célula)
+	set(value):
+		driven = value
+		_sync_rig() # #230: o corpo do jogador é sempre articulado
 
 
 ## AD-197k: a posição fina (células, absoluta) do corpo do jogador; vira para onde anda.
@@ -735,7 +889,7 @@ func animate(dt: float) -> void:
 		return
 	_clock += dt
 	if not far_lod and not bubble:
-		_animate()
+		_animate(dt)
 
 
 func advance(dt: float) -> void:
@@ -786,17 +940,81 @@ func _reset_pose() -> void:
 		limb.rotation = Vector3.ZERO
 	for i in _legs.size():
 		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
-	_torso.scale = Vector3.ONE
+	_torso.scale = _torso_base
+	if _rig != null and _rig.active:
+		_rig.reset_joints()
 	if _shirt.emission != Color.BLACK: # só o poder acende a roupa: não reenvia o material de 500 NPCs a cada quadro
 		_shirt.emission = Color.BLACK
 
 
-const STRIKE_TIME := 0.35 ## s do golpe (AD-197j): o braço vai acima da cabeça e desce
+const STRIKE_TIME := 0.42 ## s do golpe (AD-197j, #234): antecipação (braço sobe), impacto (desce rápido) e recuo (volta)
+const STRIKE_WINDUP := 0.4 ## fração do golpe na antecipação
+const STRIKE_IMPACT := 0.6 ## fração em que o impacto termina e o recuo começa
 
 
 ## AD-197j: o golpe que o motor aceitou (ou tentou): o braço da frente desce no alvo.
 func play_strike() -> void:
 	_strike_until = _clock + STRIKE_TIME
+
+
+## #234: a fase do golpe (k de 0 a 1): "windup" (antecipação), "impact" (impacto) ou "recover" (recuo).
+static func strike_phase(k: float) -> String:
+	return "windup" if k < STRIKE_WINDUP else ("impact" if k < STRIKE_IMPACT else "recover")
+
+
+## #234: o braço da frente no golpe (rotação em x): sobe devagar, desce rápido, volta ao repouso.
+static func strike_arm(k: float) -> float:
+	if k < STRIKE_WINDUP:
+		return lerpf(0.0, -2.6, k / STRIKE_WINDUP)
+	if k < STRIKE_IMPACT:
+		return lerpf(-2.6, 0.5, (k - STRIKE_WINDUP) / (STRIKE_IMPACT - STRIKE_WINDUP))
+	return lerpf(0.5, 0.0, (k - STRIKE_IMPACT) / (1.0 - STRIKE_IMPACT))
+
+
+func striking() -> bool:
+	return _clock < _strike_until
+
+
+const DEFENSE_TIME := {"dodge": 0.38, "block": 0.32, "hurt": 0.4, "recoil": 0.3} ## s de cada reação no corpo
+var _defense := ""
+var _defense_from := -1.0
+var guarding := false ## #234: a guarda do motor vale agora (braços cruzados à frente)
+var combat_reaction := "" ## #234: a reação de briga em curso que o motor projetou (retaliate, flee, callHelp, recoil)
+
+
+## #234: reação do corpo ao golpe recebido: esquiva (desvia e agacha), bloqueio (braços à frente), ferida (tranco para trás)
+## ou recuo (passo atrás).
+func play_defense(kind: String) -> void:
+	if not DEFENSE_TIME.has(kind):
+		return
+	_defense = kind
+	_defense_from = _clock
+
+
+func defense_playing() -> String:
+	return _defense if _defense_from >= 0.0 and _clock < _defense_from + float(DEFENSE_TIME.get(_defense, 0.0)) else ""
+
+
+func set_guard(on: bool) -> void:
+	guarding = on
+
+
+## #234: o que o motor projetou da briga deste NPC (campo opcional `combat` do observável). Fugir é correr; revidar é golpear;
+## pedir ajuda é chamar (e correr); recuar é o passo atrás. Só reage quando a reação muda, e nunca no corpo do jogador.
+func set_combat_reaction(kind: String) -> void:
+	if kind == combat_reaction:
+		return
+	combat_reaction = kind
+	if is_self:
+		return
+	running = kind == "flee" or kind == "callHelp"
+	match kind:
+		"retaliate":
+			play_strike()
+		"callHelp":
+			play_gesture("call", 1.4)
+		"recoil":
+			play_defense("recoil")
 
 
 ## #222: o pulo que o motor deixou: o corpo sobe e desce em `air_s` segundos (parábola), pernas encolhidas no alto.
@@ -807,28 +1025,48 @@ func play_jump(air_s: float) -> void:
 
 ## #224: gesto curto por cima da pose (o verbo que o motor aceitou: pegar, dar, beber, comer, empurrar a porta, subir, conversar,
 ## trabalhar). Toca igual em 1ª e 3ª pessoa; em 1ª as mãos sobem para dentro do quadro.
-const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest"]
+const GESTURES := ["reach", "give", "drink", "eat", "push", "climb", "talk", "work", "rest", "call", "chop", "hug", "kiss", "laugh", "argue", "plead"]
 var _gesture := ""
 var _gesture_from := -1.0
 var _gesture_len := 0.0
 var running := false ## #224: o motor disse que o corpo corre (só o do jogador): passada mais larga e rápida, corpo inclinado
 
 
-func play_gesture(kind: String, seconds: float = 0.9) -> void:
+## `target` (ponto do mundo, opcional): onde a mão vai (o objeto pego/empurrado); sem ele usa o ponto típico do gesto à frente do corpo.
+func play_gesture(kind: String, seconds: float = 0.9, target: Vector3 = Vector3.INF) -> void:
 	if not kind in GESTURES:
 		return
+	_gesture_target = Vector3.INF if target == Vector3.INF else Basis(Vector3.UP, rotation.y).inverse() * (target - position) / maxf(scale.x, 0.01)
 	_gesture = kind
 	_gesture_from = _clock
 	_gesture_len = maxf(0.2, seconds)
+	_gesture_loop = false
+
+
+var _gesture_loop := false ## #241: gesto em laço enquanto a ação do motor dura (cortar lenha...): peso constante, ciclo pelo relógio
+
+
+## #241: o gesto da ação que ocupa o corpo, em laço por `seconds` reais (o fim vem do motor; `stop_gesture` corta antes).
+func play_loop(kind: String, seconds: float) -> void:
+	if not kind in GESTURES:
+		return
+	play_gesture(kind, seconds)
+	_gesture_loop = true
+
+
+func stop_gesture() -> void:
+	_gesture_from = -1.0
+	_gesture_loop = false
 
 
 func gesture_playing() -> String:
 	return _gesture if _gesture_from >= 0.0 and _clock < _gesture_from + _gesture_len else ""
 
 
-func _apply_gesture() -> void:
+## `amplitude` < 0: envelope em seno (corpo sem rig). O rig passa 1 e mistura por conta própria (envelope de platô).
+func _apply_gesture(amplitude: float = -1.0) -> void:
 	var t := (_clock - _gesture_from) / _gesture_len
-	var k := sin(clampf(t, 0.0, 1.0) * PI) # sobe e volta
+	var k := sin(clampf(t, 0.0, 1.0) * PI) if amplitude < 0.0 else amplitude # sobe e volta
 	match _gesture:
 		"reach": # agacha e estende as duas mãos ao chão/à prateleira (pegar, recolher, encher o cântaro)
 			_body.rotation.x = 0.55 * k
@@ -871,6 +1109,87 @@ func _apply_gesture() -> void:
 		"rest": # deixa o corpo cair (deitar, sentar)
 			_body.position.y = -0.1 * k
 			_head.rotation.x = 0.3 * k
+		"chop": # #241: golpe de machado em laço: as duas mãos sobem e descem juntas, o corpo acompanha
+			var swing := BodyPose.chop_swing(_clock / BodyPose.CHOP_PERIOD)
+			_arms[0].rotation.x = lerpf(-1.1, -2.9, swing) * k
+			_arms[1].rotation.x = lerpf(-1.2, -3.0, swing) * k
+			_body.rotation.x = lerpf(0.3, -0.12, swing) * k
+			_legs[0].rotation.x = 0.12 * k
+			_legs[1].rotation.x = -0.12 * k
+		"hug": # #259: abraço: os dois braços à frente e para dentro, o corpo se inclina para o outro
+			_arms[0].rotation.x = -1.35 * k
+			_arms[1].rotation.x = -1.35 * k
+			_arms[0].rotation.z = 0.55 * k
+			_arms[1].rotation.z = -0.55 * k
+			_body.rotation.x = 0.16 * k
+			_head.rotation.z = 0.18 * k
+		"kiss": # #259: beijo: o corpo e a cabeça se inclinam, uma das mãos sobe ao rosto do outro
+			_body.rotation.x = 0.2 * k
+			_head.rotation.x = 0.22 * k
+			_head.rotation.z = -0.2 * k
+			_arms[1].rotation.x = -1.2 * k
+			_arms[0].rotation.x = -0.5 * k
+		"laugh": # #259: risada: a cabeça vai para trás e o tronco sacode
+			_head.rotation.x = -0.35 * k
+			_body.rotation.x = -0.08 * k + sin(_clock * 15.0) * 0.05 * k
+			_arms[0].rotation.x = -0.5 * k + sin(_clock * 15.0) * 0.18 * k
+			_arms[1].rotation.x = -0.35 * k - sin(_clock * 15.0) * 0.18 * k
+		"argue": # #259: discussão: braços agitados e a cabeça balançando
+			_arms[0].rotation.x = -1.6 * k + sin(_clock * 9.0) * 0.6 * k
+			_arms[1].rotation.x = -1.4 * k + cos(_clock * 8.0) * 0.6 * k
+			_head.rotation.y = sin(_clock * 7.0) * 0.4 * k
+			_body.rotation.x = 0.1 * k
+		"plead": # #259: pedido de desculpa: as mãos juntas à frente, a cabeça baixa
+			_arms[0].rotation.x = -1.15 * k
+			_arms[1].rotation.x = -1.15 * k
+			_arms[0].rotation.z = 0.35 * k
+			_arms[1].rotation.z = -0.35 * k
+			_head.rotation.x = 0.38 * k
+			_body.rotation.x = 0.1 * k
+		"call": # #234: pedir ajuda: os dois braços para o alto, acenando
+			_arms[0].rotation.x = -2.8 * k
+			_arms[1].rotation.x = -2.9 * k
+			_arms[0].rotation.z = -0.3 * k + sin(_clock * 11.0) * 0.35 * k
+			_arms[1].rotation.z = 0.3 * k + sin(_clock * 11.0 + 1.0) * 0.35 * k
+			_head.rotation.x = -0.25 * k
+
+
+## #254: pisca a cada ~3,6 s (fase pela semente, para ninguém piscar junto); dormindo, de olhos fechados.
+func _blink_eyes(asleep: bool) -> void:
+	if _face == null or not _face.visible:
+		return
+	var cycle := fposmod(_clock + float(npc_id % 7) * 0.9, 3.6)
+	var open := 0.12 if asleep else (1.0 if cycle > 0.16 else 1.0 - sin(cycle / 0.16 * PI) * 0.88)
+	if absf(open - _blink) < 0.01:
+		return
+	_blink = open
+	for eye in _face.get_meta("eyes", []):
+		eye.scale.y = float(eye.get_meta("open", 1.0)) * open
+
+
+func _apply_defense() -> void:
+	var t := (_clock - _defense_from) / float(DEFENSE_TIME[_defense])
+	var k := sin(clampf(t, 0.0, 1.0) * PI)
+	match _defense:
+		"dodge": # desvia para o lado e agacha
+			_body.rotation.z = 0.35 * k
+			_body.position.x = 0.14 * k
+			_body.position.y = -0.1 * k
+			_legs[0].rotation.x = 0.35 * k
+			_legs[1].rotation.x = 0.35 * k
+		"block": # braços à frente, ombros encolhidos
+			_arms[0].rotation.x = -1.7 * k
+			_arms[1].rotation.x = -1.7 * k
+			_body.rotation.x = 0.18 * k
+		"hurt": # o tranco do golpe: corpo e cabeça para trás, braços soltos
+			_body.rotation.x = -0.32 * k
+			_head.rotation.x = -0.35 * k
+			_arms[0].rotation.x = 0.7 * k
+			_arms[1].rotation.x = 0.7 * k
+		"recoil": # um passo atrás
+			_body.rotation.x = -0.14 * k
+			_legs[0].rotation.x = 0.35 * k
+			_legs[1].rotation.x = -0.3 * k
 
 
 var _jump_from := -1.0
@@ -881,16 +1200,34 @@ const JUMP_HEIGHT := 0.22 ## altura do salto em unidades do boneco (~0,4 m num a
 var _strike_until := -1.0
 
 
-func _animate() -> void:
-	_reset_pose()
+## #254: nós que a pose mexe; a troca de pose mistura o último desenho com a pose nova (sem estalo).
+func _pose_nodes() -> Array[Node3D]:
+	return [_body, _head, _arms[0], _arms[1], _legs[0], _legs[1]]
+
+
+const POSE_BLEND_S := 0.28
+
+
+func _animate(dt: float) -> void:
+	var rig_on: bool = _rig != null and _rig.active
 	var phase := _clock * 7.0 + float(npc_id)
 	var lying: bool = String(spec.get("sick_pose", "")) == "bed"
-	var effective := "walk" if (is_moving() and pose != "sleep" and not lying) else ("sleep" if lying else pose)
+	var moving := is_moving() and pose != "sleep" and not lying
+	var effective := "walk" if moving else ("sleep" if lying else pose)
 	if not is_moving() and face_point != Vector3.INF and effective != "sleep":
 		var to := face_point - position
 		if to.length() > 0.2:
 			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), 0.25)
-	match effective:
+	var key := "idle" if (rig_on and effective == "walk") else effective
+	if key != _last_effective:
+		if _last_effective != "": # guarda o desenho do quadro anterior (ainda não zerado) para misturar com a pose nova
+			_blend_from.clear()
+			for node in _pose_nodes():
+				_blend_from.append([node.rotation, node.position])
+			_blend = 0.0
+		_last_effective = key
+	_reset_pose()
+	match key: # com rig a caminhada é uma camada (abaixo), não uma pose
 		"walk":
 			var swing := sin(phase * 1.3)
 			_legs[0].rotation.x = swing * 0.7
@@ -901,10 +1238,10 @@ func _animate() -> void:
 			_body.rotation.x = 0.08
 		"sleep":
 			_body.rotation.x = -PI / 2.0
-			_body.position = Vector3(0, 0.27, -0.28)
+			_body.position = Vector3(0, 0.27, LYING_SHIFT - 0.28)
 			_head.rotation.x = 0.2
 			for i in _legs.size(): # deitadas junto ao quadril do corpo, em vez de em pé no chão
-				_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.27, -0.64)
+				_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.27, LYING_SHIFT - 0.64)
 				_legs[i].rotation.x = -PI / 2.0
 			var zzz := _get_zzz()
 			zzz.position = Vector3(0.1 + sin(_clock) * 0.05, 0.9 + fmod(_clock * 0.3, 0.6), 0)
@@ -959,7 +1296,11 @@ func _animate() -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
-	if effective == "walk" and running: # #224: correr: passada mais rápida e larga, corpo inclinado
+	var breath := sin(_clock * 1.7 + float(npc_id))
+	_torso.scale *= Vector3(1.0 + 0.008 * breath, 1.0 + 0.014 * breath, 1.0 + 0.012 * breath) # respiração
+	if rig_on:
+		_rig.locomotion(self, dt, moving)
+	if effective == "walk" and running and not rig_on: # #224: correr: passada mais rápida e larga, corpo inclinado
 		var stride := sin(_clock * 15.0 + float(npc_id))
 		_legs[0].rotation.x = stride * 1.0
 		_legs[1].rotation.x = -stride * 1.0
@@ -968,17 +1309,41 @@ func _animate() -> void:
 		_body.rotation.x = 0.25
 		_body.position.y = absf(stride) * 0.06
 	if gesture_playing() != "": # por cima da pose: o gesto do verbo aceito
-		_apply_gesture()
+		if rig_on:
+			_rig.gesture(self)
+		else:
+			_apply_gesture()
 	if _jump_from >= 0.0 and _clock < _jump_from + _jump_air: # por cima da pose: o pulo
 		var t := (_clock - _jump_from) / _jump_air
 		var lift := 4.0 * JUMP_HEIGHT * t * (1.0 - t)
 		_body.position.y += lift
-		for i in _legs.size():
-			_legs[i].position.y += lift
-			_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
-	if _clock < _strike_until: # por cima da pose: o golpe
+		if rig_on:
+			_rig.air(lift, sin(t * PI))
+		else:
+			for i in _legs.size():
+				_legs[i].position.y += lift
+				_legs[i].rotation.x = -0.5 * sin(t * PI) * (1 if i == 0 else 0.6)
+	if guarding: # #234: a guarda do motor: braços cruzados à frente, corpo firme
+		_arms[0].rotation.x = -1.7
+		_arms[1].rotation.x = -1.7
+		_arms[0].rotation.z = 0.35
+		_arms[1].rotation.z = -0.35
+		_body.rotation.x = 0.12
+	if defense_playing() != "":
+		_apply_defense()
+	if _clock < _strike_until: # por cima da pose: o golpe (antecipação, impacto, recuo)
 		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
-		_arms[1].rotation.x = lerpf(-2.6, 0.5, k)
-		_body.rotation.x = lerpf(-0.1, 0.25, k)
+		_arms[1].rotation.x = strike_arm(k)
+		_body.rotation.x = lerpf(-0.1, 0.25, clampf(k / STRIKE_IMPACT, 0.0, 1.0)) * (1.0 - maxf(0.0, (k - STRIKE_IMPACT) / (1.0 - STRIKE_IMPACT)))
+	if _blend < 1.0 and not _blend_from.is_empty():
+		_blend = minf(1.0, _blend + dt / POSE_BLEND_S)
+		var w := smoothstep(0.0, 1.0, _blend)
+		var nodes := _pose_nodes()
+		for i in nodes.size():
+			nodes[i].rotation = Vector3(_blend_from[i][0]).lerp(nodes[i].rotation, w)
+			nodes[i].position = Vector3(_blend_from[i][1]).lerp(nodes[i].position, w)
+	_blink_eyes(effective == "sleep")
+	if rig_on:
+		_rig.finalize(self, effective == "sleep")
 	if _ring != null and (_selected or _hovered):
 		_ring.rotation.y = _clock * 1.5

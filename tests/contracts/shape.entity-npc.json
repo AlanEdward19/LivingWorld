@@ -124,6 +124,7 @@
     "observable": {
       "ageYears": "number",
       "carried": "[]",
+      "combat?": "string",
       "dominantEmotion?": "string",
       "emotions": {
         "anger": "number",

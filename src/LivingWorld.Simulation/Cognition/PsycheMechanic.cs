@@ -165,6 +165,7 @@ public static class PsycheMechanic
         Remember(world, npc, kind, other, tick, salience);
         Feel(world, npc, tick, impact, scale);
         Imprint(rules, npc, kind, impact, salience);
+        LivingWorld.Simulation.Objects.MoodMechanic.OnLife(world, npc, kind, other); // #262: o fato da vida também pode dar um momento do catálogo
     }
 
     /// <summary>O que devasta deixa marca na estabilidade emocional; o casamento a firma um pouco (investimento social).</summary>

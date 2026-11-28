@@ -26,7 +26,7 @@ public class ApiContractTests
             "Ana", "Female",
             30, "Adult", 1, "lavrador", 165, 1, new(0.5, 1), new(3, true, true), new(0.6, 0, 0, 0, 0, 0.2), "grief", true,
             [new LivingWorld.Api.Visual.Observable.CarriedVisual(1, 3, "trigo")], new(9, 77));
-        public static readonly LivingWorld.Api.Visual.Observable.CityDensityVisual Density = new(12, 30, [new(ActionType.Work, 5)], 14.5);
+        public static readonly LivingWorld.Api.Visual.Observable.CityDensityVisual Density = new(12, 30, [new(ActionType.Work, 5)], 14.5, 4);
         public static readonly LivingWorld.Api.Visual.Observable.EventInvolved Involved = new(
             1, 2, 3, 4, [5L], 6, 7, 8, 9, 10, 11, "city", 12, "levou", true);
         public static readonly LivingWorld.Api.Visual.Observable.BuildingStateVisual BuildingState = new(
@@ -204,6 +204,7 @@ public class ApiContractTests
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
     [InlineData("world-calendar", "/world/calendar")]
+    [InlineData("world-trees", "/world/trees")] // #243: as árvores cortadas (esparso: só as tocadas)
     [InlineData("world-info", "/world/info")]
     [InlineData("saved-worlds", "/worlds")]
     [InlineData("periods", "/periods")] // AD-175: cartão do período no menu
@@ -536,6 +537,14 @@ public class ApiContractTests
                         Optional(obj, key, typed());
                     else if (obj.TryGetPropertyValue(key + "?", out var optional) && optional is JsonValue o && o.GetValueKind() == System.Text.Json.JsonValueKind.String && o.GetValue<string>() == "null")
                         obj[key + "?"] = typed(); // AD-172: forma juntada de amostras já marca o opcional
+                }
+                // #234: `combat` do observável só vem em briga (omitido quando nulo): entra no contrato como opcional tipado
+                if (obj.ContainsKey("mourning") && obj.ContainsKey("emotions") && !obj.ContainsKey("combat?"))
+                {
+                    obj["combat?"] = "string";
+                    var ordered = obj.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => (p.Key, p.Value)).ToList();
+                    obj.Clear();
+                    foreach (var (key, value) in ordered) obj[key] = value;
                 }
                 foreach (var child in obj.Select(p => p.Value).ToList()) Walk(child);
             }

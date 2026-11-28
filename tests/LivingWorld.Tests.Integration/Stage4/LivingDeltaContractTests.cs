@@ -36,7 +36,7 @@ public sealed class LivingDeltaContractTests
         var state = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()), [evt]);
 
         Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City), Assert.Single(state.Npcs) with { Observable = null }); // AD-170: observável à parte
-        Assert.Equal(new BuildingVisual(building.Id, city.Id, -1, buildingPosition), Assert.Single(state.Buildings) with { Floors = 1, GroundFootprint = [], Lot = null }); // AD-173: o lote tem teste próprio
+        Assert.Equal(new BuildingVisual(building.Id, city.Id, -1, buildingPosition), Assert.Single(state.Buildings) with { Floors = 1, GroundFootprint = [], GroundWalls = [], GroundDoors = [], Lot = null }); // AD-173: o lote tem teste próprio; #226: paredes e portas em arestas também
         Assert.Equal(6, state.Indicators.Count);
         Assert.Equal(
             new NotableVisualEvent(4, WorldEventKind.Hired, "Um habitante começou um novo trabalho", npc.CurrentLocation),

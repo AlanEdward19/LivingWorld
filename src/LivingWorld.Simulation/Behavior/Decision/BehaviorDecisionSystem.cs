@@ -124,12 +124,29 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
         foreach (var npc in targets)
         {
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+            // #255: quem usa um objeto da casa (banho, vaso, TV...) fica nisso até acabar; o fim do uso o acorda, a decisão da hora não o tira dali
+            LivingWorld.Simulation.Objects.ObjectUsage.SettleDue(world, ctx, npc);
+            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.SocialInteractions.Action }) LivingWorld.Simulation.Objects.SocialInteractions.SettleDue(world, ctx, npc); // #259
+            if (npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action or LivingWorld.Simulation.Objects.SocialInteractions.Action } && LivingWorld.Simulation.Players.PlayerTasks.Of(world, npc) is not null)
+            {
+                if (fine) NpcWakeScheduler.RescheduleAtMs(world, npc, rules, catalog, null, stage);
+                else NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
             // AD-154: quem está preso num sequestro fica fora da rotina, no cativeiro (come do que o sequestrador tem)
             if (world.Crime?.Captives is not null && LivingWorld.Simulation.Crime.Kidnapping.Hold(world, npc, now))
             {
                 NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
                 continue;
             }
+            // #263: quem está no turno de trabalho (fora do mapa) fica fora da rotina até voltar
+            if (world.Careers is not null && LivingWorld.Simulation.Careers.CareerWork.IsAway(world, npc))
+            {
+                NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
+            // #234: quem apanhou do jogador e marcou o revide (ou acode a quem pediu ajuda) golpeia na hora marcada
+            if (npc.Combat is { RetaliateAtMs: > 0 }) LivingWorld.Simulation.Players.PlayerCombat.OnWake(world, ctx, npc, nowMs);
             // AD-197f: a disputa de vontade da posse comum é checada quando o possuído desperta (sem evento agendado)
             if (npc.Will is { Controlled: true }) LivingWorld.Simulation.Players.PossessionContest.OnWake(world, ctx, npc, now);
             bool possessed = ControlMechanic.IsPossessed(world, npc);
@@ -269,9 +286,31 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                         ? ConstrainByDevelopment(world, npc, ActionType.Eat)
                         : ConstrainByDevelopment(world, npc, sickAware);
 
-                chosen = npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
+                // #242: quem está de folga sai; quem deixou o turno por humor, corpo ou cuidado de doente (a rotina diz trabalho) fica onde está
+                _onDuty = candidate is ActionType.Idle or ActionType.Socialize && world.StreetRules.AfterWorkOutings
+                    && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
+                // #255: sem nada urgente, quem ninguém conduz e está à toa em casa cuida das necessidades do catálogo (banho, vaso, TV) pelos usos dos objetos,
+                // antes de sair a passeio ou de se deitar (quem vai dormir passa no vaso)
+                // #258: o parceiro fora de casa com uma necessidade da casa urgente (bexiga, higiene) volta para ela: o destino é a cama da casa, e lá o cuidado acontece
+                if (npc.ControllerId is null && npc.ExtraNeeds is not null && candidate is ActionType.Idle or ActionType.Socialize && CareCallsHome(world, npc, nowMs))
+                    candidate = ActionType.Sleep;
+                // #258: a casa que a pessoa mantém (luz ao escurecer, apagar ao dormir ou sair, preparar a refeição) pelos usos do catálogo
+                bool tended = !urgent && npc.ControllerId is null && LivingWorld.Simulation.Objects.HomeTending.Applies(world)
+                    && LivingWorld.Simulation.Objects.HomeTending.TryTend(world, ctx, npc, candidate,
+                        world.Lights is not null && candidate != ActionType.Sleep && RefineForLocation(world, npc, candidate, marketIndex) == ActionType.Travel);
+                bool cared = tended || npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 && npc.CurrentAction != ActionType.Sleep : !urgent || LivingWorld.Simulation.Objects.ObjectUsage.HasCriticalNeed(world, npc, nowMs))
+                    && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
+                    && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
+                // #268: o corpo que o jogador conduz, sem ordem, com a necessidade crítica: o aviso e o livre-arbítrio (se cuida sozinho, como no Sims)
+                if (!cared && npc.ControllerId is not null && LivingWorld.Simulation.Objects.CriticalNeeds.OnWake(world, ctx, npc, nowMs)) cared = true;
+                // #259: sem nada a cuidar, quem está só e à toa procura companhia (interação social do catálogo, o mesmo caminho do jogador)
+                if (!cared && !urgent && npc.ControllerId is null && candidate is ActionType.Idle or ActionType.Socialize && world.ObjectCatalog?.Social is not null)
+                    cared = LivingWorld.Simulation.Objects.SocialInteractions.TryInitiate(world, ctx, npc);
+                chosen = cared ? ActionType.Idle
+                    : npc.ControllerId is not null && npc.ControlledAction == ActionType.Idle
                     ? ActionType.Idle // #222: o corpo do jogador "à toa" fica onde está (não vai à toa em casa); o jogador o conduz
                     : ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                _onDuty = false;
                 // AD-184: a hora de beber (em casa, acordado ou indo deitar, a sede na linha da refeição): um copo do pote, sem trocar a ação
                 if (chosen is not (ActionType.Eat or ActionType.Travel))
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.SipAtHome(world, npc, chosen,
@@ -280,7 +319,9 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 // sede para uma viagem de um dia, ao lado da água de casa)
                 if (chosen == ActionType.Travel && urgent && LivingWorld.Simulation.Economy.Supply.WaterFetch.ThirstyAtHomeWithWater(world, npc, now))
                     LivingWorld.Simulation.Economy.Supply.WaterFetch.DrinkFromPantry(world, npc, now); // só a água: a comida fica
-                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
+                travelPurpose = chosen == ActionType.Travel
+                    && (candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat or ActionType.Socialize
+                        || (candidate == ActionType.Idle && world.StreetRules.AfterWorkOutings)) // #242: o passeio de quem está à toa
                     ? candidate
                     : null;
 
@@ -308,7 +349,7 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
-            if (departing && travelPurpose == ActionType.Socialize) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
+            if (departing && IsOutingPurpose(world, travelPurpose)) PinCompanyTarget(world, npc, now); // AD-186: o destino vale a ida toda
             if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
             if (fine) // AD-197h: a chegada no instante do caminho em ms; a perna fica no viajante para a pose de cada tick

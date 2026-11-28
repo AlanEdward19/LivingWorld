@@ -1,0 +1,214 @@
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Objects;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Objects;
+
+/// <summary>Uma necessidade do catálogo como a pessoa a sente agora: o que o cliente desenha (barra, cor, se pede atenção).</summary>
+public sealed record NeedReading(string Id, string Name, int Value, bool Urgent, string? Color,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Icon = null);
+
+/// <summary>A dica da necessidade mais urgente: o alerta do cenário ("Você está com a bexiga cheia") e o que a atende em casa (objeto e uso).</summary>
+public sealed record NeedHint(string Need, string Alert, string? Object, string? Use);
+
+/// <summary>#255: as necessidades do catálogo do cenário (higiene, diversão, bexiga...) como mecanismo genérico do motor: o mesmo molde preguiçoso das de
+/// sempre (<see cref="LazyNeed"/>, nada escrito por tick), a mesma regra para NPC e jogador, e o que acontece quando estão baixas (<see cref="NeedEffect"/>).
+/// O código não conhece nenhuma delas pelo nome: id, taxa, limites e efeitos são dado do cenário (<see cref="HomeLifeLoader"/>).</summary>
+public static class HomeLife
+{
+    public static NeedCatalog? Catalog(WorldState world) => world.ObjectCatalog?.Needs;
+
+    /// <summary>Dá à pessoa as necessidades do catálogo, no nível de partida do cenário, a partir de agora. Idempotente; sem catálogo, não faz nada.</summary>
+    public static void Seed(WorldState world, Npc npc)
+    {
+        if (Catalog(world) is not { } catalog) return;
+        long ms = world.CurrentDate.TotalMilliseconds;
+        bool first = npc.ExtraNeeds is null || catalog.Needs.Any(d => !npc.ExtraNeeds.ContainsKey(d.Id));
+        foreach (var def in catalog.Needs)
+            if (npc.ExtraNeeds is null || !npc.ExtraNeeds.ContainsKey(def.Id))
+            {
+                var (start, rate) = Personal(world, npc, def);
+                npc.SetExtraNeed(def.Id, new LazyNeed(start, ms, rate));
+            }
+
+        // #261: o nível de partida das necessidades de sempre varia por pessoa (cada um acorda com a fome e a sede dele), só ao dar as necessidades pela primeira vez
+        if (first && catalog.StartJitter is { } jitter)
+            foreach (var (id, points) in jitter.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                if (npc.BuiltinNeedAtMs(id, ms) is { } level)
+                    npc.SetBuiltinNeedAtMs(id, Math.Clamp(level + (world.Rng.OneShot($"need-start-{npc.Id.Value}-{id}").NextDouble() - 0.5) * 2 * points, 0, 100), ms);
+    }
+
+    /// <summary>#261: o nível de partida e a taxa de queda desta pessoa: o dado do cenário (<see cref="NeedVariation"/>) com o sorteio semeado do mundo e a personalidade.</summary>
+    private static (double Start, double Rate) Personal(WorldState world, Npc npc, NeedDef def)
+    {
+        if (def.Variation is not { } v) return (def.Start, def.DecayPerHour);
+        double start = Math.Clamp(def.Start + (world.Rng.OneShot($"need-start-{npc.Id.Value}-{def.Id}").NextDouble() - 0.5) * 2 * v.Jitter, 0, 100);
+        double factor = 1;
+        if (v.Traits is { } traits)
+            foreach (var (name, weight) in traits.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                factor += weight * (SocialInteractions.Trait(npc.Personality, name) - 50) / 50.0;
+        return (start, def.DecayPerHour * Math.Clamp(factor, 0.5, 1.5));
+    }
+
+    /// <summary>O nível (0–100) de uma necessidade, de sempre ou do catálogo, em <paramref name="ms"/>; nulo se o id não existe.</summary>
+    public static double? Value(WorldState world, Npc npc, string id, long ms)
+    {
+        if (npc.BuiltinNeedAtMs(id, ms) is { } builtin) return builtin;
+        if (Catalog(world)?.Find(id) is not { } def) return null;
+        return npc.ExtraNeeds is { } extra && extra.TryGetValue(id, out var need) ? need.ValueAtMs(ms) : def.Start;
+    }
+
+    /// <summary>Soma <paramref name="delta"/> (pode ser negativo) ao nível da necessidade em <paramref name="ms"/>, limitado a 0–100.</summary>
+    public static void Add(WorldState world, Npc npc, string id, double delta, long ms)
+    {
+        if (Value(world, npc, id, ms) is not { } now) return;
+        double next = Math.Clamp(now + delta, 0, 100);
+        if (NeedIds.IsBuiltin(id)) { npc.SetBuiltinNeedAtMs(id, next, ms); return; }
+        var def = Catalog(world)!.Find(id)!;
+        var need = npc.ExtraNeeds is { } extra && extra.TryGetValue(id, out var own) ? own : new LazyNeed(def.Start, ms, def.DecayPerHour);
+        npc.SetExtraNeed(id, need.WithValueAtMs(next, ms));
+    }
+
+    /// <summary>As necessidades do catálogo da pessoa agora (ordem do cenário); vazio sem catálogo.</summary>
+    public static IReadOnlyList<NeedReading> Readings(WorldState world, Npc npc, long ms)
+    {
+        if (Catalog(world) is not { } catalog) return [];
+        var list = new List<NeedReading>(catalog.Needs.Count);
+        foreach (var def in catalog.Needs)
+        {
+            double v = Value(world, npc, def.Id, ms) ?? def.Start;
+            list.Add(new NeedReading(def.Id, def.Name, (int)Math.Round(v, MidpointRounding.AwayFromZero), v <= def.UrgentBelow, def.Color, def.Icon));
+        }
+
+        return list;
+    }
+
+    /// <summary>#260: para onde cada necessidade vai agora, em pontos por hora de mundo (positivo sobe, negativo cai): a queda da necessidade (de sempre ou do
+    /// catálogo, a taxa que o corpo tem neste instante, inclusive recuperando ao dormir ou comer) mais o que o uso do catálogo em curso entrega. É o que o cliente
+    /// desenha como seta de tendência: nunca ele adivinha pela diferença de duas leituras.</summary>
+    public static IReadOnlyDictionary<string, double> Rates(WorldState world, Npc npc)
+    {
+        var rates = new Dictionary<string, double>
+        {
+            ["hunger"] = -npc.HungerNeed.DecayRatePerHour,
+            ["thirst"] = -npc.ThirstNeed.DecayRatePerHour,
+            ["sleep"] = -npc.SleepNeed.DecayRatePerHour,
+            ["social"] = -npc.SocialNeed.DecayRatePerHour,
+        };
+        if (Catalog(world) is { } catalog)
+            foreach (var def in catalog.Needs)
+                rates[def.Id] = npc.ExtraNeeds is { } extra && extra.TryGetValue(def.Id, out var need) ? -need.DecayRatePerHour : -def.DecayPerHour;
+        if (npc.BodyTask is { Action: ObjectUsage.Action, Use: { } useId, Doing: true } task
+            && ObjectUsage.Resolve(world, task.Building, task.Piece, useId) is { IsSuccess: true, Value: { } target })
+            foreach (var effect in target.Use.Effects)
+                if (rates.ContainsKey(effect.Need)) rates[effect.Need] += effect.PerHour;
+        return rates;
+    }
+
+    /// <summary>A necessidade do catálogo mais urgente (a mais abaixo do próprio limite) se já passou dele; nula se nenhuma pede atenção.</summary>
+    public static NeedDef? MostUrgent(WorldState world, Npc npc, long ms)
+    {
+        if (Catalog(world) is not { } catalog) return null;
+        NeedDef? worst = null;
+        double gap = 0;
+        foreach (var def in catalog.Needs)
+        {
+            double over = def.UrgentBelow - (Value(world, npc, def.Id, ms) ?? def.Start);
+            if (over > gap) { gap = over; worst = def; }
+        }
+
+        return worst;
+    }
+
+    /// <summary>"Você está com a bexiga cheia → Vaso": o alerta do cenário e o primeiro objeto da casa que atende à necessidade.</summary>
+    public static NeedHint? Hint(WorldState world, Npc npc, long ms)
+    {
+        if (MostUrgent(world, npc, ms) is not { } def || world.ObjectCatalog is not { } catalog) return null;
+        string? objectName = null, useName = null;
+        if (HomeOf(world, npc) is { } building)
+        {
+            foreach (var id in catalog.FurnishingFor(building.BuildingTypeId))
+                if (catalog.Find(id) is { Uses: { } uses } descriptor && uses.FirstOrDefault(u => !u.Hidden && u.Effects.Any(e => e.Need == def.Id && e.PerHour > 0)) is { } use)
+                {
+                    objectName = descriptor.Name ?? descriptor.Id;
+                    useName = use.Name;
+                    break;
+                }
+        }
+
+        return new NeedHint(def.Id, def.Alert ?? def.Name, objectName, useName);
+    }
+
+    /// <summary>A casa da pessoa (prédio da moradia), ou nulo.</summary>
+    public static Building? HomeOf(WorldState world, Npc npc) =>
+        npc.Household is { } h && world.FindHousehold(h) is { Dwelling: { } dwelling } ? world.FindBuilding(dwelling) : null;
+
+    /// <summary>A cada hora de mundo (só para quem tem necessidades do catálogo): o que a necessidade baixa faz — saúde, solidão. Sem estado novo:
+    /// a conta sai do valor preguiçoso e do relógio. O peso nos laços (<c>bond</c>) é aplicado a cada conversa (<see cref="BondPenalty"/>).</summary>
+    public static void Hourly(WorldState world, Npc npc, long nowMs)
+    {
+        if (npc.ExtraNeeds is null || Catalog(world) is not { } catalog) return;
+        foreach (var def in catalog.Needs)
+        {
+            if (def.Effects is not { } effects) continue;
+            double v = Value(world, npc, def.Id, nowMs) ?? def.Start;
+            foreach (var effect in effects)
+            {
+                if (v >= effect.Below) continue;
+                if (effect.Target == NeedEffectTargets.Health)
+                    npc.SetHealth(npc.Health + (int)Math.Round(effect.PerHour, MidpointRounding.AwayFromZero));
+                else if (effect.Target == NeedEffectTargets.Social)
+                    Add(world, npc, "social", effect.PerHour, nowMs);
+            }
+        }
+    }
+
+    /// <summary>Quando a pessoa precisa redecidir por causa do catálogo: o fim do uso de objeto em curso, ou o instante em que a necessidade que ainda decai cruza o
+    /// limite de urgência (se já cruzou, uma hora depois: o NPC que não achou como atendê-la tenta de novo sem acordar a cada tick). <c>long.MaxValue</c>: nada.</summary>
+    public static long NextWakeMs(WorldState world, Npc npc, long nowMs)
+    {
+        long next = long.MaxValue;
+        if (npc.BodyTask is { Action: ObjectUsage.Action or SocialInteractions.Action } task && task.UntilMs > nowMs) next = task.UntilMs;
+        if (npc.BodyTask is null) next = Math.Min(next, SocialInteractions.NextCheckMs(world, npc, nowMs)); // #259: de tempos em tempos quem está só vê se quer companhia
+        if (npc.ControllerId is not null) next = Math.Min(next, CriticalNeeds.NextCheckMs(world, npc, nowMs)); // #268: o corpo conduzido olha a necessidade crítica
+        if (npc.ExtraNeeds is null || Catalog(world) is not { } catalog) return next;
+        foreach (var def in catalog.Needs)
+        {
+            if (!npc.ExtraNeeds.TryGetValue(def.Id, out var need) || need.DecayRatePerHour <= 0) continue;
+            double v = need.ValueAtMs(nowMs);
+            double line = def.SeekBelow ?? def.UrgentBelow; // #261: quem está à toa já procura um uso abaixo de SeekBelow
+            long at = v <= line ? nowMs + WorldMillis.PerHour : nowMs + Math.Max(1L, (long)Math.Ceiling((v - line) / need.DecayRatePerHour * WorldMillis.PerHour));
+            if (at < next) next = at;
+        }
+
+        return next;
+    }
+
+    /// <summary>#255/#258: a conversa de <paramref name="speaker"/> piora (ou não) o laço de <paramref name="listener"/> por ela, conforme o estado dele (<see cref="BondPenalty"/>).
+    /// O mesmo peso vale para a conversa do jogador, entre dois NPCs e nas interações sociais do catálogo.</summary>
+    public static void WeighBond(WorldState world, Npc speaker, Npc listener, long nowMs)
+    {
+        if (BondPenalty(world, speaker, nowMs) is var penalty and < 0
+            && world.Relationships.TryGetValue(new LivingWorld.Domain.Population.Family.RelationshipKey(listener.Id, speaker.Id), out var heard))
+            heard.Shift(LivingWorld.Domain.Population.Family.RelationshipAxis.Affection, penalty);
+    }
+
+    /// <summary>O quanto o estado da pessoa pesa no laço com quem conversa com ela (soma dos <c>bond</c> das necessidades abaixo do limite; 0 = nada).
+    /// Negativo: a conversa piora o laço.</summary>
+    public static double BondPenalty(WorldState world, Npc npc, long nowMs)
+    {
+        if (npc.ExtraNeeds is null || Catalog(world) is not { } catalog) return 0;
+        double sum = 0;
+        foreach (var def in catalog.Needs)
+        {
+            if (def.Effects is not { } effects) continue;
+            double v = Value(world, npc, def.Id, nowMs) ?? def.Start;
+            foreach (var effect in effects)
+                if (effect.Target == NeedEffectTargets.Bond && v < effect.Below) sum += effect.PerHour;
+        }
+
+        return sum;
+    }
+}

@@ -11,6 +11,8 @@ signal delta_applied(envelope: Dictionary)
 signal access_denied()
 signal connection_changed(state: String, retry_in: float)
 signal contract_error(errors: Array)
+## #237: o servidor disse que o escopo não existe (404: cidade/prédio que sumiu ou id inválido). Não é snapshot, não é divergência de contrato.
+signal scope_gone(kind: String, ref_id: String)
 
 const BACKOFF_SECONDS: Array[float] = [1.0, 2.0, 4.0, 8.0]
 const SHAPE_BY_SCOPE := {"World": "world-subscribe", "City": "city-subscribe", "Interior": "interior-subscribe"}
@@ -78,6 +80,10 @@ func _connect(generation: int) -> void:
 			state = "denied"
 			access_denied.emit()
 			return
+		if response.status == 404:
+			state = "gone"
+			scope_gone.emit(scope_kind, ref_id)
+			return
 		if response.status == 200 and response.body is Dictionary:
 			if not _accept_snapshot(response.body):
 				return
@@ -92,11 +98,14 @@ func _connect(generation: int) -> void:
 
 func _open_channel(generation: int) -> void:
 	_channel = transport.open_channel("/visual/ws?" + _scope_query())
+	_channel.skip_first_snapshot = true # o snapshot que o servidor manda ao abrir o canal repete o da assinatura
 	_channel.message.connect(func(data): _on_message(generation, data))
 	_channel.closed.connect(func(): _on_channel_closed(generation))
 
 
 func _accept_snapshot(envelope: Dictionary) -> bool:
+	if envelope.get("payload") == null:
+		return false # #237: sem projeção não há snapshot (nunca vira "fora do contrato"): o canal segue com o que já tem
 	if validate_shapes and not _shape_ok(envelope):
 		return false
 	_deltas_seen = 0 # snapshot novo: os primeiros deltas voltam a ser todos conferidos
@@ -105,11 +114,19 @@ func _accept_snapshot(envelope: Dictionary) -> bool:
 	return true
 
 
+var _snapshot_checked: Dictionary = {} ## escopo -> já conferido (no jogo, a conferência do snapshot custava 20–60 ms num quadro: só o primeiro de cada escopo)
+
+
 func _shape_ok(envelope: Dictionary) -> bool:
+	if delta_check_every > 1 and _snapshot_checked.has(scope_kind):
+		return true # #249: como nos deltas (AD-189), no jogo só se amostra; os testes seguem conferindo todos
+	_snapshot_checked[scope_kind] = true
 	var shape = ShapeValidator.load_shape(SHAPE_BY_SCOPE.get(scope_kind, ""))
 	if shape == null:
 		return true # contratos só existem no repositório de desenvolvimento
+	var started := Time.get_ticks_usec()
 	var errors := ShapeValidator.validate(envelope, shape)
+	Cost.add("shape_snapshot", started)
 	if errors.is_empty():
 		return true
 	contract_error.emit(errors)

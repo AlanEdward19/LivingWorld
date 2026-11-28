@@ -49,6 +49,8 @@ func test_the_player_camera_is_third_person_by_default_c_switches_to_first_and_l
 	key.pressed = true
 	rig._unhandled_input(key)
 	eq(rig.mode, rig.FIRST, "C troca para a 1ª pessoa")
+	for i in 8: # #231: a troca é animada; terminada, a câmera está nos olhos
+		rig._process(0.05)
 	eq(rig.camera.position.z, 0.0, "1ª pessoa: nos olhos")
 	rig._unhandled_input(key)
 	eq(rig.mode, rig.THIRD, "C volta para a 3ª")
@@ -148,6 +150,10 @@ func test_the_interaction_menu_shows_only_what_the_engine_offers_and_sends_the_c
 	eq(opened, [[9, "Bia", 77]], "a conversa aceita pelo motor abre o chat de sempre")
 	eq(hud.menu.visible, false, "o menu fecha depois da escolha")
 	eq(PlayerHud.menu_entries([]), [], "sem oferta, nenhuma linha")
+	# #239: a mata ao alcance oferece coletar o recurso que o motor diz, com o nome dele
+	var woods := PlayerHud.menu_entries([{"kind": "nature", "id": 5, "verbs": ["gather"], "x": 1, "y": 1,
+		"resources": [{"resourceId": 3, "quantity": 2, "price": 0}]}], func(id: int) -> String: return "Madeira")
+	eq([woods[0].text, woods[0].verb, woods[0].resource], ["Árvore: Cortar lenha", "gather", 3], "coletar na mata, pelo recurso do motor")
 	hud.queue_free()
 
 
@@ -164,7 +170,7 @@ func test_a_refused_order_shows_the_engine_reason() -> void:
 	var warnings: Array = []
 	hud.warning.connect(func(text: String): warnings.append(text))
 	await hud.interact({"kind": "person", "id": 8, "verb": "abandon", "resource": -1, "text": "Rui: Abandonar"})
-	eq(warnings, ["Ana não abandona Rui (peso 97)"], "o motivo do motor aparece")
+	eq(warnings, ["Ana não abandona Rui (peso 97)."], "o motivo do motor aparece")
 	eq(hud.is_active, true, "a recusa não tira o personagem")
 	hud.queue_free()
 

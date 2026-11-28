@@ -67,12 +67,12 @@ public static class NpcInspectionQuery
 
     private static NpcInspectionDto FromLiveNpc(WorldState world, Npc npc)
     {
-        long tick = world.CurrentDate.TotalHours;
+        long nowMs = world.CurrentDate.TotalMilliseconds;
         return new NpcInspectionDto(
             npc.Id, npc.Name, npc.Sex, npc.AgeYears(world.CurrentDate), npc.Culture, npc.City,
             npc.Household, npc.MotherId, npc.FatherId, npc.Spouse,
             npc.Profession, npc.Employer,
-            npc.Health, npc.HungerAt(tick), npc.ThirstAt(tick), npc.SleepAt(tick), npc.SocialAt(tick), npc.Personality, npc.Skills,
+            npc.Health, MsRead(npc.HungerNeed, nowMs), MsRead(npc.ThirstNeed, nowMs), MsRead(npc.SleepNeed, nowMs), MsRead(npc.SocialNeed, nowMs), npc.Personality, npc.Skills,
             npc.CurrentLocation, npc.CurrentAction, npc.ActionStartedAtTick,
             TargetOf(npc), NpcInspectionLod.Materialized,
             Beliefs: NpcBeliefQuery.BeliefsOf(world, npc.Id),
@@ -90,8 +90,20 @@ public static class NpcInspectionQuery
                 ? new NpcEmploymentDto(workplace.Id, workplace.LocationType.Id, workplace.Building, workplace.Owner)
                 : null,
             Money: npc.Wallet.Amount,
-            Carrying: npc.IsCarrying ? new NpcCarryDto(npc.CarriedResourceId, npc.CarriedQuantity) : null);
+            Carrying: npc.IsCarrying ? new NpcCarryDto(npc.CarriedResourceId, npc.CarriedQuantity) : null,
+            CatalogNeeds: LivingWorld.Simulation.Objects.HomeLife.Readings(world, npc, nowMs) is { Count: > 0 } readings ? readings : null,
+            NeedHint: LivingWorld.Simulation.Objects.HomeLife.Hint(world, npc, nowMs),
+            NeedRates: world.ObjectCatalog?.Needs is not null ? LivingWorld.Simulation.Objects.HomeLife.Rates(world, npc) : null,
+            SocialNote: LivingWorld.Simulation.Objects.SocialInteractions.LastFor(world, npc, 5 * 60_000),
+            SocialBusy: LivingWorld.Simulation.Objects.SocialInteractions.Active(npc),
+            Mood: LivingWorld.Simulation.Objects.MoodMechanic.ViewOf(world, npc, nowMs),
+            Career: LivingWorld.Simulation.Careers.CareerViews.Of(world, npc),
+            Home: LivingWorld.Simulation.Objects.HomeFreightViews.SheetOf(world, npc));
     }
+
+    /// <summary>O nível no instante de agora (#255): com o corpo gastando e recuperando energia e comida no meio da hora, ler no começo dela dava um valor que o
+    /// motor nunca teve. Na hora cheia é a conta de sempre.</summary>
+    private static int MsRead(LazyNeed need, long nowMs) => (int)Math.Round(need.ValueAtMs(nowMs), MidpointRounding.AwayFromZero);
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>
     /// (via <see cref="NpcScopeResolver"/>) — cidade não encontrada (não deveria acontecer

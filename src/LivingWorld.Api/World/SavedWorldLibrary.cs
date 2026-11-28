@@ -213,6 +213,7 @@ public sealed class SavedWorldLibrary : IDisposable
             _current = id;
             host.Replace(world, preparedClock);
             simulation.Resume(); // descarta o teto de pausa pertencente ao mundo anterior
+            simulation.ResetRhythmOverrides(); // #256: o Δ manual e o acelerado do admin não passam ao mundo novo
             simulation.Pause();
             return true;
         }
@@ -231,6 +232,7 @@ public sealed class SavedWorldLibrary : IDisposable
             _current = id;
             host.Replace(restored, preparedClock);
             simulation.Resume();
+            simulation.ResetRhythmOverrides(); // #256
             simulation.Pause();
             return true;
         }

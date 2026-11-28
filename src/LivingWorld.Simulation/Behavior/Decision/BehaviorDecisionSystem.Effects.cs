@@ -26,9 +26,11 @@ public sealed partial class BehaviorDecisionSystem
         {
             case ActionType.Eat:
                 ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat, ctx);
+                LivingWorld.Simulation.Objects.MoodMechanic.OnAction(world, npc, action, world.CurrentDate.TotalMilliseconds); // #262
                 break;
             case ActionType.Sleep:
                 ApplySleep(world, npc, tick);
+                LivingWorld.Simulation.Objects.MoodMechanic.OnAction(world, npc, action, world.CurrentDate.TotalMilliseconds); // #262
                 break;
             case ActionType.Socialize:
                 ApplySocialize(world, npc, tick, ctx);
@@ -594,6 +596,12 @@ public sealed partial class BehaviorDecisionSystem
         var type = LivingWorld.Domain.Population.Family.RelationshipEventType.Conversation;
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, npc, best, sameHousehold: false, type);
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, best, npc, sameHousehold: false, type);
+        if (npc.ExtraNeeds is not null || best.ExtraNeeds is not null) // #258: a higiene baixa de quem fala pesa no laço de quem ouve, entre NPCs também
+        {
+            long nowMs = world.CurrentDate.TotalMilliseconds;
+            LivingWorld.Simulation.Objects.HomeLife.WeighBond(world, npc, best, nowMs);
+            LivingWorld.Simulation.Objects.HomeLife.WeighBond(world, best, npc, nowMs);
+        }
         return true;
     }
 
@@ -628,8 +636,9 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Eat when EatDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel, // AD-147
         // AD-157b: fora do turno, quem está longe da despensa volta para casa (o fim do dia é em casa, não à toa perto da lavoura)
         ActionType.Idle or ActionType.Socialize when OffShiftFarFromPantry(world, npc) => ActionType.Travel,
-        // AD-186: quem quer conversar e não tem ninguém por perto vai aonde há alguém
-        ActionType.Socialize when CompanyDestinationOf(world, npc) is { } company && company != npc.CurrentLocation => ActionType.Travel,
+        // AD-186: quem quer conversar e não tem ninguém por perto vai aonde há alguém; #242: e quem está de folga vai para casa, ao largo,
+        // ao mercado, à casa de um conhecido ou a um passeio curto (a escolha é do estado dela), não fica à toa onde o turno acabou
+        ActionType.Idle or ActionType.Socialize when OutingDestinationOf(world, npc, candidate, marketIndex) is { } outing && outing != npc.CurrentLocation => ActionType.Travel,
         _ when RelocationDestinationOf(world, npc) is { } relocation && relocation != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };

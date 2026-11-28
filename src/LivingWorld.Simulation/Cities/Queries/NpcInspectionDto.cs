@@ -86,7 +86,20 @@ public sealed record NpcInspectionDto(
     // #222, só acréscimo: o dinheiro da pessoa (a carteira) e o que ela leva agora (recurso e quantidade); omitidos no morador
     // anônimo do pool, que não tem esse estado
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] long? Money = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NpcCarryDto? Carrying = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NpcCarryDto? Carrying = null,
+    // #255, só acréscimo: as necessidades do catálogo do cenário (higiene, diversão, bexiga...) como a pessoa as sente agora e a dica da mais urgente
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.NeedReading>? CatalogNeeds = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.NeedHint? NeedHint = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, double>? NeedRates = null,
+    // #259, só acréscimo: o último fato social (texto do catálogo, quando, com quem, ganho de afeto) e se o corpo está numa interação agora
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.SocialEvent? SocialNote = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool SocialBusy = false,
+    // #262, só acréscimo: o humor (nota, emoção dominante, momentos com causa e tempo, aspiração, desejos); omitido sem catálogo de humor
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.MoodView? Mood = null,
+    // #263, só acréscimo: o emprego (cargo, salário, horário, próximo turno, desempenho), as contas abertas da casa, os avisos e as vagas achadas; omitido sem carreira no mundo
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Careers.CareerView? Career = null,
+    // #265, só acréscimo: o móvel nas mãos, as entregas que chegaram e as a caminho; omitido sem nada disso
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.HomeFreightSheet? Home = null);
 
 /// <summary>#222: o que a pessoa leva nas mãos ou no recipiente agora: o recurso (nome pelo catálogo do período) e a quantidade.</summary>
 public sealed record NpcCarryDto(int ResourceId, long Quantity);

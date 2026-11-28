@@ -3,8 +3,15 @@ extends PanelContainer
 ## O motor decide se a ação cabe: aqui só se pede. Sair não congela o personagem: ele desaparece do mundo.
 const WorldTime := preload("res://Contract/world_time.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const PlayerBody := preload("res://Scenes/player_body.gd")
+const CombatView := preload("res://Scenes/combat_view.gd")
+const BodyBusy := preload("res://Scenes/body_busy.gd")
+const SocialMenu := preload("res://Scenes/social_menu.gd")
+const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
+signal body_away(away: bool, id: int) ## #263: o corpo conduzido saiu para o turno de trabalho (fora do mapa) ou voltou: o app esconde ou mostra a figura
+signal switched(old_id: int, new_id: int) ## #252: trocou de corpo (o motor soltou o de antes sem sumir): o app solta a figura e a câmera desliza
 signal warning(text: String)
 ## AD-197d: previsão e correção do passo (o cliente anda já e corrige pela posição do motor), a conversa aberta pelo motor.
 signal predicted(delta: Vector2i)
@@ -16,7 +23,21 @@ signal struck(target: int) ## AD-197j: o golpe saiu (o app anima o braço)
 signal glided(position: Vector2) ## posição fina prevista (células, absoluta)
 signal settled(position: Vector2) ## posição fina do motor
 signal menu_toggled(open: bool) ## o menu de interações abriu ou fechou (o app solta e prende o cursor)
+signal speed_changed(speed: int) ## #260: o motor aceitou a velocidade (0 pausa, 1, 2, 3): o app relê o relógio
+signal both_away_changed(on: bool, text: String) ## #267: todos da casa estão no trabalho: o app mostra a cena clara ("Os dois estão fora — Rafael volta às 17:40") com a opção de pular
+signal buy_requested() ## #264: B pede o modo comprar e construir (o app sobe a câmera sobre a casa)
+signal walls_cycled() ## #260: V pede outro modo das paredes (cortadas, inteiras, baixas)
 signal acted(verb: String) ## #224: o motor aceitou o verbo (o app toca o gesto no corpo)
+signal target_changed(kind: String, id: int, cell: Vector2) ## #233: o alvo do E sob a mira (cell = INF: nenhum); o app realça
+signal refused() ## #232: o motor recusou uma ação (o app toca só o som discreto de recusa)
+signal struck_hit(target: int) ## #232: o motor aceitou o golpe
+signal struck_result(target: int, body: Dictionary) ## #234: o que o motor devolveu ao golpe (outcome, damage, lethal, reaction)
+signal defended(kind: String) ## #234: o motor aceitou a defesa ("Dodge" ou "Block")
+signal guard_changed(kind: String) ## #234: a guarda do corpo mudou ("" = baixou)
+signal incoming(outcome: String, damage: int, by: int) ## #234: golpe recebido pelo corpo (Hit, Dodged, Blocked, Missed)
+signal placed(building_id: int, floor: int) ## #227: onde o motor diz que o corpo está: prédio (-1 = fora) e andar; o app entra e sai da casa em foco
+signal sheet_read(body: Dictionary) ## #232: ficha do corpo lida do motor (números subindo pelo que mudou)
+signal busy_changed(action: String, seconds: float) ## #241: o motor diz que o corpo ocupou-se de `action` por `seconds` reais ("" = acabou ou parou); o app anima em laço
 signal jumped(air_s: float) ## #222: o motor deixou o corpo pular por `air_s` segundos reais (o app anima o salto)
 
 const CHOICES := [["Eat", 0], ["Sleep", 1], ["Work", 2], ["Socialize", 3], ["Idle", 5], ["Buy", 6]] ## PlayerCommands.Choosable
@@ -36,6 +57,9 @@ var power_buttons: Dictionary = {} ## powerId -> Button (AD-196: os poderes que 
 var _powers_row: HFlowContainer
 var auto_button: Button
 var logout_button: Button
+var switch_button: Button ## #252: "Trocar para Rafael (G)": só com outra pessoa na casa de quem se conduz
+var housemates: Array = [] ## #252: [{id, name}] as outras pessoas da casa do corpo, para onde a troca pode ir
+var _switching := false
 var status_text := ""
 var _title: Label
 var _status: Label
@@ -47,7 +71,11 @@ const RHYTHM_TEXT := {"Fast": "Tempo rápido", "Accelerated": "Tempo acelerado",
 const WAKE_TEXT := {"golpe": "Você acordou com um golpe.", "fogo": "Você acordou com o calor do fogo.", "fome": "A fome o acordou.",
 	"sede": "A sede o acordou.", "chamado": "Alguém o chamou.", "hora": "Chegou a hora marcada.", "descansado": "Você acordou descansado.",
 	"outro jogador": "Outro jogador chegou: o tempo voltou ao normal."}
+const TASK_WAKE_TEXT := {"golpe": "Um golpe interrompeu o tempo acelerado.", "fogo": "O calor do fogo trouxe o tempo ao normal.",
+	"fome": "A fome trouxe o tempo ao normal.", "sede": "A sede trouxe o tempo ao normal.", "chamado": "Alguém o chamou: o tempo voltou ao normal.",
+	"outro jogador": "Outro jogador chegou: o tempo voltou ao normal."}
 var time_view: Dictionary = {}
+var world_rate := 0.0 ## #241: ms de mundo por ms real do ritmo em vigor, como o motor o diz no relógio (0 = ainda não sei)
 var hours_per_day := 24
 var rhythm_label: Label
 var sleep_hour: SpinBox
@@ -71,7 +99,19 @@ var frame: Control ## #222: a moldura de jogo (PlayerFrame) do modo jogador; o a
 var header: HFlowContainer
 var _body_clock := 0.0
 var _body_pending := false
+var _career_seen := 0 ## #263: o último aviso do emprego já mostrado (o motor numera); a primeira leitura só aprende
+var _career_primed := false
+var follow_home_requests := 0 ## quantas vezes a volta de outra pessoa da casa pediu a troca da câmera (o teste lê)
+var _career_can_go := false ## #246: a janela do turno já estava aberta na última leitura (o aviso `shift-soon` só sai na hora exata: quem assume o corpo depois não o recebe)
+var _career_away := false
+var stop_kinds: Array = [] ## #267: os tipos de aviso que pedem tempo normal (hora do trabalho, conta vencendo, alguém chegando), do dado do motor
+var both_away := false ## #267: este corpo e todos da casa com emprego estão no turno
+var both_away_text := ""
+var career_job: Dictionary = {} ## #267: o `job` da última leitura (o botão "Ir agora" e a volta do turno)
+var home_building := -1 ## #267: o prédio da casa de quem se conduz (do domicílio lido do motor), para a câmera da casa vazia
+var _go_then: Dictionary = {} ## #267: o que abrir ao chegar do "ir até": {kind, id}
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
+const BODY_BUSY_EVERY := 1.0 ## #243: com uma ação rendendo item, a ficha é lida mais vezes: "+1 Madeira" aparece quando a unidade sai
 var _paused_note_clock := 0.0
 var full_possession := false ## #222: o app liga com o token de admin (posse plena, AD-197e)
 var session_enabled := false ## AD-197a: pede sessão (token) e abre o canal persistente antes de encarnar; o app liga
@@ -123,6 +163,10 @@ func _init() -> void:
 	logout_button.text = "Sair do personagem"
 	logout_button.pressed.connect(func(): logout())
 	header.add_child(logout_button)
+	switch_button = Button.new()
+	switch_button.visible = false
+	switch_button.pressed.connect(func(): switch_body())
+	header.add_child(switch_button)
 	_powers_row = HFlowContainer.new()
 	orders.add_child(_powers_row)
 	_build_time_row(orders)
@@ -168,12 +212,16 @@ func _time_button(row: HFlowContainer, text: String, action: Callable) -> Button
 ## com o pulo em curso). O motivo de ter acordado vira aviso uma vez.
 func apply_time(view: Dictionary) -> void:
 	time_view = view
+	if frame != null:
+		frame.set_speed(view) # #260: pausa/1×/2×/3× só quando o motor deixa
 	var rhythm := String(view.get("rhythm", ""))
 	if rhythm == "RealTime":
 		rhythm_label.text = "Tempo real 1:%s" % _scale_text(float(view.get("timeScale", 1.0)))
 	else:
 		rhythm_label.text = RHYTHM_TEXT.get(rhythm, "")
 	var skipping := bool(view.get("skipping", false))
+	if not skipping and not view.is_empty() and status_text.begins_with("Pulando até"): # #246 (5º teste): o aviso do salto sai quando o salto acaba (ficava às 18:02, já em casa)
+		_set_status("")
 	var can_skip := bool(view.get("canSkip", false)) and not skipping and is_active
 	sleep_hour.max_value = hours_per_day - 1
 	sleep_hour.visible = can_skip
@@ -185,7 +233,9 @@ func apply_time(view: Dictionary) -> void:
 	var reason := String(view.get("lastWakeReason", "")) if view.get("lastWakeReason") != null else ""
 	if reason != _last_wake:
 		_last_wake = reason
-		if WAKE_TEXT.has(reason):
+		if busy.active() and TASK_WAKE_TEXT.has(reason): # #241: o salto era de uma ação longa, não de sono
+			_set_status(TASK_WAKE_TEXT[reason])
+		elif WAKE_TEXT.has(reason):
 			_set_status(WAKE_TEXT[reason])
 
 
@@ -205,6 +255,33 @@ func refresh_time() -> void:
 ## Dormir até a hora do dia `hour`, ou, com −1, acelerando até descansar. O motor recusa (409) com outro jogador no mundo.
 func sleep(hour: int) -> void:
 	await _time_command(func(): return await api.player_sleep(player_id, hour), "Dormindo.")
+
+
+## #260: pausa (0), 1×, 2× ou 3×: o motor valida (só quem joga sozinho) e devolve o tempo; a resposta vira o desenho (botões, relógio, passada).
+func set_speed(speed: int) -> void:
+	if not is_active or speed == int(time_view.get("speed", 1)) and time_view.has("speed"):
+		return
+	var response: Dictionary = await api.player_speed(player_id, speed)
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		apply_time(response.body)
+		speed_changed.emit(speed)
+		warning.emit(speed_note(speed))
+	elif response.status == 409:
+		warning.emit("Só quem joga sozinho muda a velocidade do tempo.")
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou a velocidade (erro %d)." % response.status)
+
+
+static func speed_note(speed: int) -> String:
+	return "Tempo pausado (1 continua)." if speed == 0 else "Velocidade %d×." % speed
+
+
+## A velocidade que o motor diz estar valendo (0 = pausa); sem leitura, 1.
+func speed_now() -> int:
+	return int(time_view.get("speed", 1)) if time_view.get("speed") != null else 1
 
 
 func accelerate() -> void:
@@ -251,6 +328,7 @@ func set_rpg(on: bool) -> void:
 	if not rpg:
 		reach_hint.visible = false
 		reach_hint.text = ""
+		target_changed.emit("", -1, Vector2.INF)
 	if _orders_open and not rpg:
 		_orders_open = false
 		menu_toggled.emit(false)
@@ -282,26 +360,94 @@ func orders_open() -> bool:
 
 
 ## A dica da mira: o nome curto da primeira coisa que o E alcançaria, tal como o motor a ofereceu (nada inventado aqui).
+var _hint_from: Array = [] ## #243: a última oferta da dica, para escolher de novo o alvo quando a câmera gira
+var _hint_look := Vector2.ZERO
+const HINT_TURN := 0.996 ## cosseno entre o olhar da dica e o de agora (≈5°): girar mais que isso refaz a escolha do alvo
+
+
+## A câmera girou o bastante desde a escolha do alvo (só com o olhar ligado).
+func _look_turned() -> bool:
+	var look: Vector2 = aim_look.call()
+	return look.length() > 0.001 and (_hint_look.length() < 0.001 or look.normalized().dot(_hint_look.normalized()) < HINT_TURN)
+
+
 func set_reach_hint(from: Array) -> void:
-	var entries := PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine)
+	_hint_from = from
+	_hint_look = aim_look.call()
+	var entries := without_sale(without_own_door(PlayerFrame.game_entries(menu_entries(from, resource_name_of), from, fine, aim_look.call()), building_id), building_id)
 	reach_hint.text = String(entries[0].text) if not entries.is_empty() else ""
-	reach_hint.visible = rpg and reach_hint.text != "" and frame == null
+	_hint_offer = {}
+	if not entries.is_empty():
+		for offer in from:
+			if String(offer.get("kind", "")) == String(entries[0].kind) and int(offer.get("id", -1)) == int(entries[0].id):
+				_hint_offer = offer
+	reach_hint.visible = rpg and reach_hint.text != "" and frame == null and not popup_open()
 	if frame != null:
 		frame.set_prompt(reach_hint.text if rpg else "")
+		if not frame.menu_open():
+			frame.set_relation(_hint_offer if rpg else {}, _world_ms) # #259: a relação com a pessoa sob a mira
+	if rpg:
+		var target := Vector2.INF
+		var kind := ""
+		var id := -1
+		if not entries.is_empty():
+			kind = String(entries[0].kind)
+			id = int(entries[0].id)
+			for offer in from:
+				if String(offer.get("kind", "")) == kind and int(offer.get("id", -1)) == id:
+					target = Vector2(float(offer.get("x", 0)), float(offer.get("y", 0)))
+					if offer.get("fx") != null and offer.get("fy") != null: # #241: o tronco da árvore (o anel soma meia célula ao centro)
+						target = Vector2(float(offer.fx) - 0.5, float(offer.fy) - 0.5)
+		target_changed.emit(kind, id, target)
+	else:
+		target_changed.emit("", -1, Vector2.INF)
 
 
-## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo.
+## #237: a oferta da dica que o motor diz ter alcance (fonte, mata: `reachCells`, da posição fina à borda da célula) e a folga da
+## latência: sai da tela no quadro em que o corpo passa disso, sem esperar a próxima leitura (que pode demorar com o motor carregado).
+var _hint_offer: Dictionary = {}
+const HINT_SLACK := 0.2 ## células: o motor lê a posição dele, até uma latência atrás da prevista aqui
+const REACH_MOVE := 0.25 ## células andadas desde a última leitura para pedir outra
+const REACH_HINT_NEAR_EVERY := 0.5 ## com uma dica de alcance na tela a leitura se renova mais depressa
+
+
+## Da posição fina `at` (células) à borda do quadrado da célula (x, y) da oferta; 0 dentro dela.
+static func reach_gap(at: Vector2, x: float, y: float) -> float:
+	return Vector2(maxf(maxf(x - at.x, at.x - x - 1.0), 0.0), maxf(maxf(y - at.y, at.y - y - 1.0), 0.0)).length()
+
+
+## A dica de alcance mostrada já não vale para onde o corpo está agora (só ofertas com `reachCells`).
+func hint_out_of_reach() -> bool:
+	if reach_hint.text == "" or fine == Vector2.INF or not _hint_offer.has("reachCells"):
+		return false
+	return reach_gap(fine, float(_hint_offer.get("x", 0)), float(_hint_offer.get("y", 0))) > float(_hint_offer.reachCells) + HINT_SLACK
+
+
+## Pede a oferta para a dica só depois de o corpo andar (nunca por quadro parado), no máximo uma vez por segundo (meio segundo com
+## uma dica de alcance na tela). A leitura que falha não deixa a dica velha: sem resposta do motor, a tela não afirma nada.
 func _refresh_reach_hint(delta: float) -> void:
 	reach_clock += delta
-	if not rpg or _busy or _reach_pending or reach_clock < REACH_HINT_EVERY or fine == Vector2.INF or fine.distance_to(_reach_at) < 0.5:
+	if rpg and not _hint_from.is_empty() and not _busy and _look_turned():
+		set_reach_hint(_hint_from) # #243: a câmera girou: o alvo do E é o que está sob a mira agora, sem nova leitura do motor
+	if rpg and hint_out_of_reach():
+		set_reach_hint([]) # #237: saiu do alcance: a dica some agora, e a próxima leitura já pode vir
+		_reach_at = Vector2.INF
+		reach_clock = REACH_HINT_EVERY
+	var every := REACH_HINT_NEAR_EVERY if _hint_offer.has("reachCells") else REACH_HINT_EVERY
+	if not rpg or _busy or _reach_pending or reach_clock < every or fine == Vector2.INF or fine.distance_to(_reach_at) < REACH_MOVE:
 		return
 	reach_clock = 0.0
 	_reach_at = fine
 	_reach_pending = true
 	var response: Dictionary = await api.player_reach(player_id)
 	_reach_pending = false
-	if rpg and response.ok and response.body is Dictionary:
+	if not rpg:
+		return
+	if response.ok and response.body is Dictionary:
 		set_reach_hint(response.body.get("offers", []))
+	else:
+		set_reach_hint([])
+		_reach_at = Vector2.INF
 
 
 ## Rótulos dos botões vêm do catálogo do servidor (o cliente não escreve texto de ação). #222: no modo jogador o botão é uma ordem
@@ -341,17 +487,106 @@ func incarnate(id: int, name: String) -> bool:
 
 
 func _became(id: int, name: String) -> void:
+	_offer_guide.call_deferred(false)
 	stale_session = false
 	_set_actions_enabled(true)
 	npc_id = id
 	npc_name = name
+	_career_seen = 0 # #263: o corpo novo tem os avisos dele
+	_career_primed = false
+	_career_can_go = false
+	_career_away = false
+	_reset_combat()
 	is_active = true
+	ground = null # #248: o chão é o do corpo novo
+	body.ground = null
+	_inputs.clear()
 	current_action = ""
 	visible = true
 	_title.text = "Você é %s" % name
 	_set_status("")
 	_sync_buttons()
 	refresh_labels()
+	building_id = -1
+	housemates = []
+	_sync_switch()
+	refresh_housemates.call_deferred()
+
+
+## #252: as outras pessoas da casa de quem se conduz (vivas, lidas do motor: o domicílio do corpo); alimentam a troca de corpo.
+func refresh_housemates() -> void:
+	if not api.has_method("entity"):
+		return # só o leitor do app (WorldReader) lê fichas de pessoa e de casa
+	var mine := npc_id
+	var list: Array = []
+	var me: Dictionary = await api.entity("npc", mine)
+	var state = me.body.get("state") if me.ok and me.body is Dictionary else null
+	var home_ref = state.get("npc", {}).get("household") if state is Dictionary and state.get("npc") is Dictionary else null
+	if home_ref is Dictionary:
+		var home: Dictionary = await api.entity("household", int(home_ref.get("value", -1)))
+		var members = home.body.get("state", {}).get("memberIds", []) if home.ok and home.body is Dictionary and home.body.get("state") is Dictionary else []
+		var dwelling = home.body.get("state", {}).get("dwelling") if home.ok and home.body is Dictionary and home.body.get("state") is Dictionary else null
+		home_building = int(dwelling.get("value", -1)) if dwelling is Dictionary else (int(dwelling) if dwelling != null else -1)
+		for member in members:
+			if int(member) == mine:
+				continue
+			var other: Dictionary = await api.entity("npc", int(member))
+			if other.ok and other.body is Dictionary:
+				list.append({"id": int(member), "name": String(other.body.get("name", "Pessoa nº %d" % int(member)))})
+	if not is_active or mine != npc_id:
+		return # trocou ou saiu enquanto lia
+	list.sort_custom(func(a, b): return int(a.id) < int(b.id))
+	housemates = list
+	_sync_switch()
+
+
+## O próximo da casa depois de quem se conduz (em círculo, por id); vazio sem ninguém.
+func next_housemate() -> Dictionary:
+	for other in housemates:
+		if int(other.id) > npc_id:
+			return other
+	return housemates[0] if not housemates.is_empty() else {}
+
+
+func _sync_switch() -> void:
+	var next: Dictionary = next_housemate() if is_active else {}
+	switch_button.visible = not next.is_empty()
+	switch_button.text = "Trocar para %s (G)" % String(next.get("name", ""))
+	if frame != null:
+		frame.set_switch(String(next.get("name", "")))
+
+
+## #252: passa a conduzir a outra pessoa da casa. O motor solta o corpo de antes sem fazê-lo sumir; este corpo recomeça do que o motor diz.
+func switch_body() -> bool:
+	var next: Dictionary = next_housemate()
+	if not is_active or _busy or _switching or next.is_empty():
+		return false
+	_switching = true
+	var response: Dictionary = await api.player_switch(player_id, int(next.id))
+	_switching = false
+	if not response.ok:
+		warning.emit(_incarnate_error(response))
+		return false
+	var old := npc_id
+	_reset_local_body()
+	_became(int(next.id), String(next.name))
+	if frame != null:
+		frame.set_body(String(next.name), "", {}) # o cartão já diz quem é; as barras vêm da ficha dele logo em seguida
+	_body_clock = BODY_EVERY
+	switched.emit(old, int(next.id))
+	sync_pose()
+	return true
+
+
+## O controlador local (posição prevista, chão, comandos de andar) era do corpo de antes: o do novo começa da pose do motor.
+func _reset_local_body() -> void:
+	body.pos = Vector2.INF
+	body.stop()
+	fine = Vector2.INF
+	_last_server = Vector2.INF
+	_walk_dir = Vector2.ZERO
+	_still_responses = 0
+	_blocked = false
 
 
 ## AD-197t: a prévia validada pelo motor (a sessão vem antes, como ao encarnar).
@@ -453,6 +688,7 @@ func act(action: String, power_id: String = "") -> void:
 const STEP_KEYS := {KEY_W: Vector2i(0, -1), KEY_UP: Vector2i(0, -1), KEY_S: Vector2i(0, 1), KEY_DOWN: Vector2i(0, 1),
 	KEY_A: Vector2i(-1, 0), KEY_LEFT: Vector2i(-1, 0), KEY_D: Vector2i(1, 0), KEY_RIGHT: Vector2i(1, 0)}
 const STEP_INTERVAL := 0.35 ## s entre passos com a tecla segurada (andar; o motor ainda não limita a velocidade, ver issue)
+var aim_look: Callable = func() -> Vector2: return Vector2.ZERO ## #243: para onde a câmera olha no chão (x, z): a ação principal do E é a do alvo à frente; sem câmera ligada, sem mira (a ordem de sempre)
 var heading: Callable = func() -> Vector2: return Vector2(0, -1) ## para onde a câmera olha no chão (x, z); o app liga o rig
 var resource_name_of: Callable = func(id: int) -> String: return "recurso %d" % id ## AD-197j: o app liga o catálogo de recursos
 var step_seconds := STEP_INTERVAL ## AD-197j: quanto o último passo durou no corpo (o motor diz `readyInMs`), em segundos reais
@@ -475,6 +711,19 @@ func intent_for(keys: Vector2i) -> Vector2i:
 	return Vector2i(roundi(snapped.x), roundi(snapped.y))
 
 
+## #240: há popup central aberto (o registro único do app, via `input_blocked`).
+func popup_open() -> bool:
+	return input_blocked.is_valid() and input_blocked.call()
+
+
+## #240: um campo de texto tem o foco (a conversa): as teclas são do texto, não do corpo.
+func typing() -> bool:
+	if not is_inside_tree():
+		return false
+	var owner := get_viewport().gui_get_focus_owner()
+	return owner is LineEdit or owner is TextEdit
+
+
 func _held_keys() -> Vector2i:
 	var keys := Vector2i.ZERO
 	for code in STEP_KEYS:
@@ -484,19 +733,113 @@ func _held_keys() -> Vector2i:
 
 
 func _process(delta: float) -> void:
+	e_held(delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if not is_active:
 		return
-	glide(walk_direction(_held_keys()), delta)
+	var keys := Vector2i.ZERO if typing() else _held_keys()
+	_refresh_busy(keys != Vector2i.ZERO, delta)
+	glide(walk_direction(keys), delta) # #240: digitando num popup, WASD não anda o corpo
 	_refresh_reach_hint(delta)
 	_refresh_body(delta)
+	_refresh_goals(delta)
+	_refresh_goal_where(delta)
+	_hold_guard()
 	_paused_note_clock = maxf(0.0, _paused_note_clock - delta)
+
+
+## #238: o guia da primeira posse neste mundo: abre sozinho uma vez (e lembra); `force` (F1 → "Rever o guia") abre sempre.
+var settings: Variant = null ## GameSettings (nulo nos testes e nas medidas: sem guia sozinho)
+var world_key := "" ## o mundo em que o jogador está (nome); o guia é por mundo
+
+
+func _offer_guide(force: bool) -> void:
+	var key := "guide:" + world_key
+	if api == null or not api.has_method("player_goals") or frame == null or not is_active:
+		return
+	if not force and (settings == null or settings.has_seen_guide(key)):
+		return
+	var response: Dictionary = await api.player_goals(player_id, true)
+	if not is_active or not response.ok or not response.body is Dictionary or not response.body.get("start") is Dictionary:
+		return
+	if not force and settings != null:
+		settings.mark_guide_seen(key)
+	frame.guide.open(response.body.start, npc_name, fine, heading.call(), resource_name_of)
+
+
+func show_guide() -> void:
+	await _offer_guide(true)
+
+
+const GOAL_WHERE_EVERY := 0.5 ## s entre as releituras do lado em que fica o passo da meta (a câmera gira, o corpo anda)
+var _where_clock := 0.0
+
+
+func _refresh_goal_where(delta: float) -> void:
+	_where_clock += delta
+	if frame == null or _where_clock < GOAL_WHERE_EVERY:
+		return
+	_where_clock = 0.0
+	frame.set_goal_where(fine, heading.call())
+
+
+## #235: a meta mais urgente do motor na linha do HUD (a cada GOALS_EVERY s) e, com o painel J aberto, a lista e o diário.
+const GOALS_EVERY := 5.0
+var _goals_clock := GOALS_EVERY
+var _goals_pending := false
+
+
+func _refresh_goals(delta: float) -> void:
+	_goals_clock += delta
+	if not rpg or frame == null or _goals_pending or _goals_clock < GOALS_EVERY:
+		return
+	_goals_clock = 0.0
+	await load_goals()
+
+
+## Pede metas e (com o painel aberto) o diário ao motor; resposta ruim não mexe na tela.
+func load_goals() -> void:
+	if api == null or not api.has_method("player_goals"):
+		return
+	_goals_pending = true
+	var goals: Dictionary = await api.player_goals(player_id)
+	if rpg and goals.ok and goals.body is Dictionary:
+		frame.set_goals(goals.body)
+	if rpg and frame.goals_open():
+		var diary: Dictionary = await api.player_diary(player_id)
+		if rpg and diary.ok and diary.body is Dictionary:
+			frame.set_diary(diary.body)
+	_goals_pending = false
+
+
+## O: abre ou fecha a carreira (o cartão do corpo já traz a linha do emprego); a ficha é lida na hora ao abrir.
+func toggle_career() -> void:
+	if frame == null:
+		return
+	frame.toggle_career()
+	if frame.career_open():
+		_body_clock = BODY_EVERY
+
+
+## J: abre ou fecha "Metas e diário", lido do motor na hora ao abrir.
+func toggle_goals() -> void:
+	if frame == null:
+		return
+	frame.toggle_goals()
+	if frame.goals_open():
+		_goals_clock = GOALS_EVERY
+
+
+## #262: lê a ficha do corpo agora (captura e teste), sem esperar o intervalo.
+func refresh_body_now() -> void:
+	_body_clock = BODY_EVERY * 2.0
+	await _refresh_body(0.0)
 
 
 ## #222: as barras do corpo (saúde, fome, sede, sono) pela ficha do motor, a cada BODY_EVERY s, só no modo jogador.
 func _refresh_body(delta: float) -> void:
 	_body_clock += delta
-	if not rpg or frame == null or _body_pending or _body_clock < BODY_EVERY:
+	if not rpg or frame == null or _body_pending or _body_clock < (BODY_BUSY_EVERY if busy.units > 0 else BODY_EVERY):
 		return
 	_body_clock = 0.0
 	_body_pending = true
@@ -510,21 +853,260 @@ func _refresh_body(delta: float) -> void:
 		if labels != null and body.get("currentAction") != null:
 			action = labels.label_for(int(body.currentAction))
 		frame.set_body(npc_name, action, body)
+		sheet_read.emit(body)
+		if not _ended_use.is_empty() and not busy.active(): # #260: o uso acabou sozinho: avisa com o que ficou
+			warning.emit(finish_text(String(_ended_use.label), String(_ended_use.need), body))
+			_ended_use = {}
+		_note_mood(body.get("mood")) # #262: desejo cumprido e marco de aspiração viram aviso
+		_note_social(body.get("socialNote")) # #259: o que aconteceu entre este corpo e alguém (a interação que o outro começou inclusive)
+		if bool(body.get("socialBusy", false)) and not busy.active():
+			sync_pose() # o motor ocupou este corpo numa interação que a outra pessoa começou: lê a pose para o gesto e a barra
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
+		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
+		frame.set_career(body.get("career")) # #263: o cargo, o próximo turno e a conta mais urgente
+		_note_career(body.get("career"))
+
+
+## #263: os avisos do emprego e das contas ("+72 salário", "Hora do trabalho em 1 h", "Promoção!"): o motor numera, aqui só se mostra o que ainda não foi visto (a primeira
+## leitura aprende sem repetir o passado). Quando o corpo sai para o turno (fora do mapa), passa a conduzir a outra pessoa da casa, se há; senão o motor recusa os comandos.
+func _note_career(view: Variant) -> void:
+	if not view is Dictionary:
+		return
+	var was_primed := _career_primed
+	var someone_returned := false
+	var read_the_paper := false
+	free_will = view.get("freeWill") if view.get("freeWill") is bool else null
+	if frame != null:
+		frame.set_free_will(free_will)
+	stop_kinds = view.get("stopKinds", []) if view.get("stopKinds") is Array else []
+	for notice in view.get("notices", []):
+		var id := int(notice.get("id", 0))
+		if id > _career_seen:
+			_career_seen = id
+			if _career_primed:
+				someone_returned = someone_returned or String(notice.get("kind", "")) == "returned"
+				read_the_paper = read_the_paper or String(notice.get("kind", "")) == "search"
+				var text := String(notice.get("text", ""))
+				if String(notice.get("kind", "")) == "shift-soon":
+					text += "  ·  E: Ir ao trabalho"
+				elif String(notice.get("verb", "")) == "pay":
+					text += "  ·  E em casa: Contas"
+				if String(notice.get("kind", "")) in stop_kinds:
+					_slow_for_shift() # #246/#267: a 300× a hora do turno passava em 12 s e o corpo faltava; o tempo desce à primeira velocidade do motor (também a conta que vence e quem chega)
+				warning.emit(text)
+	_career_primed = true
+	if read_the_paper and was_primed and view.get("listings") is Array:
+		if _show_vacancies_hook.is_valid():
+			_show_vacancies_hook.call(view.listings)
+		else:
+			_show_vacancies.call_deferred(view.listings) # #268: ler o jornal abre as vagas na própria roda, com "Candidatar-se"
+	var job = view.get("job")
+	career_job = job if job is Dictionary else {}
+	var away: bool = job is Dictionary and bool(job.get("away", false))
+	_note_both_away(away, job, view.get("mates", []))
+	var can_go: bool = job is Dictionary and bool(job.get("canGo", false)) and not away
+	if can_go and not _career_can_go:
+		if not was_primed: # corpo assumido já na janela do turno: o aviso da hora exata passou antes; avisa aqui e desce o tempo do mesmo jeito
+			warning.emit("Hora do trabalho: %s  ·  E: Ir ao trabalho" % String(job.get("title", "")))
+		_slow_for_shift()
+	_career_can_go = can_go
+	if someone_returned and away and was_primed:
+		follow_home_requests += 1
+		switch_body.call_deferred() # #246 (3º teste): este corpo segue no trabalho e a outra pessoa da casa voltou: a câmera vai a quem está em casa (antes ficava no corpo ausente até a noite)
+	if away != _career_away:
+		body_away.emit(away, npc_id) # o app esconde a figura enquanto o motor a tem fora do mapa (ela volta à soleira)
+		if away and was_primed:
+			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
+	_career_away = away
+
+
+var _show_vacancies_hook: Callable = Callable() ## só os testes trocam: quem mostra as vagas
+## #268: o livre-arbítrio do corpo (nulo: o cenário não tem necessidade crítica): sem ordem, ele se cuida sozinho quando uma necessidade fica crítica.
+var free_will: Variant = null
+
+
+## #268: ligar ou desligar o livre-arbítrio (U): o motor guarda e diz de volta no `career.freeWill`.
+func toggle_free_will() -> void:
+	if not is_active or free_will == null:
+		return
+	await interact({"text": "Livre-arbítrio", "kind": "will", "id": npc_id, "verb": "freewill:off" if bool(free_will) else "freewill:on", "resource": -1})
+
+
+## #268: as vagas que o jornal achou como linhas da roda, "Candidatar-se: Auxiliar administrativo · Escritório, 9/h, 40 min de ida · chance 62%". Tudo vem do motor (`career.listings`).
+static func vacancy_entries(listings: Array, who: int) -> Array:
+	var list: Array = []
+	for item in listings:
+		var commute := int(item.get("commuteMin", 0))
+		var text := "Candidatar-se: %s · %s, %d/h" % [String(item.get("title", "")), String(item.get("careerName", "")), int(item.get("wagePerHour", 0))]
+		if commute > 0:
+			text += ", %d min de ida" % commute
+		text += " · chance %d%%" % int(round(float(item.get("chance", 0.0)) * 100.0))
+		list.append({"text": text, "kind": "job", "id": who, "verb": "apply:%s@%d" % [String(item.get("career", "")), int(item.get("employer", 0))], "resource": -1})
+	return list
+
+
+func _show_vacancies(listings: Array) -> void:
+	if not is_active or frame == null or not rpg or popup_open() or frame.menu_open():
+		return
+	var entries := vacancy_entries(listings, npc_id)
+	if entries.is_empty():
+		return
+	_root_entries = entries
+	frame.show_menu(entries)
+	menu_toggled.emit(true)
+
+
+## #267: todos da casa com emprego estão fora (este corpo e os outros): a cena de casa vazia diz quem volta primeiro e quando, e oferece pular até lá. O motor diz quem e quando (`mates`).
+func _note_both_away(away: bool, job: Variant, list: Variant) -> void:
+	var text := ""
+	if away and list is Array and not (list as Array).is_empty() and (list as Array).all(func(m): return bool(m.get("away", false))):
+		var first_name := npc_name
+		var first_text := String(job.get("returnText", "")) if job is Dictionary else ""
+		var first_ms := int(job.get("returnMs", 0)) if job is Dictionary else 0
+		for mate in list:
+			var ms := int(mate.get("returnMs", 0))
+			if first_ms <= 0 or (ms > 0 and ms < first_ms):
+				first_name = String(mate.get("name", ""))
+				first_text = String(mate.get("returnText", ""))
+				first_ms = ms
+		text = both_away_message((list as Array).size() + 1, first_name, first_text)
+	if text == both_away_text:
+		return
+	both_away_text = text
+	both_away = text != ""
+	both_away_changed.emit(both_away, text)
+
+
+## "Os dois estão fora — Rafael volta às 17:40" (com mais de duas pessoas, "Todos estão fora").
+static func both_away_message(count: int, who: String, when: String) -> String:
+	var lead := "Os dois estão fora" if count == 2 else "Todos estão fora"
+	return "%s — %s volta %s" % [lead, who, ("às " + when) if when != "" else "mais tarde"]
+
+
+## #267: "Ir agora" (o turno já pode começar): é a mesma oferta do E, sem precisar mirar o trabalho.
+func go_now() -> void:
+	if not is_active or not bool(career_job.get("canGo", false)):
+		return
+	await interact({"text": "Ir ao trabalho", "kind": "job", "id": npc_id, "verb": "go", "resource": -1})
+
+
+## #267: "Pular para a volta do turno": o salto de tempo de sempre (só sozinho no mundo) que acaba na volta de quem da casa está no trabalho.
+func skip_to_return() -> void:
+	await _time_command(func(): return await api.player_accelerate(player_id, true), "Pulando até a volta do turno…")
+
+
+## O turno chamou (aviso `shift-soon` do corpo conduzido) com o tempo acelerado: volta à primeira velocidade que o motor oferece (a lista é do cenário), como o Sims
+## ao soar um evento importante; o jogador pode acelerar de novo pelos botões.
+func _slow_for_shift() -> void:
+	var target := shift_speed_target()
+	if target >= 0:
+		set_speed.call_deferred(target)
+
+
+## A velocidade para a qual o aviso de turno derruba o tempo (-1: já está na primeira, ou parado).
+func shift_speed_target() -> int:
+	var base := base_speed()
+	return base if speed_now() > base else -1
+
+
+func base_speed() -> int:
+	return int(PlayerFrame.speeds_of(time_view)[0])
+
+
+var _wish_seen := 0
+var _wish_primed := false
+
+
+## #262: "Desejo cumprido: Abraçar Rafael (+10 pontos)" / "Marco alcançado: Mente curiosa".
+static func wish_notice(done: Dictionary) -> String:
+	if bool(done.get("milestone", false)):
+		return "Marco alcançado: %s" % String(done.get("text", ""))
+	return "Desejo cumprido: %s (+%d pontos)" % [String(done.get("text", "")), int(done.get("points", 0))]
+
+
+## #262: os cumpridos do motor (`mood.recent`, do mais novo): avisa cada um uma vez, do mais antigo ao mais novo; a primeira leitura só aprende.
+func _note_mood(mood: Variant) -> void:
+	if not mood is Dictionary or not mood.get("recent") is Array:
+		return
+	var fresh: Array = []
+	for done in mood.recent:
+		if int(done.get("atMs", 0)) > _wish_seen:
+			fresh.push_front(done)
+	for done in mood.recent:
+		_wish_seen = maxi(_wish_seen, int(done.get("atMs", 0)))
+	if not _wish_primed:
+		_wish_primed = true
+		return
+	for done in fresh:
+		warning.emit(wish_notice(done))
+
+
+## #259: o último fato social do corpo (texto do catálogo, "Marina gostou do elogio (+5)"): avisa uma vez por instante; a primeira leitura só aprende.
+func _note_social(event: Variant) -> void:
+	if not event is Dictionary:
+		return
+	var at := int(event.get("atMs", 0))
+	if not _social_primed:
+		_social_primed = true
+		_social_seen = at
+		return
+	if at <= _social_seen:
+		return
+	_social_seen = at
+	warning.emit(String(event.get("text", "")))
+	_refresh_relation_soon()
+
+
+## A relação da pessoa sob a mira muda com o fato: pede outra leitura da oferta já.
+func _refresh_relation_soon() -> void:
+	_reach_at = Vector2.INF
+	reach_clock = REACH_HINT_EVERY
+
+
+## #259: a relação da primeira pessoa da lista de linhas (a roda aberta sobre ela).
+func _show_relation_of(list: Array) -> void:
+	if frame == null:
+		return
+	for entry in list:
+		if String(entry.get("kind", "")) == "person":
+			for offer in offers:
+				if String(offer.get("kind", "")) == "person" and int(offer.get("id", -1)) == int(entry.id):
+					frame.set_relation(offer, _world_ms)
+					return
 
 
 ## AD-197k: o passo solto. Teclas apertadas viram um rumo contínuo pelo olhar da câmera (milésimos, sem arredondar a 8 direções).
-const WALK_SEND := 0.1 ## s entre rumos enviados com a tecla segurada (o motor anda o corpo pelo tempo de mundo entre eles)
+## #248: o motor anda o corpo a cada tick pelo rumo mantido; o cliente só renova o rumo (WALK_SEND é o "ainda estou aqui") e o manda NA HORA
+## que muda. Cada comando tem número; a pose do motor devolve o último aplicado e o cliente reaplica o que o motor ainda não viu.
+const WALK_SEND := 0.1 ## s entre rumos renovados com a tecla segurada (o motor para se ficar ~1 s sem notícia)
+const TURN_SEND := 0.03 ## rad: mudança de rumo que vale mandar já
+const GROUND_RADIUS := 8 ## células de cada lado da janela de chão pedida ao motor
+const GROUND_EDGE := 3 ## pede outra janela quando o corpo chega a esta distância da borda
+const GROUND_MIN_GAP := 0.4 ## s entre pedidos de janela
+const MAX_OWD_MS := 400.0 ## teto da meia ida e volta usada na reaplicação
 var _blocked := false
 var _last_server := Vector2.INF
 var _last_server_at := 0
-const RECONCILE_SNAP := 0.6 ## células: acima disso a previsão salta para o motor
-const RECONCILE_BLEND := 0.3 ## fração do erro absorvida por resposta (a cada ~0,1 s)
+var body := PlayerBody.new() ## #229: o controlador cinemático local (aceleração, colisão, reconciliação com o motor)
+var neighborhood: Callable = Callable() ## #229: o app liga: (centro: Vector2) -> [obstáculos [[Rect2, topo]], pessoas [Vector2]], só ao redor do corpo
+const NEIGHBORHOOD_EVERY := 0.25 ## s entre leituras da vizinhança (e ao mudar de célula)
+var _near_clock := 0.0
+var _near_cell := Vector2i(1 << 30, 1 << 30)
+var _still_responses := 0
 var fine := Vector2.INF ## posição fina do corpo (células, absoluta): a do motor, mais a previsão desde a última resposta
 var speed_cells := 0.0 ## células por segundo real (m/s do motor / metros por célula, na escala do relógio)
 var _walk_dir := Vector2.ZERO
 var _walk_clock := 0.0
 var _walk_busy := false
+var ground = null ## #248: a máscara de passos que o motor deu (GroundGrid); nula até a primeira resposta
+var _ground_busy := false
+var _ground_clock := 0.0
+var _cell_meters := 1.5
+var _walk_seq := 0 ## #248: número do último comando de andar mandado
+var _inputs: Array = [] ## #248: os últimos comandos de andar: {seq, dir, at (ms)}
+## #248: medida do passo: quadros, puxões (um quadro que desloca o corpo mais de 0,3 m além do passo), o que a correção absorveu e saltos
+var walk_stats := {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}
+var _back_run := 0.0
 
 
 func walk_direction(keys: Vector2i) -> Vector2:
@@ -535,16 +1117,44 @@ func walk_direction(keys: Vector2i) -> Vector2:
 	return (forward * float(-keys.y) + right * float(keys.x)).normalized()
 
 
-## Anda a tela já (previsão) e manda o rumo ao motor a cada WALK_SEND, e uma vez ao parar.
+const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cartão
+
+
+## Anda a tela já (previsão) e renova o rumo ao motor: na hora se mudou, a cada WALK_SEND se segura, uma vez ao parar.
 func glide(direction: Vector2, delta: float) -> void:
+	if busy.active():
+		direction = Vector2.ZERO # #241: ocupado, o corpo não anda (o motor recusaria); não manda passo
+	if speed_now() > int(time_view.get("walkMaxSpeed", 10)) and direction != Vector2.ZERO:
+		direction = Vector2.ZERO # #261: em velocidade alta o corpo só anda por ordem do motor (usar móvel, interagir): volta a 1× para andar
+		if _busy_note_clock <= 0.0:
+			_busy_note_clock = 2.5
+			warning.emit("Em velocidade alta o corpo só anda por ordem (use um móvel ou interaja). Aperte 1 para voltar ao tempo real.")
+	if speed_now() == 0 and direction != Vector2.ZERO:
+		direction = Vector2.ZERO # #260: o tempo está pausado: o corpo não anda (o motor não roda tick); diz como voltar
+		if _busy_note_clock <= 0.0:
+			_busy_note_clock = 2.5
+			warning.emit("Tempo pausado: aperte 1 para continuar.")
+	var run_now := Input.is_key_pressed(KEY_SHIFT) and running
 	if direction != _walk_dir:
 		_blocked = false # #222: outro rumo: volta a prever
-	if fine != Vector2.INF and direction != Vector2.ZERO and speed_cells > 0.0 and not _blocked:
-		fine += direction * speed_cells * delta
-		glided.emit(fine)
+	if fine != Vector2.INF:
+		_ensure_ground(delta)
+	if fine != Vector2.INF and (speed_cells > 0.0 or body.settling()):
+		if body.pos != fine:
+			body.place(fine) # a posição fina foi posta de fora (ex.: o app): o corpo parte dela
+		_refresh_neighborhood(delta)
+		var before := body.pos
+		var on_ground: bool = body.ground != null and body.ground.is_valid()
+		body.advance(Vector2.ZERO if (_blocked and not on_ground) else direction, speed_cells, delta)
+		_note_frame(before, body.pos, delta, direction)
+		if body.pos != fine:
+			fine = body.pos
+			glided.emit(fine)
+	if frame != null: # #228: o cartão diz como o corpo se move agora (previsão local); parado, volta à ação do motor
+		frame.set_motion(("Correndo" if run_now else "Andando") if body.velocity.length() > MOVING_SPEED else "")
 	_walk_clock += delta
 	var run := direction != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT)
-	var changed := direction != _walk_dir or run != _walk_run
+	var changed := _turned(direction) or run != _walk_run
 	if (changed or (direction != Vector2.ZERO and _walk_clock >= WALK_SEND)) and not _walk_busy:
 		_walk_clock = 0.0
 		_walk_dir = direction
@@ -552,20 +1162,106 @@ func glide(direction: Vector2, delta: float) -> void:
 		send_walk(direction, run)
 
 
+## #248: o relógio (ms) das respostas e dos comandos; os testes põem um relógio simulado.
+var clock: Callable = Callable()
+
+
+func _now() -> int:
+	return int(clock.call()) if clock.is_valid() else Time.get_ticks_msec()
+
+
+## #248: o rumo mudou o bastante para valer mandar já (parar e arrancar sempre valem)?
+func _turned(direction: Vector2) -> bool:
+	if (direction == Vector2.ZERO) != (_walk_dir == Vector2.ZERO):
+		return true
+	return direction != Vector2.ZERO and absf(direction.angle_to(_walk_dir)) > TURN_SEND
+
+
+## #248: mede o quadro: puxão = deslocamento do corpo na tela maior que o passo previsto mais 0,3 m (correção que se vê, ou salto).
+func _note_frame(before: Vector2, after: Vector2, delta: float, direction: Vector2) -> void:
+	var walking := direction != Vector2.ZERO
+	walk_stats.frames += 1
+	var cell_m := maxf(float(_cell_meters), 0.01)
+	var allowed := (speed_cells * delta * 1.1 if walking else 0.0) + 0.002
+	var excess_m := maxf(after.distance_to(before) - allowed, 0.0) * cell_m
+	walk_stats.worst_m = maxf(float(walk_stats.worst_m), excess_m)
+	if excess_m > 0.3:
+		walk_stats.pulls += 1
+		walk_stats.pull_m += excess_m
+	var along := (after - before).dot(direction) if walking else 0.0 # recuo: o corpo anda contra o rumo que o jogador segura
+	if along < -0.0005:
+		_back_run += -along
+		walk_stats.back_m += -along * cell_m
+	elif _back_run > 0.0 and along > 0.0005:
+		if _back_run * cell_m > 0.1:
+			walk_stats.back_events += 1
+		_back_run = 0.0
+
+
+## #248: pede a janela de chão ao motor quando falta, o corpo chega perto da borda ou o andar/prédio mudou.
+func _ensure_ground(delta: float) -> void:
+	_ground_clock += delta
+	if _ground_busy or not is_active or _ground_clock < GROUND_MIN_GAP:
+		return
+	var cell := Vector2i(floori(fine.x), floori(fine.y))
+	if ground != null and ground.is_valid() and ground.covers(cell, GROUND_EDGE) and ground.floor_level == floor_level and ground.building_id == building_id:
+		return
+	_ground_clock = 0.0
+	_fetch_ground()
+
+
+func _fetch_ground() -> void:
+	_ground_busy = true
+	var response: Dictionary = await api.player_ground(player_id, GROUND_RADIUS)
+	_ground_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var grid = GroundGrid.from_body(response.body)
+		if grid.is_valid():
+			ground = grid
+			body.ground = grid
+
+
+## #229: a vizinhança do corpo (paredes e gente por perto) só é relida a cada NEIGHBORHOOD_EVERY s ou ao mudar de célula.
+func _refresh_neighborhood(delta: float) -> void:
+	_near_clock += delta
+	var cell := Vector2i(floori(body.pos.x), floori(body.pos.y))
+	if not neighborhood.is_valid() or (cell == _near_cell and _near_clock < NEIGHBORHOOD_EVERY):
+		return
+	_near_cell = cell
+	_near_clock = 0.0
+	var near: Array = neighborhood.call(body.pos)
+	body.set_neighborhood(near[0], near[1])
+
+
 var _walk_run := false
+var floor_level := 0 ## #227: o andar em que o motor diz que o corpo está
+var building_id := -1 ## #227: o prédio em que o motor diz que o corpo está (-1 fora ou ainda sem pose)
 var running := false ## #222: o motor disse que o corpo está correndo (Shift); cansado, ele anda
+
+
+## #227: pergunta ao motor a pose agora (parado): é ela que diz se o corpo está num prédio (o app pede quando o desenho sugere que sim).
+func sync_pose() -> void:
+	if is_active and not _walk_busy:
+		send_walk(_walk_dir, _walk_run) # #248: pergunta a pose sem mudar o rumo que o corpo segue
 
 
 func send_walk(direction: Vector2, run: bool = false) -> void:
 	_walk_busy = true
 	var started := Time.get_ticks_usec()
-	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0), run)
+	_walk_seq += 1
+	var seq := _walk_seq
+	_inputs.append({"seq": seq, "dir": direction, "at": _now()})
+	while _inputs.size() > 32:
+		_inputs.pop_front()
+	var response: Dictionary = await api.player_walk(player_id, roundi(direction.x * 1000.0), roundi(direction.y * 1000.0), run, seq)
 	_note_latency(started)
 	_walk_busy = false
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
-		apply_pose(response.body)
+		apply_pose(response.body, true)
 		running = bool(response.body.get("running", false))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
@@ -582,12 +1278,15 @@ func _refused_step(response: Dictionary) -> void:
 	if response.status == 409 and (paused or "pausa" in error):
 		warning.emit("O mundo está pausado: o corpo só anda com o tempo correndo (Esc → Continuar, ou ▶ na barra do topo).")
 	elif error != "":
-		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ").trim_prefix("move: ").trim_prefix("jump: "))
+		warning.emit(BodyBusy.human_error(error))
 
 
 ## #222: Espaço pula; o motor decide se o corpo consegue (cansaço, ferimento, idade) e por quanto tempo fica no ar.
 func jump() -> void:
 	if not is_active or _jumping:
+		return
+	if busy.active():
+		interrupt() # #241: ocupado, Espaço para a ação (o motor decide o que ficou feito)
 		return
 	_jumping = true
 	var response: Dictionary = await api.player_jump(player_id)
@@ -595,7 +1294,7 @@ func jump() -> void:
 	if not is_active:
 		return
 	if response.ok and response.body is Dictionary:
-		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+		var scale := _time_scale()
 		jumped.emit(float(response.body.get("airMs", 0)) / 1000.0 / maxf(scale, 0.001))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
@@ -604,26 +1303,240 @@ func jump() -> void:
 
 
 var _jumping := false
+var _interrupting := false
+
+## #241: a ação que ocupa o corpo, como o motor diz (`busy` da pose). A barra, o gesto em laço e o bloqueio do WASD saem daqui.
+var busy := BodyBusy.new()
+var _busy_note_clock := 0.0
+var _use_poll := 0.0
+const USE_POLL_S := 0.12 ## s entre leituras da pose enquanto o motor leva o corpo até o móvel
+const SOCIAL_POLL_S := 0.4 ## #261: s entre leituras da pose durante o gesto social (vê o fim e a soltura dos dois corpos)
+
+
+func _time_scale() -> float:
+	var base := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	return base * float(maxi(1, speed_now())) # #260: com 2× ou 3× o mundo anda mais por segundo real
+
+
+## O ritmo do relógio do motor (`hours_per_second` do status): quanto do mundo passa por segundo real agora. O mundo acelera para a
+## ação longa de quem joga sozinho e volta ao normal ao acabar: a barra segue o ritmo e o rótulo diz "tempo acelerado".
+func set_world_rate(hours_per_second: float) -> void:
+	world_rate = hours_per_second * 3600.0
+	if busy.active() and world_rate > 0.0:
+		busy.retime(float(Time.get_ticks_msec()), world_rate, _time_scale())
+		if frame != null:
+			frame.set_busy(busy.text(float(Time.get_ticks_msec())), busy.fraction(float(Time.get_ticks_msec())))
+
+
+var _ended_use: Dictionary = {} ## #260: o uso que acabou sozinho, à espera da ficha para dizer o que ficou ("Terminou: Tomar banho · Higiene 92%")
+var _use_needs: Dictionary = {} ## nome do uso -> necessidade que ele mais sobe (da oferta do motor)
+var _stopping := false
+
+
+## #260: "Terminou: Tomar banho · Higiene 92%": o aviso de fim do uso, com a necessidade que ele mais sobe lida da ficha do motor.
+static func finish_text(label: String, need_id: String, sheet: Dictionary) -> String:
+	var text := "Terminou: %s" % label
+	var names := {"hunger": "Fome", "thirst": "Sede", "sleep": "Sono", "social": "Social"}
+	if need_id == "":
+		return text
+	for row in sheet.get("catalogNeeds", []) if sheet.get("catalogNeeds") is Array else []:
+		if String(row.get("id", "")) == need_id:
+			return "%s · %s %d%%" % [text, String(row.get("name", need_id)), int(row.get("value", 0))]
+	if names.has(need_id) and sheet.get(need_id) != null:
+		return "%s · %s %d%%" % [text, names[need_id], int(sheet[need_id])]
+	return text
+
+
+func _note_busy(pose: Dictionary) -> void:
+	var now := float(Time.get_ticks_msec())
+	var before := busy.action
+	var was_use := busy.label if busy.action == "use" and busy.phase == "do" else ""
+	if busy.note_pose(pose, now, world_rate if world_rate > 0.0 else _time_scale()):
+		busy_changed.emit(busy.kind(), busy.seconds_left(now))
+		if before != "" and busy.action == "":
+			if was_use != "" and not _stopping:
+				_ended_use = {"label": was_use, "need": String(_use_needs.get(was_use, ""))}
+			_busy_ended()
+	if frame != null:
+		frame.set_busy(busy.text(now) if busy.active() else "", busy.fraction(now))
+
+
+func _busy_ended() -> void:
+	if not _go_then.is_empty() and not _stopping:
+		_after_go.call_deferred() # #267: chegou do "ir até": abre a roda daquele alvo
+	else:
+		_go_then = {}
+	_body_clock = BODY_EVERY # o que ficou nas mãos aparece no cartão
+	speed_changed.emit(speed_now()) # #261: o relógio da tela é relido ao acabar o uso (não fica parado em 07:00 até a próxima leitura)
+
+
+## Barra e fim da tarefa; WASD durante ela diz por que não anda (frase humana, no máximo a cada 2,5 s).
+func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
+	_busy_note_clock = maxf(0.0, _busy_note_clock - delta)
+	if not busy.active():
+		return
+	var now := float(Time.get_ticks_msec())
+	if busy.expired(now):
+		if busy.action == "use" and busy.phase == "do" and not _stopping:
+			_ended_use = {"label": busy.label, "need": String(_use_needs.get(busy.label, ""))}
+		busy.clear()
+		busy_changed.emit("", 0.0)
+		if frame != null:
+			frame.set_busy("", 0.0)
+		_busy_ended()
+		sync_pose() # confirma com o motor que o corpo voltou a andar
+		return
+	if frame != null:
+		frame.set_busy(busy.text(now), busy.fraction(now))
+	if busy.action == "use":
+		if wants_to_walk: # #255: WASD interrompe o uso (o que já subiu fica); o resto das ações longas só avisa
+			interrupt()
+			return
+		if busy.phase == "walk": # o motor leva o corpo até a peça: a pose dele manda, lida várias vezes por segundo
+			_use_poll += delta
+			if _use_poll >= USE_POLL_S and not _walk_busy:
+				_use_poll = 0.0
+				sync_pose()
+	elif busy.action == "haul-drive": # #265: o motor leva o corpo e o carro até a loja ou a casa: a pose dele manda, lida várias vezes por segundo
+		_use_poll += delta
+		if _use_poll >= USE_POLL_S and not _walk_busy:
+			_use_poll = 0.0
+			sync_pose()
+	elif busy.action == "social": # #261: o corpo anda até a pessoa pelo motor (a pose dele manda) e o gesto começa e acaba lá: lê a pose enquanto dura
+		_use_poll += delta
+		if _use_poll >= (USE_POLL_S if busy.phase == "walk" else SOCIAL_POLL_S) and not _walk_busy:
+			_use_poll = 0.0
+			sync_pose()
+	if wants_to_walk and _busy_note_clock <= 0.0:
+		_busy_note_clock = 2.5
+		warning.emit(busy.blocked_note())
+
+
+## #255: tira a ação `index` da fila (o motor guarda a fila e devolve a pose com ela).
+func cancel_queued(index: int) -> void:
+	if not is_active or _busy:
+		return
+	var response: Dictionary = await api.player_interact(player_id, "queue", index, "cancel", -1)
+	if response.ok and response.body is Dictionary:
+		var pose = response.body.get("pose")
+		if pose is Dictionary:
+			apply_pose(pose)
+		warning.emit("Tirou da fila.")
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou a fila.")
+
+
+## #241: para a ação em andamento (Espaço); o motor decide o que ficou feito (a parte proporcional) e devolve a pose.
+func interrupt() -> void:
+	if not is_active or _interrupting or not busy.active():
+		return
+	_interrupting = true
+	_go_then = {} # #267: parou: não abre a roda do alvo
+	_stopping = true # #260: parar de propósito não é "terminou"
+	var stopped := busy.stopped_text()
+	var response: Dictionary = await api.player_interrupt(player_id)
+	_interrupting = false
+	if not is_active:
+		_stopping = false
+		return
+	if response.ok and response.body is Dictionary:
+		apply_pose(response.body)
+		busy.clear()
+		busy_changed.emit("", 0.0)
+		warning.emit(stopped)
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error))
+		if error.find("não há ação") >= 0:
+			busy.clear()
+			busy_changed.emit("", 0.0)
+	_stopping = false
+
+var combat := CombatView.new() ## #234: recarga, guarda, alcance e último golpe recebido, como o motor disse
+var _guard_shown := "" ## a guarda que o app já mostra no corpo (para avisar só quando muda)
+var _guard_busy := false
+var _block_held := false ## botão direito ou F segurados: renova a guarda quando o motor deixa
+var _tap_key := -1 ## duplo toque de direção esquiva: a última direção tocada e quando
+var _tap_at := -1_000_000
+const DOUBLE_TAP_MS := 260
 
 
 ## A posição fina do motor manda: a previsão volta para ela (o motor sabe da parede, da porta e de quem está no caminho).
-func apply_pose(pose: Dictionary) -> void:
+func apply_pose(pose: Dictionary, from_walk: bool = false) -> void:
+	if pose.get("atMs") != null:
+		_world_ms = int(pose.atMs)
+	note_combat(pose)
+	_note_busy(pose)
+	if frame != null:
+		frame.set_queue(pose.get("queue", [])) # #255: a fila de ações do corpo, como o motor guarda
+	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
+	floor_level = int(pose.get("floor", 0))
+	placed.emit(building_id, int(pose.get("floor", 0)))
+	if frame != null:
+		frame.set_ground(pose.get("ground")) # #238: o chão sob o corpo e o que atrasa o passo, como o motor diz
 	if pose.has("fx"):
 		var server := Vector2(float(pose.fx), float(pose.fy))
-		# #222: o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar
-		var now := Time.get_ticks_msec()
-		if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
-			var expected := speed_cells * float(now - _last_server_at) / 1000.0
-			_blocked = expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
-			if _blocked:
-				fine = server
+		var scale := _time_scale()
+		_cell_meters = float(pose.get("cellMeters", 1.5))
+		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(_cell_meters, 0.01) * scale
+		var on_ground: bool = body.ground != null and body.ground.is_valid()
+		var now := _now()
+		if body.pos != Vector2.INF and from_walk:
+			var gap_m := body.pos.distance_to(server) * _cell_meters # medida: o quanto o corpo na tela estava longe da pose crua do motor
+			walk_stats.gap_worst_m = maxf(float(walk_stats.gap_worst_m), gap_m)
+			walk_stats.gap_mean_m += (gap_m - float(walk_stats.gap_mean_m)) / float(walk_stats.replies + 1)
+		walk_stats.replies += 1
+		if on_ground:
+			# #248: o motor anda o corpo sozinho pelo rumo mantido; a pose dele (mais o que ele ainda não viu, reaplicado com as mesmas regras de
+			# chão) diz onde ele está agora, e o corpo converge aí. Resposta de outro comando (não de andar) só vale se o corpo está parado.
+			if from_walk:
+				var before_pos := body.pos
+				body.reconcile_to(_engine_now(server, int(pose.get("seq", 0)), now))
+				if body.pos != before_pos:
+					walk_stats.snaps += 1
+			elif body.pos == Vector2.INF or (_walk_dir == Vector2.ZERO and body.velocity == Vector2.ZERO):
+				body.reconcile_to(server)
+		else:
+			# o motor não deixou andar (parede, gente, canto): para de prever nesse rumo em vez de entrar e voltar.
+			# #229: só vale com duas respostas paradas seguidas (a aceleração suave não é recusa)
+			if _last_server != Vector2.INF and _walk_dir != Vector2.ZERO and now > _last_server_at:
+				var expected := speed_cells * float(now - _last_server_at) / 1000.0
+				var still := expected > 0.05 and server.distance_to(_last_server) < expected * 0.25
+				_still_responses = _still_responses + 1 if still else 0
+				if _still_responses >= 2 and not _blocked:
+					_blocked = true
+					body.stop()
+			body.reconcile(server)
 		_last_server = server
 		_last_server_at = now
-		# #222: a posição do motor manda, mas sem tranco: erro pequeno (latência) é absorvido aos poucos; grande (parede, recusa) salta
-		fine = server if fine == Vector2.INF or fine.distance_to(server) > RECONCILE_SNAP else fine.lerp(server, RECONCILE_BLEND)
-		var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
-		speed_cells = float(pose.get("speedMps", 0.0)) / maxf(float(pose.get("cellMeters", 1.5)), 0.01) * scale
+		fine = body.pos
 		settled.emit(fine)
+
+
+## #248: onde o motor está AGORA: a pose dele (do instante em que aplicou o comando `acked`, a meia ida e volta atrás) andada pelo rumo desse
+## comando até o próximo que ele ainda não viu, e assim por diante até agora. Sem o comando na lista, a pose crua.
+func _engine_now(server: Vector2, acked: int, now: int) -> Vector2:
+	var entry: Dictionary = {}
+	for input in _inputs:
+		if int(input.seq) == acked:
+			entry = input
+	if entry.is_empty():
+		return server
+	var owd := clampf(float(now - int(entry.at)) * 0.5, 0.0, MAX_OWD_MS)
+	var t := float(now) - owd
+	var heading: Vector2 = entry.dir
+	var segments: Array = []
+	for later in _inputs:
+		if int(later.seq) > acked:
+			var applies := maxf(t, float(later.at) + owd)
+			segments.append([heading, speed_cells, (applies - t) / 1000.0])
+			t = applies
+			heading = later.dir
+	segments.append([heading, speed_cells, maxf(float(now) - t, 0.0) / 1000.0])
+	return body.replay(server, segments)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -637,21 +1550,65 @@ func _unhandled_input(event: InputEvent) -> void:
 		var entry: Dictionary = frame.entry_for_key(event.keycode)
 		if not entry.is_empty():
 			get_viewport().set_input_as_handled()
-			interact(entry)
+			if String(entry.get("verb", "")) == "more":
+				frame.choose(entry)
+			else:
+				interact(entry)
 			return
+	if combat_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and STEP_KEYS.has(event.keycode):
 		get_viewport().set_input_as_handled() # AD-197k: o passo solto anda pelo `_process` (tecla segurada), não por toque
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg:
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE and rpg and not popup_open():
 		get_viewport().set_input_as_handled()
 		jump()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and rpg:
-		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos)
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_I] and rpg:
+		get_viewport().set_input_as_handled() # #222: sem painel de ordens no modo jogador (só comandos); #233: Tab e I abrem a mochila
+		toggle_inventory()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and not popup_open() and not typing() and not housemates.is_empty():
 		get_viewport().set_input_as_handled()
-		if menu != null and menu.visible:
-			close_menu()
+		switch_body() # #252: G passa a conduzir a outra pessoa da casa
+	elif event is InputEventKey and event.pressed and not event.echo and event.shift_pressed and event.keycode in [KEY_1, KEY_2, KEY_3, KEY_4] and rpg \
+			and frame != null and frame.queue_size() > 0:
+		get_viewport().set_input_as_handled()
+		cancel_queued(event.keycode - KEY_1) # #255: Shift+1–4 tira a ação da fila
+	elif event is InputEventKey and event.pressed and not event.echo and not event.shift_pressed and event.keycode >= KEY_0 and event.keycode <= KEY_9 \
+			and rpg and not popup_open() and not typing() and frame != null and frame.speed_box.visible and frame.speed_for_key(event.keycode - KEY_0) >= 0:
+		get_viewport().set_input_as_handled() # #260/#261: 0 pausa, 1–9 as velocidades da lista do cenário (com a roda aberta, 1–9 escolhem a linha: tratado acima)
+		set_speed(frame.speed_for_key(event.keycode - KEY_0))
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T and rpg and _chat_with >= 0 and Time.get_ticks_msec() < _chat_until \
+			and not popup_open() and not typing():
+		get_viewport().set_input_as_handled() # #261: o papo aceito oferece a conversa por texto com a mesma pessoa
+		var with := _chat_with
+		_chat_with = -1
+		interact({"text": "Conversar", "kind": "person", "id": with, "verb": "talk", "resource": -1})
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_U and rpg and not popup_open() and not typing() and free_will != null:
+		get_viewport().set_input_as_handled()
+		toggle_free_will() # #268: livre-arbítrio do corpo sem ordem
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_B and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		buy_requested.emit() # #264
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		toggle_career() # #263: carreira, contas e vagas
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
+		get_viewport().set_input_as_handled()
+		toggle_goals() # #235: metas e diário
+	elif event is InputEventKey and event.keycode == KEY_E and not event.echo and (not event.pressed or not (input_blocked.is_valid() and input_blocked.call())):
+		get_viewport().set_input_as_handled()
+		if not event.pressed:
+			e_released()
+		elif rpg and frame != null and not (frame.menu_open() or (menu != null and menu.visible)):
+			e_pressed()
 		else:
-			open_interactions()
+			if (menu != null and menu.visible) or (frame != null and frame.menu_open()):
+				close_menu()
+			else:
+				open_interactions()
 
 
 ## Um passo; um pedido por vez (tecla segurada não enfileira passos que o motor ainda não respondeu).
@@ -682,7 +1639,7 @@ func step(dx: int, dy: int) -> void:
 
 ## AD-197j: o próximo passo só depois do tempo do corpo (`readyInMs` de mundo, na escala do relógio): a tecla segurada anda nesse ritmo.
 func _pace(pose: Dictionary) -> void:
-	var scale := float(time_view.get("timeScale", 1.0)) if time_view.get("timeScale") != null else 1.0
+	var scale := _time_scale()
 	var seconds := float(pose.get("readyInMs", 0)) / 1000.0 / maxf(scale, 0.001)
 	if seconds > 0.0:
 		step_seconds = seconds
@@ -707,11 +1664,213 @@ func latency_median_ms() -> float:
 const OBJECT_TEXT := {"table": "Mesa", "bench": "Banco", "crate": "Caixote", "barrel": "Barril", "counter": "Balcão", "shelf": "Prateleira",
 	"bed": "Cama", "chest": "Baú", "anvil": "Bigorna"}
 const KIND_TEXT := {"counter": "Balcão", "door": "Porta", "stock": "Despensa", "stall": "Banca", "bed": "Cama", "person": "", "house": "Sua casa",
-	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio"}
+	"stairs": "Escada", "water": "Fonte", "field": "Lavoura", "leaving": "Espólio", "nature": "Árvore"}
 const VERB_TEXT := {"enter": "Entrar", "exit": "Sair", "take": "Pegar", "deposit": "Guardar o que leva", "buy": "Comprar",
 	"sell": "Vender", "sleep": "Dormir", "talk": "Conversar", "strike": "Bater", "abandon": "Abandonar", "up": "Subir",
-	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
+	"down": "Descer", "drink": "Beber", "fill": "Encher o cântaro", "work": "Trabalhar", "collect": "Recolher", "gather": "Cortar lenha", "steal": "Furtar", "return": "Devolver", "eat": "Comer",
 	"socialize": "Conversar", "idle": "Descansar"}
+
+
+## #233: E no jogo: toque faz a ação principal (a primeira linha do motor); segurar (HOLD_S) abre a roda com todas as ofertas.
+const HOLD_S := 0.28
+var input_blocked: Callable = Callable() ## o app liga: com a conversa aberta o E não pede nada
+var _e_down := false
+var _e_hold := 0.0
+var _e_ready := false
+var _e_wheel := false
+var _e_quick := false
+var _e_entries: Array = []
+const CHAT_VERB := "social:chat" ## #261: a interação do catálogo que também abre a conversa por texto
+const CHAT_OFFER_MS := 20000
+var _chat_with := -1
+var _chat_until := 0
+var _root_entries: Array = [] ## #259: a roda de baixo do menu social ("‹ Voltar" volta a ela)
+var _social_seen := -1 ## #259: o instante (ms de mundo) do último fato social já avisado
+var _social_primed := false ## a primeira leitura só aprende o que já havia (não avisa o passado)
+var _world_ms := 0 ## o instante de mundo da última pose, para dizer "há 2 min" na relação
+
+
+func e_pressed() -> void:
+	if not is_active or _e_down:
+		return
+	_e_down = true
+	_e_hold = 0.0
+	_e_ready = false
+	_e_wheel = false
+	_e_quick = false
+	_e_entries = await _reach_entries()
+	_e_ready = true
+	_e_step()
+
+
+func e_released() -> void:
+	if not _e_down:
+		return
+	_e_down = false
+	if _e_wheel:
+		return # a roda aberta fica até escolher (1–9, clique) ou Esc
+	_e_quick = true
+	_e_step()
+
+
+func e_held(delta: float) -> void:
+	if _e_down:
+		_e_hold += delta
+		_e_step()
+
+
+func _e_step() -> void:
+	if not is_active:
+		return
+	if _e_down and _e_ready and _e_hold >= HOLD_S and not _e_wheel:
+		_e_wheel = true
+		_root_entries = _e_entries
+		frame.show_menu(_e_entries)
+		_show_relation_of(_e_entries)
+		menu_toggled.emit(true)
+	elif _e_quick and _e_ready:
+		_e_quick = false
+		if _e_entries.is_empty():
+			warning.emit("Nada ao alcance.")
+		else:
+			interact(_e_entries[0])
+
+
+# --- #267: clique = ir até / interagir (como o Sims) ---------------------------------------------------------------------------------------------------
+
+## O clique do jogador (o cursor livre, ou a mira no centro com o cursor preso) numa pessoa, num móvel ou num prédio. Ao alcance, abre a roda daquele alvo (a pessoa: o menu social e a
+## conversa; o móvel: os usos dele, e o motor leva o corpo até a peça); longe ou atrás de parede, o corpo anda até lá pela rota do motor (`POST /players/{id}/go`) e a roda abre ao chegar.
+## WASD, Espaço ou outra ordem interrompem. O golpe saiu do clique: Shift+clique ou R (`strike`).
+func click_target(hit: Dictionary, label: String = "", arrived: bool = false) -> void:
+	if not is_active or _busy or popup_open() or hit.is_empty() or (frame != null and frame.menu_open()):
+		return
+	var kind := String(hit.get("kind", ""))
+	if kind not in ["person", "object", "building"]:
+		return
+	if kind == "building":
+		await _go({"buildingId": int(hit.id)}, label, hit)
+		return
+	_busy = true
+	var response: Dictionary = await api.player_reach(player_id)
+	_busy = false
+	if not is_active or not response.ok or not (response.body is Dictionary):
+		return
+	offers = response.body.get("offers", [])
+	var offer := offer_for_hit(offers, hit)
+	if offer.is_empty():
+		if kind == "person" and not arrived:
+			await _go({"npcId": int(hit.id)}, label, hit)
+		elif arrived:
+			warning.emit("Não deu para chegar perto de %s." % (label if label != "" else "lá"))
+		else:
+			warning.emit("Isso não está ao alcance.")
+		return
+	var entries := without_sale(PlayerFrame.game_entries(menu_entries([offer], resource_name_of), [offer], fine, aim_look.call()), building_id)
+	if entries.is_empty():
+		return
+	_root_entries = entries
+	if entries.size() == 1 and String(entries[0].get("verb", "")) == "menu":
+		await interact(entries[0]) # o móvel abre os usos dele direto
+	elif frame != null:
+		frame.show_menu(entries)
+		_show_relation_of(entries)
+	menu_toggled.emit(true)
+
+
+## A oferta do motor que o clique acertou: a pessoa pelo id; o móvel pela célula mais próxima da que o clique deu (o id da peça no cliente é do catálogo, o da oferta é da casa).
+static func offer_for_hit(list: Array, hit: Dictionary) -> Dictionary:
+	var kind := String(hit.get("kind", ""))
+	if kind == "person":
+		for offer in list:
+			if String(offer.get("kind", "")) == "person" and int(offer.get("id", -1)) == int(hit.id):
+				return offer
+		return {}
+	var best: Dictionary = {}
+	var best_d := INF
+	for offer in list:
+		if String(offer.get("kind", "")) != "object":
+			continue
+		if not hit.has("cell"):
+			if String(offer.get("label", "")).to_lower() == String(hit.get("id", "")).to_lower():
+				return offer
+			continue
+		var d := Vector2(float(offer.get("x", 0)), float(offer.get("y", 0))).distance_squared_to(Vector2(hit.cell))
+		if d < best_d:
+			best_d = d
+			best = offer
+	return best if best_d <= 2.25 else {} # no máximo ~1,5 célula do ponto clicado
+
+
+## Pede ao motor que leve o corpo até o alvo; `then` é o que abrir ao chegar.
+func _go(target: Dictionary, label: String, then: Dictionary) -> void:
+	if not is_active or _busy:
+		return
+	if busy.active(): # outro clique no meio do caminho: para o que o corpo faz e vai para o novo alvo (o motor recusa um "ir até" com o corpo ocupado)
+		await interrupt()
+		if not is_active or busy.active():
+			return
+	_busy = true
+	var response: Dictionary = await api.player_go(player_id, target, label)
+	_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		_go_then = then.duplicate()
+		_go_then["label"] = label
+		apply_pose(response.body)
+		warning.emit("Indo: %s…  (WASD ou Espaço para)" % label if label != "" else "Indo…  (WASD ou Espaço para)")
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		refused.emit()
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou o caminho (erro %d)." % response.status)
+
+
+## Chegou: a roda do alvo (a pessoa, o prédio) abre sozinha.
+func _after_go() -> void:
+	var then := _go_then
+	_go_then = {}
+	if then.is_empty() or not is_active:
+		return
+	if String(then.get("kind", "")) == "building":
+		if int(then.get("id", -2)) == home_building: # #269: a própria casa: o motor entra sozinho ao chegar à soleira (a roda não abre sobre a porta)
+			warning.emit("Entrando em casa…")
+			return
+		if is_inside_tree(): # o passo para dentro leva um instante: se o corpo entrou nesse prédio, a roda de fora não abre
+			await get_tree().create_timer(0.5).timeout
+			if building_id == int(then.get("id", -2)):
+				return
+		warning.emit("Chegou: %s." % String(then.get("label", "o prédio")))
+		await open_interactions()
+	else:
+		await click_target(then, String(then.get("label", "")), true)
+
+
+## O que o corpo alcança agora, no formato do jogo (coisas primeiro, só as pessoas mais perto); guarda `offers`.
+func _reach_entries() -> Array:
+	if _busy:
+		return []
+	_busy = true
+	var started := Time.get_ticks_usec()
+	var response: Dictionary = await api.player_reach(player_id)
+	_note_latency(started)
+	_busy = false
+	if not is_active or not response.ok or not (response.body is Dictionary):
+		if response.status == 404 and is_active:
+			_lost("Você não controla mais %s." % npc_name)
+		return []
+	offers = response.body.get("offers", [])
+	return without_sale(without_own_door(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id), building_id)
+
+
+## #233: a mochila (I ou Tab): dinheiro e o que leva, da ficha do motor, lida na hora ao abrir.
+func toggle_inventory() -> void:
+	if frame == null:
+		return
+	frame.toggle_inventory()
+	if frame.inventory_open():
+		_body_clock = BODY_EVERY
 
 
 ## E: pede ao motor o que o corpo alcança e mostra só isso (uma linha por coisa e verbo; por recurso, na despensa e na banca).
@@ -731,34 +1890,76 @@ func open_interactions() -> void:
 		return
 	offers = response.body.get("offers", [])
 	if rpg and frame != null:
-		frame.show_menu(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine))
+		_root_entries = without_sale(PlayerFrame.game_entries(menu_entries(offers, resource_name_of), offers, fine, aim_look.call()), building_id)
+		frame.show_menu(_root_entries)
+		_show_relation_of(_root_entries)
 		menu_toggled.emit(true)
 		return
 	show_menu(menu_entries(offers, resource_name_of))
 
 
 ## As linhas do menu, todas tiradas da oferta: {text, kind, id, verb, resource}; o nome do recurso vem do catálogo do servidor.
+## #227: dentro de um prédio a porta dele não oferece "Entrar" (já está dentro).
+static func without_own_door(entries: Array, inside: int) -> Array:
+	return entries if inside < 0 else entries.filter(func(e): return not (String(e.kind) == "door" and String(e.verb) == "enter" and int(e.id) == inside))
+
+
+## #260: vender a própria casa não é coisa do dia a dia dentro dela: de dentro a roda não mostra a venda (o motor a deixa por último e de fora, na porta,
+## ela vem ao mirar a casa).
+static func without_sale(entries: Array, inside: int) -> Array:
+	return entries if inside < 0 else entries.filter(func(e): return String(e.kind) != "house")
+
+
 static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	var entries: Array = []
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
-		var title := String(offer.get("label", "")) if kind in ["person", "item", "object"] else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor
+		var named := String(offer.get("label", ""))
+		var has_social := kind == "person" and not SocialMenu.main_entry(offer, named).is_empty() # #261: com o menu social, "Conversar" (talk) é o "Bater papo" dele: uma entrada só
+		var title := named if kind in ["person", "item", "object"] or named != "" else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor (#260: a despensa tem o nome do móvel do catálogo)
 		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
+		if kind == "object" and offer.get("uses") != null and not (offer.uses as Array).is_empty():
+			# #255: um item por objeto (os usos vão num submenu), para cadeira, mesa e sofá não sumirem da roda
+			entries.append({"text": "%s ▸" % title, "kind": kind, "id": int(offer.id), "verb": "menu", "resource": -1, "uses": offer.uses, "title": title})
+			continue
+		if kind in ["job", "bills", "freight"] and offer.get("uses") != null: # #263: o texto de cada verbo (ir ao trabalho, candidatar-se, pagar a conta) é do dado, o motor o manda
+			for use in offer.uses:
+				entries.append({"text": String(use.name), "kind": kind, "id": int(offer.id), "verb": String(use.id), "resource": -1})
+			continue
 		for verb in offer.get("verbs", []):
+			if has_social and String(verb) == "talk":
+				continue
 			var resources: Array = offer.get("resources", [])
-			if String(verb) in ["buy", "take", "steal"] and not resources.is_empty():
+			if String(verb) in ["buy", "take", "steal", "gather"] and not resources.is_empty():
 				for item in resources:
 					if int(item.get("quantity", 0)) <= 0:
 						continue
 					var price := int(item.get("price", 0))
 					var resource_text: String = name_of.call(int(item.resourceId)) if name_of.is_valid() else "recurso %d" % int(item.resourceId)
-					entries.append({"text": "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
-						" (%d)" % price if price > 0 else ""], "kind": kind, "id": int(offer.id), "verb": String(verb),
-						"resource": int(item.resourceId)})
+					var line := "%s: %s" % [title, VERB_TEXT[verb]] if String(verb) == "gather" else "%s: %s %s%s" % [title, VERB_TEXT[verb], resource_text,
+						" (%d)" % price if price > 0 else ""] # #241: "Cortar lenha · Árvore" (a madeira é implícita)
+					entries.append({"text": line, "kind": kind, "id": int(offer.id), "verb": String(verb), "resource": int(item.resourceId)})
 			else:
 				entries.append({"text": "%s: %s" % [title, VERB_TEXT.get(String(verb), String(verb))], "kind": kind,
 					"id": int(offer.id), "verb": String(verb), "resource": -1})
+		if kind == "person": # #259: o menu social da pessoa ("Interagir ▸"), junto do Conversar de sempre
+			var social := SocialMenu.main_entry(offer, title)
+			if not social.is_empty():
+				entries.append(social)
 	return entries
+
+
+## #255: os usos de um objeto como linhas da roda: "Tomar banho · 15 min" (ou "Fila: …" com o corpo ocupado); o ocupado por outra pessoa vem marcado.
+static func use_entries(object_entry: Dictionary, queueing: bool) -> Array:
+	var list: Array = []
+	for use in object_entry.get("uses", []):
+		var text := "%s · %d min" % [String(use.name), int(use.minutes)]
+		if bool(use.get("busy", false)):
+			text += " (ocupado)"
+		var verb := ("queue:" if queueing else "use:") + String(use.id)
+		list.append({"text": ("Fila: " if queueing else "") + text, "kind": String(object_entry.kind), "id": int(object_entry.id), "verb": verb, "resource": -1,
+			"name": String(use.name), "need": String(use.get("need", "")) if use.get("need") != null else ""})
+	return list
 
 
 func show_menu(entries: Array) -> void:
@@ -793,6 +1994,38 @@ func close_menu() -> void:
 func interact(entry: Dictionary) -> void:
 	if not is_active or _busy:
 		return
+	if String(entry.get("verb", "")) == "menu": # #255: o objeto abre os usos dele numa segunda roda
+		if frame != null:
+			frame.show_menu(use_entries(entry, busy.active() or frame.queue_size() > 0))
+		return
+	if (String(entry.get("verb", "")).begins_with("use:") or String(entry.get("verb", "")).begins_with("queue:")) and String(entry.get("name", "")) != "":
+		_use_needs[String(entry.name)] = String(entry.get("need", "")) # #260: para o aviso de fim
+	match String(entry.get("verb", "")): # #259: o menu social: categorias, interações (as que não valem esmaecidas) e a volta
+		"social_menu", "social_back":
+			if frame != null:
+				frame.show_menu(SocialMenu.category_entries(entry))
+				_show_relation_of([entry])
+			return
+		"social_cat":
+			if frame != null:
+				frame.show_menu(SocialMenu.interaction_entries(entry))
+			return
+		"social_root":
+			if frame != null:
+				frame.show_menu(_root_entries)
+			return
+	if String(entry.get("verb", "")) == "wait_use": # #268: esperar o outro terminar com o móvel: o corpo vai até ele e fica por perto (a hora vem do motor)
+		close_menu()
+		warning.emit(String(entry.get("text", "Esperando…")))
+		await _go({"npcId": int(entry.id)}, String(entry.get("title", "")), {})
+		return
+	if bool(entry.get("disabled", false)): # #259: a interação que não vale agora diz por quê (o motivo é do motor) e não pede nada
+		refused.emit()
+		warning.emit(String(entry.get("reason", "Isso não vale agora.")))
+		return
+	if busy.active() and String(entry.get("verb", "")).begins_with("use:"):
+		entry = entry.duplicate()
+		entry["verb"] = "queue:" + String(entry.verb).substr(4) # o corpo está ocupado: a ação entra na fila
 	close_menu()
 	_busy = true
 	var started := Time.get_ticks_usec()
@@ -807,22 +2040,47 @@ func interact(entry: Dictionary) -> void:
 		var pose = response.body.get("pose")
 		if pose is Dictionary:
 			_pace(pose)
+			_note_busy(pose)
+			if frame != null:
+				frame.set_queue(pose.get("queue", [])) # #255
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))
-		if rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
-			warning.emit(done_text(entry, response.body))
+		if response.body.get("outcome") is String and String(response.body.outcome) == "refused": # #259: a pessoa recusou: a frase e o motivo vêm do motor
+			if pose is Dictionary and pose.get("social") is Dictionary:
+				_social_primed = true
+				_social_seen = maxi(_social_seen, int(pose.social.get("atMs", 0))) # o fato já foi dito aqui; a leitura da ficha não o repete
+			refused.emit()
+			warning.emit(String(response.body.get("note", "Recusou.")))
+			_refresh_relation_soon()
+		elif rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
+			var said := done_text(entry, response.body)
+			if String(entry.get("verb", "")) == CHAT_VERB and response.body.get("outcome") is String and String(response.body.outcome) == "done":
+				_chat_with = int(entry.id) # #261: o "Bater papo" do catálogo oferece abrir a conversa por texto (T) por um tempo
+				_chat_until = Time.get_ticks_msec() + CHAT_OFFER_MS
+				said += "  ·  T para escrever"
+			warning.emit(said)
 		else:
 			_set_status(String(entry.get("text", "")))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	else:
 		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
-		warning.emit(error.trim_prefix("conflict: recusa: ").trim_prefix("conflict: ") if error != "" else "O motor recusou (erro %d)." % response.status)
+		refused.emit()
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou (erro %d)." % response.status)
+
+
+## #258: o texto de um campo que pode vir nulo do motor ("" se nulo).
+static func _text_of(value: Variant) -> String:
+	return "" if value == null else String(value)
 
 
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
 static func done_text(entry: Dictionary, body: Dictionary) -> String:
+	if body.get("outcome") is String and String(body.outcome) in ["going", "later"] and body.get("note") != null: # #268: o corpo vai até o empregador / a entrevista marcada: a frase é do motor
+		return String(body.note)
+	if body.get("outcome") is String and String(body.outcome) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo
+		return "✓ " + String(body.note)
 	var text := String(entry.get("text", "")).get_slice(" (", 0)
 	var quantity := int(body.get("quantity", 0)) if body.get("quantity") != null else 0
 	var value := int(body.get("value", 0)) if body.get("value") != null else 0
@@ -838,20 +2096,138 @@ func _offer_label(entry: Dictionary) -> String:
 	return ""
 
 
-## Clique: golpe no NPC sob a mira; o motor decide alcance e vontade.
+## Clique: golpe no NPC sob a mira; o motor decide alcance, recarga e vontade. O braço sobe já só se o corpo está pronto
+## (recarga lida do motor); o que acertou, o dano e a reação do alvo vêm na resposta.
 func strike(target: int) -> void:
 	if not is_active or _busy or target < 0 or target == npc_id:
 		return
 	_busy = true
 	var started := Time.get_ticks_usec()
-	struck.emit(target) # o braço desce já (previsão); o motor diz se acertou
+	var swung := combat.strike_ready(Time.get_ticks_msec())
+	if swung:
+		struck.emit(target) # o braço sobe já (previsão); o motor diz se acertou
 	var response: Dictionary = await api.player_strike(player_id, target)
 	_note_latency(started)
 	_busy = false
-	if not is_active or response.ok:
+	if not is_active:
 		return
-	var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
-	warning.emit(error.trim_prefix("conflict: recusa: ") if error != "" else "O golpe não saiu (erro %d)." % response.status)
+	if response.ok and response.body is Dictionary:
+		var body: Dictionary = response.body
+		if not swung:
+			struck.emit(target) # sem previsão: o braço sobe quando o motor aceita
+		combat.note_strike(int(body.get("readyInMs", 0)), Time.get_ticks_msec())
+		if body.get("pose") is Dictionary:
+			note_combat(body.pose)
+		struck_hit.emit(target)
+		struck_result.emit(target, body)
+		_body_clock = BODY_EVERY
+		return
+	if response.ok:
+		struck_hit.emit(target)
+		_body_clock = BODY_EVERY
+		return
+	refused.emit()
+	warning.emit(CombatView.refusal_text(response.status, response.body, "O golpe não saiu"))
+
+
+## #234: lê o `pose.combat` (de qualquer resposta com pose): recarga, guarda, alcance e golpes recebidos novos.
+func note_combat(pose: Dictionary) -> void:
+	for event in combat.note_pose(pose, Time.get_ticks_msec()):
+		incoming.emit(String(event.outcome), int(event.damage), int(event.by))
+		if event.outcome == "Hit":
+			_body_clock = BODY_EVERY # a saúde mudou: a barra lê já
+	_sync_guard()
+
+
+## A guarda que vale agora no corpo ("" quando a janela do motor acabou); avisa o app só quando muda.
+func _sync_guard() -> void:
+	var now := "" if not combat.guarding(Time.get_ticks_msec()) else combat.guard
+	if now != _guard_shown:
+		_guard_shown = now
+		guard_changed.emit(now)
+	if frame != null:
+		frame.set_combat(combat.strike_wait_ms(Time.get_ticks_msec()), now, combat.guard_wait_ms(Time.get_ticks_msec()))
+
+
+## #234: bloquear (botão direito ou F, segure): o motor decide a janela e a recarga; recusa mostra o motivo dele.
+func block() -> void:
+	await _defend("block")
+
+
+## #234: esquivar (Ctrl, Alt ou duplo toque numa direção).
+func dodge() -> void:
+	await _defend("dodge")
+
+
+func _defend(kind: String) -> void:
+	if not is_active or _guard_busy:
+		return
+	_guard_busy = true
+	var response: Dictionary
+	if kind == "block": # #250: cada chamada com o seu await (um `await (a() if x else b())` chama a corrotina sem await e a engine acusa o erro)
+		response = await api.player_block(player_id)
+	else:
+		response = await api.player_dodge(player_id)
+	_guard_busy = false
+	if not is_active:
+		return
+	if response.ok and response.body is Dictionary:
+		var body: Dictionary = response.body
+		note_combat(body.get("pose", body) if body.get("pose", body) is Dictionary else body)
+		defended.emit("Block" if kind == "block" else "Dodge")
+	elif response.status == 404:
+		_lost("Você não controla mais %s." % npc_name)
+	else:
+		refused.emit()
+		warning.emit(CombatView.refusal_text(response.status, response.body, "A defesa não saiu"))
+
+
+## #234: teclas e botões de combate; devolve se tratou o evento. F e botão direito seguram a guarda; Ctrl/Alt esquivam.
+func combat_input(event: InputEvent) -> bool:
+	if not is_active or not rpg or (input_blocked.is_valid() and input_blocked.call()):
+		return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		_block_held = event.pressed
+		if event.pressed:
+			block()
+		return true
+	if event is InputEventKey and not event.echo:
+		if event.keycode == KEY_F:
+			_block_held = event.pressed
+			if event.pressed:
+				block()
+			return true
+		if event.pressed and event.keycode in [KEY_CTRL, KEY_ALT]:
+			dodge()
+			return true
+		if event.pressed and STEP_KEYS.has(event.keycode):
+			var now := Time.get_ticks_msec()
+			if event.keycode == _tap_key and now - _tap_at <= DOUBLE_TAP_MS:
+				_tap_key = -1
+				dodge() # duplo toque na mesma direção
+			else:
+				_tap_key = event.keycode
+				_tap_at = now
+			return false # o passo segue pelo `_process` (o toque não é consumido)
+	return false
+
+
+func _reset_combat() -> void:
+	combat.reset()
+	_block_held = false
+	_tap_key = -1
+	if _guard_shown != "":
+		_guard_shown = ""
+		guard_changed.emit("")
+	if frame != null:
+		frame.set_combat(0, "", 0)
+
+
+## Segurando a guarda: quando a janela acaba e o motor deixa, renova (o corpo continua protegido enquanto o jogador segura).
+func _hold_guard() -> void:
+	_sync_guard()
+	if _block_held and not _guard_busy and not combat.guarding(Time.get_ticks_msec()) and combat.guard_ready(Time.get_ticks_msec()):
+		block()
 
 
 func logout() -> void:
@@ -870,7 +2246,9 @@ func logout() -> void:
 		else:
 			warning.emit("Não foi possível sair do personagem anterior (erro %d)." % response.status)
 		return
-	if response.ok and response.body is Dictionary:
+	if response.ok and response.body is Dictionary and response.body.get("disappearedAtMs", response.body.get("disappearedAtTick")) == null:
+		_lost("Você saiu. %s volta à rotina, em casa e no trabalho." % npc_name) # #246 (AD-237): o cenário diz que sair não faz sumir
+	elif response.ok and response.body is Dictionary:
 		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, WorldTime.hours_of(response.body, "disappearedAtMs")])
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
@@ -910,6 +2288,7 @@ func action_text(action: String) -> String:
 
 func _lost(text: String) -> void:
 	is_active = false
+	_reset_combat()
 	set_rpg(false)
 	apply_time({})
 	current_action = ""

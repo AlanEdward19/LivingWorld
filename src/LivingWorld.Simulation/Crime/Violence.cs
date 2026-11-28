@@ -65,19 +65,25 @@ internal static class Violence
 
     /// <summary>Uma agressão: dano pela força relativa (músculo), golpe mortal raro, ferimento ou morte, mágoa em quem apanhou,
     /// vingança dos parentes e o caso para a justiça.</summary>
-    public static void Fight(WorldState world, TickContext ctx, Npc aggressor, Npc victim, string motive, WorldRng rng)
+    /// <summary>#234: devolve o dano dado e se matou. <paramref name="damageFactor"/> (1 = o golpe inteiro) é o que a guarda de quem
+    /// apanha deixa passar (bloqueio); <paramref name="defense"/> é o revide ou a ajuda a quem apanhou: fere pelo mesmo caminho, mas
+    /// não abre caso na justiça (o crime foi o primeiro golpe).</summary>
+    public static (int Harm, bool Lethal) Fight(WorldState world, TickContext ctx, Npc aggressor, Npc victim, string motive, WorldRng rng,
+        double damageFactor = 1.0, bool defense = false)
     {
-        if (!aggressor.IsAlive || !victim.IsAlive || aggressor.Id == victim.Id) return;
+        if (!aggressor.IsAlive || !victim.IsAlive || aggressor.Id == victim.Id) return (0, false);
         var rules = world.CrimeRules!.Violence;
         long now = ctx.CurrentTick;
         double strength = Math.Clamp((aggressor.MuscleMass + 5) / Math.Max(5.0, victim.MuscleMass + 5), 0.4, 2.5);
-        int harm = Math.Max(1, (int)Math.Round(rules.HarmMean * strength * (1 + rules.HarmSpread * (2 * rng.NextDouble() - 1))));
+        int harm = Math.Max(1, (int)Math.Round(rules.HarmMean * strength * damageFactor * (1 + rules.HarmSpread * (2 * rng.NextDouble() - 1))));
         // o golpe que deixaria a saúde no piso de "perigo observável" (≤ 1) mata: ferido vivo nunca fica ali, onde quem está
         // perto foge sem parar (AD-150: a vila fugia de um ferido até morrer de sede com água em casa)
         bool lethal = rng.NextDouble() < rules.LethalChance * strength || victim.Health - harm <= AliveNpcIndex.EndangeredHealth;
         var where = victim.CurrentLocation;
-        var outcome = Justice.OnCrime(world, ctx, lethal ? CrimeKind.Homicide : CrimeKind.Assault, aggressor, victim,
-            victim.Id.Value, where, harm, "corpo", motive, caught: false, rng);
+        var outcome = defense
+            ? new CrimeOutcome(-1, 0, -1)
+            : Justice.OnCrime(world, ctx, lethal ? CrimeKind.Homicide : CrimeKind.Assault, aggressor, victim,
+                victim.Id.Value, where, harm, "corpo", motive, caught: false, rng);
         ctx.LogEvent(WorldEventKind.Assault,
             $"{aggressor.Id.Value}|{victim.Id.Value}|{motive}|{harm}|{(lethal ? "morto" : "ferido")}|{outcome.Seers}|{outcome.CaseId}",
             Theft.SourceName);
@@ -97,7 +103,7 @@ internal static class Violence
                 AddGrudge(world, kin.Id.Value, aggressor.Id.Value, "vinganca", rules.KinKilledGrudge, now);
                 if (world.NeedsRules.Psyche.Enabled) PsycheMechanic.Experience(world, kin, LifeEventKind.KinMurdered, aggressor.Id.Value, now);
             }
-            return;
+            return (harm, true);
         }
 
         victim.SetHealth(victim.Health - harm);
@@ -109,6 +115,7 @@ internal static class Violence
         if (harm >= 2 * rules.HarmMean)
             foreach (var kin in KinOf(world, victim))
                 AddGrudge(world, kin.Id.Value, aggressor.Id.Value, "vinganca", rules.KinWoundedGrudge, now);
+        return (harm, false);
     }
 
     /// <summary>Parentes vivos próximos (cônjuge, pais, filhos, irmãos), em ordem de id. Uma passada pelos vivos: só em briga.</summary>

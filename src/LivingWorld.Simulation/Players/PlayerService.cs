@@ -16,12 +16,13 @@ namespace LivingWorld.Simulation.Players;
 /// AD-197d: <see cref="Interact"/> é interagir com o que está perto (<see cref="PlayerCommandRecord.Interaction"/>,
 /// <see cref="PlayerCommandRecord.Verb"/>, alvo em <see cref="PlayerCommandRecord.TargetId"/>, recurso e quantidade).
 /// AD-197k: <see cref="Walk"/> é o rumo do passo solto (<see cref="PlayerCommandRecord.Dx"/>/<see cref="PlayerCommandRecord.Dy"/> em milésimos;
-/// AD-197u: <see cref="PlayerCommandRecord.Run"/> pede correr). <see cref="Jump"/> é o pulo (AD-197u).
+/// AD-197u: <see cref="PlayerCommandRecord.Run"/> pede correr). <see cref="Jump"/> é o pulo (AD-197u). #234: <see cref="Dodge"/> e <see cref="Block"/> levantam a guarda do corpo.
 /// AD-197q: <see cref="Sample"/> é pedir uma amostra do agregado ao criador de personagem (<see cref="PlayerCommandRecord.CityId"/>,
 /// <see cref="PlayerCommandRecord.SampleNumber"/>, <see cref="PlayerCommandRecord.Filter"/>, <see cref="PlayerCommandRecord.Count"/>);
 /// <see cref="Create"/> é entrar como um dos candidatos dela (<see cref="PlayerCommandRecord.NpcId"/>).
 /// AD-197t: <see cref="Character"/> é montar a pessoa no criador (<see cref="PlayerCommandRecord.Spec"/>: tudo o que o jogador escolheu).
-public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump }
+public enum PlayerCommandKind { Incarnate, Act, Logout, Move, Strike, Persuade, TickDelta, Advance, Sleep, Accelerate, Wake, Interact, Walk, Sample, Create, Character, Jump, Dodge, Block, Interrupt, Switch, Speed, Go }
+
 
 /// <summary>Um comando de jogador, no instante do mundo em que foi aplicado (antes do tick seguinte rodar), em milissegundos
 /// (<see cref="AtMs"/>, ADR-0050; no <c>players.log</c> o campo segue <c>Tick</c>, em horas na hora cheia: registro antigo carrega
@@ -36,7 +37,7 @@ public sealed record PlayerCommandRecord(
     bool Refused = false, string? Reason = null, int? DeltaMs = null, long? Ticks = null, long? UntilMs = null,
     string? Interaction = null, string? Verb = null, int? ResourceId = null, long? Quantity = null,
     Guid? CityId = null, long? SampleNumber = null, CharacterFilter? Filter = null, int? Count = null,
-    CharacterSpec? Spec = null, bool? Run = null);
+    CharacterSpec? Spec = null, bool? Run = null, int? Seq = null);
 
 /// <summary>Registro de sessões do hospedeiro (AD-196): quem encarnou, agiu, andou, golpeou e saiu, na ordem em que o mundo
 /// aplicou. Fica fora do snapshot e do hash (não é fato do mundo); reaplicar o registro a partir do snapshot do começo reproduz o
@@ -116,10 +117,22 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    /// <summary>#252: troca de corpo (ver <see cref="PlayerCommands.Switch"/>); entra no registro como o comando aceito, com o alvo em <c>NpcId</c>.</summary>
+    public Result<Unit> Switch(WorldState world, NpcId targetId, string playerId)
+    {
+        var result = PlayerCommands.Switch(world, Context(world), targetId, playerId);
+        bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
+        if (result.IsSuccess || refused)
+            Record(world, playerId, PlayerCommandKind.Switch, targetId.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Switch, Refused: refused, Reason: refused ? result.Error : null));
+        return result;
+    }
+
     public Result<Unit> Act(WorldState world, string playerId, ActionType? action, string? powerId = null)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.Act(world, npc.Id, playerId, action, powerId);
         if (result.IsSuccess) PlayerCommands.Witness(world, Context(world), npc.Id, action); // AD-197f: quem convive compara com o costume
@@ -129,11 +142,16 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
+    private static string? AwayRefusal(WorldState world, Npc npc) =>
+        LivingWorld.Simulation.Careers.CareerWork.IsAway(world, npc) && world.Careers!.JobOf(npc.Id.Value) is { } job
+            ? $"{PlayerCommands.Conflict} você está no trabalho até {LivingWorld.Simulation.Careers.CareerWork.Clock(world, job.ReturnMs)}" : null;
+
     /// <summary>Intenção de passo (−1..1 em cada eixo), não posição: o motor decide onde o corpo chega.</summary>
     public Result<Unit> Move(WorldState world, string playerId, int dx, int dy)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerCommands.Move(world, Context(world), npc.Id, playerId, dx, dy);
         if (result.IsSuccess)
@@ -141,17 +159,30 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
-    public Result<Unit> Strike(WorldState world, string playerId, NpcId target)
+    public Result<StrikeResult> Strike(WorldState world, string playerId, NpcId target)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
-            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+            return Result<StrikeResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<StrikeResult>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
-        var result = PlayerCommands.Strike(world, Context(world), npc.Id, playerId, target);
+        var result = PlayerCommands.StrikeWithResult(world, Context(world), npc.Id, playerId, target);
         bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
         if (result.IsSuccess || refused)
             Record(world, playerId, PlayerCommandKind.Strike, npc.Id.Value,
                 new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Strike, TargetId: target.Value, Refused: refused,
                     Reason: refused ? result.Error : null));
+        return result;
+    }
+
+    /// <summary>#234: levanta a guarda (esquiva ou bloqueio) por uma janela curta; a recusa (409) não muda o mundo nem entra no registro.</summary>
+    public Result<Unit> Guard(WorldState world, string playerId, CombatGuard guard)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerCommands.Guard(world, npc.Id, playerId, guard);
+        if (result.IsSuccess) Record(world, playerId, guard == CombatGuard.Dodge ? PlayerCommandKind.Dodge : PlayerCommandKind.Block, npc.Id.Value);
         return result;
     }
 
@@ -162,8 +193,10 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<InteractionResult>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<InteractionResult>.Fail(away); // #263: no turno de trabalho o corpo não responde
         EndSkipOnCommand(world, playerId);
         var result = PlayerInteractions.Interact(world, Context(world), npc, kind, id, verb, resourceId, quantity);
+        if (result.IsSuccess) BeginTaskSkip(world, npc, playerId); // #241: ação longa com o mundo só dele: o tempo acelera até acabar
         bool refused = !result.IsSuccess && result.Error!.StartsWith(PlayerCommands.Refused, StringComparison.Ordinal);
         if (result.IsSuccess || refused)
             Record(world, playerId, PlayerCommandKind.Interact, npc.Id.Value,
@@ -172,15 +205,32 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
         return result;
     }
 
-    /// <summary>AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para): o motor anda o corpo pelo rumo anterior até agora.</summary>
-    public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy, bool run = false)
+    /// <summary>#267: "ir até" uma célula, uma pessoa ou um prédio: o corpo anda sozinho pela rota do motor (<see cref="PlayerGo"/>); 409 ocupado, longe demais ou sem rota. Entra no registro com o alvo já resolvido.</summary>
+    public Result<Unit> Go(WorldState world, string playerId, int? x, int? y, long? person, long? building, string? label)
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away);
+        var target = PlayerGo.Resolve(world, npc, x, y, person, building);
+        if (!target.IsSuccess) return Result<Unit>.Fail(target.Error!);
         EndSkipOnCommand(world, playerId);
-        var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy, run);
+        var result = PlayerGo.Begin(world, Context(world), npc, target.Value, label);
         if (result.IsSuccess)
-            Record(world, playerId, PlayerCommandKind.Walk, npc.Id.Value, new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Walk, Dx: dx, Dy: dy, Run: run ? true : null));
+            Record(world, playerId, PlayerCommandKind.Go, npc.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Go, Dx: target.Value.Cell.X, Dy: target.Value.Cell.Y, TargetId: target.Value.Person, Interaction: label));
+        return result;
+    }
+
+    /// <summary>AD-197k: o rumo do passo solto (milésimos por eixo; 0, 0 para): o motor anda o corpo pelo rumo anterior até agora.</summary>
+    public Result<Unit> Walk(WorldState world, string playerId, int dx, int dy, bool run = false, int seq = 0)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<Unit>.Fail(away); // #263: no turno de trabalho o corpo não responde
+        EndSkipOnCommand(world, playerId);
+        var result = PlayerWalk.Walk(world, Context(world), npc, dx, dy, run, seq);
+        if (result.IsSuccess)
+            Record(world, playerId, PlayerCommandKind.Walk, npc.Id.Value, new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Walk, Dx: dx, Dy: dy, Run: run ? true : null, Seq: seq > 0 ? seq : null));
         return result;
     }
 
@@ -190,11 +240,24 @@ public sealed partial class PlayerService(IWorldEventSink sink, PlayerSessionLog
     {
         if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
             return Result<int>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (AwayRefusal(world, npc) is { } away) return Result<int>.Fail(away); // #263: no turno de trabalho o corpo não responde
         if (PlayerJump.Refusal(world, npc) is { } refused) return Result<int>.Fail(refused); // recusado: nada muda, nem o pulo de tempo
         EndSkipOnCommand(world, playerId);
         var result = PlayerJump.Jump(world, npc);
         if (result.IsSuccess) Record(world, playerId, PlayerCommandKind.Jump, npc.Id.Value);
         return result;
+    }
+
+    /// <summary>#241: interrompe a ação que ocupa o corpo (cortar lenha...): o que já saiu da árvore fica nas mãos e o
+    /// corpo volta a andar. Sem ação em andamento, 409 e nada muda (nem entra no registro).</summary>
+    public Result<BusyView> Interrupt(WorldState world, string playerId)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is not { } npc)
+            return Result<BusyView>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (PlayerTasks.Of(world, npc) is not null && Skip?.PlayerId == playerId) EndSkip(world, "comando"); // #241: parar a ação solta o salto (volta ao 1:1)
+        var done = PlayerTasks.Interrupt(world, Context(world), npc);
+        if (done.IsSuccess) Record(world, playerId, PlayerCommandKind.Interrupt, npc.Id.Value);
+        return done;
     }
 
     /// <summary>AD-197d: o que o corpo do jogador alcança agora e o que pode fazer ali (só lê).</summary>
@@ -310,6 +373,7 @@ public static class PlayerReplay
             {
                 PlayerCommandKind.Incarnate => service.Incarnate(world, new NpcId(record.NpcId!.Value), record.PlayerId,
                     record.Mode ?? PossessionMode.Common).IsSuccess,
+                PlayerCommandKind.Switch => service.Switch(world, new NpcId(record.NpcId!.Value), record.PlayerId).IsSuccess,
                 PlayerCommandKind.Act => service.Act(world, record.PlayerId, record.Action, record.PowerId).IsSuccess,
                 PlayerCommandKind.Move => service.Move(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0).IsSuccess,
                 PlayerCommandKind.Strike => service.Strike(world, record.PlayerId, new NpcId(record.TargetId!.Value)).IsSuccess,
@@ -317,10 +381,15 @@ public static class PlayerReplay
                 PlayerCommandKind.TickDelta => service.SetTickDelta(world, record.PlayerId, record.DeltaMs!.Value).IsSuccess,
                 PlayerCommandKind.Advance => service.Advance(world, clock, record.PlayerId, record.Ticks!.Value, record.DeltaMs!.Value).IsSuccess,
                 PlayerCommandKind.Sleep => service.Sleep(world, record.PlayerId, record.UntilMs).IsSuccess,
-                PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Accelerate => service.Accelerate(world, record.PlayerId, record.UntilMs).IsSuccess,
                 PlayerCommandKind.Wake => service.EndSkip(world, record.Reason ?? "").IsSuccess,
-                PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true).IsSuccess,
+                PlayerCommandKind.Walk => service.Walk(world, record.PlayerId, record.Dx ?? 0, record.Dy ?? 0, record.Run == true, record.Seq ?? 0).IsSuccess,
                 PlayerCommandKind.Jump => service.Jump(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Interrupt => service.Interrupt(world, record.PlayerId).IsSuccess,
+                PlayerCommandKind.Go => service.Go(world, record.PlayerId, record.Dx, record.Dy, record.TargetId, null, record.Interaction).IsSuccess,
+                PlayerCommandKind.Speed => true, // #260: estado do hospedeiro; o que muda o mundo é o Δ, que vai no registro de Δ
+                PlayerCommandKind.Dodge => service.Guard(world, record.PlayerId, CombatGuard.Dodge).IsSuccess,
+                PlayerCommandKind.Block => service.Guard(world, record.PlayerId, CombatGuard.Block).IsSuccess,
                 PlayerCommandKind.Sample => service.Sample(world, record.PlayerId, new CityId(record.CityId!.Value),
                     record.Filter ?? CharacterFilter.None, record.Count ?? CharacterCreation.DefaultCount, record.SampleNumber).IsSuccess,
                 PlayerCommandKind.Create => service.Create(world, record.PlayerId, new CityId(record.CityId!.Value),

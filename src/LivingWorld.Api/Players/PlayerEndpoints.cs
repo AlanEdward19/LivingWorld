@@ -7,12 +7,15 @@ namespace LivingWorld.Api.Players;
 
 /// <summary><c>PlayerId</c> é opcional com sessão (o jogador vem do token); no modo local é obrigatório.</summary>
 public sealed record IncarnateRequest(string? PlayerId);
+
+/// <summary>#252: o corpo para onde o jogador passa (troca sem sumir com o de antes).</summary>
+public sealed record PlayerSwitchRequest(long NpcId);
 /// <summary><c>Action</c> é o nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy, UsePower); vazio devolve a escolha ao motor.
 /// <c>PowerId</c> (AD-196, opcional) é o poder que o NPC porta, exigido com UsePower.</summary>
 public sealed record PlayerActionRequest(string? Action, string? PowerId = null);
 /// <summary>Passo do jogador (AD-197e): direção −1..1 em cada eixo, intenção e não posição.</summary>
-/// AD-197u: <c>Run</c> (opcional) pede correr no <c>walk</c>; o <c>move</c> não usa.
-public sealed record PlayerMoveRequest(int Dx, int Dy, bool? Run = null);
+/// AD-197u: <c>Run</c> (opcional) pede correr no <c>walk</c>; o <c>move</c> não usa. #248: <c>Wseq</c> numera o comando de andar (a pose devolve <c>seq</c>, o último aplicado).
+public sealed record PlayerMoveRequest(int Dx, int Dy, bool? Run = null, int? Wseq = null);
 /// <summary>Golpe do jogador (AD-197e) no NPC ao alcance.</summary>
 public sealed record PlayerStrikeRequest(long NpcId);
 /// <summary>AD-197d: interagir com o que está perto (<c>GET /players/{playerId}/reach</c> diz o quê): <c>Kind</c> (door, stock, stall,
@@ -20,6 +23,12 @@ public sealed record PlayerStrikeRequest(long NpcId);
 public sealed record PlayerInteractRequest(string Kind, long Id, string Verb, int? ResourceId = null, long? Quantity = null);
 /// <summary>AD-197c: dormir até a hora do dia <c>UntilHour</c> (0 até horas do dia − 1) ou, sem ela, acelerando até descansar.</summary>
 public sealed record PlayerSleepRequest(int? UntilHour = null);
+
+/// <summary>#267: <c>UntilReturn</c> acelera até a volta do turno de quem da casa está no trabalho.</summary>
+public sealed record PlayerAccelerateRequest(bool UntilReturn = false);
+
+/// <summary>#267: "ir até": uma célula (<c>X</c>, <c>Y</c>), uma pessoa (<c>NpcId</c>) ou um prédio (<c>BuildingId</c>, a soleira dele); <c>Label</c> é só o nome que o cliente mostra.</summary>
+public sealed record PlayerGoRequest(int? X = null, int? Y = null, long? NpcId = null, long? BuildingId = null, string? Label = null);
 /// <summary>AD-197q: pedir uma amostra do agregado de <c>CityId</c> ao criador de personagem. Filtro opcional (<c>Sex</c>: Female/Male,
 /// faixa de idade, ofício por id) e <c>Count</c> (1 a 12; padrão 6). Cada pedido é uma amostra nova, registrada.</summary>
 public sealed record PlayerCandidatesRequest(Guid CityId, string? Sex = null, int? MinAge = null, int? MaxAge = null, int? ProfessionId = null,
@@ -84,6 +93,10 @@ public static class PlayerEndpoints
             return Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Act, Action: action, PowerId: request.PowerId));
         });
 
+        // #252: troca de corpo (sandbox do casal): solta o NPC conduzido, sem sumir, e conduz o outro no mesmo modo de posse
+        app.MapPost("/players/{playerId}/switch", (HttpContext http, string playerId, PlayerSwitchRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Switch, request.NpcId)));
+
         app.MapPost("/players/{playerId}/logout", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Logout)));
 
@@ -94,11 +107,25 @@ public static class PlayerEndpoints
 
         // AD-197k: o passo solto (rumo em milésimos); o canal é o caminho de sempre, a rota serve a quem não o abre
         app.MapPost("/players/{playerId}/walk", (HttpContext http, string playerId, PlayerMoveRequest request) =>
-            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy, Run: request.Run == true)));
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Walk, Dx: request.Dx, Dy: request.Dy, Run: request.Run == true, Seq: request.Wseq ?? 0)));
 
         // AD-197u: pular (corpo vazio ou {}): o motor decide pelo corpo e pelo fôlego; 409 com o motivo; 200 = a pose e airMs
         app.MapPost("/players/{playerId}/jump", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Jump)));
+
+        // #241: interromper a ação que ocupa o corpo (cortar lenha...): o motor deixa a parte proporcional; 409 sem ação em andamento
+        app.MapPost("/players/{playerId}/interrupt", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Interrupt)));
+
+        // #267: ir até uma célula, pessoa ou prédio pela rota do motor (o corpo anda sozinho; WASD ou interrupt param)
+        app.MapPost("/players/{playerId}/go", (HttpContext http, string playerId, PlayerGoRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Go, NpcId: request.NpcId, X: request.X, Y: request.Y, BuildingId: request.BuildingId, Label: request.Label)));
+
+        // #234: esquiva e bloqueio (janela curta, recarga da guarda); 200 = a pose com o combate, 409 com o motivo
+        app.MapPost("/players/{playerId}/dodge", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Dodge)));
+        app.MapPost("/players/{playerId}/block", (HttpContext http, string playerId) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Block)));
 
         app.MapPost("/players/{playerId}/strike", (HttpContext http, string playerId, PlayerStrikeRequest request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Strike, request.NpcId)));
@@ -113,6 +140,13 @@ public static class PlayerEndpoints
             return gateway.Reach(playerId) is { } offers ? Results.Ok(new { offers }) : Results.NotFound(new { error = "not_found: jogador não controla nenhum NPC" });
         });
 
+        // #248: a máscara de passos ao redor do corpo (a regra do chão do motor) para o cliente prever o passo com a mesma regra
+        app.MapGet("/players/{playerId}/ground", (HttpContext http, string playerId, int? r) =>
+        {
+            if (Identify(http, tokens, policy.Required, playerId) is { } refused) return refused;
+            return gateway.Ground(playerId, r ?? 8) is { } ground ? Results.Ok(ground) : Results.NotFound(new { error = "not_found: jogador não controla nenhum NPC" });
+        });
+
         // AD-197f: convencer a pessoa possuída a ceder (posse comum): tira resistência, uma vez por hora
         app.MapPost("/players/{playerId}/persuade", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Persuade)));
@@ -121,8 +155,11 @@ public static class PlayerEndpoints
         // sede ou alguém chamando. GET .../time diz o ritmo e se os controles valem agora
         app.MapPost("/players/{playerId}/sleep", (HttpContext http, string playerId, PlayerSleepRequest? request) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Sleep, UntilHour: request?.UntilHour)));
-        app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId) =>
-            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate)));
+        app.MapPost("/players/{playerId}/accelerate", (HttpContext http, string playerId, PlayerAccelerateRequest? request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Accelerate, UntilReturn: request?.UntilReturn == true)));
+        // #260: a velocidade do tempo do jogador (0 pausa, 1, 2, 3), só quem joga sozinho
+        app.MapPost("/players/{playerId}/speed", (HttpContext http, string playerId, PlayerSpeedRequest request) =>
+            Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Speed, Speed: request.Speed)));
         app.MapPost("/players/{playerId}/wake", (HttpContext http, string playerId) =>
             Run(http, tokens, policy.Required, playerId, gateway, new PlayerCommandRequest(PlayerCommandKind.Wake)));
         app.MapGet("/players/{playerId}/time", (HttpContext http, string playerId) =>
@@ -138,6 +175,9 @@ public static class PlayerEndpoints
             return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
         });
 
+        app.MapPlayerHomeEndpoints(gateway, tokens, policy); // #264: modo comprar e construir (leitura)
+        app.MapPlayerGoalsEndpoints(gateway, tokens, policy); // #235: metas, habilidades e diário (só leitura)
+
         // AD-197e: a pessoa presa, vista por quem a possui (posse plena); 404 fora dela
         app.MapGet("/players/{playerId}/captive", (HttpContext http, string playerId) =>
         {
@@ -147,7 +187,7 @@ public static class PlayerEndpoints
     }
 
     /// <summary>Nulo quando o pedido pode agir como <paramref name="playerId"/>; senão a resposta de recusa (401/403/400).</summary>
-    private static IResult? Identify(HttpContext http, PlayerSessionTokens tokens, bool authRequired, string playerId)
+    internal static IResult? Identify(HttpContext http, PlayerSessionTokens tokens, bool authRequired, string playerId)
     {
         if (BearerOf(http) is { } token)
         {
@@ -240,3 +280,6 @@ public static class PlayerEndpoints
         return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
     }
 }
+
+/// <summary>#260: corpo do <c>POST /players/{id}/speed</c>.</summary>
+public sealed record PlayerSpeedRequest(int Speed);

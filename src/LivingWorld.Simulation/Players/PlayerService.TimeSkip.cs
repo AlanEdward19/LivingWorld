@@ -2,13 +2,15 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Simulation.Players;
 
 /// <summary>Pulo de tempo de quem joga sozinho (AD-197c, ADR-0050 decisão 3): dormindo (até <see cref="UntilMs"/>, ou acelerando até
 /// descansar) ou parado, vendo o mundo andar e perdendo necessidades. Estado do hospedeiro, fora do snapshot: o que muda o mundo
-/// (deitar, acordar) e a troca de Δ vão para o registro do jogador.</summary>
-public sealed record TimeSkip(string PlayerId, long NpcId, bool Sleeping, long? UntilMs, long StartedTick, int HealthAtStart);
+/// (deitar, acordar) e a troca de Δ vão para o registro do jogador. <c>Task</c> (#241): o pulo acompanha uma ação longa do corpo
+/// (<see cref="PlayerTasks"/>) e acaba com ela.</summary>
+public sealed record TimeSkip(string PlayerId, long NpcId, bool Sleeping, long? UntilMs, long StartedTick, int HealthAtStart, bool Task = false);
 
 // Parte de PlayerService — dormir e acelerar (AD-197c).
 public sealed partial class PlayerService
@@ -41,21 +43,48 @@ public sealed partial class PlayerService
         if (untilMs is { } until && until <= world.CurrentDate.TotalMilliseconds) return Result<Unit>.Fail("sleep: o horário já passou");
         var acted = PlayerCommands.Act(world, npc.Id, playerId, ActionType.Sleep);
         if (!acted.IsSuccess) return acted;
+        // #258 (regra do Sims): pode deitar sempre; o sono acelerado só acelera enquanto há sono a recuperar. Descansado, o corpo deita no ritmo normal (o
+        // jogador o levanta quando quiser) em vez de o pulo acabar no mesmo instante ("descansado") e a cama parecer recusar.
+        if (untilMs is null && npc.SleepAt(world.CurrentDate.TotalHours) >= SkipWatch.Rested)
+        {
+            LastWakeReason = null;
+            Record(world, playerId, PlayerCommandKind.Sleep, npc.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Sleep, UntilMs: untilMs));
+            return Result<Unit>.Ok(Unit.Value);
+        }
+
         Begin(world, npc, playerId, sleeping: true, untilMs);
         Record(world, playerId, PlayerCommandKind.Sleep, npc.Id.Value,
             new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Sleep, UntilMs: untilMs));
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Acelerar parado: o corpo fica à toa e o mundo corre até o jogador agir, parar, ou algo o chamar.</summary>
-    public Result<Unit> Accelerate(WorldState world, string playerId)
+    /// <summary>Acelerar parado: o corpo fica à toa e o mundo corre até o jogador agir, parar, ou algo o chamar. #267: com <paramref name="untilMs"/> (a volta do turno de quem da casa
+    /// está no trabalho) o salto acaba nesse instante ("Pular para a volta do turno").</summary>
+    public Result<Unit> Accelerate(WorldState world, string playerId, long? untilMs = null)
     {
+        if (untilMs is { } until && until <= world.CurrentDate.TotalMilliseconds) return Result<Unit>.Fail("accelerate: o horário já passou");
         if (Refusal(world, playerId) is { } refused) return refused;
         var npc = PlayerCommands.ControlledBy(world, playerId)!;
         var acted = PlayerCommands.Act(world, npc.Id, playerId, ActionType.Idle);
         if (!acted.IsSuccess) return acted;
-        Begin(world, npc, playerId, sleeping: false, null);
-        Record(world, playerId, PlayerCommandKind.Accelerate, npc.Id.Value);
+        Begin(world, npc, playerId, sleeping: false, untilMs);
+        Record(world, playerId, PlayerCommandKind.Accelerate, npc.Id.Value, untilMs is null ? null : new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Accelerate, UntilMs: untilMs));
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>#260: a velocidade do tempo do jogador (0 pausa, 1 normal, 2 e 3 acelerados, até <see cref="TimeRules.MaxPlayerSpeed"/>). Só quem
+    /// joga sozinho (<see cref="CanSkip"/>), validada aqui; o registro leva a escolha e o Δ que ela causa vai pelo registro de Δ, como
+    /// qualquer troca de ritmo, então o replay reproduz o mesmo mundo. Quem dorme acelerado ou faz ação longa não troca a velocidade.</summary>
+    public Result<Unit> SetSpeed(WorldState world, SimulationHost host, string playerId, int speed)
+    {
+        if (PlayerCommands.ControlledBy(world, playerId) is null)
+            return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
+        if (!CanSkip(world, playerId)) return Result<Unit>.Fail($"{PlayerCommands.Conflict} só quem joga sozinho muda a velocidade do tempo");
+        if (!world.Players.Time.IsValidSpeed(speed)) return Result<Unit>.Fail($"speed: 0 ou um de {string.Join(", ", world.Players.Time.SpeedList)}");
+        host.SetPlayerSpeed(speed);
+        Record(world, playerId, PlayerCommandKind.Speed, PlayerCommands.ControlledBy(world, playerId)!.Id.Value,
+            new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Speed, Count: speed));
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -104,6 +133,7 @@ public sealed partial class PlayerService
         if (PlayersPresent(world) > 1) return "outro jogador";
         if (SkipWatch.Interruption(world, npc, skip) is { } reason) return reason;
         long nowMs = world.CurrentDate.TotalMilliseconds;
+        if (skip.Task) return PlayerTasks.Of(world, npc) is null ? "feito" : null; // acabou, ou o jogador a interrompeu por outro caminho
         if (skip.UntilMs is { } until && nowMs >= until) return "hora";
         if (skip.Sleeping && skip.UntilMs is null && npc.CurrentAction == ActionType.Sleep
             && npc.SleepAt(world.CurrentDate.TotalHours) >= SkipWatch.Rested) return "descansado";
@@ -125,9 +155,22 @@ public sealed partial class PlayerService
         LastWakeReason = null;
     }
 
+    /// <summary>#241: com o corpo ocupado numa ação longa (cortar lenha leva uma jornada) e o jogador podendo pular o tempo (sozinho no
+    /// mundo), o mundo acelera até ela acabar: a mesma sequência de ticks do salto do sono, só mais rápida, com as mesmas interrupções
+    /// (<see cref="SkipEnding"/>). Ação curta (menos de uma hora de mundo, o Δ do salto) corre em tempo normal. Com mais de um jogador
+    /// não há salto e a ação corre no ritmo normal.</summary>
+    internal void BeginTaskSkip(WorldState world, Npc npc, string playerId)
+    {
+        if (Skip is not null || !CanSkip(world, playerId) || PlayerTasks.Of(world, npc) is not { } busy || busy.RemainingMs < WorldMillis.HourTick) return;
+        Skip = new TimeSkip(playerId, npc.Id.Value, false, busy.UntilMs, world.CurrentDate.TotalHours, npc.Health, Task: true);
+        LastWakeReason = null;
+    }
+
     private void EndSkipOnCommand(WorldState world, string playerId)
     {
-        if (Skip?.PlayerId == playerId) EndSkip(world, "comando");
+        // #241: o salto de uma ação longa não acaba com qualquer comando (o cliente sincroniza a pose, o passo é recusado ocupado): acaba
+        // com a ação, com os eventos do motor, com Interromper (que o solta de propósito) ou com Parar de acelerar
+        if (Skip is { Task: false } skip && skip.PlayerId == playerId) EndSkip(world, "comando");
     }
 }
 

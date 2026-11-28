@@ -68,7 +68,7 @@ func test_a_declared_pose_wins_over_the_action_pose_and_unknown_falls_back() -> 
 func test_a_sleeper_is_placed_at_the_beds_use_point_with_its_declared_pose() -> void:
 	var view := _view(_objects([_point("sleep")]), [_occupant(7, SLEEP, "bed")])
 	var actor = view.occupant_nodes[7]
-	var bed_base: Vector3 = view._object_bases["bed"][0]
+	var bed_base: Vector3 = view._use_slots["bed"][0].base
 	check(actor.position.is_equal_approx(bed_base + Vector3(0.0, 0.05, 0.3)), "no ponto de uso da cama: %s" % str(actor.position))
 	check(is_equal_approx(actor.rotation.y, deg_to_rad(90.0)), "virado como o ponto declara")
 	eq(actor.pose, "sleep", "pose declarada")
@@ -87,7 +87,7 @@ func test_an_object_without_a_declared_pose_uses_the_action_pose() -> void:
 	var view := _view(_objects([_point(null)]), [_occupant(7, SLEEP, "bed")])
 	var actor = view.occupant_nodes[7]
 	eq(actor.pose, "sleep", "sem pose declarada: a da ação")
-	check(actor.position.is_equal_approx(view._object_bases["bed"][0] + Vector3(0.0, 0.05, 0.3)), "ainda no ponto de uso")
+	check(actor.position.is_equal_approx(view._use_slots["bed"][0].base + Vector3(0.0, 0.05, 0.3)), "ainda no ponto de uso")
 	view.free()
 
 
@@ -116,8 +116,8 @@ func test_a_use_point_for_another_action_is_ignored() -> void:
 
 func test_two_sleepers_take_different_beds_in_npc_id_order() -> void:
 	var view := _view(_objects([_point("sleep")]), [_occupant(9, SLEEP, "bed"), _occupant(4, SLEEP, "bed")])
-	var first: Vector3 = view._object_bases["bed"][0]
-	var second: Vector3 = view._object_bases["bed"][1]
+	var first: Vector3 = view._use_slots["bed"][0].base
+	var second: Vector3 = view._use_slots["bed"][1].base
 	check(view.occupant_nodes[4].position.is_equal_approx(first + Vector3(0.0, 0.05, 0.3)), "NPC de menor id na 1ª cama")
 	check(view.occupant_nodes[9].position.is_equal_approx(second + Vector3(0.0, 0.05, 0.3)), "o outro na 2ª cama")
 	view.free()
@@ -184,14 +184,14 @@ func test_reopening_another_building_forgets_the_previous_objects() -> void:
 
 func test_reopening_a_building_that_also_has_a_bed_uses_only_its_own_bed() -> void:
 	var view := _view(_objects([_point("sleep")], 1), [_occupant(7, SLEEP, "bed")])
-	var first_base: Vector3 = view._object_bases["bed"][0]
+	var first_base: Vector3 = view._use_slots["bed"][0].base
 	var other := _room()
 	other["occupants"] = [_occupant(7, SLEEP, "bed")]
 	other["objects"] = _objects([_point("sleep")], 1)
 
 	view.show_interior(other, Vector2i(30, 30), ActionLabels.new(), 3)
 
-	var bases: Array = view._object_bases["bed"]
+	var bases: Array = view._use_slots["bed"].map(func(slot): return slot.base)
 	eq(bases.size(), 1, "só a cama do prédio atual")
 	check(not bases[0].is_equal_approx(first_base), "a base é a do 2º prédio")
 	check(view.occupant_nodes[7].position.is_equal_approx(bases[0] + Vector3(0.0, 0.05, 0.3)), "o NPC está na cama do 2º prédio")
@@ -218,7 +218,7 @@ func test_lodging_beds_on_upper_floors_are_not_use_targets_but_ground_ones_are()
 
 	view.show_interior(info, Vector2i(10, 10), ActionLabels.new(), 3, 30)
 
-	var ground_beds: Array = view._object_bases["bed"]
+	var ground_beds: Array = view._use_slots["bed"].map(func(slot): return slot.base)
 	var ground_cells := 25 # interior livre da sala 7x7; os leitos que sobram vão para o andar de cima
 	eq(ground_beds.size(), ground_cells, "só os leitos do térreo viram alvo de uso; os 5 do andar de cima não")
 	eq(view.floor_nodes[1].get_node("Furniture").get_child_count(), 5, "os leitos que sobraram foram para o andar 1")

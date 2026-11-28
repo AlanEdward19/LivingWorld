@@ -77,7 +77,10 @@ public class PlayerControlTests
             var w = arm.World;
             var (house, _, _) = Door(w, npc);
             var origin = house.Position!.Value;
-            var wall = BuildingFootprintGenerator.Generate(house).Where(c => !InteriorWalkability.IsWalkable(c.Material))
+            // #226: a parede é aresta: uma célula de borda (não a da porta) e a vizinha de fora dela; o passo de fora para dentro fora da porta é barrado
+            var footprint = BuildingFootprintGenerator.Generate(house);
+            var doorCell = BuildingFootprintGenerator.DoorOf(footprint).Door;
+            var wall = footprint.Where(c => c.Cell != doorCell)
                 .Select(c => new CellCoord(origin.X + c.Cell.X, origin.Y + c.Cell.Y))
                 .SelectMany(c => Around.Take(4).Select(d => (Wall: c, Out: new CellCoord(c.X + d.X, c.Y + d.Y))))
                 .First(p => PlayerGround.At(w, p.Out) is null && w.Map.TryGetCell(p.Out, out _) && PlayerGround.PersonAt(w, npc, p.Out) is null);

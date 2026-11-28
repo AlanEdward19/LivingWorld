@@ -45,6 +45,11 @@ public sealed record CityLayoutRules(
     int PathCells = 8,
     int ChainedBoundsReachCells = 6)
 {
+    /// <summary>#258: células de calçada entre a porta da casa e a rua (a frente do lote nunca é menor que isto, mesmo para quem não tem quintal). 0 = como antes
+    /// (a porta pode dar direto na rua).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int SidewalkCells { get; init; }
+
     /// <summary>AD-176: rua de verdade (pisoteio, superfície, rota, calçamento). O traçado acima vira só a reserva de espaço.</summary>
     public StreetRules Streets { get; init; } = StreetRules.Default;
 
