@@ -25,6 +25,7 @@ public sealed record NeedsRules(
 
     public const int DefaultMealTimeDeficit = 65;
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public int MealTimeDeficit => MealDeficit > 0 ? MealDeficit : DefaultMealTimeDeficit;
 
     /// <summary>Saúde dinâmica, desnutrição e amamentação (AD-134). Snapshot ou cenário sem o campo herda o padrão de época;
