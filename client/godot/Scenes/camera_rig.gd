@@ -10,6 +10,7 @@ signal see_through(ids: Dictionary) ## AD-197p: prédios entre a câmera da 3ª 
 signal opened(ids: Dictionary) ## AD-197s: prédios em que o corpo está (o telhado some de vez; a câmera olha de cima)
 
 const Grid := preload("res://Scenes/grid.gd")
+const InteriorCamera := preload("res://Scenes/interior_camera.gd")
 
 const ISO_PITCH := deg_to_rad(-35.264)
 const ISO := "iso"
@@ -32,9 +33,10 @@ const ROOM_ARM_M := 1.0 ## AD-197s2: dentro de casa a câmera fica no cômodo se
 const NEAR_PERSON_M := 1.0 ## na 1ª pessoa quem está a menos disto do olho não se desenha (o espaçamento mínimo entre corpos parados é ~0,9 m)
 const CEILING_M := 0.2 ## folga da câmera até o teto do andar
 const INDOOR_SHOULDER := 0.3 ## #227: em casa a câmera fica na altura da cabeça (fração do ombro da 3ª pessoa de rua), não sobre o ombro
-const INDOOR_MIN_PITCH := deg_to_rad(-25.0) ## em casa a câmera olha no máximo isto para baixo (nunca o topo da cabeça)
+const INDOOR_ARM_OMEGA := 4.0 ## #250: o braço de dentro de casa (entrar, sair, girar) muda suave nos dois sentidos, sem salto
+const INDOOR_TRANSITION_S := 0.8 ## depois de entrar ou sair, o braço segue a mola (não o encurtar rápido de quem bate na parede)
 const INDOOR_FOV_BONUS := 12.0 ## graus a mais em cômodo apertado (a vista abre sem recuar a câmera)
-const INDOOR_OMEGA := 6.0 ## rad/s: altura e FOV de dentro de casa mudam suave
+const INDOOR_OMEGA := 3.5 ## rad/s: altura, FOV e inclinação de dentro de casa mudam suave (~0,8 s, sem salto)
 ## Distâncias em metros do motor viram unidades da grade (a escala do mundo muda): nada fixo na escala de hoje.
 static func third_distance() -> float: return Grid.units(THIRD_DISTANCE_M)
 static func near_third() -> float: return Grid.units(NEAR_THIRD_M)
@@ -110,6 +112,9 @@ var _opened: Dictionary = {}
 var _indoor := false ## #227: o enquadramento é o da casa em foco (câmera de ombro baixa, olhar limitado, FOV aberto)
 var _indoor_k := 1.0 ## 1 = ombro de rua; INDOOR_SHOULDER dentro de casa (suave)
 var _indoor_fov := 0.0
+var _indoor_pitch := deg_to_rad(-45.0) ## #250: o olhar de dentro de casa (o mouse o ajusta); o de rua, `pitch`, fica guardado para a saída
+var _int_k := 0.0 ## 0 = olhar de rua; 1 = olhar de dentro de casa (suave)
+var _trans := 0.0 ## s restantes de transição entrar/sair
 var _in_room := false ## AD-197s3: o enquadramento anterior era dentro do cômodo (histerese contra piscar no limite)
 var _snap := true ## AD-197s: o próximo enquadramento vai direto ao plano (corpo novo, modo novo): nenhum quadro na posição velha
 var walking: Callable ## AD-197e: verdadeiro com personagem encarnado (as teclas de direção são do personagem)
@@ -248,7 +253,9 @@ func _advance_view(delta: float) -> void:
 	var ry := spring(view_yaw, _v_yaw, view_yaw + wrapf(yaw - view_yaw, -PI, PI), AIM_OMEGA, delta)
 	view_yaw = wrapf(ry[0], -PI, PI)
 	_v_yaw = ry[1]
-	var rp := spring(view_pitch, _v_pitch, maxf(pitch, pitch_floor()) if mode == THIRD else pitch, AIM_OMEGA, delta)
+	_int_k = lerpf(_int_k, 1.0 if _indoor else 0.0, 1.0 - exp(-INDOOR_OMEGA * delta))
+	var goal_pitch := lerpf(maxf(pitch, pitch_floor()), _indoor_pitch, _int_k) if mode == THIRD else pitch
+	var rp := spring(view_pitch, _v_pitch, goal_pitch, AIM_OMEGA, delta)
 	view_pitch = rp[0]
 	_v_pitch = rp[1]
 	var speed_m := _v_target.length() * Grid.cell_meters
@@ -279,9 +286,9 @@ func shoulder_height() -> float:
 	return Grid.units(SHOULDER_M) * body_scale() * _indoor_k
 
 
-## Menor inclinação do olhar (rad): em casa o olhar não passa de INDOOR_MIN_PITCH para baixo.
+## Menor inclinação do olhar de rua (rad). Dentro de casa o mouse ajusta `_indoor_pitch` (faixa de InteriorCamera), não este.
 func pitch_floor() -> float:
-	return maxf(MIN_PITCH, INDOOR_MIN_PITCH) if _indoor else MIN_PITCH
+	return MIN_PITCH
 
 
 ## Troca o modo da câmera: ISO (espectador e admin), THIRD ou FIRST (personagem encarnado).
@@ -354,6 +361,9 @@ func look(relative: Vector2) -> void:
 	if mode == ISO:
 		return
 	yaw = wrapf(yaw - relative.x * LOOK_SPEED, -PI, PI)
+	if mode == THIRD and _indoor: # #250: o mouse gira em volta do corpo e ajusta a inclinação da vista de dentro; a de rua fica guardada
+		_indoor_pitch = clampf(_indoor_pitch - relative.y * LOOK_SPEED, InteriorCamera.PITCH_MIN, InteriorCamera.PITCH_MAX)
+		return
 	pitch = clampf(pitch - relative.y * LOOK_SPEED, pitch_floor(), MAX_PITCH)
 
 
@@ -518,15 +528,26 @@ func _spring_arm(delta: float) -> void:
 	var boxes: Array = blockers.call()
 	var eye := target + Vector3(0, eye_height() + shoulder_height(), 0)
 	var cap := third_distance() * third_scale
-	var plan := plan_third(eye, view_yaw, view_pitch, cap, boxes, body_scale(), _in_room)
+	var plan := plan_third(eye, view_yaw, _indoor_pitch if _indoor else view_pitch, cap, boxes, body_scale(), _in_room)
+	var now_indoor := bool(plan.get("indoor", false))
+	if now_indoor and not _indoor: # #250: entrou na casa: o olhar de dentro nasce da planta e o braço é refeito com ele
+		_indoor_pitch = float(plan.pitch)
+		plan = plan_third(eye, view_yaw, _indoor_pitch, cap, boxes, body_scale(), _in_room)
+	if now_indoor != _indoor:
+		_trans = INDOOR_TRANSITION_S
 	_in_room = bool(plan.get("room", false))
-	_indoor = bool(plan.get("indoor", false))
+	_indoor = now_indoor
 	var free: float = plan.arm
 	var body_center := target + Vector3(0, eye_height() * 0.55, 0)
 	var within := containing(body_center, boxes)
 	if _snap:
 		_snap = false
 		_indoor_k = INDOOR_SHOULDER if _indoor else 1.0
+		_int_k = 1.0 if _indoor else 0.0
+		_trans = 0.0
+		if _indoor:
+			view_pitch = _indoor_pitch
+			_v_pitch = 0.0
 		eye = target + Vector3(0, eye_height() + shoulder_height(), 0)
 		arm = free
 		lift = plan.lift
@@ -535,8 +556,13 @@ func _spring_arm(delta: float) -> void:
 		_ots = _ots_goal(eye, boxes, cap, not within.is_empty())
 		_v_ots = 0.0
 	else:
-		arm = _next_arm(free, cap, delta)
-		var blend := 1.0 - exp(-8.0 * delta)
+		if _indoor or _trans > 0.0: # #250: dentro de casa a câmera é de enquadramento (não de colisão): mola nos dois sentidos
+			_trans = maxf(0.0, _trans - delta)
+			arm = lerpf(arm, free, 1.0 - exp(-INDOOR_ARM_OMEGA * delta))
+			_arm_hold = 0.0
+		else:
+			arm = _next_arm(free, cap, delta)
+		var blend := 1.0 - exp(-(4.0 if _trans > 0.0 else 8.0) * delta)
 		lift = lerpf(lift, plan.lift, blend)
 		shoulder = lerpf(shoulder, plan.shoulder, blend)
 		var r := spring(_ots, _v_ots, _ots_goal(eye, boxes, cap, not within.is_empty()), OTS_OMEGA, delta)
@@ -604,30 +630,10 @@ static func third_options(scale: float) -> Array:
 ## telhado) é o que a câmera não pode tocar. Corpo dentro de um prédio: câmera acima da casca (AD-197s), nunca dentro das paredes.
 static func plan_third(eye: Vector3, yaw: float, pitch: float, length: float, boxes: Array, scale: float = 1.0, was_room: bool = false) -> Dictionary:
 	var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3(0, 0, 1)
-	var inner := interior_entry(eye, boxes) # #227: a casa em foco (sem casca de prédio): a câmera fica nos painéis finos, em altura de gente
-	if not inner.is_empty():
-		var held := room_plan(eye, back, length, [inner], room_arm() * (0.85 if was_room else 1.15))
-		if held.is_empty(): # sem espaço atrás: passa a ombro (os dois lados) antes de encostar na cabeça
-			var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
-			var best := close_plan(eye, back, length, [inner])
-			if best.is_empty():
-				best = {"arm": min_arm(), "lift": 0.0}
-			best["shoulder"] = 0.0
-			for side in [1.0, -1.0]:
-				var off: float = Grid.units(0.5) * scale * side
-				var origin: Vector3 = eye + right * off
-				if inside_any_wall(origin, inner):
-					continue
-				var tried := room_plan(origin, back, length, [inner], room_arm() * (0.85 if was_room else 1.15))
-				if tried.is_empty():
-					tried = close_plan(origin, back, length, [inner])
-				if not tried.is_empty() and float(tried.arm) > float(best.arm) + Grid.units(0.1):
-					best = tried
-					best["shoulder"] = off
-			held = best
-		held["room"] = true
-		held["indoor"] = true
-		return held
+	var inner := interior_entry(eye, boxes) # #227: a casa em foco (sem casca de prédio)
+	if not inner.is_empty(): # #250: de dentro, a câmera sobe e olha o cômodo em diagonal (parede e móvel no caminho ficam translúcidos)
+		var others: Array = boxes.filter(func(entry): return not (entry.size() > 4 and bool(entry[4])))
+		return InteriorCamera.plan(eye, back, pitch, inner, length / third_distance(), third_distance(), others, min_arm())
 	var room := roof_lift(eye, boxes)
 	if room > 0.0:
 		# histerese (AD-197s3): quem já está no cômodo só sai com 15% a menos de espaço; quem está em cima só entra com 15% a mais

@@ -719,54 +719,9 @@ func _interior_entry(size: float) -> Array:
 	return [-1, box, box, walls, true]
 
 
-func test_inside_the_focused_house_the_third_person_arm_is_at_people_height() -> void:
-	var entries := [_interior_entry(4.0)]
-	for yaw in [0.0, 1.3, 3.0]:
-		var eye := Vector3(2.0, 1.4, 2.0)
-		var back := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(-15.0)) * Vector3(0, 0, 1)
-		var plan := CameraRig.plan_third(eye, yaw, deg_to_rad(-15.0), CameraRig.third_distance(), entries)
-		check(bool(plan.get("room", false)), "dentro da casa o plano é de cômodo (yaw %s)" % yaw)
-		var spot: Vector3 = eye + Vector3(0, plan.lift, 0) + back * plan.arm
-		check((entries[0][1] as AABB).has_point(spot), "a câmera fica nos painéis, não na casca do prédio do mundo (%s)" % spot)
-		check(float(plan.lift) <= Grid.units(CameraRig.CLOSE_LIFT_M) + 0.001, "subida de gente, não vista aérea (%s)" % plan.lift)
-		check(float(plan.arm) >= CameraRig.min_arm() * 0.6 - 0.001, "braço nunca colado na cabeça (%s)" % plan.arm)
-	var covered := CameraRig.covering(Vector3(2, 1.4, 5), Vector3(2, 1, 2), entries)
-	check(covered.is_empty(), "a casa em foco não vira translúcida como prédio do mundo")
-
-
 func test_interior_entry_is_only_found_with_the_eye_inside() -> void:
 	var entries := [_interior_entry(4.0)]
 	check(not CameraRig.interior_entry(Vector3(2, 1.4, 2), entries).is_empty(), "olho dentro")
 	check(CameraRig.interior_entry(Vector3(9, 1.4, 2), entries).is_empty(), "olho fora")
 
 
-## #227: dentro de cômodos de 1x1 a 4x4 a câmera de 3ª pessoa fica na altura da cabeça, olha no máximo ~25° para baixo (mesmo com o mouse
-## puxado para baixo) e nenhuma parede fica entre ela e a cabeça; a vista abre (FOV) quando o cômodo é apertado.
-func test_inside_rooms_from_1_to_4_the_camera_looks_ahead_and_nothing_stands_between_it_and_the_head() -> void:
-	for size in [1.0, 2.0, 3.0, 4.0]:
-		var entries := [_interior_entry(size)]
-		for yaw in [0.0, 1.3, 3.0, -2.0]:
-			for pitch_deg in [0.0, -15.0, -60.0]:
-				var rig := CameraRig.new()
-				var body := Node3D.new()
-				body.position = Vector3(size / 2.0, 0, size / 2.0)
-				rig.add_child(body)
-				rig.blockers = func() -> Array: return entries
-				rig.set_mode(rig.THIRD)
-				rig.yaw = yaw
-				rig.pitch = deg_to_rad(pitch_deg)
-				rig.follow(body)
-				for i in 200:
-					rig._process(0.016)
-				var cam := _camera_world(rig)
-				var down := rad_to_deg(asin(clampf(-(-cam.basis.z).y, -1.0, 1.0)))
-				var tag := "sala %s, yaw %s, olhar %s" % [size, yaw, pitch_deg]
-				check(down <= 25.5, "olha no máximo ~25° para baixo (%s°): %s" % [snappedf(down, 0.1), tag])
-				check((entries[0][1] as AABB).has_point(cam.origin), "a câmera fica dentro do cômodo: %s" % tag)
-				var head: Vector3 = body.position + Vector3(0, rig.eye_height(), 0)
-				for wall in entries[0][3]:
-					check((wall as AABB).intersects_segment(cam.origin, head) == null, "nenhuma parede entre a câmera e a cabeça: %s" % tag)
-				check(cam.origin.y <= head.y + Grid.units(1.0), "câmera em altura de cabeça, não de cima (%s): %s" % [cam.origin.y, tag])
-				if size <= 2.0:
-					check(rig.camera.fov > CameraRig.BASE_FOV + 3.0, "cômodo apertado abre o FOV (%s): %s" % [rig.camera.fov, tag])
-				rig.free()
