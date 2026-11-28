@@ -3,6 +3,8 @@ extends RefCounted
 ## de gravidez, saco/jarro da carga, recipiente levado, rosto (olhos, boca, sobrancelha, lágrima) e esteira de quem está de
 ## cama. Malhas e materiais são compartilhados entre todos os NPCs (chave por forma e cor); nenhuma peça projeta sombra.
 
+const NpcMesh := preload("res://Scenes/npc_mesh.gd")
+
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
 
@@ -201,30 +203,66 @@ static func held(arm: Node3D, shape: String, color: Color) -> MeshInstance3D:
 	return node
 
 
-## Rosto simples (só de perto): olhos, boca e, conforme a expressão, sobrancelha franzida ou lágrima.
-static func face(head: Node3D, expression: String) -> Node3D:
+## Rosto simples e amigável (só de perto): olhos com branco, íris e pupila (piscam), sobrancelhas, nariz, orelhas e boca. A expressão
+## vem da emoção dominante que o motor manda: alegria (sorriso, sobrancelhas altas), medo (olhos grandes, boca em O), raiva (sobrancelhas
+## caídas para dentro), luto/solidão/vergonha (sobrancelhas tristes, boca para baixo, lágrima no luto). Sem emoção: sorriso leve.
+## `skin` pinta nariz e orelhas; `stage` deixa os olhos maiores em criança e bebê. Os olhos ficam em `meta("eyes")` (o ator pisca por eles).
+static func face(head: Node3D, expression: String, iris: Color = Color("3b2a1e"), brow: Color = Color("2b1b12"), stage: String = "adult",
+		skin: Material = null) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Face"
 	head.add_child(root)
-	var dark := Color("2a1d16")
-	var eye_size := Vector3(0.03, 0.045 if expression == "fear" else 0.03, 0.01)
+	var big := 1.25 if (stage == "baby" or stage == "child") else 1.0
+	var wide := 1.0 + (0.18 if expression == "fear" else 0.0)
+	var eyes: Array = []
 	for side in [-1, 1]:
-		part(root, _box(eye_size), dark, Vector3(side * 0.045, 0.02, 0.125))
-		if expression == "anger":
-			part(root, _box(Vector3(0.05, 0.012, 0.01)), dark, Vector3(side * 0.045, 0.06, 0.124), Vector3(0, 0, side * -0.5))
-		elif expression in ["grief", "loneliness", "shame"]:
-			part(root, _box(Vector3(0.05, 0.012, 0.01)), dark, Vector3(side * 0.045, 0.06, 0.124), Vector3(0, 0, side * 0.4))
-	if expression == "grief":
-		part(root, _box(Vector3(0.012, 0.04, 0.008)), Color("8fc8ff"), Vector3(0.05, -0.02, 0.127))
-	var mouth := part(root, _box(Vector3(0.06, 0.014, 0.01)), Color("7a2e2e"), Vector3(0, -0.05, 0.12))
+		var pivot := Node3D.new()
+		pivot.position = Vector3(side * 0.047, 0.026, 0.111)
+		pivot.scale = Vector3(big, big * wide, big)
+		pivot.set_meta("open", big * wide)
+		root.add_child(pivot)
+		part(pivot, NpcMesh.eye_white(), Color("f4f1ea"), Vector3(0, 0, 0))
+		part(pivot, NpcMesh.iris(), iris, Vector3(0, 0, 0.0085))
+		part(pivot, NpcMesh.pupil(), Color("120d0a"), Vector3(0, 0, 0.0115))
+		eyes.append(pivot)
+		var tilt := 0.0
+		var lift := 0.0
+		match expression:
+			"anger":
+				tilt = -0.42
+				lift = -0.006
+			"grief", "loneliness", "shame":
+				tilt = 0.4
+			"fear":
+				tilt = 0.3
+				lift = 0.012
+			"joy":
+				lift = 0.008
+		part(root, NpcMesh.arc(0.027, 0.004 if expression != "anger" else -0.003, 0.0048), brow,
+			Vector3(side * 0.049, 0.067 + lift, 0.112), Vector3(0, 0, -side * tilt))
+	root.set_meta("eyes", eyes)
+	var nose := part(root, NpcMesh.nose(), Color.WHITE, Vector3(0, -0.012, 0.114))
+	var ear_mesh := NpcMesh.ear()
+	var ears: Array = [nose]
+	for side in [-1, 1]:
+		ears.append(part(root, ear_mesh, Color.WHITE, Vector3(side * 0.126, 0.0, -0.005)))
+	if skin != null:
+		for node in ears:
+			node.material_override = skin
+	var mouth_color := Color("8a3b3b")
 	match expression:
 		"joy":
-			mouth.scale = Vector3(1.2, 1.6, 1)
+			part(root, NpcMesh.arc(0.034, 0.022, 0.0055), mouth_color, Vector3(0, -0.052, 0.107))
 		"fear":
-			mouth.scale = Vector3(0.5, 2.6, 1)
+			part(root, NpcMesh.open_mouth(0.011), Color("5a1f1f"), Vector3(0, -0.056, 0.108))
+		"anger":
+			part(root, NpcMesh.arc(0.024, -0.004, 0.0055), mouth_color, Vector3(0, -0.056, 0.108))
 		"grief", "loneliness", "shame":
-			mouth.rotation.z = 0.0
-			mouth.position.y = -0.06
+			part(root, NpcMesh.arc(0.022, -0.011, 0.0055), mouth_color, Vector3(0, -0.058, 0.108))
+		_:
+			part(root, NpcMesh.arc(0.026, 0.011, 0.005), mouth_color, Vector3(0, -0.054, 0.108))
+	if expression == "grief":
+		part(root, NpcMesh.arc(0.01, 0.0, 0.0035), Color("8fc8ff"), Vector3(0.05, -0.012, 0.107), Vector3(0, 0, PI * 0.5))
 	return root
 
 

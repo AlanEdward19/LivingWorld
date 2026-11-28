@@ -9,6 +9,7 @@ const Props := preload("res://Scenes/npc_props.gd")
 const RouteWalk := preload("res://Scenes/route_walk.gd")
 const Rig := preload("res://Scenes/npc_rig.gd")
 const BodyPose := preload("res://Scenes/body_pose.gd")
+const NpcMesh := preload("res://Scenes/npc_mesh.gd")
 
 const LEG_X := 0.08
 ## #237: o corpo deitado fica centrado na origem do ator (a pose antiga ia de z -1,43 a -0,28: com a origem na cama, o corpo cruzava a parede de trás)
@@ -39,7 +40,13 @@ var cell := Vector2i.ZERO
 var action := -1
 var pose := Anim.NEUTRAL_POSE
 var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre. AD-197t: quem o jogador montou traz também eye_tone, face_shape e outfit
-var _eyes: Array[MeshInstance3D] = [] ## só em quem tem eye_tone (a pessoa montada no criador): não custa nós nos demais
+var _eye_color: Variant = null ## cor da íris do criador (eye_tone); sem ela, a cor sai da semente (id)
+var _style: Dictionary = {} ## #254: corte de cabelo, barba, roupa do período e cores por semente (Look.style_of)
+var _beard: MeshInstance3D
+var _blink := 1.0 ## abertura dos olhos (1 aberto, ~0,1 piscando)
+var _blend := 1.0 ## #254: mistura da pose anterior com a nova (0 = pose velha, 1 = nova): troca suave
+var _blend_from: Array = []
+var _last_effective := ""
 var _rig = null ## #230: esqueleto articulado (npc_rig.gd), só de perto; longe é null e não custa nada
 var full_rig := false: ## prévia do criador: sempre articulado e com rosto
 	set(value):
@@ -116,6 +123,9 @@ func _mat(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.85
+	material.rim_enabled = true # #254: contorno de luz suave (fresnel simples): a figura se destaca do fundo sem textura
+	material.rim = 0.28
+	material.rim_tint = 0.45
 	return material
 
 
@@ -135,6 +145,7 @@ func apply_look(p_look: Dictionary) -> void:
 	_skin_color = ramp_color(SKIN_RAMP, int(look.skin_tone))
 	_skin_mesh.material_override = _shared_mat(_skin_color)
 	_hair_mesh.material_override = _shared_mat(ramp_color(HAIR_RAMP, int(look.hair_tone)))
+	_face_expression = "-" # a cor do cabelo pinta as sobrancelhas e a barba: o rosto refaz na próxima vez que estiver perto
 	var curl := float(look.hair_curl) / 100.0
 	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
 	var width := 0.85 + 0.4 * float(look.build) / 100.0
@@ -152,19 +163,8 @@ func _apply_made_look() -> void:
 		_head_base = Vector3(wide, 1.0 + 0.08 * (1.0 - wide), 1.0)
 		_apply_head_scale()
 	if look.has("eye_tone"):
-		if _eyes.is_empty():
-			var mesh := _shared_mesh("eye", func():
-				var m := SphereMesh.new()
-				m.radius = 0.022
-				m.height = 0.044
-				m.radial_segments = 8
-				m.rings = 4
-				return m)
-			for side in [-1, 1]:
-				_eyes.append(_part(_head, mesh, _shared_mat(Color.BLACK), Vector3(side * 0.045, 0.02, 0.118)))
-		var eye_color := ramp_color(EYE_RAMP, int(look.eye_tone))
-		for eye in _eyes:
-			eye.material_override = _shared_mat(eye_color)
+		_eye_color = ramp_color(EYE_RAMP, int(look.eye_tone))
+		_face_expression = "-"
 	if look.has("outfit"):
 		_outfit_color = OUTFIT_COLORS[clampi(int(look.outfit), 0, OUTFIT_COLORS.size() - 1)]
 		_shirt.albedo_color = _outfit_color
@@ -197,15 +197,11 @@ func _part(parent: Node3D, mesh: Mesh, material: Material, at: Vector3) -> MeshI
 	return node
 
 
-func _limb(parent: Node3D, shoulder: Vector3, size: Vector3, material: Material) -> Node3D:
+func _limb(parent: Node3D, shoulder: Vector3, mesh: Mesh, material: Material, length: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.position = shoulder
 	parent.add_child(pivot)
-	var mesh := _shared_mesh("limb%s" % size, func():
-		var m := BoxMesh.new()
-		m.size = size
-		return m)
-	_part(pivot, mesh, material, Vector3(0, -size.y / 2.0, 0))
+	_part(pivot, mesh, material, Vector3(0, -length / 2.0, 0))
 	return pivot
 
 
@@ -224,37 +220,18 @@ func _build() -> void:
 
 	_body = Node3D.new()
 	add_child(_body)
-	var torso_mesh := _shared_mesh("torso", func():
-		var m := CapsuleMesh.new()
-		m.radius = 0.17
-		m.height = 0.55
-		return m)
-	_torso = _part(_body, torso_mesh, _shirt, Vector3(0, 0.62, 0))
+	_torso = _part(_body, NpcMesh.torso("male"), _shirt, Vector3(0, 0.62, 0))
 	_shadow_parts.append(_torso)
 	_head = Node3D.new()
 	_head.position = Vector3(0, 0.98, 0)
 	_body.add_child(_head)
-	var head_mesh := _shared_mesh("head", func():
-		var m := SphereMesh.new()
-		m.radius = 0.13
-		m.height = 0.26
-		m.radial_segments = 12
-		m.rings = 6
-		return m)
-	_skin_mesh = _part(_head, head_mesh, skin, Vector3.ZERO)
+	_skin_mesh = _part(_head, NpcMesh.head(), skin, Vector3.ZERO)
 	_shadow_parts.append(_skin_mesh)
-	var hair_mesh := _shared_mesh("hair", func():
-		var m := SphereMesh.new()
-		m.radius = 0.14
-		m.height = 0.2
-		m.radial_segments = 12
-		m.rings = 6
-		return m)
-	_hair_mesh = _part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02))
+	_hair_mesh = _part(_head, NpcMesh.hair("short"), hair, Vector3.ZERO)
 	_shadow_parts.append(_hair_mesh)
 	for side in [-1, 1]:
-		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), Vector3(0.08, 0.34, 0.08), _shirt))
-		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), Vector3(0.1, 0.36, 0.1), pants))
+		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), NpcMesh.limb(0.34, 0.05, 0.042), _shirt, 0.34))
+		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), NpcMesh.limb(0.36, 0.066, 0.05), pants, 0.36))
 
 	apply_look(look)
 
@@ -434,11 +411,7 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 			_hat.free()
 			_hat = null
 		_hat = Props.hat(_head, String(spec.hat))
-	if bool(spec.female) and String(spec.stage) != "baby":
-		_hair_mesh.scale = Vector3(1.06, 1.45, 1.3)
-		_hair_mesh.position = Vector3(0, -0.01, -0.04)
-	else:
-		_hair_mesh.position = Vector3(0, 0.04, -0.02)
+	_apply_style()
 	var skin := _skin_color * Look.SICK_SKIN if bool(spec.ill) else _skin_color
 	_skin_mesh.material_override = _shared_mat(skin)
 	if _rig != null:
@@ -465,6 +438,25 @@ func apply_observable(obs: Dictionary, catalog = null) -> void:
 		_sickbed.visible = spec.sick_pose == "bed"
 	_face_expression = "-" # o rosto refaz na próxima vez que estiver perto
 	_refresh_face()
+
+
+## #254: corte de cabelo, barba, roupa do período e proporções pelo estágio e sexo (do motor) e pela semente (id). Malhas compartilhadas:
+## trocar de estilo só troca a referência da malha, nunca cria geometria por NPC.
+func _apply_style() -> void:
+	var stage := String(spec.get("stage", "adult"))
+	var female := bool(spec.get("female", false))
+	_style = Look.style_of(npc_id, stage, female, String(spec.get("era", "")))
+	_hair_mesh.mesh = NpcMesh.hair(String(_style.hair))
+	_hair_mesh.position = Vector3.ZERO
+	var kind := "child" if (stage == "baby" or stage == "child") else ("elder" if stage == "elder" else ("female" if female else "male"))
+	_torso.mesh = NpcMesh.torso(kind)
+	_pants_color = _style.pants
+	for leg in _legs:
+		leg.get_child(0).material_override = _shared_mat(_pants_color)
+	var girth := 0.9 if female else (1.12 if (stage == "baby" or stage == "child") else (0.95 if stage == "elder" else 1.0))
+	for limb in _arms + _legs:
+		var mesh_node: Node3D = limb.get_child(0)
+		mesh_node.scale = Vector3(girth, mesh_node.scale.y, girth)
 
 
 func _refresh_held() -> void:
@@ -503,10 +495,22 @@ func _refresh_face() -> void:
 	if wants and expression != _face_expression:
 		if _face != null:
 			_face.free()
-		_face = Props.face(_head, expression)
+		var iris: Color = _eye_color if _eye_color != null else Color(_style.get("eyes", Look.EYE_COLORS[0]))
+		_face = Props.face(_head, expression, iris, _hair_mesh.material_override.albedo_color.darkened(0.15), String(spec.get("stage", "adult")), _skin_mesh.material_override)
 		_face_expression = expression
+		_blink = 1.0
 	if _face != null:
 		_face.visible = wants
+	var beard_kind := int(_style.get("beard", 0))
+	if wants and beard_kind > 0:
+		if _beard == null:
+			_beard = _part(_head, NpcMesh.beard(beard_kind == 2), _hair_mesh.material_override, Vector3.ZERO)
+			_beard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_beard.mesh = NpcMesh.beard(beard_kind == 2)
+		_beard.material_override = _hair_mesh.material_override
+		_beard.visible = true
+	elif _beard != null:
+		_beard.visible = false
 
 
 func set_action(new_action: int, labels, p_use_pose: String = "") -> void:
@@ -1050,6 +1054,19 @@ func _apply_gesture(amplitude: float = -1.0) -> void:
 			_head.rotation.x = -0.25 * k
 
 
+## #254: pisca a cada ~3,6 s (fase pela semente, para ninguém piscar junto); dormindo, de olhos fechados.
+func _blink_eyes(asleep: bool) -> void:
+	if _face == null or not _face.visible:
+		return
+	var cycle := fposmod(_clock + float(npc_id % 7) * 0.9, 3.6)
+	var open := 0.12 if asleep else (1.0 if cycle > 0.16 else 1.0 - sin(cycle / 0.16 * PI) * 0.88)
+	if absf(open - _blink) < 0.01:
+		return
+	_blink = open
+	for eye in _face.get_meta("eyes", []):
+		eye.scale.y = float(eye.get_meta("open", 1.0)) * open
+
+
 func _apply_defense() -> void:
 	var t := (_clock - _defense_from) / float(DEFENSE_TIME[_defense])
 	var k := sin(clampf(t, 0.0, 1.0) * PI)
@@ -1083,8 +1100,15 @@ const JUMP_HEIGHT := 0.22 ## altura do salto em unidades do boneco (~0,4 m num a
 var _strike_until := -1.0
 
 
+## #254: nós que a pose mexe; a troca de pose mistura o último desenho com a pose nova (sem estalo).
+func _pose_nodes() -> Array[Node3D]:
+	return [_body, _head, _arms[0], _arms[1], _legs[0], _legs[1]]
+
+
+const POSE_BLEND_S := 0.28
+
+
 func _animate(dt: float) -> void:
-	_reset_pose()
 	var rig_on: bool = _rig != null and _rig.active
 	var phase := _clock * 7.0 + float(npc_id)
 	var lying: bool = String(spec.get("sick_pose", "")) == "bed"
@@ -1094,7 +1118,16 @@ func _animate(dt: float) -> void:
 		var to := face_point - position
 		if to.length() > 0.2:
 			rotation.y = lerp_angle(rotation.y, atan2(to.x, to.z), 0.25)
-	match "idle" if (rig_on and effective == "walk") else effective: # com rig a caminhada é uma camada (abaixo), não uma pose
+	var key := "idle" if (rig_on and effective == "walk") else effective
+	if key != _last_effective:
+		if _last_effective != "": # guarda o desenho do quadro anterior (ainda não zerado) para misturar com a pose nova
+			_blend_from.clear()
+			for node in _pose_nodes():
+				_blend_from.append([node.rotation, node.position])
+			_blend = 0.0
+		_last_effective = key
+	_reset_pose()
+	match key: # com rig a caminhada é uma camada (abaixo), não uma pose
 		"walk":
 			var swing := sin(phase * 1.3)
 			_legs[0].rotation.x = swing * 0.7
@@ -1163,6 +1196,8 @@ func _animate(dt: float) -> void:
 			_arms[0].rotation.x = sin(phase * 0.4) * 0.05
 			_arms[1].rotation.x = -sin(phase * 0.4) * 0.05
 	_apply_posture(effective)
+	var breath := sin(_clock * 1.7 + float(npc_id))
+	_torso.scale *= Vector3(1.0 + 0.008 * breath, 1.0 + 0.014 * breath, 1.0 + 0.012 * breath) # respiração
 	if rig_on:
 		_rig.locomotion(self, dt, moving)
 	if effective == "walk" and running and not rig_on: # #224: correr: passada mais rápida e larga, corpo inclinado
@@ -1200,6 +1235,14 @@ func _animate(dt: float) -> void:
 		var k := 1.0 - (_strike_until - _clock) / STRIKE_TIME
 		_arms[1].rotation.x = strike_arm(k)
 		_body.rotation.x = lerpf(-0.1, 0.25, clampf(k / STRIKE_IMPACT, 0.0, 1.0)) * (1.0 - maxf(0.0, (k - STRIKE_IMPACT) / (1.0 - STRIKE_IMPACT)))
+	if _blend < 1.0 and not _blend_from.is_empty():
+		_blend = minf(1.0, _blend + dt / POSE_BLEND_S)
+		var w := smoothstep(0.0, 1.0, _blend)
+		var nodes := _pose_nodes()
+		for i in nodes.size():
+			nodes[i].rotation = Vector3(_blend_from[i][0]).lerp(nodes[i].rotation, w)
+			nodes[i].position = Vector3(_blend_from[i][1]).lerp(nodes[i].position, w)
+	_blink_eyes(effective == "sleep")
 	if rig_on:
 		_rig.finalize(self, effective == "sleep")
 	if _ring != null and (_selected or _hovered):

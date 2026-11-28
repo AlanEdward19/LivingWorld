@@ -59,7 +59,8 @@ func test_sleeping_legs_lie_at_the_hips_not_standing() -> void:
 		check(absf(leg.rotation.x + PI / 2.0) < 0.01, "perna deitada")
 		check(leg.position.y < 0.3, "perna desceu até a altura do corpo deitado")
 	actor.set_action(5, _labels())
-	actor.advance(0.1)
+	for i in 12: # #254: a troca de pose mistura em ~0,3 s
+		actor.advance(0.05)
 	for leg in actor._legs:
 		check(absf(leg.position.y - 0.36) < 0.001, "de pé, a perna volta ao quadril")
 	actor.free()
