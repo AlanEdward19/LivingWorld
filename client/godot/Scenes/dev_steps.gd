@@ -178,6 +178,64 @@ static func run(app: Node, steps: Array) -> void:
 			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
 				print("where: chão=", app.player_frame._ground, " npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
 					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
+			"hudclock": # #256: `hudclock:N` imprime a cada 1 s, por N s, o relógio que a TELA mostra (texto e horas do mundo) e o ritmo que o cliente usa
+				var clock_start := Time.get_ticks_msec()
+				var clock_first := -1.0
+				for _tick in int(float(arg if arg != "" else "1")) + 1:
+					var hours: float = app.day_cycle._tick
+					if clock_first < 0.0:
+						clock_first = hours
+					print("hudclock: t=%.2f s relogio=%s mundo=%.5f h (+%.1f s de mundo) ritmo=%.1f s/s" % [(Time.get_ticks_msec() - clock_start) / 1000.0,
+						app.day_cycle.clock_text(), hours, (hours - clock_first) * 3600.0, app.day_cycle._ticks_per_second * 3600.0])
+					await app.get_tree().create_timer(1.0).timeout
+			"gait": # #256: `gait:W=5` anda 5 s e mede o que está desenhado: m/s do corpo, passos/s e quanto o pé de apoio anda no mundo (deslize)
+				var gkey := OS.find_keycode_from_string(arg.get_slice("=", 0))
+				var gpress := InputEventKey.new()
+				gpress.keycode = gkey
+				gpress.physical_keycode = gkey
+				gpress.pressed = true
+				Input.parse_input_event(gpress)
+				var secs := float(arg.get_slice("=", 1)) if "=" in arg else 5.0
+				var samples: Array = []
+				var elapsed := 0.0
+				while elapsed < secs:
+					await app.get_tree().process_frame
+					var dt := app.get_process_delta_time()
+					elapsed += dt
+					var actor = app.player_actor()
+					if actor == null or actor._rig == null or elapsed < 1.5: # a 1ª parte é a arrancada
+						continue
+					var ankle: Vector3 = actor.transform * (actor._legs[0].transform * actor._rig._knees[0].transform * actor._rig._ankles[0].transform).origin
+					samples.append({"t": elapsed, "pos": actor.position, "phase": actor._rig.phase, "ankle": ankle, "stance": fposmod(actor._rig.phase / TAU, 1.0) < actor._rig._duty})
+				var grelease: InputEventKey = gpress.duplicate()
+				grelease.pressed = false
+				Input.parse_input_event(grelease)
+				if samples.size() > 2:
+					var first: Dictionary = samples[0]
+					var last: Dictionary = samples[samples.size() - 1]
+					var span: float = last.t - first.t
+					var cell_m: float = load("res://Scenes/grid.gd").cell_meters
+					var mps: float = (last.pos - first.pos).length() * cell_m / span
+					var cycles: float = (last.phase - first.phase) / TAU / span
+					var drift := 0.0
+					var stance_travel := 0.0
+					var path_len := 0.0
+					var worst_step := 0.0
+					var rig_speed := 0.0
+					for i in range(1, samples.size()):
+						var d: float = (samples[i].pos - samples[i - 1].pos).length()
+						path_len += d
+						worst_step = maxf(worst_step, d)
+					print("gait: caminho percorrido %.2f m x deslocamento liquido %.2f m (puxoes aumentam o primeiro), maior passo por quadro %.3f m em %d quadros" % [
+						path_len * cell_m, (last.pos - first.pos).length() * cell_m, worst_step * cell_m, samples.size()])
+					for i in range(1, samples.size()):
+						if samples[i].stance and samples[i - 1].stance:
+							drift += (samples[i].ankle - samples[i - 1].ankle).length()
+							stance_travel += (samples[i].pos - samples[i - 1].pos).length()
+					print("gait: %.2f m/s | %.2f passos/s | pé de apoio andou %.3f unidades para %.3f do corpo no apoio (deslize %.0f%%) | amostras=%d" % [mps, cycles * 2.0, drift, stance_travel,
+						100.0 * drift / maxf(stance_travel, 0.0001), samples.size()])
+				else:
+					print("gait: sem amostras (ator=", app.player_actor() != null, ")")
 			"act":
 				await app.player_hud.act(arg)
 			"creator": # AD-197q: abre o criador de personagem (cidades e primeira amostra do motor)

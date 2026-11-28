@@ -1,5 +1,7 @@
 {
+  "Players": { "WalkMetersPerSecond": 1.1, "Time": { "TimeScale": 1, "IdleRhythm": "RealTime" } },
   "Presentation": {
+    "Wardrobe": "modern",
     "Name": "Sandbox: casal",
     "QuickStart": true,
     "Era": "Subúrbio de hoje",

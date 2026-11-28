@@ -6,6 +6,8 @@ extends RefCounted
 ## Pivôs `Node3D` (sem Skeleton3D: a hierarquia de 4 membros já existia e um esqueleto custaria mais para o mesmo resultado).
 
 const Pose := preload("res://Scenes/body_pose.gd")
+const Grid := preload("res://Scenes/grid.gd")
+const NpcMesh := preload("res://Scenes/npc_mesh.gd")
 const SHOE := Color("4a3524")
 const BELT := Color("3a2a1c")
 const LEG_X := 0.08
@@ -23,6 +25,10 @@ var _hands: Array[Node3D] = []
 var _knees: Array[Node3D] = []
 var _ankles: Array[Node3D] = []
 var _skin_parts: Array[MeshInstance3D] = []
+var _forearms: Array[MeshInstance3D] = []
+var _shins: Array[MeshInstance3D] = []
+var _feet: Array[MeshInstance3D] = []
+var _sleeve_long := false
 var _pelvis: MeshInstance3D
 var _belt: MeshInstance3D
 var _hem: MeshInstance3D
@@ -86,6 +92,9 @@ func deactivate(a, free_nodes: bool) -> void:
 		_knees.clear()
 		_ankles.clear()
 		_skin_parts.clear()
+		_forearms.clear()
+		_shins.clear()
+		_feet.clear()
 		_pelvis = null
 		_belt = null
 		_hem = null
@@ -95,13 +104,19 @@ func deactivate(a, free_nodes: bool) -> void:
 			node.visible = false
 
 
-## Pele da pessoa nas partes que a mostram (antebraço, mão, nariz, orelha); a doença escurece junto com a cabeça.
+## Pele da pessoa nas partes que a mostram (antebraço, mão); a doença escurece junto com a cabeça. Manga comprida cobre o antebraço.
 func set_skin(material: Material) -> void:
 	for part in _skin_parts:
 		part.material_override = material
+	for part in _forearms:
+		part.material_override = _forearm_sleeve if _sleeve_long else material
 
 
-## Roupa e proporções pelo estado (ADR-0047): saia de quem é mulher, cabeça por idade, largura do cinto pelo porte.
+var _forearm_sleeve: Material = null
+
+
+## Roupa e proporções pelo estado (ADR-0047) e pelo estilo do período (#254): túnica/vestido/saia, cinto, manga, calça, sapato e a
+## espessura dos membros pelo sexo e idade; cabeça por idade.
 func refit(a) -> void:
 	if not built:
 		return
@@ -109,8 +124,26 @@ func refit(a) -> void:
 	var head := Pose.head_factor(stage)
 	a._head_mult = Vector3.ONE * head
 	a._apply_head_scale()
-	_hem.visible = active and bool(a.spec.get("female", false)) and stage != "baby"
-	_belt.scale = Vector3(a._torso.scale.x, 1.0, a._torso.scale.z)
+	var style: Dictionary = a._style
+	var skirt: bool = bool(style.get("skirt", bool(a.spec.get("female", false)))) and stage != "baby"
+	_hem.visible = active and skirt
+	if skirt:
+		var dress := String(style.get("outfit", "tunic")) == "dress"
+		_hem.mesh = NpcMesh.skirt(0.22 if dress else (0.19 if stage != "child" else 0.16), 0.07 if dress else 0.05)
+	_belt.visible = active and bool(style.get("belt", true))
+	_belt.scale = Vector3(a._torso.scale.x, 1.0, a._torso.scale.z * 0.78)
+	_sleeve_long = bool(style.get("long_sleeves", false))
+	_forearm_sleeve = a._shirt
+	var pants: Material = a._shared_mat(a._pants_color)
+	_pelvis.material_override = pants
+	var girth: float = a._arms[0].get_child(0).scale.x
+	for i in 2:
+		_shins[i].material_override = pants
+		_shins[i].scale = Vector3(girth, 1.0, girth)
+		_forearms[i].scale = Vector3(girth, 1.0, girth)
+		var boot := bool(style.get("boot", true))
+		_feet[i].mesh = NpcMesh.shoe(boot)
+		_feet[i].material_override = a._shared_mat(Color(style.get("shoe", SHOE)))
 	set_skin(a._skin_mesh.material_override)
 
 
@@ -134,33 +167,8 @@ func reset_joints() -> void:
 func _build(a) -> void:
 	var skin_mat: Material = a._skin_mesh.material_override
 	var pants: Material = a._shared_mat(a._pants_color)
-	var shoe: Material = a._shared_mat(SHOE)
-	var fore_mesh: Mesh = a._shared_mesh("rig_fore", func():
-		var m := BoxMesh.new()
-		m.size = Vector3(0.07, Pose.FOREARM, 0.07)
-		return m)
-	var hand_mesh: Mesh = a._shared_mesh("rig_hand", func():
-		var m := SphereMesh.new()
-		m.radius = 0.04
-		m.height = 0.08
-		m.radial_segments = 8
-		m.rings = 4
-		return m)
-	var shin_mesh: Mesh = a._shared_mesh("rig_shin", func():
-		var m := BoxMesh.new()
-		m.size = Vector3(0.09, Pose.SHIN, 0.09)
-		return m)
-	var foot_mesh: Mesh = a._shared_mesh("rig_foot", func():
-		var m := BoxMesh.new()
-		m.size = Vector3(0.09, 0.04, 0.15)
-		return m)
-	var ball_mesh: Mesh = a._shared_mesh("rig_shoulder", func():
-		var m := SphereMesh.new()
-		m.radius = 0.055
-		m.height = 0.11
-		m.radial_segments = 8
-		m.rings = 4
-		return m)
+	var fore_mesh: Mesh = NpcMesh.limb(Pose.FOREARM, 0.042, 0.03)
+	var shin_mesh: Mesh = NpcMesh.limb(Pose.SHIN, 0.05, 0.034)
 	for i in 2:
 		var arm: Node3D = a._arms[i]
 		_uppers.append(arm.get_child(0))
@@ -169,13 +177,13 @@ func _build(a) -> void:
 		arm.add_child(elbow)
 		_elbows.append(elbow)
 		_extras.append(elbow)
-		_part(a, elbow, fore_mesh, skin_mat, Vector3(0, -Pose.FOREARM / 2.0, 0), true)
+		_forearms.append(_part(a, elbow, fore_mesh, skin_mat, Vector3(0, -Pose.FOREARM / 2.0, 0), false))
 		var hand := Node3D.new()
 		hand.position = Vector3(0, -Pose.FOREARM, 0)
 		elbow.add_child(hand)
 		_hands.append(hand)
-		_part(a, hand, hand_mesh, skin_mat, Vector3(0, -0.03, 0), true)
-		_extras.append(_part(a, arm, ball_mesh, a._shirt, Vector3.ZERO, false))
+		_part(a, hand, NpcMesh.hand(), skin_mat, Vector3.ZERO, true)
+		_extras.append(_part(a, arm, NpcMesh.shoulder(), a._shirt, Vector3.ZERO, false))
 	for i in 2:
 		var leg: Node3D = a._legs[i]
 		_uppers.append(leg.get_child(0))
@@ -184,46 +192,23 @@ func _build(a) -> void:
 		leg.add_child(knee)
 		_knees.append(knee)
 		_extras.append(knee)
-		_part(a, knee, shin_mesh, pants, Vector3(0, -Pose.SHIN / 2.0, 0), false)
+		_shins.append(_part(a, knee, shin_mesh, pants, Vector3(0, -Pose.SHIN / 2.0, 0), false))
 		var ankle := Node3D.new()
 		ankle.position = Vector3(0, -Pose.SHIN, 0)
 		knee.add_child(ankle)
 		_ankles.append(ankle)
-		_part(a, ankle, foot_mesh, shoe, Vector3(0, 0.0, 0.035), false)
-	_pelvis = _part(a, a, a._shared_mesh("rig_pelvis", func():
-		var m := BoxMesh.new()
-		m.size = Vector3(0.25, 0.12, 0.15)
-		return m), pants, Vector3(0, Pose.HIP_Y, 0), false)
+		_feet.append(_part(a, ankle, NpcMesh.shoe(true), a._shared_mat(SHOE), Vector3.ZERO, false))
+	_pelvis = _part(a, a, NpcMesh.pelvis(), pants, Vector3(0, Pose.HIP_Y, 0), false)
 	_belt = _part(a, a._body, a._shared_mesh("rig_belt", func():
 		var m := CylinderMesh.new()
-		m.top_radius = 0.172
-		m.bottom_radius = 0.172
-		m.height = 0.035
+		m.top_radius = 0.156
+		m.bottom_radius = 0.156
+		m.height = 0.03
 		m.radial_segments = 12
 		return m), a._shared_mat(BELT), Vector3(0, 0.43, 0), false)
-	_hem = _part(a, a._body, a._shared_mesh("rig_hem", func():
-		var m := CylinderMesh.new()
-		m.top_radius = 0.16
-		m.bottom_radius = 0.23
-		m.height = 0.18
-		m.radial_segments = 12
-		return m), a._shirt, Vector3(0, 0.34, 0), false)
+	_hem = _part(a, a._body, NpcMesh.skirt(0.19, 0.05), a._shirt, Vector3(0, 0.43, 0), false)
 	_hem.visible = false
 	_extras.append_array([_pelvis, _belt, _hem])
-	var nose_mesh: Mesh = a._shared_mesh("rig_nose", func():
-		var m := BoxMesh.new()
-		m.size = Vector3(0.025, 0.03, 0.035)
-		return m)
-	var ear_mesh: Mesh = a._shared_mesh("rig_ear", func():
-		var m := SphereMesh.new()
-		m.radius = 0.03
-		m.height = 0.06
-		m.radial_segments = 6
-		m.rings = 3
-		return m)
-	_extras.append(_part(a, a._head, nose_mesh, skin_mat, Vector3(0, -0.005, 0.135), true))
-	for side in [-1, 1]:
-		_extras.append(_part(a, a._head, ear_mesh, skin_mat, Vector3(side * 0.13, 0.0, 0.0), true))
 	built = true
 
 
@@ -268,13 +253,12 @@ func locomotion(a, dt: float, moving: bool) -> void:
 		run = Pose.approach(run, 1.0 if (moving and a.running) else 0.0, 5.0, dt)
 	_last = a.position
 	var stage := String(a.spec.get("stage", "adult"))
-	var factor := Pose.stride_factor(stage)
-	_stride = lerpf(0.30, 0.46, run) * factor
+	var gait_now := Pose.gait_params(speed, a.scale.x, stage, run, Grid.cell_meters) # #256: cadência e passada pela velocidade real e pela altura
+	_stride = float(gait_now.stride)
 	_lift = lerpf(0.05, 0.11, run)
-	_duty = lerpf(0.6, 0.4, run)
+	_duty = float(gait_now.duty)
 	if gait > 0.004:
-		var f := clampf(speed * _duty / _stride, lerpf(1.1, 2.0, run), 3.4)
-		phase = fmod(phase + TAU * f * maxf(dt, 0.0), TAU * 64.0)
+		phase = fmod(phase + TAU * float(gait_now.cycles) * maxf(dt, 0.0), TAU * 64.0)
 	else:
 		gait = 0.0
 	if stage == "elder":
@@ -292,10 +276,16 @@ func locomotion(a, dt: float, moving: bool) -> void:
 	a._body.rotation.x += lean
 	var twist := 0.12 * sin(phase) * gait * (1.0 + run)
 	a._body.rotation.y += twist
+	a._body.rotation.z += 0.045 * sin(phase) * gait * (1.0 + 0.5 * run) # balanço dos ombros contra o quadril
+	_pelvis.rotation.z = -0.07 * sin(phase) * gait
 	_pelvis.rotation.y = -twist * 0.6
 	a._head.rotation.y -= twist * 0.6
 	a._head.rotation.x -= lean * 0.6
-	_drop += (lerpf(0.025, 0.06, run) + 0.012 * (1.0 + run) * 0.5 * (1.0 + cos(2.0 * phase))) * gait
+	var reach_need := 0.0 # #256: o quadril desce o que a abertura das pernas pede (o pé de apoio alcança o chão, sem escorregar)
+	for i in 2:
+		var fp_need := Pose.foot_path(fposmod(phase / TAU + (0.0 if i == 0 else 0.5), 1.0), _stride, _lift, _duty)
+		reach_need = maxf(reach_need, Pose.drop_for_reach(fp_need.x * gait, fp_need.y * gait))
+	_drop += (lerpf(0.012, 0.035, run) * gait + reach_need)
 
 
 func air(lift: float, tuck: float) -> void:
@@ -376,7 +366,7 @@ func finalize(a, lying: bool) -> void:
 		var pivot := Vector3(0, Pose.HIP_Y, 0)
 		a._body.position += pivot - lean * pivot
 	_pelvis.position.y = hip_y
-	_hem.position.y = 0.34
+	_hem.position.y = 0.43
 	_finalize_arms(a)
 	if lying:
 		return

@@ -57,6 +57,10 @@ static func run(boot: Node, steps: Array) -> void:
 			"sandbox": # #252: o botão "Sandbox: casal" do título: cria o mundo do período de início rápido e entra nele; o resto são passos do jogo
 				await menu.quick_start(arg if arg != "" else "sandbox-casal")
 				await boot.get_tree().create_timer(0.5).timeout
+				for _i in 400: # #256: o início rápido entra sozinho no corpo da primeira pessoa da casa; espera isso terminar (até ~40 s)
+					if boot.app == null or boot.app.quick_entered:
+						break
+					await boot.get_tree().create_timer(0.1).timeout
 				await DevSteps.run(boot.app, steps.slice(i + 1))
 				return
 			"create":

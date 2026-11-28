@@ -81,6 +81,14 @@ public sealed class SimulationHost(WorldHost host)
 
     public void SetManualDelta(int? deltaMs) => ManualDeltaMs = deltaMs;
 
+    /// <summary>#256: criar ou abrir outro mundo larga o que o admin fixou no mundo anterior (Δ manual e acelerado). Sem isto o Δ de
+    /// uma sessão de teste sobrevivia ao mundo novo e o jogador via o relógio correr mesmo em tempo real.</summary>
+    public void ResetRhythmOverrides()
+    {
+        ManualDeltaMs = null;
+        Accelerated = false;
+    }
+
     /// <summary>O ritmo agora (ADR-0050, decisão 3): Δ fixado pelo admin; acelerado (admin, ou o pulo de quem joga sozinho): uma
     /// hora por tick; com jogador: tempo real na escala do mundo (<see cref="TimeRules.TimeScale"/>); sem ninguém: o
     /// <see cref="TimeRules.IdleRhythm"/> do mundo (padrão rápido, o ritmo do admin).</summary>

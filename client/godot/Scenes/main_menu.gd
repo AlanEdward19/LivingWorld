@@ -105,6 +105,11 @@ func _ready() -> void:
 var _quick_start := false ## a criação em andamento veio de um botão do título (#252), não do assistente
 
 
+## #256: o mundo que se abre agora veio de um início rápido (o jogo entra no corpo de uma pessoa da casa).
+func is_quick_start() -> bool:
+	return _quick_start
+
+
 ## #252: um período de início rápido do título: cria o mundo com o cenário do servidor e já entra nele.
 func quick_start(period_id: String) -> void:
 	_wizard_api()

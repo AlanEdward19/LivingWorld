@@ -46,6 +46,23 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     }
 
     [Fact]
+    public async Task Status_shows_the_rhythm_right_after_a_player_takes_a_body_without_waiting_for_the_next_loop_cycle()
+    {
+        var client = _factory.CreateAdminClient();
+        var host = _factory.Services.GetRequiredService<SimulationHost>();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var players = _factory.Services.GetRequiredService<LivingWorld.Simulation.Players.PlayerService>();
+        host.ResetRhythmOverrides();
+        var npc = worldHost.Current.Npcs.First(n => n.IsAlive && n.ControllerId is null);
+
+        Assert.True(players.Incarnate(worldHost.Current, npc.Id, "p-256", LivingWorld.Domain.Population.PossessionMode.Full).IsSuccess);
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        players.Logout(worldHost.Current, "p-256");
+
+        Assert.Equal(("RealTime", 1), (status!.Rhythm, status.PlayersPresent)); // #256: o ritmo de quem conduz, já no status da próxima leitura
+    }
+
+    [Fact]
     public async Task Speed_with_a_positive_value_updates_ticks_per_second()
     {
         var client = _factory.CreateAdminClient();

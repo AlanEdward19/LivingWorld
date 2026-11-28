@@ -86,6 +86,47 @@ public class FineTimeTests
             (host.Simulation.LastPlan.Mode, npc.ActionStartedAtMs, npc.ActionStartedAtMs % WorldMillis.PerHour != 0));
     }
 
+    /// <summary>#256: todo caminho de posse (comum, plena do admin, troca G, reconexão) conta como jogador presente e põe o relógio em tempo real
+    /// 1:1; nunca cai no ritmo de "sem jogador" enquanto alguém conduz um corpo.</summary>
+    [Theory]
+    [InlineData("common")]
+    [InlineData("full")]
+    [InlineData("switch")]
+    [InlineData("reconnect")]
+    public void Every_possession_path_counts_as_a_present_player_and_runs_real_time(string path)
+    {
+        var host = HostOf(Village(194, initialPopulation: 20, rules: PlayerRules.Default with { Time = TimeRules.Default with { TimeScale = 1 } }));
+        var world = host.Arm.World;
+        var a = Pick(world);
+        var b = world.Npcs.First(n => n.IsAlive && n.Id != a.Id);
+        b.ImprintPersonality(b.Personality with { Conscientiousness = 0, EmotionalStability = 0 });
+        var mode = path == "full" ? PossessionMode.Full : PossessionMode.Common;
+        Assert.True(host.Players.Incarnate(world, a.Id, "ana", mode).IsSuccess);
+        if (path == "switch") Assert.True(host.Players.Switch(world, b.Id, "ana").IsSuccess);
+        if (path == "reconnect")
+        {
+            Assert.True(host.Players.Logout(world, "ana").IsSuccess);
+            Assert.Equal(0, PlayerService.PlayersPresent(world));
+            Assert.True(host.Players.Incarnate(world, a.Id, "ana").IsSuccess);
+        }
+
+        host.Simulation.Cycle(host.Players);
+
+        Assert.Equal((1, RhythmMode.RealTime, 50), (PlayerService.PlayersPresent(world), host.Simulation.LastPlan.Mode, host.Simulation.LastPlan.DeltaMs));
+    }
+
+    [Fact]
+    public void The_admin_manual_delta_and_acceleration_do_not_survive_a_new_world()
+    {
+        var host = HostOf(Village(195, initialPopulation: 20));
+        host.Simulation.SetManualDelta(3_600_000);
+        host.Simulation.SetAccelerated(true);
+
+        host.Simulation.ResetRhythmOverrides(); // o que criar ou abrir outro mundo faz (SavedWorldLibrary.Create/Load)
+
+        Assert.Equal((null, false), (host.Simulation.ManualDeltaMs, host.Simulation.Accelerated));
+    }
+
     [Fact]
     public void The_host_runs_fast_without_players_real_time_with_one_and_back_when_they_leave()
     {
