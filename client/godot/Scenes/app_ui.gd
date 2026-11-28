@@ -223,6 +223,7 @@ static func _side(app, ui: Control) -> void:
 	app.player_hud.warning.connect(func(text: String): app.toasts.push(text))
 	app.player_hud.released.connect(func(): app.player_released())
 	app.player_hud.switched.connect(app._on_player_switched)
+	app.player_hud.body_away.connect(app._on_player_away) # #263: o corpo no turno de trabalho some do mapa
 	app.player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	app.player_hud.offset_left = 310
 	app.player_hud.offset_right = -316

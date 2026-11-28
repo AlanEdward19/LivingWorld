@@ -214,6 +214,19 @@ static func run(app: Node, steps: Array) -> void:
 				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | objetos: ", found.map(func(e): return String(e.text)))
 				if not picked.is_empty():
 					await app.player_hud.interact(picked)
+			"career": # #263: imprime o cartão do emprego (a linha do HUD), o cargo, o desempenho, as contas abertas, os avisos e as vagas, como o motor os diz na ficha
+				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+				var career_sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				var career = career_sheet.get("career")
+				print("career: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " dinheiro=", career_sheet.get("money"), " | cartão: ", app.player_frame.career_label.text.replace("\n", " / "),
+					" | job: ", (career.get("job") if career is Dictionary else null), " | contas: ", (career.get("bills") if career is Dictionary else null),
+					" | vagas: ", (career.get("listings") if career is Dictionary else null))
+				if career is Dictionary:
+					for notice in career.get("notices", []):
+						print("career-notice: ", notice.get("id"), " ", notice.get("kind"), " ", notice.get("text"))
+			"careerpanel": # #263: abre (ou fecha) o painel da carreira, como a tecla O
+				app.player_frame.toggle_career()
+				await app.get_tree().create_timer(0.3).timeout
 			"needs": # #255: imprime as barras do corpo (as de sempre e as do catálogo), a dica, a ação em curso e a fila
 				await _print_needs(app)
 			"mood": # #262: imprime o humor do corpo e da outra pessoa como o motor diz (emoção, nota, momentos com causa e tempo, aspiração, desejos) e o que o cartão mostra

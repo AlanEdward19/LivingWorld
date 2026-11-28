@@ -70,7 +70,7 @@ public static class CityProjector
             return Result<CitySnapshot>.Fail($"cidade {cityId} não encontrada");
 
         var residents = world.Npcs
-            .Where(n => n.IsAlive && n.City == cityId)
+            .Where(n => n.IsAlive && n.City == cityId && !LivingWorld.Simulation.Careers.CareerWork.IsAway(world, n)) // #263: quem está no turno de trabalho não está no mapa
             .Select(n => new CityResidentMarker(
                 n.Id, n.CurrentLocation, n.CurrentAction, ExtraordinaryNpcVisualProjector.Build(world, n.Id), n.Appearance))
             .ToList();

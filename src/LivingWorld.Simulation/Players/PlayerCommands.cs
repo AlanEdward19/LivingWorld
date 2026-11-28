@@ -67,6 +67,7 @@ public static class PlayerCommands
         if (target is null || !target.IsAlive) return Result<Unit>.Fail($"{NotFound} NPC ausente ou morto");
         if (target.Id == current.Id) return Result<Unit>.Fail($"{Conflict} jogador já controla este NPC");
         if (target.ControllerId is not null) return Result<Unit>.Fail($"{Conflict} NPC já tem controlador");
+        if (world.Careers is not null && LivingWorld.Simulation.Careers.CareerWork.IsAway(world, target)) return Result<Unit>.Fail($"{Conflict} {target.Name} está no trabalho"); // #263: fora do mapa
         var mode = current.ControlMode ?? PossessionMode.Common;
         if (mode == PossessionMode.Common && PossessionContest.Prevents(world, target, ctx.CurrentTick))
             return Result<Unit>.Fail($"{Refused} a vontade de {target.Name} impede a posse");

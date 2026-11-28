@@ -8,8 +8,9 @@ signal speed_chosen(speed: int) ## #260: o jogador pediu pausa (0), 1×, 2× ou 
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   O carreira   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
+const CareerPanel := preload("res://Scenes/career_panel.gd") ## #263: emprego, desempenho, contas e vagas (tecla O)
 const NeedIcon := preload("res://Scenes/need_icon.gd")
 const DEFAULT_SPEEDS := [1, 2, 3] ## #260: sem lista do motor (cenário antigo): 1×, 2×, 3× como no The Sims; #261: a lista é do cenário (`speeds`), com 0 = pausa
 const BAR_WIDTH := 112.0 ## #260: a barra encolhe para caber o ícone, o número e a seta de tendência na mesma linha
@@ -36,6 +37,8 @@ var _mood: Dictionary = {}
 var _moments_key := ""
 var switch_label: Label ## #252: "G — passar a ser Rafael" (só com outra pessoa na casa)
 var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
+var career_label: Label ## #263: cargo e próximo turno (ou "no trabalho até..."), e a conta mais urgente, da ficha do motor
+var career_panel: PanelContainer ## #263: a carreira por inteiro (tecla O)
 var clock_label: Label
 var speed_box: HBoxContainer ## #260: pausa/1×/2×/3× no canto de cima (só quando o motor deixa: sozinho no mundo)
 var speed_buttons: Array[Button] = []
@@ -130,6 +133,11 @@ func _init() -> void:
 	purse_label = _label(15, Color("ffe9a6"))
 	purse_label.visible = false
 	box.add_child(purse_label)
+	career_label = _label(13, Color("9ad0ff")) # #263: só a linha do emprego e da conta; o resto mora no painel da carreira (O)
+	career_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	career_label.custom_minimum_size.x = 244
+	career_label.visible = false
+	box.add_child(career_label)
 	for spec in BARS:
 		var made := _make_bar_row(String(spec[0]), String(spec[1]), spec[2], String(NeedIcon.DEFAULT_ICONS.get(spec[0], "")), box)
 		bars[spec[0]] = made.bar
@@ -201,6 +209,8 @@ func _init() -> void:
 	add_child(goal_label)
 	goals = GoalsPanel.new()
 	add_child(goals)
+	career_panel = CareerPanel.new()
+	add_child(career_panel)
 	guide = PlayerGuide.new()
 	add_child(guide)
 	prompt = _label(17, Color.WHITE)
@@ -605,6 +615,22 @@ func set_purse(money: Variant, carrying: Variant, name_of: Callable) -> void:
 		parts.append("Leva %d %s" % [int(carrying.quantity), String(name_of.call(int(carrying.resourceId))) if name_of.is_valid() else ""])
 	purse_label.text = " · ".join(parts)
 	purse_label.visible = not parts.is_empty()
+
+
+## #263: o emprego e as contas como o motor diz (`career` da ficha): a linha do cartão e o painel da carreira.
+func set_career(view: Variant) -> void:
+	var lines := CareerPanel.card_lines(view)
+	career_label.text = "\n".join(lines)
+	career_label.visible = not lines.is_empty()
+	career_panel.set_career(view)
+
+
+func toggle_career() -> void:
+	career_panel.toggle()
+
+
+func career_open() -> bool:
+	return career_panel.is_open()
 
 
 ## #259: a relação da oferta `person` sob a mira (ou nada: esconde). `now_ms` é o instante de mundo da última pose, para dizer "há 2 min".

@@ -77,6 +77,7 @@ public class PositionalSnapshotTests
         world.RestorePossession(new LivingWorld.Simulation.Players.PossessionLedger { Suspicions = [new() { Observer = 1, Body = 2, Value = 10, Tick = 3 }] }); // AD-197f: livro vazio some do snapshot
         world.RestoreTrees(new LivingWorld.Simulation.Players.TreeLedger { Cuts = [new() { X = 3, Y = 4, Left = 2, AtMs = 5000 }] }); // #243: livro de árvores vazio some do snapshot
         world.RestoreLights(new LivingWorld.Simulation.Objects.LightLedger { On = [new() { Building = 1, Piece = 2 }] }); // #258: sem luz ligada some do snapshot
+        world.RestoreCareers(new LivingWorld.Simulation.Careers.CareerLedger { Jobs = [new() { Npc = 1, Career = "escritorio", Employer = 1 }] }); // #263: livro de carreiras vazio some do snapshot
         world.CreditBook.AddArrear(1, 2, 3); // AD-155: livro do crédito vazio some do snapshot
         world.RestoreHonor(new LivingWorld.Simulation.Population.Naming.HonorLedger { Records = [new() { Npc = 1, Honor = 5 }] }); // AD-183
         var tree = WorldSnapshot.BuildPersistentTree(world);

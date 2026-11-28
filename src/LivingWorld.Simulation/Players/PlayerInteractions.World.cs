@@ -140,7 +140,7 @@ public static partial class PlayerInteractions
 
     /// <summary>#258: o uso que liga ou desliga uma luz que já está assim não muda nada: não se oferece.</summary>
     private static bool NoToggle(WorldState world, BuildingId building, int piece, LivingWorld.Domain.Objects.ObjectUseDef use) =>
-        use.Toggle is { } toggle && world.LightIsOn(building.Value, piece) == (toggle == LivingWorld.Domain.Objects.ObjectToggles.LightOn);
+        use.Toggle is { } toggle && toggle != LivingWorld.Domain.Objects.ObjectToggles.JobSearch && world.LightIsOn(building.Value, piece) == (toggle == LivingWorld.Domain.Objects.ObjectToggles.LightOn);
 
     /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>
     private static Result<InteractionResult> Use(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, string verb, string requested)

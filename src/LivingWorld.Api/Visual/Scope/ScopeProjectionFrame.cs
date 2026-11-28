@@ -80,7 +80,7 @@ public sealed class ScopeProjectionFrame
         for (int i = 0; i < npcs.Count; i++)
         {
             var npc = npcs[i];
-            if (!npc.IsAlive) continue;
+            if (!npc.IsAlive || world.Careers is not null && LivingWorld.Simulation.Careers.CareerWork.IsAway(world, npc)) continue; // #263: quem está no turno de trabalho (fora do mapa) não é desenhado
             CellCoord? relocation = npc.Household is { } home ? relocations.GetValueOrDefault(home) : null;
             bool hasBounds = _bounds.TryGetValue(npc.City, out var bounds);
             bool insideCity = hasBounds && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.City;

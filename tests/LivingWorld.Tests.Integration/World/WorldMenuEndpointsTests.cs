@@ -63,9 +63,9 @@ public class WorldMenuEndpointsTests : IClassFixture<LivingWorldApiFactory>
         var world = _factory.Services.GetRequiredService<WorldHost>().Current;
         Assert.Equal(3, world.Npcs.Count);
         Assert.Equal(world.Npcs[0].Spouse, world.Npcs[1].Id);
-        Assert.Equal(3, world.Buildings.Count); // o mercado e as duas casas
+        Assert.Equal(5, world.Buildings.Count); // o mercado, as duas casas e (#263) o escritório e a escola
         Assert.All(world.Buildings.Where(b => b.BuildingTypeId == -1), house => Assert.Equal(new LivingWorld.Domain.Cities.Buildings.BuildingShape(7, 6, 1), house.Shape));
-        Assert.Single(world.Workplaces);
+        Assert.Equal(3, world.Workplaces.Count); // o mercado, o escritório e a escola (#263)
         Assert.Equal("sandbox-casal", world.PeriodId);
     }
 

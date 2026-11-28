@@ -96,6 +96,7 @@ public static class ObjectUsage
         if (PlayerGround.FloorOf(npc) != target.Floor && npc.ControllerId is not null) return Result<Unit>.Fail($"{PlayerCommands.Conflict} use: está em outro andar");
         if (target.Use.Occupies && OccupiedBy(world, buildingId, piece, npc) is { } who) return Result<Unit>.Fail($"{PlayerCommands.Conflict} use: {who.Name} está usando");
         if (Shortage(world, npc, target.Use) is { } missing) return Result<Unit>.Fail($"{PlayerCommands.Conflict} use: {missing}");
+        if (LivingWorld.Simulation.Careers.CareerWork.BlockedUse(world, npc, target.Use) is { } cut) return Result<Unit>.Fail($"{PlayerCommands.Conflict} use: {cut}"); // #263: serviço cortado
 
         var task = new BodyTask(Action, now, now + 10 * MinuteMs) { Use = useId, Building = buildingId, Piece = piece, LastMs = now };
         if (npc.ControllerId is null || !world.FineTime)
@@ -191,7 +192,7 @@ public static class ObjectUsage
                 household.Withdraw(new ResourceType(c.Resource), c.Quantity);
                 if (use.Produces is not null) world.RecordResourceConsumed(new ResourceType(c.Resource), c.Quantity); // #258: o que o fogão transforma sai da conta da comida
             }
-        if (use.Toggle is { } toggle)
+        if (use.Toggle is { } toggle && toggle != ObjectToggles.JobSearch)
         {
             // #258: ligar ou desligar a luz do objeto: o estado é do motor, a ação é instantânea (o corpo já está ao lado da peça)
             world.SetLight(target.Building.Id.Value, target.Piece, toggle == ObjectToggles.LightOn);
@@ -254,6 +255,7 @@ public static class ObjectUsage
         {
             Produce(world, npc, target.Use); // #258: o preparo terminou de verdade: o que o fogão fez chega à despensa
             MoodMechanic.OnUse(world, npc, target.Use.Id, now); // #262: o uso acabou por inteiro: momentos e desejos
+            if (target.Use.Toggle == ObjectToggles.JobSearch) LivingWorld.Simulation.Careers.CareerWork.Search(world, npc, now); // #263: o jornal lista as vagas ao terminar
             Finish(world, ctx, npc, now, startNext: true);
             return;
         }
@@ -281,6 +283,7 @@ public static class ObjectUsage
         double rate = MoodMechanic.UseRate(world, npc, toMs); // #262: o humor muda o rendimento (só do que sobe)
         foreach (var effect in use.Effects)
             HomeLife.Add(world, npc, effect.Need, effect.PerHour * hours * (effect.PerHour > 0 ? rate : 1), toMs);
+        if (world.Careers is not null) LivingWorld.Simulation.Careers.CareerWork.Meter(world, npc, use, hours); // #263: o uso mede a conta de água
     }
 
     /// <summary>Libera o corpo e, se foi o fim natural (ou a queda do uso), começa a próxima ação da fila que ainda vale.</summary>

@@ -41,7 +41,7 @@ public class Sandbox258Tests
 
     private static Npc Joaquim(WorldState world) => world.Npcs.Single(n => n.Name == "Seu Joaquim");
 
-    private static Workplace Market(WorldState world) => world.Workplaces.Single();
+    private static Workplace Market(WorldState world) => world.Workplaces.First(); // #263: o mercado é o primeiro; o escritório e a escola vêm depois
 
     private static (WorldState World, WorldClock Clock, PlayerService Service, Npc Body) Playing(bool full = false, ulong seed = 258)
     {
@@ -71,7 +71,7 @@ public class Sandbox258Tests
         world.Households.Sum(h => h.Stock.GetValueOrDefault(resource)) + world.Workplaces.Sum(w => w.Stock.GetValueOrDefault(resource));
 
     private static long Coins(WorldState world) =>
-        world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount);
+        world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount) + world.ActiveCities().Sum(c => c.Treasury.Amount); // #263: a conta vai ao tesouro da cidade
 
     // --- 1. o mercado: prédio com estoque, preço e caixa, de porta para a rua, abastecido por quem trabalha nele ---
 
@@ -89,7 +89,7 @@ public class Sandbox258Tests
         var city = world.ActiveCities().Single();
         var (placed, origin, croft) = CityStreets.Placed(world, city).Single(p => p.Building.Id == building.Id);
         Assert.Equal("street", CityStreets.LotOf(world, city, placed, origin, croft).Access); // a porta dá para a rua
-        Assert.Equal(3, world.Buildings.Count); // o mercado, a casa do casal e a do comerciante
+        Assert.Equal(5, world.Buildings.Count); // o mercado, a casa do casal, a do comerciante e (#263) o escritório e a escola
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class Sandbox258Tests
         Assert.Single(Market(world).Employees);
         for (int h = 0; h < 24 * 5; h++) clock.Tick(world);
         Assert.Null(Marina(world).Employer); // a vaga é uma só: o casal segue sem emprego (a renda é a próxima etapa, ver docs/domain/sandbox.md)
-        Assert.Null(Rafael(world).Employer);
+        Assert.Null(Rafael(world).Employer); // #263: o emprego do Rafael é carreira do livro, não a folha de ofício
         Assert.Equal(1, Marina(world).Profession.Id);
     }
 

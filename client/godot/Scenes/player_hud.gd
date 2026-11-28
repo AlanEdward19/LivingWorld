@@ -10,6 +10,7 @@ const SocialMenu := preload("res://Scenes/social_menu.gd")
 const GroundGrid := preload("res://Scenes/ground_grid.gd")
 
 signal released()
+signal body_away(away: bool, id: int) ## #263: o corpo conduzido saiu para o turno de trabalho (fora do mapa) ou voltou: o app esconde ou mostra a figura
 signal switched(old_id: int, new_id: int) ## #252: trocou de corpo (o motor soltou o de antes sem sumir): o app solta a figura e a câmera desliza
 signal warning(text: String)
 ## AD-197d: previsão e correção do passo (o cliente anda já e corrige pela posição do motor), a conversa aberta pelo motor.
@@ -96,6 +97,9 @@ var frame: Control ## #222: a moldura de jogo (PlayerFrame) do modo jogador; o a
 var header: HFlowContainer
 var _body_clock := 0.0
 var _body_pending := false
+var _career_seen := 0 ## #263: o último aviso do emprego já mostrado (o motor numera); a primeira leitura só aprende
+var _career_primed := false
+var _career_away := false
 const BODY_EVERY := 2.0 ## s entre leituras da ficha do corpo para as barras (só no modo jogador)
 const BODY_BUSY_EVERY := 1.0 ## #243: com uma ação rendendo item, a ficha é lida mais vezes: "+1 Madeira" aparece quando a unidade sai
 var _paused_note_clock := 0.0
@@ -476,6 +480,9 @@ func _became(id: int, name: String) -> void:
 	_set_actions_enabled(true)
 	npc_id = id
 	npc_name = name
+	_career_seen = 0 # #263: o corpo novo tem os avisos dele
+	_career_primed = false
+	_career_away = false
 	_reset_combat()
 	is_active = true
 	ground = null # #248: o chão é o do corpo novo
@@ -790,6 +797,15 @@ func load_goals() -> void:
 	_goals_pending = false
 
 
+## O: abre ou fecha a carreira (o cartão do corpo já traz a linha do emprego); a ficha é lida na hora ao abrir.
+func toggle_career() -> void:
+	if frame == null:
+		return
+	frame.toggle_career()
+	if frame.career_open():
+		_body_clock = BODY_EVERY
+
+
 ## J: abre ou fecha "Metas e diário", lido do motor na hora ao abrir.
 func toggle_goals() -> void:
 	if frame == null:
@@ -832,6 +848,35 @@ func _refresh_body(delta: float) -> void:
 			sync_pose() # o motor ocupou este corpo numa interação que a outra pessoa começou: lê a pose para o gesto e a barra
 		frame.set_purse(body.get("money"), body.get("carrying"), resource_name_of)
 		frame.set_inventory(body.get("money"), body.get("carrying"), resource_name_of)
+		frame.set_career(body.get("career")) # #263: o cargo, o próximo turno e a conta mais urgente
+		_note_career(body.get("career"))
+
+
+## #263: os avisos do emprego e das contas ("+72 salário", "Hora do trabalho em 1 h", "Promoção!"): o motor numera, aqui só se mostra o que ainda não foi visto (a primeira
+## leitura aprende sem repetir o passado). Quando o corpo sai para o turno (fora do mapa), passa a conduzir a outra pessoa da casa, se há; senão o motor recusa os comandos.
+func _note_career(view: Variant) -> void:
+	if not view is Dictionary:
+		return
+	var was_primed := _career_primed
+	for notice in view.get("notices", []):
+		var id := int(notice.get("id", 0))
+		if id > _career_seen:
+			_career_seen = id
+			if _career_primed:
+				var text := String(notice.get("text", ""))
+				if String(notice.get("kind", "")) == "shift-soon":
+					text += "  ·  E: Ir ao trabalho"
+				elif String(notice.get("verb", "")) == "pay":
+					text += "  ·  E em casa: Contas"
+				warning.emit(text)
+	_career_primed = true
+	var job = view.get("job")
+	var away: bool = job is Dictionary and bool(job.get("away", false))
+	if away != _career_away:
+		body_away.emit(away, npc_id) # o app esconde a figura enquanto o motor a tem fora do mapa (ela volta à soleira)
+		if away and was_primed:
+			switch_body.call_deferred() # o corpo saiu do mapa: a câmera segue a outra pessoa da casa (se ela está em casa)
+	_career_away = away
 
 
 var _wish_seen := 0
@@ -1397,6 +1442,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
 		get_viewport().set_input_as_handled()
 		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O and rpg and not popup_open() and not typing():
+		get_viewport().set_input_as_handled()
+		toggle_career() # #263: carreira, contas e vagas
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_goals() # #235: metas e diário
@@ -1612,6 +1660,10 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 		if kind == "object" and offer.get("uses") != null and not (offer.uses as Array).is_empty():
 			# #255: um item por objeto (os usos vão num submenu), para cadeira, mesa e sofá não sumirem da roda
 			entries.append({"text": "%s ▸" % title, "kind": kind, "id": int(offer.id), "verb": "menu", "resource": -1, "uses": offer.uses, "title": title})
+			continue
+		if kind in ["job", "bills"] and offer.get("uses") != null: # #263: o texto de cada verbo (ir ao trabalho, candidatar-se, pagar a conta) é do dado, o motor o manda
+			for use in offer.uses:
+				entries.append({"text": String(use.name), "kind": kind, "id": int(offer.id), "verb": String(use.id), "resource": -1})
 			continue
 		for verb in offer.get("verbs", []):
 			if has_social and String(verb) == "talk":

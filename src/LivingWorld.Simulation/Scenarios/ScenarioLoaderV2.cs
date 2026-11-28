@@ -254,6 +254,9 @@ public static class ScenarioLoaderV2
             }
         }
 
+        var careersSeeded = LivingWorld.Simulation.Careers.CareerSeeding.Seed(world, System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject()); // #263: quem já começa numa carreira
+        if (!careersSeeded.IsSuccess) return Result<(WorldState, WorldClock)>.Fail(careersSeeded.Error!);
+
         progress?.Invoke(ScenarioLoadStages.Economy);
         if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
             ScenarioRunner.SeedInitialEconomyBuffer(world);

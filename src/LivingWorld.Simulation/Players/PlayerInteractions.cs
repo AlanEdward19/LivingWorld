@@ -4,6 +4,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Careers;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
@@ -109,7 +110,7 @@ public static partial class PlayerInteractions
         int approachCells = socialCatalog is null ? 1 : Math.Max(1, (int)Math.Ceiling(socialCatalog.Rules.ApproachM / Math.Max(0.1, world.Players.CellM)) + 1); // #261: o menu social vale ao alcance da vista
         foreach (var other in world.AliveNpcIndex.Alive)
         {
-            if (other.Id == npc.Id || other.City != npc.City) continue;
+            if (other.Id == npc.Id || other.City != npc.City || (world.Careers is not null && CareerWork.IsAway(world, other))) continue; // #263: quem está no trabalho não está aqui
             if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > approachCells) continue;
             var pose = PlayerGround.PoseOf(world, other);
             if (Chebyshev(pose, at) > approachCells || !PlayerGround.SameLevel(npc, other)) continue;
@@ -130,6 +131,7 @@ public static partial class PlayerInteractions
             });
         }
         WorldOffers(world, npc, at, floor, inside, household, offers);
+        CareerOffers(world, npc, at, inside, household, offers); // #263
         // #260: de fora, "ao mirar a casa": na porta ou na soleira dela (de dentro a oferta já vale em qualquer lugar da casa)
         if (sale is null && household?.Dwelling is { } own && inside != own && OwnedHome(world, own) && world.FindBuilding(own) is { Position: { } at0 } ownHouse
             && PlayerGround.DoorOf(ownHouse) is { } entrance && (at == entrance.Door || at == entrance.Doorstep))
@@ -159,6 +161,7 @@ public static partial class PlayerInteractions
     public static Result<InteractionResult> Interact(WorldState world, TickContext ctx, Npc npc, string kind, long id, string verb,
         int? resourceId = null, long? quantity = null)
     {
+        if (kind is JobKind or BillsKind) return CareerInteract(world, ctx, npc, kind, id, verb); // #263
         if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
         if (kind == "person" && verb.StartsWith("social:", StringComparison.Ordinal)) return Social(world, ctx, npc, id, verb[7..]); // #259
         string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso
