@@ -263,7 +263,7 @@ public static class WaterFetch
     {
         if (!world.NaturalWaterRules.Fetch.DrinkAtMealLine || !On(world)) return false;
         if (npc.CurrentAction == ActionType.Sleep && chosen == ActionType.Sleep) return false; // dormindo não bebe
-        int line = 100 - LivingWorld.Simulation.Invention.PersonalCarry.MealTimeDeficit;
+        int line = 100 - world.NeedsRules.MealTimeDeficit;
         int thirst = npc.ThirstAt(now);
         bool due = thirst <= line || (chosen == ActionType.Sleep && thirst - world.NeedsRules.ThirstDecayPerHour * nightHours <= line);
         if (!due || npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location
@@ -272,7 +272,7 @@ public static class WaterFetch
         DrinkFromPantry(world, npc, now);
         if (npc.ThirstAt(now) <= thirst) return false;
         // com o copo, a fome já na hora da refeição come da despensa (com apetite só, comia antes da hora e a cidade comia o celeiro) (antes era a sede que levava à refeição: sem ela, a fome ficava para a crítica)
-        if (100 - npc.HungerAt(now) >= LivingWorld.Simulation.Invention.PersonalCarry.MealTimeDeficit)
+        if (100 - npc.HungerAt(now) >= world.NeedsRules.MealTimeDeficit)
         {
             var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
             if (meal.Id > 0 && home.Withdraw(meal, 1).IsSuccess)

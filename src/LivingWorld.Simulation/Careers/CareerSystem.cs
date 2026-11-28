@@ -34,7 +34,7 @@ public sealed class CareerSystem : ISimulationSystem
             if (job.ReturnMs > 0 || catalog.Find(job.Career) is not { } def) continue;
             var level = def.Levels[Math.Clamp(job.Level, 0, def.Levels.Count - 1)];
             if (!CareerWork.IsWorkday(world, catalog, level, day) || job.ShiftDay == day) continue;
-            int leave = CareerWork.LeaveHour(def, level);
+            int leave = CareerWork.LeaveHour(world, npc, def, level, job.Employer);
             if (npc.ControllerId is not null)
             {
                 if (hod == leave - catalog.Rules.NoticeLeadHours && catalog.Rules.NoticeLeadHours > 0)

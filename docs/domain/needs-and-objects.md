@@ -59,4 +59,7 @@ Mover as quatro necessidades de sempre para o catálogo; entrega por telefone; a
 `NeedDef.variation {jitter, traits:{traço:peso}}`: o nível de partida varia até `jitter` pontos (sorteio semeado do mundo por pessoa) e a taxa de queda é `decayPerHour × (1 + Σ peso × (traço−50)/50)` (0,5 a 1,5). `NeedStartJitter {hunger,...}` (raiz do cenário,
 junto de `Needs`) varia só o nível de partida das necessidades de sempre. `seekBelow` (acima de `urgentBelow`): quem ninguém conduz e está à toa já procura um uso abaixo desse nível, escolhendo entre as duas necessidades mais baixas e os usos
 mais fortes pelo sorteio semeado; procurando (sem urgência) nunca escolhe uso que gasta da despensa. O rótulo de minutos da oferta é `ObjectUsage.PlannedMinutes` (o que o uso leva agora com `untilFull`).
-
+## #269: o ritmo do dia (AD-238)
+O ritmo das necessidades é dado do cenário, não do código: `HungerDecayPerHour`, `SleepDecayPerHour` e `MealTimeDeficit` (o déficit de fome em que se vai comer; 0 = o padrão 65 do motor) no período, e `decayPerHour` de bexiga e higiene em `home-life.json`.
+No sandbox: fome pede comida a cada ~5 h, o sono vira urgente depois de ~17 h acordado, bexiga procura o vaso em ~11 h. `NeedCritical` cobre todas (sono 12, higiene 14). O turno do trabalho devolve necessidades pelos `awayEffects` do cargo (almoço, pausa do banheiro).
+Quem ninguém conduz nunca herda `ControlledAction` (só o corpo do jogador): o parceiro dorme na cama à noite, come e volta ao trabalho sozinho. `ContinuityBonus` 25 mantém quem dorme dormindo.

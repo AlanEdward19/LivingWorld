@@ -31,7 +31,7 @@ public sealed partial class PlayerCommandGateway
             if (building is null) return new PlayerReply(StatusCodes.Status200OK, new { ok = false, reason = error, price = 0L, refund = 0L, note = "" }, null);
             var check = HomeCommands.Check(world, npc, building.Id.Value, verb);
             string reason = check.IsSuccess ? "" : check.Error!.Replace(PlayerCommands.Conflict, "").Trim();
-            return new PlayerReply(StatusCodes.Status200OK, new { ok = check.IsSuccess, reason, price = check.Value?.Price ?? 0L, refund = check.Value?.Refund ?? 0L, note = check.Value?.Note ?? "" }, null);
+            return new PlayerReply(StatusCodes.Status200OK, new { ok = check.IsSuccess, reason, price = check.Value?.Price ?? 0L, refund = check.Value?.Refund ?? 0L, note = check.Value?.Note ?? "", fit = check.Value?.Fit }, null);
         }
     }
 }

@@ -71,7 +71,7 @@ public static class CareerViews
         var listings = new List<ListingView>();
         if (job is null && CareerWork.SearchIsValid(world, catalog, npc, nowMs))
             foreach (var v in CareerWork.Vacancies(world, npc))
-                listings.Add(new ListingView(v.Career.Id, v.Career.Name, v.Employer.Id.Value, v.Entry.Title, v.Entry.WagePerHour, v.Entry.StartHour, v.Entry.Hours, v.Free, Math.Round(v.Chance, 2), v.Career.CommuteMin));
+                listings.Add(new ListingView(v.Career.Id, v.Career.Name, v.Employer.Id.Value, v.Entry.Title, v.Entry.WagePerHour, v.Entry.StartHour, v.Entry.Hours, v.Free, Math.Round(v.Chance, 2), CareerWork.CommuteMinOf(world, npc, v.Career, v.Employer.Id.Value))); // #269: a ida do caminho real, não o número do cargo
         List<MateView>? mates = null;
         if (npc.Household is { } house)
             foreach (var other in ledger.Jobs)

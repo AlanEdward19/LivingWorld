@@ -71,7 +71,7 @@ public static partial class PlayerInteractions
         foreach (var building in world.Buildings.OrderBy(b => b.Id.Value))
             if (floor == 0 && PlayerGround.DoorOf(building) is { } door && building.CompletedAtTick <= world.CurrentDate.TotalHours)
             {
-                if (at == door.Doorstep) offers.Add(Offer("door", building.Id.Value, "", ["enter"], door.Door));
+                if (at == door.Doorstep || at != door.Door && Chebyshev(at, door.Doorstep) <= DoorReachCells(world)) offers.Add(Offer("door", building.Id.Value, "", ["enter"], door.Door)); // #269: "Entrar" também a poucos passos da soleira
                 else if (at == door.Door) offers.Add(Offer("door", building.Id.Value, "", ["exit"], door.Doorstep));
             }
 
@@ -225,10 +225,20 @@ public static partial class PlayerInteractions
         return sold.IsSuccess ? Done(offer, "sell", 1, sold.Value) : Fail(sold.Error!);
     }
 
+    /// <summary>#269: quantas células da soleira ainda valem para a porta (o dado <c>Players.DoorReachMeters</c> sobre a célula do cenário).</summary>
+    private static int DoorReachCells(WorldState world) => Math.Max(0, (int)Math.Floor(world.Players.DoorReachM / Math.Max(0.1, world.Players.CellM) + 1e-9));
+
     private static Result<InteractionResult> Walk(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer)
     {
         var to = new CellCoord(offer.X, offer.Y);
         var from = PlayerGround.PoseOf(world, npc);
+        if (offer.Verbs.Contains("enter") && world.FindBuilding(new BuildingId(offer.Id)) is { } place && PlayerGround.DoorOf(place) is { } door && from != door.Doorstep)
+        {
+            // #269: a poucos passos da porta: o corpo anda até a soleira e entra ao chegar (o mesmo "ir até" do clique)
+            var going = PlayerGo.Begin(world, ctx, npc, new PlayerGo.Target(door.Doorstep, null, place.Id.Value + 1), null);
+            return going.IsSuccess ? Result<InteractionResult>.Ok(new InteractionResult("door", offer.Id, "enter", 0, 0, "going")) : Fail(going.Error!);
+        }
+
         var step = PlayerGround.Step(world, npc, from, to);
         if (!step.IsSuccess) return Fail(step.Error!);
         var walked = PlayerCommands.Walk(world, ctx, npc, from, to); // a porta é um passo: no tempo do corpo

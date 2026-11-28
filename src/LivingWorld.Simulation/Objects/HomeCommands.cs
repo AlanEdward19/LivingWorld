@@ -14,7 +14,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Objects;
 
 /// <summary>O que um comando de casa custa ou devolve, e uma frase para o aviso.</summary>
-public sealed record HomeOutcome(long Price, long Refund, string Note);
+public sealed record HomeOutcome(long Price, long Refund, string Note, HomeFitSpot? Fit = null);
 
 /// <summary>#264: modo comprar e construir. O motor valida e aplica; o cliente só pede (<c>interact {kind:"home", id: prédio, verb}</c>) e pergunta antes (<see cref="Check"/>) para o
 /// fantasma verde ou vermelho. Verbos: <c>buy:objeto</c> (#265: paga e reserva na loja; trazer e posicionar são de <see cref="HomeFreight"/>: <c>fetch|fetchhelp|load|unload|drop|deliver|drive|place|stash|cancel|sellp</c>), <c>move:peça:andar:x:y:giro</c>, <c>sell:peça</c>, <c>discard:peça</c>, <c>wall|open|door|shut:andar:ax:ay:bx:by</c>
@@ -78,7 +78,7 @@ public static class HomeCommands
 
     internal static Result<HomeOutcome> Refuse(string reason) => Result<HomeOutcome>.Fail($"{PlayerCommands.Conflict} {reason}");
 
-    internal static Result<HomeOutcome> Ok(long price, long refund, string note) => Result<HomeOutcome>.Ok(new HomeOutcome(price, refund, note));
+    internal static Result<HomeOutcome> Ok(long price, long refund, string note, HomeFitSpot? fit = null) => Result<HomeOutcome>.Ok(new HomeOutcome(price, refund, note, fit));
 
     /// <summary>A loja de móveis do bairro: o local do tipo que o cenário põe como empreiteiro (<c>Home.build.contractor</c>), aberto; vende, recompra e recebe a obra.</summary>
     public static Workplace? Shop(WorldState world, HomeCatalog home) =>

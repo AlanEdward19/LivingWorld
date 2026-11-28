@@ -1,7 +1,7 @@
 extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
-## Passos (#264, modo comprar: buy · buytab:buy|mine|build · buycat · buyitem:id · buyfind:id[,cômodo] · buyat:X,Y[,giro] · buyface:graus · buyask · buyclick · buycmd:verbo · buyhome · buycut:cômodo · buyedgefind:op · buyextendfind · buytool:nome · buypaint:id · buyroomcell:tipo · buymovefind:N · buyonpiece:N · mousepos:X,Y · mousebuy · golocal:X,Y · partner) · (#258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
+## Passos (#264, modo comprar: buy · buytab:buy|mine|build · buycat · buyitem:id · buyfind:id[,cômodo] · buyat:X,Y[,giro] · buyface:graus · buyask · buyclick · buycmd:verbo · buyhome · buycut:cômodo · buyedgefind:op · buyextendfind · buytool:nome · buypaint:id · buyroomcell:tipo · buymovefind:N · buyonpiece:N · mousepos:X,Y · mousebuy · golocal:X,Y · partner) · (#269: sky · places · #258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
 ##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
@@ -357,6 +357,20 @@ static func run(app: Node, steps: Array) -> void:
 				var want: PackedStringArray = arg.split(",")
 				if want[0].begins_with("#"): # #265: `buyfind:#N` pega o móvel N do depósito (em vez de escolher da loja)
 					app.buy_mode.start_place(int(want[0].substr(1)))
+					# #269: o motor diz onde cabe (`fit:N[:cômodo]`: o lugar válido mais perto, preferindo o cômodo); o fantasma vai para lá e o clique põe
+					var fit_reply: Dictionary = await app.buy_mode.api.player_home_check(app.buy_mode.player_id, "fit:%d%s" % [int(want[0].substr(1)), (":" + want[1]) if want.size() > 1 else ""])
+					if fit_reply.ok and fit_reply.body is Dictionary and fit_reply.body.get("fit") is Dictionary:
+						var spot: Dictionary = fit_reply.body.fit
+						app.buy_mode.floor_level = int(spot.floor)
+						app.buy_mode.hover = Vector2i(int(spot.x), int(spot.y))
+						app.buy_mode.facing = int(spot.facing)
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						app.buy_mode._update_ghost()
+						app.buy_mode._update_marks()
+						print("buyfind: o motor diz que cabe em ", spot, " | ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict.get("note", ""), " verde=", app.buy_mode.ghost_is_green())
+					else:
+						print("buyfind: o motor não achou onde pôr: ", fit_reply.get("body"))
+					continue
 				else:
 					app.buy_mode.select_item(want[0])
 				var rooms: Array = app.store.interior.get("rooms", [])
@@ -607,6 +621,15 @@ static func run(app: Node, steps: Array) -> void:
 				var view = app.stage.interior_view
 				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " ligadas pelo motor=", view.lit_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour, " | luzes do motor (delta)=", app.store.interior.get("lights"),
 					" | peças das luzes=", view._lamps.map(func(l): return [l.get_meta("piece", -1), l.get_meta("switch", false), l.visible]))
+			"places": # #269: os nomes dos prédios como o cliente os rotula (o que `clickgo:place=` procura) e a casa do corpo conduzido
+				var names: Array = []
+				for bid in app.store.buildings:
+					names.append("%s=%s" % [bid, app.world_view.building_labels.text_for(app.store.buildings[bid], app.store.building_states.get(bid, {}), app.registry)])
+				print("places: casa=", app.player_hud.home_building, " | ", names)
+			"sky": # #269: o céu que o cliente usa agora (hora, nascer e pôr do sol, fase, luz) e o tempo do motor que chegou
+				var cycle = app.day_cycle
+				print("sky: hora=", snapped(cycle.hour, 0.01), " nascer=", cycle.sunrise, " pôr=", cycle.sunset, " fase=", cycle.phase_name(), " luz=", snapped(cycle.daylight(), 0.01),
+					" | tempo do motor: nascer=", app.store.weather_at(Vector2i(0, 0)).get("sunrise"), " pôr=", app.store.weather_at(Vector2i(0, 0)).get("sunset"), " luz do dia=", app.store.weather_at(Vector2i(0, 0)).get("daylight"))
 			"walls": # #260: troca o modo das paredes (a tecla V)
 				app.cycle_walls()
 			"hudclock": # #256: `hudclock:N` imprime a cada 1 s, por N s, o relógio que a TELA mostra (texto e horas do mundo) e o ritmo que o cliente usa

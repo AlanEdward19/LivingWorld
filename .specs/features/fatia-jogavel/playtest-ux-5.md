@@ -52,3 +52,6 @@ ainda não estava no caminho testado; agora está (`resume`).
 
 ## Corrigido neste passo
 P0 (sair do jogo), P1-1 (entrevista), P1-2 (desculpa), P1-6 (aviso do pulo), passo `resume` (e `hmdebug`) do `--steps`, AD-237. Testes: `PlayerSwitchTests`, `Playtest4Tests` (3 novos), `test_player` (2 novos), 823 do cliente verdes.
+## Corrigido na rodada 6 (#269, AD-238)
+P1-3 móvel sem lugar (`fit`/`autoplace`), P1-4 sol (o tempo do dia de partida nasce na carga; sandbox a -23,5°), P1-5 parceiro (ordem de jogador vazada pelo turno), P2-1 pressão (ritmo em dado), P2-2 câmera da soleira e "Entrar" perto da porta, P2-3 "Ida" real e aviso de entrevista, P2-4 "Cômodo feio" só em moradia.
+Testes: `Playtest6Tests` (20), `test_playtest_ux6.gd`, `test_buy_mode.gd` (2 novos).

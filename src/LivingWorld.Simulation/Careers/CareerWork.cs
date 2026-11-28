@@ -32,10 +32,38 @@ public static class CareerWork
 
     private static int HourOfDay(WorldState world, long ms) => (int)(ms % DayMs(world) / WorldMillis.PerHour);
 
-    private static long CommuteMs(CareerDef def) => def.CommuteMin * 60_000L;
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState, Dictionary<(long Home, long Employer, long Day), long>> CommuteCache = new();
+
+    /// <summary>#269: a ida de casa ao empregador, do CAMINHO REAL (a rota do chão da soleira de casa à soleira do empregador, no passo do corpo): o jornal dizia "Ida 40 min" (o número do cargo, do
+    /// dado) para uma caminhada de uns 5 min. O <c>CommuteMin</c> do cargo só vale quando não há rota (sem casa, sem porta ou sem caminho). Guardada por dia (a rua pouco muda).</summary>
+    public static long CommuteMsOf(WorldState world, Npc npc, CareerDef def, long employerId)
+    {
+        long fallback = def.CommuteMin * 60_000L;
+        if (npc.Household is not { } h || world.FindHousehold(h)?.Dwelling is not { } dwelling || world.FindBuilding(dwelling) is not { } home
+            || world.FindWorkplace(new WorkplaceId(employerId)) is not { Building: { } workBuilding } || world.FindBuilding(workBuilding) is not { } work
+            || PlayerGround.DoorOf(home) is not { } from || PlayerGround.DoorOf(work) is not { } to) return fallback;
+        var cache = CommuteCache.GetOrCreateValue(world);
+        long today = world.CurrentDate.TotalHours / Math.Max(1, world.Calendar.HoursPerDay);
+        var key = (dwelling.Value, employerId, today);
+        if (cache.TryGetValue(key, out long known)) return known;
+        long ms = fallback;
+        if (HomeFreight.Path(world, npc, from.Doorstep, to.Doorstep) is { } path)
+        {
+            double seconds = Math.Max(1, path.Count) * world.Players.CellM / Math.Max(0.3, world.Players.WalkMps);
+            ms = Math.Max(60_000L, (long)Math.Ceiling(seconds / 60.0) * 60_000L);
+        }
+
+        if (cache.Count > 64) cache.Clear();
+        cache[key] = ms;
+        return ms;
+    }
+
+    /// <summary>Os minutos da ida (<see cref="CommuteMsOf"/>), para o jornal e a roda.</summary>
+    public static int CommuteMinOf(WorldState world, Npc npc, CareerDef def, long employerId) => (int)Math.Max(1, Math.Ceiling(CommuteMsOf(world, npc, def, employerId) / 60_000.0));
 
     /// <summary>Hora (inteira) em que sai de casa: a do começo menos a ida, arredondada para cima em horas, para chegar a tempo.</summary>
-    public static int LeaveHour(CareerDef def, CareerLevel level) => Math.Max(0, level.StartHour - (int)Math.Ceiling(def.CommuteMin / 60.0));
+    public static int LeaveHour(WorldState world, Npc npc, CareerDef def, CareerLevel level, long employerId) =>
+        Math.Max(0, level.StartHour - (int)Math.Ceiling(CommuteMsOf(world, npc, def, employerId) / (double)WorldMillis.PerHour));
 
     /// <summary>O turno do dia <paramref name="day"/> do nível: começo e fim do trabalho em ms.</summary>
     public static (long Start, long End) Shift(WorldState world, CareerLevel level, long day)
@@ -59,7 +87,7 @@ public static class CareerWork
             if (!IsWorkday(world, catalog, r.Level, day) || day == job.ShiftDay && job.ReturnMs == 0) continue;
             var (start, end) = Shift(world, r.Level, day);
             if (end <= nowMs || nowMs >= start + catalog.Rules.GraceHours * (long)WorldMillis.PerHour) continue; // o turno que passou da tolerância é falta, não "próximo"
-            return (start, day * DayMs(world) + LeaveHour(r.Def, r.Level) * (long)WorldMillis.PerHour);
+            return (start, day * DayMs(world) + (world.FindNpc(new NpcId(job.Npc)) is { } who ? LeaveHour(world, who, r.Def, r.Level, job.Employer) : Math.Max(0, r.Level.StartHour - (int)Math.Ceiling(r.Def.CommuteMin / 60.0))) * (long)WorldMillis.PerHour);
         }
 
         return null;
@@ -104,8 +132,8 @@ public static class CareerWork
         if (!IsWorkday(world, catalog, r.Level, day)) return "hoje não é dia de trabalho";
         if (job.ShiftDay == day) return "o turno de hoje já passou";
         var (start, end) = Shift(world, r.Level, day);
-        if (nowMs < day * DayMs(world) + LeaveHour(r.Def, r.Level) * (long)WorldMillis.PerHour - catalog.Rules.NoticeLeadHours * (long)WorldMillis.PerHour) return "ainda não é hora de ir";
-        if (nowMs + CommuteMs(r.Def) >= end) return "já passou do horário";
+        if (nowMs < day * DayMs(world) + LeaveHour(world, npc, r.Def, r.Level, job.Employer) * (long)WorldMillis.PerHour - catalog.Rules.NoticeLeadHours * (long)WorldMillis.PerHour) return "ainda não é hora de ir";
+        if (nowMs + CommuteMsOf(world, npc, r.Def, job.Employer) >= end) return "já passou do horário";
         return null;
     }
 
@@ -120,14 +148,15 @@ public static class CareerWork
         var (def, level) = Resolve(catalog, job)!.Value;
         long day = DayOf(world, nowMs);
         var (start, end) = Shift(world, level, day);
-        long arrive = Math.Max(start, nowMs + CommuteMs(def));
+        long commute = CommuteMsOf(world, npc, def, job.Employer);
+        long arrive = Math.Max(start, nowMs + commute);
         long late = arrive - start;
         double lateFraction = Math.Clamp(late / (double)(end - start), 0, 1);
         job.PendingScore = (int)Math.Round(Performance(world, npc, def, nowMs) * (1 - lateFraction));
         job.DepartMs = nowMs;
         job.ArriveMs = arrive;
         job.WorkEndMs = end;
-        job.ReturnMs = end + CommuteMs(def);
+        job.ReturnMs = end + commute;
         job.ShiftDay = day;
 
         if (npc.BodyTask is not null || npc.UseQueue is { Count: > 0 })
@@ -137,7 +166,7 @@ public static class CareerWork
             npc.SetUseQueue(null);
         }
 
-        PlayerCommands.StopOnPossession(world, npc);
+        if (npc.ControllerId is not null) PlayerCommands.StopOnPossession(world, npc); // #269: quem ninguém conduz não ganha "ordem do jogador" (ficava à toa para sempre, sem dormir nem comer)
         var door = npc.Household is { } h && world.FindHousehold(h)?.Dwelling is { } dwelling && world.FindBuilding(dwelling) is { } building ? PlayerGround.DoorOf(building) : null;
         npc.ExitBuilding();
         npc.SetFine(null);
@@ -196,7 +225,7 @@ public static class CareerWork
     {
         if (CatalogOf(world) is not { } catalog || world.Careers is not { } ledger || ledger.JobOf(npc.Id.Value) is not { ReturnMs: 0 } job || Resolve(catalog, job) is not { } r) return;
         if (CannotGo(world, npc, nowMs) is not null) return;
-        long windowStart = DayOf(world, nowMs) * DayMs(world) + (LeaveHour(r.Def, r.Level) - catalog.Rules.NoticeLeadHours) * (long)WorldMillis.PerHour;
+        long windowStart = DayOf(world, nowMs) * DayMs(world) + (LeaveHour(world, npc, r.Def, r.Level, job.Employer) - catalog.Rules.NoticeLeadHours) * (long)WorldMillis.PerHour;
         foreach (var n in ledger.Notices)
             if (n.Npc == npc.Id.Value && n.Kind == "shift-soon" && n.Ms >= windowStart) return;
         Notify(world, ledger, catalog, nowMs, npc, "shift-soon", $"Hora do trabalho: {r.Level.Title}, às {r.Level.StartHour:00}:00.", 0, "go");

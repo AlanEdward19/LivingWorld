@@ -63,3 +63,6 @@ Ler o jornal lista as vagas (cargo, empregador, salário) e o cliente as abre na
 (`applyReachM`), o motor põe o corpo a caminho (o mesmo `PlayerGo` do "ir até", candidatura guardada em `JobSearched.PendingCareer`) e `OnArrived` a corre na chegada. Fora do horário de atendimento (`applyOpenHour` a
 `applyCloseHour`) vira entrevista marcada para a próxima abertura (`later`, aviso `interview`); dentro, o sorteio decide: contratado ou recusado com a chance dita. Desfechos da interação: `done`, `refused`, `going`, `later`.
 - **Entrevista que acontece (#246, AD-237)**: a candidatura fora do atendimento guarda a vaga (`JobSearched.PendingCareer/Employer`) e a hora (`InterviewAtMs`); `CareerSystem` a roda na abertura (`CareerWork.RunInterview`): com o corpo no empregador decide (contratado ou recusado com a chance), longe perde a vez e o aviso diz.
+## #269: rótulos honestos (AD-238)
+A ida do jornal e do turno vem da rota real da soleira de casa à do empregador, no passo do corpo (`CareerWork.CommuteMsOf`); `commuteMin` do cargo só vale sem rota. O aviso `interview` sai do livro quando a entrevista tem desfecho (`hired` ou `rejected`).
+"Pagar" as contas já é verbo da roda (`pay:<conta>`, oferta `bills`). A medida de ambiente do humor (`Cômodo feio`) só existe em moradia (`RoomBeauty.Ambient`).

@@ -298,7 +298,7 @@ public sealed partial class BehaviorDecisionSystem : IRunsBetweenHours
                 bool tended = !urgent && npc.ControllerId is null && LivingWorld.Simulation.Objects.HomeTending.Applies(world)
                     && LivingWorld.Simulation.Objects.HomeTending.TryTend(world, ctx, npc, candidate,
                         world.Lights is not null && candidate != ActionType.Sleep && RefineForLocation(world, npc, candidate, marketIndex) == ActionType.Travel);
-                bool cared = tended || npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 : !urgent || LivingWorld.Simulation.Objects.ObjectUsage.HasCriticalNeed(world, npc, nowMs))
+                bool cared = tended || npc.ExtraNeeds is not null && npc.ControllerId is null && (candidate == ActionType.Sleep ? npc.SleepAt(now) > 15 && npc.CurrentAction != ActionType.Sleep : !urgent || LivingWorld.Simulation.Objects.ObjectUsage.HasCriticalNeed(world, npc, nowMs))
                     && candidate is ActionType.Idle or ActionType.Socialize or ActionType.Sleep
                     && LivingWorld.Simulation.Objects.ObjectUsage.TryCare(world, ctx, npc, candidate == ActionType.Sleep ? 25 : 0);
                 // #268: o corpo que o jogador conduz, sem ordem, com a necessidade crítica: o aviso e o livre-arbítrio (se cuida sozinho, como no Sims)

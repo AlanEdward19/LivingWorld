@@ -100,6 +100,12 @@ public sealed record PlayerRules
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? WalkMetersPerSecond { get; init; }
 
+    /// <summary>#269: até que distância da soleira (m) a roda do E já oferece "Entrar" na porta (antes só na célula exata, e a 1,5 m ela sumia): chegando por um clique ou pela roda o corpo anda até a soleira e entra.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? DoorReachMeters { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore] public double DoorReachM => DoorReachMeters ?? 2.4;
+
     /// <summary>AD-197k: metros de uma célula para o passo solto (a escala do desenho: uma pessoa tem pouco mais de uma célula).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? CellMeters { get; init; }

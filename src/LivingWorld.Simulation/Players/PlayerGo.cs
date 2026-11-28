@@ -18,7 +18,7 @@ public static class PlayerGo
     private const double ReachM = 1.0; // chegando a pessoa: a esta distância o corpo para
 
     /// <summary>O alvo resolvido: a célula do mundo e, se é uma pessoa, o id dela (o corpo segue onde ela estiver).</summary>
-    public readonly record struct Target(CellCoord Cell, long? Person);
+    public readonly record struct Target(CellCoord Cell, long? Person, long EnterBuilding = 0);
 
     /// <summary>Resolve o pedido (célula, pessoa ou prédio) para o alvo; o motivo da recusa em <c>Error</c>.</summary>
     public static Result<Target> Resolve(WorldState world, Npc npc, int? x, int? y, long? person, long? building)
@@ -61,6 +61,7 @@ public static class PlayerGo
             Use = Clean(label),
             LastMs = now,
             Units = target.Person is { } p ? p + 1 : 0,
+            ThenEnter = target.EnterBuilding,
         };
         npc.SetBodyTask(task);
         ctx.ScheduleEventAtMs(now + 1, BodyTaskSystem.SystemName, Payload(npc, now));
@@ -98,6 +99,7 @@ public static class PlayerGo
             npc.SetFine(moved.Pose with { HeadingX = 0, HeadingY = 0, AtMs = now });
             Finish(world, npc, now);
             if (!person && moved.Arrived && world.Careers is not null) LivingWorld.Simulation.Careers.CareerWork.OnArrived(world, ctx, npc, new CellCoord(task.CellX, task.CellY)); // #268: a candidatura que esperava a chegada
+            if (!person && moved.Arrived && (task.ThenEnter > 0 ? new BuildingId(task.ThenEnter - 1) : OwnDoorBuilding(world, npc, new CellCoord(task.CellX, task.CellY))) is { } enter) EnterDoor(world, ctx, npc, enter); // #269: a porta da própria casa leva para dentro
             return;
         }
 
@@ -111,6 +113,20 @@ public static class PlayerGo
 
         npc.SetBodyTask(task with { LastMs = now, UntilMs = Math.Max(task.UntilMs, now + 4000) });
         ctx.ScheduleEventAtMs(now + Math.Max(1, world.TickDeltaMs), BodyTaskSystem.SystemName, Payload(npc, task.StartedAtMs));
+    }
+
+    /// <summary>#269: o prédio da própria casa se <paramref name="cell"/> é a soleira dele (chegar ali por um clique na casa é entrar: função do alvo, igual no registro); nulo senão.</summary>
+    private static BuildingId? OwnDoorBuilding(WorldState world, Npc npc, CellCoord cell) =>
+        npc.Household is { } h && world.FindHousehold(h)?.Dwelling is { } dwelling && world.FindBuilding(dwelling) is { } home && PlayerGround.DoorOf(home) is { } door && door.Doorstep == cell ? home.Id : null;
+
+    /// <summary>#269: o passo da soleira para dentro (o mesmo da roda do E: <see cref="PlayerGround.Step"/> valida a parede e a gente na porta); o que recusa deixa o corpo na soleira.</summary>
+    internal static Result<Unit> EnterDoor(WorldState world, TickContext ctx, Npc npc, BuildingId building)
+    {
+        if (world.FindBuilding(building) is not { } place || PlayerGround.DoorOf(place) is not { } door) return Result<Unit>.Fail($"{PlayerCommands.NotFound} go: prédio ausente");
+        var from = PlayerGround.PoseOf(world, npc);
+        if (from != door.Doorstep) return Result<Unit>.Fail($"{PlayerCommands.Conflict} go: longe da porta");
+        var step = PlayerGround.Step(world, npc, from, door.Door);
+        return step.IsSuccess ? PlayerCommands.Walk(world, ctx, npc, from, door.Door) : step;
     }
 
     private static void Finish(WorldState world, Npc npc, long now)

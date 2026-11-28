@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
@@ -376,6 +377,7 @@ public class Sandbox258Tests
     {
         var (world, clock, service, body) = Playing();
         body.SetSleep(30, world.CurrentDate.TotalHours);
+        Rafael(world).SetControlledAction(ActionType.Idle); // #269: o parceiro agora vive sozinho (e chama quem dorme, que é outro fim do pulo: "chamado"); aqui ele fica à toa para o fim ser só o descanso
 
         Assert.True(service.Sleep(world, "alan", null).IsSuccess);
         Assert.NotNull(service.Skip);

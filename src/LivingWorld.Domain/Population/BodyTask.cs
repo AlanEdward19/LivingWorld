@@ -40,4 +40,7 @@ public sealed record BodyTask(string Action, long StartedAtMs, long UntilMs)
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Partner { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Initiator { get; init; }
+
+    /// <summary>#269: o "ir até" que termina entrando por uma porta: o id do prédio + 1 (0 = só vai). Chegando à soleira, o corpo dá o passo para dentro (a própria casa, a porta a poucos passos).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long ThenEnter { get; init; }
 }
