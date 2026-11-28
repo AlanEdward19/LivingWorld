@@ -12,6 +12,7 @@ const ACTION_COLORS := {0: Color("e0a24f"), 1: Color("7fa8e0"), 2: Color("c9a36b
 var nodes: Dictionary = {} ## id -> Node3D
 var labels ## ActionLabels (rótulo da ação na placa); nulo = número
 var dot_count := 0
+var labels_visible := true ## #246: no modo jogador a placa gigante some (o nome do bairro vira um aviso discreto do HUD)
 var _dots: MultiMeshInstance3D
 
 
@@ -84,6 +85,15 @@ static func dots_of(info: Dictionary) -> Array:
 	return out
 
 
+## #246: liga/desliga a placa 3D de todas as cidades já desenhadas (e das que vierem no próximo `rebuild`).
+func set_labels_visible(on: bool) -> void:
+	labels_visible = on
+	for node in nodes.values():
+		var label = node.get_node_or_null("CityLabel")
+		if label != null:
+			label.visible = on
+
+
 func rebuild(store) -> void:
 	for node in nodes.values():
 		if node.is_inside_tree():
@@ -121,6 +131,7 @@ func rebuild(store) -> void:
 		label.outline_modulate = Color(0.05, 0.05, 0.08, 0.95)
 		label.no_depth_test = true
 		label.position = Vector3(info.location.x + 0.5, 1.6, info.location.y + 0.5)
+		label.visible = labels_visible
 		root.add_child(label)
 		var body := StaticBody3D.new()
 		body.set_meta("city_id", id)

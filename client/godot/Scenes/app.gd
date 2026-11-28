@@ -1038,6 +1038,27 @@ var minimap_wanted := false ## #222: o minimapa só aparece quando pedido (K)
 var _timeline_was_visible := false
 
 
+const KEY_HINTS_FADE_AFTER_S := 20.0 ## #246: as duas linhas de teclas ficam cheias no começo e depois recuam (F1 e o guia seguem explicando)
+const KEY_HINTS_DIM_ALPHA := 0.28
+
+
+## #246: a faixa de teclas do rodapé (13 atalhos) poluía a tela para sempre; depois de alguns segundos de jogo ela esmaece e deixa de competir com a cena.
+func fade_key_hints(after: float = KEY_HINTS_FADE_AFTER_S, duration: float = 1.5) -> void:
+	if player_frame == null or player_frame.hints == null:
+		return
+	var hints: Label = player_frame.hints
+	hints.modulate.a = 1.0
+	await get_tree().create_timer(after).timeout
+	if player_mode and is_instance_valid(hints) and hints.is_inside_tree():
+		hints.create_tween().tween_property(hints, "modulate:a", KEY_HINTS_DIM_ALPHA, duration)
+
+
+## #246: o nome do bairro como aviso discreto ao entrar na área (como o Sims), no lugar da placa 3D.
+func announce_area() -> void:
+	if store != null and String(store.kind) == "City" and String(store.city.get("name", "")) != "":
+		toasts.push(String(store.city.name))
+
+
 func set_player_mode(on: bool) -> void:
 	if on == player_mode:
 		player_hud.set_rpg(on)
@@ -1065,6 +1086,11 @@ func set_player_mode(on: bool) -> void:
 		help_label.visible = not on # #222: a moldura mostra as teclas do jogador
 	if top_bar != null:
 		top_bar.visible = not on # #222: velocidades, passo e ano são do espectador; a moldura mostra a hora
+	if world_view != null and world_view.cities != null:
+		world_view.cities.set_labels_visible(not on) # #246: a placa 3D da cidade ("1 na cidade · 0 na rua · parado 1") cobria a tela em 3ª pessoa
+	if on:
+		announce_area()
+		fade_key_hints()
 	if on and world_view != null:
 		world_view.hover_npc(-1) # #222: o nome grande de quem estava sob o cursor não fica preso na tela
 	if on:
@@ -1089,8 +1115,8 @@ func set_player_mode(on: bool) -> void:
 		toasts.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 		toasts.offset_left = -260
 		toasts.offset_right = 260
-		toasts.offset_top = -130
-		toasts.offset_bottom = -40
+		toasts.offset_top = -150
+		toasts.offset_bottom = -62 # #246: acima das duas linhas de teclas (antes -40: o aviso sentava em cima delas)
 	else:
 		toasts.set_anchors_preset(Control.PRESET_CENTER_TOP)
 		toasts.offset_left = -300
