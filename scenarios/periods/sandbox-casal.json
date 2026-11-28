@@ -1,4 +1,5 @@
 {
+  "Players": { "WalkMetersPerSecond": 1.1 },
   "Presentation": {
     "Wardrobe": "modern",
     "Name": "Sandbox: casal",

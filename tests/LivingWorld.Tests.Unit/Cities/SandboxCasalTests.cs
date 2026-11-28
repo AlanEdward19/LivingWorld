@@ -49,6 +49,14 @@ public class SandboxCasalTests
     }
 
     [Fact]
+    public void The_player_walks_at_the_domestic_pace_the_scenario_declares()
+    {
+        var (world, _) = Load();
+
+        Assert.Equal(1.1, world.Players.WalkMps, 3); // dono: 1,4 m/s parecia rápido dentro de casa; passo de casa vem do cenário
+    }
+
+    [Fact]
     public void The_house_has_the_size_the_scenario_declares_and_its_rooms_and_furniture()
     {
         var (world, _) = Load();
