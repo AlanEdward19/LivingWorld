@@ -98,6 +98,7 @@ public static class HomeFreight
         switch (parts[0])
         {
             case "place" when parts.Length == 6: return Place(world, building, catalog, home, Int(1), Int(2), Int(3), Int(4), Int(5), commit);
+            case "fit" or "autoplace" when parts.Length is 2 or 3 or 6: return AutoPlace(world, building, catalog, home, parts, commit);
             case "stash" when parts.Length == 2: return Stash(world, building, catalog, home, Int(1), commit);
             case "sellp" or "cancel" when parts.Length == 2: return Return(world, npc, building, catalog, home, Int(1), parts[0] == "sellp", commit);
         }
@@ -387,6 +388,35 @@ public static class HomeFreight
             Touched(world, building);
             return HomeCommands.Ok(0, 0, $"{Name(catalog, p.Id)} posicionado");
         });
+
+    /// <summary>#269: <c>fit:seq[:cômodo | :andar:x:y:giro]</c> diz onde o móvel do depósito cabe (só leitura) e <c>autoplace:seq[...]</c> o põe ali: o lugar válido mais perto da âncora (a célula pedida,
+    /// o cômodo pedido ou o centro do térreo). Sem lugar, recusa dizendo o que fazer.</summary>
+    private static Result<HomeOutcome> AutoPlace(WorldState world, Building building, ObjectCatalog catalog, HomeCatalog home, string[] parts, bool commit)
+    {
+        int seq = int.Parse(parts[1], CultureInfo.InvariantCulture);
+        return WithParcel(building, seq, p =>
+        {
+            if (p.Where != "depot") return HomeCommands.Refuse("esse móvel ainda não está no depósito da casa");
+            int floor = 0, facing = 0;
+            CellCoord? anchor = null;
+            string? room = null;
+            if (parts.Length == 3) room = parts[2];
+            else if (parts.Length == 6)
+            {
+                floor = int.Parse(parts[2], CultureInfo.InvariantCulture);
+                anchor = new CellCoord(int.Parse(parts[3], CultureInfo.InvariantCulture), int.Parse(parts[4], CultureInfo.InvariantCulture));
+                facing = int.Parse(parts[5], CultureInfo.InvariantCulture);
+            }
+
+            if (HomeFit.Nearest(building, catalog, home, p.Id, floor, anchor, facing, room) is not { } spot) return HomeCommands.Refuse($"não há onde pôr {Name(catalog, p.Id)}: tire um móvel do caminho ou amplie a casa");
+            if (!commit || parts[0] == "fit") return HomeCommands.Ok(0, 0, $"Pôr {Name(catalog, p.Id)} onde cabe", spot);
+            var edit = building.Edit!;
+            edit.Parcels.Remove(p);
+            edit.Added.Add(new EditedPiece(p.Id, p.Variation, spot.Floor, spot.X, spot.Y, spot.Facing, p.Paid));
+            Touched(world, building);
+            return HomeCommands.Ok(0, 0, $"{Name(catalog, p.Id)} posicionado", spot);
+        });
+    }
 
     private static Result<HomeOutcome> Stash(WorldState world, Building building, ObjectCatalog catalog, HomeCatalog home, int piece, bool commit)
     {

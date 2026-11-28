@@ -39,7 +39,7 @@ public sealed partial class BehaviorDecisionSystem
     /// trabalho nem viajar; a sede, da água do poço da propriedade. Antes só comia na urgência, e a fome sozinha só vencia crítica.</summary>
     private static void WorkBreakMeal(WorldState world, Npc npc, long now)
     {
-        int meal = PersonalCarry.MealTimeDeficit;
+        int meal = world.NeedsRules.MealTimeDeficit;
         if (100 - npc.HungerAt(now) < meal && 100 - npc.ThirstAt(now) < meal) return; // o caso comum: sem fome nem sede na hora
         if (npc.Employer is not { } employer || world.FindWorkplace(employer) is not { } work || work.Location != npc.CurrentLocation) return;
         var econ = world.EconomyRules;
@@ -176,7 +176,7 @@ public sealed partial class BehaviorDecisionSystem
         // hora de deitar); o resto (trabalho, compra, cuidar) segue
         int threshold = candidate switch
         {
-            ActionType.Idle or ActionType.Socialize => PersonalCarry.MealTimeDeficit,
+            ActionType.Idle or ActionType.Socialize => world.NeedsRules.MealTimeDeficit,
             ActionType.Sleep => world.NeedsRules.UrgencyThreshold,
             _ => int.MaxValue,
         };

@@ -357,6 +357,20 @@ static func run(app: Node, steps: Array) -> void:
 				var want: PackedStringArray = arg.split(",")
 				if want[0].begins_with("#"): # #265: `buyfind:#N` pega o móvel N do depósito (em vez de escolher da loja)
 					app.buy_mode.start_place(int(want[0].substr(1)))
+					# #269: o motor diz onde cabe (`fit:N[:cômodo]`: o lugar válido mais perto, preferindo o cômodo); o fantasma vai para lá e o clique põe
+					var fit_reply: Dictionary = await app.buy_mode.api.player_home_check(app.buy_mode.player_id, "fit:%d%s" % [int(want[0].substr(1)), (":" + want[1]) if want.size() > 1 else ""])
+					if fit_reply.ok and fit_reply.body is Dictionary and fit_reply.body.get("fit") is Dictionary:
+						var spot: Dictionary = fit_reply.body.fit
+						app.buy_mode.floor_level = int(spot.floor)
+						app.buy_mode.hover = Vector2i(int(spot.x), int(spot.y))
+						app.buy_mode.facing = int(spot.facing)
+						await app.buy_mode.ask(app.buy_mode.current_verb())
+						app.buy_mode._update_ghost()
+						app.buy_mode._update_marks()
+						print("buyfind: o motor diz que cabe em ", spot, " | ", app.buy_mode.current_verb(), " ", app.buy_mode.verdict.get("note", ""), " verde=", app.buy_mode.ghost_is_green())
+					else:
+						print("buyfind: o motor não achou onde pôr: ", fit_reply.get("body"))
+					continue
 				else:
 					app.buy_mode.select_item(want[0])
 				var rooms: Array = app.store.interior.get("rooms", [])

@@ -72,7 +72,7 @@ public class HomeLifeTests
 
         var needs = world.ObjectCatalog!.Needs!;
         Assert.Equal(new[] { "hygiene", "fun", "bladder" }, needs.Needs.Select(n => n.Id).ToArray());
-        Assert.Equal(2.5, needs.Find("hygiene")!.DecayPerHour);
+        Assert.Equal(3.5, needs.Find("hygiene")!.DecayPerHour); // #269: o ritmo do dia (um banho por dia, não a cada três)
         var shower = world.ObjectCatalog.Find("shower")!;
         var use = Assert.Single(shower.Uses!);
         Assert.Contains(use.Effects, e => e.Need == "hygiene" && e.PerHour > 0);
@@ -124,12 +124,12 @@ public class HomeLifeTests
         double bladder0 = HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value;
         Assert.InRange(start, 85 - 10, 85 + 10); // #261: cada pessoa parte de um nível próprio (até a variação do catálogo)
         double rate = marina.ExtraNeeds!["hygiene"].DecayRatePerHour;
-        Assert.InRange(rate, 2.5 * 0.5, 2.5 * 1.5);
+        Assert.InRange(rate, 3.5 * 0.5, 3.5 * 1.5);
 
-        clock.Run(world, 10);
+        clock.Run(world, 2); // #269: as duas primeiras horas (sem tempo de a pessoa se cuidar: o ritmo mais rápido do dia a mandaria ao vaso em 10 h)
 
-        Assert.Equal(start - 10 * rate, Hygiene(world, marina), 0);
-        Assert.Equal(bladder0 - 10 * marina.ExtraNeeds["bladder"].DecayRatePerHour, HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value, 0);
+        Assert.Equal(start - 2 * rate, Hygiene(world, marina), 0);
+        Assert.Equal(bladder0 - 2 * marina.ExtraNeeds["bladder"].DecayRatePerHour, HomeLife.Value(world, marina, "bladder", world.CurrentDate.TotalMilliseconds)!.Value, 0);
         Assert.Equal(new[] { "Higiene", "Diversão", "Bexiga" }, HomeLife.Readings(world, marina, world.CurrentDate.TotalMilliseconds).Select(r => r.Name).ToArray());
     }
 
@@ -166,7 +166,7 @@ public class HomeLifeTests
 
         Run(world, clock, 20 * 60_000);
         Assert.Null(body.BodyTask);
-        Assert.InRange(Hygiene(world, body), 99, 100); // untilFull: parou ao encher
+        Assert.InRange(Hygiene(world, body), 98, 100); // untilFull: parou ao encher (e o desgaste do ritmo do dia já correu uns minutos)
     }
 
     [Fact]

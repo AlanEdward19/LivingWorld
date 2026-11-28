@@ -391,3 +391,47 @@ func test_the_house_tab_has_the_depot_and_placing_from_it_gives_the_ghost() -> v
 	eq(BuyMode.parcel_status({"where": "hands", "carrier": "Marina"}), "nas mãos de Marina", "e nas mãos")
 	mode.close()
 	_free(made)
+
+
+## #269 (rodada 6): o móvel do depósito não ia para a sala (todo clique vermelho). O motor diz onde cabe (`fit`) e o clique no lugar vermelho põe lá.
+func test_a_red_spot_asks_the_engine_where_it_fits_and_the_click_places_it_there() -> void:
+	var made := await _mode()
+	var mode = made[0]
+	var transport = made[1]
+	await mode.open()
+	mode.set_tab("mine")
+	mode.start_place(2)
+	transport.on("GET /players/p-1/home/check", func(path: String) -> Dictionary:
+		if "fit%3A" in path:
+			return {"status": 200, "body": {"ok": true, "reason": "", "price": 0, "refund": 0, "note": "Pôr Planta onde cabe", "fit": {"floor": 0, "x": 1, "y": 2, "facing": 90}}}
+		return {"status": 200, "body": {"ok": false, "reason": "já tem móvel aí", "price": 0, "refund": 0, "note": ""}})
+	mode.hover = Vector2i(2, 2)
+	await mode.ask(mode.current_verb())
+	check(mode.ghost_is_red(), "aqui não cabe: vermelho")
+	eq(int(mode.fit.x), 1, "o motor disse onde cabe")
+	check("onde cabe" in String(mode._reason.text) and "já tem móvel aí" in String(mode._reason.text), "o motivo e a saída aparecem: %s" % mode._reason.text)
+	eq(BuyMode.place_verb_at(2, mode.fit), "place:2:0:1:2:90", "o verbo põe no lugar do motor")
+	await mode.click()
+	check(transport.bodies.get("POST /players/p-1/interact", []).any(func(body): return "place:2:0:1:2:90" in JSON.stringify(body)), "o clique mandou o lugar que o motor deu: %s" % str(transport.bodies.get("POST /players/p-1/interact")))
+	mode.close()
+	_free(made)
+
+
+func test_a_red_spot_with_no_fit_only_warns_and_the_depot_row_offers_autoplace() -> void:
+	var made := await _mode()
+	var mode = made[0]
+	var transport = made[1]
+	await mode.open()
+	mode.set_tab("mine")
+	mode.start_place(2)
+	transport.on("GET /players/p-1/home/check", {"status": 200, "body": {"ok": false, "reason": "não há onde pôr Planta", "price": 0, "refund": 0, "note": ""}})
+	mode.hover = Vector2i(2, 2)
+	await mode.ask(mode.current_verb())
+	check(mode.fit.is_empty(), "sem lugar, nada a sugerir")
+	var posted_before: int = transport.bodies.get("POST /players/p-1/interact", []).size()
+	await mode.click()
+	eq(transport.bodies.get("POST /players/p-1/interact", []).size(), posted_before, "sem lugar nem sugestão, não manda nada")
+	eq(BuyMode.action_title("autoplace", {}), "Pôr onde cabe", "o botão do depósito")
+	mode.close()
+	_free(made)
+

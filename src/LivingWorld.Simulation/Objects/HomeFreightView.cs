@@ -9,7 +9,7 @@ using LivingWorld.Simulation.Players;
 namespace LivingWorld.Simulation.Objects;
 
 /// <summary>Uma ação possível sobre um móvel pago agora: o verbo (<c>fetch:3</c>), o texto, se vale e, se não, por quê (a mesma resposta do fantasma: <see cref="HomeCommands.Check"/>).</summary>
-public sealed record HomeActionView(string Verb, string Label, bool Ok, string Reason, long Price);
+public sealed record HomeActionView(string Verb, string Label, bool Ok, string Reason, long Price, HomeFitSpot? Fit = null);
 
 /// <summary>Um móvel pago e ainda não posicionado: onde está de verdade (<c>shop</c>, <c>hands</c>, <c>car</c>, <c>courier</c>, <c>depot</c>), peso e volume (dado), quem o leva e o que dá para fazer.</summary>
 public sealed record HomeParcelView(
@@ -63,11 +63,11 @@ public static class HomeFreightViews
         {
             var heft = haul.HeftOf(p.Id) ?? new HomeHeft(0, 0);
             var actions = new List<HomeActionView>();
-            string[] verbs = p.Where switch { "shop" => AtShop, "hands" => ["drop"], "car" => ["unload"], "depot" => ["sellp"], _ => [] };
+            string[] verbs = p.Where switch { "shop" => AtShop, "hands" => ["drop"], "car" => ["unload"], "depot" => ["autoplace", "sellp"], _ => [] };
             foreach (var verb in verbs)
             {
                 var check = HomeCommands.Check(world, npc, building.Id.Value, $"{verb}:{p.Seq}");
-                actions.Add(new HomeActionView($"{verb}:{p.Seq}", check.IsSuccess ? check.Value!.Note : "", check.IsSuccess, check.IsSuccess ? "" : check.Error!.Replace(PlayerCommands.Conflict, "").Trim(), check.Value?.Price ?? 0));
+                actions.Add(new HomeActionView($"{verb}:{p.Seq}", check.IsSuccess ? check.Value!.Note : "", check.IsSuccess, check.IsSuccess ? "" : check.Error!.Replace(PlayerCommands.Conflict, "").Trim(), check.Value?.Price ?? 0, check.Value?.Fit));
             }
 
             parcels.Add(new HomeParcelView(p.Seq, p.Id, HomeFreight.Name(catalog, p.Id), p.Where, heft.Kg, heft.Liters, p.Paid, Math.Max(0, p.ReadyAtMs - now), p.Where == "courier" ? Math.Max(0, p.DueMs - now) : 0,

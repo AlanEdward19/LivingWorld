@@ -17,11 +17,11 @@
         "performance": {"needs": {"sleep": 1.5, "hunger": 1.0, "hygiene": 0.6, "fun": 0.5, "bladder": 0.3, "thirst": 0.3}, "skill": 0.8, "practice": 0.8},
         "levels": [
           {"id": "auxiliar", "title": "Auxiliar administrativo", "wagePerHour": 9, "startHour": 9, "hours": 8, "days": [0, 1, 2, 3, 4], "promoteAt": 65, "promoteAfter": 3, "demoteBelow": 35, "demoteAfter": 3,
-           "awayEffects": [{"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]},
+           "awayEffects": [{"need": "bladder", "perHour": 5}, {"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]},
           {"id": "analista", "title": "Analista", "wagePerHour": 14, "startHour": 9, "hours": 8, "days": [0, 1, 2, 3, 4], "minSkill": 15, "promoteAt": 70, "promoteAfter": 4, "demoteBelow": 40, "demoteAfter": 3,
-           "awayEffects": [{"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]},
+           "awayEffects": [{"need": "bladder", "perHour": 5}, {"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]},
           {"id": "coordenador", "title": "Coordenador", "wagePerHour": 21, "startHour": 9, "hours": 8, "days": [0, 1, 2, 3, 4], "minSkill": 40, "promoteAt": 101, "demoteBelow": 45, "demoteAfter": 3,
-           "awayEffects": [{"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]}
+           "awayEffects": [{"need": "bladder", "perHour": 5}, {"need": "hunger", "perHour": 6}, {"need": "thirst", "perHour": 4}, {"need": "fun", "perHour": -3}, {"need": "social", "perHour": 2}]}
         ]
       },
       {
@@ -30,9 +30,9 @@
         "performance": {"needs": {"sleep": 1.5, "hunger": 0.8, "hygiene": 0.6, "social": 0.8, "fun": 0.4}, "skill": 0.8, "practice": 0.9},
         "levels": [
           {"id": "monitor", "title": "Monitor escolar", "wagePerHour": 8, "startHour": 8, "hours": 6, "days": [0, 1, 2, 3, 4], "promoteAt": 65, "promoteAfter": 3, "demoteBelow": 35, "demoteAfter": 3,
-           "awayEffects": [{"need": "hunger", "perHour": 5}, {"need": "thirst", "perHour": 4}, {"need": "social", "perHour": 4}, {"need": "fun", "perHour": -2}]},
+           "awayEffects": [{"need": "bladder", "perHour": 5}, {"need": "hunger", "perHour": 5}, {"need": "thirst", "perHour": 4}, {"need": "social", "perHour": 4}, {"need": "fun", "perHour": -2}]},
           {"id": "professor", "title": "Professor", "wagePerHour": 15, "startHour": 8, "hours": 6, "days": [0, 1, 2, 3, 4], "minSkill": 20, "promoteAt": 101, "demoteBelow": 40, "demoteAfter": 3,
-           "awayEffects": [{"need": "hunger", "perHour": 5}, {"need": "thirst", "perHour": 4}, {"need": "social", "perHour": 4}, {"need": "fun", "perHour": -2}]}
+           "awayEffects": [{"need": "bladder", "perHour": 5}, {"need": "hunger", "perHour": 5}, {"need": "thirst", "perHour": 4}, {"need": "social", "perHour": 4}, {"need": "fun", "perHour": -2}]}
         ]
       }
     ],

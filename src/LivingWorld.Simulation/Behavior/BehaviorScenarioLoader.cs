@@ -70,10 +70,15 @@ public static class BehaviorScenarioLoader
             ? declared
             : NeedsRules.DefaultStarvationSurvivalHours;
 
-        return NeedsRules.Create(
+        int mealDeficit = 0; // #269: opcional (0 = o padrão do motor)
+        if (root.ContainsKey("MealTimeDeficit") && (!TryGetInt(root, "MealTimeDeficit", out mealDeficit) || mealDeficit is < 1 or > 100))
+            return Result<NeedsRules>.Fail("MealTimeDeficit: fora de [1,100]");
+
+        var created = NeedsRules.Create(
             hungerDecay, thirstDecay, sleepDecay, socialDecay,
             urgencyThreshold, maxActionSelectionSteps, hysteresisEnabled, continuityBonus, homelessSleepEfficiency,
             starvationHours);
+        return created.IsSuccess && mealDeficit > 0 ? Result<NeedsRules>.Ok(created.Value! with { MealDeficit = mealDeficit }) : created;
     }
 
     private static Result<RestPlaceCatalog> ParseRestPlaceCatalog(JsonObject root, double groundEfficiency)

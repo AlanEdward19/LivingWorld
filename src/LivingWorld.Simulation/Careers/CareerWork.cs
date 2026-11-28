@@ -137,7 +137,7 @@ public static class CareerWork
             npc.SetUseQueue(null);
         }
 
-        PlayerCommands.StopOnPossession(world, npc);
+        if (npc.ControllerId is not null) PlayerCommands.StopOnPossession(world, npc); // #269: quem ninguém conduz não ganha "ordem do jogador" (ficava à toa para sempre, sem dormir nem comer)
         var door = npc.Household is { } h && world.FindHousehold(h)?.Dwelling is { } dwelling && world.FindBuilding(dwelling) is { } building ? PlayerGround.DoorOf(building) : null;
         npc.ExitBuilding();
         npc.SetFine(null);

@@ -52,6 +52,7 @@ var hover := NO_CELL ## célula local sob o mouse
 var hover_edge: Array = [] ## [ax, ay, bx, by] da aresta mais perto do mouse
 var verdict: Dictionary = {}
 var verdict_for := ""
+var fit: Dictionary = {} ## #269: onde o motor diz que o móvel do depósito cabe mais perto do mouse (andar, x, y, giro); vazio = não há ou não perguntou
 var cards: Dictionary = {} ## id do objeto -> card do catálogo
 var piece_rows: Dictionary = {} ## índice da peça -> linha da lista
 var factory
@@ -355,6 +356,7 @@ func start_place(seq: int) -> void:
 	tool = ""
 	verdict = {}
 	verdict_for = ""
+	fit = {}
 	_update_ghost()
 	_hint.text = "Q / E giram · clique põe no lugar · botão direito ou Esc cancela"
 
@@ -656,7 +658,7 @@ static func parcel_status(data: Dictionary) -> String:
 
 static func action_title(kind: String, action: Dictionary) -> String:
 	return {"fetch": "Levar nas mãos", "fetchhelp": "Levar com ajuda", "load": "Carregar no carro", "deliver": "Pedir entrega (%d)" % int(action.get("price", 0)),
-		"cancel": "Cancelar compra", "drop": "Deixar no depósito", "unload": "Descarregar", "sellp": "Vender"}.get(kind, kind)
+		"cancel": "Cancelar compra", "drop": "Deixar no depósito", "unload": "Descarregar", "sellp": "Vender", "autoplace": "Pôr onde cabe"}.get(kind, kind)
 
 
 func _piece_row(data: Dictionary) -> Control:
@@ -774,6 +776,8 @@ func _show_verdict() -> void:
 		_reason.add_theme_color_override("font_color", Color("9fe0b0"))
 	else:
 		_reason.text = String(verdict.get("reason", "Não pode aqui."))
+		if not fit.is_empty(): # #269: o clique põe onde cabe
+			_reason.text += " · clique: põe onde cabe (%d, %d)" % [int(fit.x), int(fit.y)]
 		_reason.add_theme_color_override("font_color", Color("f0948a"))
 
 
@@ -848,6 +852,11 @@ func current_verb() -> String:
 	return ""
 
 
+## #269: o verbo `place` no lugar que o motor sugeriu (`fit`: andar, x, y, giro).
+static func place_verb_at(seq: int, spot: Dictionary) -> String:
+	return "place:%d:%d:%d:%d:%d" % [seq, int(spot.floor), int(spot.x), int(spot.y), int(spot.facing)]
+
+
 ## Pergunta ao motor se o verbo vale e guarda a resposta (cor do fantasma e motivo).
 func ask(verb: String) -> void:
 	if verb == "":
@@ -864,6 +873,11 @@ func ask(verb: String) -> void:
 	else:
 		verdict = {"ok": false, "reason": "Sem resposta do motor."}
 		verdict_for = verb
+	fit = {}
+	if placing >= 0 and not bool(verdict.get("ok", false)) and hover != NO_CELL: # #269: não cabe aqui: o motor diz onde cabe mais perto (o clique põe lá)
+		var near: Dictionary = await api.player_home_check(player_id, "fit:%d:%d:%d:%d:%d" % [placing, floor_level, hover.x, hover.y, facing])
+		if near.ok and near.body is Dictionary and bool(near.body.get("ok", false)) and near.body.get("fit") is Dictionary:
+			fit = near.body.fit
 	_show_verdict()
 	_update_ghost()
 
@@ -902,8 +916,11 @@ func click() -> void:
 	if verdict_for != verb:
 		await ask(verb)
 	if not bool(verdict.get("ok", false)):
-		warning.emit(String(verdict.get("reason", "Não pode aqui.")))
-		return
+		if placing >= 0 and not fit.is_empty(): # #269: o motor disse onde cabe: põe lá (posicionar a partir do depósito sempre acha lugar se a casa tem)
+			verb = place_verb_at(placing, fit)
+		else:
+			warning.emit(String(verdict.get("reason", "Não pode aqui.")))
+			return
 	var ok: bool = await command(verb)
 	if ok and (moving >= 0 or placing >= 0):
 		moving = -1
