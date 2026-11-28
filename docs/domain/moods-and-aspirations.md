@@ -21,7 +21,7 @@ Decisão: AD-228. Sandbox: [sandbox.md](sandbox.md).
 | `action` | ação do motor concluída (`Sleep`, `Eat`), de NPC ou jogador | sim, com prazo |
 | `social` | interação aceita ou recusada (`interaction`/`category`, `result`, `side`) | sim, com a outra pessoa como causa |
 | `life` | fato da vida (`LifeEventKind`: `Hired`, `Violence`...), pela psique | sim |
-| `state` | enquanto a necessidade está abaixo/acima de um nível | **não** (lido na hora) |
+| `state` | enquanto a necessidade (ou, #264, a beleza do cômodo: `ambient`) está abaixo/acima de um nível | **não** (lido na hora) |
 | `reward` | só o motor dá (desejo cumprido, marco) | sim |
 Empilha (`stack`) até `maxStack`, senão renova. Os de evento ficam em `Npc.Moods` (no snapshot e no hash só se existe); expiram na leitura, sem passo por tick.
 
@@ -49,4 +49,4 @@ nextMilestone, nextMilestonePoints, wishes[{id,text,other (id real do alvo, −1
 marco, desejos com a recompensa e o último cumprido; `player_hud.gd`: aviso "Desejo cumprido: ... (+10 pontos)". Rostos em `need_icon.gd`. Passos de captura: `mood` (humor, momentos e desejos do corpo e da outra pessoa) e `dowish` (cumpre o primeiro desejo social).
 
 ## Fora desta fatia
-Gatilho de ambiente (cômodo bonito ou sujo: o motor ainda não mede o cômodo); desejos de emprego e dinheiro (sem carreira); aspirações que mudam a vida (casar, filho).
+Cômodo sujo (a beleza do cômodo já é medida, #264: gatilho `state` com `ambient`, ver [buy-and-build.md](buy-and-build.md)); desejos de emprego e dinheiro (sem carreira); aspirações que mudam a vida (casar, filho).

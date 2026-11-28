@@ -24,7 +24,11 @@ public sealed record InteriorOccupant(
 public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants,
     BuildingLayout Layout,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorObjects? Objects = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FloorRooms>? Rooms = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FloorRooms>? Rooms = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorPaint? Paint = null);
+
+/// <summary>#264: a pintura que o morador deu ao piso (<c>kind: floor</c>, célula em <c>x,y</c>) e às paredes (<c>wall</c>, aresta de <c>x,y</c> a <c>bx,by</c>); <c>Colors</c> é o hex de cada tinta. Só o que foi pintado.</summary>
+public sealed record InteriorPaint(IReadOnlyList<PaintMark> Marks, IReadOnlyDictionary<string, string> Colors);
 
 /// <summary>Peça de mobília: id do catálogo + índice de variação determinístico (ADR-0034). O cliente compartilha mesh/material por (Id, Variation).</summary>
 /// <summary>#237: <c>Floor</c>, <c>Cell</c> (local da planta) e <c>Facing</c> (graus em torno de Y, fundo da peça para a parede) são o lugar que o motor deu à peça
@@ -70,7 +74,7 @@ public static class InteriorProjector
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
-            layout, BuildObjects(world, building), LivingWorld.Simulation.Cities.BuildingRooms.Of(building, world.ObjectCatalog).Floors));
+            layout, BuildObjects(world, building), LivingWorld.Simulation.Cities.BuildingRooms.Of(building, world.ObjectCatalog).Floors, PaintOf(world, building)));
     }
 
     /// <summary>Id do primeiro objeto da mobília do tipo de prédio que atende à ação do NPC e que ele pode usar (mesma regra do motor,
@@ -97,6 +101,15 @@ public static class InteriorProjector
     /// <summary>#259: a interação social em curso do ocupante (com quem, o gesto, a fase): o cliente o vira para o outro e toca o gesto; nulo fora de uma.</summary>
     private static LivingWorld.Simulation.Objects.SocialView? SocialOf(WorldState world, Npc npc) =>
         npc.BodyTask is { Action: LivingWorld.Simulation.Objects.SocialInteractions.Action } task ? LivingWorld.Simulation.Objects.SocialInteractions.ViewOf(world, task) : null;
+
+    private static InteriorPaint? PaintOf(WorldState world, Building building)
+    {
+        if (building.Edit is not { Paints.Count: > 0 } edit || world.ObjectCatalog?.Home is not { } home) return null;
+        var colors = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var mark in edit.Paints)
+            if (home.Paint(mark.Paint) is { } paint) colors[paint.Id] = paint.Color;
+        return new InteriorPaint(edit.Paints, colors);
+    }
 
     private static InteriorObjects? BuildObjects(WorldState world, Building building)
     {

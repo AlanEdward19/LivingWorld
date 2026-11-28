@@ -67,7 +67,8 @@ public static class MoodLoader
             if (!TriggerKinds.Contains(t.Kind)) return Fail($"{at}.trigger.kind: use {string.Join("|", TriggerKinds)}");
             if (t.Kind != "state" && m.DurationMin < 1) return Fail($"{at}.durationMin: maior ou igual a 1");
             if (m.Stack && m.MaxStack < 2) return Fail($"{at}.maxStack: maior ou igual a 2 quando empilha");
-            if (t.Kind == "state" && t.Need is null) return Fail($"{at}.trigger.need: o gatilho de estado precisa de necessidade");
+            if (t.Kind == "state" && t.Need is null && t.Ambient is null) return Fail($"{at}.trigger: o gatilho de estado precisa de need ou ambient");
+            if (t.Ambient is not (null or "beauty")) return Fail($"{at}.trigger.ambient: use beauty");
             if (t.Kind == "use" && t.Use is null) return Fail($"{at}.trigger.use: o gatilho de uso precisa do uso");
             if (!KnownAction(t.Action) || (t.Kind == "action" && t.Action is null)) return Fail($"{at}.trigger.action: ação desconhecida");
             if (!KnownLife(t.Life) || (t.Kind == "life" && t.Life is null)) return Fail($"{at}.trigger.life: fato desconhecido");

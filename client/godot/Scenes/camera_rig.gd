@@ -50,6 +50,12 @@ static func near_person() -> float: return Grid.units(NEAR_PERSON_M)
 const MAX_DOWN := deg_to_rad(-83.0) ## AD-197s: olhando o corpo de cima, a câmera nunca passa da vertical
 
 var mode := ISO
+const BUILD_PITCH := deg_to_rad(-64.0) ## #264: a vista do modo comprar: de cima, ainda um pouco de lado para ver a altura dos móveis
+var build_view := false ## #264: o modo comprar toma a câmera (o corpo não a segue enquanto ele está aberto)
+var build_center := Vector3.ZERO
+var build_size := 12.0
+var build_yaw := 0.0
+var iso_pitch := ISO_PITCH ## #264: o modo comprar olha a casa de cima (mais a prumo que a isométrica); fora dele, a de sempre
 var pitch := deg_to_rad(-15.0) ## olhar do jogador (só 1ª/3ª pessoa)
 
 var target := Vector3(15, 0, 15)
@@ -150,10 +156,23 @@ func _init() -> void:
 
 
 func _apply() -> void:
+	if build_view: # #264: o modo comprar olha a casa de cima, em projeção ortogonal, sem seguir o corpo
+		position = build_center
+		rotation = Vector3(0, build_yaw, 0)
+		_pivot.position = Vector3.ZERO
+		_pivot.rotation = Vector3(BUILD_PITCH, 0, 0)
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.size = build_size
+		camera.near = 0.05
+		camera.position = Vector3(0, 0, 80)
+		camera.rotation = Vector3.ZERO
+		_last_xf = _world_xf()
+		_has_xf = true
+		return
 	if mode == ISO:
 		position = target
 		rotation = Vector3(0, yaw, 0)
-		_pivot.rotation = Vector3(ISO_PITCH, 0, 0)
+		_pivot.rotation = Vector3(iso_pitch, 0, 0)
 		camera.size = zoom_size
 		return
 	position = view_target
@@ -303,6 +322,25 @@ func set_scene_framing(on: bool, partner: Node3D = null) -> void:
 ## Menor inclinação do olhar de rua (rad). Dentro de casa o mouse ajusta `_indoor_pitch` (faixa de InteriorCamera), não este.
 func pitch_floor() -> float:
 	return MIN_PITCH
+
+
+## #264: liga o modo comprar (olha `center` de cima, `size` unidades de altura na tela) ou o solta: a câmera do jogador volta no próximo quadro, sem transição seca.
+func set_build_view(on: bool, center: Vector3 = Vector3.ZERO, size: float = 12.0, yaw_rad: float = 0.0) -> void:
+	if on == build_view and not on:
+		return
+	build_view = on
+	build_center = center
+	build_size = size
+	build_yaw = yaw_rad
+	if not on:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL if mode == ISO else Camera3D.PROJECTION_PERSPECTIVE
+		camera.fov = BASE_FOV
+		camera.near = 0.05 if mode == ISO else (near_first() if mode == FIRST else near_third())
+		if mode != ISO:
+			_snap = true
+			_snap_view()
+			begin_blend(0.35)
+	_apply()
 
 
 ## Troca o modo da câmera: ISO (espectador e admin), THIRD ou FIRST (personagem encarnado).

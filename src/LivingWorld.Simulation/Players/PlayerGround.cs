@@ -33,10 +33,8 @@ public static class PlayerGround
         {
             if (building.Position is not { } origin || building.CompletedAtTick > now) continue;
             var local = new CellCoord(cell.X - origin.X, cell.Y - origin.Y);
+            if (!BuildingLayoutCache.Of(building).CoversGround(local)) continue; // #264: a planta de agora, com as células que o morador acrescentou
             var footprint = BuildingFootprintGenerator.Generate(building);
-            bool covers = false;
-            for (int i = 0; i < footprint.Count && !covers; i++) covers = footprint[i].Cell == local;
-            if (!covers) continue;
             var layouts = BuildingLayoutCache.Of(building).Layout.FloorLayouts;
             if (floor < 0 || floor >= layouts.Count) return null;
             var material = layouts[floor].Cells.First(c => c.Cell == local).Material;

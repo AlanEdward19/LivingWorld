@@ -21,17 +21,95 @@
       {
         "Id": 3,
         "Name": "Refeição"
+      },
+      {
+        "Id": 20,
+        "Name": "Sofá"
+      },
+      {
+        "Id": 21,
+        "Name": "Poltrona"
+      },
+      {
+        "Id": 22,
+        "Name": "Cadeira"
+      },
+      {
+        "Id": 23,
+        "Name": "Cama de casal"
+      },
+      {
+        "Id": 24,
+        "Name": "Luminária"
+      },
+      {
+        "Id": 25,
+        "Name": "Geladeira"
+      },
+      {
+        "Id": 26,
+        "Name": "Fogão"
+      },
+      {
+        "Id": 27,
+        "Name": "Mesa"
+      },
+      {
+        "Id": 28,
+        "Name": "Chuveiro"
+      },
+      {
+        "Id": 29,
+        "Name": "Vaso"
+      },
+      {
+        "Id": 30,
+        "Name": "Pia"
+      },
+      {
+        "Id": 31,
+        "Name": "Televisão"
+      },
+      {
+        "Id": 32,
+        "Name": "Estante"
+      },
+      {
+        "Id": 33,
+        "Name": "Planta"
+      },
+      {
+        "Id": 34,
+        "Name": "Quadro"
+      },
+      {
+        "Id": 35,
+        "Name": "Tapete"
+      },
+      {
+        "Id": 36,
+        "Name": "Abajur"
+      },
+      {
+        "Id": 37,
+        "Name": "Luminária de chão"
+      },
+      {
+        "Id": 40,
+        "Name": "Madeira"
       }
     ],
     "LocationType": [
       { "Id": 1, "Name": "Mercado" },
       { "Id": 2, "Name": "Escritório" },
-      { "Id": 3, "Name": "Escola" }
+      { "Id": 3, "Name": "Escola" },
+      { "Id": 4, "Name": "Loja de móveis" }
     ],
     "BuildingType": [
       { "Id": 1, "Name": "Mercado" },
       { "Id": 2, "Name": "Escritório" },
-      { "Id": 3, "Name": "Escola" }
+      { "Id": 3, "Name": "Escola" },
+      { "Id": 4, "Name": "Loja de móveis" }
     ]
   },
   "Climate": {
@@ -82,7 +160,8 @@
   ],
   "ProfessionIds": [
     1,
-    2
+    2,
+    3
   ],
   "LocationTypeIds": [],
   "Dynamics": {
@@ -185,6 +264,30 @@
             "Altruism": 55,
             "Impulsivity": 30,
             "RiskAversion": 60
+          }
+        }
+      ]
+    },
+    {
+      "Settlement": "vila",
+      "Members": [
+        {
+          "Name": "Seu Tomás",
+          "Sex": "Male",
+          "AgeYears": 48,
+          "ProfessionId": 3,
+          "Workplace": 3,
+          "Personality": {
+            "Extroversion": 50,
+            "Agreeableness": 62,
+            "Conscientiousness": 76,
+            "EmotionalStability": 66,
+            "Openness": 55,
+            "Ambition": 50,
+            "Loyalty": 68,
+            "Altruism": 52,
+            "Impulsivity": 28,
+            "RiskAversion": 58
           }
         }
       ]
@@ -327,17 +430,23 @@
     "2": 15
   },
   "CapacityByResourceLocation": { "1,1": 2000, "2,1": 2000 },
-  "WageByProfession": { "2": 90 },
+  "WageByProfession": { "2": 90, "3": 90 },
   "Recipes": {
     "1": {
       "Inputs": {},
       "Outputs": { "1": 10, "2": 8 },
       "RequiresCellResource": null,
       "MaxWorkersPerCycle": 2
+    },
+    "4": {
+      "Inputs": { "40": 20 },
+      "Outputs": { "20": 1, "21": 1, "22": 1, "23": 1, "24": 1, "25": 1, "26": 1, "27": 1, "28": 1, "29": 1, "30": 1, "31": 1, "32": 1, "33": 1, "34": 1, "35": 1, "36": 1, "37": 1 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 1
     }
   },
   "MarketLocationTypeIds": [1],
-  "LocationTypeByProfession": { "2": 1 },
+  "LocationTypeByProfession": { "2": 1, "3": 4 },
   "Workplaces": [
     {
       "LocationTypeId": 1,
@@ -367,6 +476,16 @@
       "MaxVacancies": 2,
       "Treasury": 12000,
       "Stock": {},
+      "Prices": {}
+    },
+    {
+      "LocationTypeId": 4,
+      "X": 14,
+      "Y": 10,
+      "Orientation": 0,
+      "MaxVacancies": 1,
+      "Treasury": 300,
+      "Stock": { "20": 1, "21": 0, "22": 3, "23": 1, "24": 2, "25": 1, "26": 1, "27": 1, "28": 1, "29": 1, "30": 1, "31": 1, "32": 1, "33": 3, "34": 2, "35": 2, "36": 2, "37": 1, "40": 60 },
       "Prices": {}
     }
   ],
@@ -421,7 +540,7 @@
   "MaterializationIdleTicksBeforeEligible": 1,
   "BuildingRecipes": {},
   "StartHour": 7,
-  "CatalogExtends": ["home-life", "social", "moods", "careers"],
+  "CatalogExtends": ["home-life", "social", "moods", "careers", "home-build"],
   "Furnishings": {
     "default": [
       "table",

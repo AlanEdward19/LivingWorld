@@ -73,8 +73,15 @@ static func panels(walls: Array, cells: Dictionary, offset: Vector2i = Vector2i.
 			outward = b - a
 		elif from_inside > 0.0:
 			outward = a - b
-		out.append({"cell": inner, "rect": clipped, "material": int(wall.get("material", STONE)), "outward": outward})
+		out.append({"cell": inner, "rect": clipped, "material": int(wall.get("material", STONE)), "outward": outward, "edge": edge_key(wall.a, wall.b)})
 	return out
+
+
+## #264: a chave da aresta ("ax,ay,bx,by", a antes de b) que a pintura da parede usa: o motor diz a cor de cada aresta.
+static func edge_key(a: Variant, b: Variant) -> String:
+	var ca := cell(a)
+	var cb := cell(b)
+	return "%d,%d,%d,%d" % [ca.x, ca.y, cb.x, cb.y]
 
 
 ## O vão da porta como retângulo (a mesma geometria do painel que ele deixa de ser), para a verga e a folha.

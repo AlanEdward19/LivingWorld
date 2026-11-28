@@ -162,6 +162,7 @@ public static partial class PlayerInteractions
         int? resourceId = null, long? quantity = null)
     {
         if (kind is JobKind or BillsKind) return CareerInteract(world, ctx, npc, kind, id, verb); // #263
+        if (kind == "home") return Objects.HomeCommands.Apply(world, ctx, npc, id, verb); // #264: comprar, mover, vender e construir na própria casa
         if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
         if (kind == "person" && verb.StartsWith("social:", StringComparison.Ordinal)) return Social(world, ctx, npc, id, verb[7..]); // #259
         string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso

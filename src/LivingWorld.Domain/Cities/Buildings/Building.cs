@@ -70,6 +70,10 @@ public sealed class Building(
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public BuildingShape? Shape { get; } = shape;
 
+    /// <summary>#264: o que o morador mudou na casa (móveis comprados, paredes, células novas, pintura); nulo = nada mudou (fora do snapshot e do hash).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public HomeEdit? Edit { get; set; }
+
     /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
     /// — espelha <see cref="City.FoundingScheduledAtTick"/>.
     /// <c>null</c> enquanto nenhuma fundação estiver pendente; impede que o mesmo cluster seja

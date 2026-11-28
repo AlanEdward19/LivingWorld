@@ -369,6 +369,18 @@ func player_interact(player_id: String, kind: String, id: int, verb: String, res
 	return _checked("/players/interact", {"status": response.status, "body": response.body}, "player-interact")
 
 
+## #264: o modo comprar lido do motor (catálogo com o estoque da loja, peças da casa, beleza dos cômodos, tintas, preço da obra); 404 sem casa própria.
+func player_home(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/home" % player_id.uri_encode(), null, _player_headers())
+	return _checked("/players/home", {"status": response.status, "body": response.body}, "")
+
+
+## #264: o motor diz se o verbo de casa (`buy:objeto:andar:x:y:giro`, `wall:...`) vale agora e por quê, sem mudar nada (o fantasma verde ou vermelho).
+func player_home_check(player_id: String, verb: String) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/players/%s/home/check?verb=%s" % [player_id.uri_encode(), verb.uri_encode()], null, _player_headers())
+	return _checked("/players/home/check", {"status": response.status, "body": response.body}, "")
+
+
 ## AD-197c: o tempo como o jogador o vê (`GET /players/{id}/time`): o ritmo (Fast, RealTime, Accelerated, Manual), se ele pode
 ## pular o tempo agora (só quem joga sozinho), o pulo em curso e o que o acordou. O cliente só mostra o que o motor diz.
 func player_time(player_id: String) -> Dictionary:

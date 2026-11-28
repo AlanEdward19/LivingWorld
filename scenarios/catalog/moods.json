@@ -43,6 +43,8 @@
    { "id": "relaxed", "name": "Relaxado no sofá", "emotion": "calm", "weight": 1, "durationMin": 90, "trigger": { "kind": "use", "use": "relax" } },
    { "id": "bored", "name": "Entediado", "emotion": "bored", "weight": -2, "trigger": { "kind": "state", "need": "fun", "below": 25 }, "effects": { "socialBias": { "friendly": 1.4, "funny": 1.4 } } },
    { "id": "alone", "name": "Solitário", "emotion": "lonely", "weight": -2, "trigger": { "kind": "state", "need": "social", "below": 25 } },
+   { "id": "pretty-room", "name": "Cômodo bonito", "emotion": "happy", "weight": 2, "trigger": { "kind": "state", "ambient": "beauty", "above": 6 } },
+   { "id": "ugly-room", "name": "Cômodo feio", "emotion": "sad", "weight": -1, "trigger": { "kind": "state", "ambient": "beauty", "below": -1 } },
    { "id": "chatted", "name": "Boa conversa com {other}", "emotion": "happy", "weight": 1, "durationMin": 120, "stack": true, "maxStack": 3, "trigger": { "kind": "social", "interaction": "chat", "result": "accepted" } },
    { "id": "praised", "name": "Elogiado por {other}", "emotion": "happy", "weight": 2, "durationMin": 240, "trigger": { "kind": "social", "interaction": "compliment", "result": "accepted", "side": "target" } },
    { "id": "hugged", "name": "Abraço de {other}", "emotion": "happy", "weight": 2, "durationMin": 180, "trigger": { "kind": "social", "interaction": "hug", "result": "accepted" } },

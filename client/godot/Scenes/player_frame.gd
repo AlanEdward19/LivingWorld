@@ -8,7 +8,7 @@ signal speed_chosen(speed: int) ## #260: o jogador pediu pausa (0), 1×, 2× ou 
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   O carreira   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   O carreira   B comprar   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
 const CareerPanel := preload("res://Scenes/career_panel.gd") ## #263: emprego, desempenho, contas e vagas (tecla O)
 const NeedIcon := preload("res://Scenes/need_icon.gd")

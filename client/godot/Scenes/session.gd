@@ -4,6 +4,8 @@ extends RefCounted
 ## vem no escopo: nenhuma leitura extra. Não desenha nada:
 ## manda a cena, a câmera e a interface do App reagirem.
 
+signal interior_redrawn() ## #264: a casa em foco foi redesenhada depois de uma compra ou obra
+
 const Store := preload("res://Store/world_store.gd")
 const Registry := preload("res://Store/entity_registry.gd")
 const Grid := preload("res://Scenes/grid.gd")
@@ -53,6 +55,9 @@ func on_snapshot(envelope: Dictionary) -> void:
 		if interior_building < 0:
 			return # #237/#249: casa assinada com antecedência (o corpo chegou à porta) ou snapshot atrasado: guardada, não aberta
 		if app.stage.active and app.stage.interior_view.floor_count == int(app.store.interior.floors):
+			if _rebuild_interior:
+				_rebuild_interior = false
+				_redraw_interior() # #264: a obra do morador (móvel, parede, pintura) muda a planta: a casa em foco é redesenhada
 			app.stage.sync_occupants(app.store.interior.occupants, app.store.names) # reenvio do snapshot pelo canal: só atualiza
 		else:
 			_enter_interior_view()
@@ -325,6 +330,27 @@ func leave_focus() -> void:
 		app.breadcrumb.text = crumb_before # a trilha volta: a cidade não é reaberta, ninguém mais a reescreve
 	if driven:
 		app._keep_the_body()
+
+
+var _rebuild_interior := false ## #264: o próximo retrato da casa redesenha a planta, os móveis e a pintura (depois de uma compra ou obra)
+
+
+## #264: relê a casa em foco (o motor mudou móvel, parede ou pintura) e a redesenha no mesmo lugar, sem sair do foco.
+func refresh_interior() -> void:
+	if interior_building < 0 or not app.stage.active:
+		return
+	_rebuild_interior = true
+	await app.interior_stream.subscribe("Interior", str(interior_building))
+
+
+func _redraw_interior() -> void:
+	var marker = app.store.buildings.get(interior_building, null)
+	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
+	var lodging = marker.get("lodging") if marker != null else null
+	var level: int = app.stage.interior_view.current_floor
+	app.stage.interior_view.show_interior(app.store.interior, origin, app.labels, int(marker.type) if marker != null else -1, int(lodging.units) if lodging is Dictionary else 0)
+	app.stage.set_floor(level)
+	interior_redrawn.emit()
 
 
 func on_interior_changed() -> void:

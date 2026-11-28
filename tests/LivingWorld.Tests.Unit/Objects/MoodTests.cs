@@ -83,7 +83,7 @@ public class MoodTests
         var clean = Assert.Single(Moments(world, body), m => m.Id == "clean");
         Assert.Equal("Banho tomado", clean.Name);
         Assert.InRange(clean.RemainingMs!.Value, 170 * 60_000L, 180 * 60_000L);
-        Assert.True(MoodMechanic.Sum(world, body, Now(world)) >= 2);
+        Assert.True(clean.Weight >= 2 && MoodMechanic.Sum(world, body, Now(world)) > 0); // #264: o banheiro nu é "Cômodo feio" (-1) e pesa na soma, mas o banho ainda vence
 
         Run(world, clock, 181 * 60_000L);
         Assert.DoesNotContain(Moments(world, body), m => m.Id == "clean"); // expirou, sem passo por tick

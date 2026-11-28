@@ -165,6 +165,7 @@ public static class PlayerEndpoints
             return reply.Ok ? Results.Ok(reply.Body) : Results.Json(new { error = reply.Error }, statusCode: reply.Status);
         });
 
+        app.MapPlayerHomeEndpoints(gateway, tokens, policy); // #264: modo comprar e construir (leitura)
         app.MapPlayerGoalsEndpoints(gateway, tokens, policy); // #235: metas, habilidades e diário (só leitura)
 
         // AD-197e: a pessoa presa, vista por quem a possui (posse plena); 404 fora dela

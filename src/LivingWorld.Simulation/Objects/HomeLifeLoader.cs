@@ -56,6 +56,7 @@ public static class HomeLifeLoader
         CareerLoader.Merge(root, catalog); // #263
         if (catalog["NeedStartJitter"] is { } jitter && root["NeedStartJitter"] is null) root["NeedStartJitter"] = jitter.DeepClone(); // #261
         MoodLoader.Merge(root, catalog); // #262
+        HomeLoader.Merge(root, catalog); // #264
         if (catalog["Needs"] is JsonArray baseNeeds)
         {
             if (root["Needs"] is not JsonArray own) root["Needs"] = baseNeeds.DeepClone();
