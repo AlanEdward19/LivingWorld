@@ -1548,7 +1548,11 @@ func _defend(kind: String) -> void:
 	if not is_active or _guard_busy:
 		return
 	_guard_busy = true
-	var response: Dictionary = await (api.player_block(player_id) if kind == "block" else api.player_dodge(player_id))
+	var response: Dictionary
+	if kind == "block": # #250: cada chamada com o seu await (um `await (a() if x else b())` chama a corrotina sem await e a engine acusa o erro)
+		response = await api.player_block(player_id)
+	else:
+		response = await api.player_dodge(player_id)
 	_guard_busy = false
 	if not is_active:
 		return
