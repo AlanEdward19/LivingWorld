@@ -1018,6 +1018,8 @@ func _on_player_busy(action: String, seconds: float) -> void:
 	var node = player_actor()
 	if node == null:
 		return
+	var scene := action != "" and (action.begins_with("use:") or action.begins_with("social:")) # inclui o "ir até" (o outro corpo já entra no quadro)
+	rig.set_scene_framing(scene, _actor_by_id(player_hud.busy.partner) if scene and action.begins_with("social:") else null) # #246: enquadra os corpos da cena
 	if action == "":
 		node.stop_gesture()
 	else:
