@@ -26,3 +26,6 @@ molde quando o mapa tiver veio (o mapa e os cenários de hoje não têm minério
 
 ## Mira do E
 A ação principal é a do alvo sob o olhar da câmera (`PlayerFrame.aimed_first`); a pessoa ao lado segue na roda (segurar E).
+
+## Mesma tarefa, outro uso (#255)
+`BodyTask` também leva o uso de objeto da casa (banho, vaso, TV): o corpo anda até a peça, a ação dura o que o catálogo diz e interromper mantém o que subiu; ver [needs-and-objects.md](needs-and-objects.md).

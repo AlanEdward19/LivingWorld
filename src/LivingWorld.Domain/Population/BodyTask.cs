@@ -21,4 +21,17 @@ public sealed record BodyTask(string Action, long StartedAtMs, long UntilMs)
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int CellX { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int CellY { get; init; }
+
+    /// <summary>#255: o uso de objeto em curso. <see cref="Use"/> é o id do uso no catálogo, <see cref="Building"/> e <see cref="Piece"/> dizem qual peça
+    /// de qual prédio; <see cref="Doing"/> é falso enquanto o corpo anda até o lugar de uso e verdadeiro quando a ação começou;
+    /// <see cref="LastMs"/> é até quando os efeitos já foram aplicados (o resto entra a cada fatia, ao interromper e ao fim).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Use { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Building { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int Piece { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Doing { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long LastMs { get; init; }
 }

@@ -597,7 +597,8 @@ public sealed class Npc
         string? controlledPowerId = null, long? presumedDeadAtTick = null,
         PossessionMode? controlMode = null, CaptiveMind? captive = null, WillContest? will = null, int actionPhaseMs = 0,
         long travelLegEndMs = 0, CellCoord? travelLegTo = null, long? arrivedAtTick = null,
-        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null, BodyTask? bodyTask = null)
+        long stepReadyAtMs = 0, FinePose? fine = null, long jumpUntilMs = 0, CombatState? combat = null, BodyTask? bodyTask = null,
+        SortedDictionary<string, LazyNeed>? extraNeeds = null, IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? useQueue = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -633,6 +634,8 @@ public sealed class Npc
         JumpUntilMs = jumpUntilMs;
         Combat = combat;
         BodyTask = bodyTask;
+        ExtraNeeds = extraNeeds;
+        UseQueue = useQueue;
         TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
@@ -953,6 +956,54 @@ public sealed class Npc
         BodyTask = task;
         TouchCanonical();
     }
+
+    /// <summary>#255: as necessidades do catálogo do cenário (higiene, diversão, bexiga...), por id, no mesmo molde preguiçoso das de sempre
+    /// (<see cref="LazyNeed"/>: nada escrito por tick). Nulo enquanto o cenário não declara nenhuma (fora do snapshot e do hash).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SortedDictionary<string, LazyNeed>? ExtraNeeds { get; private set; }
+
+    public void SetExtraNeed(string id, LazyNeed need)
+    {
+        (ExtraNeeds ??= new SortedDictionary<string, LazyNeed>(StringComparer.Ordinal))[id] = need;
+        TouchCanonical();
+    }
+
+    /// <summary>#255: a fila de ações do corpo conduzido (até <see cref="MaxUseQueue"/>): a próxima começa quando a atual termina.</summary>
+    public const int MaxUseQueue = 4;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? UseQueue { get; private set; }
+
+    public void SetUseQueue(IReadOnlyList<LivingWorld.Domain.Objects.QueuedUse>? queue)
+    {
+        UseQueue = queue is { Count: > 0 } ? queue : null;
+        TouchCanonical();
+    }
+
+    /// <summary>#255: ajusta uma das quatro necessidades de sempre pelo id (<c>hunger</c>, <c>thirst</c>, <c>sleep</c>, <c>social</c>) no instante <paramref name="ms"/>.</summary>
+    public bool SetBuiltinNeedAtMs(string id, double value, long ms)
+    {
+        switch (id)
+        {
+            case "hunger": HungerNeed = HungerNeed.WithValueAtMs(value, ms); break;
+            case "thirst": ThirstNeed = ThirstNeed.WithValueAtMs(value, ms); break;
+            case "sleep": SleepNeed = SleepNeed.WithValueAtMs(value, ms); break;
+            case "social": SocialNeed = SocialNeed.WithValueAtMs(value, ms); break;
+            default: return false;
+        }
+        TouchCanonical();
+        return true;
+    }
+
+    /// <summary>#255: o valor de uma das de sempre pelo id, no instante <paramref name="ms"/>; nulo se o id não é uma delas.</summary>
+    public double? BuiltinNeedAtMs(string id, long ms) => id switch
+    {
+        "hunger" => HungerNeed.ValueAtMs(ms),
+        "thirst" => ThirstNeed.ValueAtMs(ms),
+        "sleep" => SleepNeed.ValueAtMs(ms),
+        "social" => SocialNeed.ValueAtMs(ms),
+        _ => null,
+    };
 
     /// <summary>#234: o estado de combate (recarga do golpe, guarda, reação e revide pendente). Nulo enquanto a pessoa nunca lutou.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

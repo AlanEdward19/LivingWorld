@@ -16,7 +16,7 @@ const WHEEL_MIN_RADIUS := 96.0 ## px: a roda nunca fecha mais que isto (o centro
 const WHEEL_AIM_CLEAR := 30.0 ## px de folga em volta da mira (centro da tela) sem botão
 const WHEEL_GAP := 8.0 ## px livres entre dois botões
 const WHEEL_BUTTON := Vector2(232, 34)
-const MENU_MAX := 8 ## linhas no menu do E (o resto fica de fora: quem está mais perto primeiro)
+const MENU_MAX := 8 ## #255: linhas por página da roda do E; passando disso a última linha é "Mais ▸" e a roda pagina (nada fica de fora)
 const PEOPLE_MAX := 3 ## pessoas no menu do E (numa multidão, só as mais próximas)
 
 var card: PanelContainer
@@ -34,7 +34,14 @@ var inventory: PanelContainer ## #233: a mochila (tecla I ou Tab)
 var inventory_box: VBoxContainer
 var goal_label: Label ## #235: a meta mais urgente, numa linha discreta sob o relógio
 var goals: PanelContainer ## #235: "Metas e diário" (tecla J)
+var catalog_box: VBoxContainer ## #255
+var catalog_bars: Dictionary = {} ## id da necessidade do catálogo -> {bar, name}
+var need_hint: Label ## "Você está com a bexiga cheia → Vaso" (o alerta é do cenário; o objeto, do catálogo)
+var queue_label: Label ## #255: a fila de ações ("1 Tomar banho · 2 Assistir TV"), Shift+1–4 tira
+var _queue_size := 0
 var entries: Array = []
+var _all_entries: Array = [] ## a lista inteira da roda; `entries` é a página mostrada
+var _page := 0
 var busy_panel: PanelContainer ## #252: a troca de corpo disponível ("" = ninguém para quem trocar): uma linha discreta sob o nome.
 func set_switch(name: String) -> void:
 	switch_label.visible = name != ""
@@ -103,6 +110,19 @@ func _init() -> void:
 		row.add_child(bar)
 		box.add_child(row)
 		bars[spec[0]] = bar
+	catalog_box = VBoxContainer.new() # #255: as barras das necessidades do catálogo do cenário (higiene, diversão, bexiga...), criadas pelo que o motor diz
+	catalog_box.add_theme_constant_override("separation", 4)
+	box.add_child(catalog_box)
+	need_hint = _label(13, Color("ffd27a"))
+	need_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	need_hint.custom_minimum_size.x = 244
+	need_hint.visible = false
+	box.add_child(need_hint)
+	queue_label = _label(13, Color("9ad0ff"))
+	queue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	queue_label.custom_minimum_size.x = 244
+	queue_label.visible = false
+	box.add_child(queue_label)
 	busy_panel = PanelContainer.new() # #241: "Cortando lenha — 40%" e a barra, acima do cartão; só enquanto o motor diz que o corpo está ocupado
 	busy_panel.add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
 	busy_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -246,6 +266,90 @@ func set_body(name: String, action: String, needs: Dictionary) -> void:
 			var value := float(needs[key])
 			bars[key].value = value
 			bars[key].modulate = Color.WHITE if value >= 25.0 else Color(1.0, 0.55, 0.55)
+	set_catalog_needs(needs.get("catalogNeeds", []), needs.get("needHint"))
+
+
+## #255: as barras do catálogo do cenário (`catalogNeeds` da ficha: id, name, value, urgent, color), uma por necessidade na ordem do motor, com a mais
+## urgente destacada (nome com seta e cor de alerta), e a dica `needHint` ("Você está com a bexiga cheia → Vaso"). Sem catálogo, nada aparece.
+func set_catalog_needs(list: Variant, hint: Variant) -> void:
+	var rows: Array = list if list is Array else []
+	var worst := most_urgent(rows)
+	for row in rows:
+		var id := String(row.id)
+		if not catalog_bars.has(id):
+			catalog_bars[id] = _make_catalog_row(row)
+		var entry: Dictionary = catalog_bars[id]
+		var value := float(row.value)
+		entry.bar.value = value
+		var urgent := bool(row.get("urgent", false))
+		entry.bar.modulate = Color(1.0, 0.55, 0.55) if urgent else Color.WHITE
+		entry.name.text = ("▶ " if id == worst else "") + String(row.name)
+		entry.name.add_theme_color_override("font_color", Color("ffd27a") if id == worst else Color(1, 1, 1, 0.8))
+	for id in catalog_bars.keys():
+		if rows.filter(func(r): return String(r.id) == id).is_empty():
+			catalog_bars[id].row.queue_free()
+			catalog_bars.erase(id)
+	need_hint.text = hint_line(hint)
+	need_hint.visible = need_hint.text != ""
+
+
+## A necessidade do catálogo mais urgente: entre as que o motor marca `urgent`, a de menor nível ("" se nenhuma pede atenção).
+static func most_urgent(rows: Array) -> String:
+	var best := ""
+	var low := 101.0
+	for row in rows:
+		if bool(row.get("urgent", false)) and float(row.value) < low:
+			low = float(row.value)
+			best = String(row.id)
+	return best
+
+
+## "Você está com a bexiga cheia → Vaso": o alerta do cenário e, se a casa tem, o objeto que atende; vazio sem dica.
+static func hint_line(hint: Variant) -> String:
+	if not hint is Dictionary:
+		return ""
+	var alert := String(hint.get("alert", ""))
+	var thing: Variant = hint.get("object")
+	return alert if thing == null or String(thing) == "" else "%s → %s" % [alert, String(thing)]
+
+
+func _make_catalog_row(row: Dictionary) -> Dictionary:
+	var line := HBoxContainer.new()
+	var text := _label(13, Color(1, 1, 1, 0.8))
+	text.custom_minimum_size.x = 52
+	line.add_child(text)
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.max_value = 100.0
+	bar.custom_minimum_size = Vector2(190, 10)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.12), 4))
+	bar.add_theme_stylebox_override("fill", _style(Color(String(row.get("color", "9aa5b1")) if row.get("color") != null else "9aa5b1"), 4))
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(bar)
+	catalog_box.add_child(line)
+	return {"row": line, "bar": bar, "name": text}
+
+
+## #255: a fila de ações (`queue` da pose: use, label, object); vazia esconde.
+func set_queue(queue: Variant) -> void:
+	var list: Array = queue if queue is Array else []
+	_queue_size = list.size()
+	queue_label.text = queue_text(list)
+	queue_label.visible = _queue_size > 0
+
+
+func queue_size() -> int:
+	return _queue_size
+
+
+static func queue_text(list: Array) -> String:
+	if list.is_empty():
+		return ""
+	var parts: PackedStringArray = []
+	for i in list.size():
+		parts.append("%d %s" % [i + 1, String(list[i].get("label", ""))])
+	return "Fila: " + " · ".join(parts) + "\n(Shift+1–%d tira da fila)" % list.size()
 
 
 ## #241: a ação em andamento ("Cortando lenha — 40%", `fraction` 0..1); texto vazio esconde a barra. Fica logo acima do cartão do corpo.
@@ -475,7 +579,7 @@ static func game_entries(all: Array, offers: Array, at: Vector2, look: Vector2 =
 		else:
 			things.append(entry)
 	persons.sort_custom(func(a, b): return people.find(int(a.id)) < people.find(int(b.id)))
-	return aimed_first((things + persons).slice(0, MENU_MAX), offers, at, look)
+	return aimed_first(things + persons, offers, at, look)
 
 
 const AIM_CONE := 0.6 ## cosseno mínimo entre o olhar e a direção do alvo (≈53°) para valer como "sob a mira"
@@ -530,6 +634,25 @@ static func _has_entry(entries: Array, key: String) -> bool:
 
 
 func show_menu(list: Array) -> void:
+	_all_entries = list
+	_page = 0
+	_render_menu()
+
+
+## #255: a roda mostra `MENU_MAX` linhas por vez; sobrando linhas, a última é "Mais ▸" (a próxima página, voltando à primeira ao fim).
+static func page_of(all: Array, page: int) -> Array:
+	if all.size() <= MENU_MAX:
+		return all
+	var per := MENU_MAX - 1
+	var pages := ceili(float(all.size()) / per)
+	var at := posmod(page, pages)
+	var slice := all.slice(at * per, mini(all.size(), (at + 1) * per))
+	slice.append({"text": "Mais ▸ (%d/%d)" % [at + 1, pages], "kind": "more", "id": at + 1, "verb": "more", "resource": -1})
+	return slice
+
+
+func _render_menu() -> void:
+	var list := page_of(_all_entries, _page)
 	entries = list
 	for child in menu_box.get_children():
 		menu_box.remove_child(child)
@@ -549,10 +672,19 @@ func show_menu(list: Array) -> void:
 		button.size = WHEEL_BUTTON
 		button.position = wheel_offset(i, list.size(), radius) - WHEEL_BUTTON / 2.0
 		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.85), 16))
-		button.pressed.connect(func(): chosen.emit(entry))
+		button.pressed.connect(func(): choose(entry))
 		menu_box.add_child(button)
 	menu_panel.visible = true
 	prompt.visible = false
+
+
+## Uma linha escolhida (clique ou tecla): "Mais ▸" só vira a página; o resto sobe para o HUD.
+func choose(entry: Dictionary) -> void:
+	if String(entry.get("verb", "")) == "more":
+		_page = int(entry.id)
+		_render_menu()
+		return
+	chosen.emit(entry)
 
 
 func close_menu() -> void:

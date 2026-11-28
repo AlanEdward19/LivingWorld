@@ -239,6 +239,7 @@ public static class CharacterBuilder
         if (world.NextNpcIdAndAdvance() != npc.Id) throw new InvalidOperationException("criador de personagem: id do próximo NPC mudou entre validar e criar");
 
         npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
+        LivingWorld.Simulation.Objects.HomeLife.Seed(world, npc); // #255: necessidades do catálogo do cenário
         world.AddNpc(npc);
         LivingWorld.Simulation.Ontogeny.OntogenyMechanic.Initialize(world, npc);
         if (money > 0) world.Mint(ctx, new Money(money), "player-character"); // o dinheiro inicial entra de fora e fica contado

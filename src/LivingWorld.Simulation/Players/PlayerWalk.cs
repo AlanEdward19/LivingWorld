@@ -28,6 +28,15 @@ public static partial class PlayerWalk
         // a rua calçada encurta a viagem longa (menos desvio, chão firme), mas ninguém anda mais que um passo largo: piso de 0,8
         // (1,4 m/s → no máximo 1,75 m/s)
         double factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
+        if (factor > 1.5 && PlayerGround.StepRefusal(world, npc, from, to) is not null)
+        {
+            // #255: o par está do outro lado de uma parede (o rumo aponta para a parede, no canto da casa): a rota contorna o prédio até a porta e o passo parecia
+            // 80% mais lento ("Chão firme −78%"). O corpo não anda ali: o atraso vale para a vizinha aberta mais perto desse rumo (ou nenhum, sem saída)
+            if (PlayerGround.OpenNeighbour(world, npc, from, to) is not { } open) return running ? Math.Min(world.Players.WalkMps * world.Players.RunFactor, world.Players.RunMaxMps) : world.Players.WalkMps;
+            to = open;
+            reference = Math.Max(1.0, LivingWorld.Domain.Geography.Spatial.MovementCost.Between(world.Map, from, to) * WorldMillis.PerHour);
+            factor = Math.Max(0.8, PlayerCommands.PaceMs(world, npc, from, to) / reference);
+        }
         double walk = world.Players.WalkMps / factor;
         return running ? Math.Max(walk, Math.Min(walk * world.Players.RunFactor, world.Players.RunMaxMps)) : walk;
     }
@@ -45,6 +54,9 @@ public static partial class PlayerWalk
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
+        // #255: andar interrompe o uso de objeto (e a fila): o jogador tomou o corpo de volta
+        if ((dx != 0 || dy != 0) && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) LivingWorld.Simulation.Objects.ObjectUsage.Stop(world, ctx, npc);
+        if (dx == 0 && dy == 0 && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) return Result<Unit>.Ok(Unit.Value); // soltar a tecla não para o uso: quem leva o corpo é o motor
         // #239: quem corta na mata está ocupado (o passo dura segundos; a tarefa, horas): não sai andando antes de acabar
         if ((dx != 0 || dy != 0) && (PlayerTasks.Of(world, npc) is not null || npc.StepReadyAtMs - now > PlayerInteractions.LongTaskMs))
             return Result<Unit>.Fail($"{PlayerCommands.Conflict} walk: o corpo está ocupado (faltam {npc.StepReadyAtMs - now} ms)");

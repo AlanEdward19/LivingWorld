@@ -72,6 +72,9 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.Carrying)] = (dto, npc, _) => npc.IsCarrying
             ? dto.Carrying is { } carry && carry.ResourceId == npc.CarriedResourceId && carry.Quantity == npc.CarriedQuantity
             : dto.Carrying is null,
+        // #255: sem necessidades do catálogo no cenário (o mundo comum) o DTO não as traz
+        [nameof(NpcInspectionDto.CatalogNeeds)] = (dto, _, world) => dto.CatalogNeeds is null && world.ObjectCatalog?.Needs is null,
+        [nameof(NpcInspectionDto.NeedHint)] = (dto, _, world) => dto.NeedHint is null && world.ObjectCatalog?.Needs is null,
         [nameof(NpcInspectionDto.Employment)] = (dto, npc, world) =>
             dto.Employment?.Id == npc.Employer
             && dto.Employment?.BuildingId == world.Workplaces.FirstOrDefault(w => w.Id == npc.Employer)?.Building,

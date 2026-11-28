@@ -3,6 +3,9 @@ extends RefCounted
 ## `remainingMs`, aditivo e opcional). Só lê: o tempo que falta vem do motor em ms de mundo e aqui vira tempo real pela escala do relógio.
 ## O motor decide a duração e o que fica feito ao interromper; o cliente mostra a barra, anima o corpo e não manda passo enquanto dura.
 
+## #255: a pose declarada pelo catálogo (já com o fallback do motor) -> o gesto em laço do rig procedural. O rig não muda: pose sem gesto cai em `rest`.
+const POSE_GESTURE := {"work": "work", "eat": "eat", "sleep": "rest", "socialize": "talk", "idle": "rest", "buy": "give", "power": "reach"}
+
 ## ação do motor -> o que o corpo está fazendo ("Cortando lenha") e o gesto em laço do rig procedural (`npc_actor.GESTURES`)
 const ACTIONS := {
 	"gather": {"doing": "Cortando lenha", "gesture": "chop", "stopped": "Parou de cortar lenha."},
@@ -13,6 +16,12 @@ const ACTIONS := {
 }
 
 var action := ""
+var use := "" ## #255: o uso do catálogo em curso (`busy.use`), o nome que o jogador lê (`label`), a fase (`walk`: o motor leva o corpo até a peça; `do`: a ação corre) e a pose declarada
+var label := ""
+var phase := ""
+var use_pose := ""
+var facing := 0.0 ## graus: para onde o corpo olha no lugar de uso
+var slot := Vector2.INF ## o lugar de uso em células (fino), dito pelo motor
 var total_ms := 0.0 ## duração em ms de mundo
 var _end_msec := 0.0 ## instante real (Time.get_ticks_msec) em que acaba
 var _real_total_ms := 0.0
@@ -30,25 +39,43 @@ func active() -> bool:
 ## Devolve true se o que se mostra mudou (começou, acabou ou outra ação).
 func note_pose(pose: Dictionary, now_msec: float, scale: float) -> bool:
 	var before := action
+	var before_kind := kind()
 	var busy: Variant = pose.get("busy")
 	if not busy is Dictionary or String(busy.get("action", "")) == "":
 		action = ""
+		use = ""
+		phase = ""
 		units = 0
 		accelerated = false
 		return before != ""
 	action = String(busy.action)
-	units = int(busy.get("units", 0))
+	use = String(busy.get("use", ""))
+	label = String(busy.get("label", ""))
+	phase = String(busy.get("phase", ""))
+	use_pose = String(busy.get("pose", ""))
+	facing = float(busy.get("facing", 0.0))
+	slot = Vector2(float(busy.slotFx), float(busy.slotFy)) if busy.get("slotFx") != null else Vector2.INF
+	units = int(busy.units) if busy.get("units") != null else 0 # o motor manda `units: null` fora da coleta
 	accelerated = bool(busy.get("accelerated", false))
 	total_ms = maxf(1.0, float(busy.get("totalMs", 1)))
 	var factor := maxf(scale, 0.001)
 	_factor = factor
 	_real_total_ms = total_ms / factor
 	_end_msec = now_msec + float(busy.get("remainingMs", 0)) / factor
-	return before != action
+	return before != action or before_kind != kind()
+
+
+## A chave do que o corpo faz para o app animar: a ação, ou (#255) o uso com a pose dele; andando até a peça, `use:walk` (sem gesto).
+func kind() -> String:
+	if action != "use":
+		return action
+	return "use:walk" if phase == "walk" else "use:%s" % use_pose
 
 
 func clear() -> void:
 	action = ""
+	use = ""
+	phase = ""
 	units = 0
 	accelerated = false
 
@@ -94,6 +121,10 @@ static func doing(kind: String) -> String:
 
 
 static func gesture_for(kind: String) -> String:
+	if kind == "use:walk":
+		return ""
+	if kind.begins_with("use:"):
+		return String(POSE_GESTURE.get(kind.substr(4), "rest"))
 	return String(ACTIONS.get(kind, {}).get("gesture", "work"))
 
 
@@ -103,8 +134,16 @@ static func stopped(kind: String) -> String:
 
 ## "Cortando lenha — 40% · tempo acelerado": a linha da barra. Sem acelerar (mais de um jogador, ou ação curta), diz o que falta em
 ## horas e minutos de mundo ("· faltam 4 h 12 min"), para o jogador saber quanto vai demorar.
+func name_now() -> String:
+	if action == "use" and label != "":
+		return label
+	return doing(action)
+
+
 func text(now_msec: float) -> String:
-	var line := "%s — %d%%" % [doing(action), roundi(fraction(now_msec) * 100.0)]
+	if action == "use" and phase == "walk":
+		return "Indo: %s…" % label
+	var line := "%s — %d%%" % [name_now(), roundi(fraction(now_msec) * 100.0)]
 	if units > 1:
 		line += " · %d de %d" % [mini(units, int(floor(fraction(now_msec) * units + 0.0001))), units] # #243: quantas já saíram
 	if accelerated:
@@ -122,7 +161,12 @@ static func left_text(world_ms: float) -> String:
 
 ## O que se diz quando o jogador tenta andar ocupado: nunca o erro cru do servidor.
 func blocked_note() -> String:
-	return "Ocupado: %s (Espaço para parar)" % doing(action).to_lower()
+	return "Ocupado: %s (Espaço para parar)" % name_now().to_lower()
+
+
+## #255: a frase de quando o jogador para o uso (o nome vem do catálogo do motor).
+func stopped_text() -> String:
+	return "Parou: %s." % label if action == "use" and label != "" else stopped(action)
 
 
 ## O erro do servidor em frase humana: sem prefixo técnico (`walk:`, `conflict:`, `move:`...), sem número de ms, com inicial maiúscula

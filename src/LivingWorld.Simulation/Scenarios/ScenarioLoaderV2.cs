@@ -106,6 +106,14 @@ public static class ScenarioLoaderV2
         if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Players"] is { } playersNode)
             world.UsePlayers(System.Text.Json.JsonSerializer.Deserialize<LivingWorld.Domain.Population.PlayerRules>(playersNode, PlayersJson));
 
+        // #255: hora do dia em que o mundo começa (0 até horas do dia − 1); ausente = meia-noite, como sempre. Vale antes de semear gente (as necessidades nascem na hora certa).
+        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["StartHour"] is { } startNode)
+        {
+            if (!(startNode is System.Text.Json.Nodes.JsonValue sv && sv.TryGetValue(out int startHour) && startHour >= 0 && startHour < world.Calendar.HoursPerDay))
+                return Result<(WorldState, WorldClock)>.Fail($"StartHour: inteiro de 0 a {world.Calendar.HoursPerDay - 1}");
+            world.CurrentDate = LivingWorld.Domain.Shared.WorldDate.FromHours(world.Calendar, startHour);
+        }
+
         progress?.Invoke(ScenarioLoadStages.Settlements);
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

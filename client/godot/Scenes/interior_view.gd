@@ -9,6 +9,7 @@ const NpcFigure := preload("res://Scenes/npc_figure.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
+const AnimationCatalog := preload("res://Scenes/animation_catalog.gd")
 
 ## #222: a parede tem a altura do andar (o motor diz os metros); antes 0,9 unidade = 1,35 m, mais baixa que uma pessoa
 static func wall_height() -> float: return Grid.floor_height() * 0.99 ## #227: quase o andar inteiro: a câmera do jogador (dentro da caixa do andar) fica sob o forro, sem fresta de céu
@@ -31,6 +32,7 @@ var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o
 var furniture: Node3D
 var _use_slots: Dictionary = {} ## #237: id do catálogo -> [{base: Vector3, yaw: float, level: int}] cada peça colocada, com o andar e o giro que o motor deu (alvos de uso)
 var _use_points: Dictionary = {} ## id do catálogo -> pontos de uso do descritor
+var _uses: Dictionary = {} ## #255: id do catálogo -> usos (`uses`) do descritor: o que se faz, a pose e o lugar do corpo
 var occupant_nodes: Dictionary = {} ## npc_id -> NpcActor
 var object_points: Array = [] ## [{id, level, position}] cada peça de mobília, para clique e dica (ADR-0047)
 var _occupants: Array = []
@@ -118,6 +120,7 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 	if factory != null:
 		for descriptor in objects.catalog:
 			_use_points[String(descriptor.id)] = descriptor.get("usePoints", [])
+			_uses[String(descriptor.id)] = descriptor.get("uses", [])
 	if objects is Dictionary and factory != null and _any_planned(objects):
 		_place_planned(info, objects, factory) # #237: o motor diz onde cada peça fica; o cliente só desenha
 		return
@@ -459,6 +462,7 @@ func _clear() -> void:
 	object_points.clear()
 	_use_slots.clear()
 	_use_points.clear()
+	_uses.clear()
 	_walls.clear()
 	_pieces.clear()
 	_panels.clear()
@@ -722,6 +726,8 @@ func _use_of(occupant: Dictionary, npc_id: int, action: int, level: int, rank: D
 	if object_id == null or not _use_slots.has(String(object_id)):
 		return none
 	var point := _use_point(String(object_id), action)
+	if occupant.get("usingUse") != null: # #255: o uso do catálogo manda (pose declarada, ou a mais próxima que o cliente sabe, e o lugar do corpo)
+		point = _catalog_use_point(String(object_id), String(occupant.usingUse))
 	if point.is_empty():
 		return none
 	var slots: Array = _use_slots[String(object_id)].filter(func(slot): return int(slot.level) == level)
@@ -731,6 +737,17 @@ func _use_of(occupant: Dictionary, npc_id: int, action: int, level: int, rank: D
 	var offset: Array = point.offset
 	var base: Vector3 = slot.base + Basis(Vector3.UP, float(slot.yaw)) * Vector3(float(offset[0]), float(offset[1]), float(offset[2]))
 	return {"active": true, "position": base, "facing": float(slot.yaw) + deg_to_rad(float(point.get("facing", 0.0))), "pose": point.get("pose", "")}
+
+
+## #255: o uso do catálogo como ponto de uso: o lugar (x, z em metros no referencial da peça) vira o deslocamento, a pose declarada cai na mais próxima.
+func _catalog_use_point(object_id: String, use_id: String) -> Dictionary:
+	for use in _uses.get(object_id, []):
+		if String(use.id) == use_id:
+			var slot: Array = use.get("slot", [0.0, 0.0])
+			var declared := String(use.get("pose", ""))
+			var pose_name := declared if declared in AnimationCatalog.POSES else String(use.get("poseFallback", "idle"))
+			return {"offset": [float(slot[0]), 0.0, float(slot[1])], "facing": float(use.get("facing", 0.0)), "pose": pose_name}
+	return {}
 
 
 func _use_point(object_id: String, action: int) -> Dictionary:

@@ -2,123 +2,19 @@ using System.Text.Json.Nodes;
 
 namespace LivingWorld.Simulation.Objects;
 
-/// <summary>Mobília que o cliente desenhava a partir de <c>assets.json</c> (#40), agora como blocos de cenário (#47 fatia 1, ADR-0034).
-/// Cada peça é uma caixa só, do mesmo tamanho e cor de antes: o interior renderizado não muda.
-/// <c>offset</c> é o centro da parte relativo à base do objeto (chão), por isso y = altura/2.</summary>
+/// <summary>Mobília que o cliente desenhava a partir de <c>assets.json</c> (#40), como blocos de cenário (#47 fatia 1, ADR-0034). Desde o #255 o catálogo
+/// padrão não vive mais no código: é o dado <c>scenarios/catalog/default-objects.json</c>, embutido e lido em tempo de execução
+/// (<see cref="HomeLifeLoader.Embedded"/>); o cenário o sobrescreve ou estende por id. <c>offset</c> é o centro da parte relativo à base do objeto
+/// (chão), por isso y = altura/2.</summary>
 public static class DefaultObjects
 {
-    private static readonly (string Id, string Category, double X, double Y, double Z, string Color)[] Pieces =
-    [
-        ("table", "furniture", 0.8, 0.4, 0.5, "8a6a43"), ("bench", "furniture", 0.7, 0.25, 0.25, "7a5a38"),
-        ("crate", "storage", 0.4, 0.4, 0.4, "a27b52"), ("barrel", "storage", 0.35, 0.5, 0.35, "6b4a2b"),
-        ("counter", "furniture", 0.9, 0.45, 0.3, "5c4630"), ("shelf", "storage", 0.7, 0.8, 0.2, "6f5436"),
-        ("bed", "bed", 0.6, 0.2, 1.0, "d8cfb8"), ("chest", "storage", 0.5, 0.3, 0.3, "4f3a26"),
-        ("anvil", "tool", 0.35, 0.3, 0.2, "5b6068"),
-    ];
+    public const string CatalogName = "default-objects";
 
-    /// <summary>Pontos de uso (#47 fatia 2): objeto → (nome, ActionType, pose, offset local, facing em graus). Ids de ação: Eat 0, Sleep 1, Work 2, Socialize 3.</summary>
-    private static readonly Dictionary<string, (string Name, int Action, string Pose, double X, double Y, double Z, double Facing)> UsePoints = new()
-    {
-        ["bed"] = ("lie", 1, "sleep", 0.0, 0.05, 0.0, 0.0), // #237: o centro do corpo deitado fica no centro da cama (antes 0,3 à frente: o corpo saía da célula)
-        ["table"] = ("eat", 0, "eat", 0.0, 0.0, 0.45, 180.0),
-        ["bench"] = ("sit", 3, "socialize", 0.0, 0.0, 0.3, 180.0),
-        ["anvil"] = ("hammer", 2, "work", 0.0, 0.0, 0.3, 180.0),
-        ["counter"] = ("serve", 2, "work", 0.0, 0.0, -0.35, 0.0),
-    };
-
-    /// <summary>Acrescenta <c>objectsFormat</c>, <c>Objects</c> e <c>Furnishings</c> ao JSON do período.</summary>
+    /// <summary>Acrescenta <c>objectsFormat</c>, <c>Objects</c>, <c>Furnishings</c> e <c>Rooms</c> do catálogo padrão ao JSON do período
+    /// (o que o período já declara vence por id).</summary>
     public static void AddTo(JsonObject root)
     {
-        var objects = new JsonArray();
-        foreach (var (id, category, x, y, z, color) in Pieces)
-            objects.Add(new JsonObject
-            {
-                ["id"] = id,
-                ["category"] = category,
-                ["variationSeed"] = 0,
-                ["shape"] = new JsonArray(new JsonObject
-                {
-                    ["shape"] = "box",
-                    ["size"] = new JsonArray(x, y, z),
-                    ["offset"] = new JsonArray(0.0, y / 2.0, 0.0),
-                    ["color"] = color,
-                }),
-                ["usePoints"] = UsePointsOf(id),
-            });
-        // Recursos do cenário padrão como objetos (#47 fatia 4, ADR-0039): comida (1) e água (2) restauram a necessidade por inteiro,
-        // exatamente a regra de sempre; o autor muda o nível no cenário.
-        objects.Add(ResourceObject("food", 1, "sphere", new JsonArray(0.1), "d9b44a", "hunger:100"));
-        objects.Add(ResourceObject("water", 2, "cylinder", new JsonArray(0.06, 0.2), "4a90d9", "thirst:100"));
-        root["objectsFormat"] = 1;
-        root["Objects"] = objects;
-        root["Furnishings"] = new JsonObject
-        {
-            ["default"] = Ids("table", "bench", "crate"),
-            ["1"] = Ids("counter", "shelf", "crate", "barrel"),
-            ["2"] = Ids("table", "bench", "barrel"),
-            ["3"] = Ids("bed", "table", "chest"),
-            ["4"] = Ids("anvil", "shelf", "barrel", "crate"),
-            ["10"] = Ids("bed", "bed", "table", "chest"),
-            ["11"] = Ids("counter", "table", "shelf", "crate"),
-            ["-1"] = Ids("bed", "table", "bench", "chest"), // #226: a casa inicial passa a ter cama (antes só o piso da escada)
-        };
-        root["Rooms"] = Rooms();
+        var catalog = HomeLifeLoader.Embedded(CatalogName) ?? throw new InvalidOperationException($"catálogo padrão '{CatalogName}' não está embutido");
+        HomeLifeLoader.Merge(root, catalog);
     }
-
-    /// <summary>#226: cômodos como dado do cenário (o código só conhece o algoritmo de divisão): tipos com o que atendem (ids de <c>ActionType</c>: Eat 0,
-    /// Sleep 1, Work 2, Socialize 3), peso da área e tamanho mínimo; e o plano por tipo de prédio (o primeiro é o cômodo da porta da rua; "@up" = andares de cima).</summary>
-    private static JsonObject Rooms() => new()
-    {
-        ["kinds"] = new JsonArray(
-            Room("sala", [0, 3], 3, 3), Room("quarto", [1], 2, 2), Room("cozinha", [0], 2, 2), Room("oficina", [2], 3, 3)),
-        ["plans"] = new JsonObject
-        {
-            ["default"] = Ids("sala", "cozinha", "quarto"),
-            ["default@up"] = Ids("quarto"),
-            ["-1"] = Ids("sala", "quarto"),
-            ["1"] = Ids("oficina", "sala"),
-            ["2"] = Ids("sala", "cozinha"),
-            ["4"] = Ids("oficina"),
-            ["10"] = Ids("sala", "quarto"),
-            ["11"] = Ids("oficina", "sala"),
-        },
-    };
-
-    private static JsonObject Room(string id, int[] uses, double weight, int minCells) => new()
-    {
-        ["id"] = id,
-        ["uses"] = new JsonArray(uses.Select(u => (JsonNode?)JsonValue.Create(u)).ToArray()),
-        ["weight"] = weight,
-        ["minCells"] = minCells,
-    };
-
-    private static JsonArray UsePointsOf(string id) =>
-        UsePoints.TryGetValue(id, out var p)
-            ? new JsonArray(new JsonObject
-            {
-                ["name"] = p.Name,
-                ["offset"] = new JsonArray(p.X, p.Y, p.Z),
-                ["facing"] = p.Facing,
-                ["action"] = p.Action,
-                ["pose"] = p.Pose,
-            })
-            : new JsonArray();
-
-    private static JsonObject ResourceObject(string id, int resourceId, string shape, JsonArray size, string color, string effect) => new()
-    {
-        ["id"] = id,
-        ["category"] = "resource",
-        ["resourceId"] = resourceId,
-        ["variationSeed"] = 0,
-        ["shape"] = new JsonArray(new JsonObject
-        {
-            ["shape"] = shape,
-            ["size"] = size,
-            ["offset"] = new JsonArray(0.0, 0.1, 0.0),
-            ["color"] = color,
-        }),
-        ["effects"] = new JsonArray(effect),
-    };
-
-    private static JsonArray Ids(params string[] ids) => new(ids.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray());
 }

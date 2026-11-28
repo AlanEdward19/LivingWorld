@@ -65,6 +65,7 @@ public static class PopulationSeeder
         foreach (var npc in generated.Npcs)
         {
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
+            LivingWorld.Simulation.Objects.HomeLife.Seed(world, npc); // #255: necessidades do catálogo do cenário
             LivingWorld.Simulation.Population.Body.BodyGrowth.InitializeFounder(world, npc); // corpo da idade (AD-134)
             world.AddNpc(npc);
             LivingWorld.Simulation.Ontogeny.OntogenyMechanic.Initialize(world, npc);

@@ -34,7 +34,8 @@ public sealed record PlayerPose(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.WalkDrag? Ground = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Players.BusyView? Busy = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int Seq = 0,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] long AtMs = 0);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] long AtMs = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.QueueView>? Queue = null);
 
 /// <summary>A resposta de um comando: status HTTP (200, 400, 404, 409) e o corpo (sucesso) ou o erro.</summary>
 public sealed record PlayerReply(int Status, object? Body, string? Error)
@@ -269,7 +270,8 @@ public sealed partial class PlayerCommandGateway(
                 ? busy with { Accelerated = players.Skip is { Task: true } skip && skip.PlayerId == playerId }
                 : null,
             npc.Fine?.Seq ?? 0, // #248: o último número de comando de andar que o motor aplicou; o cliente reaplica os seguintes
-            world.CurrentDate.TotalMilliseconds); // #248: o instante de mundo (ms) desta pose
+            world.CurrentDate.TotalMilliseconds, // #248: o instante de mundo (ms) desta pose
+            LivingWorld.Simulation.Objects.ObjectUsage.QueueOf(world, npc)); // #255: a fila de ações do corpo
     }
 
     /// <summary>#234: a resposta do golpe: o que houve, o dano, a reação do alvo e a recarga (o que o cliente anima), mais a pose.</summary>

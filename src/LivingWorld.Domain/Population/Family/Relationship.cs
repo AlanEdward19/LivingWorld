@@ -89,6 +89,9 @@ public sealed class Relationship
         }
     }
 
+    /// <summary>#255: desloca um eixo por um valor vindo do cenário (o que o estado de quem fala pesa na conversa), no mesmo limite 0–100.</summary>
+    public void Shift(RelationshipAxis axis, double delta) => Set(axis, Get(axis) + delta);
+
     /// <summary>Aplica o delta declarado do evento a cada eixo que ele afeta, clamped a
     /// <c>[0,100]</c>. Eixos sem delta declarado para este evento (delta 0) ficam inalterados.</summary>
     public void ApplyEvent(RelationshipEventType type, FamilyRules rules)

@@ -26,7 +26,7 @@ public static partial class PlayerWalk
 
         double tired = 1 + Math.Max(0, world.Players.Tired - npc.SleepAt(world.CurrentDate.TotalHours)) / Math.Max(1, world.Players.Tired) * 0.5;
         double weather = 1.0;
-        if (LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, from, out var row))
+        if (LivingWorld.Simulation.Climate.WeatherNow.SlowsTravel(world, from, out var row) && !PlayerGround.Sheltered(world, from, to))
             weather = LivingWorld.Simulation.Climate.WeatherNow.TravelFactor(world, row,
                 LivingWorld.Simulation.Cities.Streets.StreetRoutes.SoftPm(world, from, to));
         var factors = new (string Cause, double Factor)[]

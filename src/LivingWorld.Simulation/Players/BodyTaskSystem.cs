@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
 
-/// <summary>#243: dono da capacidade BODY_TASK. A ação longa do corpo conduzido (cortar lenha...) rende item unidade a unidade: cada unidade
+/// <summary>#243: dono da capacidade BODY_TASK. A ação longa do corpo conduzido (cortar lenha...) rende item unidade a unidade (e, #255, o uso de objeto da casa: caminhar até a peça e a ação em fatias): cada unidade
 /// é um evento agendado no instante em que sai (<see cref="PlayerTasks.Settle"/>), também dentro da hora e nos ticks de uma hora do salto de
 /// tempo. Nada por tick: sem ação em andamento, nada roda.</summary>
 [LivingCapability("BODY_TASK", Events = [], Consumers = ["economy.stock", "nature.trees"])]
@@ -23,6 +23,12 @@ public sealed class BodyTaskSystem : ISimulationSystem
     {
         if (evt.Payload is not { } payload) return;
         var parts = payload.Split('|');
+        if (parts.Length == 3 && parts[2] == "u" && long.TryParse(parts[0], out long userId) && long.TryParse(parts[1], out long begun))
+        {
+            if (world.FindNpc(new NpcId(userId)) is { IsAlive: true } user) LivingWorld.Simulation.Objects.ObjectUsage.Step(world, ctx, user, begun); // #255: uso de objeto
+            return;
+        }
+
         if (parts.Length != 2 || !long.TryParse(parts[0], out long npcId) || !long.TryParse(parts[1], out long started)) return;
         if (world.FindNpc(new NpcId(npcId)) is { IsAlive: true } npc) PlayerTasks.Settle(world, ctx, npc, started);
     }

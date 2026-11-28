@@ -107,6 +107,7 @@ public static class NpcInstantiationMechanic
             city: source.City);
         world.AddNpc(clone);
         clone.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
+        LivingWorld.Simulation.Objects.HomeLife.Seed(world, clone); // #255: necessidades do catálogo do cenário
         MortalitySystem.CoverUntilNextSweep(world, ctx, clone);
         NpcWakeScheduler.ScheduleWake(world, ctx, clone.Id.Value, world.CurrentDate.TotalHours + 1);
 

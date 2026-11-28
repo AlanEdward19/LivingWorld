@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Players;
@@ -28,7 +29,14 @@ public sealed record InteractionOffer(
 
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public double? Fy { get; init; }
+
+    /// <summary>#255: os usos que o catálogo dá ao objeto (a roda mostra um item por objeto e os usos num submenu); o verbo de cada um é <c>use:{id}</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<OfferUse>? Uses { get; init; }
 }
+
+/// <summary>#255: um uso do objeto como o cliente o lê: <c>Id</c> do catálogo, o nome (<c>Name</c>), os minutos de mundo, a necessidade que mais sobe (<c>Need</c>) e se já tem quem o ocupa (<c>Busy</c>).</summary>
+public sealed record OfferUse(string Id, string Name, int Minutes, string? Need, bool Busy);
 
 /// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca).</summary>
 public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value);
@@ -105,7 +113,9 @@ public static partial class PlayerInteractions
     public static Result<InteractionResult> Interact(WorldState world, TickContext ctx, Npc npc, string kind, long id, string verb,
         int? resourceId = null, long? quantity = null)
     {
-        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(verb));
+        if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
+        string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso
+        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(lookup));
         if (offer is null) return Fail($"{PlayerCommands.Conflict} interact: {kind} {id} {verb} fora do alcance ou indisponível agora");
         if (quantity is <= 0) return Fail("interact: quantidade deve ser > 0");
         return (kind, verb) switch
@@ -113,7 +123,7 @@ public static partial class PlayerInteractions
             ("door", _) => Walk(world, ctx, npc, offer),
             ("stairs", _) => Climb(world, npc, offer, verb == "up" ? 1 : -1),
             (_, "steal") => Steal(world, ctx, npc, offer, resourceId),
-            ("object", _) => Use(world, npc, offer, verb),
+            ("object", _) => Use(world, ctx, npc, offer, lookup, verb),
             ("item", _) => Carry(world, npc, offer, verb),
             ("workshop" or "field", "work") => PlayerCommands.Act(world, npc.Id, npc.ControllerId!, ActionType.Work) is { IsSuccess: false } busy
                 ? Fail(busy.Error!) : Done(offer, verb, 0, 0),
@@ -234,6 +244,10 @@ public static partial class PlayerInteractions
             relationship.ApplyEvent(RelationshipEventType.Conversation, world.FamilyRules);
             relationship.MarkContact(hours);
         }
+        // #255: quem está com higiene baixa (ou outra necessidade do catálogo com peso nos laços) piora a conversa: o laço de quem ouve cai
+        if (HomeLife.BondPenalty(world, npc, world.CurrentDate.TotalMilliseconds) is var penalty and < 0
+            && world.Relationships.TryGetValue(new RelationshipKey(other.Id, npc.Id), out var heard))
+            heard.Shift(RelationshipAxis.Affection, penalty);
         PlayerCommands.WakeNow(world, other);
         return Done(offer, "talk", 0, 0);
     }

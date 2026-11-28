@@ -11,7 +11,24 @@ namespace LivingWorld.Simulation.Players;
 /// ms de mundo), o tempo total e o que falta (<c>RemainingMs</c>, para o cliente não depender do relógio do mundo).
 /// <c>Accelerated</c> (aditivo): o mundo corre acelerado até a ação acabar (o jogador está sozinho: o salto de tempo). <c>Units</c>,
 /// <c>Done</c> e <c>ResourceId</c> (#243, aditivos, só na coleta): quantas unidades a sessão planejou, quantas já saíram até agora e o recurso.</summary>
-public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs, bool Accelerated = false, long? Units = null, long? Done = null, int? ResourceId = null);
+public sealed record BusyView(string Action, long UntilMs, long TotalMs, long RemainingMs, bool Accelerated = false, long? Units = null, long? Done = null, int? ResourceId = null)
+{
+    /// <summary>#255 (aditivos, só no uso de objeto): o uso do catálogo (<c>Use</c>) e o nome que o jogador lê (<c>Label</c>), a fase (<c>walk</c>: o corpo vai até a peça;
+    /// <c>do</c>: a ação corre), a pose declarada, onde o corpo fica (<c>SlotFx</c>, <c>SlotFy</c>, em células) e para onde olha (<c>Facing</c>, graus).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? Use { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? Label { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? Phase { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? Pose { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public double? SlotFx { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public double? SlotFy { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public double? Facing { get; init; }
+}
 
 /// <summary>#241/#243: tarefas que ocupam o corpo conduzido (hoje, cortar lenha na mata). O padrão de toda ação que rende item: a unidade
 /// <c>k</c> sai da fonte (a árvore, que é estado do mundo e finita: <see cref="PlayerNature.Take"/>) e vai para as mãos em
@@ -27,6 +44,8 @@ public static class PlayerTasks
         long now = world.CurrentDate.TotalMilliseconds;
         if (npc.BodyTask is not { } task || now >= task.UntilMs) return null;
         var view = new BusyView(task.Action, task.UntilMs, task.UntilMs - task.StartedAtMs, task.UntilMs - now);
+        if (task.Action == LivingWorld.Simulation.Objects.ObjectUsage.Action && LivingWorld.Simulation.Objects.ObjectUsage.View(world, task) is { } use)
+            return view with { Use = use.Use, Label = use.Label, Phase = use.Phase, Pose = use.Pose, SlotFx = use.Fx, SlotFy = use.Fy, Facing = use.Facing };
         return task is { Action: Gather, PerUnitMs: > 0 }
             ? view with { Units = task.Units, Done = Math.Min(task.Units, (now - task.StartedAtMs) / task.PerUnitMs), ResourceId = task.ResourceId }
             : view;
@@ -110,6 +129,11 @@ public static class PlayerTasks
         if (Of(world, npc) is not { } busy || npc.BodyTask is not { } task)
             return Result<BusyView>.Fail($"{PlayerCommands.Conflict} interrupt: não há ação em andamento");
         long now = world.CurrentDate.TotalMilliseconds;
+        if (task.Action == LivingWorld.Simulation.Objects.ObjectUsage.Action) // #255: o que já subiu fica; a fila vai embora com o uso
+        {
+            LivingWorld.Simulation.Objects.ObjectUsage.Stop(world, ctx, npc);
+            return Result<BusyView>.Ok(busy);
+        }
         if (task.Action == Gather) Settle(world, ctx, npc, task.StartedAtMs); // o que já devia ter saído entre dois ticks sai agora
         npc.Step(now, 0, now);
         npc.SetBodyTask(null);
