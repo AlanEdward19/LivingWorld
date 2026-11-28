@@ -110,8 +110,10 @@ public static partial class PlayerInteractions
         for (int i = 0; i < furnishing.Count; i++)
         {
             if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
-            if (descriptor.Uses is { Count: > 0 } catalogUses)
+            if (descriptor.Uses is { Count: > 0 } allUses)
             {
+                var catalogUses = allUses.Where(u => !u.Hidden).ToList(); // #259: os usos de convite (atividade conjunta) não entram na roda do objeto
+                if (catalogUses.Count == 0) continue;
                 // #255: os usos vêm do catálogo; cada um com o nome, os minutos e o que mais sobe. Só peças com lugar na planta (o corpo anda até elas).
                 if (i >= pieces.Count || pieces[i].Id != furnishing[i] || pieces[i].Spot is not { } placed || building.Position is not { } where) continue;
                 var spotCell = new CellCoord(where.X + placed.Cell.X, where.Y + placed.Cell.Y);

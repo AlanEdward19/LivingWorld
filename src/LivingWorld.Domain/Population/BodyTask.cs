@@ -34,4 +34,10 @@ public sealed record BodyTask(string Action, long StartedAtMs, long UntilMs)
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Doing { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long LastMs { get; init; }
+
+    /// <summary>#259: a interação social em curso (<see cref="Use"/> é o id dela no catálogo): <see cref="Partner"/> é a outra pessoa (id do NPC);
+    /// <see cref="Doing"/> falso enquanto quem começou anda até ela; <see cref="Initiator"/> diz qual dos dois corpos começou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Partner { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Initiator { get; init; }
 }

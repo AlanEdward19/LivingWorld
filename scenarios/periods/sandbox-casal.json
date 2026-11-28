@@ -311,7 +311,7 @@
   "MaterializationIdleTicksBeforeEligible": 1,
   "BuildingRecipes": {},
   "StartHour": 7,
-  "CatalogExtends": ["home-life"],
+  "CatalogExtends": ["home-life", "social"],
   "Furnishings": {
     "default": [
       "table",

@@ -74,7 +74,7 @@ public static class NpcWakeScheduler
         Consider(ref next, ref cause, waterBound ? NextNeedWake(npc.SocialNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: true)
             : NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
 
-        if (npc.ExtraNeeds is not null || npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action }) // #255: o fim do uso e o cruzamento das necessidades do catálogo
+        if (npc.ExtraNeeds is not null || npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action or LivingWorld.Simulation.Objects.SocialInteractions.Action } || world.ObjectCatalog?.Social is not null) // #255: o fim do uso e o cruzamento das necessidades do catálogo
             Consider(ref next, ref cause, WorldMillis.ToHourCeiling(LivingWorld.Simulation.Objects.HomeLife.NextWakeMs(world, npc, WorldMillis.FromHours(now))), WakeCause.NeedCrossing);
 
         // Viagem com chegada conhecida termina na chegada, não na duração máxima de Travel: depois dessa duração o
@@ -193,7 +193,7 @@ public static class NpcWakeScheduler
             : npc.SocialNeed.ValueAtMs(nowMs) <= BehaviorDecisionSystem.SocialCriticalNeed ? nowMs + SocialRewakeHours * H : long.MaxValue,
             WakeCause.NeedCrossing);
 
-        if (npc.ExtraNeeds is not null || npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action }) // #255: o fim do uso e o cruzamento das necessidades do catálogo
+        if (npc.ExtraNeeds is not null || npc.BodyTask is { Action: LivingWorld.Simulation.Objects.ObjectUsage.Action or LivingWorld.Simulation.Objects.SocialInteractions.Action } || world.ObjectCatalog?.Social is not null) // #255: o fim do uso e o cruzamento das necessidades do catálogo
             Consider(ref next, ref cause, LivingWorld.Simulation.Objects.HomeLife.NextWakeMs(world, npc, nowMs), WakeCause.NeedCrossing);
 
         bool arrivalPending = travelArrivalMs is { } pendingArrival && pendingArrival > nowMs;

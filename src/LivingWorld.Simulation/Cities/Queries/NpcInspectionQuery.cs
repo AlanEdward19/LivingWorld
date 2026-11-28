@@ -92,7 +92,9 @@ public static class NpcInspectionQuery
             Money: npc.Wallet.Amount,
             Carrying: npc.IsCarrying ? new NpcCarryDto(npc.CarriedResourceId, npc.CarriedQuantity) : null,
             CatalogNeeds: LivingWorld.Simulation.Objects.HomeLife.Readings(world, npc, nowMs) is { Count: > 0 } readings ? readings : null,
-            NeedHint: LivingWorld.Simulation.Objects.HomeLife.Hint(world, npc, nowMs));
+            NeedHint: LivingWorld.Simulation.Objects.HomeLife.Hint(world, npc, nowMs),
+            SocialNote: LivingWorld.Simulation.Objects.SocialInteractions.LastFor(world, npc, 5 * 60_000),
+            SocialBusy: LivingWorld.Simulation.Objects.SocialInteractions.Active(npc));
     }
 
     /// <summary>O nível no instante de agora (#255): com o corpo gastando e recuperando energia e comida no meio da hora, ler no começo dela dava um valor que o

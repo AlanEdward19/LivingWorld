@@ -951,6 +951,30 @@ func _on_player_busy(action: String, seconds: float) -> void:
 		node.play_loop(BodyBusy.gesture_for(action), seconds)
 		if action.begins_with("use:") and action != "use:walk": # #255: no lugar de uso o corpo olha para onde o catálogo manda (sem tocar no rig)
 			node.rotation.y = deg_to_rad(player_hud.busy.facing)
+		if action.begins_with("social:") and action != "social:walk": # #259: os dois se viram um para o outro e cada um faz o gesto do papel dele
+			_face_each_other(node, player_hud.busy.partner, player_hud.busy.partner_pose, seconds)
+
+
+## #259: a figura do outro corpo da interação (na rua ou dentro da casa em foco).
+func _actor_by_id(id: int) -> Node3D:
+	for actor in [world_view.npc_nodes.get(id), stage.interior_view.occupant_nodes.get(id) if stage != null else null]:
+		if actor != null and is_instance_valid(actor):
+			return actor
+	return null
+
+
+## #259: `node` olha para a figura `other_id` (e ela para `node`), e a outra faz o gesto dela em laço; o motor diz quem, o gesto e por quanto tempo.
+func _face_each_other(node: Node3D, other_id: int, other_pose: String, seconds: float) -> void:
+	var other := _actor_by_id(other_id)
+	if other == null or other == node:
+		return
+	var away: Vector3 = other.position - node.position
+	if Vector2(away.x, away.z).length() > 0.01:
+		node.rotation.y = atan2(away.x, away.z)
+		other.rotation.y = atan2(-away.x, -away.z)
+	var gesture := BodyBusy.gesture_for("social:" + other_pose) if other_pose != "" else ""
+	if gesture != "":
+		other.play_loop(gesture, seconds)
 
 
 func _on_player_jumped(air_s: float) -> void:

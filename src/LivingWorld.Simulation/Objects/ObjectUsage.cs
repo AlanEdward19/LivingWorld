@@ -325,7 +325,7 @@ public static class ObjectUsage
             {
                 if (pieces[i].Spot is null || catalog.Find(pieces[i].Id) is not { Uses: { } uses }) continue;
                 foreach (var use in uses)
-                    if (use.Action is null && use.Effects.Where(e => e.Need == def.Id && e.PerHour > 0).Sum(e => e.PerHour) is > 0 and var rate)
+                    if (use is { Action: null, Hidden: false } && use.Effects.Where(e => e.Need == def.Id && e.PerHour > 0).Sum(e => e.PerHour) is > 0 and var rate)
                         options.Add((Math.Min(rate * use.DurationMin / 60.0, missing), i, use.Id));
             }
 

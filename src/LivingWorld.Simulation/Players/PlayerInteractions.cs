@@ -33,13 +33,21 @@ public sealed record InteractionOffer(
     /// <summary>#255: os usos que o catálogo dá ao objeto (a roda mostra um item por objeto e os usos num submenu); o verbo de cada um é <c>use:{id}</c>.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<OfferUse>? Uses { get; init; }
+
+    /// <summary>#259 (pessoa): as interações sociais do catálogo para esta pessoa (as que valem e as que não, com o motivo) e a relação dela com quem joga: afeto, confiança, estado, humor, último fato.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<SocialOption>? Social { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public RelationView? Relation { get; init; }
 }
 
 /// <summary>#255: um uso do objeto como o cliente o lê: <c>Id</c> do catálogo, o nome (<c>Name</c>), os minutos de mundo, a necessidade que mais sobe (<c>Need</c>) e se já tem quem o ocupa (<c>Busy</c>).</summary>
 public sealed record OfferUse(string Id, string Name, int Minutes, string? Need, bool Busy);
 
-/// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca).</summary>
-public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value);
+/// <summary>O que a interação fez: a quantidade e o valor que mudaram de mão (0 quando não é troca). #259 (aditivos, só na social): <c>Outcome</c> (<c>done</c> ou <c>refused</c>) e <c>Note</c>,
+/// a frase do catálogo (com o motivo, na recusa).</summary>
+public sealed record InteractionResult(string Kind, long Id, string Verb, long Quantity, long Value, string? Outcome = null, string? Note = null);
 
 /// <summary>Interagir com o que está perto (AD-197d, decisão do dono: "pode interagir com as coisas"), resolvido no motor pelos
 /// mesmos sistemas de qualquer NPC: a porta é o passo pela soleira (<see cref="PlayerGround"/>); o estoque é a despensa da casa e as
@@ -102,7 +110,11 @@ public static partial class PlayerInteractions
             var verbs = new List<string> { "talk" };
             if (world.CrimeOn) verbs.Add("strike");
             if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
-            offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose));
+            offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose) with
+            {
+                Social = SocialInteractions.OptionsFor(world, npc, other),
+                Relation = SocialInteractions.RelationOf(world, npc, other),
+            });
         }
         WorldOffers(world, npc, at, floor, inside, household, offers);
         return offers;
@@ -114,6 +126,7 @@ public static partial class PlayerInteractions
         int? resourceId = null, long? quantity = null)
     {
         if (kind == "queue") return ObjectUsage.Dequeue(npc, (int)id) is { IsSuccess: false } gone ? Fail(gone.Error!) : Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0)); // #255: tirar da fila
+        if (kind == "person" && verb.StartsWith("social:", StringComparison.Ordinal)) return Social(world, ctx, npc, id, verb[7..]); // #259
         string lookup = verb.StartsWith("queue:", StringComparison.Ordinal) ? "use:" + verb[6..] : verb; // #255: pôr na fila vale para o que a roda oferece como uso
         var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == kind && o.Id == id && o.Verbs.Contains(lookup));
         if (offer is null) return Fail($"{PlayerCommands.Conflict} interact: {kind} {id} {verb} fora do alcance ou indisponível agora");
@@ -143,6 +156,18 @@ public static partial class PlayerInteractions
                 ? Fail(left.Error!) : Done(offer, verb, 0, 0),
             _ => Sale(world, ctx, npc, new BuildingId(id), offer),
         };
+    }
+
+    /// <summary>#259: uma interação social do catálogo com a pessoa ao alcance (o mesmo <see cref="SocialInteractions.Start"/> que a iniciativa de quem ninguém conduz usa). A recusa do alvo
+    /// não é erro: é a resposta <c>refused</c> com a frase e o motivo; o que não vale agora (ocupado, longe, falta afeto) é 409 com o motivo.</summary>
+    private static Result<InteractionResult> Social(WorldState world, TickContext ctx, Npc npc, long id, string interaction)
+    {
+        var offer = Offers(world, npc).FirstOrDefault(o => o.Kind == "person" && o.Id == id);
+        if (offer is null || world.FindNpc(new NpcId(id)) is not { } other) return Fail($"{PlayerCommands.Conflict} interact: person {id} social:{interaction} fora do alcance ou indisponível agora");
+        var started = SocialInteractions.Start(world, ctx, npc, other, interaction);
+        if (!started.IsSuccess) return Fail(started.Error!);
+        var begun = started.Value!;
+        return Result<InteractionResult>.Ok(new InteractionResult("person", id, "social:" + interaction, 0, 0, begun.Accepted ? "done" : "refused", begun.Note));
     }
 
     private static Result<InteractionResult> Sale(WorldState world, TickContext ctx, Npc npc, BuildingId house, InteractionOffer offer)

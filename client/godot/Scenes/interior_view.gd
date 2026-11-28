@@ -10,6 +10,8 @@ const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
 const AnimationCatalog := preload("res://Scenes/animation_catalog.gd")
+const BodyBusy := preload("res://Scenes/body_busy.gd")
+const SOCIAL_SIDE := 0.6 ## células: quanto o corpo que ninguém conduz fica ao lado do outro quando os dois caem na mesma célula (0,9 m)
 
 ## #222: a parede tem a altura do andar (o motor diz os metros); antes 0,9 unidade = 1,35 m, mais baixa que uma pessoa
 static func wall_height() -> float: return Grid.floor_height() * 0.99 ## #227: quase o andar inteiro: a câmera do jogador (dentro da caixa do andar) fica sob o forro, sem fresta de céu
@@ -687,12 +689,42 @@ func set_occupants(occupants: Array) -> void:
 		else:
 			actor.position = use.position if use.active else Grid.to_world(cell, level * Grid.floor_height())
 			actor.rotation.y = use.facing if use.active else actor.rotation.y
+			_apply_social(actor, occupant.get("social"))
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():
 		if not wanted.has(id):
 			occupant_nodes[id].free()
 			occupant_nodes.erase(id)
 	_apply_occupant_visibility()
+
+
+## #259: o ocupante numa interação social (o motor diz com quem, o gesto, a fase e quem começou): vira-se para o outro, fica ao lado dele (quem começou, se
+## caíram na mesma célula) e faz o gesto do papel dele em laço enquanto dura; sem interação, solta o gesto que era dela.
+func _apply_social(actor: Node3D, social: Variant) -> void:
+	if not social is Dictionary:
+		if actor.has_meta("social_key"):
+			actor.remove_meta("social_key")
+			actor.stop_gesture()
+		return
+	var other: Node3D = occupant_nodes.get(int(social.with))
+	if other == null and int(social.with) == guided_id:
+		other = _adopted
+	if other != null and is_instance_valid(other):
+		var away: Vector3 = other.position - actor.position
+		if bool(social.get("initiator", false)) and Vector2(away.x, away.z).length() < SOCIAL_SIDE * 0.5:
+			actor.position = other.position + Vector3(SOCIAL_SIDE, 0, 0) # na mesma célula: ao lado, não em cima
+			away = other.position - actor.position
+		if Vector2(away.x, away.z).length() > 0.01:
+			actor.rotation.y = atan2(away.x, away.z)
+	var key := "%s:%s" % [String(social.get("id", "")), String(social.get("phase", ""))]
+	if String(actor.get_meta("social_key", "")) == key:
+		return
+	actor.set_meta("social_key", key)
+	var gesture := BodyBusy.gesture_for("social:" + String(social.get("pose", ""))) if String(social.get("phase", "")) == "do" and social.get("pose") != null else ""
+	if gesture != "":
+		actor.play_loop(gesture, 90.0)
+	else:
+		actor.stop_gesture()
 
 
 ## Posição na fila de cada objeto em uso (por id do NPC), por andar: o 1º usa a 1ª peça do andar, o 2º a 2ª, voltando ao começo se faltar peça.

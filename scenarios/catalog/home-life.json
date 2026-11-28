@@ -125,6 +125,60 @@
      ],
      "facing": 0,
      "pose": "sleep"
+    },
+    {
+     "id": "cuddle-left",
+     "name": "Deitar juntos",
+     "durationMin": 45,
+     "effects": [
+      {
+       "need": "sleep",
+       "perHour": 18
+      },
+      {
+       "need": "social",
+       "perHour": 30
+      },
+      {
+       "need": "fun",
+       "perHour": 6
+      }
+     ],
+     "pose": "sleep",
+     "slot": [
+      -0.4,
+      0.05
+     ],
+     "facing": 0,
+     "occupies": false,
+     "hidden": true
+    },
+    {
+     "id": "cuddle-right",
+     "name": "Deitar juntos",
+     "durationMin": 45,
+     "effects": [
+      {
+       "need": "sleep",
+       "perHour": 18
+      },
+      {
+       "need": "social",
+       "perHour": 30
+      },
+      {
+       "need": "fun",
+       "perHour": 6
+      }
+     ],
+     "pose": "sleep",
+     "slot": [
+      0.4,
+      0.05
+     ],
+     "facing": 0,
+     "occupies": false,
+     "hidden": true
     }
    ]
   },
@@ -269,6 +323,39 @@
      ],
      "facing": 0,
      "untilFull": "hunger"
+    },
+    {
+     "id": "meal-together",
+     "name": "Comer juntos",
+     "durationMin": 30,
+     "effects": [
+      {
+       "need": "hunger",
+       "perHour": 200
+      },
+      {
+       "need": "thirst",
+       "perHour": 80
+      }
+     ],
+     "consumes": [
+      {
+       "resource": 1,
+       "quantity": 1
+      },
+      {
+       "resource": 2,
+       "quantity": 1
+      }
+     ],
+     "pose": "eat",
+     "slot": [
+      0,
+      0.0
+     ],
+     "facing": 0,
+     "untilFull": "hunger",
+     "hidden": true
     }
    ]
   },
@@ -366,6 +453,54 @@
       0.0
      ],
      "facing": 0
+    },
+    {
+     "id": "together-left",
+     "name": "Ver TV juntos",
+     "durationMin": 30,
+     "effects": [
+      {
+       "need": "fun",
+       "perHour": 60
+      },
+      {
+       "need": "social",
+       "perHour": 40
+      }
+     ],
+     "pose": "rest",
+     "poseFallback": "socialize",
+     "slot": [
+      -0.35,
+      0.0
+     ],
+     "facing": 0,
+     "occupies": false,
+     "hidden": true
+    },
+    {
+     "id": "together-right",
+     "name": "Ver TV juntos",
+     "durationMin": 30,
+     "effects": [
+      {
+       "need": "fun",
+       "perHour": 60
+      },
+      {
+       "need": "social",
+       "perHour": 40
+      }
+     ],
+     "pose": "rest",
+     "poseFallback": "socialize",
+     "slot": [
+      0.35,
+      0.0
+     ],
+     "facing": 0,
+     "occupies": false,
+     "hidden": true
     }
    ]
   },

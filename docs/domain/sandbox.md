@@ -46,6 +46,9 @@ Higiene, diversão e bexiga, usos com duração, o corpo que anda até o móvel,
 No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necessidades), `Furnishings["-1"]` com chuveiro, vaso, pia e TV, `InitialPantryPerMember: 400`
 (a despensa dura; sem mercado ainda, nenhuma comida é criada do nada).
 
+## S3 (#259): o casal vive junto
+Interações sociais em dados (conversar, elogiar, abraçar, beijar, piada, discussão, desculpa, convites para ver TV, comer e deitar juntos), relação visível e iniciativa dos NPCs: ver [social-interactions.md](social-interactions.md) (AD-223). No período: `CatalogExtends: ["home-life", "social"]`.
+
 ## O que ainda não funciona
 - Rua e calçada sem superfície de partida; a porta da casa pode abrir para um caminho até a rua e o quintal tem as árvores da regra de 16% (nenhum parâmetro de cenário as tira).
 - Comida: só a despensa de partida (mercado ou entrega como prédio com estoque e preço fica em issue). Sono e comer à mesa seguem as ações do motor (dormir: `action`).

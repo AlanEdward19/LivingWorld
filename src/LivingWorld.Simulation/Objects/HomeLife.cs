@@ -85,7 +85,7 @@ public static class HomeLife
         if (HomeOf(world, npc) is { } building)
         {
             foreach (var id in catalog.FurnishingFor(building.BuildingTypeId))
-                if (catalog.Find(id) is { Uses: { } uses } descriptor && uses.FirstOrDefault(u => u.Effects.Any(e => e.Need == def.Id && e.PerHour > 0)) is { } use)
+                if (catalog.Find(id) is { Uses: { } uses } descriptor && uses.FirstOrDefault(u => !u.Hidden && u.Effects.Any(e => e.Need == def.Id && e.PerHour > 0)) is { } use)
                 {
                     objectName = descriptor.Name ?? descriptor.Id;
                     useName = use.Name;
@@ -125,7 +125,8 @@ public static class HomeLife
     public static long NextWakeMs(WorldState world, Npc npc, long nowMs)
     {
         long next = long.MaxValue;
-        if (npc.BodyTask is { Action: ObjectUsage.Action } task && task.UntilMs > nowMs) next = task.UntilMs;
+        if (npc.BodyTask is { Action: ObjectUsage.Action or SocialInteractions.Action } task && task.UntilMs > nowMs) next = task.UntilMs;
+        if (npc.BodyTask is null) next = Math.Min(next, SocialInteractions.NextCheckMs(world, npc, nowMs)); // #259: de tempos em tempos quem está só vê se quer companhia
         if (npc.ExtraNeeds is null || Catalog(world) is not { } catalog) return next;
         foreach (var def in catalog.Needs)
         {

@@ -2,13 +2,14 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · social:Pessoa|Interação (#259: pede a interação social do catálogo) · socialmenu:Pessoa[|Categoria] (abre a roda social) · relation (#259: a relação com a pessoa ao alcance) · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const FrameCost := preload("res://Contract/frame_cost.gd")
 const PlayerFrame := preload("res://Scenes/player_frame.gd")
+const SocialMenu := preload("res://Scenes/social_menu.gd")
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -36,6 +37,21 @@ static func _print_needs(app: Node) -> void:
 	var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
 	print("needs: [", app.player_frame.clock_label.text, "] ", app.player_hud.npc_name, " ", _need_line(sheet), " | dica: ", PlayerFrame.hint_line(sheet.get("needHint")), " | busy: ", app.player_hud.busy.action, "/",
 		app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
+
+
+## #259: a linha da interação social `interaction` (trecho do nome) da pessoa `person` (trecho do nome), pelo menu "Interagir ▸" da oferta do motor.
+static func _social_line(app: Node, person: String, interaction: String) -> Dictionary:
+	var entries: Array = await app.player_hud._reach_entries()
+	for entry in entries:
+		if String(entry.get("verb", "")) != "social_menu" or not person.to_lower() in String(entry.text).to_lower():
+			continue
+		for cat in SocialMenu.category_entries(entry):
+			if String(cat.get("verb", "")) != "social_cat":
+				continue
+			for line in SocialMenu.interaction_entries(cat):
+				if String(line.verb).begins_with("social:") and interaction.to_lower() in String(line.text).to_lower():
+					return line
+	return {}
 
 
 static func run(app: Node, steps: Array) -> void:
@@ -105,6 +121,32 @@ static func run(app: Node, steps: Array) -> void:
 				var before: int = app.player_hud.npc_id
 				var switched: bool = await app.player_hud.switch_body()
 				print("switch: ", before, " -> ", app.player_hud.npc_id, " ok=", switched, " ativo=", app.player_hud.is_active)
+			"social": # #259: `social:Marina|Elogiar` pede a interação social do catálogo (pelo menu "Interagir ▸" da oferta do motor); a recusa diz o motivo
+				var sparts := arg.split("|")
+				var picked_social := await _social_line(app, sparts[0], sparts[1] if sparts.size() > 1 else "")
+				print("social: ", arg, " -> ", picked_social.get("text", "(nada)"), " ", "(esmaecida: " + String(picked_social.get("reason", "")) + ")" if bool(picked_social.get("disabled", false)) else "")
+				if not picked_social.is_empty():
+					await app.player_hud.interact(picked_social)
+			"socialmenu": # #259: `socialmenu:Marina` abre a roda de baixo ("Interagir ▸" aberto nas categorias); `socialmenu:Marina|Amigável` abre as interações da categoria
+				var mparts := arg.split("|")
+				var found_social: Array = await app.player_hud._reach_entries()
+				for entry in found_social:
+					if String(entry.get("verb", "")) == "social_menu" and mparts[0].to_lower() in String(entry.text).to_lower():
+						var shown: Array = SocialMenu.category_entries(entry)
+						if mparts.size() > 1:
+							for cat in shown:
+								if String(cat.get("verb", "")) == "social_cat" and mparts[1].to_lower() in String(cat.text).to_lower():
+									shown = SocialMenu.interaction_entries(cat)
+									break
+						app.player_hud.frame.show_menu(shown)
+						app.player_hud._show_relation_of([entry])
+						print("socialmenu: ", shown.map(func(e): return String(e.text) + (" [esmaecida: " + String(e.reason) + "]" if bool(e.get("disabled", false)) else "")))
+						break
+			"relation": # #259: imprime a relação com a pessoa ao alcance, como o motor a diz (a que o painel mostra)
+				await app.player_hud._reach_entries()
+				for offer in app.player_hud.offers:
+					if String(offer.get("kind", "")) == "person":
+						print("relation: ", offer.get("label"), " ", offer.get("relation"))
 			"use": # #252: `use:Geladeira` usa a oferta do motor cujo texto tem esse trecho (o que o E faria): imprime as ofertas e o que foi feito
 				var entries: Array = await app.player_hud._reach_entries()
 				var chosen: Dictionary = {}

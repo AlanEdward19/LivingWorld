@@ -52,6 +52,7 @@ public static class HomeLifeLoader
             }
         }
 
+        SocialLoader.Merge(root, catalog); // #259
         if (catalog["Needs"] is JsonArray baseNeeds)
         {
             if (root["Needs"] is not JsonArray own) root["Needs"] = baseNeeds.DeepClone();
@@ -120,7 +121,7 @@ public static class HomeLifeLoader
     }
 
     /// <summary>O <c>uses</c> de um objeto: <c>[{id, name, durationMin, effects:[{need, perHour}], consumes?:[{resource, quantity}], pose?, poseFallback?,
-    /// slot?:[x,z], facing?, action?, untilFull?, occupies?}]</c>. <paramref name="needs"/> valida os ids das necessidades citadas.</summary>
+    /// slot?:[x,z], facing?, action?, untilFull?, occupies?, hidden?}]</c>. <paramref name="needs"/> valida os ids das necessidades citadas.</summary>
     public static Result<IReadOnlyList<ObjectUseDef>?> ParseUses(JsonNode? node, string at, NeedCatalog? needs)
     {
         if (node is null) return Result<IReadOnlyList<ObjectUseDef>?>.Ok(null);
@@ -183,7 +184,8 @@ public static class HomeLifeLoader
             bool occupies = true;
             if (o["occupies"] is not null && !(o["occupies"] is JsonValue ov && ov.TryGetValue(out occupies))) return Fail($"{path}.occupies: verdadeiro ou falso");
             if (effects.Count == 0 && action is null && consumes is null) return Fail($"{path}: sem effects, consumes nem action, o uso não faz nada");
-            uses.Add(new ObjectUseDef(id, name, (int)minutes, effects, consumes, pose, slot, facing, action, untilFull, occupies, fallback));
+            bool hidden = o["hidden"] is JsonValue hv && hv.TryGetValue(out bool h) && h;
+            uses.Add(new ObjectUseDef(id, name, (int)minutes, effects, consumes, pose, slot, facing, action, untilFull, occupies, fallback, hidden));
         }
 
         return Result<IReadOnlyList<ObjectUseDef>?>.Ok(uses.Count > 0 ? uses : null);

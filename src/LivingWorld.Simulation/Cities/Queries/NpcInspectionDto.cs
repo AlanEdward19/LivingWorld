@@ -89,7 +89,10 @@ public sealed record NpcInspectionDto(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NpcCarryDto? Carrying = null,
     // #255, só acréscimo: as necessidades do catálogo do cenário (higiene, diversão, bexiga...) como a pessoa as sente agora e a dica da mais urgente
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LivingWorld.Simulation.Objects.NeedReading>? CatalogNeeds = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.NeedHint? NeedHint = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.NeedHint? NeedHint = null,
+    // #259, só acréscimo: o último fato social (texto do catálogo, quando, com quem, ganho de afeto) e se o corpo está numa interação agora
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Simulation.Objects.SocialEvent? SocialNote = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool SocialBusy = false);
 
 /// <summary>#222: o que a pessoa leva nas mãos ou no recipiente agora: o recurso (nome pelo catálogo do período) e a quantidade.</summary>
 public sealed record NpcCarryDto(int ResourceId, long Quantity);

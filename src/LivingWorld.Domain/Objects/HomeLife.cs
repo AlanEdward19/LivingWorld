@@ -51,7 +51,8 @@ public sealed record UseConsume(int Resource, long Quantity);
 /// <c>UntilFull</c>, até a necessidade citada encher, no máximo isso), o que entrega (<c>Effects</c>), o que gasta (<c>Consumes</c>), a pose do
 /// corpo (nome declarado aqui; sem animação própria o cliente usa <c>PoseFallback</c>, uma de <see cref="ObjectPoses"/>), o lugar onde o corpo fica (<c>Slot</c>: deslocamento x, z em
 /// metros a partir do centro da peça, no referencial dela) e para onde olha. <c>Action</c> (id de <c>ActionType</c>) delega o uso à ação do motor
-/// (dormir, comer à mesa) depois de o corpo chegar ao lugar; sem ela, a duração e os efeitos daqui valem. <c>Occupies</c>: só uma pessoa por vez.</summary>
+/// (dormir, comer à mesa) depois de o corpo chegar ao lugar; sem ela, a duração e os efeitos daqui valem. <c>Occupies</c>: só uma pessoa por vez. <c>Hidden</c> (#259): uso só de convite (atividade conjunta
+/// da <see cref="SocialJoint"/>): fora da roda do objeto e da escolha de quem cuida de si.</summary>
 public sealed record ObjectUseDef(
     string Id, string Name, int DurationMin, IReadOnlyList<UseEffect> Effects,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<UseConsume>? Consumes = null,
@@ -61,7 +62,8 @@ public sealed record ObjectUseDef(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Action = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UntilFull = null,
     bool Occupies = true,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PoseFallback = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PoseFallback = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Hidden = false);
 
 /// <summary>#255: uma entrada da fila de ações do corpo conduzido: o uso de um objeto de um prédio (índice da peça na mobília).</summary>
 public sealed record QueuedUse(long Building, int Piece, string Use);
