@@ -28,5 +28,7 @@ Aceite: um dia inteiro cuidando das barras só com a casa; o parceiro não contr
 
 **S3 — o casal (antigo M6).** Menu social entre os dois e relação visível; o motor decide a reação.
 
-**Depois:** vizinhos, emprego, mercado, compra e arrumação de móveis (M5), conversa por IA (M7).
+**Depois da fatia aceitável (ordem do dono, 2026-11-28):** #257 — por que os NPCs não vivem de forma realista e simulação por nível de detalhe para o planeta.
+
+**Também depois:** vizinhos, emprego, mercado, compra e arrumação de móveis (M5), conversa por IA (M7).
 Cada etapa mede FPS e custo e roda só os testes rápidos (longrunning ao fim da fatia).
