@@ -42,11 +42,11 @@ Empilha (`stack`) até `maxStack`, senão renova. Os de evento ficam em `Npc.Moo
 
 ## Contrato (só aditivo)
 Ficha: `mood {score, label, emotion, emotionName, icon, face, color, moments[{id,name,emotion,weight,count,remainingMs,cause}], aspiration, aspirationName, points, done,
-nextMilestone, nextMilestonePoints, wishes[{id,text,other,sinceMs,expiresMs,points}], recent[{id,text,atMs,points,milestone}]}`; omitido sem catálogo. Metas: `mood` igual.
+nextMilestone, nextMilestonePoints, wishes[{id,text,other (id real do alvo, −1 sem alvo),sinceMs,expiresMs,points}], recent[{id,text,atMs,points,milestone}]}`; omitido sem catálogo. Metas: `mood` igual.
 
 ## Cliente
 `player_frame.gd`: rosto + emoção + ação na mesma linha ("Feliz · Parado") e a lista de momentos ("Bem descansado +2 · 3 h"); `goals_panel.gd` (J): aspiração com o próximo
-marco, desejos com a recompensa e o último cumprido; `player_hud.gd`: aviso "Desejo cumprido: ... (+10 pontos)". Rostos em `need_icon.gd`. Passo de captura: `mood`.
+marco, desejos com a recompensa e o último cumprido; `player_hud.gd`: aviso "Desejo cumprido: ... (+10 pontos)". Rostos em `need_icon.gd`. Passos de captura: `mood` (humor, momentos e desejos do corpo e da outra pessoa) e `dowish` (cumpre o primeiro desejo social).
 
 ## Fora desta fatia
 Gatilho de ambiente (cômodo bonito ou sujo: o motor ainda não mede o cômodo); desejos de emprego e dinheiro (sem carreira); aspirações que mudam a vida (casar, filho).

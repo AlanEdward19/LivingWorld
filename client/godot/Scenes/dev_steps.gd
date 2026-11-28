@@ -226,7 +226,7 @@ static func run(app: Node, steps: Array) -> void:
 				var done_wish := false
 				for wish in wished:
 					var first_word := String(wish.text).get_slice(" ", 0)
-					if int(wish.other) == 0 or not verbs.has(first_word):
+					if int(wish.other) < 0 or not verbs.has(first_word):
 						continue
 					var person_name := ""
 					for housemate in app.player_hud.housemates:

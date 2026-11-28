@@ -17,10 +17,10 @@ var mood: Dictionary = {} ## #262: aspiração, pontos, desejos e o que acabou d
 
 func _init() -> void:
 	add_theme_stylebox_override("panel", _style(Color(0.05, 0.06, 0.09, 0.9), 10))
-	set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-	offset_left = 24
-	offset_right = 420
-	grow_vertical = Control.GROW_DIRECTION_BOTH
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT) # #262: com os desejos o painel cresce: preso ao topo e à direita (abaixo dos botões de tempo), longe do cartão e da relação, à esquerda
+	offset_left = -420
+	offset_right = -24
+	offset_top = 64
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	box = VBoxContainer.new()

@@ -14,7 +14,7 @@ const MOOD := {"score": 71, "label": "Bem", "emotion": "happy", "emotionName": "
 		{"id": "smelly", "name": "Cheira mal", "emotion": "embarrassed", "weight": -2.0, "count": 1, "remainingMs": null, "cause": null}],
 	"aspiration": "knowledge", "aspirationName": "Conhecimento", "points": 20, "done": 2, "nextMilestone": "Mente curiosa", "nextMilestonePoints": 30,
 	"wishes": [{"id": "hug", "text": "Abraçar Rafael", "other": 2, "sinceMs": 1000, "expiresMs": 99999, "points": 10},
-		{"id": "shower", "text": "Tomar banho", "other": 0, "sinceMs": 1000, "expiresMs": 99999, "points": 10}],
+		{"id": "shower", "text": "Tomar banho", "other": -1, "sinceMs": 1000, "expiresMs": 99999, "points": 10}],
 	"recent": [{"id": "cook", "text": "Cozinhar uma refeição", "atMs": 5000, "points": 10, "milestone": false}]}
 
 

@@ -76,10 +76,10 @@ public sealed record WishDef(
     string Id, string Text, WishFulfill Fulfill, double Weight = 1, WishWhen? When = null, string? Target = null, int Points = 0,
     IReadOnlyList<string>? Aspirations = null, string? Reward = null);
 
-/// <summary>Um momento vivo na pessoa: o id do catálogo, quando acaba (ms de mundo), quantas vezes empilhou e quem causou (0 = ninguém).</summary>
+/// <summary>Um momento vivo na pessoa: o id do catálogo, quando acaba (ms de mundo), quantas vezes empilhou e quem causou (id do NPC + 1; 0 = ninguém, porque o primeiro NPC tem id 0).</summary>
 public readonly record struct MomentInstance(string Id, long UntilMs, int Count, long Other);
 
-/// <summary>Um desejo ativo: o id, quem é o alvo (0 = ninguém) e desde quando (ms).</summary>
+/// <summary>Um desejo ativo: o id, quem é o alvo (id do NPC + 1; 0 = ninguém) e desde quando (ms).</summary>
 public readonly record struct WishInstance(string Id, long Other, long SinceMs);
 
 /// <summary>Um desejo cumprido ou marco alcançado, para o aviso do cliente: texto já escrito, quando (ms) e pontos ganhos.</summary>

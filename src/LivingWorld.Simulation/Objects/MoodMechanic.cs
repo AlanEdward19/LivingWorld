@@ -13,7 +13,7 @@ namespace LivingWorld.Simulation.Objects;
 public sealed record MomentView(string Id, string Name, string Emotion, double Weight, int Count, long? RemainingMs, string? Cause);
 
 /// <summary>Um desejo ativo para o cliente: o texto já escrito (com o nome do alvo), o alvo, quando surgiu, quando expira e quantos pontos vale.</summary>
-public sealed record WishView(string Id, string Text, long Other, long SinceMs, long ExpiresMs, int Points);
+public sealed record WishView(string Id, string Text, long Other, /* id real, −1 sem alvo */ long SinceMs, long ExpiresMs, int Points);
 
 /// <summary>#262: o humor da pessoa lido do motor: a nota e o rótulo (a mesma que pesa na aceitação social), a emoção dominante (nome, ícone e o rosto que o boneco desenha),
 /// os momentos com causa e tempo, a aspiração com o próximo marco e os desejos. Só leitura.</summary>
@@ -67,15 +67,15 @@ public static class MoodMechanic
             if (def.Trigger is not { Kind: "social" } t || t.Result != result) continue;
             if (t.Interaction is not null && t.Interaction != social.Id) continue;
             if (t.Category is not null && t.Category != social.Category) continue;
-            if (t.Side is null or "both" or "actor") Add(world, catalog, actor, def, ms, target.Id.Value);
-            if (t.Side is null or "both" or "target") Add(world, catalog, target, def, ms, actor.Id.Value);
+            if (t.Side is null or "both" or "actor") Add(world, catalog, actor, def, ms, target.Id.Value + 1); // quem causou, como id + 1 (0 = ninguém; o primeiro NPC tem id 0)
+            if (t.Side is null or "both" or "target") Add(world, catalog, target, def, ms, actor.Id.Value + 1);
         }
 
         if (!accepted) return;
         bool Matches(WishFulfill w) => w.Kind == "social" && (w.Interaction is null || w.Interaction == social.Id) && (w.Category is null || w.Category == social.Category)
             && (w.Interaction is not null || w.Category is not null);
-        Fulfill(world, catalog, actor, ms, Matches, target.Id.Value);
-        Fulfill(world, catalog, target, ms, Matches, actor.Id.Value);
+        Fulfill(world, catalog, actor, ms, Matches, target.Id.Value + 1);
+        Fulfill(world, catalog, target, ms, Matches, actor.Id.Value + 1);
     }
 
     /// <summary>Um fato da vida (<see cref="LifeEventKind"/>) viveu: os momentos do gatilho <c>life</c>.</summary>
@@ -85,7 +85,7 @@ public static class MoodMechanic
         string name = kind.ToString();
         long ms = world.CurrentDate.TotalMilliseconds;
         foreach (var def in IndexOf(catalog).Events)
-            if (def.Trigger is { Kind: "life" } t && t.Life == name) Add(world, catalog, npc, def, ms, other);
+            if (def.Trigger is { Kind: "life" } t && t.Life == name) Add(world, catalog, npc, def, ms, other != 0 ? other + 1 : 0);
     }
 
     // ---------------- momentos ----------------
@@ -145,7 +145,7 @@ public static class MoodMechanic
         string name = def.Name;
         if (name.Contains("{other}", StringComparison.Ordinal))
         {
-            cause = other != 0 && world.FindNpc(new NpcId(other)) is { } who ? who.Name : "alguém";
+            cause = other != 0 && world.FindNpc(new NpcId(other - 1)) is { } who ? who.Name : "alguém";
             name = name.Replace("{other}", cause, StringComparison.Ordinal);
         }
 
@@ -298,7 +298,7 @@ public static class MoodMechanic
     }
 
     private static bool Gone(WorldState world, MoodCatalog catalog, WishInstance w, long ms, long life) =>
-        ms - w.SinceMs >= life || catalog.Wish(w.Id) is null || (w.Other != 0 && world.FindNpc(new NpcId(w.Other)) is not { IsAlive: true });
+        ms - w.SinceMs >= life || catalog.Wish(w.Id) is null || (w.Other != 0 && world.FindNpc(new NpcId(w.Other - 1)) is not { IsAlive: true });
 
     private static void Refill(WorldState world, MoodCatalog catalog, Npc npc, long ms)
     {
@@ -360,7 +360,7 @@ public static class MoodMechanic
 
     private static long TargetOf(WorldState world, Npc npc, string target, long hour)
     {
-        if (target == "spouse") return npc.Spouse is { } s && world.FindNpc(s) is { IsAlive: true, City: var c } && c == npc.City ? s.Value : 0;
+        if (target == "spouse") return npc.Spouse is { } s && world.FindNpc(s) is { IsAlive: true, City: var c } && c == npc.City ? s.Value + 1 : 0;
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return 0;
         int count = 0;
         foreach (var id in home.Members)
@@ -368,7 +368,7 @@ public static class MoodMechanic
         if (count == 0) return 0;
         long want = (npc.Id.Value + hour) % count, seen = 0, best = 0;
         foreach (var id in home.Members.OrderBy(m => m.Value)) // quem, entre os da casa, gira com a hora (determinístico)
-            if (id != npc.Id && world.FindNpc(id) is { IsAlive: true } && seen++ == want) { best = id.Value; break; }
+            if (id != npc.Id && world.FindNpc(id) is { IsAlive: true } && seen++ == want) { best = id.Value + 1; break; }
         return best;
     }
 
@@ -407,16 +407,16 @@ public static class MoodMechanic
     }
 
     private static string WishText(WorldState world, WishDef def, long other) =>
-        def.Text.Replace("{other}", other != 0 && world.FindNpc(new NpcId(other)) is { } who ? who.Name : "alguém", StringComparison.Ordinal);
+        def.Text.Replace("{other}", other != 0 && world.FindNpc(new NpcId(other - 1)) is { } who ? who.Name : "alguém", StringComparison.Ordinal);
 
-    /// <summary>Os desejos ativos para o cliente, em ordem de surgimento.</summary>
+    /// <summary>Os desejos ativos para o cliente (<c>Other</c>: o id real do alvo, −1 sem alvo), em ordem de surgimento.</summary>
     public static IReadOnlyList<WishView> Wishes(WorldState world, Npc npc, long ms)
     {
         if (CatalogOf(world) is not { } catalog || npc.Moods is not { Wishes.Count: > 0 } state) return [];
         var list = new List<WishView>(state.Wishes.Count);
         foreach (var w in state.Wishes)
             if (catalog.Wish(w.Id) is { } def && ms - w.SinceMs < catalog.Rules.WishHours * WorldMillis.PerHour)
-                list.Add(new WishView(def.Id, WishText(world, def, w.Other), w.Other, w.SinceMs, w.SinceMs + catalog.Rules.WishHours * WorldMillis.PerHour, def.Points > 0 ? def.Points : catalog.Rules.WishPoints));
+                list.Add(new WishView(def.Id, WishText(world, def, w.Other), w.Other - 1, w.SinceMs, w.SinceMs + catalog.Rules.WishHours * WorldMillis.PerHour, def.Points > 0 ? def.Points : catalog.Rules.WishPoints));
         return list;
     }
 

@@ -105,6 +105,7 @@ public class MoodTests
         Assert.Equal("Rafael", quarrel.Cause);
         Assert.Equal(3, quarrel.Count);
         Assert.Equal(-9, quarrel.Weight);
+        Assert.Equal("Marina", Assert.Single(Moments(world, other), m => m.Id == "quarrel").Cause); // o id 0 também é alguém: a causa não se perde
         Assert.Equal("angry", MoodMechanic.EmotionOf(world, other, Now(world))!.Id);
         Assert.Equal("anger", MoodMechanic.FaceOf(world, body, Now(world))); // o rosto que o boneco já sabe desenhar
         var view = MoodMechanic.ViewOf(world, body, Now(world))!;
@@ -177,8 +178,12 @@ public class MoodTests
         rel.Shift(RelationshipAxis.Affection, 80 - rel.Affection);
         rel.Shift(RelationshipAxis.Trust, 70 - rel.Trust);
         var state = body.Moods!;
-        body.SetMoods(state with { Wishes = [new WishInstance("hug", other.Id.Value, Now(world))] });
+        body.SetMoods(state with { Wishes = [new WishInstance("hug", other.Id.Value + 1, Now(world))] });
         Assert.Equal("Abraçar Rafael", MoodMechanic.Wishes(world, body, Now(world)).Single().Text);
+        Assert.Equal(other.Id.Value, MoodMechanic.Wishes(world, body, Now(world)).Single().Other); // o cliente recebe o id real do alvo
+        body.SetMoods(body.Moods! with { Wishes = [new WishInstance("shower", 0, Now(world))] });
+        Assert.Equal(-1, MoodMechanic.Wishes(world, body, Now(world)).Single().Other); // sem alvo
+        body.SetMoods(state with { Wishes = [new WishInstance("hug", other.Id.Value + 1, Now(world))] });
 
         var goals = PlayerGoals.Of(world, body);
         Assert.Contains(goals, g => g.Kind == "wish.hug" && g.Reason == "Abraçar Rafael"); // liga com as metas do jogador
@@ -198,7 +203,7 @@ public class MoodTests
         long ms = Now(world);
         body.SetMoods(MoodState.Empty with
         {
-            Wishes = [new WishInstance("shower", 0, ms), new WishInstance("fun-high", 0, ms), new WishInstance("hug", other.Id.Value, ms - 20 * 3_600_000L)],
+            Wishes = [new WishInstance("shower", 0, ms), new WishInstance("fun-high", 0, ms), new WishInstance("hug", other.Id.Value + 1, ms - 20 * 3_600_000L)],
         });
         MoodMechanic.OnUse(world, body, "shower", ms);
         Assert.Equal(1, body.Moods!.Done);
