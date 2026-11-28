@@ -17,7 +17,7 @@ public sealed record HomeParcelView(
     IReadOnlyList<HomeActionView> Actions);
 
 /// <summary>O entregador a caminho: a rota da loja à porta (células do mundo, centro de cada uma) e os tempos (ms de mundo): quanto falta para sair e para chegar. O cliente só interpola.</summary>
-public sealed record HomeCourierView(int Seq, string Item, string Name, long Npc, long StartsInMs, long ArrivesInMs, long TotalMs, IReadOnlyList<double[]> Path);
+public sealed record HomeCourierView(int Seq, string Id, string Item, string Name, long Npc, long StartsInMs, long ArrivesInMs, long TotalMs, IReadOnlyList<double[]> Path);
 
 /// <summary>O carro da casa: onde está agora (célula fina; segue o corpo enquanto dirige), o porta-malas e a carga.</summary>
 public sealed record HomeCarView(string Id, string Name, string Color, double X, double Y, bool Driving, long Driver, double TrunkKg, double TrunkLiters, double LoadKg, double LoadLiters);
@@ -33,10 +33,10 @@ public sealed record HomeHaulView(
     IReadOnlyList<HomeParcelView> Parcels, IReadOnlyList<HomeCourierView> Couriers, IReadOnlyDictionary<string, HomeHeftView> Items);
 
 /// <summary>#265, na ficha do corpo (aditivo): uma entrega que chegou (o cliente avisa "Seu sofá chegou" uma vez por número).</summary>
-public sealed record HomeFreightNotice(int Seq, string Item, string By);
+public sealed record HomeFreightNotice(int Seq, string Id, string Item, string By);
 
 /// <summary>O móvel que o corpo leva nas mãos agora, o peso e com quem (se dois levam).</summary>
-public sealed record HomeFreightCarry(int Seq, string Item, double Kg, string? With);
+public sealed record HomeFreightCarry(int Seq, string Id, string Item, double Kg, string? With);
 
 public sealed record HomeFreightSheet(HomeFreightCarry? Carry, IReadOnlyList<HomeFreightNotice> Arrived, int Coming);
 
@@ -76,7 +76,7 @@ public static class HomeFreightViews
             {
                 var cells = new List<double[]> { new[] { from.Front.X + 0.5, from.Front.Y + 0.5 } };
                 cells.AddRange(path.Select(c => new[] { c.X + 0.5, c.Y + 0.5 }));
-                couriers.Add(new HomeCourierView(p.Seq, HomeFreight.Name(catalog, p.Id), courier.Name, courier.Id.Value, p.DepartMs - now, p.DueMs - now, p.DueMs - p.DepartMs, cells));
+                couriers.Add(new HomeCourierView(p.Seq, p.Id, HomeFreight.Name(catalog, p.Id), courier.Name, courier.Id.Value, p.DepartMs - now, p.DueMs - now, p.DueMs - p.DepartMs, cells));
             }
         }
 
@@ -116,10 +116,10 @@ public static class HomeFreightViews
             if (p.Where == "hands" && (p.Carrier == npc.Id.Value || p.Helper == npc.Id.Value))
             {
                 long other = p.Carrier == npc.Id.Value ? p.Helper : p.Carrier;
-                carry = new HomeFreightCarry(p.Seq, HomeFreight.Name(catalog, p.Id), haul.HeftOf(p.Id)?.Kg ?? 0, other > 0 ? world.FindNpc(new NpcId(other))?.Name : null);
+                carry = new HomeFreightCarry(p.Seq, p.Id, HomeFreight.Name(catalog, p.Id), haul.HeftOf(p.Id)?.Kg ?? 0, other > 0 ? world.FindNpc(new NpcId(other))?.Name : null);
             }
             else if (p.Where == "courier") coming++;
-            else if (p.Where == "depot" && p.Courier > 0) arrived.Add(new HomeFreightNotice(p.Seq, HomeFreight.Name(catalog, p.Id), world.FindNpc(new NpcId(p.Courier))?.Name ?? ""));
+            else if (p.Where == "depot" && p.Courier > 0) arrived.Add(new HomeFreightNotice(p.Seq, p.Id, HomeFreight.Name(catalog, p.Id), world.FindNpc(new NpcId(p.Courier))?.Name ?? ""));
         }
 
         return carry is null && arrived.Count == 0 && coming == 0 ? null : new HomeFreightSheet(carry, arrived, coming);

@@ -19,7 +19,7 @@ const GOOD := Color(0.25, 0.85, 0.40, 0.55)
 const BAD := Color(0.90, 0.25, 0.22, 0.55)
 const NEUTRAL := Color(0.9, 0.9, 0.9, 0.35)
 const NO_CELL := Vector2i(-9999, -9999)
-const TABS := [["buy", "Comprar"], ["mine", "Minha casa"], ["build", "Construir"]]
+const TABS := [["buy", "Loja"], ["mine", "Na casa"], ["build", "Construir"]] ## #265: Loja = comprar e escolher como trazer; Na casa = o que já está em casa ou no depósito
 const TOOLS := [["wall", "Levantar parede"], ["open", "Derrubar parede"], ["door", "Abrir porta"], ["shut", "Fechar porta"], ["extend", "Ampliar a casa"],
 	["paint_floor", "Pintar o piso"], ["paint_wall", "Pintar as paredes"]]
 const TOOL_HINT := {"wall": "Clique na aresta entre duas células para levantar uma parede.", "open": "Clique numa parede de dentro para derrubá-la.",
@@ -42,6 +42,7 @@ var tab := "buy"
 var category := ""
 var selected := "" ## id do objeto que se compra
 var moving := -1 ## índice da peça que se move
+var placing := -1 ## #265: número do móvel do depósito que se está pondo no lugar
 var tool := ""
 var paint_id := ""
 var facing := 0
@@ -303,8 +304,8 @@ func set_tab(value: String) -> void:
 	for key in _tab_buttons:
 		_tab_buttons[key].button_pressed = key == tab
 	_title.text = "Modo comprar" if tab != "build" else "Modo construir"
-	_hint.text = {"buy": "Escolha um móvel e clique na casa para pôr. Q / E giram, botão direito cancela, B fecha.",
-		"mine": "Clique numa peça da casa (ou em Mover) para mexer nela; vender devolve parte do valor.",
+	_hint.text = {"buy": "Compre na loja: o móvel fica reservado em seu nome. Traga nas mãos, de carro ou peça a entrega; depois ele vai para o depósito da casa.",
+		"mine": "Posicione o que está no depósito, ou clique numa peça da casa (ou em Mover) para mexer nela.",
 		"build": "Escolha a obra, depois clique na casa. O motor recusa o que prenderia alguém."}.get(tab, "")
 	_rebuild()
 
@@ -317,6 +318,7 @@ func set_category(value: String) -> void:
 func _clear_selection() -> void:
 	selected = ""
 	moving = -1
+	placing = -1
 	tool = ""
 	verdict = {}
 	verdict_for = ""
@@ -326,16 +328,33 @@ func _clear_selection() -> void:
 	_show_verdict()
 
 
+## #265: escolher o móvel na loja mostra o peso, o volume e como trazer; comprar é o botão do cartão (o móvel não aparece em casa: fica na loja, em seu nome).
 func select_item(object_id: String) -> void:
 	if home_item(object_id).is_empty():
 		return
 	moving = -1
+	placing = -1
 	tool = ""
 	selected = object_id
 	verdict = {}
 	verdict_for = ""
 	_update_ghost()
-	_hint.text = "Q / E giram · clique coloca · botão direito ou Esc cancela"
+	_hint.text = "Compre pelo botão do cartão; depois escolha como trazer."
+
+
+## #265: pôr no lugar um móvel do depósito da casa: o fantasma segue o mouse e o motor valida o lugar (`place:seq:andar:x:y:giro`).
+func start_place(seq: int) -> void:
+	var data := parcel_by_seq(seq)
+	if data.is_empty() or String(data.where) != "depot":
+		return
+	selected = String(data.id)
+	placing = seq
+	moving = -1
+	tool = ""
+	verdict = {}
+	verdict_for = ""
+	_update_ghost()
+	_hint.text = "Q / E giram · clique põe no lugar · botão direito ou Esc cancela"
 
 
 func start_move(piece: int) -> void:
@@ -388,6 +407,19 @@ func home_item(object_id: String) -> Dictionary:
 	for item in home.get("items", []):
 		if String(item.object) == object_id:
 			return item
+	return {}
+
+
+## Os móveis pagos ainda não posicionados (na loja, nas mãos, no carro, a caminho ou no depósito), como o motor os conta.
+func parcels() -> Array:
+	var haul: Variant = home.get("haul")
+	return haul.get("parcels", []) if haul is Dictionary else []
+
+
+func parcel_by_seq(seq: int) -> Dictionary:
+	for data in parcels():
+		if int(data.seq) == seq:
+			return data
 	return {}
 
 
@@ -454,15 +486,25 @@ func _rebuild() -> void:
 			_add_category(String(entry.id), String(entry.name))
 		if _text(home.get("shopNote")) != "":
 			_list.add_child(_label(_text(home.get("shopNote")), 14, Color("e8a090")))
+		var coming := false
+		for data in parcels():
+			if String(data.where) != "depot":
+				if not coming:
+					_list.add_child(_label("Seus pedidos (pagos, ainda não estão em casa)", 15, Color("f2d36b")))
+					coming = true
+				_list.add_child(_parcel_row(data))
 		for item in home.get("items", []):
 			if category == "" or String(item.category) == category:
 				_list.add_child(_card(item))
 	elif tab == "mine":
-		_list.add_child(_label("Clique numa peça para mexer nela. Vender devolve %d%% do preço (a loja do bairro paga do caixa dela); descartar não devolve nada." % int(home.get("resalePercent", 0)), 13, Color(0.7, 0.74, 0.82)))
+		var depot := parcels().filter(func(p): return String(p.where) == "depot")
+		if not depot.is_empty():
+			_list.add_child(_label("Depósito da casa (já em casa, falta pôr no lugar)", 15, Color("f2d36b")))
+			for data in depot:
+				_list.add_child(_parcel_row(data))
+		_list.add_child(_label("Clique numa peça para mexer nela. Guardar leva ao depósito; vender devolve %d%% do preço (a loja do bairro paga do caixa dela); descartar não devolve nada." % int(home.get("resalePercent", 0)), 13, Color(0.7, 0.74, 0.82)))
 		for data in home.get("pieces", []):
 			_list.add_child(_piece_row(data))
-		for order in home.get("orders", []):
-			_list.add_child(_label("Encomenda: %s chega em %d min" % [String(order.name), int(ceil(float(order.readyInMs) / 60000.0))], 14, Color("9fd6b0")))
 	else:
 		_build_tools()
 	_rebuild_rooms()
@@ -508,8 +550,92 @@ func _card(item: Dictionary) -> Control:
 	var stock := _label(stock_text(item), 12, Color("9fd6b0") if not out_of_stock else Color("e8c070") if bool(item.get("orderable", false)) else Color("e8a090"))
 	stock.name = "stock"
 	column.add_child(stock)
+	var haul: Variant = home.get("haul")
+	var heft: Variant = haul.get("items", {}).get(id) if haul is Dictionary else null
+	if heft is Dictionary:
+		var heft_label := _label(heft_text(heft), 12, Color(0.78, 0.84, 0.95))
+		heft_label.name = "heft"
+		column.add_child(heft_label)
+	if selected_now:
+		var buy := Button.new()
+		buy.name = "buy_button"
+		buy.text = "Comprar por %d" % price
+		buy.disabled = int(home.get("wallet", 0)) < price or (out_of_stock and not bool(item.get("orderable", false)))
+		buy.pressed.connect(func(): command("buy:%s" % id))
+		column.add_child(buy)
 	cards[id] = panel
 	return panel
+
+
+## "12 kg · 120 L · cabe nas mãos" / "45 kg · 900 L · precisa de carro ou entrega": do peso e do volume que o motor diz (dado do cenário).
+static func heft_text(heft: Dictionary) -> String:
+	var how: String = {"hands": "cabe nas mãos", "helper": "precisa de duas pessoas, carro ou entrega", "vehicle": "precisa de carro ou entrega"}.get(String(heft.get("carry", "")), "")
+	return "%s kg · %s L · %s" % [_num(float(heft.get("kg", 0))), _num(float(heft.get("liters", 0))), how]
+
+
+## Um móvel pago: onde está de verdade e o que dá para fazer com ele agora (cada botão é uma pergunta já respondida pelo motor; o que não vale mostra o porquê).
+func _parcel_row(data: Dictionary) -> Control:
+	var panel := PanelContainer.new()
+	panel.name = "parcel_%d" % int(data.seq)
+	panel.add_theme_stylebox_override("panel", _style(Color(0.11, 0.15, 0.13, 0.95), 8))
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	panel.add_child(column)
+	var id := String(data.id)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	column.add_child(head)
+	if factory != null and descriptors.has(id):
+		head.add_child(FurnitureThumb.make(factory, descriptors[id], 40))
+	var title := _label("%s · %s" % [String(data.name), parcel_status(data)], 14)
+	title.name = "status"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var buttons := HFlowContainer.new()
+	column.add_child(buttons)
+	if String(data.where) == "depot":
+		var put := Button.new()
+		put.name = "place_button"
+		put.text = "Posicionar"
+		put.pressed.connect(func():
+			start_place(int(data.seq))
+			_rebuild())
+		buttons.add_child(put)
+	for action in data.get("actions", []):
+		var verb := String(action.verb)
+		var kind: String = verb.split(":")[0]
+		var button := Button.new()
+		button.name = "act_" + kind
+		button.text = action_title(kind, action)
+		button.disabled = not bool(action.ok)
+		button.tooltip_text = String(action.get("reason", ""))
+		button.pressed.connect(func(): command(verb))
+		buttons.add_child(button)
+		if not bool(action.ok) and kind == "fetch" and String(action.get("reason", "")) != "":
+			var why := _label(String(action.reason), 12, Color("e8a090"))
+			why.name = "why_fetch"
+			column.add_child(why)
+	return panel
+
+
+static func parcel_status(data: Dictionary) -> String:
+	match String(data.where):
+		"shop":
+			return "esperando na loja" if int(data.get("readyInMs", 0)) <= 0 else "a loja está fazendo (%d min)" % int(ceil(float(data.readyInMs) / 60000.0))
+		"hands":
+			return "nas mãos de %s" % String(data.get("carrier", "alguém"))
+		"car":
+			return "no porta-malas"
+		"courier":
+			return "%s está trazendo (%d min)" % [String(data.get("courier", "o entregador")), maxi(1, int(ceil(float(data.get("dueInMs", 0)) / 60000.0)))]
+		"depot":
+			return "no depósito"
+	return ""
+
+
+static func action_title(kind: String, action: Dictionary) -> String:
+	return {"fetch": "Levar nas mãos", "fetchhelp": "Levar com ajuda", "load": "Carregar no carro", "deliver": "Pedir entrega (%d)" % int(action.get("price", 0)),
+		"cancel": "Cancelar compra", "drop": "Deixar no depósito", "unload": "Descarregar", "sellp": "Vender"}.get(kind, kind)
 
 
 func _piece_row(data: Dictionary) -> Control:
@@ -533,6 +659,12 @@ func _piece_row(data: Dictionary) -> Control:
 	move.disabled = busy
 	move.pressed.connect(func(): start_move(index))
 	row.add_child(move)
+	var stash := Button.new()
+	stash.name = "stash"
+	stash.text = "Guardar"
+	stash.disabled = busy or not bool(data.sellable)
+	stash.pressed.connect(func(): command("stash:%d" % index))
+	row.add_child(stash)
 	var sell := Button.new()
 	sell.text = "Vender +%d" % int(data.resale)
 	sell.disabled = busy or not bool(data.sellable)
@@ -684,8 +816,8 @@ func current_verb() -> String:
 		return ""
 	if moving >= 0:
 		return "move:%d:%d:%d:%d:%d" % [moving, floor_level, hover.x, hover.y, facing]
-	if selected != "":
-		return "buy:%s:%d:%d:%d:%d" % [selected, floor_level, hover.x, hover.y, facing]
+	if placing >= 0:
+		return "place:%d:%d:%d:%d:%d" % [placing, floor_level, hover.x, hover.y, facing]
 	return ""
 
 
@@ -731,7 +863,7 @@ func command(verb: String) -> bool:
 
 ## O clique na casa: o verbo do mouse (se o motor disse que pode); na aba da casa, sem nada escolhido, pega a peça da célula.
 func click() -> void:
-	if tab == "mine" and selected == "" and moving < 0:
+	if tab == "mine" and selected == "" and moving < 0 and placing < 0:
 		var data := piece_at(hover)
 		if not data.is_empty():
 			start_move(int(data.piece))
@@ -746,14 +878,16 @@ func click() -> void:
 		warning.emit(String(verdict.get("reason", "Não pode aqui.")))
 		return
 	var ok: bool = await command(verb)
-	if ok and moving >= 0:
+	if ok and (moving >= 0 or placing >= 0):
 		moving = -1
+		placing = -1
 		selected = ""
 		_update_ghost()
+		_rebuild()
 
 
 func cancel() -> void:
-	if selected != "" or moving >= 0 or tool != "":
+	if selected != "" or moving >= 0 or placing >= 0 or tool != "":
 		_clear_selection()
 		_rebuild()
 	else:
@@ -849,7 +983,7 @@ func ghost_is_red() -> bool:
 
 
 func _update_ghost() -> void:
-	var wanted := selected if tab != "build" else ""
+	var wanted := selected if tab != "build" and (placing >= 0 or moving >= 0) else ""
 	if wanted == "" or stage == null or factory == null or not descriptors.has(wanted):
 		if ghost != null and is_instance_valid(ghost):
 			ghost.visible = false
@@ -943,7 +1077,7 @@ func _update_marks() -> void:
 			box.size = Vector3(1.0, 0.05, 1.0)
 			_mark.position = Grid.to_world(origin + hover, base + 0.04)
 			_mark.visible = true
-	elif tab == "buy" and selected != "" and hover != NO_CELL:
+	elif tab != "build" and (placing >= 0 or moving >= 0) and hover != NO_CELL:
 		_mark.material_override = _tint(Color(_verdict_color(), 0.28))
 		var cell_box: BoxMesh = _mark.mesh
 		cell_box.size = Vector3(1.0, 0.04, 1.0)

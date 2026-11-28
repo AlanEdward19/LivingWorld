@@ -31,7 +31,17 @@ const HOME := {"building": 4, "wallet": 50, "shop": "Loja de móveis 1", "shopNo
 	"rooms": [{"floor": 0, "index": 0, "kind": "sala", "cells": 8, "beauty": 7.0, "items": 7.0, "paint": 0.0}, {"floor": 0, "index": 1, "kind": "banheiro", "cells": 4, "beauty": -1.5, "items": 1.5, "paint": -3.0}],
 	"paints": [{"id": "wood", "name": "Tábua corrida", "kind": "floor", "color": "b58253", "price": 1, "beauty": 2.0},
 		{"id": "cream", "name": "Creme", "kind": "wall", "color": "eadfc2", "price": 1, "beauty": 1.0}],
-	"build": {"wall": 4, "door": 3, "demolish": 1, "cell": 6, "extraCells": 0, "maxExtraCells": 12}, "orders": []}
+	"build": {"wall": 4, "door": 3, "demolish": 1, "cell": 6, "extraCells": 0, "maxExtraCells": 12}, "orders": [],
+	"haul": {"reachM": 4.5, "handsKg": 12.0, "handsLiters": 120.0, "deliveryFee": 3, "deliveryOpen": 8, "deliveryClose": 18, "car": null, "shopFront": {"x": 8, "y": 4}, "homeFront": {"x": 5, "y": 5},
+		"couriers": [], "items": {"sofa": {"kg": 45.0, "liters": 900.0, "carry": "vehicle"}, "plant": {"kg": 3.0, "liters": 20.0, "carry": "hands"}},
+		"parcels": [
+			{"seq": 1, "id": "sofa", "name": "Sofá", "where": "shop", "kg": 45.0, "liters": 900.0, "paid": 30, "readyInMs": 0, "dueInMs": 0, "carrier": null, "helper": null, "courier": null, "carry": "vehicle",
+				"actions": [{"verb": "fetch:1", "label": "", "ok": false, "reason": "Sofá pesa 45 kg e ocupa 900 L: leve de carro, com ajuda ou peça a entrega", "price": 0},
+					{"verb": "load:1", "label": "", "ok": false, "reason": "o carro não está na loja: dirija até lá", "price": 0},
+					{"verb": "deliver:1", "label": "Seu Tomás entrega Sofá por 3", "ok": true, "reason": "", "price": 3},
+					{"verb": "cancel:1", "label": "Cancelar a compra de Sofá", "ok": true, "reason": "", "price": 0}]},
+			{"seq": 2, "id": "plant", "name": "Planta", "where": "depot", "kg": 3.0, "liters": 20.0, "paid": 8, "readyInMs": 0, "dueInMs": 0, "carrier": null, "helper": null, "courier": null, "carry": "hands",
+				"actions": [{"verb": "sellp:2", "label": "Vender Planta do depósito", "ok": true, "reason": "", "price": 0}]}]}}
 
 
 func _house(paint: Variant = null) -> Dictionary:
@@ -137,9 +147,10 @@ func test_the_ghost_follows_the_cell_rotates_with_q_and_e_and_the_verb_carries_c
 	var made := await _mode()
 	var mode = made[0]
 	await mode.open()
-	mode.select_item("sofa")
+	mode.set_tab("mine")
+	mode.start_place(2)
 	mode.hover = Vector2i(2, 1)
-	eq(mode.current_verb(), "buy:sofa:0:2:1:0", "o verbo de compra: objeto, andar, célula, giro")
+	eq(mode.current_verb(), "place:2:0:2:1:0", "o verbo de pôr o móvel do depósito: número, andar, célula, giro")
 	mode._input(_key(KEY_E))
 	eq(mode.facing, 90, "E gira para a direita")
 	mode._input(_key(KEY_R))
@@ -148,7 +159,7 @@ func test_the_ghost_follows_the_cell_rotates_with_q_and_e_and_the_verb_carries_c
 	mode._input(_key(KEY_Q))
 	mode._input(_key(KEY_Q))
 	eq(mode.facing, 270, "Q gira para a esquerda, dando a volta")
-	eq(mode.current_verb(), "buy:sofa:0:2:1:270", "o giro entra no verbo")
+	eq(mode.current_verb(), "place:2:0:2:1:270", "o giro entra no verbo")
 	mode._update_ghost()
 	check(mode.ghost != null and mode.ghost.visible, "o fantasma aparece sob o mouse")
 	check(absf(mode.ghost.position.x - 12.5) < 0.01 and absf(mode.ghost.position.z - 11.5) < 0.01, "na célula (2,1) do prédio em (10,10): %s" % str(mode.ghost.position))
@@ -162,13 +173,14 @@ func test_the_ghost_is_green_or_red_by_what_the_engine_answers_and_the_reason_sh
 	var mode = made[0]
 	var transport = made[1]
 	await mode.open()
-	mode.select_item("sofa")
+	mode.set_tab("mine")
+	mode.start_place(2)
 	mode.hover = Vector2i(1, 1)
 	await mode.ask(mode.current_verb())
 	check(mode.ghost_is_green() and not mode.ghost_is_red(), "o motor disse que pode: verde")
 	check(String(mode._reason.text).begins_with("Sofá"), "a frase do motor e o custo: %s" % mode._reason.text)
 	check("custa 30" in String(mode._reason.text), "custa 30")
-	check(transport.calls.any(func(call): return call.begins_with("GET /players/p-1/home/check?verb=buy%3Asofa%3A0%3A1%3A1%3A0")), "perguntou ao motor com o verbo")
+	check(transport.calls.any(func(call): return call.begins_with("GET /players/p-1/home/check?verb=place%3A2%3A0%3A1%3A1%3A0")), "perguntou ao motor com o verbo")
 	transport.on("GET /players/p-1/home/check", {"status": 200, "body": {"ok": false, "reason": "bloquearia a passagem da porta", "price": 0, "refund": 0, "note": ""}})
 	mode.hover = Vector2i(2, 2)
 	await mode.ask(mode.current_verb())
@@ -187,7 +199,8 @@ func test_clicking_sends_the_home_command_only_when_the_engine_said_yes_then_rel
 	await mode.open()
 	var acted: Array = []
 	mode.acted.connect(func(note: String): acted.append(note))
-	mode.select_item("sofa")
+	mode.set_tab("mine")
+	mode.start_place(2)
 	mode.hover = Vector2i(1, 2)
 	transport.on("GET /players/p-1/home", {"status": 200, "body": HOME.merged({"wallet": 20}, true)})
 	await mode.click()
@@ -196,7 +209,8 @@ func test_clicking_sends_the_home_command_only_when_the_engine_said_yes_then_rel
 	eq(sent.size(), 1, "um comando")
 	eq(String(sent[0].kind), "home", "kind home")
 	eq(int(sent[0].id), 4, "a casa do motor")
-	eq(String(sent[0].verb), "buy:sofa:0:1:2:0", "o verbo")
+	eq(String(sent[0].verb), "place:2:0:1:2:0", "o verbo")
+	eq(mode.placing, -1, "pôs: o móvel do depósito já não está na mão")
 	eq(String(_find(made[2], "money").text), "Dinheiro: 20", "o dinheiro caiu: relido do motor")
 	mode.close()
 	_free(made)
@@ -209,7 +223,8 @@ func test_a_no_from_the_engine_sends_nothing_and_a_409_warns_with_the_engine_rea
 	await mode.open()
 	var warnings: Array = []
 	mode.warning.connect(func(text: String): warnings.append(text))
-	mode.select_item("sofa")
+	mode.set_tab("mine")
+	mode.start_place(2)
 	mode.hover = Vector2i(1, 2)
 	await mode.click()
 	eq(warnings, ["falta dinheiro: custa 30, você tem 2"], "o motivo do motor vira aviso")
@@ -231,7 +246,7 @@ func test_my_house_lists_the_pieces_with_resale_and_move_sell_discard_send_the_e
 	check(mode.piece_rows.has(3), "a peça 3 do motor está na lista")
 	var row: Node = mode.piece_rows[3]
 	var buttons: Array = row.find_children("*", "Button", true, false)
-	eq(buttons.map(func(b): return String(b.text)), ["Mover", "Vender +18", "Descartar"], "mover, vender (o motor diz quanto volta) e descartar")
+	eq(buttons.map(func(b): return String(b.text)), ["Mover", "Guardar", "Vender +18", "Descartar"], "mover, guardar no depósito, vender (o motor diz quanto volta) e descartar")
 	await mode.command("sell:3")
 	await mode.command("discard:3")
 	var sent: Array = transport.bodies.get("POST /players/p-1/interact", [])
@@ -318,3 +333,62 @@ func test_the_house_paints_the_floor_and_the_walls_with_the_colors_the_engine_gi
 	check(view._floor_color(Vector2i(2, 2), true, 0) != Color("b58253"), "o que não foi pintado fica como era")
 	check(view._paint_wall.has("0|0,1,1,1"), "a parede pintada é achada pela aresta do motor")
 	view.queue_free()
+
+
+func test_the_shop_tab_buys_by_button_and_lists_what_is_paid_with_where_it_is_and_the_ways_to_bring_it_and_the_engine_reasons() -> void:
+	var made := await _mode()
+	var mode = made[0]
+	var transport = made[1]
+	await mode.open()
+	eq(mode.tab, "buy", "abre na loja")
+	eq(String(made[0]._tab_buttons.buy.text), "Loja", "a aba chama Loja")
+	eq(String(made[0]._tab_buttons.mine.text), "Na casa", "e a outra, Na casa")
+	eq(String(_find(mode.cards.sofa, "heft").text), "45 kg · 900 L · precisa de carro ou entrega", "peso, volume e como trazer vêm do motor")
+	eq(String(_find(mode.cards.plant, "heft").text), "3 kg · 20 L · cabe nas mãos", "a planta cabe nas mãos")
+	check(mode.ghost == null or not mode.ghost.visible, "escolher o cartão não põe fantasma: comprar não põe o móvel em casa")
+	var row: Node = _find(made[2], "parcel_1")
+	check(row != null, "o sofá pago aparece em Seus pedidos")
+	check(String(_find(row, "status").text).ends_with("esperando na loja"), "e diz onde está de verdade")
+	var fetch: Button = _find(row, "act_fetch")
+	check(fetch.disabled and "carro" in fetch.tooltip_text, "levar nas mãos não vale e o motivo do motor é a dica")
+	check("entrega" in String(_find(row, "why_fetch").text), "o motivo fica visível no cartão")
+	var deliver: Button = _find(row, "act_deliver")
+	check(not deliver.disabled and deliver.text == "Pedir entrega (3)", "pedir entrega vale e mostra o preço do motor")
+	check(_find(row, "act_load").disabled, "carregar no carro: o motor diz que o carro não está na loja")
+	deliver.pressed.emit()
+	await tree.process_frame
+	var sent: Array = transport.bodies.get("POST /players/p-1/interact", [])
+	eq(String(sent[0].verb), "deliver:1", "o verbo de entrega")
+	mode.select_item("sofa")
+	mode._rebuild()
+	var buy: Button = _find(mode.cards.sofa, "buy_button")
+	eq(buy.text, "Comprar por 30", "o preço do motor")
+	buy.pressed.emit()
+	await tree.process_frame
+	sent = transport.bodies.get("POST /players/p-1/interact", [])
+	eq(sent.map(func(b): return String(b.verb)), ["deliver:1", "buy:sofa"], "a compra é só o objeto: o lugar vem depois, do depósito")
+
+	mode.close()
+	_free(made)
+
+
+func test_the_house_tab_has_the_depot_and_placing_from_it_gives_the_ghost() -> void:
+	var made := await _mode()
+	var mode = made[0]
+	await mode.open()
+	mode.set_tab("mine")
+	var row: Node = _find(made[2], "parcel_2")
+	check(row != null, "o depósito mostra a planta")
+	var place: Button = _find(row, "place_button")
+	check(place != null and not place.disabled, "Posicionar")
+	place.pressed.emit()
+	eq(mode.placing, 2, "o móvel do depósito foi para a mão")
+	mode.hover = Vector2i(1, 1)
+	mode._update_ghost()
+	check(mode.ghost != null and mode.ghost.visible, "o fantasma da planta aparece")
+	mode.cancel()
+	eq(mode.placing, -1, "Esc larga o móvel")
+	check(BuyMode.parcel_status({"where": "courier", "courier": "Seu Tomás", "dueInMs": 90000}).begins_with("Seu Tomás está trazendo"), "a entrega diz quem traz e quando")
+	eq(BuyMode.parcel_status({"where": "hands", "carrier": "Marina"}), "nas mãos de Marina", "e nas mãos")
+	mode.close()
+	_free(made)
