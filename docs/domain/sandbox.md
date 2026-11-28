@@ -52,6 +52,17 @@ No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necess
   (1× = 50 ms, 2× = 100, 3× = 150); a pausa não roda tick e aceita comando; com dois jogadores volta a 1× e os botões somem. Entra no registro (`Speed`) e o Δ vai pelo registro de Δ.
 - **Casal**: o segundo morador começa numa célula livre de outro cômodo (`HouseholdStart.Spread`); **luz**: abajur e luminária são objetos do catálogo com `light`, acesos à noite com gente em casa.
 - **Câmera**: **V** alterna paredes cortadas (as do lado da câmera baixam), inteiras e baixas; ao entrar o olhar vai para o espaço livre. Passos de captura: `speedinfo`, `lamps`, `walls`.
+## 3º passo de UX (#261, AD-227)
+- **Velocidades em dado**: `Players.Time.Speeds: [1, 3, 10, 60, 300]` (`TimeRules.SpeedList`; sem a lista vale o `MaxPlayerSpeedValue` de antes, 1..N). 1× é tempo real e o padrão; **0** pausa e
+  **1–5** (teclas e botões do HUD) pedem a velocidade pelo valor (`POST .../speed {speed:300}`, validada pela lista). `GET /players/{id}/time` ganha `speeds` e `walkMaxSpeed`. Só sozinho (`CanSkip`).
+- **Passo em velocidade alta**: o Δ do tick nunca passa de `MaxStepMsValue` (2000 ms): acima disso o motor roda **mais ticks por segundo** (`TimeRules.SpeedPlan`: 300× = Δ 2 s × 150 ticks/s),
+  então andar, usos, interações, sono e eventos agendados seguem corretos e o relógio fecha exato. As necessidades continuam do relógio (nada cai mais rápido além do próprio tempo). Com Δ acima de
+  `WalkMaxStepMsValue` (500 ms, até 10×) o corpo **não anda por WASD** (o comando chega a cada ~0,1 s reais = minutos de mundo): só por ordem do motor (usar móvel, interação, "ir até"); o aviso diz
+  como voltar (tecla 1). Registro e replay: `Speed` e o Δ pelo registro de Δ, o mesmo hash.
+- **Menu social de longe e conversa sentado**: ver [social-interactions.md](social-interactions.md) (`approachM`, `compatibleWithUse`, o par que fica junto). **Duplicata**: com o menu social, o "Conversar" de texto
+  sai da roda; o "Bater papo" aceito oferece abrir o texto (T, 20 s). **Câmera após G**: a troca liga o enquadramento de cena (a prumo, parede cortada) até o corpo novo assentar.
+- **Rotina com variação**: `NeedStartJitter` (nível de partida de fome/sede/sono/social por pessoa) e, por necessidade, `variation {jitter, traits}` e `seekBelow` ([needs-and-objects.md](needs-and-objects.md)).
+  O rótulo "N min" do uso é o que ele leva agora (`untilFull`), não o teto do catálogo; o relógio da tela é relido ao acabar o uso.
 ## S3 (#259): o casal vive junto
 Interações sociais em dados (conversar, elogiar, abraçar, beijar, piada, discussão, desculpa, convites para ver TV, comer e deitar juntos), relação visível e iniciativa dos NPCs: ver [social-interactions.md](social-interactions.md) (AD-223). No período: `CatalogExtends: ["home-life", "social"]`.
 

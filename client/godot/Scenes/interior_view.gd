@@ -805,6 +805,15 @@ func guide_body(id: int, from_actor: Node3D, level: int) -> Node3D:
 	return from_actor
 
 
+## #261: trocou de corpo (G) com a casa em foco: a figura do outro morador, que a casa desenhava como ocupante, vira o corpo adotado (a mesma instância do mundo): sem ela
+## a casa não sabe onde o corpo está (as paredes do lado da câmera não baixam e o corpo novo fica atrás de parede).
+func adopt_switched(id: int, actor: Node3D, level: int) -> void:
+	if occupant_nodes.has(id):
+		occupant_nodes[id].free()
+		occupant_nodes.erase(id)
+	guide_body(id, actor, level)
+
+
 ## O corpo adotado volta a ser só do mundo: ao chão do térreo (a altura que a casa deu some com ela).
 func release_guided() -> void:
 	if _adopted != null and is_instance_valid(_adopted):

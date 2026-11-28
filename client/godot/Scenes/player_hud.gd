@@ -910,6 +910,11 @@ const MOVING_SPEED := 0.05 ## células/s: acima disto o corpo "anda" para o cart
 func glide(direction: Vector2, delta: float) -> void:
 	if busy.active():
 		direction = Vector2.ZERO # #241: ocupado, o corpo não anda (o motor recusaria); não manda passo
+	if speed_now() > int(time_view.get("walkMaxSpeed", 10)) and direction != Vector2.ZERO:
+		direction = Vector2.ZERO # #261: em velocidade alta o corpo só anda por ordem do motor (usar móvel, interagir): volta a 1× para andar
+		if _busy_note_clock <= 0.0:
+			_busy_note_clock = 2.5
+			warning.emit("Em velocidade alta o corpo só anda por ordem (use um móvel ou interaja). Aperte 1 para voltar ao tempo real.")
 	if speed_now() == 0 and direction != Vector2.ZERO:
 		direction = Vector2.ZERO # #260: o tempo está pausado: o corpo não anda (o motor não roda tick); diz como voltar
 		if _busy_note_clock <= 0.0:
@@ -1091,6 +1096,7 @@ var busy := BodyBusy.new()
 var _busy_note_clock := 0.0
 var _use_poll := 0.0
 const USE_POLL_S := 0.12 ## s entre leituras da pose enquanto o motor leva o corpo até o móvel
+const SOCIAL_POLL_S := 0.4 ## #261: s entre leituras da pose durante o gesto social (vê o fim e a soltura dos dois corpos)
 
 
 func _time_scale() -> float:
@@ -1143,6 +1149,7 @@ func _note_busy(pose: Dictionary) -> void:
 
 func _busy_ended() -> void:
 	_body_clock = BODY_EVERY # o que ficou nas mãos aparece no cartão
+	speed_changed.emit(speed_now()) # #261: o relógio da tela é relido ao acabar o uso (não fica parado em 07:00 até a próxima leitura)
 
 
 ## Barra e fim da tarefa; WASD durante ela diz por que não anda (frase humana, no máximo a cada 2,5 s).
@@ -1172,6 +1179,11 @@ func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
 			if _use_poll >= USE_POLL_S and not _walk_busy:
 				_use_poll = 0.0
 				sync_pose()
+	elif busy.action == "social": # #261: o corpo anda até a pessoa pelo motor (a pose dele manda) e o gesto começa e acaba lá: lê a pose enquanto dura
+		_use_poll += delta
+		if _use_poll >= (USE_POLL_S if busy.phase == "walk" else SOCIAL_POLL_S) and not _walk_busy:
+			_use_poll = 0.0
+			sync_pose()
 	if wants_to_walk and _busy_note_clock <= 0.0:
 		_busy_note_clock = 2.5
 		warning.emit(busy.blocked_note())
@@ -1337,10 +1349,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			and frame != null and frame.queue_size() > 0:
 		get_viewport().set_input_as_handled()
 		cancel_queued(event.keycode - KEY_1) # #255: Shift+1–4 tira a ação da fila
-	elif event is InputEventKey and event.pressed and not event.echo and not event.shift_pressed and event.keycode in [KEY_0, KEY_1, KEY_2, KEY_3] \
-			and rpg and not popup_open() and not typing() and frame != null and frame.speed_box.visible:
-		get_viewport().set_input_as_handled() # #260: 0 pausa, 1/2/3 as velocidades (com a roda aberta, 1–9 escolhem a linha: tratado acima)
-		set_speed(event.keycode - KEY_0)
+	elif event is InputEventKey and event.pressed and not event.echo and not event.shift_pressed and event.keycode >= KEY_0 and event.keycode <= KEY_9 \
+			and rpg and not popup_open() and not typing() and frame != null and frame.speed_box.visible and frame.speed_for_key(event.keycode - KEY_0) >= 0:
+		get_viewport().set_input_as_handled() # #260/#261: 0 pausa, 1–9 as velocidades da lista do cenário (com a roda aberta, 1–9 escolhem a linha: tratado acima)
+		set_speed(frame.speed_for_key(event.keycode - KEY_0))
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T and rpg and _chat_with >= 0 and Time.get_ticks_msec() < _chat_until \
+			and not popup_open() and not typing():
+		get_viewport().set_input_as_handled() # #261: o papo aceito oferece a conversa por texto com a mesma pessoa
+		var with := _chat_with
+		_chat_with = -1
+		interact({"text": "Conversar", "kind": "person", "id": with, "verb": "talk", "resource": -1})
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V and rpg and not popup_open() and not typing():
 		get_viewport().set_input_as_handled()
 		walls_cycled.emit() # #260: paredes cortadas / inteiras / baixas
@@ -1429,6 +1447,10 @@ var _e_ready := false
 var _e_wheel := false
 var _e_quick := false
 var _e_entries: Array = []
+const CHAT_VERB := "social:chat" ## #261: a interação do catálogo que também abre a conversa por texto
+const CHAT_OFFER_MS := 20000
+var _chat_with := -1
+var _chat_until := 0
 var _root_entries: Array = [] ## #259: a roda de baixo do menu social ("‹ Voltar" volta a ela)
 var _social_seen := -1 ## #259: o instante (ms de mundo) do último fato social já avisado
 var _social_primed := false ## a primeira leitura só aprende o que já havia (não avisa o passado)
@@ -1549,6 +1571,7 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 	for offer in from:
 		var kind := String(offer.get("kind", ""))
 		var named := String(offer.get("label", ""))
+		var has_social := kind == "person" and not SocialMenu.main_entry(offer, named).is_empty() # #261: com o menu social, "Conversar" (talk) é o "Bater papo" dele: uma entrada só
 		var title := named if kind in ["person", "item", "object"] or named != "" else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor (#260: a despensa tem o nome do móvel do catálogo)
 		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
 		if kind == "object" and offer.get("uses") != null and not (offer.uses as Array).is_empty():
@@ -1556,6 +1579,8 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 			entries.append({"text": "%s ▸" % title, "kind": kind, "id": int(offer.id), "verb": "menu", "resource": -1, "uses": offer.uses, "title": title})
 			continue
 		for verb in offer.get("verbs", []):
+			if has_social and String(verb) == "talk":
+				continue
 			var resources: Array = offer.get("resources", [])
 			if String(verb) in ["buy", "take", "steal", "gather"] and not resources.is_empty():
 				for item in resources:
@@ -1676,7 +1701,12 @@ func interact(entry: Dictionary) -> void:
 			warning.emit(String(response.body.get("note", "Recusou.")))
 			_refresh_relation_soon()
 		elif rpg: # #222: o que aconteceu, num aviso curto (quanto levou e por quanto), sem abrir painel
-			warning.emit(done_text(entry, response.body))
+			var said := done_text(entry, response.body)
+			if String(entry.get("verb", "")) == CHAT_VERB and response.body.get("outcome") is String and String(response.body.outcome) == "done":
+				_chat_with = int(entry.id) # #261: o "Bater papo" do catálogo oferece abrir a conversa por texto (T) por um tempo
+				_chat_until = Time.get_ticks_msec() + CHAT_OFFER_MS
+				said += "  ·  T para escrever"
+			warning.emit(said)
 		else:
 			_set_status(String(entry.get("text", "")))
 	elif response.status == 404:

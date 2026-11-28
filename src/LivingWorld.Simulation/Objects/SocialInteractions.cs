@@ -156,13 +156,64 @@ public static partial class SocialInteractions
         PlayerTasks.Of(world, npc) is not null || nowMs < npc.StepReadyAtMs || npc.CurrentAction == ActionType.Travel
         || (npc.Fine is { } f && (f.HeadingX != 0 || f.HeadingY != 0) && npc.ControllerId is not null);
 
+    /// <summary>#261: o corpo está sentado, deitado ou usando um móvel (a ação do uso já começou): o uso não é uma ocupação que impeça conversar.</summary>
+    public static bool Sitting(WorldState world, Npc npc, long nowMs) =>
+        npc.CurrentAction != ActionType.Sleep && npc.BodyTask is { Action: ObjectUsage.Action, Doing: true } t && nowMs < t.UntilMs;
+
+    /// <summary>Ocupado de verdade (anda, trabalha, outra interação): quem só usa um móvel não conta (<see cref="Sitting"/>).</summary>
+    private static bool Occupied(WorldState world, Npc npc, long nowMs) => !Sitting(world, npc, nowMs) && Busy(world, npc, nowMs);
+
+    /// <summary>#261: <paramref name="b"/> aparece para <paramref name="a"/> no menu social: mesma cidade, andar e prédio (ou os dois fora), a até
+    /// <see cref="SocialRules.ApproachM"/> metros e sem parede no caminho em linha reta (a regra do chão do passo, <see cref="PlayerGround.TerrainRefusal"/>) ou com uma porta no caminho (rota curta).</summary>
+    public static bool InSight(WorldState world, SocialCatalog catalog, Npc a, Npc b)
+    {
+        if (a.City != b.City || !PlayerGround.SameLevel(a, b) || PlayerGround.InsideBuilding(world, a) != PlayerGround.InsideBuilding(world, b)) return false;
+        var (ax, ay) = FineOf(world, a);
+        var (bx, by) = FineOf(world, b);
+        double perM = FinePose.PerCell / Math.Max(0.1, world.Players.CellM);
+        double dx = bx - ax, dy = by - ay, len = Math.Sqrt(dx * dx + dy * dy);
+        if (len > catalog.Rules.ApproachM * perM) return false;
+        int floor = PlayerGround.FloorOf(a);
+        var own = a.Interior?.Building;
+        var cache = new Dictionary<CellCoord, PlayerGround.Spot?>();
+        PlayerGround.Spot? At(CellCoord c)
+        {
+            if (!cache.TryGetValue(c, out var spot)) cache[c] = spot = PlayerGround.At(world, c, floor);
+            return spot;
+        }
+
+        var prev = new CellCoord((int)Math.Floor(ax / (double)FinePose.PerCell), (int)Math.Floor(ay / (double)FinePose.PerCell));
+        int steps = Math.Max(1, (int)Math.Ceiling(len / (FinePose.PerCell / 4.0)));
+        for (int i = 1; i <= steps; i++)
+        {
+            long x = ax + (long)Math.Round(dx * i / steps), y = ay + (long)Math.Round(dy * i / steps);
+            var cell = new CellCoord((int)Math.Floor(x / (double)FinePose.PerCell), (int)Math.Floor(y / (double)FinePose.PerCell));
+            if (cell == prev) continue;
+            if (PlayerGround.TerrainRefusal(world, floor, own, prev, cell, At) is not null)
+            {
+                // parede no meio da reta: ainda aparece se a pessoa está ao alcance POR UMA PORTA (a rota do corpo até ela, em metros, cabe em 1,6× o alcance)
+                var goal = new CellCoord((int)Math.Floor(bx / (double)FinePose.PerCell), (int)Math.Floor(by / (double)FinePose.PerCell));
+                var start = new CellCoord((int)Math.Floor(ax / (double)FinePose.PerCell), (int)Math.Floor(ay / (double)FinePose.PerCell));
+                var route = PlayerWalk.Route(world, a, floor, start, goal, At);
+                return route is not null && route.Count * Math.Max(0.1, world.Players.CellM) <= catalog.Rules.ApproachM * 1.6;
+            }
+
+            prev = cell;
+        }
+
+        return true;
+    }
+
     /// <summary>O motivo de a interação não valer agora entre <paramref name="actor"/> e <paramref name="target"/>; nulo se vale. Não sorteia nada.</summary>
     public static string? Unavailable(WorldState world, SocialCatalog catalog, SocialInteractionDef def, Npc actor, Npc target, long nowMs)
     {
         if (!actor.IsAlive || !target.IsAlive || actor.Id == target.Id) return Text(catalog, "far", actor, target, "indisponível");
-        if (Busy(world, actor, nowMs)) return Text(catalog, "actorBusy", actor, target, "você está ocupado");
+        if (!InSight(world, catalog, actor, target)) return Text(catalog, "far", actor, target, "longe demais");
+        if (Occupied(world, actor, nowMs)) return Text(catalog, "actorBusy", actor, target, "você está ocupado");
         if (target.CurrentAction == ActionType.Sleep && PlayerTasks.Of(world, target) is null) return Text(catalog, "targetAsleep", actor, target, "{target} está dormindo");
-        if (Busy(world, target, nowMs)) return Text(catalog, "targetBusy", actor, target, "{target} está ocupado");
+        if (Occupied(world, target, nowMs)) return Text(catalog, "targetBusy", actor, target, "{target} está ocupado");
+        // #261: o alvo sentado ou usando um móvel só conversa o que o catálogo declara compatível com o uso (quem começa levanta sozinho, como no Sims)
+        if (!def.CompatibleWithUse && Sitting(world, target, nowMs)) return Text(catalog, "targetUsing", actor, target, "{target} está usando um móvel agora");
         var req = def.Requires;
         if (req.AdultsOnly && !(Adult(world, catalog, actor) && Adult(world, catalog, target))) return req.Reason ?? Text(catalog, "adults", actor, target, "só entre adultos");
         var theirs = Rel(world, target, actor);
@@ -215,7 +266,7 @@ public static partial class SocialInteractions
         }
     }
 
-    private static double Trait(Personality p, string name) => name switch
+    internal static double Trait(Personality p, string name) => name switch
     {
         "extroversion" => p.Extroversion,
         "agreeableness" => p.Agreeableness,
@@ -255,7 +306,8 @@ public static partial class SocialInteractions
         SettleDue(world, ctx, actor);
         SettleDue(world, ctx, target);
         if (Unavailable(world, catalog, def, actor, target, now) is { } why) return Result<SocialStart>.Fail($"{PlayerCommands.Conflict} social: {why}");
-        if (!Near(world, actor, target)) return Result<SocialStart>.Fail($"{PlayerCommands.Conflict} social: {Text(catalog, "far", actor, target, "longe demais")}");
+        bool actorSits = Sitting(world, actor, now), targetSits = Sitting(world, target, now);
+        if (actorSits && !def.CompatibleWithUse && def.Joint is null) ObjectUsage.Stop(world, ctx, actor); // #261: levanta antes (como no Sims); a conversa leve não cancela o uso
 
         var (chance, reason) = Evaluate(world, catalog, def, actor, target, now);
         bool accepted = target.ControllerId is not null || chance >= 100
@@ -271,12 +323,23 @@ public static partial class SocialInteractions
 
         if (def.Joint is { } joint) return StartJoint(world, ctx, catalog, def, joint, actor, target, now);
 
+        if (def.CompatibleWithUse && actorSits) // #261: sentado, a conversa leve vale na hora e o uso segue (sem andar, sem gesto que tire o corpo do móvel)
+        {
+            ApplyEffects(world, def.Effects, actor, target, 1.0, now, def.Id);
+            MarkPair(world, def, actor, target, now, accepted: true);
+            return Result<SocialStart>.Ok(new SocialStart(true, Format(def.Name, actor.Name, target.Name, 0, null), null));
+        }
+
+        bool light = def.CompatibleWithUse && targetSits; // o alvo segue no uso dele; só quem começou anda até ele
         var mine = new BodyTask(Action, now, now + GiveUpMs) { Use = def.Id, Partner = target.Id.Value, Initiator = true, LastMs = now };
         var theirs = new BodyTask(Action, now, now + GiveUpMs) { Use = def.Id, Partner = actor.Id.Value };
-        if (target.ControllerId is not null) PlayerCommands.TakeTheWheel(world, target);
-        if (target.Fine is { } f) target.SetFine(f with { HeadingX = 0, HeadingY = 0, AtMs = now });
-        target.SetBodyTask(theirs);
-        target.Step(now + GiveUpMs, 0, now);
+        if (!light)
+        {
+            if (target.ControllerId is not null) PlayerCommands.TakeTheWheel(world, target);
+            if (target.Fine is { } f) target.SetFine(f with { HeadingX = 0, HeadingY = 0, AtMs = now });
+            target.SetBodyTask(theirs);
+            target.Step(now + GiveUpMs, 0, now);
+        }
         if (actor.ControllerId is not null) PlayerCommands.TakeTheWheel(world, actor);
         actor.SetBodyTask(mine);
         if (actor.ControllerId is null || !world.FineTime)
@@ -294,10 +357,6 @@ public static partial class SocialInteractions
     }
 
     internal static string Payload(Npc actor, long startedAtMs) => $"{actor.Id.Value}|{startedAtMs}|s";
-
-    private static bool Near(WorldState world, Npc a, Npc b) =>
-        a.City == b.City && PlayerGround.SameLevel(a, b)
-        && Math.Max(Math.Abs(PlayerGround.PoseOf(world, a).X - PlayerGround.PoseOf(world, b).X), Math.Abs(PlayerGround.PoseOf(world, a).Y - PlayerGround.PoseOf(world, b).Y)) <= 1;
 
     /// <summary>Onde o corpo de <paramref name="npc"/> fica, em milésimos de célula: o ponto fino se o tem na célula; senão o centro da célula.</summary>
     private static (long X, long Y) FineOf(WorldState world, Npc npc)
@@ -352,8 +411,14 @@ public static partial class SocialInteractions
     {
         long until = now + def.DurationSec * SecondMs;
         actor.SetBodyTask(new BodyTask(Action, now, until) { Use = def.Id, Partner = target.Id.Value, Initiator = true, Doing = true, LastMs = now });
-        target.SetBodyTask(new BodyTask(Action, now, until) { Use = def.Id, Partner = actor.Id.Value, Doing = true, LastMs = now });
         actor.Step(until, 0, now);
+        if (def.CompatibleWithUse && Sitting(world, target, now)) // #261: o alvo segue no móvel dele
+        {
+            ctx.ScheduleEventAtMs(until, BodyTaskSystem.SystemName, Payload(actor, now));
+            return;
+        }
+
+        target.SetBodyTask(new BodyTask(Action, now, until) { Use = def.Id, Partner = actor.Id.Value, Doing = true, LastMs = now });
         target.Step(until, 0, now);
         ctx.ScheduleEventAtMs(until, BodyTaskSystem.SystemName, Payload(actor, now));
     }
@@ -366,7 +431,8 @@ public static partial class SocialInteractions
         if (actor.BodyTask is not { Action: Action, Use: { } id } task || task.StartedAtMs != startedAtMs || !task.Initiator) return;
         long now = world.CurrentDate.TotalMilliseconds;
         if (CatalogOf(world)?.Find(id) is not { } def || world.FindNpc(new NpcId(task.Partner)) is not { IsAlive: true } partner
-            || partner.BodyTask is not { Action: Action, Partner: var back } || back != actor.Id.Value)
+            || !(partner.BodyTask is { Action: Action, Partner: var back } && back == actor.Id.Value
+                || def.CompatibleWithUse && Sitting(world, partner, now))) // #261: o alvo que usa um móvel segue nele
         {
             Release(world, ctx, actor, now);
             return;

@@ -105,15 +105,24 @@ public static partial class PlayerInteractions
                 if (verbs.Count > 0) offers.Add(Offer("stall", stall.Id.Value, "", verbs, stall.Location, goods));
             }
 
+        var socialCatalog = SocialInteractions.CatalogOf(world);
+        int approachCells = socialCatalog is null ? 1 : Math.Max(1, (int)Math.Ceiling(socialCatalog.Rules.ApproachM / Math.Max(0.1, world.Players.CellM)) + 1); // #261: o menu social vale ao alcance da vista
         foreach (var other in world.AliveNpcIndex.Alive)
         {
             if (other.Id == npc.Id || other.City != npc.City) continue;
-            if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > 1) continue;
+            if (other.CurrentAction != ActionType.Travel && other.Interior is null && Chebyshev(other.CurrentLocation, at) > approachCells) continue;
             var pose = PlayerGround.PoseOf(world, other);
-            if (Chebyshev(pose, at) > 1 || !PlayerGround.SameLevel(npc, other)) continue;
-            var verbs = new List<string> { "talk" };
-            if (world.CrimeOn) verbs.Add("strike");
-            if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
+            if (Chebyshev(pose, at) > approachCells || !PlayerGround.SameLevel(npc, other)) continue;
+            bool adjacent = Chebyshev(pose, at) <= 1;
+            if (!adjacent && (socialCatalog is null || !SocialInteractions.InSight(world, socialCatalog, npc, other))) continue; // longe: só o menu social, e com linha de visão
+            var verbs = new List<string>();
+            if (adjacent)
+            {
+                verbs.Add("talk");
+                if (world.CrimeOn) verbs.Add("strike");
+                if (PlayerOrders.DependentChild(world, npc, other)) verbs.Add("abandon");
+            }
+
             offers.Add(Offer("person", other.Id.Value, other.Name, verbs, pose) with
             {
                 Social = SocialInteractions.OptionsFor(world, npc, other),

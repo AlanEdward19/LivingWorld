@@ -86,7 +86,7 @@ public static class SocialLoader
             foreach (var (key, value) in t)
                 if (value is JsonValue v && v.TryGetValue(out string? text) && text is not null) texts[key] = text;
         return Result<SocialRules>.Ok(new SocialRules((int)Opt(o["adultYears"], 18), Opt(o["reachM"], 1.4), (int)Opt(o["cooldownMin"], 20), need,
-            Opt(o["initiateBelow"], 45), Math.Max(5, (int)Opt(o["checkEveryMin"], 30)), Math.Max(1, (int)Opt(o["historyHours"], 6)), texts, Opt(o["spouseAffection"], 0), Opt(o["spouseTrust"], 0)));
+            Opt(o["initiateBelow"], 45), Math.Max(5, (int)Opt(o["checkEveryMin"], 30)), Math.Max(1, (int)Opt(o["historyHours"], 6)), texts, Opt(o["spouseAffection"], 0), Opt(o["spouseTrust"], 0), Math.Clamp(Opt(o["approachM"], 8), 1, 30)));
     }
 
     private static Result<MoodDef> ParseMood(JsonNode? node, Func<string, bool> knownNeed)
@@ -159,7 +159,7 @@ public static class SocialLoader
         string? pose = o["pose"]?.ToString(), targetPose = o["targetPose"]?.ToString();
         if (pose is { Length: > 24 } || targetPose is { Length: > 24 }) return Result<SocialInteractionDef>.Fail($"{at}.pose: nome de até 24 caracteres");
         return Result<SocialInteractionDef>.Ok(new SocialInteractionDef(id, name, category, (int)dur, pose, targetPose ?? pose, requires.Value!, accept.Value!, effects.Value!,
-            refuse, joint, initiative, o["accepted"]?.ToString(), o["refused"]?.ToString()));
+            refuse, joint, initiative, o["accepted"]?.ToString(), o["refused"]?.ToString(), o["compatibleWithUse"] is not null && Flag(o["compatibleWithUse"])));
     }
 
     private static Result<SocialRequire> ParseRequire(JsonNode? node, string at, List<RelationStateDef> states)

@@ -8,11 +8,10 @@ signal speed_chosen(speed: int) ## #260: o jogador pediu pausa (0), 1×, 2× ou 
 
 const BARS := [["health", "Saúde", Color("5fb36b")], ["hunger", "Fome", Color("e0a43a")], ["thirst", "Sede", Color("4aa3df")],
 	["sleep", "Sono", Color("9b7fd1")]]
-const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   V paredes   0–3 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
+const HINTS := "WASD andar   Shift correr   Espaço pular   E interagir (segure: roda)   Clique bater\nI mochila   J metas   C câmera   Q ombro   V paredes   0–5 tempo   + − zoom   F1 ajuda   Esc menu" ## #227: duas linhas (cabe em 1280)
 const GoalsPanel := preload("res://Scenes/goals_panel.gd")
 const NeedIcon := preload("res://Scenes/need_icon.gd")
-const SPEED_TEXT := ["II", "1×", "2×", "3×"] ## #260: pausa e as velocidades do tempo, como no The Sims
-const SPEED_TIP := ["Pausa (0)", "Velocidade normal (1)", "Rápido (2)", "Mais rápido (3)"]
+const DEFAULT_SPEEDS := [1, 2, 3] ## #260: sem lista do motor (cenário antigo): 1×, 2×, 3× como no The Sims; #261: a lista é do cenário (`speeds`), com 0 = pausa
 const BAR_WIDTH := 112.0 ## #260: a barra encolhe para caber o ícone, o número e a seta de tendência na mesma linha
 const PULSE_HZ := 1.4 ## a necessidade mais urgente pulsa (ciclos por segundo)
 const PlayerGuide := preload("res://Scenes/player_guide.gd")
@@ -34,6 +33,7 @@ var purse_label: Label ## #222: dinheiro e o que leva, da ficha do motor
 var clock_label: Label
 var speed_box: HBoxContainer ## #260: pausa/1×/2×/3× no canto de cima (só quando o motor deixa: sozinho no mundo)
 var speed_buttons: Array[Button] = []
+var speed_values: Array = [] ## #261: o valor que cada botão pede ao motor (0 = pausa, depois a lista de velocidades do cenário); as teclas 0–9 pegam daqui
 var speed_now := 1
 var prompt: Label
 var hints: Label
@@ -170,20 +170,7 @@ func _init() -> void:
 	speed_box.alignment = BoxContainer.ALIGNMENT_END
 	speed_box.visible = false
 	add_child(speed_box)
-	for i in SPEED_TEXT.size():
-		var button := Button.new()
-		button.text = SPEED_TEXT[i]
-		button.tooltip_text = SPEED_TIP[i]
-		button.toggle_mode = true
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(38, 30)
-		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
-		button.add_theme_stylebox_override("hover", _style(Color(0.15, 0.17, 0.22, 0.85), 8))
-		button.add_theme_stylebox_override("pressed", _style(Color("b0873a"), 8))
-		var speed := i
-		button.pressed.connect(func(): speed_chosen.emit(speed))
-		speed_box.add_child(button)
-		speed_buttons.append(button)
+	_build_speed_buttons(DEFAULT_SPEEDS)
 	goal_label = _label(14, Color(1, 1, 1, 0.65))
 	goal_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	goal_label.offset_top = 40
@@ -542,10 +529,57 @@ func set_speed(view: Dictionary) -> void:
 	var can := bool(view.get("canSkip", false)) or bool(view.get("canSetSpeed", false))
 	speed_box.visible = can
 	speed_now = int(view.get("speed", 1)) if view.get("speed") != null else 1
-	var top := int(view.get("maxSpeed", 3)) if view.get("maxSpeed") != null else 3
+	var list: Array = speeds_of(view)
+	if speed_values.size() != list.size() + 1 or speed_values.slice(1) != list:
+		_build_speed_buttons(list)
 	for i in speed_buttons.size():
-		speed_buttons[i].visible = i <= top
-		speed_buttons[i].set_pressed_no_signal(i == speed_now)
+		speed_buttons[i].set_pressed_no_signal(int(speed_values[i]) == speed_now)
+
+
+## #261: a lista de velocidades do motor (`speeds`; sem ela, 1..`maxSpeed` como na #260).
+static func speeds_of(view: Dictionary) -> Array:
+	if view.get("speeds") is Array and not (view.speeds as Array).is_empty():
+		return (view.speeds as Array).map(func(v): return int(v))
+	var top := int(view.get("maxSpeed", 3)) if view.get("maxSpeed") != null else 3
+	return range(1, maxi(1, top) + 1)
+
+
+## #261: o texto de um botão de velocidade ("II" a pausa, "10×") e a dica com a tecla (0 pausa, 1–9 pela ordem).
+static func speed_text(value: int) -> String:
+	return "II" if value == 0 else "%d×" % value
+
+
+static func speed_tip(index: int, value: int) -> String:
+	return "Pausa (0)" if value == 0 else "Velocidade %d× (%d)%s" % [value, index, " · tempo real" if value == 1 else ""]
+
+
+## #261: a velocidade que a tecla `digit` (0–9) pede, ou -1 se não há botão para ela.
+func speed_for_key(digit: int) -> int:
+	return int(speed_values[digit]) if digit >= 0 and digit < speed_values.size() else -1
+
+
+func _build_speed_buttons(list: Array) -> void:
+	for child in speed_box.get_children():
+		speed_box.remove_child(child)
+		child.queue_free()
+	speed_buttons.clear()
+	speed_values = [0]
+	speed_values.append_array(list)
+	speed_box.offset_left = -(16 + 44 * speed_values.size())
+	for i in speed_values.size():
+		var value := int(speed_values[i])
+		var button := Button.new()
+		button.text = speed_text(value)
+		button.tooltip_text = speed_tip(i, value)
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.custom_minimum_size = Vector2(40, 30)
+		button.add_theme_stylebox_override("normal", _style(Color(0.05, 0.06, 0.09, 0.72), 8))
+		button.add_theme_stylebox_override("hover", _style(Color(0.15, 0.17, 0.22, 0.85), 8))
+		button.add_theme_stylebox_override("pressed", _style(Color("b0873a"), 8))
+		button.pressed.connect(func(): speed_chosen.emit(value))
+		speed_box.add_child(button)
+		speed_buttons.append(button)
 
 
 ## A dica sob a mira: "E  Comprar comida (5) · Banca", ou nada. `text` é a linha do motor ("Alvo: Verbo ...").

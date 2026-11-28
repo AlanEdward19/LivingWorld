@@ -35,3 +35,10 @@ verbo `social:<id>`. Resposta da interação: `outcome`, `note`. Pose: `busy.{wi
 `social_menu.gd` ("Interagir ▸" → categorias → interações; esmaecida diz o motivo), `relation_panel.gd` (afeição, confiança, estado, humor, último fato), gestos novos
 (`hug`, `kiss`, `laugh`, `argue`, `plead`; pose desconhecida cai em `talk`) em `npc_actor.gd`, o par se vira um para o outro (`app.gd`, `interior_view.gd`).
 Fora desta fatia: conversa por IA com o catálogo (M7), vizinhos, interação com mais de duas pessoas, gestos com animação própria (#254).
+
+## #261: de longe, sentado e junto até o fim
+- **Alcance** (`rules.approachM`, 8 m): a pessoa aparece no menu social com linha de visão (`SocialInteractions.InSight`: mesma cidade, andar e prédio, sem parede no caminho reto pela regra do chão do passo). De longe a oferta
+  vem **sem verbos** (só o menu); ao escolher, quem começa anda até ela (`Walk`, busca em largura pelas portas) e o gesto só começa ao chegar; o parceiro fica parado e ocupado até o fim, nos dois corpos.
+- **Com um móvel em uso**: `compatibleWithUse: true` na interação (bater papo, piada, elogio, queixa, desculpa) vale com quem começa sentado (efeitos na hora, o uso segue) e com o alvo sentado (quem começa anda até ele, o alvo segue no móvel).
+  As que pedem corpo livre (abraço, beijo, briga): quem começa **levanta antes** (como no Sims); com o alvo no móvel a interação some com o motivo `texts.targetUsing`.
+

@@ -53,6 +53,7 @@ public static class HomeLifeLoader
         }
 
         SocialLoader.Merge(root, catalog); // #259
+        if (catalog["NeedStartJitter"] is { } jitter && root["NeedStartJitter"] is null) root["NeedStartJitter"] = jitter.DeepClone(); // #261
         if (catalog["Needs"] is JsonArray baseNeeds)
         {
             if (root["Needs"] is not JsonArray own) root["Needs"] = baseNeeds.DeepClone();
@@ -79,8 +80,11 @@ public static class HomeLifeLoader
             if (!table.ContainsKey(k)) table[k] = v?.DeepClone();
     }
 
+    /// <summary>Os traços de personalidade que a variação por pessoa aceita (os mesmos nomes do catálogo social).</summary>
+    public static readonly string[] Traits = ["extroversion", "agreeableness", "conscientiousness", "emotionalstability", "openness", "ambition", "loyalty", "altruism", "impulsivity", "riskaversion"];
+
     /// <summary>O bloco <c>Needs</c>: <c>[{id, name, start, decayPerHour, urgentBelow, color?, effects?:[{below, target, perHour}]}]</c>. Ausente = nulo.</summary>
-    public static Result<NeedCatalog?> ParseNeeds(JsonNode? node)
+    public static Result<NeedCatalog?> ParseNeeds(JsonNode? node, JsonNode? jitterNode = null)
     {
         if (node is null) return Result<NeedCatalog?>.Ok(null);
         if (node is not JsonArray array) return Result<NeedCatalog?>.Fail("Needs: precisa ser uma lista");
@@ -116,10 +120,48 @@ public static class HomeLifeLoader
             if (o["alert"] is not null && (!Text(o["alert"], out alert) || alert.Length > 60)) return Result<NeedCatalog?>.Fail($"{at}.alert: texto de até 60 caracteres");
             string? icon = null;
             if (o["icon"] is not null && (!Text(o["icon"], out icon) || icon.Length > 24)) return Result<NeedCatalog?>.Fail($"{at}.icon: nome de até 24 caracteres");
-            needs.Add(new NeedDef(id, name, start, decay, urgent, color, effects.Count > 0 ? effects : null, alert, icon));
+            NeedVariation? variation = null;
+            if (o["variation"] is JsonObject vo)
+            {
+                if (!Number(vo["jitter"] ?? 0, out var jitter) || jitter is < 0 or > 50) return Result<NeedCatalog?>.Fail($"{at}.variation.jitter: número de 0 a 50");
+                Dictionary<string, double>? traits = null;
+                if (vo["traits"] is JsonObject to)
+                {
+                    traits = [];
+                    foreach (var (name2, value) in to)
+                    {
+                        if (!Number(value, out var weight) || weight is < -2 or > 2) return Result<NeedCatalog?>.Fail($"{at}.variation.traits.{name2}: número de -2 a 2");
+                        if (!Traits.Contains(name2)) return Result<NeedCatalog?>.Fail($"{at}.variation.traits.{name2}: traço desconhecido ({string.Join("|", Traits)})");
+                        traits[name2] = weight;
+                    }
+                }
+
+                variation = new NeedVariation(jitter, traits);
+            }
+
+            double? seek = null;
+            if (o["seekBelow"] is not null)
+            {
+                if (!Number(o["seekBelow"], out var sb) || sb < urgent || sb > 100) return Result<NeedCatalog?>.Fail($"{at}.seekBelow: número de urgentBelow a 100");
+                seek = sb;
+            }
+
+            needs.Add(new NeedDef(id, name, start, decay, urgent, color, effects.Count > 0 ? effects : null, alert, icon, variation, seek));
         }
 
-        return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs) : null);
+        Dictionary<string, double>? startJitter = null;
+        if (jitterNode is JsonObject jo)
+        {
+            startJitter = [];
+            foreach (var (key, value) in jo)
+            {
+                if (!NeedIds.IsBuiltin(key) || !Number(value, out var points) || points is < 0 or > 50)
+                    return Result<NeedCatalog?>.Fail($"NeedStartJitter.{key}: hunger|thirst|sleep|social com 0 a 50 pontos");
+                startJitter[key] = points;
+            }
+        }
+
+        return Result<NeedCatalog?>.Ok(needs.Count > 0 ? new NeedCatalog(needs, startJitter) : null);
     }
 
     /// <summary>#258: os <c>toggle</c> que o motor entende (liga e desliga a luz do objeto).</summary>

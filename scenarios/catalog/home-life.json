@@ -20,7 +20,14 @@
      "target": "health",
      "perHour": -1
     }
-   ]
+   ],
+   "variation": {
+    "jitter": 10,
+    "traits": {
+     "conscientiousness": -0.35
+    }
+   },
+   "seekBelow": 55
   },
   {
    "id": "fun",
@@ -37,7 +44,15 @@
      "target": "social",
      "perHour": -1.5
     }
-   ]
+   ],
+   "variation": {
+    "jitter": 12,
+    "traits": {
+     "openness": 0.25,
+     "extroversion": 0.2
+    }
+   },
+   "seekBelow": 82
   },
   {
    "id": "bladder",
@@ -59,7 +74,11 @@
      "target": "health",
      "perHour": -2
     }
-   ]
+   ],
+   "variation": {
+    "jitter": 10
+   },
+   "seekBelow": 40
   }
  ],
  "objectsFormat": 1,
@@ -1139,5 +1158,11 @@
    ],
    "usePoints": []
   }
- ]
+ ],
+ "NeedStartJitter": {
+  "hunger": 12,
+  "thirst": 10,
+  "sleep": 10,
+  "social": 12
+ }
 }

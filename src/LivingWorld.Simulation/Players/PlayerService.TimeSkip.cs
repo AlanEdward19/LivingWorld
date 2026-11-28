@@ -79,7 +79,7 @@ public sealed partial class PlayerService
         if (PlayerCommands.ControlledBy(world, playerId) is null)
             return Result<Unit>.Fail($"{PlayerCommands.NotFound} jogador não controla nenhum NPC");
         if (!CanSkip(world, playerId)) return Result<Unit>.Fail($"{PlayerCommands.Conflict} só quem joga sozinho muda a velocidade do tempo");
-        if (speed < 0 || speed > world.Players.Time.MaxPlayerSpeed) return Result<Unit>.Fail($"speed: de 0 a {world.Players.Time.MaxPlayerSpeed}");
+        if (!world.Players.Time.IsValidSpeed(speed)) return Result<Unit>.Fail($"speed: 0 ou um de {string.Join(", ", world.Players.Time.SpeedList)}");
         host.SetPlayerSpeed(speed);
         Record(world, playerId, PlayerCommandKind.Speed, PlayerCommands.ControlledBy(world, playerId)!.Id.Value,
             new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Speed, Count: speed));

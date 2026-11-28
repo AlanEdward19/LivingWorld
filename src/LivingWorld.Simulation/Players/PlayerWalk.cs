@@ -54,6 +54,9 @@ public static partial class PlayerWalk
     {
         if (dx is < -1000 or > 1000 || dy is < -1000 or > 1000) return Result<Unit>.Fail("walk: rumo fora de −1000..1000");
         long now = world.CurrentDate.TotalMilliseconds;
+        // #261: em velocidade alta (Δ grande) o comando chega a cada ~0,1 s reais = minutos de mundo: o corpo só anda por ordem ou rota do motor
+        if ((dx != 0 || dy != 0) && world.FineTime && world.TickDeltaMs > world.Players.Time.WalkMaxStepMs)
+            return Result<Unit>.Fail($"{PlayerCommands.Conflict} walk: em velocidade alta o corpo só anda por ordem (use um móvel, interaja, ou volte a 1×)");
         // #255: andar interrompe o uso de objeto (e a fila): o jogador tomou o corpo de volta
         if ((dx != 0 || dy != 0) && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) LivingWorld.Simulation.Objects.ObjectUsage.Stop(world, ctx, npc);
         if (dx == 0 && dy == 0 && LivingWorld.Simulation.Objects.ObjectUsage.Active(npc)) return Result<Unit>.Ok(Unit.Value); // soltar a tecla não para o uso: quem leva o corpo é o motor

@@ -118,7 +118,7 @@ public static partial class PlayerInteractions
                 if (i >= pieces.Count || pieces[i].Id != furnishing[i] || pieces[i].Spot is not { } placed || building.Position is not { } where) continue;
                 var spotCell = new CellCoord(where.X + placed.Cell.X, where.Y + placed.Cell.Y);
                 long ddx = spotCell.X - at.X, ddy = spotCell.Y - at.Y;
-                var offerUses = catalogUses.Select(u => new OfferUse(u.Id, u.Name, u.DurationMin, u.Effects.Where(e => e.PerHour > 0).OrderByDescending(e => e.PerHour).Select(e => e.Need).FirstOrDefault(),
+                var offerUses = catalogUses.Select(u => new OfferUse(u.Id, u.Name, ObjectUsage.PlannedMinutes(world, npc, u), u.Effects.Where(e => e.PerHour > 0).OrderByDescending(e => e.PerHour).Select(e => e.Need).FirstOrDefault(),
                     u.Occupies && ObjectUsage.OccupiedBy(world, here.Value, i, npc) is not null)).ToList();
                 found.Add((Offer("object", here.Value * 1000 + i, descriptor.Name ?? descriptor.Id, catalogUses.Select(u => "use:" + u.Id).ToList(), spotCell) with { Uses = offerUses },
                     ddx * ddx + ddy * ddy, i));
