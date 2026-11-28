@@ -44,3 +44,8 @@ Fora desta fatia: conversa por IA com o catálogo (M7), vizinhos, interação co
 
 ## #267: a briga custa
 `argue`: o alvo perde 14 de afeição e 9 de confiança, quem brigou 6 e 4; `apologize` devolve só 4 e 2; o momento "Brigou com {other}" dura 3 dias (ver [moods-and-aspirations.md](moods-and-aspirations.md)).
+
+## #268: social com custo
+Termos de aceitação novos (dado, `social.json`): `again.{min}` (a última interação do par foi esta mesma, aceita, há menos que isso: "já elogiou agora há pouco"), `recent.{categoria}.{min}` (a última foi dessa categoria dentro da janela) e
+`actor|target.moment.{id}` (vive o momento: a briga de `quarrel` dura dias e trava abraço, beijo, papo e piada até as pazes). Elogio e abraço deixaram de ser certos (base menor). `Social.rules.call`: quem está num móvel e impede o
+gesto pode ser **chamado** (`verb: call`): o motor sorteia pelos mesmos termos (afeição, humor, sono, briga) e ele levanta ou recusa com o motivo; a opção traz `canCall` e `freeAtText` ("hoje às 08:12") para "Esperar terminar".

@@ -125,7 +125,7 @@ public static class HomeCommands
         HomeFreight.Reserve(world, building, objectId, variation, price, readyAt);
         Touched(world, building);
         string where = home.Haul is null ? "no depósito da casa" : "na loja, em seu nome";
-        return Ok(price, 0, inStock ? $"Comprou {name}: {where}" : $"{name} encomendado: fica pronto em {Math.Max(1, (readyAt - world.CurrentDate.TotalMilliseconds) / 60_000)} min, {where}");
+        return Ok(price, 0, inStock ? $"Comprou {name}: {where}" : $"{name} encomendado: fica pronto {LivingWorld.Simulation.Careers.CareerWork.When(world, readyAt)}, {where}");
     }
 
     // ---------------- mover, vender, descartar ----------------

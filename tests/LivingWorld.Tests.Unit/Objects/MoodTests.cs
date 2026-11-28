@@ -148,7 +148,7 @@ public class MoodTests
         Quarrel(world, body, other);
         var (chance, reason) = SocialInteractions.Evaluate(world, social, hug, body, other, Now(world));
         Assert.True(chance < calm - 10, $"{chance} contra {calm}");
-        Assert.Contains("bom humor", reason); // o humor é o termo que mais pesa: o motivo da recusa
+        Assert.True(reason!.Contains("bom humor") || reason.Contains("magoado"), reason); // o humor e a briga são os termos que mais pesam: o motivo da recusa
         Assert.True(MoodMechanic.SocialBias(world, other, "mean", Now(world)) > biasBefore * 3, "quem brigou puxa mais o que é mau");
         Assert.True(MoodMechanic.SocialBias(world, other, "romantic", Now(world)) < 0.2);
     }

@@ -65,3 +65,7 @@ Pagar não põe o móvel em casa: ele fica **reservado na loja em nome da casa**
 - Contrato aditivo: `haul` em `GET /players/{id}/home` (pedidos com `actions` já respondidas pelo motor, carro, entregadores com rota e tempos, peso de cada móvel) e `home` na ficha do corpo (`carry`, `arrived`, `coming`).
 - Cliente: `home_freight_layer.gd` desenha o móvel nas mãos, o carro e o entregador só do que o motor diz e avisa "Seu pedido chegou". Limites: o corpo do entregador no mapa segue a rotina dele; sem IA de compra
   de móvel (o parceiro não decide comprar) e o ajudante não anda sozinho com quem carrega.
+
+## #268: entrega com hora
+A entrega diz a hora do jogo calculada pelo motor ("Seu Tomás entrega Sofá por 30: chega amanhã às 08:12", `CareerWork.When`), no preview do botão, no `parcel.dueText` e no preparo da loja (`readyText`), em vez de "em 788 min".
+"Ir à loja" é uma linha da roda do E de qualquer lugar (oferta `freight`, verbo `goto:shop`: o mesmo "ir até", desfecho `going`).

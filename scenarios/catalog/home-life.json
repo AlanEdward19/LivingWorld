@@ -1261,5 +1261,24 @@
   "thirst": 10,
   "sleep": 10,
   "social": 12
+ },
+ "NeedCritical": {
+  "below": {
+   "bladder": 14,
+   "hygiene": 14,
+   "fun": 10,
+   "hunger": 18,
+   "thirst": 18,
+   "sleep": 12,
+   "social": 8
+  },
+  "repeatHours": 3,
+  "freeWillDefault": true,
+  "texts": {
+   "hunger": "Você está com muita fome",
+   "thirst": "Você está com muita sede",
+   "sleep": "Você mal se aguenta de sono",
+   "social": "Você está se sentindo muito sozinho"
+  }
  }
 }

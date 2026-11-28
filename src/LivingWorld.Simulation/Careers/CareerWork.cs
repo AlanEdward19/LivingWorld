@@ -358,7 +358,7 @@ public static class CareerWork
         var found = Vacancies(world, npc);
         string text = ledger.JobOf(npc.Id.Value) is not null ? "Você já tem emprego; as vagas ficam para consulta."
             : found.Count == 0 ? "Nenhuma vaga aberta agora."
-            : $"{found.Count} vaga(s): {string.Join(", ", found.Select(v => v.Entry.Title))}.";
+            : $"{found.Count} vaga(s): {string.Join("; ", found.Select(v => $"{v.Entry.Title} ({v.Career.Name}, {v.Entry.WagePerHour}/h)"))}. Candidate-se pela roda do E: o corpo vai até o empregador.";
         Notify(world, ledger, catalog, nowMs, npc, "search", text, found.Count, null);
         world.CareersChanged();
     }
@@ -366,7 +366,7 @@ public static class CareerWork
     public static bool SearchIsValid(WorldState world, CareerCatalog catalog, Npc npc, long nowMs) =>
         world.Careers?.SearchOf(npc.Id.Value) is { } s && nowMs - s.AtMs <= catalog.Rules.SearchValidHours * (long)WorldMillis.PerHour;
 
-    /// <summary>Candidata-se à vaga: a chance (base + habilidade) é sorteada pelo RNG semeado do mundo; contratado entra no nível de entrada. Devolve se foi contratado e o texto.</summary>
+    /// <summary>Candidata-se à vaga: a chance (base + habilidade) é sorteada pelo RNG semeado do mundo; contratado entra no nível de entrada. Devolve se foi contratado e o texto (o motivo, se não).</summary>
     public static Result<(bool Hired, string Note)> Apply(WorldState world, Npc npc, string careerId, long workplaceId, long nowMs)
     {
         if (CatalogOf(world) is not { } catalog) return Result<(bool, string)>.Fail($"{PlayerCommands.Conflict} sem carreiras neste mundo");
@@ -379,7 +379,7 @@ public static class CareerWork
         bool lucky = world.Rng.OneShot($"job-{npc.Id.Value}-{careerId}-{nowMs}").NextDouble() < vacancy.Chance;
         if (!lucky)
         {
-            string no = $"Não foi dessa vez: {vacancy.Entry.Title} escolheu outra pessoa.";
+            string no = $"Não foi dessa vez: {vacancy.Entry.Title} escolheu outra pessoa (sua chance era de {(int)Math.Round(vacancy.Chance * 100)}%).";
             Notify(world, ledger, catalog, nowMs, npc, "rejected", no, 0, null);
             world.CareersChanged();
             return Result<(bool, string)>.Ok((false, no));
@@ -387,6 +387,77 @@ public static class CareerWork
 
         var hired = Hire(world, npc, careerId, 0, vacancy.Employer, nowMs, announce: true);
         return hired.IsSuccess ? Result<(bool, string)>.Ok((true, $"Contratado: {vacancy.Entry.Title}.")) : Result<(bool, string)>.Fail($"{PlayerCommands.Conflict} candidatura: {hired.Error}");
+    }
+
+    // ---- candidatura guiada (#268) -----------------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>A célula onde se candidata: a soleira do prédio do empregador (ou o ponto do local, sem prédio).</summary>
+    private static CellCoord ApplyCell(WorldState world, Workplace employer) =>
+        employer.Building is { } id && world.FindBuilding(id) is { } place && PlayerGround.DoorOf(place) is { } door ? door.Doorstep : employer.Location;
+
+    /// <summary>#268: o jogador pede a candidatura. O motor valida (busca válida, vaga viva) e, se o cenário pede estar no empregador e o corpo está longe, põe o corpo a caminho
+    /// (o mesmo "ir até" do jogo) com a candidatura guardada: ao chegar, ela corre (<see cref="OnArrived"/>). Já lá, a candidatura corre agora: contratado, recusado com o motivo ou, fora do
+    /// atendimento, entrevista marcada para a próxima abertura. Devolve o desfecho (<c>done</c>, <c>refused</c>, <c>going</c>, <c>later</c>) e o texto.</summary>
+    public static Result<(string Outcome, string Note)> BeginApply(WorldState world, TickContext ctx, Npc npc, string careerId, long workplaceId, long nowMs)
+    {
+        if (CatalogOf(world) is not { } catalog) return Result<(string, string)>.Fail($"{PlayerCommands.Conflict} sem carreiras neste mundo");
+        if (world.Careers?.JobOf(npc.Id.Value) is not null) return Result<(string, string)>.Fail($"{PlayerCommands.Conflict} candidatura: você já tem emprego");
+        if (!SearchIsValid(world, catalog, npc, nowMs)) return Result<(string, string)>.Fail($"{PlayerCommands.Conflict} candidatura: procure as vagas antes (jornal ou computador)");
+        var vacancy = Vacancies(world, npc).FirstOrDefault(v => v.Career.Id == careerId && v.Employer.Id.Value == workplaceId);
+        if (vacancy is null) return Result<(string, string)>.Fail($"{PlayerCommands.Conflict} candidatura: a vaga não existe mais");
+        var ledger = world.CareersLedger();
+        if (catalog.Rules.ApplyAtEmployer && world.FineTime)
+        {
+            var cell = ApplyCell(world, vacancy.Employer);
+            var here = PlayerGround.PoseOf(world, npc);
+            int reachCells = Math.Max(1, (int)Math.Ceiling(catalog.Rules.ApplyReachM / Math.Max(0.1, world.Players.CellM)));
+            if (Math.Max(Math.Abs(here.X - cell.X), Math.Abs(here.Y - cell.Y)) > reachCells)
+            {
+                var begun = PlayerGo.Begin(world, ctx, npc, new PlayerGo.Target(cell, null), $"Candidatar-se: {vacancy.Career.Name}");
+                if (!begun.IsSuccess) return Result<(string, string)>.Fail(begun.Error!);
+                if (ledger.SearchOf(npc.Id.Value) is { } search) { search.PendingCareer = careerId; search.PendingEmployer = workplaceId; }
+                world.CareersChanged();
+                return Result<(string, string)>.Ok(("going", $"Indo ao {vacancy.Career.Name} para se candidatar a {vacancy.Entry.Title}."));
+            }
+        }
+
+        return Decide(world, npc, catalog, vacancy, careerId, workplaceId, nowMs);
+    }
+
+    /// <summary>A candidatura já no empregador: fora do horário de atendimento vira entrevista (a busca segue valendo); dentro, o sorteio decide.</summary>
+    private static Result<(string Outcome, string Note)> Decide(WorldState world, Npc npc, CareerCatalog catalog, Vacancy vacancy, string careerId, long workplaceId, long nowMs)
+    {
+        var rules = catalog.Rules;
+        int hour = HourOfDay(world, nowMs);
+        if (rules.ApplyAtEmployer && (hour < rules.ApplyOpenHour || hour >= rules.ApplyCloseHour))
+        {
+            long opens = DayOf(world, nowMs) * DayMs(world) + rules.ApplyOpenHour * (long)WorldMillis.PerHour;
+            if (hour >= rules.ApplyOpenHour) opens += DayMs(world);
+            string text = $"{vacancy.Career.Name} está fechado: entrevista marcada {When(world, opens)} para {vacancy.Entry.Title}.";
+            var ledger = world.CareersLedger();
+            if (ledger.SearchOf(npc.Id.Value) is { } search) { search.PendingCareer = null; search.PendingEmployer = 0; }
+            Notify(world, ledger, catalog, nowMs, npc, "interview", text, opens, null);
+            world.CareersChanged();
+            return Result<(string, string)>.Ok(("later", text));
+        }
+
+        var applied = Apply(world, npc, careerId, workplaceId, nowMs);
+        return applied.IsSuccess ? Result<(string, string)>.Ok((applied.Value.Hired ? "done" : "refused", applied.Value.Note)) : Result<(string, string)>.Fail(applied.Error!);
+    }
+
+    /// <summary>#268: o "ir até" terminou na célula <paramref name="cell"/>: se era a candidatura guardada (o corpo chegou ao empregador), ela corre agora e o resultado vai aos avisos.</summary>
+    public static void OnArrived(WorldState world, TickContext ctx, Npc npc, CellCoord cell)
+    {
+        if (CatalogOf(world) is not { } catalog || world.Careers?.SearchOf(npc.Id.Value) is not { PendingCareer: { } careerId } search) return;
+        long workplaceId = search.PendingEmployer;
+        search.PendingCareer = null;
+        search.PendingEmployer = 0;
+        world.CareersChanged();
+        if (world.FindWorkplace(new WorkplaceId(workplaceId)) is not { } employer || ApplyCell(world, employer) != cell) return;
+        long nowMs = world.CurrentDate.TotalMilliseconds;
+        var vacancy = Vacancies(world, npc).FirstOrDefault(v => v.Career.Id == careerId && v.Employer.Id.Value == workplaceId);
+        if (vacancy is null) { Notify(world, world.CareersLedger(), catalog, nowMs, npc, "rejected", "A vaga não existe mais.", 0, null); world.CareersChanged(); return; }
+        Decide(world, npc, catalog, vacancy, careerId, workplaceId, nowMs);
     }
 
     // ---- contas da casa ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -521,5 +592,14 @@ public static class CareerWork
         long today = DayOf(world, world.CurrentDate.TotalMilliseconds), day = DayOf(world, ms);
         string when = day == today ? "" : day == today + 1 ? "amanhã " : $"dia {day} ";
         return $"{when}{minutes / 60:00}:{minutes % 60:00}";
+    }
+
+    /// <summary>#268: a hora do jogo por extenso: "hoje às 14:30", "amanhã às 08:12", "dia 5 às 09:00" (a hora é a do relógio do mundo, calculada pelo motor).</summary>
+    public static string When(WorldState world, long ms)
+    {
+        int minutes = (int)(ms % DayMs(world) / 60_000);
+        long today = DayOf(world, world.CurrentDate.TotalMilliseconds), day = DayOf(world, ms);
+        string when = day == today ? "hoje" : day == today + 1 ? "amanhã" : $"dia {day}";
+        return $"{when} às {minutes / 60:00}:{minutes % 60:00}";
     }
 }

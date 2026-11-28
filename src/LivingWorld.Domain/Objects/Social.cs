@@ -30,10 +30,11 @@ public sealed record SocialCatalog(
 /// <summary>Regras gerais: idade adulta, alcance para começar (metros), a pausa entre uma iniciativa e outra de quem ninguém conduz, e a necessidade
 /// que pede companhia (<c>InitiateNeed</c>, abaixo de <c>InitiateBelow</c> a pessoa procura alguém), com a sondagem a cada <c>CheckEveryMin</c> minutos de mundo.
 /// <c>Texts</c> são as frases dos motivos gerais (<c>actorBusy</c>, <c>targetBusy</c>, <c>targetAsleep</c>, <c>adults</c>, <c>state</c>, <c>affection</c>, <c>trust</c>,
-/// <c>noPlace</c>, <c>far</c>, <c>targetUsing</c>), com <c>{actor}</c> e <c>{target}</c>. <c>SpouseAffection</c>/<c>SpouseTrust</c>: o que um casal (sem laço registrado ainda) sente um pelo outro desde o começo.</summary>
+/// <c>noPlace</c>, <c>far</c>, <c>targetUsing</c>, #268: <c>callAccepted</c>, <c>callRefused</c>), com <c>{actor}</c> e <c>{target}</c>. #268: <c>Call</c> é a chance de o alvo ocupado com um móvel levantar quando chamado (os mesmos termos da aceitação). <c>SpouseAffection</c>/<c>SpouseTrust</c>: o que um casal (sem laço registrado ainda) sente um pelo outro desde o começo.</summary>
 public sealed record SocialRules(
     int AdultYears, double ReachM, int CooldownMin, string InitiateNeed, double InitiateBelow, int CheckEveryMin, int HistoryHours,
-    IReadOnlyDictionary<string, string> Texts, double SpouseAffection = 0, double SpouseTrust = 0, double ApproachM = 8);
+    IReadOnlyDictionary<string, string> Texts, double SpouseAffection = 0, double SpouseTrust = 0, double ApproachM = 8,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SocialAccept? Call = null);
 
 /// <summary>Uma categoria do menu (amigável, romântica, má...): <c>Name</c> é o que o jogador lê.</summary>
 public sealed record SocialCategory(string Id, string Name);

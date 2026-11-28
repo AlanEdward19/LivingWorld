@@ -14,6 +14,15 @@ public static partial class PlayerInteractions
 {
     public const string JobKind = "job";
     public const string BillsKind = "bills";
+    public const string WillKind = "will";
+
+    private static Result<InteractionResult> FreeWillSwitch(WorldState world, Npc npc, string verb)
+    {
+        if (verb is not ("freewill:on" or "freewill:off") || Objects.CriticalNeeds.RulesOf(world) is null) return Fail("interact: will só aceita freewill:on ou freewill:off, e só com necessidades críticas no cenário");
+        bool on = verb == "freewill:on";
+        Objects.CriticalNeeds.SetFreeWill(world, npc, on);
+        return Result<InteractionResult>.Ok(new InteractionResult(WillKind, npc.Id.Value, verb, 0, 0, "done", on ? "Livre-arbítrio ligado: o corpo sem ordem se cuida sozinho" : "Livre-arbítrio desligado: o corpo só faz o que você manda"));
+    }
 
     private static void CareerOffers(WorldState world, Npc npc, CellCoord at, BuildingId? inside, Household? household, List<InteractionOffer> offers)
     {
@@ -68,9 +77,7 @@ public static partial class PlayerInteractions
 
         int at = verb.IndexOf('@');
         if (!verb.StartsWith("apply:", StringComparison.Ordinal) || at < 0 || !long.TryParse(verb[(at + 1)..], out long workplace)) return Fail("interact: verbo de trabalho desconhecido");
-        var applied = CareerWork.Apply(world, npc, verb["apply:".Length..at], workplace, nowMs);
-        return applied.IsSuccess
-            ? Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0, applied.Value.Hired ? "done" : "refused", applied.Value.Note))
-            : Fail(applied.Error!);
+        var applied = CareerWork.BeginApply(world, ctx, npc, verb["apply:".Length..at], workplace, nowMs);
+        return applied.IsSuccess ? Result<InteractionResult>.Ok(new InteractionResult(kind, id, verb, 0, 0, applied.Value.Outcome, applied.Value.Note)) : Fail(applied.Error!);
     }
 }

@@ -379,9 +379,22 @@ func test_wall_right_behind_keeps_the_view_shallow_not_overhead() -> void:
 	rig.set_mode(rig.THIRD)
 	rig.follow(made[1])
 	var seen := _body_below_center_and_look_down(rig)
-	check(seen[1] <= 55.0, "a vista curta não olha a prumo (%s graus; antes ~80)" % seen[1])
+	check(seen[1] <= 78.0, "a vista curta, colada à parede, olha o corpo de cima mas não a prumo da cabeça (%s graus; o piso de #268 manda subir)" % seen[1])
 	check(not _camera_inside_any_shell(rig, boxes), "e fora da parede")
 	rig.free()
+
+
+## #268: colado à fachada (o corpo no portal, a câmera para o lado do prédio) a câmera de rua não fica sobre a cabeça: sobe até a distância mínima do corpo, por mola, e fora da parede.
+func test_street_camera_flush_against_a_facade_keeps_a_minimum_distance_from_the_body() -> void:
+	var boxes := [[3, AABB(Vector3(-5, 0, 0.1), Vector3(10, 5, 3))]] # a fachada a 10 cm das costas do corpo (a câmera fica em +z)
+	var eye := Vector3(0, 1.4, 0)
+	var plan := CameraRig.plan_third(eye, 0.0, 0.0, CameraRig.third_distance(), boxes, 1.0)
+	var spot := eye + Vector3(0, plan.lift, 0) + Vector3(0, 0, plan.arm)
+	var distance := eye.distance_to(spot)
+	check(distance >= Grid.units(CameraRig.STREET_VIEW_M) - 0.01, "a câmera fica a pelo menos %s do olho (%s)" % [Grid.units(CameraRig.STREET_VIEW_M), distance])
+	check(plan.lift > plan.arm * tan(deg_to_rad(CameraRig.SHALLOW_DEG)) - 0.001, "sobe em vez de colar (subida %s, braço %s)" % [plan.lift, plan.arm])
+	var open := CameraRig.plan_third(eye, 0.0, 0.0, CameraRig.third_distance(), [], 1.0)
+	eq(open.lift, 0.0, "na rua aberta nada muda")
 
 
 ## Casa de `size` células com paredes em anel (miolo livre size-2): [[id, caixa, casca, paredes]].

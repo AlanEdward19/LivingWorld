@@ -64,6 +64,10 @@ public sealed class JobSearched
 {
     public long Npc { get; set; }
     public long AtMs { get; set; }
+
+    /// <summary>#268: a candidatura que espera o corpo chegar ao empregador (o "ir até" do jornal): a carreira e o empregador; vazia = nenhuma.</summary>
+    public string? PendingCareer { get; set; }
+    public long PendingEmployer { get; set; }
 }
 
 /// <summary>#263: o livro de carreiras e contas do mundo (esparso, ordenado por pessoa e por casa). Nulo no mundo enquanto o cenário não emprega ninguém: fora do
@@ -75,6 +79,9 @@ public sealed class CareerLedger
     public List<CareerNotice> Notices { get; set; } = [];
     public List<JobSearched> Searches { get; set; } = [];
     public long NextNotice { get; set; } = 1;
+
+    /// <summary>#268: quem desligou o livre-arbítrio do corpo (esparso, em ordem): o corpo conduzido sem ordem não se cuida sozinho. O padrão (ligado ou não) é do dado das necessidades.</summary>
+    public List<long> FreeWillSet { get; set; } = [];
 
     public CareerJob? JobOf(long npc)
     {

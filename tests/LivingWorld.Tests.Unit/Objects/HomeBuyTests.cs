@@ -393,7 +393,10 @@ public class HomeBuyTests
 
         var bath = BuildingRooms.Of(house, catalog).Floors[0].Rooms.First(r => r.Kind == "banheiro");
         body.MoveWithinBuilding(bath.Cells[0]);
-        Assert.Contains(MoodMechanic.Moments(world, body, ms), m => m.Id == "ugly-room" && m.Name == "Cômodo feio" && m.Weight < 0);
+        // #268: o banheiro de vaso e chuveiro não é feio só por isso: o humor mede a beleza contra a esperada para o tipo de cômodo (dado), embora a medida absoluta seja baixa
+        var measured = RoomBeauty.Rooms(house, catalog).Single(r => r.Kind == "banheiro");
+        Assert.True(measured.Beauty < -1 && measured.Expected < measured.Beauty + 1, $"banheiro {measured.Beauty} (esperado {measured.Expected})");
+        Assert.DoesNotContain(MoodMechanic.Moments(world, body, ms), m => m.Id == "ugly-room");
         Assert.DoesNotContain(MoodMechanic.Moments(world, body, ms), m => m.Id == "pretty-room"); // vale pelo cômodo onde está
     }
 

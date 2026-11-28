@@ -1,7 +1,7 @@
 {
  "Moods": {
   "rules": {
-   "scorePerWeight": 3,
+   "scorePerWeight": 2.2,
    "psycheWeight": 4,
    "wishSlots": 3,
    "wishHours": 16,
@@ -12,7 +12,7 @@
    "maxMoments": 16,
    "emotionMin": 1,
    "aspirationBoost": 3,
-   "scoreSwing": 20,
+   "scoreSwing": 16,
    "emotionCap": 5,
    "wishDailyPool": 7,
    "wishCooldownHours": 10

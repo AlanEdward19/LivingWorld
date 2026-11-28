@@ -14,7 +14,7 @@ public sealed record HomeActionView(string Verb, string Label, bool Ok, string R
 /// <summary>Um móvel pago e ainda não posicionado: onde está de verdade (<c>shop</c>, <c>hands</c>, <c>car</c>, <c>courier</c>, <c>depot</c>), peso e volume (dado), quem o leva e o que dá para fazer.</summary>
 public sealed record HomeParcelView(
     int Seq, string Id, string Name, string Where, double Kg, double Liters, long Paid, long ReadyInMs, long DueInMs, string? Carrier, string? Helper, string? Courier, string Carry,
-    IReadOnlyList<HomeActionView> Actions);
+    IReadOnlyList<HomeActionView> Actions, string? DueText = null, string? ReadyText = null);
 
 /// <summary>O entregador a caminho: a rota da loja à porta (células do mundo, centro de cada uma) e os tempos (ms de mundo): quanto falta para sair e para chegar. O cliente só interpola.</summary>
 public sealed record HomeCourierView(int Seq, string Id, string Item, string Name, long Npc, long StartsInMs, long ArrivesInMs, long TotalMs, IReadOnlyList<double[]> Path);
@@ -71,7 +71,8 @@ public static class HomeFreightViews
             }
 
             parcels.Add(new HomeParcelView(p.Seq, p.Id, HomeFreight.Name(catalog, p.Id), p.Where, heft.Kg, heft.Liters, p.Paid, Math.Max(0, p.ReadyAtMs - now), p.Where == "courier" ? Math.Max(0, p.DueMs - now) : 0,
-                p.Carrier > 0 ? NameOf(p.Carrier) : null, p.Helper > 0 ? NameOf(p.Helper) : null, p.Courier > 0 ? NameOf(p.Courier) : null, CarryOf(haul, heft), actions));
+                p.Carrier > 0 ? NameOf(p.Carrier) : null, p.Helper > 0 ? NameOf(p.Helper) : null, p.Courier > 0 ? NameOf(p.Courier) : null, CarryOf(haul, heft), actions,
+                p.Where == "courier" ? LivingWorld.Simulation.Careers.CareerWork.When(world, p.DueMs) : null, p.Where == "shop" && p.ReadyAtMs > now ? LivingWorld.Simulation.Careers.CareerWork.When(world, p.ReadyAtMs) : null)); // #268: a hora de chegada, calculada pelo motor
             if (p.Where == "courier" && shopFront is { } from && homeFront is { } to && world.FindNpc(new NpcId(p.Courier)) is { } courier && HomeFreight.Path(world, courier, from.Front, to.Front) is { } path)
             {
                 var cells = new List<double[]> { new[] { from.Front.X + 0.5, from.Front.Y + 0.5 } };

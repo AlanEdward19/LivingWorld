@@ -53,3 +53,12 @@ e a **vida social com custo** provada em tela (briga e pazes).
 ## Corrigido neste passo
 - **Câmera de interior por cômodo** (AD-235, acima). **"Fez as pazes"** só de quem brigou: `MomentTrigger.Needs` (dado `moods.json`; `MoodTests.Making_up_only_happens_to_people_who_fought`).
 - Passos de captura: `rooms` (cômodos e enquadramento) e `closemenu` (`dev_steps.gd`); `useverb` agora imprime os usos do objeto.
+
+## Corrigido no 5º passo (#268, AD-236)
+- **P1-1 candidatura**: ler o jornal abre as vagas na roda (cargo, empregador, salário, ida, chance) com "Candidatar-se"; o motor leva o corpo ao empregador (`ir até`) e responde na chegada: contratado, recusado com a chance, ou entrevista marcada para a abertura (`Careers.rules.applyOpenHour`).
+- **P1-2 entrega**: "Seu Tomás entrega Sofá por 3: chega amanhã às 08:00" (hora do mundo, `CareerWork.When`), no preview, na ficha (`dueText`) e no preparo da loja; "Ir à loja" na roda do E de qualquer lugar.
+- **P1-3 pausa**: faixa "⏸ Tempo pausado (menu aberto)" com a roda ou outro popup aberto.
+- **P1-4 necessidade crítica**: `NeedCritical` (dado, limiar por necessidade) vira aviso `need-critical` em `stopKinds` (300× desce a 1×) e o livre-arbítrio (U liga/desliga) atende sozinho quando o jogador não deu ordem: 03:05 do dia 2, "Você está com a bexiga cheia (14%)", "Marina cuidou de si: Usar o vaso", bexiga 20 → 89.
+- **P1-5 câmera de rua**: colada à fachada, a mola sobe até `STREET_VIEW_M` do corpo em vez de grudar na cabeça. **P1-6 ocupado**: "Chamar Rafael" (o motor sorteia: afeição, humor, sono, briga) e "Esperar terminar (hoje às 07:20)".
+- **P2**: realce suave no chão do corpo conduzido de cima; banheiro medido contra a beleza esperada (`Home.rules.expectedBeauty`), sem "Cômodo feio" fixo; cartão diz "Indo: Escritório", não "Parado".
+- **Realismo**: elogio repetido recusado ("lembra que você já elogiou agora há pouco"), abraço logo após outro gesto recusado ("carinho demais em tão pouco tempo"), briga trava os gestos por dias, "Radiante" só a partir de 80 (banho + abraço + elogio = 75, "Bem").

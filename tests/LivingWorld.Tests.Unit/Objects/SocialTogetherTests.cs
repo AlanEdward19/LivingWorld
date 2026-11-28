@@ -143,8 +143,14 @@ public class SocialTogetherTests
         Assert.Equal("done", chat.Value!.Outcome);
         Assert.True(body.BodyTask is { Action: ObjectUsage.Action }, "o uso do sofá não foi cancelado");
 
-        var hug = service.Interact(world, "alan", "person", other.Id.Value, "social:hug");
-        Assert.True(hug.IsSuccess, hug.Error);
+        for (int attempt = 0; attempt < 12 && body.BodyTask is not { Action: SocialInteractions.Action }; attempt++) // #268: o abraço nem sempre é aceito: tenta de novo, com tempo entre uma e outra
+        {
+            var hug = service.Interact(world, "alan", "person", other.Id.Value, "social:hug");
+            Assert.True(hug.IsSuccess, hug.Error);
+            if (hug.Value!.Outcome == "done") break;
+            Run(world, clock, 5 * 60_000);
+        }
+
         Assert.True(body.BodyTask is { Action: SocialInteractions.Action }, "levantou para abraçar");
     }
 
@@ -194,5 +200,44 @@ public class SocialTogetherTests
         Assert.NotEqual(start, Metres(world, body));
         Assert.True(Gap(world, body, other) < first, $"se aproximou de {first:0.0} m para {Gap(world, body, other):0.0} m");
         Assert.True(body.BodyTask is { Doing: true }, "chegou e o gesto começou");
+    }
+
+    [Fact]
+    public void Calling_a_partner_busy_with_a_piece_is_offered_and_the_engine_decides_whether_they_get_up()
+    {
+        var (world, clock, service, body, other, house) = Playing();
+        Bond(world, body, other, 95, 95);
+        int chair = PutAt(world, other, "chair");
+        PutAt(world, body, "table");
+        Assert.True(ObjectUsage.Begin(world, Ctx(world), other, house, chair, "meal").IsSuccess);
+        for (int i = 0; i < 800 && other.BodyTask is { Doing: false }; i++) clock.Tick(world, Fine);
+        Assert.True(other.BodyTask is { Action: ObjectUsage.Action, Doing: true });
+
+        var hug = SocialInteractions.OptionsFor(world, body, other)!.Single(o => o.Id == "hug");
+        Assert.False(hug.Available);
+        Assert.True(hug.CanCall); // o menu oferece "Chamar"
+        Assert.Contains("às", hug.FreeAtText); // e diz quando o outro termina (hora do jogo)
+        Assert.False(SocialInteractions.OptionsFor(world, body, other)!.Single(o => o.Id == "chat").CanCall); // quem já pode conversar não precisa chamar
+
+        // com a briga viva ele nunca levanta, e diz por quê; sem ela, com afeição alta, levanta numa das tentativas (decisão sorteada pelo mundo)
+        MoodMechanic.OnSocial(world, world.ObjectCatalog!.Social!.Find("argue")!, body, other, accepted: true, world.CurrentDate.TotalMilliseconds);
+        var refused = service.Interact(world, "alan", "person", other.Id.Value, "call");
+        Assert.True(refused.IsSuccess, refused.Error);
+        Assert.Equal("refused", refused.Value!.Outcome);
+        Assert.Contains("magoado", refused.Value.Note);
+        Assert.True(other.BodyTask is { Action: ObjectUsage.Action }, "segue no móvel");
+
+        other.SetMoods(null);
+        bool rose = false;
+        for (int i = 0; i < 40 && !rose; i++)
+        {
+            Run(world, clock, 60_000);
+            if (other.BodyTask is not { Action: ObjectUsage.Action }) break;
+            var called = service.Interact(world, "alan", "person", other.Id.Value, "call");
+            Assert.True(called.IsSuccess, called.Error);
+            rose = called.Value!.Outcome == "done" && other.BodyTask is not { Action: ObjectUsage.Action, Doing: true };
+        }
+
+        Assert.True(rose || other.BodyTask is not { Action: ObjectUsage.Action }, "chamado com carinho, o outro levanta");
     }
 }

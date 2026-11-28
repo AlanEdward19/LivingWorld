@@ -11,11 +11,11 @@ namespace LivingWorld.Simulation.Objects;
 
 /// <summary>#264: a beleza de um cômodo, medida pelo motor: a soma da beleza dos móveis que estão nele (<c>Home.items[].beauty</c>) mais a média da beleza da pintura do piso e das
 /// paredes dele (<c>Home.paints[].beauty</c>; o que não foi pintado vale a pintura padrão do tipo). Função pura do prédio e do catálogo, em cache por versão da obra.</summary>
-public sealed record RoomBeautyView(int Floor, int Index, string? Kind, int Cells, double Beauty, double Items, double Paint);
+public sealed record RoomBeautyView(int Floor, int Index, string? Kind, int Cells, double Beauty, double Items, double Paint, double Expected = 0);
 
 public static class RoomBeauty
 {
-    private sealed record Entry(ObjectCatalog Catalog, int Version, IReadOnlyList<RoomBeautyView> Rooms, Dictionary<(int Floor, CellCoord Cell), double> ByCell);
+    private sealed record Entry(ObjectCatalog Catalog, int Version, IReadOnlyList<RoomBeautyView> Rooms, Dictionary<(int Floor, CellCoord Cell), double> ByCell, Dictionary<(int Floor, CellCoord Cell), double> Relative);
 
     private static readonly ConditionalWeakTable<Building, Entry> Cache = new();
 
@@ -26,17 +26,21 @@ public static class RoomBeauty
     public static double? At(Building building, ObjectCatalog? catalog, int floor, CellCoord cell) =>
         catalog?.Home is null ? null : EntryOf(building, catalog).ByCell.TryGetValue((floor, cell), out double beauty) ? beauty : null;
 
-    /// <summary>O gatilho de ambiente (<c>state</c> com <c>ambient</c>): a medida do cômodo onde a pessoa está agora. Nulo fora de casa ou sem catálogo.</summary>
+    /// <summary>#268: a beleza do cômodo que tem a célula menos a esperada para o tipo dele (<c>Home.rules.expectedBeauty</c>); é o que o humor mede.</summary>
+    public static double? RelativeAt(Building building, ObjectCatalog? catalog, int floor, CellCoord cell) =>
+        catalog?.Home is null ? null : EntryOf(building, catalog).Relative.TryGetValue((floor, cell), out double beauty) ? beauty : null;
+
+    /// <summary>O gatilho de ambiente (<c>state</c> com <c>ambient</c>): a medida do cômodo onde a pessoa está agora (a beleza relativa ao que se espera do tipo de cômodo). Nulo fora de casa ou sem catálogo.</summary>
     public static double? Ambient(WorldState world, Npc npc, string metric)
     {
         if (metric != "beauty" || world.ObjectCatalog is not { Home: not null } catalog) return null;
         if (npc.Interior is { } inside)
-            return world.FindBuilding(inside.Building) is { } building ? At(building, catalog, inside.Floor.Value, inside.LocalCell) : null;
+            return world.FindBuilding(inside.Building) is { } building ? RelativeAt(building, catalog, inside.Floor.Value, inside.LocalCell) : null;
         // o corpo que alguém conduz anda pela pose fina e pode estar na planta sem `Interior`: o chão do passo diz em que casa e em que célula ele está
         int floor = PlayerGround.FloorOf(npc);
         var pose = PlayerGround.PoseOf(world, npc);
         return PlayerGround.At(world, pose, floor) is { } spot
-            ? At(spot.Building, catalog, floor, new CellCoord(pose.X - spot.Origin.X, pose.Y - spot.Origin.Y)) : null;
+            ? RelativeAt(spot.Building, catalog, floor, new CellCoord(pose.X - spot.Origin.X, pose.Y - spot.Origin.Y)) : null;
     }
 
     private static Entry EntryOf(Building building, ObjectCatalog catalog)
@@ -66,6 +70,7 @@ public static class RoomBeauty
         double defaultFloor = home.DefaultPaint("floor")?.Beauty ?? 0, defaultWall = home.DefaultPaint("wall")?.Beauty ?? 0;
         var views = new List<RoomBeautyView>();
         var byCell = new Dictionary<(int, CellCoord), double>();
+        var relative = new Dictionary<(int, CellCoord), double>();
         for (int floor = 0; floor < rooms.Floors.Length; floor++)
         {
             var outer = (layout.FloorLayouts[floor].Walls ?? []).Select(w => w.Edge).ToHashSet();
@@ -99,11 +104,12 @@ public static class RoomBeauty
                 walls = edges > 0 ? walls / edges : 0;
                 double paint = Math.Round(floors + walls, 2);
                 double total = Math.Round(items + paint, 2);
-                views.Add(new RoomBeautyView(floor, index, room.Kind, room.Cells.Count, total, items, paint));
-                foreach (var cell in room.Cells) byCell[(floor, cell)] = total;
+                double expected = room.Kind is { } kind && home.Rules.ExpectedBeauty is { } table && table.TryGetValue(kind, out double wanted) ? wanted : 0;
+                views.Add(new RoomBeautyView(floor, index, room.Kind, room.Cells.Count, total, items, paint, expected));
+                foreach (var cell in room.Cells) { byCell[(floor, cell)] = total; relative[(floor, cell)] = Math.Round(total - expected, 2); }
             }
         }
 
-        return new Entry(catalog, version, views, byCell);
+        return new Entry(catalog, version, views, byCell, relative);
     }
 }

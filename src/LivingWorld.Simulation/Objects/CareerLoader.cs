@@ -74,8 +74,8 @@ public static class CareerLoader
 
         int week = Int("weekDays", d.WeekDays, 1, 14, out var e1), lead = Int("noticeLeadHours", d.NoticeLeadHours, 0, 12, out var e2), grace = Int("graceHours", d.GraceHours, 0, 12, out var e3),
             fire = Int("absencesToFire", d.AbsencesToFire, 1, 30, out var e4), billHour = Int("billHour", d.BillHour, 0, 23, out var e5), keep = Int("noticeKeep", d.NoticeKeep, 4, 400, out var e6),
-            valid = Int("searchValidHours", d.SearchValidHours, 1, 720, out var e7);
-        foreach (var error in new[] { e1, e2, e3, e4, e5, e6, e7 }) if (error is not null) return Result<CareerRules>.Fail(error);
+            valid = Int("searchValidHours", d.SearchValidHours, 1, 720, out var e7), open = Int("applyOpenHour", d.ApplyOpenHour, 0, 23, out var e8), close = Int("applyCloseHour", d.ApplyCloseHour, 1, 24, out var e9);
+        foreach (var error in new[] { e1, e2, e3, e4, e5, e6, e7, e8, e9 }) if (error is not null) return Result<CareerRules>.Fail(error);
         double idle = d.IdleSearchPerDay;
         if (o["idleSearchPerDay"] is not null && (!Number(o["idleSearchPerDay"], out idle) || idle is < 0 or > 1)) return Result<CareerRules>.Fail("Careers.rules.idleSearchPerDay: número de 0 a 1");
         List<string>? names = null;
@@ -90,6 +90,10 @@ public static class CareerLoader
             }
         }
 
+        bool atEmployer = o["applyAtEmployer"] is JsonValue av && av.TryGetValue(out bool ab) && ab;
+        double reach = d.ApplyReachM;
+        if (o["applyReachM"] is not null && (!Number(o["applyReachM"], out reach) || reach is < 1 or > 200)) return Result<CareerRules>.Fail("Careers.rules.applyReachM: metros de 1 a 200");
+        if (close <= open) return Result<CareerRules>.Fail("Careers.rules.applyCloseHour: depois de applyOpenHour");
         List<string>? stop = null; // #267: os tipos de aviso que pedem tempo normal
         if (o["stopKinds"] is not null)
         {
@@ -102,7 +106,7 @@ public static class CareerLoader
             }
         }
 
-        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle, names, stop));
+        return Result<CareerRules>.Ok(new CareerRules(week, lead, grace, fire, billHour, keep, valid, idle, names, stop, atEmployer, reach, open, close));
     }
 
     private static Result<CareerDef> ParseCareer(JsonNode? node, string at, Func<string, bool> knownNeed)

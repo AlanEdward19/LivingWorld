@@ -63,6 +63,12 @@ public static class SocialLoader
 
         var mood = ParseMood(block["mood"], KnownNeed);
         if (!mood.IsSuccess) return Fail(mood.Error!);
+        if (block["rules"] is JsonObject ro && ro["call"] is not null) // #268: chamar quem está num móvel
+        {
+            var call = ParseAccept(ro["call"], "Social.rules.call", categories, KnownNeed);
+            if (!call.IsSuccess) return Fail(call.Error!);
+            rules = Result<SocialRules>.Ok(rules.Value! with { Call = call.Value });
+        }
         var interactions = new List<SocialInteractionDef>();
         if (block["interactions"] is JsonArray list)
             for (int i = 0; i < list.Count; i++)
@@ -206,6 +212,9 @@ public static class SocialLoader
         if (parts.Length == 3 && parts[0] is "actor" or "target" && parts[1] == "need") return knownNeed(parts[2]);
         if (parts.Length == 3 && parts[0] == "target" && parts[1] == "trait") return Traits.Contains(parts[2]);
         if (parts.Length == 2 && parts[0] == "recent") return categories.Any(c => c.Id == parts[1]);
+        if (parts.Length == 3 && parts[0] == "recent") return categories.Any(c => c.Id == parts[1]) && int.TryParse(parts[2], out int w) && w > 0; // #268: recent.{categoria}.{minutos}
+        if (parts.Length == 2 && parts[0] == "again") return int.TryParse(parts[1], out int m) && m > 0; // #268: de novo a mesma interação, dentro de {minutos}
+        if (parts.Length == 3 && parts[0] is "actor" or "target" && parts[1] == "moment") return parts[2].Length > 0; // #268: vive o momento (a briga que dura)
         return false;
     }
 
