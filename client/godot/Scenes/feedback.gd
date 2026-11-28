@@ -55,6 +55,7 @@ var _next_puff := 0
 var _labels: Array[Label] = []
 var _ages: Array[float] = []
 var _next_label := 0
+const STEP_DB := -14.0 ## passos bem abaixo dos golpes e portas (dono: passos alto demais)
 var _step_index := -1
 var _lands: Array[float] = [] ## tempo que falta para cada pouso confirmado
 var _land_air: Array[float] = []
@@ -193,7 +194,7 @@ func step_tick(phase: float, gait: float, run: float, pos: Vector3) -> bool:
 	if not advanced or gait < 0.35:
 		return false
 	var kind := Synth.step_kind(String(surface_at.call(pos)))
-	play(kind, pos, 0.0 if run < 0.5 else 2.5)
+	play(kind, pos, STEP_DB + (0.0 if run < 0.5 else 2.5))
 	if run >= 0.6:
 		puff(pos, 0.5)
 	return true
