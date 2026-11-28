@@ -914,6 +914,8 @@ func _on_player_busy(action: String, seconds: float) -> void:
 		node.stop_gesture()
 	else:
 		node.play_loop(BodyBusy.gesture_for(action), seconds)
+		if action.begins_with("use:") and action != "use:walk": # #255: no lugar de uso o corpo olha para onde o catálogo manda (sem tocar no rig)
+			node.rotation.y = deg_to_rad(player_hud.busy.facing)
 
 
 func _on_player_jumped(air_s: float) -> void:

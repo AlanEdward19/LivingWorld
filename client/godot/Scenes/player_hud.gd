@@ -1010,6 +1010,8 @@ var _interrupting := false
 ## #241: a ação que ocupa o corpo, como o motor diz (`busy` da pose). A barra, o gesto em laço e o bloqueio do WASD saem daqui.
 var busy := BodyBusy.new()
 var _busy_note_clock := 0.0
+var _use_poll := 0.0
+const USE_POLL_S := 0.12 ## s entre leituras da pose enquanto o motor leva o corpo até o móvel
 
 
 func _time_scale() -> float:
@@ -1030,7 +1032,7 @@ func _note_busy(pose: Dictionary) -> void:
 	var now := float(Time.get_ticks_msec())
 	var before := busy.action
 	if busy.note_pose(pose, now, world_rate if world_rate > 0.0 else _time_scale()):
-		busy_changed.emit(busy.action, busy.seconds_left(now))
+		busy_changed.emit(busy.kind(), busy.seconds_left(now))
 		if before != "" and busy.action == "":
 			_busy_ended()
 	if frame != null:
@@ -1057,9 +1059,33 @@ func _refresh_busy(wants_to_walk: bool, delta: float) -> void:
 		return
 	if frame != null:
 		frame.set_busy(busy.text(now), busy.fraction(now))
+	if busy.action == "use":
+		if wants_to_walk: # #255: WASD interrompe o uso (o que já subiu fica); o resto das ações longas só avisa
+			interrupt()
+			return
+		if busy.phase == "walk": # o motor leva o corpo até a peça: a pose dele manda, lida várias vezes por segundo
+			_use_poll += delta
+			if _use_poll >= USE_POLL_S and not _walk_busy:
+				_use_poll = 0.0
+				sync_pose()
 	if wants_to_walk and _busy_note_clock <= 0.0:
 		_busy_note_clock = 2.5
 		warning.emit(busy.blocked_note())
+
+
+## #255: tira a ação `index` da fila (o motor guarda a fila e devolve a pose com ela).
+func cancel_queued(index: int) -> void:
+	if not is_active or _busy:
+		return
+	var response: Dictionary = await api.player_interact(player_id, "queue", index, "cancel", -1)
+	if response.ok and response.body is Dictionary:
+		var pose = response.body.get("pose")
+		if pose is Dictionary:
+			apply_pose(pose)
+		warning.emit("Tirou da fila.")
+	else:
+		var error := String(response.body.get("error", "")) if response.body is Dictionary else ""
+		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou a fila.")
 
 
 ## #241: para a ação em andamento (Espaço); o motor decide o que ficou feito (a parte proporcional) e devolve a pose.
@@ -1067,7 +1093,7 @@ func interrupt() -> void:
 	if not is_active or _interrupting or not busy.active():
 		return
 	_interrupting = true
-	var stopped := BodyBusy.stopped(busy.action)
+	var stopped := busy.stopped_text()
 	var response: Dictionary = await api.player_interrupt(player_id)
 	_interrupting = false
 	if not is_active:
@@ -1099,6 +1125,8 @@ const DOUBLE_TAP_MS := 260
 func apply_pose(pose: Dictionary, from_walk: bool = false) -> void:
 	note_combat(pose)
 	_note_busy(pose)
+	if frame != null:
+		frame.set_queue(pose.get("queue", [])) # #255: a fila de ações do corpo, como o motor guarda
 	building_id = int(pose.buildingId) if pose.get("buildingId") != null else -1
 	floor_level = int(pose.get("floor", 0))
 	placed.emit(building_id, int(pose.get("floor", 0)))
@@ -1177,7 +1205,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		var entry: Dictionary = frame.entry_for_key(event.keycode)
 		if not entry.is_empty():
 			get_viewport().set_input_as_handled()
-			interact(entry)
+			if String(entry.get("verb", "")) == "more":
+				frame.choose(entry)
+			else:
+				interact(entry)
 			return
 	if combat_input(event):
 		get_viewport().set_input_as_handled()
@@ -1193,6 +1224,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_G and not popup_open() and not typing() and not housemates.is_empty():
 		get_viewport().set_input_as_handled()
 		switch_body() # #252: G passa a conduzir a outra pessoa da casa
+	elif event is InputEventKey and event.pressed and not event.echo and event.shift_pressed and event.keycode in [KEY_1, KEY_2, KEY_3, KEY_4] and rpg \
+			and frame != null and frame.queue_size() > 0:
+		get_viewport().set_input_as_handled()
+		cancel_queued(event.keycode - KEY_1) # #255: Shift+1–4 tira a ação da fila
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J and rpg:
 		get_viewport().set_input_as_handled()
 		toggle_goals() # #235: metas e diário
@@ -1385,6 +1420,10 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 		var kind := String(offer.get("kind", ""))
 		var title := String(offer.get("label", "")) if kind in ["person", "item", "object"] else String(KIND_TEXT.get(kind, kind)) # o nome vem do motor
 		title = String(OBJECT_TEXT.get(title, title)) # #222: os móveis do catálogo padrão têm id em inglês ("counter")
+		if kind == "object" and offer.get("uses") != null and not (offer.uses as Array).is_empty():
+			# #255: um item por objeto (os usos vão num submenu), para cadeira, mesa e sofá não sumirem da roda
+			entries.append({"text": "%s ▸" % title, "kind": kind, "id": int(offer.id), "verb": "menu", "resource": -1, "uses": offer.uses, "title": title})
+			continue
 		for verb in offer.get("verbs", []):
 			var resources: Array = offer.get("resources", [])
 			if String(verb) in ["buy", "take", "steal", "gather"] and not resources.is_empty():
@@ -1400,6 +1439,18 @@ static func menu_entries(from: Array, name_of: Callable = Callable()) -> Array:
 				entries.append({"text": "%s: %s" % [title, VERB_TEXT.get(String(verb), String(verb))], "kind": kind,
 					"id": int(offer.id), "verb": String(verb), "resource": -1})
 	return entries
+
+
+## #255: os usos de um objeto como linhas da roda: "Tomar banho · 15 min" (ou "Fila: …" com o corpo ocupado); o ocupado por outra pessoa vem marcado.
+static func use_entries(object_entry: Dictionary, queueing: bool) -> Array:
+	var list: Array = []
+	for use in object_entry.get("uses", []):
+		var text := "%s · %d min" % [String(use.name), int(use.minutes)]
+		if bool(use.get("busy", false)):
+			text += " (ocupado)"
+		var verb := ("queue:" if queueing else "use:") + String(use.id)
+		list.append({"text": ("Fila: " if queueing else "") + text, "kind": String(object_entry.kind), "id": int(object_entry.id), "verb": verb, "resource": -1})
+	return list
 
 
 func show_menu(entries: Array) -> void:
@@ -1434,6 +1485,13 @@ func close_menu() -> void:
 func interact(entry: Dictionary) -> void:
 	if not is_active or _busy:
 		return
+	if String(entry.get("verb", "")) == "menu": # #255: o objeto abre os usos dele numa segunda roda
+		if frame != null:
+			frame.show_menu(use_entries(entry, busy.active() or frame.queue_size() > 0))
+		return
+	if busy.active() and String(entry.get("verb", "")).begins_with("use:"):
+		entry = entry.duplicate()
+		entry["verb"] = "queue:" + String(entry.verb).substr(4) # o corpo está ocupado: a ação entra na fila
 	close_menu()
 	_busy = true
 	var started := Time.get_ticks_usec()
@@ -1449,6 +1507,8 @@ func interact(entry: Dictionary) -> void:
 		if pose is Dictionary:
 			_pace(pose)
 			_note_busy(pose)
+			if frame != null:
+				frame.set_queue(pose.get("queue", [])) # #255
 			confirmed.emit(int(pose.get("x", 0)), int(pose.get("y", 0)))
 		if response.body.get("sessionId") != null:
 			conversation_opened.emit(int(entry.id), _offer_label(entry), int(response.body.sessionId))

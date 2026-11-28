@@ -2,12 +2,13 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
 const Registry := preload("res://Store/entity_registry.gd")
 const Grid := preload("res://Scenes/grid.gd")
 const FrameCost := preload("res://Contract/frame_cost.gd")
+const PlayerFrame := preload("res://Scenes/player_frame.gd")
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -98,6 +99,39 @@ static func run(app: Node, steps: Array) -> void:
 				print("use: ", arg, " -> ", chosen.get("text", "(nada)"), " | ofertas: ", entries.map(func(e): return String(e.text)))
 				if not chosen.is_empty():
 					await app.player_hud.interact(chosen)
+			"useverb": # #255: `useverb:Chuveiro|Tomar banho` usa (ou, com o corpo ocupado, enfileira) o uso do objeto pelo nome, pela oferta do motor
+				var parts := arg.split("|")
+				var found: Array = await app.player_hud._reach_entries()
+				var object_entry: Dictionary = {}
+				for entry in found:
+					if String(entry.get("verb", "")) == "menu" and parts[0].to_lower() in String(entry.text).to_lower():
+						object_entry = entry
+						break
+				var picked: Dictionary = {}
+				for line in app.player_hud.use_entries(object_entry, app.player_hud.busy.active()) if not object_entry.is_empty() else []:
+					if parts.size() < 2 or parts[1].to_lower() in String(line.text).to_lower():
+						picked = line
+						break
+				print("useverb: ", arg, " -> ", picked.get("text", "(nada)"), " | objetos: ", found.map(func(e): return String(e.text)))
+				if not picked.is_empty():
+					await app.player_hud.interact(picked)
+			"needs": # #255: imprime as barras do corpo (as de sempre e as do catálogo), a dica, a ação em curso e a fila
+				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+				var sheet: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				var line := PackedStringArray()
+				for key in ["health", "hunger", "thirst", "sleep", "social"]:
+					line.append("%s=%s" % [key, sheet.get(key)])
+				for row in sheet.get("catalogNeeds", []):
+					line.append("%s=%d%s" % [row.id, int(row.value), "!" if bool(row.urgent) else ""])
+				print("needs: ", app.player_hud.npc_name, " ", " ".join(line), " | dica: ", PlayerFrame.hint_line(sheet.get("needHint")), " | busy: ", app.player_hud.busy.action, "/", app.player_hud.busy.phase, "/", app.player_hud.busy.label, " | fila: ", app.player_frame.queue_label.text.replace("\n", " "))
+			"waituse": # #255: espera (até S s reais) o uso acabar; imprime as barras uma vez por segundo
+				var waited := 0.0
+				while app.player_hud.busy.active() and waited < float(arg):
+					await app.get_tree().create_timer(1.0).timeout
+					waited += 1.0
+				print("waituse: ", waited, " s; ocupado=", app.player_hud.busy.active())
+			"cancelq": # #255: tira a ação N da fila (0 = a próxima)
+				await app.player_hud.cancel_queued(int(arg))
 			"where": # #252: onde está o corpo conduzido (id, nome, posição fina, prédio e andar do motor, câmera)
 				print("where: npc=", app.player_hud.npc_id, " ", app.player_hud.npc_name, " fine=", app.player_hud.fine, " prédio=", app.player_hud.building_id,
 					" andar=", app.player_hud.floor_level, " câmera=", app.rig.target, " seguindo=", app.rig.following)
