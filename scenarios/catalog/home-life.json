@@ -92,28 +92,14 @@
     {
      "shape": "box",
      "size": [
-      1.2,
-      0.4,
-      1.4
-     ],
-     "offset": [
-      0,
-      0.2,
-      0
-     ],
-     "color": "d8cfb8"
-    },
-    {
-     "shape": "box",
-     "size": [
-      1.2,
+      0.773,
       0.7,
-      0.1
+      1.333
      ],
      "offset": [
       0,
       0.35,
-      -0.65
+      0
      ],
      "color": "8a6a43"
     }
@@ -202,7 +188,25 @@
      "occupies": false,
      "hidden": true
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    2
+   ],
+   "model": {
+    "kind": "bed",
+    "sizeM": [
+     1.16,
+     2.0,
+     1.05
+    ],
+    "align": "back",
+    "style": {
+     "wood": "8a6a43",
+     "fabric": "efe8d8",
+     "accent": "6f8fb5"
+    }
+   }
   },
   {
    "id": "table",
@@ -213,13 +217,13 @@
     {
      "shape": "box",
      "size": [
-      1.0,
-      0.7,
-      0.8
+      0.767,
+      0.507,
+      0.6
      ],
      "offset": [
       0,
-      0.35,
+      0.253,
       0
      ],
      "color": "8a6a43"
@@ -278,7 +282,23 @@
      "facing": 180,
      "untilFull": "hunger"
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "table",
+    "sizeM": [
+     1.15,
+     0.9,
+     0.76
+    ],
+    "align": "center",
+    "style": {
+     "wood": "8a6a43"
+    }
+   }
   },
   {
    "id": "chair",
@@ -289,13 +309,13 @@
     {
      "shape": "box",
      "size": [
-      0.4,
-      0.45,
-      0.4
+      0.3,
+      0.6,
+      0.3
      ],
      "offset": [
       0,
-      0.225,
+      0.3,
       0
      ],
      "color": "7a5a38"
@@ -383,6 +403,26 @@
      "untilFull": "hunger",
      "hidden": true
     }
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "chair",
+    "sizeM": [
+     0.45,
+     0.45,
+     0.9
+    ],
+    "align": "center",
+    "style": {
+     "wood": "7a5a38",
+     "fabric": "b8895a"
+    }
+   },
+   "near": [
+    "table"
    ]
   },
   {
@@ -394,28 +434,14 @@
     {
      "shape": "box",
      "size": [
-      1.3,
-      0.45,
-      0.7
+      1.333,
+      0.567,
+      0.6
      ],
      "offset": [
       0,
-      0.225,
+      0.283,
       0
-     ],
-     "color": "5b6f8a"
-    },
-    {
-     "shape": "box",
-     "size": [
-      1.3,
-      0.4,
-      0.15
-     ],
-     "offset": [
-      0,
-      0.65,
-      -0.3
      ],
      "color": "4d5f78"
     }
@@ -528,7 +554,25 @@
      "occupies": false,
      "hidden": true
     }
-   ]
+   ],
+   "footprint": [
+    2,
+    1
+   ],
+   "model": {
+    "kind": "sofa",
+    "sizeM": [
+     2.0,
+     0.9,
+     0.85
+    ],
+    "align": "back",
+    "style": {
+     "fabric": "4d5f78",
+     "accent": "5b6f8a",
+     "wood": "3a2c22"
+    }
+   }
   },
   {
    "id": "stove",
@@ -539,30 +583,16 @@
     {
      "shape": "box",
      "size": [
-      0.7,
-      0.9,
-      0.6
+      0.413,
+      0.613,
+      0.433
      ],
      "offset": [
       0,
-      0.45,
+      0.307,
       0
      ],
      "color": "c9ccd1"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.5,
-      0.02,
-      0.4
-     ],
-     "offset": [
-      0,
-      0.91,
-      0
-     ],
-     "color": "2b2e33"
     }
    ],
    "usePoints": [
@@ -611,7 +641,24 @@
      ],
      "facing": 180
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "stove",
+    "sizeM": [
+     0.62,
+     0.65,
+     0.92
+    ],
+    "align": "back",
+    "style": {
+     "metal": "c9ccd1",
+     "accent": "2b2e33"
+    }
+   }
   },
   {
    "id": "fridge",
@@ -622,13 +669,13 @@
     {
      "shape": "box",
      "size": [
-      0.7,
-      1.7,
-      0.7
+      0.467,
+      1.2,
+      0.467
      ],
      "offset": [
       0,
-      0.85,
+      0.6,
       0
      ],
      "color": "e4e7ea"
@@ -674,7 +721,24 @@
      ],
      "facing": 180
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "fridge",
+    "sizeM": [
+     0.7,
+     0.7,
+     1.8
+    ],
+    "align": "back",
+    "style": {
+     "metal": "e4e7ea",
+     "accent": "b9bec4"
+    }
+   }
   },
   {
    "id": "sink",
@@ -685,16 +749,16 @@
     {
      "shape": "box",
      "size": [
-      0.8,
-      0.9,
-      0.5
+      0.433,
+      0.587,
+      0.333
      ],
      "offset": [
       0,
-      0.45,
+      0.293,
       0
      ],
-     "color": "d5d9de"
+     "color": "f1f1ee"
     }
    ],
    "usePoints": [],
@@ -744,7 +808,25 @@
      ],
      "facing": 180
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "sink",
+    "sizeM": [
+     0.65,
+     0.5,
+     0.88
+    ],
+    "align": "back",
+    "style": {
+     "ceramic": "f1f1ee",
+     "wood": "b9a58a",
+     "metal": "c9ccd1"
+    }
+   }
   },
   {
    "id": "shower",
@@ -755,13 +837,13 @@
     {
      "shape": "box",
      "size": [
-      0.9,
-      2.0,
-      0.9
+      0.6,
+      1.4,
+      0.6
      ],
      "offset": [
       0,
-      1.0,
+      0.7,
       0
      ],
      "color": "cfe3ee"
@@ -797,7 +879,25 @@
      "facing": 180,
      "untilFull": "hygiene"
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "shower",
+    "sizeM": [
+     0.9,
+     0.9,
+     2.1
+    ],
+    "align": "back",
+    "style": {
+     "glass": "cfe3ee",
+     "metal": "c9ccd1",
+     "ceramic": "f1f1ee"
+    }
+   }
   },
   {
    "id": "toilet",
@@ -808,13 +908,13 @@
     {
      "shape": "box",
      "size": [
-      0.4,
-      0.4,
-      0.65
+      0.267,
+      0.533,
+      0.467
      ],
      "offset": [
       0,
-      0.2,
+      0.267,
       0
      ],
      "color": "f1f1ee"
@@ -844,7 +944,23 @@
      "facing": 0,
      "untilFull": "bladder"
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "toilet",
+    "sizeM": [
+     0.4,
+     0.7,
+     0.8
+    ],
+    "align": "back",
+    "style": {
+     "ceramic": "f1f1ee"
+    }
+   }
   },
   {
    "id": "tv",
@@ -855,30 +971,16 @@
     {
      "shape": "box",
      "size": [
-      1.0,
-      0.6,
-      0.1
+      0.733,
+      0.7,
+      0.28
      ],
      "offset": [
       0,
-      0.9,
+      0.35,
       0
      ],
      "color": "1a1c20"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.9,
-      0.5,
-      0.4
-     ],
-     "offset": [
-      0,
-      0.25,
-      0
-     ],
-     "color": "3b3d42"
     }
    ],
    "usePoints": [],
@@ -905,7 +1007,24 @@
      "facing": 180,
      "untilFull": "fun"
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "tv",
+    "sizeM": [
+     1.1,
+     0.42,
+     1.05
+    ],
+    "align": "back",
+    "style": {
+     "screen": "1a1c20",
+     "wood": "3b3d42"
+    }
+   }
   },
   {
    "id": "lamp",
@@ -917,43 +1036,15 @@
      "shape": "box",
      "size": [
       0.3,
-      0.04,
+      0.667,
       0.3
      ],
      "offset": [
       0,
-      0.02,
+      0.333,
       0
      ],
      "color": "4a3f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.05,
-      1.1,
-      0.05
-     ],
-     "offset": [
-      0,
-      0.57,
-      0
-     ],
-     "color": "4a3f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.4,
-      0.3,
-      0.4
-     ],
-     "offset": [
-      0,
-      1.2,
-      0
-     ],
-     "color": "f3dca0"
     }
    ],
    "usePoints": [],
@@ -993,7 +1084,24 @@
      "facing": 180,
      "occupies": false
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "lamp",
+    "sizeM": [
+     0.45,
+     0.45,
+     1.0
+    ],
+    "align": "back",
+    "style": {
+     "wood": "4a3f35",
+     "fabric": "f3dca0"
+    }
+   }
   },
   {
    "id": "bedside",
@@ -1005,43 +1113,15 @@
      "shape": "box",
      "size": [
       0.3,
-      0.04,
+      0.667,
       0.3
      ],
      "offset": [
       0,
-      0.02,
+      0.333,
       0
      ],
      "color": "4a3f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.05,
-      1.1,
-      0.05
-     ],
-     "offset": [
-      0,
-      0.57,
-      0
-     ],
-     "color": "4a3f35"
-    },
-    {
-     "shape": "box",
-     "size": [
-      0.4,
-      0.3,
-      0.4
-     ],
-     "offset": [
-      0,
-      1.2,
-      0
-     ],
-     "color": "f3dca0"
     }
    ],
    "usePoints": [],
@@ -1081,7 +1161,24 @@
      "facing": 180,
      "occupies": false
     }
-   ]
+   ],
+   "footprint": [
+    1,
+    1
+   ],
+   "model": {
+    "kind": "lamp",
+    "sizeM": [
+     0.45,
+     0.45,
+     1.0
+    ],
+    "align": "back",
+    "style": {
+     "wood": "4a3f35",
+     "fabric": "f3dca0"
+    }
+   }
   },
   {
    "id": "food",

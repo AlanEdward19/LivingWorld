@@ -9,6 +9,7 @@ const NpcFigure := preload("res://Scenes/npc_figure.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
+const FurnitureFootprint := preload("res://Scenes/furniture_footprint.gd")
 const AnimationCatalog := preload("res://Scenes/animation_catalog.gd")
 const BodyBusy := preload("res://Scenes/body_busy.gd")
 const SOCIAL_SIDE := 0.6 ## células: quanto o corpo que ninguém conduz fica ao lado do outro quando os dois caem na mesma célula (0,9 m)
@@ -229,18 +230,24 @@ func _place_planned(info: Dictionary, objects: Dictionary, factory) -> void:
 		_lit_snapshot = bool(placed.get("lit", false))
 		_add_object(factory, String(placed.id), int(placed.variation), cell, containers[level], yaw)
 		_lit_piece = -1
-		_register_slot(String(placed.id), cell, yaw, level)
+		_register_slot(String(placed.id), cell, yaw, level, _footprint_center(factory, String(placed.id), yaw))
+
+
+## #266: onde fica o centro da pegada em relação ao centro da célula de origem (células), no giro dado: o modelo é desenhado centrado na pegada que o motor deu.
+func _footprint_center(factory, piece_id: String, yaw: float) -> Vector2:
+	return FurnitureFootprint.center_offset(factory.footprint_of(piece_id), roundi(rad_to_deg(yaw)))
 
 
 func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, parent: Node3D, yaw: float = 0.0) -> void:
 	var node: Node3D = factory.build(piece_id, variation)
-	node.position += Grid.to_world(cell)
+	var center := _footprint_center(factory, piece_id, yaw)
+	node.position += Grid.to_world(cell) + Vector3(center.x, 0.0, center.y) * Grid.CELL
 	node.rotation.y = yaw
 	parent.add_child(node)
 	var light: Dictionary = factory.light_of(piece_id)
 	if not light.is_empty():
 		_add_lamp(node, light, factory.switchable(piece_id)) # #260: a luz é do objeto do catálogo (abajur): o cliente só a desenha
-	_register_point(piece_id, cell, parent)
+	_register_point(piece_id, cell, parent, center)
 	_register_piece(node)
 
 
@@ -330,9 +337,9 @@ static func _relative(node: Node, root: Node) -> Transform3D:
 	return xf
 
 
-func _register_point(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
+func _register_point(piece_id: String, cell: Vector2i, parent: Node3D, center: Vector2 = Vector2.ZERO) -> void:
 	var level := int(parent.get_parent().position.y / Grid.floor_height()) if parent.get_parent() is Node3D else 0
-	object_points.append({"id": piece_id, "level": level, "position": Grid.to_world(cell, level * Grid.floor_height() + 0.35)})
+	object_points.append({"id": piece_id, "level": level, "position": Grid.to_world(cell, level * Grid.floor_height() + 0.35) + Vector3(center.x, 0.0, center.y) * Grid.CELL})
 
 
 ## Peças do andar visível (para a seleção): [{id, level, position}].
@@ -346,10 +353,11 @@ func _register_base(piece_id: String, cell: Vector2i) -> void:
 
 
 ## #237: lugar de uso de uma peça: base no chão do andar `level` e giro `yaw` (rad) em torno de Y.
-func _register_slot(piece_id: String, cell: Vector2i, yaw: float, level: int) -> void:
+func _register_slot(piece_id: String, cell: Vector2i, yaw: float, level: int, center: Vector2 = Vector2.ZERO) -> void:
 	if not _use_slots.has(piece_id):
 		_use_slots[piece_id] = []
-	_use_slots[piece_id].append({"base": Grid.to_world(cell, level * Grid.floor_height()), "yaw": yaw, "level": level})
+	# #266: o ponto de uso é medido a partir do centro da pegada (o corpo deita no meio da cama de duas células)
+	_use_slots[piece_id].append({"base": Grid.to_world(cell, level * Grid.floor_height()) + Vector3(center.x, 0.0, center.y) * Grid.CELL, "yaw": yaw, "level": level})
 
 
 func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:

@@ -187,7 +187,10 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
     {
         var layout = BuildingLayoutCache.Of(building).Layout;
         var furniture = catalog is null ? [] : HomeFurniture.Of(building, catalog);
-        var taken = furniture.Where(p => p.Spot is not null).Select(p => (p.Spot!.Value.Floor, p.Spot!.Value.Cell)).ToHashSet();
+        var taken = new HashSet<(int Floor, CellCoord Cell)>(); // #266: a pegada inteira de cada peça, não só a célula de origem
+        if (catalog is not null)
+            for (int level = 0; level < layout.FloorLayouts.Count; level++)
+                foreach (var cell in HomeFurniture.CellsOf(furniture, catalog, level)) taken.Add((level, cell));
         var free = new List<FurnitureSpot>();
         foreach (var floor in layout.FloorLayouts)
         {

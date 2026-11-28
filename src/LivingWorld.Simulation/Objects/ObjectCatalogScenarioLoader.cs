@@ -45,6 +45,9 @@ public static class ObjectCatalogScenarioLoader
             var light = HomeLifeLoader.ParseLight((array[i] as JsonObject)?["light"], $"Objects[{i}]");
             if (!light.IsSuccess) return Fail(light.Error!);
             if (light.Value is not null) parsed = Result<ObjectDescriptor>.Ok(parsed.Value! with { Light = light.Value });
+            var placed = ParsePlacement(array[i] as JsonObject, parsed.Value!, $"Objects[{i}]");
+            if (!placed.IsSuccess) return Fail(placed.Error!);
+            parsed = Result<ObjectDescriptor>.Ok(placed.Value!);
             if (objects.Any(o => o.Id == parsed.Value!.Id)) return Fail($"Objects[{i}].id: '{parsed.Value!.Id}' duplicado");
             if (parsed.Value!.ResourceId is int resourceId && objects.Any(o => o.ResourceId == resourceId))
                 return Fail($"Objects[{i}].resourceId: o recurso {resourceId} já tem descritor");
@@ -233,6 +236,46 @@ public static class ObjectCatalogScenarioLoader
             display = named.Trim();
         }
         return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId, display));
+    }
+
+    /// <summary>#266: <c>footprint</c> [largura, profundidade] em células (1 a 4) e <c>model</c> {kind, sizeM:[l,p,a] em metros, style:{papel:cor}}, ambos opcionais.</summary>
+    private static Result<ObjectDescriptor> ParsePlacement(JsonObject? o, ObjectDescriptor descriptor, string at)
+    {
+        if (o is null) return Result<ObjectDescriptor>.Ok(descriptor);
+        if (o["footprint"] is { } fp)
+        {
+            if (fp is not JsonArray { Count: 2 } cells || cells[0] is not JsonValue wv || cells[1] is not JsonValue dv || !wv.TryGetValue(out int w) || !dv.TryGetValue(out int d) || w is < 1 or > 4 || d is < 1 or > 4)
+                return Result<ObjectDescriptor>.Fail($"{at}.footprint: [largura, profundidade] em células, de 1 a 4");
+            descriptor = descriptor with { Footprint = [w, d] };
+        }
+
+        if (o["near"] is { } nearNode) // #266: a peça prefere ficar junto destes objetos (a cadeira junto da mesa) e de frente para eles
+        {
+            if (nearNode is not JsonArray list || list.Any(n => !TryString(n, out var id) || id.Length == 0)) return Result<ObjectDescriptor>.Fail($"{at}.near: lista de ids de objetos");
+            descriptor = descriptor with { Near = [.. list.Select(n => n!.GetValue<string>())] };
+        }
+
+        if (o["model"] is { } m)
+        {
+            if (m is not JsonObject model || !TryString(model["kind"], out var kind) || kind.Length == 0) return Result<ObjectDescriptor>.Fail($"{at}.model.kind: texto obrigatório");
+            var size = Numbers(model["sizeM"], 3, $"{at}.model.sizeM", requirePositive: true);
+            if (!size.IsSuccess) return Result<ObjectDescriptor>.Fail(size.Error!);
+            Dictionary<string, string>? style = null;
+            if (model["style"] is not null)
+            {
+                if (model["style"] is not JsonObject colors) return Result<ObjectDescriptor>.Fail($"{at}.model.style: objeto papel→cor");
+                style = [];
+                foreach (var (role, value) in colors)
+                    if (!TryString(value, out var color) || color.Length is not (6 or 7)) return Result<ObjectDescriptor>.Fail($"{at}.model.style.{role}: cor em hexadecimal");
+                    else style[role] = color;
+            }
+
+            string align = "back";
+            if (model["align"] is not null && (!TryString(model["align"], out align!) || align is not ("back" or "center"))) return Result<ObjectDescriptor>.Fail($"{at}.model.align: back ou center");
+            descriptor = descriptor with { Model = new ObjectModel(kind, size.Value!, style, align) };
+        }
+
+        return Result<ObjectDescriptor>.Ok(descriptor);
     }
 
     private static Result<IReadOnlyList<ObjectInteraction>?> ParseInteractions(JsonNode? node, string at)

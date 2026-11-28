@@ -6,6 +6,7 @@ extends Control
 
 const Grid := preload("res://Scenes/grid.gd")
 const ObjectFactory := preload("res://Scenes/object_factory.gd")
+const FurnitureFootprint := preload("res://Scenes/furniture_footprint.gd")
 const FurnitureThumb := preload("res://Scenes/furniture_thumb.gd")
 
 signal opened()
@@ -400,7 +401,11 @@ func piece_by_index(piece: int) -> Dictionary:
 
 func piece_at(cell: Vector2i) -> Dictionary:
 	for data in home.get("pieces", []):
-		if int(data.floor) == floor_level and int(data.x) == cell.x and int(data.y) == cell.y:
+		if int(data.floor) != floor_level:
+			continue
+		# #266: qualquer célula da pegada pega a peça (a cama de 1×2 não é só a célula de origem)
+		var footprint := FurnitureFootprint.size_of(descriptors.get(String(data.get("id", "")), {}))
+		if cell in FurnitureFootprint.cells(Vector2i(int(data.x), int(data.y)), footprint, int(data.get("facing", 0))):
 			return data
 	return {}
 
@@ -869,7 +874,8 @@ func _update_ghost() -> void:
 	ghost.visible = hover != NO_CELL
 	if hover != NO_CELL:
 		var origin: Vector2i = stage.interior_view.origin
-		ghost.position = Grid.to_world(origin + hover, float(floor_level) * Grid.floor_height())
+		var center := FurnitureFootprint.center_offset(factory.footprint_of(wanted), facing) # #266: o modelo fica centrado na pegada
+		ghost.position = Grid.to_world(origin + hover, float(floor_level) * Grid.floor_height()) + Vector3(center.x, 0.0, center.y) * Grid.CELL
 		ghost.rotation.y = deg_to_rad(float(facing))
 
 
@@ -946,6 +952,9 @@ func _update_marks() -> void:
 	elif tab == "buy" and selected != "" and hover != NO_CELL:
 		_mark.material_override = _tint(Color(_verdict_color(), 0.28))
 		var cell_box: BoxMesh = _mark.mesh
-		cell_box.size = Vector3(1.0, 0.04, 1.0)
-		_mark.position = Grid.to_world(origin + hover, base + 0.03)
+		var footprint := FurnitureFootprint.size_of(descriptors.get(selected, {})) # #266: a marca cobre a pegada inteira, no giro de agora
+		var turned := FurnitureFootprint.turn(float(footprint.x), float(footprint.y), facing).abs()
+		cell_box.size = Vector3(turned.x, 0.04, turned.y)
+		var middle := FurnitureFootprint.center_offset(footprint, facing)
+		_mark.position = Grid.to_world(origin + hover, base + 0.03) + Vector3(middle.x, 0.0, middle.y) * Grid.CELL
 		_mark.visible = true

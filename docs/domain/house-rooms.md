@@ -30,3 +30,12 @@ Código: `Domain/Cities/Buildings/` (`BuildingFootprintGenerator`, `BuildingLayo
   `groundWalls`/`groundDoors` nos prédios da cidade e do escopo. O cliente desenha só onde o motor diz (`wall_panels.gd`).
 - Célula de casa do domicílio (`DwellingCapacity.InteriorCellOf`): a de piso logo à frente da porta, por dentro.
 - Sem compatibilidade com mundos salvos (decisão do dono, AD-215): a planta muda, goldens regravados.
+
+## Pegada e giro dos móveis (#266, AD-233)
+- O catálogo (`scenarios/catalog/home-life.json`, `home-build.json`) dá a cada móvel `footprint: [largura, profundidade]` em células (cama 1×2, sofá 2×1, o resto 1×1; sem ele vale 1×1),
+  `near: [ids]` (a cadeira junto da mesa, de frente para ela) e `model: {kind, sizeM:[l,p,a] em metros, align: back|center, style: {papel: cor}}`. O código só tem os geradores genéricos por `kind`.
+- A origem (`Spot.Cell`) é a célula de trás à esquerda; o giro (0, 90, 180, 270) gira a pegada em volta dela, com o fundo para a parede (`ObjectFootprint`, o cliente repete a conta em `furniture_footprint.gd`).
+- Uma regra só (`FurniturePlacement`) para o planejador e para comprar/mover: toda a pegada em piso, nenhuma célula de outra peça, fora da passagem das portas, sem aresta de parede entre as células da
+  pegada, o fundo encostado na parede quando o móvel pede, um lado livre para usar (frente ou lados) e a casa sempre ligada à porta. Sem `Rooms` no catálogo e sem pegada, o plano de uma célula de sempre.
+- **Causa do móvel dentro da parede**: o modelo era desenhado em unidades de célula (a cama 1,2×1,4 de uma célula só), com a parede de 0,22 de espessura centrada na aresta; o motor só conhecia uma célula.
+  Agora o modelo cabe na pegada menos a meia parede (`sizeM ≤ células × 1,5 m − 0,33 m`), centrado nela, e o ponto de uso (`ObjectUsage.Resolve`) parte do centro da pegada.

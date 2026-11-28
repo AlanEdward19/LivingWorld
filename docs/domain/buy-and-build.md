@@ -45,3 +45,7 @@ O catálogo de humor ganha o **gatilho de ambiente** `{kind: "state", ambient: "
 `buy_mode.gd` (B): a câmera sobe (`camera_rig.set_build_view`, ortogonal), painel com abas Comprar / Minha casa / Construir, categorias, cartões com miniatura desenhada por código
 (`furniture_thumb.gd`, o objeto do catálogo num SubViewport), preço, efeitos, beleza e estoque; fantasma verde ou vermelho pela resposta do motor (com o motivo), Q/E/R giram, clique
 põe, botão direito e Esc cancelam; popup de pausa como os outros. Passos de captura: `buy`, `buyitem`, `buyfind`, `buyat`, `buyclick`, `buycut`, `buyhome`, `partner`.
+
+## #266: pegada, giro e modelos
+O fantasma e a validação do motor usam a **pegada inteira** no giro pedido (`FurniturePlacement`): sobrepor qualquer célula de outro móvel, atravessar parede, tapar a porta ou deixar o móvel sem lado livre
+é vermelho, com o motivo. A miniatura é o modelo procedural do catálogo (`render/furniture_models.gd`), o mesmo da casa. Ver [house-rooms.md](house-rooms.md).
