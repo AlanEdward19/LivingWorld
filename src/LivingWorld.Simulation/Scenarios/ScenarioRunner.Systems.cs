@@ -96,6 +96,7 @@ public static partial class ScenarioRunner
         new MarketPricingSystem(),
         new LivingWorld.Simulation.Economy.Credit.WorkingCapitalSystem(DefaultSkillsRules), // AD-155: giro antes da folha
         new WagePaymentSystem(),
+        new LivingWorld.Simulation.Careers.CareerSystem(), // #263: o turno, o salário do empregador e as contas da casa (só com o bloco Careers e gente no livro)
         new LivingWorld.Simulation.Economy.Credit.CreditSystem(), // AD-155: parcela, calote e falência antes do lucro
         new OwnerDrawSystem(),
         new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio

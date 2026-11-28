@@ -21,6 +21,7 @@ public static class SandboxFixtures
     {
         root["Workplaces"] = new JsonArray();
         root["MarketLocationTypeIds"] = new JsonArray();
+        root.Remove("CareerStart"); // #263: o emprego do Rafael mora num empregador que o casal sozinho não tem
         var households = root["AuthoredHouseholds"]!.AsArray();
         while (households.Count > 1) households.RemoveAt(households.Count - 1);
         return root;

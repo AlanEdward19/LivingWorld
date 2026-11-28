@@ -53,6 +53,7 @@ public static class HomeLifeLoader
         }
 
         SocialLoader.Merge(root, catalog); // #259
+        CareerLoader.Merge(root, catalog); // #263
         if (catalog["NeedStartJitter"] is { } jitter && root["NeedStartJitter"] is null) root["NeedStartJitter"] = jitter.DeepClone(); // #261
         if (catalog["Needs"] is JsonArray baseNeeds)
         {
@@ -165,7 +166,7 @@ public static class HomeLifeLoader
     }
 
     /// <summary>#258: os <c>toggle</c> que o motor entende (liga e desliga a luz do objeto).</summary>
-    public static readonly IReadOnlyList<string> ToggleKinds = [ObjectToggles.LightOn, ObjectToggles.LightOff];
+    public static readonly IReadOnlyList<string> ToggleKinds = [ObjectToggles.LightOn, ObjectToggles.LightOff, ObjectToggles.JobSearch];
 
     /// <summary>O <c>uses</c> de um objeto: <c>[{id, name, durationMin, effects:[{need, perHour}], consumes?:[{resource, quantity}], pose?, poseFallback?,
     /// slot?:[x,z], facing?, action?, untilFull?, occupies?, hidden?}]</c>. <paramref name="needs"/> valida os ids das necessidades citadas.</summary>

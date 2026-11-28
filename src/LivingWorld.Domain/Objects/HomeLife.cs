@@ -88,4 +88,7 @@ public static class ObjectToggles
 {
     public const string LightOn = "light:on";
     public const string LightOff = "light:off";
+
+    /// <summary>#263: o uso (um jornal, um computador) lista as vagas reais do mundo ao terminar; candidatar-se é uma oferta do corpo (<c>CareerLedger</c>).</summary>
+    public const string JobSearch = "job:search";
 }

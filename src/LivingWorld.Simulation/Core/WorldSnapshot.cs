@@ -359,6 +359,9 @@ public static class WorldSnapshot
         rehydrated.RestoreLights( // #258: ausente = nenhuma luz de catálogo ligada
             node.TryGetPropertyValue("Lights", out var lightsNode) && lightsNode is not null
                 ? lightsNode.Deserialize<LivingWorld.Simulation.Objects.LightLedger>(JsonOptions) : null);
+        rehydrated.RestoreCareers( // #263: ausente = ninguém tem carreira nem conta
+            node.TryGetPropertyValue("Careers", out var careersNode) && careersNode is not null
+                ? careersNode.Deserialize<LivingWorld.Simulation.Careers.CareerLedger>(JsonOptions) : null);
         rehydrated.UsePlayers( // AD-196: ausente = regras padrão do jogador
             node.TryGetPropertyValue("PlayerRules", out var playerRulesNode) && playerRulesNode is not null
                 ? playerRulesNode.Deserialize<LivingWorld.Domain.Population.PlayerRules>(JsonOptions) : null);

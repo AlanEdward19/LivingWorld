@@ -73,7 +73,9 @@ public static class ObjectCatalogScenarioLoader
         if (!rooms.IsSuccess) return Fail(rooms.Error!);
         var social = SocialLoader.Parse(root["Social"], needs.Value, objects);
         if (!social.IsSuccess) return Fail(social.Error!);
-        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value, needs.Value, social.Value));
+        var careers = CareerLoader.Parse(root["Careers"], needs.Value, objects);
+        if (!careers.IsSuccess) return Fail(careers.Error!);
+        return Result<ObjectCatalog?>.Ok(new ObjectCatalog(format, objects, furnishings, rooms.Value, needs.Value, social.Value, careers.Value));
     }
 
     /// <summary>#226: o bloco opcional <c>Rooms</c> ({kinds:[{id,uses:[ActionType],weight,minCells}], plans:{"default"|id[@up]:[ids]}}): os tipos de cômodo e o

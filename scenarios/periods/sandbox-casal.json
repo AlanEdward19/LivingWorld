@@ -24,10 +24,14 @@
       }
     ],
     "LocationType": [
-      { "Id": 1, "Name": "Mercado" }
+      { "Id": 1, "Name": "Mercado" },
+      { "Id": 2, "Name": "Escritório" },
+      { "Id": 3, "Name": "Escola" }
     ],
     "BuildingType": [
-      { "Id": 1, "Name": "Mercado" }
+      { "Id": 1, "Name": "Mercado" },
+      { "Id": 2, "Name": "Escritório" },
+      { "Id": 3, "Name": "Escola" }
     ]
   },
   "Climate": {
@@ -99,6 +103,16 @@
         "SkillId": 0,
         "Weight": 1.0,
         "Name": "Agricultura"
+      },
+      {
+        "SkillId": 1,
+        "Weight": 0.01,
+        "Name": "Administração"
+      },
+      {
+        "SkillId": 2,
+        "Weight": 0.01,
+        "Name": "Didática"
       }
     ]
   },
@@ -115,6 +129,7 @@
           "AgeYears": 32,
           "ProfessionId": 1,
           "Spouse": 1,
+          "Skills": { "2": 22 },
           "Personality": {
             "Extroversion": 62,
             "Agreeableness": 70,
@@ -134,6 +149,7 @@
           "AgeYears": 35,
           "ProfessionId": 1,
           "Spouse": 0,
+          "Skills": { "1": 14 },
           "Personality": {
             "Extroversion": 45,
             "Agreeableness": 64,
@@ -332,7 +348,30 @@
       "Treasury": 600,
       "Stock": { "1": 300, "2": 300 },
       "Prices": { "1": 5, "2": 3 }
+    },
+    {
+      "LocationTypeId": 2,
+      "X": 18,
+      "Y": 14,
+      "Orientation": 180,
+      "MaxVacancies": 3,
+      "Treasury": 20000,
+      "Stock": {},
+      "Prices": {}
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 9,
+      "Y": 14,
+      "Orientation": 180,
+      "MaxVacancies": 2,
+      "Treasury": 12000,
+      "Stock": {},
+      "Prices": {}
     }
+  ],
+  "CareerStart": [
+    { "Member": "Rafael", "Career": "escritorio", "Level": 0, "Employer": 1 }
   ],
   "Cities": [
     {
@@ -382,7 +421,7 @@
   "MaterializationIdleTicksBeforeEligible": 1,
   "BuildingRecipes": {},
   "StartHour": 7,
-  "CatalogExtends": ["home-life", "social"],
+  "CatalogExtends": ["home-life", "social", "careers"],
   "Furnishings": {
     "default": [
       "table",
@@ -401,7 +440,8 @@
       "toilet",
       "sink",
       "lamp",
-      "bedside"
+      "bedside",
+      "newspaper"
     ]
   },
   "Rooms": {
