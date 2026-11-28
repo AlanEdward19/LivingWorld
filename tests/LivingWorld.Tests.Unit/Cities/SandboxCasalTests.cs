@@ -148,4 +148,29 @@ public class SandboxCasalTests
         Assert.Equal(world.ObjectCatalog!.Rooms!.ShapeFor(-1), loaded.ObjectCatalog!.Rooms!.ShapeFor(-1));
         Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(loaded));
     }
+
+    /// <summary>#252: o jogador na casa vê cada móvel no lugar onde o motor o pôs, o mais perto primeiro, com o nome que o cenário deu.</summary>
+    [Fact]
+    public void The_furniture_offers_carry_the_scenario_name_and_the_place_and_come_nearest_first()
+    {
+        var (world, _) = Load();
+        var service = new LivingWorld.Simulation.Players.PlayerService(new LivingWorld.Tests.Unit.Players.PlayerAbsenceTests.AllEvents());
+        var npc = world.Npcs[0];
+        Assert.True(service.Incarnate(world, npc.Id, "alan").IsSuccess);
+        var house = world.Buildings.Single();
+        var pieces = HomeFurniture.Of(house, world.ObjectCatalog!);
+        var origin = house.Position!.Value;
+        var at = npc.CurrentLocation;
+
+        var objects = LivingWorld.Simulation.Players.PlayerService.Reach(world, "alan")!.Where(o => o.Kind == "object").ToList();
+
+        Assert.Contains(objects, o => o.Label == "Cama de casal" && o.Verbs.Contains("sleep"));
+        Assert.Contains(objects, o => o.Label == "Geladeira" && o.Verbs.Contains("eat"));
+        Assert.Contains(objects, o => o.Label == "Sofá" && o.Verbs.Contains("socialize"));
+        var bed = pieces.First(p => p.Id == "bed").Spot!.Value;
+        var bedOffer = objects.Single(o => o.Label == "Cama de casal");
+        Assert.Equal((origin.X + bed.Cell.X, origin.Y + bed.Cell.Y), (bedOffer.X, bedOffer.Y));
+        var distances = objects.Select(o => (long)(o.X - at.X) * (o.X - at.X) + (long)(o.Y - at.Y) * (o.Y - at.Y)).ToList();
+        Assert.Equal(distances.Order().ToList(), distances); // do mais perto ao mais longe
+    }
 }

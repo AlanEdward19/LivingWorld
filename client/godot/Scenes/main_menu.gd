@@ -112,6 +112,11 @@ func quick_start(period_id: String) -> void:
 	for button in title.quick_buttons:
 		if button.name == "quick_" + period_id:
 			display = button.text
+	if display == "": # os botões ainda não chegaram (passo de captura logo ao abrir): o nome vem do cartão do servidor
+		var response: Dictionary = await api.periods()
+		for item in response.body if response.ok and response.body is Array else []:
+			if String(item.periodId) == period_id:
+				display = String(item.get("card", {}).get("name", ""))
 	_quick_start = true
 	await wizard.quick_create(period_id, display if display != "" else period_id)
 	_quick_start = false
