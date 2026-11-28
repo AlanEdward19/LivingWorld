@@ -112,7 +112,7 @@ public static partial class PlayerInteractions
             if (catalog.Find(furnishing[i]) is not { } descriptor) continue;
             if (descriptor.Uses is { Count: > 0 } allUses)
             {
-                var catalogUses = allUses.Where(u => !u.Hidden).ToList(); // #259: os usos de convite (atividade conjunta) não entram na roda do objeto
+                var catalogUses = allUses.Where(u => !u.Hidden && !NoToggle(world, here, i, u)).ToList(); // #258: ligar o que já está ligado não é oferta; #259: os usos de convite (atividade conjunta) não entram na roda do objeto
                 if (catalogUses.Count == 0) continue;
                 // #255: os usos vêm do catálogo; cada um com o nome, os minutos e o que mais sobe. Só peças com lugar na planta (o corpo anda até elas).
                 if (i >= pieces.Count || pieces[i].Id != furnishing[i] || pieces[i].Spot is not { } placed || building.Position is not { } where) continue;
@@ -137,6 +137,10 @@ public static partial class PlayerInteractions
         }
         foreach (var entry in found.OrderBy(f => f.Distance).ThenBy(f => f.Index)) offers.Add(entry.Offer);
     }
+
+    /// <summary>#258: o uso que liga ou desliga uma luz que já está assim não muda nada: não se oferece.</summary>
+    private static bool NoToggle(WorldState world, BuildingId building, int piece, LivingWorld.Domain.Objects.ObjectUseDef use) =>
+        use.Toggle is { } toggle && world.LightIsOn(building.Value, piece) == (toggle == LivingWorld.Domain.Objects.ObjectToggles.LightOn);
 
     /// <summary>AD-197k: usar o objeto é pedir a ação dele ali (o motor aplica o efeito do objeto na ação, como para qualquer NPC).</summary>
     private static Result<InteractionResult> Use(WorldState world, TickContext ctx, Npc npc, InteractionOffer offer, string verb, string requested)

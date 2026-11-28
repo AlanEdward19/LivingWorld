@@ -18,7 +18,7 @@ taxa e limites, objeto com usos, ação que dura, fila); o que cada coisa é vem
   id (`hunger`, `thirst`, `sleep`, `social`); a ficha traz o nível de todas pelo mesmo instante em ms (`NpcInspectionDto.CatalogNeeds`, `NeedHint`).
 
 ## Objetos (`uses` no descritor)
-`{id, name, durationMin, effects:[{need, perHour}], consumes?:[{resource, quantity}], pose?, poseFallback?, slot?:[x,z], facing?, action?, untilFull?, occupies?}`
+`{id, name, durationMin, effects:[{need, perHour}], consumes?:[{resource, quantity}], produces?:[{resource, quantity}], toggle?, pose?, poseFallback?, slot?:[x,z], facing?, action?, untilFull?, occupies?}`
 e `rooms?:[tipo]` no objeto (o chuveiro no banheiro). Pose nova é só um nome: sem animação própria o cliente usa `poseFallback` (o rig não muda).
 `action` delega à ação do motor (dormir): o corpo chega ao lugar e `PlayerCommands.Act` assume. `untilFull` encerra quando a necessidade enche.
 
@@ -44,9 +44,13 @@ Passos de captura: `useverb:Objeto|Uso`, `needs`, `needslog:S`, `waituse:S`, `ca
 
 ## #260: leitura das barras, luz e fim do uso
 `needRates` (ficha, só com catálogo de necessidades): pontos por hora de cada necessidade agora, `-queda + o que o uso em curso entrega` (`HomeLife.Rates`); o cliente desenha número, ícone
-(`icon` da necessidade, `NeedIcon`) e seta de tendência (subindo/caindo, rápido). Objeto com `light` `{color,rangeM,energy,heightM}` (`ObjectLight`) dá luz; sem ligar e desligar ainda.
+(`icon` da necessidade, `NeedIcon`) e seta de tendência (subindo/caindo, rápido). Objeto com `light` `{color,rangeM,energy,heightM}` (`ObjectLight`) dá luz; ligar e desligar é o `toggle` (#258, abaixo).
 Aviso de fim: "Terminou: Tomar banho · Higiene 92%" (a necessidade que o uso mais sobe, da oferta `need`).
 
+## #258: refeição, luz e casa mantida
+`produces` põe na despensa o que o uso faz, só no fim natural (o fogão: 2 comida viram 2 refeição; interromper perde). `toggle` `light:on|light:off` liga ou desliga a luz do objeto
+(`world.Lights`, `LightLedger`, canônico só se alguma está ligada; a oferta esconde o que não muda nada); o interior traz `lit` por peça e o delta `lights`. `HomeTending`: o NPC liga a luz do
+cômodo ao escurecer, apaga de dia, ao dormir e ao sair, e cozinha antes de comer sem urgência. Ver [sandbox.md](sandbox.md).
+
 ## Fora desta fatia
-Mover as quatro necessidades de sempre para o catálogo; comida cozida como item novo (o fogão rende mais por unidade, não transforma); mercado/entrega como prédio com estoque
-(a despensa de partida do sandbox é `InitialPantryPerMember`); animações próprias (#254); rua, calçada e quintal sem árvore (a árvore é a regra de 16% do `cell_hash`).
+Mover as quatro necessidades de sempre para o catálogo; entrega por telefone; animações próprias (#254).

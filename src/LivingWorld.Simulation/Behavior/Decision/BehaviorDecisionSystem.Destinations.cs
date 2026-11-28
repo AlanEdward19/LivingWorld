@@ -27,6 +27,15 @@ public sealed partial class BehaviorDecisionSystem
         return RestPlaceResolver.IsReachable(world.Map, npc.CurrentLocation, rest.Location) ? rest.Location : null;
     }
 
+    /// <summary>#258: fora de casa, com uma necessidade do catálogo (bexiga, higiene) abaixo do limite e a casa por perto (a cama dela é o destino de sempre): a
+    /// pessoa volta para casa, onde os objetos estão; lá o cuidado é o de sempre (<see cref="LivingWorld.Simulation.Objects.ObjectUsage.TryCare"/>).</summary>
+    internal static bool CareCallsHome(WorldState world, Npc npc, long nowMs)
+    {
+        if (npc.Household is not { } h || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation == home.Location) return false;
+        return LivingWorld.Simulation.Objects.HomeLife.MostUrgent(world, npc, nowMs) is not null
+            && SleepDestinationOf(world, npc) is { } bed && bed == home.Location;
+    }
+
     private static CellCoord? BuyDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         NearestEssentialsMarket(world, npc, marketIndex)?.Location;
 

@@ -24,6 +24,7 @@ Volta pro [índice](period-authoring.md). Decisão em [ADR-0032](../adr/ADR-0032
 |---|---|---|
 | `Appearance` | `{ SkinTone, HairTone, HairCurl, Build }`, cada um `[0,100]` | exige o bloco `Appearance` no período; ausente = sorteado |
 | `Skills` | objeto `{ "idHabilidade": nível }`, nível em `[0,100]` | id inteiro ≥ 0; ausente = sem habilidade inicial |
+| `Workplace` | índice em `Workplaces[]` (#258) | a pessoa já começa na folha daquele local (o comerciante do mercado); ausente, procura emprego |
 
 ```jsonc
 { "Name": "Ana", "Sex": "Female", "AgeYears": 30, "ProfessionId": 1,

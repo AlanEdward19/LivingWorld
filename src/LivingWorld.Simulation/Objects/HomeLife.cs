@@ -162,6 +162,15 @@ public static class HomeLife
         return next;
     }
 
+    /// <summary>#255/#258: a conversa de <paramref name="speaker"/> piora (ou não) o laço de <paramref name="listener"/> por ela, conforme o estado dele (<see cref="BondPenalty"/>).
+    /// O mesmo peso vale para a conversa do jogador, entre dois NPCs e nas interações sociais do catálogo.</summary>
+    public static void WeighBond(WorldState world, Npc speaker, Npc listener, long nowMs)
+    {
+        if (BondPenalty(world, speaker, nowMs) is var penalty and < 0
+            && world.Relationships.TryGetValue(new LivingWorld.Domain.Population.Family.RelationshipKey(listener.Id, speaker.Id), out var heard))
+            heard.Shift(LivingWorld.Domain.Population.Family.RelationshipAxis.Affection, penalty);
+    }
+
     /// <summary>O quanto o estado da pessoa pesa no laço com quem conversa com ela (soma dos <c>bond</c> das necessidades abaixo do limite; 0 = nada).
     /// Negativo: a conversa piora o laço.</summary>
     public static double BondPenalty(WorldState world, Npc npc, long nowMs)

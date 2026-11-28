@@ -324,13 +324,7 @@ public static class ObservableProjector
     }
 
     /// <summary>AD-189: depois do pôr e antes do nascer do sol do dia (hora solar, a luz do tempo do motor); sem o tempo, nunca.</summary>
-    public static bool IsNight(WorldState world)
-    {
-        if (world.Weather is not { Day: >= 0 } ledger) return false;
-        double hour = world.CurrentDate.TotalHours % world.Calendar.HoursPerDay * 24.0 / world.Calendar.HoursPerDay;
-        double half = ledger.DaylightMinutes / 120.0;
-        return hour < 12 - half || hour >= 12 + half;
-    }
+    public static bool IsNight(WorldState world) => LivingWorld.Simulation.Objects.HomeTending.IsDark(world); // #258: a mesma conta do NPC que acende a luz
 
     /// <summary>AD-189: alguém acordado dentro: morador vivo na célula da casa sem estar dormindo, ou trabalhador na oficina.</summary>
     private static bool SomeoneAwakeInside(WorldState world, List<Household>? homes, int homeCount, Workplace? workplace)

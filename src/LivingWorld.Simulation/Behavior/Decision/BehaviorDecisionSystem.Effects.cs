@@ -594,6 +594,12 @@ public sealed partial class BehaviorDecisionSystem
         var type = LivingWorld.Domain.Population.Family.RelationshipEventType.Conversation;
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, npc, best, sameHousehold: false, type);
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, best, npc, sameHousehold: false, type);
+        if (npc.ExtraNeeds is not null || best.ExtraNeeds is not null) // #258: a higiene baixa de quem fala pesa no laço de quem ouve, entre NPCs também
+        {
+            long nowMs = world.CurrentDate.TotalMilliseconds;
+            LivingWorld.Simulation.Objects.HomeLife.WeighBond(world, npc, best, nowMs);
+            LivingWorld.Simulation.Objects.HomeLife.WeighBond(world, best, npc, nowMs);
+        }
         return true;
     }
 

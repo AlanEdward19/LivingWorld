@@ -17,7 +17,17 @@
       {
         "Id": 2,
         "Name": "Água"
+      },
+      {
+        "Id": 3,
+        "Name": "Refeição"
       }
+    ],
+    "LocationType": [
+      { "Id": 1, "Name": "Mercado" }
+    ],
+    "BuildingType": [
+      { "Id": 1, "Name": "Mercado" }
     ]
   },
   "Climate": {
@@ -67,7 +77,8 @@
     1
   ],
   "ProfessionIds": [
-    1
+    1,
+    2
   ],
   "LocationTypeIds": [],
   "Dynamics": {
@@ -76,6 +87,11 @@
         "ProfessionId": 1,
         "Weight": 1.0,
         "Name": "Morador"
+      },
+      {
+        "ProfessionId": 2,
+        "Weight": 0.01,
+        "Name": "Comerciante"
       }
     ],
     "SkillBiases": [
@@ -129,6 +145,30 @@
             "Altruism": 50,
             "Impulsivity": 35,
             "RiskAversion": 58
+          }
+        }
+      ]
+    },
+    {
+      "Settlement": "vila",
+      "Members": [
+        {
+          "Name": "Seu Joaquim",
+          "Sex": "Male",
+          "AgeYears": 52,
+          "ProfessionId": 2,
+          "Workplace": 0,
+          "Personality": {
+            "Extroversion": 58,
+            "Agreeableness": 66,
+            "Conscientiousness": 72,
+            "EmotionalStability": 64,
+            "Openness": 48,
+            "Ambition": 52,
+            "Loyalty": 70,
+            "Altruism": 55,
+            "Impulsivity": 30,
+            "RiskAversion": 60
           }
         }
       ]
@@ -192,6 +232,13 @@
     "UsePower": 1
   },
   "RoutineSlots": [
+    {
+      "ProfessionId": 2,
+      "Stage": "Adult",
+      "HourStart": 7,
+      "HourEnd": 15,
+      "Action": "Work"
+    },
     {
       "ProfessionId": null,
       "Stage": "Adult",
@@ -263,12 +310,30 @@
     "1": 20,
     "2": 15
   },
-  "CapacityByResourceLocation": {},
-  "WageByProfession": {},
-  "Recipes": {},
-  "MarketLocationTypeIds": [],
-  "LocationTypeByProfession": {},
-  "Workplaces": [],
+  "CapacityByResourceLocation": { "1,1": 2000, "2,1": 2000 },
+  "WageByProfession": { "2": 90 },
+  "Recipes": {
+    "1": {
+      "Inputs": {},
+      "Outputs": { "1": 10, "2": 8 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 2
+    }
+  },
+  "MarketLocationTypeIds": [1],
+  "LocationTypeByProfession": { "2": 1 },
+  "Workplaces": [
+    {
+      "LocationTypeId": 1,
+      "X": 14,
+      "Y": 14,
+      "Orientation": 180,
+      "MaxVacancies": 1,
+      "Treasury": 600,
+      "Stock": { "1": 300, "2": 300 },
+      "Prices": { "1": 5, "2": 3 }
+    }
+  ],
   "Cities": [
     {
       "Name": "Jardim das Acácias",
@@ -282,13 +347,19 @@
       }
     }
   ],
+  "CropYear": { "Enabled": false },
   "AbsorptionRingCells": 10,
   "CityLayout": {
     "ChainedBoundsReachCells": 12,
     "FrontYardCells": 2,
     "SideSetbackCells": 2,
     "FarmerCroftCells": 3,
-    "CentralDepthCells": 0
+    "CentralDepthCells": 0,
+    "SidewalkCells": 1,
+    "Streets": {
+      "Pavement": { "Street": "Stone", "Sidewalk": "Gravel", "SidewalkWidth": 1 },
+      "ClearAroundBuildingsCells": 4
+    }
   },
   "Emergence": {
     "Enabled": true

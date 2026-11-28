@@ -26,6 +26,14 @@ func light_of(id: String) -> Dictionary:
 	return light if light is Dictionary else {}
 
 
+## #258: o objeto tem um uso que liga ou desliga a luz (`toggle` "light:on" / "light:off" nos usos do descritor): a luz dele é estado do motor.
+func switchable(id: String) -> bool:
+	for use in _descriptors.get(id, {}).get("uses", []):
+		if use is Dictionary and String(use.get("toggle", "")).begins_with("light:"):
+			return true
+	return false
+
+
 ## Nó do objeto com a base no chão da célula; null se o id não existe no catálogo.
 ## Uma parte só sem simetria vira o próprio MeshInstance3D (igual à caixa de antes).
 func build(id: String, variation: int = 0) -> Node3D:

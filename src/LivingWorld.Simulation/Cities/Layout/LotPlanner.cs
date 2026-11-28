@@ -94,16 +94,17 @@ internal readonly record struct LotTerms(int FrontYard, int Setback, int Croft)
     /// (terra cara) só quem tem meios faz quintal.</summary>
     public static LotTerms Choose(CityLayoutRules rules, LotProfile profile, bool central)
     {
-        if (!profile.Dwelling) return new LotTerms(0, rules.SideSetbackCells, 0);
+        int sidewalk = Math.Clamp(rules.SidewalkCells, 0, rules.MaxFrontYardCells()); // #258: a calçada entre a porta e a rua, o que o cenário declara
+        if (!profile.Dwelling) return new LotTerms(sidewalk, rules.SideSetbackCells, 0);
         double median = profile.MedianMeansPerHead;
         bool poor = median > 0 && profile.MeansPerHead < median * rules.PoorMeansFraction;
         bool rich = median > 0 && profile.MeansPerHead > median * rules.RichMeansFactor;
-        if (poor) return new LotTerms(0, 0, 0);
+        if (poor) return new LotTerms(sidewalk, 0, 0);
         int croft = profile.Crafts
             ? rules.ArtisanCroftCells
             : rules.FarmerCroftCells + (rules.LargeFamilyMembers > 0 && profile.Members >= rules.LargeFamilyMembers ? 1 : 0);
         if (central && !rich) croft = 0;
-        int front = profile.Crafts ? 0 : rules.FrontYardCells;
+        int front = Math.Max(sidewalk, profile.Crafts ? 0 : rules.FrontYardCells);
         int setback = central && profile.Crafts && !rich ? 0 : rules.SideSetbackCells;
         return new LotTerms(front, setback, croft);
     }

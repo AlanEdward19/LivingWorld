@@ -43,6 +43,16 @@ public sealed partial class PlayerService
         if (untilMs is { } until && until <= world.CurrentDate.TotalMilliseconds) return Result<Unit>.Fail("sleep: o horário já passou");
         var acted = PlayerCommands.Act(world, npc.Id, playerId, ActionType.Sleep);
         if (!acted.IsSuccess) return acted;
+        // #258 (regra do Sims): pode deitar sempre; o sono acelerado só acelera enquanto há sono a recuperar. Descansado, o corpo deita no ritmo normal (o
+        // jogador o levanta quando quiser) em vez de o pulo acabar no mesmo instante ("descansado") e a cama parecer recusar.
+        if (untilMs is null && npc.SleepAt(world.CurrentDate.TotalHours) >= SkipWatch.Rested)
+        {
+            LastWakeReason = null;
+            Record(world, playerId, PlayerCommandKind.Sleep, npc.Id.Value,
+                new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Sleep, UntilMs: untilMs));
+            return Result<Unit>.Ok(Unit.Value);
+        }
+
         Begin(world, npc, playerId, sleeping: true, untilMs);
         Record(world, playerId, PlayerCommandKind.Sleep, npc.Id.Value,
             new PlayerCommandRecord(0, 0, playerId, PlayerCommandKind.Sleep, UntilMs: untilMs));

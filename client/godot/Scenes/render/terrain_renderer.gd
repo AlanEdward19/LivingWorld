@@ -86,12 +86,20 @@ func rebuild(p_store) -> void:
 	scenery.name = "Scenery"
 	terrain_root.add_child(scenery)
 	scenery.trees_state = trees_state
+	scenery.clear_zones = clear_zones
 	scenery.build(store.terrain, store.rivers, rects)
 	apply_season(store.climate)
 
 
 ## #243: as árvores cortadas, como o motor diz (`GET /world/trees`); o terreno refeito as reaplica.
 var trees_state: Array = []
+var clear_zones: Array = [] ## #258: as zonas sem árvore que o motor diz (quintal limpo, rua e calçada)
+
+
+func apply_clear(zones: Array) -> void:
+	clear_zones = zones
+	if scenery != null:
+		scenery.apply_clear(zones)
 
 
 func apply_trees(list: Array) -> void:

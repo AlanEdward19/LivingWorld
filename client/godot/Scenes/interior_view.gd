@@ -42,6 +42,9 @@ var _labels
 var _walls: Array = [] ## [{node, mesh, cell}]
 var _lamps: Array = [] ## #260: as luzes dos objetos do catálogo que dão luz (abajur)
 var _lamp_level := -1.0
+var _lit_key := "" ## #258: a última lista de luzes ligadas aplicada
+var _lit_piece := -1 ## #258: o índice da peça que está sendo posta (para a luz saber qual é)
+var _lit_snapshot := false ## #258: se o retrato da casa diz que a luz da peça que está sendo posta está ligada
 var _pieces: Array = [] ## #250: [{node, bounds, xf, meshes, fade}] cada peça de mobília: o que fica entre a câmera e o corpo vira translúcido
 var _center := Vector3.ZERO
 var _span := 0.0
@@ -201,7 +204,9 @@ func _any_planned(objects: Dictionary) -> bool:
 ## #237: desenha cada peça no andar, célula e giro que o motor deu; peça sem `cell` não coube (o motor não a pôs). O uso (cama etc.) vale em qualquer andar.
 func _place_planned(info: Dictionary, objects: Dictionary, factory) -> void:
 	var containers := {}
+	var piece_index := -1
 	for placed in objects.furniture:
+		piece_index += 1
 		if placed.get("cell") == null or not factory.has(String(placed.id)):
 			continue
 		var level := int(placed.get("floor", 0))
@@ -217,7 +222,10 @@ func _place_planned(info: Dictionary, objects: Dictionary, factory) -> void:
 				furniture = container
 		var cell: Vector2i = origin + Vector2i(int(placed.cell.x), int(placed.cell.y))
 		var yaw := deg_to_rad(float(placed.get("facing", 0)))
+		_lit_piece = piece_index
+		_lit_snapshot = bool(placed.get("lit", false))
 		_add_object(factory, String(placed.id), int(placed.variation), cell, containers[level], yaw)
+		_lit_piece = -1
 		_register_slot(String(placed.id), cell, yaw, level)
 
 
@@ -228,15 +236,18 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 	parent.add_child(node)
 	var light: Dictionary = factory.light_of(piece_id)
 	if not light.is_empty():
-		_add_lamp(node, light) # #260: a luz é do objeto do catálogo (abajur): o cliente só a desenha
+		_add_lamp(node, light, factory.switchable(piece_id)) # #260: a luz é do objeto do catálogo (abajur): o cliente só a desenha
 	_register_point(piece_id, cell, parent)
 	_register_piece(node)
 
 
 ## #260: a luz de um objeto do catálogo: um ponto de luz quente na altura que o descritor diz, apagado até `set_lamp_level` acendê-lo.
-func _add_lamp(node: Node3D, light: Dictionary) -> void:
+func _add_lamp(node: Node3D, light: Dictionary, switchable: bool = false) -> void:
 	var lamp := OmniLight3D.new()
 	lamp.name = "Lamp"
+	lamp.set_meta("piece", _lit_piece) # #258: o índice da peça na mobília do motor (o motor diz quais luzes estão ligadas)
+	lamp.set_meta("switch", switchable)
+	lamp.set_meta("lit", _lit_snapshot)
 	lamp.light_color = Color(String(light.get("color", "ffd9a0")))
 	lamp.omni_range = Grid.units(float(light.get("rangeM", 6.0)))
 	lamp.set_meta("energy", float(light.get("energy", 1.0)))
@@ -254,9 +265,37 @@ func set_lamp_level(level: float) -> void:
 		return
 	_lamp_level = level
 	for lamp in _lamps:
-		if is_instance_valid(lamp):
+		if is_instance_valid(lamp) and not bool(lamp.get_meta("switch", false)): # só o objeto sem uso de ligar acende pelo escurecer (servidor antigo)
 			lamp.light_energy = float(lamp.get_meta("energy", 1.0)) * level
 			lamp.visible = level > 0.01
+
+
+## #258: as luzes que o motor diz estarem ligadas (índices das peças na mobília): o abajur com uso de ligar e desligar acende só se está nesta lista;
+## `null` (nenhum delta ainda) vale o que o retrato da casa disse. O cliente não decide por hora nem por quem está em casa.
+func set_lit(indices: Variant) -> void:
+	var wanted: Array = []
+	if indices is Array:
+		for index in indices:
+			wanted.append(int(index)) # o JSON traz número como real (11.0): compara por inteiro
+	var key := JSON.stringify(wanted) if indices is Array else "snapshot"
+	if key == _lit_key:
+		return
+	_lit_key = key
+	for lamp in _lamps:
+		if not is_instance_valid(lamp) or not bool(lamp.get_meta("switch", false)):
+			continue
+		var on: bool = (int(lamp.get_meta("piece", -1)) in wanted) if indices is Array else bool(lamp.get_meta("lit", false))
+		lamp.light_energy = float(lamp.get_meta("energy", 1.0)) if on else 0.0
+		lamp.visible = on
+
+
+## Quantas luzes ligáveis estão acesas agora (testável).
+func lit_count() -> int:
+	var n := 0
+	for lamp in _lamps:
+		if is_instance_valid(lamp) and bool(lamp.get_meta("switch", false)) and lamp.visible:
+			n += 1
+	return n
 
 
 func lamp_count() -> int:
@@ -550,6 +589,7 @@ func _clear() -> void:
 	_pieces.clear()
 	_lamps.clear()
 	_lamp_level = -1.0
+	_lit_key = ""
 	_panels.clear()
 	_plans.clear()
 	_view_dir = Vector3.ZERO

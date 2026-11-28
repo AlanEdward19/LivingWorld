@@ -235,7 +235,7 @@ public class DefaultPeriodSeederTests
         var card = PeriodCards.From(template.PeriodId, template.Source, template.PayloadJson);
         Assert.Equal("Sandbox: casal", card.Name);
         Assert.True(card.QuickStart);
-        Assert.Equal(2, card.InitialPopulation); // as duas pessoas da família autorada
+        Assert.Equal(3, card.InitialPopulation); // o casal e o comerciante do mercado (famílias autoradas)
         Assert.Equal(1, card.SettlementCount);
         Assert.All(DefaultPeriodSeeder.PresetIds, id => Assert.False(PeriodCards.From(id, "", DefaultPeriodSeeder.PayloadFor(id)).QuickStart));
         Assert.True(PeriodDefinitionValidator.Validate(template.PayloadJson).IsSuccess);

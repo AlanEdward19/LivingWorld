@@ -19,16 +19,17 @@ public class SandboxCasalTests
         return dir ?? throw new InvalidOperationException("LivingWorld.sln não encontrado");
     }
 
-    private static string Json(Action<JsonObject>? edit = null)
+    /// <summary>#258: por padrão só o casal (os testes da casa); <c>full</c> traz o mercado e o comerciante também (os testes do bairro).</summary>
+    private static string Json(Action<JsonObject>? edit = null, bool full = false)
     {
-        var root = JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "scenarios", "periods", "sandbox-casal.json")))!.AsObject();
+        var root = full ? SandboxFixtures.Parse() : SandboxFixtures.CoupleOnly(SandboxFixtures.Parse());
         edit?.Invoke(root);
         return root.ToJsonString();
     }
 
-    private static (WorldState World, WorldClock Clock) Load(Action<JsonObject>? edit = null)
+    private static (WorldState World, WorldClock Clock) Load(Action<JsonObject>? edit = null, bool full = false)
     {
-        var result = ScenarioLoaderV2.LoadWorld(Json(edit));
+        var result = ScenarioLoaderV2.LoadWorld(Json(edit, full));
         Assert.True(result.IsSuccess, result.Error);
         return result.Value;
     }

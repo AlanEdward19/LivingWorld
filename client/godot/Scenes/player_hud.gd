@@ -1687,6 +1687,11 @@ func interact(entry: Dictionary) -> void:
 		warning.emit(BodyBusy.human_error(error) if error != "" else "O motor recusou (erro %d)." % response.status)
 
 
+## #258: o texto de um campo que pode vir nulo do motor ("" se nulo).
+static func _text_of(value: Variant) -> String:
+	return "" if value == null else String(value)
+
+
 ## #222: o retorno de uma interação aceita, com o que o motor respondeu (quantidade e valor quando houver).
 static func done_text(entry: Dictionary, body: Dictionary) -> String:
 	if body.get("outcome") is String and String(body.outcome) == "done" and body.get("note") != null: # #259: a interação social aceita: o nome dela, do catálogo

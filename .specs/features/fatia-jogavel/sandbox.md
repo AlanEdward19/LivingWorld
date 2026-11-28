@@ -30,5 +30,7 @@ Aceite: um dia inteiro cuidando das barras só com a casa; o parceiro não contr
 
 **Depois da fatia aceitável (ordem do dono, 2026-11-28):** #257 — por que os NPCs não vivem de forma realista e simulação por nível de detalhe para o planeta.
 
-**Também depois:** vizinhos, emprego, mercado, compra e arrumação de móveis (M5), conversa por IA (M7).
+**#258 (sobras do S2, AD-226):** mercado do bairro com comerciante (comida sem nascer do nada), refeição no fogão, rua/calçada/quintal limpo como parâmetro, abajur ligável, parceiro que volta para se cuidar, dormir quando se quer. **Próxima etapa: renda do casal (emprego).**
+
+**Também depois:** vizinhos, emprego do casal, compra e arrumação de móveis (M5), conversa por IA (M7).
 Cada etapa mede FPS e custo e roda só os testes rápidos (longrunning ao fim da fatia).

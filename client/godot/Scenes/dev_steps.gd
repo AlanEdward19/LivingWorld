@@ -1,7 +1,7 @@
 extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
-## Passos (#260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
+## Passos (#258: goto:X,Y · skip:S · delta:MS · speed:N · #260: speedinfo · lamps · walls): wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
 ##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · gametalk:ID (conversa do modo jogador, #237) · pick:N (fala pronta N) · say:texto · timesay:texto (mede quanto a UI espera) · bio:ID · chronicle · reports · player:ID · switch (#252: troca para a outra pessoa da casa) · useverb:Objeto|Uso (#255: usa ou enfileira o uso do móvel) · needs (#255: barras, dica, ação e fila) · waituse:S · cancelq:N · where (#252: onde está o corpo) · use:texto (#252: usa a oferta do motor com esse texto) · act:Nome · creator · creatorstep:N (etapa do criador, #222) · creatorrandom · creatorset:campo=valor,... · creatorcreate (AD-197t) · creatorpick:N (AD-197q) · materialize (aperta Ver em detalhe) · demo:janela (mostra uma janela com dados de exemplo) · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · near:zoom · selectfirst · building · next · watch · benchbig:N · third/first (câmera do jogador, AD-197d) · cam:first|third (só o modo, AD-197o) · playstreet (encarna quem está na rua) · unplayer (sai do personagem; medida pareada) · stacks (conta pessoas sobrepostas, AD-197r) · xray · plan · street · lot · ground (AD-177) · roads · walker · walkloop:S (#248: anda S s virando o olhar e mede puxões) · walkstats[:reset] · heat (AD-181) · pause (menu de pausa) · tips:N (dica N) · help · quit. Não é usado em produção (sem --steps nada roda).
 
 
@@ -215,6 +215,9 @@ static func run(app: Node, steps: Array) -> void:
 					both += 3.0
 			"sleepfast": # #255: dormir acelerando (só quem joga sozinho): o motor corre o tempo até descansar
 				await app.player_hud.sleep(-1)
+				app.player_hud.api.invalidate_npc(app.player_hud.npc_id)
+				var slept: Dictionary = (await app.player_hud.api.npc_detail(app.player_hud.npc_id)).body
+				print("sleepfast: ação=", slept.get("currentAction"), " (1 = dormir) sono=", slept.get("sleep"), " tempo=", app.player_hud.time_view)
 			"theotherlog": # #255: `theotherlog:S` imprime as barras da outra pessoa da casa (a que ninguém conduz) a cada 6 s reais por S s
 				var seen := 0.0
 				while seen < float(arg):
@@ -230,7 +233,7 @@ static func run(app: Node, steps: Array) -> void:
 				for housemate in app.player_hud.housemates:
 					app.player_hud.api.invalidate_npc(int(housemate.id))
 					var other: Dictionary = (await app.player_hud.api.npc_detail(int(housemate.id))).body
-					print("theother: [", app.player_frame.clock_label.text, "] ", other.name, " ação=", other.get("currentAction"), " ", _need_line(other), " | dica: ", PlayerFrame.hint_line(other.get("needHint")))
+					print("theother: [", app.player_frame.clock_label.text, "] ", other.name, " ação=", other.get("currentAction"), " em=", other.get("currentLocation"), " ", _need_line(other), " | dica: ", PlayerFrame.hint_line(other.get("needHint")))
 			"waituse": # #255: espera (até S s reais) o uso acabar; imprime as barras uma vez por segundo
 				var waited := 0.0
 				while app.player_hud.busy.active() and waited < float(arg):
@@ -248,7 +251,8 @@ static func run(app: Node, steps: Array) -> void:
 					" Δ=", st.get("tickDeltaMs"), " modo=", st.get("rhythm"), " relógio=", app.player_frame.clock_label.text)
 			"lamps": # #260: as luzes dos objetos da casa (quantas, em que nível) e a luz do dia que o cliente usa
 				var view = app.stage.interior_view
-				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour)
+				print("lamps: casa=", app.stage.active, " luzes=", view.lamp_count(), " ligadas pelo motor=", view.lit_count(), " nível=", view._lamp_level, " luz do dia=", app.day_cycle.daylight(), " hora=", app.day_cycle.hour, " | luzes do motor (delta)=", app.store.interior.get("lights"),
+					" | peças das luzes=", view._lamps.map(func(l): return [l.get_meta("piece", -1), l.get_meta("switch", false), l.visible]))
 			"walls": # #260: troca o modo das paredes (a tecla V)
 				app.cycle_walls()
 			"hudclock": # #256: `hudclock:N` imprime a cada 1 s, por N s, o relógio que a TELA mostra (texto e horas do mundo) e o ritmo que o cliente usa
@@ -782,6 +786,38 @@ static func run(app: Node, steps: Array) -> void:
 				if arg == "reset":
 					app.player_hud.walk_stats = {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}
 				print("walkstats: ", app.player_hud.walk_stats, " fine=", app.player_hud.fine)
+			"speed": # #258: `speed:N` a velocidade do tempo do jogador (0 pausa, 1, 2, 3), pelo mesmo botão do HUD
+				await app.player_hud.set_speed(int(arg))
+			"delta": # #258: `delta:MS` o admin troca o Δ do tick (ms de mundo por tick; divide a hora): 1000 = 20 s de mundo por s real; `delta:50` volta ao tempo real
+				var reply: Dictionary = await app.api.transport.request("POST", "/simulation/tick-delta", {"deltaMs": int(arg)})
+				print("delta: ", arg, " ms -> ", reply.get("status"))
+			"skip": # #258: `skip:S` o admin acelera o mundo por S s reais (uma hora de mundo por tick) e imprime a hora; o jogador fica onde está (a prova do parceiro fora de casa)
+				await app.api.transport.request("POST", "/simulation/accelerate", {"on": true})
+				await app.get_tree().create_timer(float(arg if arg != "" else "1")).timeout
+				await app.api.transport.request("POST", "/simulation/accelerate", {"on": false})
+				print("skip: relógio=", app.player_frame.clock_label.text if app.player_frame != null else app.day_cycle.clock_text())
+			"goto": # #258: `goto:X,Y` anda com W até a célula X,Y (até 120 s): o olhar vira para ela a cada 0,1 s e o passo para a ~0,3 célula; imprime onde parou
+				var goal := Vector2(float(arg.get_slice(",", 0)) + 0.5, float(arg.get_slice(",", 1)) + 0.5)
+				var go_press := InputEventKey.new()
+				go_press.keycode = KEY_W
+				go_press.physical_keycode = KEY_W
+				go_press.pressed = true
+				Input.parse_input_event(go_press)
+				var walked := 0.0
+				while walked < 120.0:
+					var here: Vector2 = app.player_hud.fine
+					if here != Vector2.INF:
+						var delta_cells := goal - here
+						if delta_cells.length() < 0.3:
+							break
+						app.rig.yaw = atan2(-delta_cells.x, -delta_cells.y)
+						app.rig.view_yaw = app.rig.yaw
+					await app.get_tree().create_timer(0.1).timeout
+					walked += 0.1
+				var go_release: InputEventKey = go_press.duplicate()
+				go_release.pressed = false
+				Input.parse_input_event(go_release)
+				print("goto: ", arg, " em ", snappedf(walked, 0.1), " s, parou em ", app.player_hud.fine, " prédio=", app.player_hud.building_id)
 			"walkloop": # #248: `walkloop:S` anda S s com W segurado, virando o olhar a cada ~2,5 s (reta, curva, parada) e imprime a medida
 				var span := float(arg) if arg != "" else 30.0
 				app.player_hud.walk_stats = {"frames": 0, "pulls": 0, "pull_m": 0.0, "replies": 0, "snaps": 0, "worst_m": 0.0, "back_m": 0.0, "back_events": 0, "gap_mean_m": 0.0, "gap_worst_m": 0.0}

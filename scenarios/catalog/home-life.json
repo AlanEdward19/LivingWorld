@@ -230,16 +230,20 @@
      "effects": [
       {
        "need": "hunger",
-       "perHour": 200
+       "perHour": 300
       },
       {
        "need": "thirst",
        "perHour": 80
+      },
+      {
+       "need": "fun",
+       "perHour": 14
       }
      ],
      "consumes": [
       {
-       "resource": 1,
+       "resource": 3,
        "quantity": 1
       },
       {
@@ -561,13 +565,9 @@
    "uses": [
     {
      "id": "cook",
-     "name": "Cozinhar e comer",
-     "durationMin": 25,
+     "name": "Cozinhar",
+     "durationMin": 10,
      "effects": [
-      {
-       "need": "hunger",
-       "perHour": 170
-      },
       {
        "need": "fun",
        "perHour": 6
@@ -576,16 +576,21 @@
      "consumes": [
       {
        "resource": 1,
-       "quantity": 1
+       "quantity": 2
       }
      ],
-     "pose": "eat",
+     "produces": [
+      {
+       "resource": 3,
+       "quantity": 2
+      }
+     ],
+     "pose": "work",
      "slot": [
       0,
       0.5
      ],
-     "facing": 180,
-     "untilFull": "hunger"
+     "facing": 180
     }
    ]
   },
@@ -941,7 +946,35 @@
     "rangeM": 7.0,
     "energy": 1.6,
     "heightM": 1.3
-   }
+   },
+   "uses": [
+    {
+     "id": "on",
+     "name": "Ligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:on",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    },
+    {
+     "id": "off",
+     "name": "Desligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:off",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    }
+   ]
   },
   {
    "id": "bedside",
@@ -1001,7 +1034,110 @@
     "rangeM": 7.0,
     "energy": 1.6,
     "heightM": 1.3
-   }
+   },
+   "uses": [
+    {
+     "id": "on",
+     "name": "Ligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:on",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    },
+    {
+     "id": "off",
+     "name": "Desligar",
+     "durationMin": 1,
+     "effects": [],
+     "toggle": "light:off",
+     "slot": [
+      0,
+      0.6
+     ],
+     "facing": 180,
+     "occupies": false
+    }
+   ]
+  },
+  {
+   "id": "food",
+   "name": "Comida",
+   "category": "resource",
+   "resourceId": 1,
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "sphere",
+     "size": [
+      0.1
+     ],
+     "offset": [
+      0,
+      0.1,
+      0
+     ],
+     "color": "d9b44a"
+    }
+   ],
+   "effects": [
+    "hunger:60"
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "water",
+   "name": "Água",
+   "category": "resource",
+   "resourceId": 2,
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "sphere",
+     "size": [
+      0.1
+     ],
+     "offset": [
+      0,
+      0.1,
+      0
+     ],
+     "color": "4a90d9"
+    }
+   ],
+   "effects": [
+    "thirst:100"
+   ],
+   "usePoints": []
+  },
+  {
+   "id": "meal",
+   "name": "Refeição",
+   "category": "resource",
+   "resourceId": 3,
+   "variationSeed": 0,
+   "shape": [
+    {
+     "shape": "sphere",
+     "size": [
+      0.1
+     ],
+     "offset": [
+      0,
+      0.1,
+      0
+     ],
+     "color": "c8693a"
+    }
+   ],
+   "effects": [
+    "hunger:100"
+   ],
+   "usePoints": []
   }
  ]
 }

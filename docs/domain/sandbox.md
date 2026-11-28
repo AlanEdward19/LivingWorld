@@ -44,7 +44,7 @@ motor**: é o período `scenarios/periods/sandbox-casal.json`. Decisão: AD-218.
 ## S2 (#255): necessidades e objetos como dado
 Higiene, diversão e bexiga, usos com duração, o corpo que anda até o móvel, fila e o parceiro que se cuida sozinho: ver [needs-and-objects.md](needs-and-objects.md) (AD-220).
 No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necessidades), `Furnishings["-1"]` com chuveiro, vaso, pia e TV, `InitialPantryPerMember: 400`
-(a despensa dura; sem mercado ainda, nenhuma comida é criada do nada).
+(a despensa dura; a reposição vem do mercado do bairro, ver #258 abaixo).
 
 ## UX do sandbox (#260, AD-224)
 - **Velocidade do tempo** (HUD, canto de cima, e teclas **0** pausa, **1**, **2**, **3**): só sozinho no mundo (`canSkip` do `GET /players/{id}/time`), validada pelo motor
@@ -55,6 +55,23 @@ No período: `CatalogExtends: ["home-life"]` (móveis com usos e as três necess
 ## S3 (#259): o casal vive junto
 Interações sociais em dados (conversar, elogiar, abraçar, beijar, piada, discussão, desculpa, convites para ver TV, comer e deitar juntos), relação visível e iniciativa dos NPCs: ver [social-interactions.md](social-interactions.md) (AD-223). No período: `CatalogExtends: ["home-life", "social"]`.
 
+## Sobras (#258, AD-226): mercado, refeição, rua, luz
+Tudo é dado do período e do catálogo (`home-life.json`); o código só tem os mecanismos genéricos.
+- **Mercado do bairro** (comida que se repõe sem nascer): um `Workplaces[]` do tipo 1 (nome "Mercado", `Descriptors.LocationType/BuildingType`) com estoque, preço e caixa, de porta
+  para a rua (`Orientation: 180`). Quem o abastece é o trabalho de verdade: **Seu Joaquim** (profissão 2, `Members[].Workplace: 0` = já empregado), pela receita do local
+  (`Recipes["1"]`) com `CropYear: {Enabled:false}` (sem safra anual, o lote diário). Comprar = a banca de sempre (`stall`/`buy`): moeda e comida só mudam de mão (carteira → caixa,
+  estoque → despensa da casa, que é a geladeira); sem moeda, recusa. **Renda do casal fica para a próxima etapa** (emprego; hoje ele vive de 50 moedas cada e da despensa).
+- **Refeição**: recurso 3 ("Refeição"). O fogão (`cook`, 10 min, `consumes` 2 comida, `produces` 2 refeição) só produz no fim natural (interromper perde o preparo); a mesa (`meal`) gasta
+  1 refeição e 1 água e sacia mais (300/h, +diversão); a comida crua do catálogo sacia 60 (`food` `hunger:60`), a refeição 100. Quem ninguém conduz cozinha antes da refeição sem
+  urgência e `FoodResolver.ResolveMeal` prefere a refeição pronta.
+- **Rua, calçada, quintal** (`CityLayout`): `Streets.Pavement {Street, Sidewalk, SidewalkWidth}` pavimenta o traçado e a calçada (`StreetPavement`, chão de verdade: condição, rota e
+  desenho do cliente pela camada `Roads`); `Streets.ClearAroundBuildingsCells` tira as árvores a N células de prédio, rua e calçada (`GET /world/trees` traz `clear`; o cliente esconde
+  as da regra de 16% ali); `SidewalkCells` pede calçada entre a porta e a rua. Cenário sem os campos: chão e árvores de antes.
+- **Cuidado fora de casa**: o parceiro que ninguém conduz, longe de casa com bexiga ou higiene urgentes, volta (`CareCallsHome`) e usa o objeto lá. Sem instalação pública no catálogo.
+- **Dormir**: deitar vale sempre; o sono acelerado só acelera havendo sono a recuperar e acorda `descansado`; descansado, deita em ritmo normal.
+- **Abajur**: usos `light:on`/`light:off` (`toggle`), estado em `world.Lights` (`LightLedger`, no snapshot e no hash só se alguma está ligada); o delta do interior traz `lights`;
+  o NPC liga a do cômodo ao escurecer e apaga de dia, ao dormir e ao sair (`HomeTending`). **Higiene** pesa no laço também entre NPCs (`HomeLife.WeighBond`).
+
 ## O que ainda não funciona
-- Rua e calçada sem superfície de partida; a porta da casa pode abrir para um caminho até a rua e o quintal tem as árvores da regra de 16% (nenhum parâmetro de cenário as tira).
-- Comida: só a despensa de partida (mercado ou entrega como prédio com estoque e preço fica em issue). Sono e comer à mesa seguem as ações do motor (dormir: `action`).
+- O casal não tem renda (próxima etapa: emprego); fome e sede de sempre ficam fora do bloco de necessidades em dados (mover muda o hash do mundo grande).
+- Sem instalação pública (banheiro de rua); o mercado só vende comida e água; sem entrega por telefone.

@@ -53,7 +53,9 @@ public sealed record UseConsume(int Resource, long Quantity);
 /// corpo (nome declarado aqui; sem animação própria o cliente usa <c>PoseFallback</c>, uma de <see cref="ObjectPoses"/>), o lugar onde o corpo fica (<c>Slot</c>: deslocamento x, z em
 /// metros a partir do centro da peça, no referencial dela) e para onde olha. <c>Action</c> (id de <c>ActionType</c>) delega o uso à ação do motor
 /// (dormir, comer à mesa) depois de o corpo chegar ao lugar; sem ela, a duração e os efeitos daqui valem. <c>Occupies</c>: só uma pessoa por vez. <c>Hidden</c> (#259): uso só de convite (atividade conjunta
-/// da <see cref="SocialJoint"/>): fora da roda do objeto e da escolha de quem cuida de si.</summary>
+/// da <see cref="SocialJoint"/>): fora da roda do objeto e da escolha de quem cuida de si. <c>Produces</c> (#258): o que o uso põe na despensa da casa ao
+/// terminar de verdade (o fogão transforma o que gastou em refeição; interromper antes perde o preparo). <c>Toggle</c> (#258): <c>light:on</c> ou
+/// <c>light:off</c>, o uso liga ou desliga a luz do objeto (estado do mundo, <c>LightLedger</c>); acontece na hora em que o corpo chega.</summary>
 public sealed record ObjectUseDef(
     string Id, string Name, int DurationMin, IReadOnlyList<UseEffect> Effects,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<UseConsume>? Consumes = null,
@@ -64,7 +66,16 @@ public sealed record ObjectUseDef(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UntilFull = null,
     bool Occupies = true,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PoseFallback = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Hidden = false);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Hidden = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<UseConsume>? Produces = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Toggle = null);
 
 /// <summary>#255: uma entrada da fila de ações do corpo conduzido: o uso de um objeto de um prédio (índice da peça na mobília).</summary>
 public sealed record QueuedUse(long Building, int Piece, string Use);
+
+/// <summary>#258: os valores de <see cref="ObjectUseDef.Toggle"/> que o motor conhece.</summary>
+public static class ObjectToggles
+{
+    public const string LightOn = "light:on";
+    public const string LightOff = "light:off";
+}
