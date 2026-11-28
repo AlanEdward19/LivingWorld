@@ -127,3 +127,10 @@ dia: [docs/aparencia-e-cidade.md](docs/aparencia-e-cidade.md).
 Clique = ir até/interagir (pessoa, móvel, prédio; `player_hud.click_target`, `POST /players/{id}/go`); golpe: **R** ou Shift+clique parado. "Ir agora" e "Pular para a volta do turno" sob o relógio; "Os dois estão fora"
 (`player_hud.both_away_changed`); relação empilhada acima do cartão; rótulos de prédio sem sobreposição (`building_labels.hidden_ids`); câmera de interior sobre a casa (`interior_camera.keep_in_house`); chapéu pelo traje do motor.
 Passos de captura: `clickgo:Rafael|obj=Sofá|place=Mercado`, `relinfo:Rafael`, `gonow`, `skipreturn`, `turnui`. Medidas contra `14a3af4b` (2 rodadas alternadas): `stress:500` 115,9 / 116,1 → 116,2 / 116,0 FPS (monitor 120 Hz); motor `profile.sh --pop 300 --ticks 720` 5,327 / 5,391 → 5,479 / 5,320 µs/NPC-tick (ruído), 78 B/NPC-tick iguais; o humor só custa em mundo com catálogo.
+
+## 6º passo de jogo (#269)
+Pressão do dia e parceiro vivo (ritmo das necessidades em dado), dia e noite do motor desde o 1º quadro (o tempo do dia de partida nasce na carga; o sandbox fica a -23,5°), "Pôr onde cabe" (`fit`/`autoplace`) e clique vermelho que põe onde o motor disse,
+"Entrar" a até 2,4 m da soleira e a própria casa entra ao chegar (a roda não abre sobre a porta), rótulos de prédio com fonte 64 e no máximo 22 px na tela (`building_labels.fit_to_screen`), câmera de soleira a 2,1 m (`STREET_VIEW_M`).
+Passos de captura novos: `sky` (hora, nascer e pôr do sol do cliente e do motor, fase, luz) e `places` (nomes que `clickgo:place=` procura e a casa do corpo); `buyfind:#N[,cômodo]` agora pergunta o `fit` ao motor.
+Medidas contra `cd8251e6` (2 rodadas alternadas, mesma API, monitor 120 Hz): `stress:500` 116,4 / 116,9 (antes) → 115,9 / 116,3 (depois), ruído; motor `profile.sh --pop 300 --ticks 720`: 5,426 / 5,580 → 5,390 / 5,676 µs/NPC-tick (ruído), 78 B/NPC-tick iguais.
+Os rótulos só ajustam o `pixel_size` a cada 0,25 s (o corte de sobreposição que já existia); o `fit` do motor roda só ao perguntar (sem custo por NPC-tick).
